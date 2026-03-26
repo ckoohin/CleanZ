@@ -13,38 +13,38 @@ import * as bcrypt from 'bcrypt';
 @Entity('Users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   @Column({ select: false })
-  password: string;
+  password!: string;
 
   @Column({ length: 100 })
-  fullName: string;
+  fullName!: string;
 
   @Column({
     type: 'enum',
     enum: UserRole,
     default: UserRole.CUSTOMER,
   })
-  role: UserRole;
+  role!: UserRole;
 
   @Column({ nullable: true, type: 'text' })
-  refreshToken: string | null;
+  refreshToken!: string | null;
 
   @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
-  lastLogin: Date;
+  lastLogin!: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @BeforeInsert()
   @BeforeUpdate()

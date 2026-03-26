@@ -25,7 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   validate(payload: JwtPayload) {
-    return { userId: payload.sub, email: payload.email, role: payload.role };
+    // Fix field userId -> id, runtime error when accessing user info in request.user in controllers
+    return { id: payload.sub, email: payload.email, role: payload.role };
   }
 }
 // constructor(

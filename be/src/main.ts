@@ -3,9 +3,14 @@ import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import validationOptions from './utils/validation-options';
 import { GlobalExceptionFilter } from './utils/global-exception';
+import cookieParser from 'cookie-parser';
+import express from 'express';
+import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(cookieParser());
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads', 'public')));
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',
