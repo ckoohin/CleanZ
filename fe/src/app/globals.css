@@ -1,0 +1,236 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+
+    /* Sidebar */
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+
+    /* Charts */
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+
+    /* Core */
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* Radius scale */
+    --radius-sm: calc(var(--radius) - 2px);
+    --radius-md: var(--radius);
+    --radius-lg: calc(var(--radius) + 2px);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 12px);
+    --radius-4xl: calc(var(--radius) + 16px);
+}
+
+/* ============================================================
+   LIGHT MODE — Zinc + Indigo
+   ============================================================ */
+:root {
+    /* Base */
+    --background: #fafafa;
+    /* zinc-50 */
+    --foreground: #18181b;
+    /* zinc-900 */
+
+    /* Card */
+    --card: #ffffff;
+    --card-foreground: #18181b;
+
+    /* Popover */
+    --popover: #ffffff;
+    --popover-foreground: #18181b;
+
+    /* Primary — Indigo 500 */
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+
+    /* Secondary — zinc surface */
+    --secondary: #f4f4f5;
+    /* zinc-100 */
+    --secondary-foreground: #3f3f46;
+    /* zinc-700 */
+
+    /* Accent — indigo tint */
+    --accent: #eef2ff;
+    /* indigo-50 */
+    --accent-foreground: #3730a3;
+    /* indigo-800 */
+
+    /* Destructive */
+    --destructive: #ef4444;
+    /* red-500 */
+    --destructive-foreground: #ffffff;
+
+    /* Muted */
+    --muted: #f4f4f5;
+    /* zinc-100 */
+    --muted-foreground: #71717a;
+    /* zinc-500 */
+
+    /* UI chrome */
+    --border: #e4e4e7;
+    /* zinc-200 */
+    --input: #e4e4e7;
+    --ring: #6366f1;
+
+    /* Radius */
+    --radius: 0.625rem;
+    /* 10px — slightly more rounded than default */
+
+    /* Charts */
+    --chart-1: #6366f1;
+    /* indigo */
+    --chart-2: #8b5cf6;
+    /* violet */
+    --chart-3: #06b6d4;
+    /* cyan */
+    --chart-4: #f59e0b;
+    /* amber */
+    --chart-5: #10b981;
+    /* emerald */
+
+    /* Sidebar */
+    --sidebar: #ffffff;
+    --sidebar-foreground: #18181b;
+    --sidebar-primary: #6366f1;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #eef2ff;
+    --sidebar-accent-foreground: #3730a3;
+    --sidebar-border: #e4e4e7;
+    --sidebar-ring: #6366f1;
+}
+
+/* ============================================================
+   DARK MODE — Zinc + Indigo
+   ============================================================ */
+.dark {
+    /* Base */
+    --background: #09090b;
+    /* zinc-950 */
+    --foreground: #fafafa;
+    /* zinc-50 */
+
+    /* Card */
+    --card: #18181b;
+    /* zinc-900 */
+    --card-foreground: #fafafa;
+
+    /* Popover */
+    --popover: #18181b;
+    --popover-foreground: #fafafa;
+
+    /* Primary — Indigo 400 (brighter for dark bg) */
+    --primary: #818cf8;
+    /* indigo-400 */
+    --primary-foreground: #1e1b4b;
+    /* indigo-950 */
+
+    /* Secondary */
+    --secondary: #27272a;
+    /* zinc-800 */
+    --secondary-foreground: #d4d4d8;
+    /* zinc-300 */
+
+    /* Accent */
+    --accent: #312e81;
+    /* indigo-900 */
+    --accent-foreground: #c7d2fe;
+    /* indigo-200 */
+
+    /* Destructive */
+    --destructive: #f87171;
+    /* red-400 */
+    --destructive-foreground: #450a0a;
+
+    /* Muted */
+    --muted: #27272a;
+    /* zinc-800 */
+    --muted-foreground: #a1a1aa;
+    /* zinc-400 */
+
+    /* UI chrome */
+    --border: #3f3f46;
+    /* zinc-700 */
+    --input: #3f3f46;
+    --ring: #818cf8;
+
+    /* Charts */
+    --chart-1: #818cf8;
+    --chart-2: #a78bfa;
+    --chart-3: #22d3ee;
+    --chart-4: #fbbf24;
+    --chart-5: #34d399;
+
+    /* Sidebar */
+    --sidebar: #18181b;
+    --sidebar-foreground: #fafafa;
+    --sidebar-primary: #818cf8;
+    --sidebar-primary-foreground: #1e1b4b;
+    --sidebar-accent: #312e81;
+    --sidebar-accent-foreground: #c7d2fe;
+    --sidebar-border: #3f3f46;
+    --sidebar-ring: #818cf8;
+}
+
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        font-feature-settings: "rlig" 1, "calt" 1;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    html {
+        @apply font-sans;
+    }
+
+    /* Smooth scrolling */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Selection color */
+    ::selection {
+        background-color: #6366f1;
+        color: #ffffff;
+    }
+}
