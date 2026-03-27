@@ -6,8 +6,10 @@ import {
     UpdateDateColumn,
     JoinColumn,
     OneToOne,
+    OneToMany,
 } from 'typeorm';
-import { User } from '../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
+import { WorkerDocumentEntity } from './worker-document.entity';
 
 export enum WorkerStatus {
     PENDING = 'pending',
@@ -15,7 +17,7 @@ export enum WorkerStatus {
     REJECTED = 'rejected',
 }
 
-@Entity('worker_profiles')
+@Entity('workerProfiles')
 export class WorkerEntity {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
@@ -36,11 +38,8 @@ export class WorkerEntity {
     @Column({ type: 'text', nullable: true })
     avatarPath!: string | null;
 
-    @Column({ type: 'text', nullable: true })
-    citizenCardImagePath: string | null = null;
-
-    @Column({ type: 'text', nullable: true })
-    certificateImagePath: string | null = null;
+    @OneToMany(() => WorkerDocumentEntity, document => document.worker, { cascade: true })
+    documents?: WorkerDocumentEntity[];
 
     @Column({ type: 'int', default: 0 })
     totalJobs!: number;

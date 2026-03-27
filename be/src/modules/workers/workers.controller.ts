@@ -25,6 +25,7 @@ import {
     createSingleImageInterceptor,
     type UploadedImageFile,
 } from 'src/common/helpers/upload-image.helper';
+import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 
 const UUIDParam = new ParseUUIDPipe({
     exceptionFactory: () => new NotFoundException('Người dùng không tồn tại'),
@@ -36,8 +37,8 @@ export class WorkersController {
     constructor(private readonly workersService: WorkersService) { }
 
     private static readonly privateImageKeys = [
-        { name: 'citizenCardImage', maxCount: 1 },
-        { name: 'certificateImage', maxCount: 1 },
+        { name: 'citizenCardImage', maxCount: 10 }, // Cho phép tối đa 10 file mỗi loại
+        { name: 'certificateImage', maxCount: 10 },
     ];
 
     @Post(':userId/apply')
@@ -93,24 +94,18 @@ export class WorkersController {
     }
 
     @Get(':id/documents/:type')
-    async getDocument(
+    async getDocuments(
         @Param('id', UUIDParam) id: string,
         @Param('type') type: string,
         @CurrentUser() currentUser: AuthUser,
         @Res() res: Response,
     ) {
-        const filePath = await this.workersService.getDocumentPath(
+        const filePaths = await this.workersService.getDocumentPaths(
             id,
             type,
             currentUser.id,
             currentUser.role,
         );
-
-        const absolutePath = join(process.cwd(), filePath);
-        if (!existsSync(absolutePath)) {
-            throw new NotFoundException('File không tồn tại');
-        }
-
-        return res.sendFile(absolutePath);
+        return res.json({ files: filePaths });
     }
 }

@@ -1,4 +1,4 @@
-import { WorkerStatus } from '../worker.entity';
+import { WorkerStatus } from '../entities/worker.entity';
 
 export class WorkerProfileResponseDto {
     id!: string;
