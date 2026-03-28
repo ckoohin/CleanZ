@@ -1,7 +1,9 @@
 import { WorkerProfileResponseDto } from "../dto/worker-profile-response.dto";
 import { WorkerEntity } from "../entities/worker.entity";
 
-export const toWorkerProfileResponseDto = (entity: WorkerEntity): WorkerProfileResponseDto => {
+import { getRepository } from 'typeorm';
+
+export const toWorkerProfileResponseDto = (entity: WorkerEntity & { approvedByAdminName?: string }): WorkerProfileResponseDto => {
     let hasCitizenCardImage = false;
     let hasCertificateImage = false;
 
@@ -30,6 +32,7 @@ export const toWorkerProfileResponseDto = (entity: WorkerEntity): WorkerProfileR
         status: entity.status,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
+        lastChangedByAdminId: entity.lastChangedByAdminId,
+        lastChangedByAdminName: entity.lastChangedByAdminName,
     };
-
 }

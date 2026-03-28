@@ -1,3 +1,4 @@
+
 import {
     Injectable,
     NotFoundException,
@@ -76,7 +77,17 @@ export class WorkersService {
             return toWorkerProfileResponseDto(await this.findWorkerOrFail(savedProfile.id));
         }, 'Lỗi khi tạo hồ sơ worker');
     }
-
+    async getProfileWorker(requestUserId: string, requestUserRole: UserRole): Promise<WorkerProfileResponseDto> {
+        const worker = await this.workerRepository.findOne({
+            where: { user: { id: requestUserId } },
+            relations: ['user', 'documents'],
+        });
+        if (!worker) throw new NotFoundException('Không tìm thấy hồ sơ worker');
+        if (requestUserRole !== UserRole.ADMIN && worker.user.id !== requestUserId) {
+            throw new ForbiddenException('Bạn không có quyền truy cập hồ sơ này');
+        }
+        return toWorkerProfileResponseDto(worker);
+    }
     async update(
         id: string,
         dto: UpdateWorkerProfileDto,
@@ -197,6 +208,60 @@ export class WorkersService {
         return docs.map(d => d.filePath);
     }
 
+    async approveWorker(id: string, adminId: string): Promise<WorkerProfileResponseDto> {
+        return asyncHandleOperation(async () => {
+            const workerProfile = await this.findWorkerOrFail(id);
+            if (workerProfile.status === WorkerStatus.APPROVED) {
+                throw new BadRequestException('Worker đã được phê duyệt trước đó');
+            }
+            workerProfile.status = WorkerStatus.APPROVED;
+            workerProfile.lastChangedByAdminId = adminId;
+            const updated = await this.workerRepository.save(workerProfile);
+            let adminName: string | undefined = undefined;
+            if (updated.lastChangedByAdminId) {
+                const admin = await this.userRepository.findOne({ where: { id: updated.lastChangedByAdminId } });
+                adminName = admin?.fullName;
+            }
+            return toWorkerProfileResponseDto({ ...updated, lastChangedByAdminName: adminName });
+        }, 'Lỗi khi phê duyệt worker');
+    }
+
+    async rejectWorker(id: string, adminId: string): Promise<WorkerProfileResponseDto> {
+        return asyncHandleOperation(async () => {
+            const workerProfile = await this.findWorkerOrFail(id);
+            if (workerProfile.status === WorkerStatus.REJECTED) {
+                throw new BadRequestException('Worker đã bị từ chối trước đó');
+            }
+            workerProfile.status = WorkerStatus.REJECTED;
+            workerProfile.lastChangedByAdminId = adminId;
+            const updated = await this.workerRepository.save(workerProfile);
+            let adminName: string | undefined = undefined;
+            if (updated.lastChangedByAdminId) {
+                const admin = await this.userRepository.findOne({ where: { id: updated.lastChangedByAdminId } });
+                adminName = admin?.fullName;
+            }
+            return toWorkerProfileResponseDto({ ...updated, lastChangedByAdminName: adminName });
+        }, 'Lỗi khi từ chối worker');
+    }
+
+    async getAllWorkerDocuments(workerId: string, requestUserId: string, requestUserRole: UserRole) {
+        const worker = await this.workerRepository.findOne({
+            where: { id: workerId },
+            relations: ['user', 'documents'],
+        });
+        if (!worker) throw new NotFoundException('Không tìm thấy worker');
+        if (requestUserRole !== UserRole.ADMIN && worker.user.id !== requestUserId) {
+            throw new ForbiddenException('Bạn không có quyền truy cập tài nguyên này');
+        }
+        return {
+            documents: (worker.documents || []).map(doc => ({
+                id: doc.id,
+                type: doc.type,
+                filePath: doc.filePath,
+                createdAt: doc.createdAt,
+            })),
+        };
+    }
     // ─── Private helpers ─────────────────────────────────────
 
     private async findWorkerOrFail(id: string): Promise<WorkerEntity> {
@@ -238,7 +303,7 @@ export class WorkersService {
         return worker;
     }
 
-   
 
-    
+
+
 }

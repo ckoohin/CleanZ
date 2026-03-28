@@ -12,9 +12,6 @@ import {
     UploadedFiles,
     UseInterceptors,
 } from '@nestjs/common';
-import type { Response } from 'express';
-import { join } from 'path';
-import { existsSync } from 'fs';
 import { WorkersService } from './workers.service';
 import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -52,7 +49,12 @@ export class WorkersController {
             currentUser.role,
         );
     }
-
+    @Get('/profile')
+    async getProfile(
+        @CurrentUser() currentUser: AuthUser,
+    ) {
+        return this.workersService.getProfileWorker(currentUser.id, currentUser.role);
+    }
     @Patch(':id')
     async update(
         @Param('id', UUIDParam) id: string,
@@ -94,11 +96,10 @@ export class WorkersController {
     }
 
     @Get(':id/documents/:type')
-    async getDocuments(
+    async getDocumentByType(
         @Param('id', UUIDParam) id: string,
         @Param('type') type: string,
         @CurrentUser() currentUser: AuthUser,
-        @Res() res: Response,
     ) {
         const filePaths = await this.workersService.getDocumentPaths(
             id,
@@ -106,6 +107,31 @@ export class WorkersController {
             currentUser.id,
             currentUser.role,
         );
-        return res.json({ files: filePaths });
+        return { files: filePaths };
+    }
+
+    @Get(':id/documents')
+    async getAllDocuments(
+        @Param('id', UUIDParam) id: string,
+        @CurrentUser() currentUser: AuthUser,
+    ) {
+        return this.workersService.getAllWorkerDocuments(id, currentUser.id, currentUser.role);
+    }
+    @Patch(':id/approve')
+    @AdminOnly()
+    async approveWorker(
+        @Param('id', UUIDParam) id: string,
+        @CurrentUser() currentUser: AuthUser,
+    ) {
+        console.log("Admin", currentUser)
+        return this.workersService.approveWorker(id, currentUser.id);
+    }
+    @Patch(':id/reject')
+    @AdminOnly()
+    async rejectWorker(
+        @Param('id', UUIDParam) id: string,
+        @CurrentUser() currentUser: AuthUser,
+    ) {
+        return this.workersService.rejectWorker(id, currentUser.id);
     }
 }

@@ -60,4 +60,8 @@ export class WorkerEntity {
 
     @UpdateDateColumn()
     updatedAt!: Date;
+    @Column({ type: 'uuid', nullable: true })
+    lastChangedByAdminId?: string;
+    @Column({ type: 'text', nullable: true })
+    lastChangedByAdminName?: string;
 }

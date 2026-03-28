@@ -14,4 +14,6 @@ export class WorkerProfileResponseDto {
     status!: WorkerStatus;
     createdAt!: Date;
     updatedAt!: Date;
+    lastChangedByAdminName?: string;
+    lastChangedByAdminId?: string;
 }
