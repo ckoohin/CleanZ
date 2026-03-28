@@ -5,7 +5,7 @@
 // export class MailService {
 //   constructor(private readonly mailerService: MailerService) {}
 
-//   async sendStaffWelcomeEmail(A
+//   async sendStaffWelcomeEmail(
 //     email: string,
 //     fullName: string,
 //     tempPassword: string,
