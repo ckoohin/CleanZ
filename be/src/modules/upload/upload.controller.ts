@@ -57,10 +57,8 @@ export class UploadController {
   @Delete('image/*publicId')
   @HttpCode(HttpStatus.OK)
   async deleteImage(@Param('publicId') publicId: string) {
-    // Fix lỗi dấu phẩy -> slash
     publicId = publicId.replace(/,/g, '/');
 
-    // Xóa slash đầu nếu có
     publicId = publicId.replace(/^\/+/, '');
 
     if (!publicId.trim()) {
