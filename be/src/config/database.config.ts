@@ -21,3 +21,4 @@ export const getDatabaseConfig = (
     // ssl: { rejectUnauthorized: false },
   };
 };
+
