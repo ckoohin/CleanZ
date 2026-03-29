@@ -18,9 +18,6 @@ import {
 } from "lucide-react";
 import LogoApp from "@/components/logo/LogoApp";
 
-/* ─────────────────────────────────────────────
-   DATA
-───────────────────────────────────────────── */
 const LINKS = {
   "Dịch Vụ": [
     "Vệ sinh nhà cửa",
@@ -73,9 +70,6 @@ const CONTACT = [
   { icon: MapPin, text: "72 Lê Thánh Tôn, Q.1, TP.HCM" },
 ];
 
-/* ─────────────────────────────────────────────
-   COMPONENT
-───────────────────────────────────────────── */
 export default function Footer() {
   return (
     <footer className="bg-background border-t border-border">
