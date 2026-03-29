@@ -1,5 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
-import Container from '@/components/Container'
+// import Container from '@/components/Container'
 import { Flame, CalendarCheck, Search, Star, Shield, Clock, ChevronRight } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -117,7 +116,7 @@ export const heroServices: THeroService[] = [
     },
 ];
 
-const INTERVAL = 5500;
+const INTERVAL = 4500;
 
 const HeroCarousel = () => {
     const [current, setCurrent] = useState(0);
@@ -150,7 +149,6 @@ const HeroCarousel = () => {
     return (
         <div className="relative w-full h-[100vh] overflow-hidden bg-black">
 
-            {/* ── BG IMAGE with Ken Burns ── */}
             <AnimatePresence mode="wait">
                 <motion.div
                     key={current}
@@ -165,13 +163,11 @@ const HeroCarousel = () => {
                         alt={slide.title}
                         className="w-full h-full object-cover"
                     />
-                    {/* Multi-layer overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
                 </motion.div>
             </AnimatePresence>
 
-            {/* ── CONTENT ── */}
             <div className="relative z-10 h-full flex flex-col justify-center max-w-7xl mx-auto px-6 md:px-12">
                 <AnimatePresence mode="wait">
                     <motion.div
@@ -182,7 +178,6 @@ const HeroCarousel = () => {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.4 }}
                     >
-                        {/* Status pill */}
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -203,7 +198,6 @@ const HeroCarousel = () => {
                             </span>
                         </motion.div>
 
-                        {/* Title */}
                         <motion.h1
                             initial={{ opacity: 0, y: 28 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -217,7 +211,6 @@ const HeroCarousel = () => {
                             </span>
                         </motion.h1>
 
-                        {/* Desc */}
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -227,7 +220,6 @@ const HeroCarousel = () => {
                             {slide.description}
                         </motion.p>
 
-                        {/* Stats row */}
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -246,8 +238,7 @@ const HeroCarousel = () => {
                                 Bảo hiểm công việc
                             </div>
                         </motion.div>
-
-                        {/* Buttons */}
+                    
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -271,7 +262,6 @@ const HeroCarousel = () => {
                             </a>
                         </motion.div>
 
-                        {/* Trust row */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -292,7 +282,6 @@ const HeroCarousel = () => {
                 </AnimatePresence>
             </div>
 
-            {/* ── THUMBNAIL STRIP + PROGRESS (desktop right) ── */}
             <div className="absolute right-8 top-1/2 -translate-y-1/2 z-20 hidden lg:flex flex-col gap-3">
                 {slides.map((s, i) => (
                     <button
@@ -300,7 +289,6 @@ const HeroCarousel = () => {
                         onClick={() => goTo(i)}
                         className="group relative flex items-center gap-3"
                     >
-                        {/* progress bar left of active */}
                         <div className={cn(
                             "absolute -left-5 top-1/2 -translate-y-1/2 w-1 rounded-full transition-all duration-300 bg-white/20",
                             i === current ? "h-14" : "h-6 group-hover:h-8"
@@ -313,7 +301,6 @@ const HeroCarousel = () => {
                             )}
                         </div>
 
-                        {/* Thumbnail */}
                         <div className={cn(
                             "rounded-xl overflow-hidden transition-all duration-300 border-2",
                             i === current
@@ -323,7 +310,6 @@ const HeroCarousel = () => {
                             <img src={s.image} alt={s.title} className="w-full h-full object-cover" />
                         </div>
 
-                        {/* Label (active only) */}
                         {i === current && (
                             <div className="hidden xl:flex flex-col items-start">
                                 <span className="text-white text-[10px] font-black uppercase tracking-wider leading-tight">
@@ -338,7 +324,6 @@ const HeroCarousel = () => {
                 ))}
             </div>
 
-            {/* ── DOT INDICATORS (mobile / tablet bottom) ── */}
             <div className="absolute bottom-8 inset-x-0 flex justify-center gap-2 lg:hidden z-20">
                 {slides.map((_, i) => (
                     <button
@@ -358,7 +343,6 @@ const HeroCarousel = () => {
                 ))}
             </div>
 
-            {/* ── SCROLL HINT ── */}
             <motion.div
                 className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 hidden lg:flex flex-col items-center gap-2"
                 animate={{ y: [0, 6, 0] }}

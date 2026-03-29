@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useProfile } from "@/features/auth/hooks/auth.hooks";
 
 type Props = {
   src?: string;
@@ -34,10 +35,17 @@ export const AvatarProfile: React.FC<Props> = ({
   name = "Nguyễn Văn A",
   email = "user@kingofservice.vn",
 }) => {
+  const { data: user, isLoading } = useProfile();
+
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
+
+  if (!user) return null
+
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  /* close on outside click */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -48,7 +56,6 @@ export const AvatarProfile: React.FC<Props> = ({
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-muted transition-colors"
@@ -60,7 +67,6 @@ export const AvatarProfile: React.FC<Props> = ({
               {name.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          {/* online dot */}
           <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full" />
         </div>
         <div className="hidden lg:flex flex-col items-start">
@@ -73,14 +79,12 @@ export const AvatarProfile: React.FC<Props> = ({
         )} />
       </button>
 
-      {/* Dropdown */}
       <div className={cn(
         "absolute right-0 top-full mt-2 w-64 z-50",
         "bg-background border border-border rounded-2xl shadow-xl shadow-black/10",
         "overflow-hidden transition-all duration-200 origin-top-right",
         open ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-1 pointer-events-none"
       )}>
-        {/* User info */}
         <div className="px-4 py-3.5 flex items-center gap-3 bg-muted/40">
           <Avatar className="w-10 h-10">
             <AvatarImage src={src} alt={alt} />
@@ -99,7 +103,6 @@ export const AvatarProfile: React.FC<Props> = ({
 
         <Separator />
 
-        {/* Menu items */}
         <div className="p-1.5">
           {MENU_ITEMS.map(({ icon: Icon, label, href }) => (
             <Link
@@ -116,7 +119,6 @@ export const AvatarProfile: React.FC<Props> = ({
 
         <Separator />
 
-        {/* Sign out */}
         <div className="p-1.5">
           <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors font-medium">
             <LogOut className="w-4 h-4 shrink-0" />
