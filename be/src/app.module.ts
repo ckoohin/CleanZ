@@ -5,6 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
 import { UsersModule } from './modules/users/users.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { TokenModule } from './modules/token/token.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { UsersModule } from './modules/users/users.module';
       useFactory: getDatabaseConfig,
     }),
     UsersModule,
+    AuthModule,
+    TokenModule,
   ],
   controllers: [AppController],
   providers: [AppService],
