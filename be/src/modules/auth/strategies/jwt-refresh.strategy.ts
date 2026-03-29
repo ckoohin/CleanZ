@@ -9,9 +9,8 @@ import { Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { JwtPayload } from '../types/JwtPayLoad';
 import { TokenService } from '../../token/token.service';
-interface RequestWithCookies extends Request {
-  cookies: Record<string, string>;
-}
+import { RequestWithCookies } from '../types/RequestWithCookies';
+
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
   Strategy,

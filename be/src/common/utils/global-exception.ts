@@ -25,7 +25,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     logger.error(exception);
 
     response.status(status).json({
-      message:
+      errors:
         exception instanceof HttpException
           ? exception.getResponse()
           : 'Internal server error',
