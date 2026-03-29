@@ -159,18 +159,23 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<{ message: string }> {
-    await this.tokenService.revokeAllTokensByUser(userId, TokenType.REFRESH);
-    return { message: 'Đăng xuất thành công' };
+    return asyncHandleOperation(async () => {
+      await this.tokenService.revokeAllTokensByUser(userId, TokenType.REFRESH);
+      return { message: 'Đăng xuất thành công' };
+    }, 'Lỗi khi đăng xuất');
   }
 
   async refreshTokens(user: User): Promise<Tokens> {
-    return this.authTokenService.generateAndSaveTokens(user);
+    return asyncHandleOperation(async () => {
+      return this.authTokenService.generateAndSaveTokens(user);
+    }, 'Lỗi khi làm mới token');
   }
 
   async getProfile(userId: string): Promise<User> {
-    const user = await this.usersService.findOne(userId);
-
-    return user;
+    return asyncHandleOperation(async () => {
+      const user = await this.usersService.findOne(userId);
+      return user;
+    }, 'Lỗi khi lấy thông tin cá nhân');
   }
 
   async changePassword(
