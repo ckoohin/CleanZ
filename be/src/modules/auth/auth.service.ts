@@ -1,105 +1,177 @@
 import {
   Injectable,
   UnauthorizedException,
-  ConflictException,
   BadRequestException,
-  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import ms, { StringValue } from 'ms';
 
 import { User } from '../users/entities/user.entity';
 import { AuthResponse, Tokens } from './types/AuthResponse';
-import { ChangePasswordDto, LoginDto, RegisterDto } from './dto/index';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from './dto/index';
 import { JwtPayload } from './types/JwtPayLoad';
-import { UserProfileDto } from '../users/dto/user-profile.dto';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
-import { StringValue } from 'ms';
+import { TokenService } from '../token/token.service';
+import { Token } from '../token/entities/token.entity';
+import { TokenType } from 'src/common/enums/token-type.enum';
+import { UsersService } from '../users/users.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly tokenService: TokenService,
+    private readonly mailService: MailService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthResponse> {
+  async register(dto: RegisterDto): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
-      const existing = await this.userRepository.findOne({
-        where: { email: dto.email },
-      });
+      const user = await this.usersService.create(dto);
 
-      if (existing) {
-        throw new ConflictException('Email đã được sử dụng');
-      }
+      const hash = this.jwtService.sign(
+        {
+          sub: user.id,
+        },
+        {
+          secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
+          expiresIn: this.configService.get<string>(
+            'JWT_VERIFY_EMAIL_EXPIRES_IN',
+          ) as StringValue,
+        },
+      );
 
-      const user = this.userRepository.create(dto);
-      await this.userRepository.save(user);
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
+      const verificationUrl = `${frontendUrl}/auth/verify-email?token=${hash}`;
 
-      const tokens = await this.generateTokens(user);
-      await this.updateRefreshToken(user.id, tokens.refreshToken);
+      await this.mailService.sendVerificationEmail(
+        user.email,
+        user.fullName,
+        verificationUrl,
+      );
 
-      return this.buildAuthResponse(user, tokens);
+      return {
+        message:
+          'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
+      };
     }, 'Lỗi khi đăng kí');
   }
 
-  async login(dto: LoginDto): Promise<AuthResponse> {
+  async verifyEmail(token: string): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
-      const user = await this.userRepository.findOne({
-        where: { email: dto.email, isActive: true },
-        select: ['id', 'email', 'role', 'password', 'isActive'],
-      });
+      try {
+        const payload = this.verifyToken(token, 'JWT_VERIFY_EMAIL_SECRET');
+
+        const userId: string = payload.sub;
+
+        await this.usersService.markAsVerified(userId);
+
+        return {
+          message: 'Xác thực email thành công. Bạn có thể đăng nhập.',
+        };
+      } catch {
+        throw new BadRequestException(
+          'Token xác thực không hợp lệ hoặc đã hết hạn.',
+        );
+      }
+    }, 'Lỗi khi xác thực email');
+  }
+
+  async login(dto: LoginDto): Promise<{ message: string; userId: string }> {
+    return asyncHandleOperation(async () => {
+      const user = await this.usersService.findByEmail(dto.email);
       if (!user) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
-      const isPasswordValid = await user.comparePassword(dto.password);
+      const isPasswordValid = await this.comparePassword(
+        dto.password,
+        user.password,
+      );
       if (!isPasswordValid) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
-      const tokens = await this.generateTokens(user);
-      await this.updateRefreshToken(user.id, tokens.refreshToken);
+      if (!user.is_verified) {
+        throw new BadRequestException(
+          'Email chưa được xác thực. Vui lòng kiểm tra hộp thư để xác thực.',
+        );
+      }
 
-      return this.buildAuthResponse(user, tokens);
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      await this.tokenService.createOtpToken(user, otpHash, expiresAt);
+
+      await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
+
+      return {
+        message: 'Mã OTP đã được gửi đến email của bạn.',
+        userId: user.id,
+      };
     }, 'Lỗi khi đăng nhập');
   }
 
+  async verifyLoginOtp(userId: string, otp: string): Promise<AuthResponse> {
+    return asyncHandleOperation(async () => {
+      const otpTokens = await this.tokenService.findValidOtpTokens(userId);
+
+      if (!otpTokens.length) {
+        throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn.');
+      }
+
+      let validToken: Token | null = null;
+      for (const token of otpTokens) {
+        const isValid = await bcrypt.compare(otp, token.token);
+        if (isValid) {
+          validToken = token;
+          break;
+        }
+      }
+
+      if (!validToken) {
+        throw new BadRequestException('Mã OTP không đúng.');
+      }
+
+      await this.tokenService.markAsUsed(validToken.id);
+
+      const user = validToken.user;
+      await this.usersService.updateLastLogin(user.id);
+
+      const tokens = await this.generateTokens(user);
+      await this.saveRefreshToken(user, tokens.refresh_token);
+
+      return { user, tokens };
+    }, 'Lỗi khi xác thực OTP');
+  }
+
   async logout(userId: string): Promise<{ message: string }> {
-    await this.userRepository.update(userId, { refreshToken: null });
+    await this.tokenService.revokeAllTokensByUser(userId, TokenType.REFRESH);
     return { message: 'Đăng xuất thành công' };
   }
 
   async refreshTokens(user: User): Promise<Tokens> {
     const tokens = await this.generateTokens(user);
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
+    await this.saveRefreshToken(user, tokens.refresh_token);
     return tokens;
   }
 
-  async getProfile(userId: string): Promise<UserProfileDto> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId, isActive: true },
-    });
+  async getProfile(userId: string): Promise<User> {
+    const user = await this.usersService.findOne(userId);
 
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-      isActive: user.isActive,
-      lastLogin: user.lastLogin,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    return user;
   }
 
   async changePassword(
@@ -107,28 +179,97 @@ export class AuthService {
     dto: ChangePasswordDto,
   ): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
-      const user = await this.userRepository.findOne({
-        where: { id: userId },
-        select: ['id', 'email', 'password', 'isActive'],
-      });
-
-      if (!user) {
-        throw new NotFoundException('Không tìm thấy người dùng');
+      if (dto.newPassword !== dto.confirmPassword) {
+        throw new BadRequestException('Xác nhận mật khẩu không khớp');
       }
-      const isCurrentPasswordValid = await user.comparePassword(
+
+      const user = await this.usersService.findOne(userId);
+
+      const isCurrentPasswordValid = await this.comparePassword(
         dto.currentPassword,
+        user.password,
       );
       if (!isCurrentPasswordValid) {
         throw new BadRequestException('Mật khẩu hiện tại không đúng');
       }
 
-      user.password = dto.newPassword;
-      await this.userRepository.save(user);
+      await this.usersService.changePassword(userId, dto.newPassword);
 
-      await this.userRepository.update(userId, { refreshToken: null });
+      await this.tokenService.revokeAllTokensByUser(userId, TokenType.REFRESH);
 
       return { message: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.' };
     }, 'Lỗi khi đổi mật khẩu');
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return asyncHandleOperation(async () => {
+      const user = await this.usersService.findByEmail(email);
+
+      if (!user) {
+        return {
+          message:
+            'Nếu email tồn tại, chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.',
+        };
+      }
+
+      const resetToken = this.jwtService.sign(
+        { sub: user.id },
+        {
+          secret: this.configService.get<string>('JWT_RESET_PASSWORD_SECRET'),
+          expiresIn: this.configService.get<string>(
+            'JWT_RESET_PASSWORD_EXPIRES_IN',
+          ) as StringValue,
+        },
+      );
+
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3001';
+      const resetUrl = `${frontendUrl}/auth/reset-password?token=${resetToken}`;
+
+      await this.mailService.sendResetPasswordEmail(
+        user.email,
+        user.fullName,
+        resetUrl,
+      );
+
+      return {
+        message:
+          'Nếu email tồn tại, chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.',
+      };
+    }, 'Lỗi khi gửi email đặt lại mật khẩu');
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    return asyncHandleOperation(async () => {
+      if (dto.newPassword !== dto.confirmPassword) {
+        throw new BadRequestException('Xác nhận mật khẩu không khớp');
+      }
+
+      try {
+        const payload = this.verifyToken(
+          dto.token,
+          'JWT_RESET_PASSWORD_SECRET',
+        );
+
+        const userId: string = payload.sub;
+
+        await this.usersService.changePassword(userId, dto.newPassword);
+
+        await this.tokenService.revokeAllTokensByUser(
+          userId,
+          TokenType.REFRESH,
+        );
+
+        return {
+          message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.',
+        };
+      } catch {
+        throw new BadRequestException(
+          'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+        );
+      }
+    }, 'Lỗi khi đặt lại mật khẩu');
   }
 
   private async generateTokens(user: User): Promise<Tokens> {
@@ -152,7 +293,7 @@ export class AuthService {
       'JWT_REFRESH_EXPIRES_IN',
     ) as StringValue;
 
-    const [accessToken, refreshToken] = await Promise.all([
+    const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: accessSecret,
         expiresIn: accessExpiresIn,
@@ -163,28 +304,40 @@ export class AuthService {
       }),
     ]);
 
-    return { accessToken, refreshToken };
+    return { access_token, refresh_token };
   }
 
-  private async updateRefreshToken(
-    userId: string,
-    refreshToken: string,
+  private async saveRefreshToken(
+    user: User,
+    rawRefreshToken: string,
   ): Promise<void> {
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    await this.userRepository.update(userId, {
-      refreshToken: hashedRefreshToken,
-    });
+    const refreshExpiresIn = this.configService.get<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+    ) as StringValue;
+
+    const expiresInMs = ms(refreshExpiresIn);
+
+    await this.tokenService.createRefreshToken(
+      user,
+      rawRefreshToken,
+      expiresInMs,
+    );
   }
 
-  private buildAuthResponse(user: User, tokens: Tokens): AuthResponse {
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
-      tokens,
-    };
+  private async comparePassword(
+    password: string,
+    hash: string,
+  ): Promise<boolean> {
+    return bcrypt.compare(password, hash);
+  }
+
+  private verifyToken(token: string, secret: string): JwtPayload {
+    try {
+      return this.jwtService.verify<JwtPayload>(token, {
+        secret: this.configService.get<string>(secret),
+      });
+    } catch {
+      throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn.');
+    }
   }
 }

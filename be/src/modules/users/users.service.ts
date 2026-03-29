@@ -10,7 +10,6 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
-import { UserResponseDto } from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -19,92 +18,94 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<UserResponseDto> {
+  async create(dto: CreateUserDto): Promise<User> {
     return asyncHandleOperation(async () => {
-      const existingUser = await this.userRepository.findOne({
-        where: { email: dto.email },
-      });
+      const existingUser = await this.findByEmail(dto.email);
 
       if (existingUser) {
-        throw new ConflictException('Username đã tồn tại');
+        throw new ConflictException('Email đã tồn tại');
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      const hashedPassword = await this.hashPassword(dto.password);
 
       const user = this.userRepository.create({
         ...dto,
         password: hashedPassword,
       });
 
-      const savedUser = await this.userRepository.save(user);
-
-      // Loại bỏ password khỏi response
-      const { password: _password, ...result } = savedUser;
-      return result;
+      return await this.userRepository.save(user);
     }, 'Lỗi khi tạo người dùng');
   }
 
-  async findAll(): Promise<UserResponseDto[]> {
+  async findAll(): Promise<User[]> {
     return asyncHandleOperation(async () => {
-      const users = await this.userRepository.find();
-      return users.map(({ password, ...user }) => user);
+      return await this.userRepository.find();
     }, 'Lỗi khi lấy Users');
   }
 
-  async findOne(id: string): Promise<UserResponseDto> {
+  async findOne(id: string): Promise<User> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
       if (!user) {
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       }
-      const { password, ...result } = user;
-      return result;
+      return user;
     }, 'Lỗi khi lấy một người dùng');
   }
 
-  async findByUsername(username: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<User | null> {
     return asyncHandleOperation(() => {
       return this.userRepository
         .createQueryBuilder('user')
-        .where('user.username = :username', { username })
+        .where('user.email = :email', { email })
         .addSelect('user.password')
         .getOne();
-    }, 'Lỗi khi tìm người dùng theo tên đăng nhập');
+    }, 'Lỗi khi tìm người dùng theo email');
   }
 
-  async update(
-    id: string,
-    updateUserDto: UpdateUserDto,
-  ): Promise<UserResponseDto> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
       if (!user) {
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       }
 
-      // Nếu cập nhật password, hash lại
       if (updateUserDto.password) {
-        updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+        updateUserDto.password = await this.hashPassword(
+          updateUserDto.password,
+        );
       }
 
       await this.userRepository.update(id, updateUserDto);
       const updatedUser = await this.userRepository.findOneBy({ id });
+
       if (!updatedUser) {
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       }
-      const { password, ...result } = updatedUser;
-      return result;
+      return updatedUser;
     }, 'Lỗi khi cập nhật người dùng');
   }
 
   async updateLastLogin(id: string): Promise<void> {
     return asyncHandleOperation(async () => {
-      await this.userRepository.update(id, { lastLogin: new Date() });
+      await this.userRepository.update(id, { last_login: new Date() });
     }, 'Lỗi khi cập nhật thời gian đăng nhập');
   }
 
-  async remove(id: string): Promise<UserResponseDto> {
+  public async changePassword(id: string, password: string): Promise<void> {
+    return asyncHandleOperation(async () => {
+      const passwordHash = await this.hashPassword(password);
+      await this.userRepository.update(id, { password: passwordHash });
+    }, 'Lỗi khi thay đổi mật khẩu');
+  }
+
+  async markAsVerified(id: string): Promise<void> {
+    return asyncHandleOperation(async () => {
+      await this.userRepository.update(id, { is_verified: true });
+    }, 'Lỗi khi xác thực email');
+  }
+
+  async remove(id: string): Promise<User> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
 
@@ -114,8 +115,11 @@ export class UsersService {
 
       await this.userRepository.delete(id);
 
-      const { password, ...result } = user;
-      return result;
+      return user;
     }, 'Lỗi khi xóa người dùng');
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
   }
 }
