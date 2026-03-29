@@ -24,6 +24,6 @@ export const AuthProvider = ({ children }: {
 
 export const useAuthContext = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("AuthContext chưa được setup");
+  if (!ctx) throw new Error("useAuthContext phải được sử dụng trong AuthProvider");
   return ctx;
 };

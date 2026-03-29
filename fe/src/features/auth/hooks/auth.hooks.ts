@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/features/auth/services/auth.service';
 import { queryKeys } from '@/features/auth/queries/auth.query';
-import type { LoginCredentials } from '@/features/auth/types/auth.type';
+import type { LoginCredentials, RegisterCredentials } from '@/features/auth/types/auth.type';
+import { toast } from 'sonner';
 
 export function useAuth() {
   return useQuery({
@@ -33,9 +34,29 @@ export function useLogin() {
       queryClient.setQueryData(queryKeys.auth.me(), data.user);
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
     },
+    onError: (error: unknown) => {
+      console.error("Login error:", error);
+      toast.error(
+        "Đăng nhập không thành công. Vui lòng kiểm tra kết nối hoặc thông tin tài khoản."
+      );
+    }
   });
 }
 
+export function useRegister() {
+  return useMutation({
+    mutationFn: (credentials: RegisterCredentials) => authApi.register(credentials),
+    onSuccess: () => {
+      toast.success("Đăng ký thành công !")
+    },
+    onError: (error: unknown) => {
+      console.error("Register error:", error);
+      toast.error(
+        "Đăng ký không thành công. Vui lòng kiểm tra kết nối hoặc thông tin tài khoản."
+      );
+    }
+  })
+}
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();

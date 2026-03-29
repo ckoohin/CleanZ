@@ -1,10 +1,11 @@
 "use client";
-import { LoginForm } from "@/src/features/auth/_components/authv1/login-form";
-import AuthScreen from "@/src/features/auth/_components/AuthScreen";
+import { LoginForm } from "@/features/auth/_components/authv1/login-form";
+import AuthScreen from "@/features/auth/_components/AuthScreen";
 import { GalleryVerticalEndIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { toast, Toaster } from "sonner";
+import SignInFlow from "@/features/auth/_components/authv1/SignInFlow";
 
 export default function LoginPage() {
   const params = useSearchParams();
@@ -19,7 +20,14 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="grid min-h-svh lg:grid-cols-2">
+      {/* <div className="grid min-h-svh lg:grid-cols-2">
+        <div className="relative hidden bg-muted lg:block">
+          <img
+            src="/placeholder.svg"
+            alt="Image"
+            className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          />
+        </div>
         <div className="flex flex-col gap-4 p-6 md:p-10">
           <div className="flex justify-center gap-2 md:justify-start">
             <a href="#" className="flex items-center gap-2 font-medium">
@@ -35,14 +43,8 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        <div className="relative hidden bg-muted lg:block">
-          <img
-            src="/placeholder.svg"
-            alt="Image"
-            className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-          />
-        </div>
-      </div>
+      </div> */}
+      <SignInFlow/>
     </>
   )
 

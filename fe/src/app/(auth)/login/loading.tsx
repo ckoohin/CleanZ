@@ -1,4 +1,4 @@
-import TopLoadingBar from "@/src/components/loadings/TopLoadingBar";
+import TopLoadingBar from "@/components/loadings/TopLoadingBar";
 
 export default function Loading() {
     return (
