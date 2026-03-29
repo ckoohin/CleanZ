@@ -1,4 +1,4 @@
-import type { User, LoginCredentials, LoginResponse } from '@/features/auth/types/auth.type';
+import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse } from '@/features/auth/types/auth.type';
 import http from '@/lib/api/http';
 
 export const authApi = {
@@ -13,6 +13,9 @@ export const authApi = {
 
   login: (credentials: LoginCredentials): Promise<LoginResponse> => {
     return http.post<LoginResponse>('/auth/login', credentials).then((res) => res.data);
+  },
+  register: (credentials: RegisterCredentials): Promise<RegisterResponse> => {
+    return http.post<RegisterResponse>('/auth/register', credentials).then((res) => res.data);
   },
 
   logout: (): Promise<void> => {
