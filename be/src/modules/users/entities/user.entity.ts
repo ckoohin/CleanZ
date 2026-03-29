@@ -19,11 +19,17 @@ export class User {
   email: string;
 
   @Exclude()
-  @Column({ select: false })
-  password: string;
+  @Column({ select: false, nullable: true })
+  password?: string;
 
   @Column({ length: 100 })
   fullName: string;
+
+  @Column({ nullable: true })
+  provider?: string;
+
+  @Column({ nullable: true })
+  providerId?: string;
 
   @Column({
     type: 'enum',

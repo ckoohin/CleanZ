@@ -8,6 +8,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TokenModule } from './modules/token/token.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UploadModule } from './modules/upload/upload.module';
     AuthModule,
     TokenModule,
     UploadModule,
+    AuthGoogleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

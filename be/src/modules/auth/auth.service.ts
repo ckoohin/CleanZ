@@ -7,7 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import ms, { StringValue } from 'ms';
+import { StringValue } from 'ms';
 
 import { User } from '../users/entities/user.entity';
 import { AuthResponse, Tokens } from './types/AuthResponse';
@@ -24,6 +24,7 @@ import { Token } from '../token/entities/token.entity';
 import { TokenType } from 'src/common/enums/token-type.enum';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
+import { AuthTokenService } from './auth-token.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly tokenService: TokenService,
     private readonly mailService: MailService,
+    private readonly authTokenService: AuthTokenService,
   ) {}
 
   async register(dto: RegisterDto): Promise<{ message: string }> {
@@ -54,7 +56,7 @@ export class AuthService {
       const frontendUrl =
         this.configService.get<string>('FRONTEND_URL') ||
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
-      const verificationUrl = `${frontendUrl}/auth/verify-email?token=${hash}`;
+      const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
 
       await this.mailService.sendVerificationEmail(
         user.email,
@@ -92,7 +94,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<{ message: string; userId: string }> {
     return asyncHandleOperation(async () => {
       const user = await this.usersService.findByEmail(dto.email);
-      if (!user) {
+      if (!user || !user.password) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
@@ -150,8 +152,7 @@ export class AuthService {
       const user = validToken.user;
       await this.usersService.updateLastLogin(user.id);
 
-      const tokens = await this.generateTokens(user);
-      await this.saveRefreshToken(user, tokens.refresh_token);
+      const tokens = await this.authTokenService.generateAndSaveTokens(user);
 
       return { user, tokens };
     }, 'Lỗi khi xác thực OTP');
@@ -163,9 +164,7 @@ export class AuthService {
   }
 
   async refreshTokens(user: User): Promise<Tokens> {
-    const tokens = await this.generateTokens(user);
-    await this.saveRefreshToken(user, tokens.refresh_token);
-    return tokens;
+    return this.authTokenService.generateAndSaveTokens(user);
   }
 
   async getProfile(userId: string): Promise<User> {
@@ -184,6 +183,11 @@ export class AuthService {
       }
 
       const user = await this.usersService.findOne(userId);
+      if (!user.password) {
+        throw new BadRequestException(
+          'Tài khoản này được đăng ký qua Google và chưa thiết lập mật khẩu.',
+        );
+      }
 
       const isCurrentPasswordValid = await this.comparePassword(
         dto.currentPassword,
@@ -270,58 +274,6 @@ export class AuthService {
         );
       }
     }, 'Lỗi khi đặt lại mật khẩu');
-  }
-
-  private async generateTokens(user: User): Promise<Tokens> {
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
-    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
-
-    if (!accessSecret || !refreshSecret) {
-      throw new Error('JWT secrets not defined');
-    }
-
-    const accessExpiresIn = this.configService.get<string>(
-      'JWT_ACCESS_EXPIRES_IN',
-    ) as StringValue;
-    const refreshExpiresIn = this.configService.get<string>(
-      'JWT_REFRESH_EXPIRES_IN',
-    ) as StringValue;
-
-    const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: accessSecret,
-        expiresIn: accessExpiresIn,
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: refreshSecret,
-        expiresIn: refreshExpiresIn,
-      }),
-    ]);
-
-    return { access_token, refresh_token };
-  }
-
-  private async saveRefreshToken(
-    user: User,
-    rawRefreshToken: string,
-  ): Promise<void> {
-    const refreshExpiresIn = this.configService.get<string>(
-      'JWT_REFRESH_EXPIRES_IN',
-    ) as StringValue;
-
-    const expiresInMs = ms(refreshExpiresIn);
-
-    await this.tokenService.createRefreshToken(
-      user,
-      rawRefreshToken,
-      expiresInMs,
-    );
   }
 
   private async comparePassword(
