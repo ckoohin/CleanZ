@@ -25,4 +25,12 @@ export type AllConfigType = {
 
   JWT_RESET_PASSWORD_SECRET: string;
   JWT_RESET_PASSWORD_EXPIRES_IN: string;
+
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_CALLBACK_URL: string;
+
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
 };

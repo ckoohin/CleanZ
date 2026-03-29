@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateGoogleUserDto } from './dto/create-google-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
@@ -35,6 +36,21 @@ export class UsersService {
 
       return await this.userRepository.save(user);
     }, 'Lỗi khi tạo người dùng');
+  }
+
+  async createGoogleUser(dto: CreateGoogleUserDto): Promise<User> {
+    return asyncHandleOperation(async () => {
+      const user = this.userRepository.create({
+        email: dto.email,
+        fullName: dto.fullName,
+        provider: dto.provider,
+        providerId: dto.providerId,
+        is_verified: true,
+        is_active: true,
+      });
+
+      return await this.userRepository.save(user);
+    }, 'Lỗi khi tạo người dùng Google');
   }
 
   async findAll(): Promise<User[]> {
@@ -90,6 +106,16 @@ export class UsersService {
     return asyncHandleOperation(async () => {
       await this.userRepository.update(id, { last_login: new Date() });
     }, 'Lỗi khi cập nhật thời gian đăng nhập');
+  }
+
+  async updateProvider(
+    id: string,
+    provider: string,
+    providerId: string,
+  ): Promise<void> {
+    return asyncHandleOperation(async () => {
+      await this.userRepository.update(id, { provider, providerId });
+    }, 'Lỗi khi cập nhật provider');
   }
 
   public async changePassword(id: string, password: string): Promise<void> {
