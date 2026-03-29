@@ -7,6 +7,7 @@ import { getDatabaseConfig } from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { WorkersModule } from './modules/workers/workers.module';
+import { CustomersModule } from './modules/customers/customers.module';
 
 @Module({
   imports: [
@@ -22,8 +23,9 @@ import { WorkersModule } from './modules/workers/workers.module';
     AuthModule,
     UsersModule,
     WorkersModule,
+    CustomersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
