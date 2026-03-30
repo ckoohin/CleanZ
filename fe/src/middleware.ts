@@ -19,8 +19,8 @@ function parseCookieValue(setCookieHeader: string, name: string): string | null 
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
-  const accessToken = req.cookies.get("accessToken")?.value;
-  const refreshTokenCookie = req.cookies.get("refreshToken")?.value;
+  const accessToken = req.cookies.get("access_token")?.value;
+  const refreshTokenCookie = req.cookies.get("refresh_token")?.value;
 
   if (!accessToken && !refreshTokenCookie) {
     return redirectToLogin(req, pathname, searchParams);

@@ -62,9 +62,16 @@ export function RegisterProvider({ children }: { children: React.ReactNode }) {
             
             const { username, email, lastName, firstName, dateOfBirth, password } = formData;
 
+
+            const data = {
+                email,
+                password,
+                fullName: `${lastName} ${firstName}`,
+            }
+
             setIsPending(true)
 
-            await register.mutateAsync(formData)
+            await register.mutateAsync(data)
 
 
         } catch (error) {

@@ -1,16 +1,42 @@
-export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER';
+// enums & literals
+export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'TECHNICIAN';
 
+export type AuthProvider = 'LOCAL' | 'GOOGLE' | 'APPLE';
+
+// user
 export interface User {
   id: string;
-  fullName?: string;
   email: string;
+  fullName: string;
   role: UserRole;
-  isActive?: boolean;
-  lastLogin?: string;
   avatar?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  isActive: boolean;
+  isVerified: boolean;
+  lastLogin?: string;
+  createdAt: string;
+  updatedAt: string;
 }
+
+export interface Profile {
+    id: string,
+    email: string,
+    fullName: string,
+    provider: AuthProvider,
+    providerId: string,
+    role: UserRole,
+    is_active: boolean,
+    is_verified: boolean,
+    last_login: string,
+    created_at: string,
+    updated_at: string
+}
+
+// export interface Profile extends User {
+//   provider: AuthProvider;
+//   providerId?: string;
+// }
+
+// auth credentials
 
 export interface LoginCredentials {
   email: string;
@@ -21,36 +47,33 @@ export interface LoginCredentials {
 export interface RegisterCredentials {
   email: string;
   password: string;
-  confirmPassword: string;
-  username: string;
-  lastName: string;
-  firstName: string;
-  dateOfBirth: string;
+  fullName: string;
 }
 
-export interface RegisterCredentials {
-  email: string;
-  password: string;
-  username: string;
-  lastName: string;
-  firstName: string;
-  dateOfBirth: string;
+// api response
+export interface AuthResponse<T = User> {
+  user: T;
 }
 
-export interface LoginResponse {
-  user: User;
-}
-export interface RegisterResponse {
-  user: User;
-}
-
-export type LoginFormValues = {
-  email: string;
-  password: string;
+export type LoginResponse = {
+  message: string,
+  userId: string
 };
 
-export type LoginValues = {
+export type RegisterResponse = AuthResponse;
+export type ProfileResponse = Profile;
+
+// form values
+export interface LoginFormValues {
   email: string;
   password: string;
   rememberMe: boolean;
-};
+}
+
+export type RegisterFormValues = RegisterCredentials;
+
+// verify otp
+export interface VerifyOtpCredentials {
+    userId: string,
+    otp: string
+}

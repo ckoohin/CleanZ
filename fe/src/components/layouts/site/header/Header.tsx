@@ -11,11 +11,14 @@ import { Separator } from "@/components/ui/separator";
 import {
   Search, MapPin, ChevronDown, Phone, Menu, X, Sparkles,
   Clock, Star, TrendingUp, Zap,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { useLogout } from "@/features/auth/hooks/auth.hooks";
 
 interface HeaderProps {
   navLinks?: NavLink[];
@@ -35,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   navLinks = NAV_LINKS,
   actions = HEADER_ACTIONS,
 }) => {
+  const logout = useLogout()
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -295,6 +299,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* avatar */}
               <AvatarProfile />
 
+              {/* <ThemeToggle /> */}
               {/* mobile toggle */}
               <Button
                 variant="ghost"
@@ -305,7 +310,6 @@ export const Header: React.FC<HeaderProps> = ({
                 {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               </Button>
             </div>
-          <ThemeToggle/>
           </div>
         </div>
       </header>
@@ -377,10 +381,29 @@ export const Header: React.FC<HeaderProps> = ({
             <Button className="w-full font-semibold rounded-xl" asChild>
               <a href="/auth/register">Đăng ký miễn phí</a>
             </Button>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  className="w-full font-semibold rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20">
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  Đăng xuất
+                </Button>
+              }
+              title="Xác nhận đăng xuất"
+              description="Bạn có chắc chắn muốn đăng xuất?"
+              confirmText="Đăng xuất"
+              cancelText="Hủy"
+              onConfirm={() => {
+                logout.mutate()
+              }}
+            />
             <p className="text-center text-xs text-muted-foreground pt-1">
               Hotline: <a href="tel:18006868" className="text-primary font-bold">1800 6868</a> (miễn phí)
             </p>
           </div>
+
+          <div className="p-1.5">
+</div>
         </div>
       </div>
     </>

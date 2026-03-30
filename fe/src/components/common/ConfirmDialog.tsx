@@ -11,7 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
-} from "@/src/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 
 type Props = {
   trigger: ReactNode;
@@ -19,7 +19,7 @@ type Props = {
   description?: string;
   confirmText?: string;
   cancelText?: string;
-  onConfirm?: () => void | Promise<void>;
+  onConfirm?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
 };
 
 export default function ConfirmDialog({
