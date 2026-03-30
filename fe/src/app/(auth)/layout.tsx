@@ -1,4 +1,5 @@
 "use client"
+import { LoginProvider } from '@/features/auth/context/login.context'
 import { RegisterProvider } from '@/features/auth/context/register.context'
 import React from 'react'
 
@@ -8,9 +9,11 @@ function layout({
     children: React.ReactNode
 }) {
     return (
-        <RegisterProvider>
-            {children}
-        </RegisterProvider>
+        <LoginProvider>
+            <RegisterProvider>
+                {children}
+            </RegisterProvider>
+        </LoginProvider>
     )
 }
 

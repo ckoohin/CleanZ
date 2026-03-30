@@ -6,6 +6,13 @@ import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { User } from "@/features/auth/types/auth.type";
 import TopLoadingBar from "@/components/loadings/TopLoadingBar";
 
+const ROLE_ROUTES: Record<string, string> = {
+  ADMIN: "/admin",
+  STAFF: "/staff",
+  TECHNICIAN: "/technician",
+  CUSTOMER: "/customer/home",
+};
+
 export default function Page() {
   const router = useRouter();
 
@@ -17,30 +24,13 @@ export default function Page() {
   useEffect(() => {
     if (isLoading) return;
 
-    if (!me) {
-      router.replace("/home");
-      return;
-    }
-
-    if (me.role === "ADMIN") {
-      router.replace("/admin");
-      return;
-    }
-
-    if (me.role === "STAFF") {
-      router.replace("/staff");
-      return;
-    }
-    if (me.role === "CUSTOMER") { 
-      router.replace("/home");
-      return;
-    }
-    
+    const route = me?.role ? ROLE_ROUTES[me.role] : "/home";
+    router.replace(route ?? "/home");
   }, [me, isLoading, router]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-background">
         <TopLoadingBar />
       </div>
     );

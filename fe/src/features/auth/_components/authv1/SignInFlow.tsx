@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel'
 import { Toaster, toast } from 'sonner'
-import { SocialSignIn } from '@/components/SocialSignIn'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
@@ -14,6 +13,8 @@ import Link from 'next/link'
 import { motion, Variants } from 'motion/react';
 import { useLogin } from '@/features/auth/hooks/auth.hooks'
 import { Checkbox } from '@/components/ui/checkbox'
+import { SocialSignIn } from './SocialSignIn'
+import { useRouter } from 'next/navigation'
 
 export const fadeUp: Variants = {
     hidden: { opacity: 0, y: 20 },
@@ -24,6 +25,7 @@ export const fadeUp: Variants = {
     }),
 };
 export const SignInFlow = () => {
+    const router = useRouter()
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [error, setErrors] = useState<any>({});
@@ -37,13 +39,15 @@ export const SignInFlow = () => {
             e.preventDefault();
             const { success, errors } = validate(formData);
             if (!success) return setErrors(errors);
-            console.log(formData);
+            // console.log(formData);
 
             login.mutate(formData)
+            
         } catch (error) {
             console.log(error);
         }
     };
+    // ?email=${formData.email}&name=${formData.name}
 
     return (
         <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
@@ -169,7 +173,12 @@ export const SignInFlow = () => {
                     <motion.div
                         custom={3} variants={fadeUp} initial="hidden" animate="show"
                     >
-                        <SocialSignIn />
+                        <SocialSignIn
+                            url_gg="http://localhost:5000/api/v1/auth/google"
+                            url_apple="http://localhost:5000/api/v1/auth/apple"
+                            text_gg="Đăng nhập với Google"
+                            text_apple="Đăng nhập với Apple"
+                        />
                     </motion.div>
 
                     {/* Register link */}

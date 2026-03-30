@@ -3,6 +3,7 @@ import { Inter, Geist, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 import { cn } from '@/lib/utils';
+import { Toaster } from 'sonner';
 
 const sourceSans3 = Source_Sans_3({subsets:['latin'],variable:'--font-sans'});
 
@@ -31,7 +32,10 @@ export default function RootLayout({
           rel="stylesheet" />
         <link rel="stylesheet" href="/logo.png" />
       </head>
-      <body className={cn(inter.className, "bg-background font-display text-text-main antialiased")}>
+      <body
+        suppressHydrationWarning
+        className={cn(inter.className, "bg-background font-display text-text-main antialiased")}>
+        <Toaster richColors={true} position='top-right'/>
         <Providers>
           {children}
         </Providers>

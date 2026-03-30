@@ -33,7 +33,6 @@ export function MultiStepForm() {
   return (
     <>
       <div className="w-full ">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-6">
             {currentStep > 1 && (
@@ -115,7 +114,12 @@ export function MultiStepForm() {
         <motion.div
           custom={2} variants={fadeUp} initial="hidden" animate="show"
         >
-          <SocialSignIn />
+          <SocialSignIn
+            url_gg={`${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
+            url_apple={`${process.env.NEXT_PUBLIC_API_URL}/auth/apple`}
+            text_gg="Tạo tài khoản với Google"
+            text_apple="Tạo tài khoản với Apple"
+          />
         </motion.div>
 
         {/* Footer */}

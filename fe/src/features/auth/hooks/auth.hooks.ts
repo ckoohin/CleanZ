@@ -4,8 +4,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/features/auth/services/auth.service';
 import { queryKeys } from '@/features/auth/queries/auth.query';
-import type { LoginCredentials, RegisterCredentials } from '@/features/auth/types/auth.type';
+import type { LoginCredentials, LoginResponse, RegisterCredentials, VerifyOtpCredentials } from '@/features/auth/types/auth.type';
 import { toast } from 'sonner';
+import axios, { AxiosError, AxiosResponse } from 'axios';
+
+type ErrorResponse = {
+  message?: {
+    status: number;
+    errors: {};
+  };
+};
 
 export function useAuth() {
   return useQuery({
@@ -27,36 +35,42 @@ export function useProfile() {
 
 export function useLogin() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: (credentials: LoginCredentials) => authApi.login(credentials),
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.auth.me(), data.user);
+    onSuccess: (res: LoginResponse) => {
+      // queryClient.setQueryData(queryKeys.auth.me(), res.data.user);
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+      
+      toast.success(res.message)
+
+      router.push(`${process.env.NEXT_PUBLIC_CLIENT_URL}/otp-verify?userId=${res.userId}`)
     },
-    onError: (error: unknown) => {
+    onError: (error: any) => {
       console.error("Login error:", error);
       toast.error(
-        "Đăng nhập không thành công. Vui lòng kiểm tra kết nối hoặc thông tin tài khoản."
+        error.response?.data?.errors?.message
       );
     }
   });
 }
 
 export function useRegister() {
+  const router = useRouter();
   return useMutation({
     mutationFn: (credentials: RegisterCredentials) => authApi.register(credentials),
-    onSuccess: () => {
-      toast.success("Đăng ký thành công !")
+    onSuccess: (res : any) => {
+      console.log(res);
+      toast.success(res.message)
     },
-    onError: (error: unknown) => {
-      console.error("Register error:", error);
-      toast.error(
-        "Đăng ký không thành công. Vui lòng kiểm tra kết nối hoặc thông tin tài khoản."
-      );
+    onError: (error: any) => {
+      console.log(error.response);
+      toast.error(error.response?.data?.errors?.message);
     }
   })
 }
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -66,7 +80,52 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: queryKeys.auth.me() });
       queryClient.clear();
-      router.push('/login?error=unauthorized');
+      toast.success("Đăng xuất thành công")
+      router.push('/login');
     },
+    onError: (error: any) => {
+      console.error("Logout error:", error);
+      toast.error(
+        error.response?.data?.errors?.message
+      );
+    }
   });
+}
+
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: (token: string) => authApi.verifyEmail(token),
+    onSuccess: (res : any) => {
+      console.log(res);
+      toast.success(res.message)
+    },
+    onError: (error: any) => {
+      console.log(error.response);
+      toast.error(error.response?.data?.errors?.message);
+    }
+  })
+}
+
+export function useVerifyOtp() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: (credentials: VerifyOtpCredentials) => authApi.verifyOtp(credentials),
+    onSuccess: (res : {message : string}) => {
+      // console.log(res.message);
+      toast.success(res.message)
+
+      router.push(`/`)
+    },
+    onError: (error: any) => {
+      // console.log(error.response);
+      if (error.response?.data?.errors?.message) {
+        toast.error(error.response?.data?.errors?.message);
+        return
+      }
+
+      toast.error("Lỗi kết lối vui lòng xem lại mạng")
+    }
+  })
 }
