@@ -44,6 +44,7 @@ export class AuthService {
       const hash = this.jwtService.sign(
         {
           sub: user.id,
+          email: user.email,
         },
         {
           secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
@@ -67,6 +68,7 @@ export class AuthService {
       return {
         message:
           'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
+        hash,
       };
     }, 'Lỗi khi đăng kí');
   }
@@ -75,7 +77,6 @@ export class AuthService {
     return asyncHandleOperation(async () => {
       try {
         const payload = this.verifyToken(token, 'JWT_VERIFY_EMAIL_SECRET');
-
         const userId: string = payload.sub;
 
         await this.usersService.markAsVerified(userId);
@@ -89,6 +90,50 @@ export class AuthService {
         );
       }
     }, 'Lỗi khi xác thực email');
+  }
+
+  async resendVerificationEmail(token: string): Promise<{ message: string }> {
+    return asyncHandleOperation(async () => {
+      const payload = this.verifyToken(token, 'JWT_VERIFY_EMAIL_SECRET');
+      const email: string = payload.email;
+      const user = await this.usersService.findByEmail(email);
+      if (!user) {
+        throw new BadRequestException('Email không tồn tại');
+      }
+
+      if (user.is_verified) {
+        throw new BadRequestException('Email đã được xác thực');
+      }
+
+      const hash = this.jwtService.sign(
+        {
+          sub: user.id,
+        },
+        {
+          secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
+          expiresIn: this.configService.get<string>(
+            'JWT_VERIFY_EMAIL_EXPIRES_IN',
+          ) as StringValue,
+        },
+      );
+
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
+      const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
+
+      await this.mailService.sendVerificationEmail(
+        user.email,
+        user.fullName,
+        verificationUrl,
+      );
+
+      return {
+        message:
+          'Gửi lại email xác thực thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
+        hash,
+      };
+    }, 'Lỗi khi gửi lại email xác thực');
   }
 
   async login(dto: LoginDto): Promise<{ message: string; userId: string }> {
