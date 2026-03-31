@@ -1,32 +1,33 @@
 import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthFacebookService } from './auth-facebook.service';
 import { ConfigService } from '@nestjs/config';
+import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import ms, { StringValue } from 'ms';
+import { CreateFacebookUserDto } from '../users/dto/create-facebook-user.dto';
 
-import { AuthGoogleService } from './auth-google.service';
-import { CreateGoogleUserDto } from '../users/dto/create-google-user.dto';
-
-@Controller('auth/google')
-export class AuthGoogleController {
+@Controller('auth/facebook')
+export class AuthFacebookController {
   constructor(
-    private readonly authGoogleService: AuthGoogleService,
+    private readonly authFacebookService: AuthFacebookService,
     private readonly configService: ConfigService,
   ) {}
 
   @Get()
-  @UseGuards(AuthGuard('google'))
-  async googleAuth() {
-    // Chuyển hướng sang trang đăng nhập Google
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuth() {
+    // Chuyển hướng sang trang đăng nhập Facebook
   }
 
   @Get('callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(
-    @Req() req: { user: CreateGoogleUserDto },
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuthCallback(
+    @Req() req: { user: CreateFacebookUserDto },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { tokens } = await this.authGoogleService.handleGoogleLogin(req.user);
+    const { tokens } = await this.authFacebookService.handleFacebookLogin(
+      req.user,
+    );
 
     const accessExpiresIn = this.configService.getOrThrow<string>(
       'JWT_ACCESS_EXPIRES_IN',
