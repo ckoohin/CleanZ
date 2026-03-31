@@ -24,15 +24,14 @@ import {
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Auth } from './decorators/auth.decorator';
 import { Public } from './decorators/public.decorator';
-import type { CookieOptions, Response } from 'express';
-import ms, { StringValue } from 'ms';
-import { ConfigService } from '@nestjs/config';
+import { CookieHelper } from 'src/common/helpers/cookie.helper';
+import type { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
+    private readonly cookieHelper: CookieHelper,
   ) {}
 
   @Public()
@@ -75,28 +74,7 @@ export class AuthController {
       dto.otp,
     );
 
-    const accessExpiresIn = this.configService.getOrThrow<string>(
-      'JWT_ACCESS_EXPIRES_IN',
-    ) as StringValue;
-    const refreshExpiresIn = this.configService.getOrThrow<string>(
-      'JWT_REFRESH_EXPIRES_IN',
-    ) as StringValue;
-
-    res.cookie('access_token', tokens.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-      maxAge: ms(accessExpiresIn),
-    });
-
-    res.cookie('refresh_token', tokens.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-      maxAge: ms(refreshExpiresIn),
-    });
+    this.cookieHelper.setTokenCookies(res, tokens);
     return { message: 'Đăng nhập thành công' };
   }
 
@@ -108,28 +86,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const tokens = await this.authService.refreshTokens(user);
-    const accessExpiresIn = this.configService.getOrThrow<string>(
-      'JWT_ACCESS_EXPIRES_IN',
-    ) as StringValue;
-    const refreshExpiresIn = this.configService.getOrThrow<string>(
-      'JWT_REFRESH_EXPIRES_IN',
-    ) as StringValue;
 
-    res.cookie('access_token', tokens.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-      maxAge: ms(accessExpiresIn),
-    });
-
-    res.cookie('refresh_token', tokens.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-      maxAge: ms(refreshExpiresIn),
-    });
+    this.cookieHelper.setTokenCookies(res, tokens);
 
     return { message: 'Làm mới token thành công' };
   }
@@ -138,15 +96,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response) {
-    const cookieOptions: CookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-    };
-
-    res.clearCookie('access_token', cookieOptions);
-    res.clearCookie('refresh_token', cookieOptions);
+    this.cookieHelper.clearTokenCookies(res);
     return { message: 'Đăng xuất thành công' };
   }
 

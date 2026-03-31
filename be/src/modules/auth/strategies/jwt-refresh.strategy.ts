@@ -10,6 +10,7 @@ import { User } from '../../users/entities/user.entity';
 import { JwtPayload } from '../types/JwtPayLoad';
 import { TokenService } from '../../token/token.service';
 import { RequestWithCookies } from '../types/RequestWithCookies';
+import { CookieHelper } from 'src/common/helpers/cookie.helper';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -21,6 +22,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly tokenService: TokenService,
+    private readonly cookieHelper: CookieHelper,
   ) {
     const secret = configService.get<string>('JWT_REFRESH_SECRET');
 
@@ -51,6 +53,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     });
 
     if (!user) {
+      this.cookieHelper.clearTokenCookies(req.res!);
       throw new UnauthorizedException('Phiên đăng nhập đã hết hạn');
     }
 
@@ -60,6 +63,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     );
 
     if (!validToken) {
+      this.cookieHelper.clearTokenCookies(req.res!);
       throw new UnauthorizedException('Refresh token không hợp lệ');
     }
 
