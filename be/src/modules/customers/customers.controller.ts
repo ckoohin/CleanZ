@@ -9,7 +9,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 @Controller('customers')
 @Auth()
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) { }
+  constructor(private readonly customersService: CustomersService) {}
 
   @Get('profile')
   async getOrCreateProfile(@CurrentUser() currentUser: AuthUser) {
@@ -21,7 +21,11 @@ export class CustomersController {
     @Param('userId') userId: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.customersService.findOneByUserId(userId, currentUser.id, currentUser.role);
+    return this.customersService.findOneByUserId(
+      userId,
+      currentUser.id,
+      currentUser.role,
+    );
   }
 
   @Patch('profile')
@@ -29,6 +33,11 @@ export class CustomersController {
     @Body() updateCustomerDto: UpdateCustomerDto,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.customersService.updateProfile(currentUser.id, updateCustomerDto, currentUser.id, currentUser.role);
+    return this.customersService.updateProfile(
+      currentUser.id,
+      updateCustomerDto,
+      currentUser.id,
+      currentUser.role,
+    );
   }
 }

@@ -1,9 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
-import validationOptions from './utils/validation-options';
-import { GlobalExceptionFilter } from './utils/global-exception';
-import cookieParser from 'cookie-parser';
 import express from 'express';
 import { join } from 'path';
 import validationOptions from './common/utils/validation-options';
