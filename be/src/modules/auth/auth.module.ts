@@ -6,9 +6,13 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthTokenService } from './auth-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../users/entities/user.entity';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { TokenModule } from '../token/token.module';
+import { UsersModule } from '../users/users.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -16,9 +20,12 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
     TypeOrmModule.forFeature([User]),
+    TokenModule,
+    UsersModule,
+    MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
-  exports: [AuthService, JwtModule, PassportModule],
+  providers: [AuthService, AuthTokenService, JwtStrategy, JwtRefreshStrategy],
+  exports: [AuthService, AuthTokenService, JwtModule, PassportModule],
 })
 export class AuthModule {}

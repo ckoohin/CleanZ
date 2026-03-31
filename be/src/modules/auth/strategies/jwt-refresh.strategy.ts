@@ -5,9 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
+
 import { User } from '../../users/entities/user.entity';
 import { JwtPayload } from '../types/JwtPayLoad';
+import { TokenService } from '../../token/token.service';
+import { RequestWithCookies } from '../types/RequestWithCookies';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -18,6 +20,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly tokenService: TokenService,
   ) {
     const secret = configService.get<string>('JWT_REFRESH_SECRET');
 
@@ -27,8 +30,8 @@ export class JwtRefreshStrategy extends PassportStrategy(
 
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (request: Request) => {
-          return (request.cookies['refreshToken'] as string) ?? null;
+        (request: RequestWithCookies) => {
+          return request.cookies['refresh_token'] ?? null;
         },
       ]),
       secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
@@ -36,27 +39,27 @@ export class JwtRefreshStrategy extends PassportStrategy(
     });
   }
 
-  async validate(req: Request, payload: JwtPayload): Promise<User> {
-    const refreshToken = req.cookies['refreshToken'] as string; // ← đọc từ cookie
+  async validate(req: RequestWithCookies, payload: JwtPayload): Promise<User> {
+    const refreshToken = req.cookies['refresh_token'];
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token không tồn tại');
     }
 
     const user = await this.userRepository.findOne({
-      where: { id: payload.sub, isActive: true },
+      where: { id: payload.sub, is_active: true },
     });
 
-    if (!user || !user.refreshToken) {
+    if (!user) {
       throw new UnauthorizedException('Phiên đăng nhập đã hết hạn');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(
+    const validToken = await this.tokenService.validateRefreshToken(
       refreshToken,
-      user.refreshToken,
+      user.id,
     );
 
-    if (!isRefreshTokenValid) {
+    if (!validToken) {
       throw new UnauthorizedException('Refresh token không hợp lệ');
     }
 

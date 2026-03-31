@@ -18,4 +18,8 @@ export class ChangePasswordDto {
     message: 'Mật khẩu mới không đáp ứng yêu cầu bảo mật',
   })
   newPassword: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Xác nhận mật khẩu không được để trống' })
+  confirmPassword: string;
 }

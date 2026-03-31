@@ -1,16 +1,16 @@
+import { Exclude } from 'class-transformer';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { Token } from 'src/modules/token/entities/token.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
+  OneToMany,
 } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 
-@Entity('Users')
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -18,11 +18,18 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column({ select: false })
-  password!: string;
+  @Exclude()
+  @Column({ select: false, nullable: true })
+  password?: string;
 
   @Column({ length: 100 })
   fullName!: string;
+
+  @Column({ nullable: true })
+  provider?: string;
+
+  @Column({ nullable: true })
+  providerId?: string;
 
   @Column({
     type: 'enum',
@@ -31,30 +38,21 @@ export class User {
   })
   role!: UserRole;
 
-  @Column({ nullable: true, type: 'text' })
-  refreshToken!: string | null;
-
   @Column({ type: 'boolean', default: true })
-  isActive!: boolean;
+  is_active: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  is_verified: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
-  lastLogin!: Date;
+  last_login: Date;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updated_at: Date;
 
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword() {
-    if (this.password) {
-      this.password = await bcrypt.hash(this.password, 10);
-    }
-  }
-
-  async comparePassword(plainText: string): Promise<boolean> {
-    return bcrypt.compare(plainText, this.password);
-  }
+  @OneToMany(() => Token, (token) => token.user)
+  tokens: Token[];
 }

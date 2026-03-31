@@ -8,6 +8,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { WorkersModule } from './modules/workers/workers.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { TokenModule } from './modules/token/token.module';
+import { UploadModule } from './modules/upload/upload.module';
+import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
 
 @Module({
   imports: [
@@ -24,6 +28,10 @@ import { CustomersModule } from './modules/customers/customers.module';
     UsersModule,
     WorkersModule,
     CustomersModule,
+    AuthModule,
+    TokenModule,
+    UploadModule,
+    AuthGoogleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

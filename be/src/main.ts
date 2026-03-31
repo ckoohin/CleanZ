@@ -6,6 +6,9 @@ import { GlobalExceptionFilter } from './utils/global-exception';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { join } from 'path';
+import validationOptions from './common/utils/validation-options';
+import { GlobalExceptionFilter } from './common/utils/global-exception';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

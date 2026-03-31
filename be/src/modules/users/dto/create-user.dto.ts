@@ -15,6 +15,7 @@ export class CreateUserDto {
   email!: string;
 
   @IsString()
+  @IsOptional()
   @IsNotEmpty({ message: 'Password không được để trống' })
   @MinLength(6, { message: 'Password phải có ít nhất 6 ký tự' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/, {
@@ -27,7 +28,7 @@ export class CreateUserDto {
   @MaxLength(100, { message: 'Họ tên không được vượt quá 100 ký tự' })
   fullName!: string;
 
-  @IsEnum(UserRole, { message: 'Role phải là ADMIN hoặc STAFF' })
+  @IsEnum(UserRole, { message: 'Role phải là Worker hoặc Customer' })
   @IsOptional()
   role?: UserRole;
 }
