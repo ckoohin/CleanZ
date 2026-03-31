@@ -53,6 +53,6 @@ export class AuthGoogleController {
       maxAge: ms(refreshExpiresIn),
     });
 
-    return { message: 'Đăng nhập thành công' };
+    return res.redirect(this.configService.getOrThrow<string>('FRONTEND_URL'));
   }
 }
