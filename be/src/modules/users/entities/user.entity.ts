@@ -13,17 +13,17 @@ import {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   @Exclude()
   @Column({ select: false, nullable: true })
   password?: string;
 
   @Column({ length: 100 })
-  fullName: string;
+  fullName!: string;
 
   @Column({ nullable: true })
   provider?: string;
@@ -36,7 +36,7 @@ export class User {
     enum: UserRole,
     default: UserRole.CUSTOMER,
   })
-  role: UserRole;
+  role!: UserRole;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
