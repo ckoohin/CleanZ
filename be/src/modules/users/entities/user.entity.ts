@@ -1,4 +1,5 @@
 import { Exclude } from 'class-transformer';
+import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { Token } from 'src/modules/token/entities/token.entity';
 import {
@@ -25,11 +26,14 @@ export class User {
   @Column({ length: 100 })
   fullName!: string;
 
-  @Column({ nullable: true })
-  provider?: string;
+  @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL })
+  provider: AuthProvider;
 
   @Column({ nullable: true })
   providerId?: string;
+
+  @Column({ nullable: true })
+  avatar?: string;
 
   @Column({
     type: 'enum',

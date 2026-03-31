@@ -11,6 +11,8 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
+import { CreateFacebookUserDto } from './dto/create-facebook-user.dto';
+import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 
 @Injectable()
 export class UsersService {
@@ -30,8 +32,10 @@ export class UsersService {
       const hashedPassword = await this.hashPassword(dto.password);
 
       const user = this.userRepository.create({
-        ...dto,
+        email: dto.email,
+        fullName: dto.fullName,
         password: hashedPassword,
+        provider: AuthProvider.LOCAL,
       });
 
       return await this.userRepository.save(user);
@@ -110,7 +114,7 @@ export class UsersService {
 
   async updateProvider(
     id: string,
-    provider: string,
+    provider: AuthProvider,
     providerId: string,
   ): Promise<void> {
     return asyncHandleOperation(async () => {
@@ -147,5 +151,21 @@ export class UsersService {
 
   private async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
+  }
+
+  async createFacebookUser(dto: CreateFacebookUserDto): Promise<User> {
+    return asyncHandleOperation(async () => {
+      const user = this.userRepository.create({
+        email: dto.email,
+        fullName: dto.fullName,
+        provider: dto.provider,
+        providerId: dto.providerId,
+        avatar: dto.avatar,
+        is_verified: true,
+        is_active: true,
+      });
+
+      return await this.userRepository.save(user);
+    }, 'Lỗi khi tạo người dùng Facebook');
   }
 }

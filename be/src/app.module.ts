@@ -4,7 +4,6 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
-import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { WorkersModule } from './modules/workers/workers.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -12,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TokenModule } from './modules/token/token.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
+import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module';
 
 @Module({
   imports: [
@@ -28,12 +28,12 @@ import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
     UsersModule,
     WorkersModule,
     CustomersModule,
-    AuthModule,
     TokenModule,
     UploadModule,
     AuthGoogleModule,
+    AuthFacebookModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
