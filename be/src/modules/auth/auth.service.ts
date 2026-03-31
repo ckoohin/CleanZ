@@ -94,7 +94,9 @@ export class AuthService {
 
   async resendVerificationEmail(token: string): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
-      const payload = this.verifyToken(token, 'JWT_VERIFY_EMAIL_SECRET');
+      const payload = this.verifyToken(token, 'JWT_VERIFY_EMAIL_SECRET', {
+        ignoreExpiration: true,
+      });
       const email: string = payload.email;
       const user = await this.usersService.findByEmail(email);
       if (!user) {
@@ -333,10 +335,15 @@ export class AuthService {
     return bcrypt.compare(password, hash);
   }
 
-  private verifyToken(token: string, secret: string): JwtPayload {
+  private verifyToken(
+    token: string,
+    secret: string,
+    option?: { ignoreExpiration?: boolean },
+  ) {
     try {
       return this.jwtService.verify<JwtPayload>(token, {
         secret: this.configService.get<string>(secret),
+        ...option,
       });
     } catch {
       throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn.');
