@@ -13,6 +13,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { TokenModule } from '../token/token.module';
 import { UsersModule } from '../users/users.module';
 import { MailModule } from '../mail/mail.module';
+import { CookieHelper } from 'src/common/helpers/cookie.helper';
 
 @Module({
   imports: [
@@ -25,7 +26,13 @@ import { MailModule } from '../mail/mail.module';
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthTokenService, JwtStrategy, JwtRefreshStrategy],
+  providers: [
+    AuthService,
+    AuthTokenService,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    CookieHelper,
+  ],
   exports: [AuthService, AuthTokenService, JwtModule, PassportModule],
 })
 export class AuthModule {}

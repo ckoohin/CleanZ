@@ -159,6 +159,12 @@ export class AuthService {
         );
       }
 
+      if (!user.is_active) {
+        throw new BadRequestException(
+          'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.',
+        );
+      }
+
       const otp = crypto.randomInt(100000, 999999).toString();
       const otpHash = await bcrypt.hash(otp, 10);
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -169,6 +175,7 @@ export class AuthService {
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',
         userId: user.id,
+        otp,
       };
     }, 'Lỗi khi đăng nhập');
   }
