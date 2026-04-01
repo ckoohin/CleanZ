@@ -13,7 +13,7 @@ export function VerifyEmailProvider({ children }: { children: React.ReactNode })
     return (
         <VerifyEmailContext.Provider value={
             {
-
+                
             }
         }>
             {children}
@@ -28,3 +28,5 @@ export function useVerifyEmailContext() {
     }
     return context
 }
+
+// reset-password?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTJmNTMyYi0wNzYzLTQ3ZDUtYmM5Ny0zMGIzZGRlYjg0YzAiLCJpYXQiOjE3NzQ5NDI3MDMsImV4cCI6MTc3NDk0MzYwM30.BYVZvdbnmTIX3eDzabKVmFC3q_ar7jn5EtydbTl0CDc

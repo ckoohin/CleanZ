@@ -9,6 +9,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useVerifyOtp } from "@/features/auth/hooks/auth.hooks";
+import { toast } from "sonner";
+import Footer from "@/features/auth/_components/Footer";
+import { useRegisterContext } from "@/features/auth/context/register.context";
+import { useLoginContext } from "@/features/auth/context/login.context";
 
 const OTP_LENGTH = 6;
 const EXPIRE_SECONDS = 5 * 60;
@@ -16,11 +20,10 @@ const EXPIRE_SECONDS = 5 * 60;
 type Status = "idle" | "loading" | "success" | "error";
 
 export default function OtpVerifyPage() {
+  const { formData } = useLoginContext();
   const { mutateAsync: verifyOtp } = useVerifyOtp();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") ?? "your@email.com";
-  const name = searchParams.get("name") ?? "bạn";
   const userId = searchParams.get("userId") ?? "";
 
   if (!userId) {
@@ -66,17 +69,11 @@ export default function OtpVerifyPage() {
   const handleVerify = async (code: string) => {
     setStatus("loading");
     setErrorMsg("");
-    try {
-      const res = await verifyOtp({ userId, otp: code });
 
-      console.log(res);
-      if (res.status === 200) {
-        setStatus("success");
-      } else {
-        setStatus("error");
-        setErrorMsg(res?.message ?? "Mã OTP không chính xác.");
-        setOtp("");
-      }
+    try {
+      await verifyOtp({ userId, otp: code });
+      toast.success("Chào mừng bạn đến với King Of Service", { duration: 2000 })
+      setStatus("success");
     } catch {
       setStatus("error");
       setErrorMsg("Có lỗi xảy ra, vui lòng thử lại.");
@@ -167,11 +164,11 @@ export default function OtpVerifyPage() {
                 ) : (
                   <motion.div key="i" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
                     <p className="text-base font-bold text-foreground">
-                      Xin chào, <span className="text-primary">{name}</span>!
+                      Xin chào, <span className="text-primary">Bạn</span>!
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Mã OTP đã gửi đến{" "}
-                      <span className="font-semibold text-foreground">{email}</span>
+                      <span className="font-semibold text-foreground">{formData.email}</span>
                     </p>
                   </motion.div>
                 )}
@@ -282,10 +279,8 @@ export default function OtpVerifyPage() {
 
           </div>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          © 2025 King Of Service
-        </p>
+        
+        <Footer/>
       </motion.div>
     </div>
   );

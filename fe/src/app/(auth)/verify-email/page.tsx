@@ -7,36 +7,33 @@ import { CheckCircle2, XCircle, Loader2, ArrowRight, RefreshCw } from "lucide-re
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import http from "@/lib/api/http";
-import { useVerifyEmail } from "@/features/auth/hooks/auth.hooks";
+import { useResendVerificationEmail, useVerifyEmail } from "@/features/auth/hooks/auth.hooks";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
+import Footer from "@/features/auth/_components/Footer";
 
 type Status = "loading" | "success" | "error" | "expired";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token") ;
+  const token = searchParams.get("token");
   const [status, setStatus] = useState<Status>("loading");
   const [countdown, setCountdown] = useState(5);
 
-    
-    const { mutateAsync: verifyEmail } = useVerifyEmail()
+  const { mutateAsync: verifyEmail } = useVerifyEmail()
+
   useEffect(() => {
     if (!token) { setStatus("error"); return; }
 
     const verify = async () => {
       try {
-        const res = await verifyEmail(token)
-        if (res.status === 200) setStatus("success");
-        else {
-          setStatus(res?.code === "TOKEN_EXPIRED" ? "expired" : "error");
-        }
+        const res = await verifyEmail({ token })
+        setStatus("success")
       } catch (error: any) {
-          setStatus("error");
-          toast.error(error?.response?.data?.message || "Token xác thực không hợp lệ hoặc đã hết hạn.")
+        setStatus("expired")
       }
     };
-
     verify();
   }, [token]);
 
@@ -44,7 +41,12 @@ export default function VerifyEmailPage() {
     if (status !== "success") return;
     const interval = setInterval(() => {
       setCountdown((c) => {
-        if (c <= 1) { router.push("/login"); return 0; }
+        if (c <= 1) {
+          router.push("/login");
+          toast.success("Chào mừng bạn đến với King Of Service xin mời đăng nhập", { duration: 2000 })
+          return 0;
+        }
+
         return c - 1;
       });
     }, 1000);
@@ -84,9 +86,7 @@ export default function VerifyEmailPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          © 2025 King Of Service · Dịch vụ sửa chữa tận nơi
-        </p>
+        <Footer />
       </motion.div>
     </div>
   );
@@ -162,7 +162,7 @@ function SuccessState({ countdown }: { countdown: number }) {
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold rounded-xl gap-2"
           asChild
         >
-          <Link href="/sign-in">
+          <Link href="/login">
             Đăng nhập ngay
             <ArrowRight className="w-4 h-4" />
           </Link>
@@ -216,13 +216,16 @@ function ErrorState() {
 
 function ExpiredState() {
   const [resent, setResent] = useState(false);
-  const [loading, setLoading] = useState(false);
-
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token");
+  const { mutateAsync: resendVerificationEmail, isPending } = useResendVerificationEmail()
   const handleResend = async () => {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setResent(true);
+    try {
+      await resendVerificationEmail({ token: token! });
+      setResent(true);
+    } catch (error) {
+      console.error("Resend verification email error:", error);
+    }
   };
 
   return (
@@ -261,9 +264,8 @@ function ExpiredState() {
           <Button
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold rounded-xl gap-2 mb-3"
             onClick={handleResend}
-            disabled={loading}
           >
-            {loading ? (
+            {isPending ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Đang gửi...</>
             ) : (
               <><RefreshCw className="w-4 h-4" /> Gửi lại email xác thực</>

@@ -1,4 +1,4 @@
-import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, Profile, VerifyOtpCredentials } from '@/features/auth/types/auth.type';
+import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, Profile, VerifyOtpCredentials, VerifyEmailCredentials, VerifyEmailResponse, ResendVerificationEmailCredentials, ResendVerificationEmailResponse, ForgotPasswordCredentials, ForgotPasswordResponse, ResetPasswordCredentials, ResetPasswordResponse, VerifyOtpResponse } from '@/features/auth/types/auth.type';
 import http from '@/lib/api/http';
 
 export const authApi = {
@@ -26,11 +26,22 @@ export const authApi = {
     return http.post('/auth/refresh').then(() => undefined);
   },
 
-  verifyEmail: (token: string): Promise<void> => {
-    return http.post('/auth/verify-email', { token }).then(() => undefined);
+  verifyEmail: (credentials: VerifyEmailCredentials): Promise<VerifyEmailResponse> => {
+    return http.post('/auth/verify-email', credentials).then((res) => res.data);
+  },
+  resendVerificationEmail: (credentials: ResendVerificationEmailCredentials): Promise<ResendVerificationEmailResponse> => {
+    return http.post('/auth/resend-verification-email', credentials).then((res) => res.data);
   },
 
-  verifyOtp: (credentials: VerifyOtpCredentials): Promise<{ message: string }> => {
+  verifyOtp: (credentials: VerifyOtpCredentials): Promise<VerifyOtpResponse> => {
     return http.post('/auth/verify-login-otp', credentials).then((res) => res.data);
+  },
+
+  forgotPassword: (credentials: ForgotPasswordCredentials): Promise<ForgotPasswordResponse> => {
+    return http.post('/auth/forgot-password', credentials).then((res) => res.data);
+  },
+
+  resetPassword: (credentials: ResetPasswordCredentials): Promise<ResetPasswordResponse> => {
+    return http.post('/auth/reset-password', credentials).then((res) => res.data);
   }
 };
