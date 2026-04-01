@@ -2,6 +2,7 @@
 import { createContext, useContext, useState } from "react"
 import { FormData } from "../_components/authv1/MultiStepForm"
 import { useRegister } from "../hooks/auth.hooks"
+import { useRouter } from "next/navigation"
 
 type TRegisterContext = {
     isPending: boolean,
@@ -23,6 +24,7 @@ const RegisterContext = createContext<TRegisterContext | null>(null)
 
 export function RegisterProvider({ children }: { children: React.ReactNode }) {
     const register = useRegister()
+    const router = useRouter()
     const [isPending, setIsPending] = useState(false)
     const [currentStep, setCurrentStep] = useState(1);
     const TOTAL_STEPS = 3;
@@ -73,6 +75,7 @@ export function RegisterProvider({ children }: { children: React.ReactNode }) {
 
             await register.mutateAsync(data)
 
+            router.push(`/login`)
 
         } catch (error) {
             console.error("Register error:", error);

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/features/auth/services/auth.service';
 import { queryKeys } from '@/features/auth/queries/auth.query';
-import type { LoginCredentials, LoginResponse, RegisterCredentials, VerifyOtpCredentials } from '@/features/auth/types/auth.type';
+import type { ForgotPasswordCredentials, LoginCredentials, LoginResponse, RegisterCredentials, ResendVerificationEmailCredentials, ResetPasswordCredentials, VerifyEmailCredentials, VerifyOtpCredentials } from '@/features/auth/types/auth.type';
 import { toast } from 'sonner';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
@@ -94,14 +94,30 @@ export function useLogout() {
 
 export function useVerifyEmail() {
   return useMutation({
-    mutationFn: (token: string) => authApi.verifyEmail(token),
+    mutationFn: (credentials: VerifyEmailCredentials) => authApi.verifyEmail(credentials),
     onSuccess: (res : any) => {
-      console.log(res);
+      // console.log(res);
       toast.success(res.message)
+      
     },
     onError: (error: any) => {
-      console.log(error.response);
+      // console.log(error.response);
       toast.error(error.response?.data?.errors?.message);
+      return error
+    }
+  })
+}
+export function useResendVerificationEmail() {
+  return useMutation({
+    mutationFn: (credentials: ResendVerificationEmailCredentials) => authApi.resendVerificationEmail(credentials),
+    onSuccess: (res : any) => {
+      // console.log(res);
+      toast.success(res.message) 
+    },
+    onError: (error: any) => {
+      // console.log(error.response);
+      toast.error(error.response?.data?.errors?.message);
+      return error
     }
   })
 }
@@ -112,7 +128,7 @@ export function useVerifyOtp() {
 
   return useMutation({
     mutationFn: (credentials: VerifyOtpCredentials) => authApi.verifyOtp(credentials),
-    onSuccess: (res : {message : string}) => {
+    onSuccess: (res : any) => {
       // console.log(res.message);
       toast.success(res.message)
 
@@ -126,6 +142,36 @@ export function useVerifyOtp() {
       }
 
       toast.error("Lỗi kết lối vui lòng xem lại mạng")
+    }
+  })
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (credentials: ForgotPasswordCredentials) => authApi.forgotPassword(credentials),
+    onSuccess: (res : any) => {
+      // console.log(res);
+      toast.success(res.message) 
+    },
+    onError: (error: any) => {
+      // console.log(error.response);
+      toast.error(error.response?.data?.errors?.message);
+      return error
+    }
+  })
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (credentials: ResetPasswordCredentials) => authApi.resetPassword(credentials),
+    onSuccess: (res : any) => {
+      // console.log(res);
+      toast.success(res.message) 
+    },
+    onError: (error: any) => {
+      // console.log(error.response);
+      toast.error(error.response?.data?.errors?.message);
+      return error
     }
   })
 }

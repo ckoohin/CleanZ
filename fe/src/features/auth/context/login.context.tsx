@@ -40,7 +40,6 @@ export function LoginProvider(
             e.preventDefault();
             const { success, errors } = validate(formData);
             if (!success) return setErrors(errors);
-            console.log(formData);
 
             login.mutate(formData)
 

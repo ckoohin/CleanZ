@@ -31,13 +31,6 @@ export interface Profile {
     updated_at: string
 }
 
-// export interface Profile extends User {
-//   provider: AuthProvider;
-//   providerId?: string;
-// }
-
-// auth credentials
-
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -48,6 +41,29 @@ export interface RegisterCredentials {
   email: string;
   password: string;
   fullName: string;
+}
+
+export interface VerifyEmailCredentials {
+    token: string
+}
+
+export interface ResendVerificationEmailCredentials {
+    token: string
+}
+
+export interface VerifyOtpCredentials {
+    userId: string,
+    otp: string
+}
+
+export interface ForgotPasswordCredentials {
+  email: string;
+}
+
+export interface ResetPasswordCredentials {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 // api response
@@ -61,7 +77,30 @@ export type LoginResponse = {
 };
 
 export type RegisterResponse = AuthResponse;
+
 export type ProfileResponse = Profile;
+
+export type RegisterFormValues = RegisterCredentials;
+
+export interface VerifyEmailResponse {
+    message: string
+}
+
+export interface ResendVerificationEmailResponse {
+    message: string
+}
+
+export interface VerifyOtpResponse {
+    message: string
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordResponse {
+  message : string
+}
 
 // form values
 export interface LoginFormValues {
@@ -70,10 +109,17 @@ export interface LoginFormValues {
   rememberMe: boolean;
 }
 
-export type RegisterFormValues = RegisterCredentials;
 
-// verify otp
-export interface VerifyOtpCredentials {
-    userId: string,
-    otp: string
+
+// error
+
+export interface ErrorResponse {
+    errors: {
+        message: string,
+        error: string,
+        statusCode: number
+    },
+    path: string,
+    statusCode: number,
+    timestamp: string
 }

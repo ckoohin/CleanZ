@@ -15,6 +15,7 @@ import { useLogin } from '@/features/auth/hooks/auth.hooks'
 import { Checkbox } from '@/components/ui/checkbox'
 import { SocialSignIn } from './SocialSignIn'
 import { useRouter } from 'next/navigation'
+import { useLoginContext } from '../../context/login.context'
 
 export const fadeUp: Variants = {
     hidden: { opacity: 0, y: 20 },
@@ -26,7 +27,7 @@ export const fadeUp: Variants = {
 };
 export const SignInFlow = () => {
     const router = useRouter()
-    const [formData, setFormData] = useState({ email: '', password: '' });
+    const { formData, setFormData } = useLoginContext()
     const [showPassword, setShowPassword] = useState(false);
     const [error, setErrors] = useState<any>({});
     const validate = useZodValidation(signin);
@@ -134,7 +135,7 @@ export const SignInFlow = () => {
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <Link href="#" className="text-xs text-primary hover:underline font-medium">
+                                <Link href="/forgot-password" className="text-xs text-primary hover:underline font-medium">
                                     Quên mật khẩu?
                                 </Link>
                             </div>
