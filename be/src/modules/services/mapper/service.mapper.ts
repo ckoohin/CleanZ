@@ -9,7 +9,6 @@ export const toServiceResponseDto = (entity: ServiceEntity): ServiceResponseDto 
     description: entity.description,
     basePrice: Number(entity.basePrice),
     duration: entity.duration,
-    // Xử lý path ảnh giống hệt cách làm của worker.mapper.ts
     imageUrl: entity.imagePath
       ? `/uploads/${entity.imagePath.replace(/^uploads\/(public\/)?/, '')}`
       : null,

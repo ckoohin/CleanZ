@@ -38,7 +38,6 @@ export class ServiceEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  // Audit Trail: Tracking Admin
   @Column({ type: 'uuid', nullable: true })
   createdByAdminId?: string;
 
