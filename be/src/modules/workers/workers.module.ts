@@ -7,8 +7,10 @@ import { User } from '../users/entities/user.entity';
 import { WorkerDocumentEntity } from './entities/worker-document.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([WorkerEntity, User, WorkerDocumentEntity])],
-    controllers: [WorkersController],
-    providers: [WorkersService],
+  imports: [
+    TypeOrmModule.forFeature([WorkerEntity, User, WorkerDocumentEntity]),
+  ],
+  controllers: [WorkersController],
+  providers: [WorkersService],
 })
-export class WorkersModule { }
+export class WorkersModule {}

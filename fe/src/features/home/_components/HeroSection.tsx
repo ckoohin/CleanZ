@@ -83,13 +83,13 @@ export default function HeroSection() {
 
         <motion.h1
           variants={itemVariants}
-          className="text-[clamp(48px,8vw,80px)] font-light leading-[1.06] tracking-[-0.02em] text-foreground mb-6"
-          style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
+          className="text-[clamp(48px,8vw,85px)] font-light leading-[1.06] tracking-[-0.02em] text-foreground mb-6"
+          style={{ fontFamily: "'Times New Roman', Georgia, serif" }}
         >
           Mọi dịch vụ,{" "}
           <motion.em
             initial={{ backgroundSize: "0% 1px" }}
-            whileInView={{ backgroundSize: "100% 1px" }}
+            whileInView={{ backgroundSize: "100% 2px" }}
             transition={{ delay: 0.8, duration: 1 }}
             className="not-italic italic font-normal text-primary relative bg-gradient-to-r from-transparent via-primary/50 to-transparent bg-bottom bg-no-repeat"
           >

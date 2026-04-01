@@ -4,7 +4,6 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
-import { UserRole } from '../../common/enums/user-role.enum';
 
 @Controller('customers')
 @Auth()
