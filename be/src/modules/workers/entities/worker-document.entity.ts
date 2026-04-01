@@ -24,9 +24,11 @@ export class WorkerDocumentEntity {
   @Column({ type: 'enum', enum: WorkerDocumentType })
   type!: WorkerDocumentType;
 
-  @Column({ type: 'text' })
-  filePath!: string;
+  @Column({ type: 'text', nullable: true })
+  filePublicId!: string | null;
 
+  @Column({ type: 'text' })
+  fileUrl!: string;
   @CreateDateColumn()
   createdAt!: Date;
 

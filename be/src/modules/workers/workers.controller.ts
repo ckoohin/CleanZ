@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -16,11 +17,8 @@ import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
-import {
-  createMultiImageInterceptor,
-  createSingleImageInterceptor,
-  type UploadedImageFile,
-} from 'src/common/helpers/upload-image.helper';
+import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 
 const UUIDParam = new ParseUUIDPipe({
@@ -30,7 +28,7 @@ const UUIDParam = new ParseUUIDPipe({
 @Controller('workers')
 @Auth()
 export class WorkersController {
-  constructor(private readonly workersService: WorkersService) {}
+  constructor(private readonly workersService: WorkersService) { }
 
   private static readonly privateImageKeys = [
     { name: 'citizenCardImage', maxCount: 10 }, // Cho phép tối đa 10 file mỗi loại
@@ -70,10 +68,22 @@ export class WorkersController {
   }
 
   @Patch(':id/avatar')
-  @UseInterceptors(createSingleImageInterceptor('avatarPath', 'public/avatars'))
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          cb(new Error('Chỉ chấp nhận file ảnh'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async updateAvatar(
     @Param('id', UUIDParam) id: string,
-    @UploadedFile() file: UploadedImageFile,
+    @UploadedFile() file: Express.Multer.File,
     @CurrentUser() currentUser: AuthUser,
   ) {
     return this.workersService.updateAvatar(
@@ -86,20 +96,33 @@ export class WorkersController {
 
   @Patch(':id/documents')
   @UseInterceptors(
-    createMultiImageInterceptor(
-      WorkersController.privateImageKeys,
-      'private/workers',
-    ),
+    FileFieldsInterceptor([
+      { name: 'citizenCardImage', maxCount: 2 },
+      { name: 'certificateImage', maxCount: 10 },
+    ], {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          cb(new Error('Chỉ chấp nhận file ảnh'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
   )
   async updateDocuments(
     @Param('id', UUIDParam) id: string,
     @UploadedFiles()
     files: {
-      citizenCardImage?: UploadedImageFile[];
-      certificateImage?: UploadedImageFile[];
+      citizenCardImage?: Express.Multer.File[];
+      certificateImage?: Express.Multer.File[];
     },
     @CurrentUser() currentUser: AuthUser,
   ) {
+    if (files.citizenCardImage && files.citizenCardImage.length > 2) {
+      throw new BadRequestException('Chỉ được upload tối đa 2 ảnh CCCD');
+    }
     return this.workersService.updateDocuments(
       id,
       files,
@@ -127,6 +150,7 @@ export class WorkersController {
   async getAllDocuments(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
+    
   ) {
     return this.workersService.getAllWorkerDocuments(
       id,

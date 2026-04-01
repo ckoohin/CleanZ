@@ -19,12 +19,11 @@ export const toWorkerProfileResponseDto = (
   return {
     id: entity.id,
     userId: entity.user.id,
+    fullName: entity.user.fullName,
     skills: entity.skills,
     experience: entity.experience,
     bio: entity.bio,
-    avatarUrl: entity.avatarPath
-      ? `/uploads/${entity.avatarPath.replace(/^uploads\/(public\/)?/, '')}`
-      : null,
+    avatarUrl: entity.avatarUrl || null,
     hasCitizenCardImage,
     hasCertificateImage,
     totalJobs: entity.totalJobs,

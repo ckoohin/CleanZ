@@ -10,7 +10,7 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads', 'public')));
+
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',

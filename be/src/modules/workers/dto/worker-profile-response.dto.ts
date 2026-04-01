@@ -3,6 +3,7 @@ import { WorkerStatus } from '../entities/worker.entity';
 export class WorkerProfileResponseDto {
   id!: string;
   userId!: string;
+  fullName!: string;
   skills!: string;
   experience!: string;
   bio!: string;

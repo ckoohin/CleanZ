@@ -12,19 +12,12 @@ import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
 import { WorkerProfileResponseDto } from './dto/worker-profile-response.dto';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { UserRole } from 'src/common/enums/user-role.enum';
-import {
-  normalizeUploadPath,
-  type UploadedImageFile,
-} from 'src/common/helpers/upload-image.helper';
+
 import { User } from '../users/entities/user.entity';
 import { WorkerDocumentEntity } from './entities/worker-document.entity';
 import { WorkerDocumentType } from 'src/common/enums/type-docs-worker.enum';
-import {
-  assertCanAccess,
-  assertCanUpdate,
-  deleteFile,
-  deleteFiles,
-} from 'src/common/helpers/file.helper';
+import { assertCanAccess, assertCanUpdate } from 'src/common/helpers/file.helper';
+import { UploadService } from '../upload/upload.service';
 import { toWorkerProfileResponseDto } from './mapper/worker.mapper';
 
 const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate'] as const;
@@ -39,7 +32,8 @@ export class WorkersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(WorkerDocumentEntity)
     private readonly workerDocumentRepository: Repository<WorkerDocumentEntity>,
-  ) {}
+    private readonly uploadService: UploadService,
+  ) { }
 
   async createProfileWorker(
     userId: string,
@@ -122,25 +116,27 @@ export class WorkersService {
 
   async updateAvatar(
     id: string,
-    file: UploadedImageFile,
+    file: Express.Multer.File,
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<WorkerProfileResponseDto> {
     return asyncHandleOperation(async () => {
       const workerProfile = await this.findAndAuthorizeWithCleanup(
         id,
-        [file?.path],
+        [],
         requestUserId,
         requestUserRole,
       );
+      const oldAvatarPublicId = workerProfile.avatarPublicId;
+      const uploadResult = await this.uploadService.uploadImage(file);
 
-      const oldAvatarPath = workerProfile.avatarPath;
-
-      workerProfile.avatarPath = normalizeUploadPath(file);
+      workerProfile.avatarPublicId = uploadResult.public_id;
+      workerProfile.avatarUrl = uploadResult.url;
       const updated = await this.workerRepository.save(workerProfile);
 
-      deleteFile(oldAvatarPath);
-
+      if (oldAvatarPublicId) {
+        await this.uploadService.deleteImage(oldAvatarPublicId).catch(() => { });
+      }
       return toWorkerProfileResponseDto(updated);
     }, 'Lỗi khi cập nhật avatar');
   }
@@ -148,52 +144,72 @@ export class WorkersService {
   async updateDocuments(
     id: string,
     files: {
-      citizenCardImage?: UploadedImageFile[];
-      certificateImage?: UploadedImageFile[];
+      citizenCardImage?: Express.Multer.File[];
+      certificateImage?: Express.Multer.File[];
     },
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<WorkerProfileResponseDto> {
-    const uploadedPaths = [
-      ...(files?.citizenCardImage?.map((f) => f.path) || []),
-      ...(files?.certificateImage?.map((f) => f.path) || []),
-    ];
+    // No local paths, just check file count
+    const fileCount =
+      (files?.citizenCardImage?.length || 0) +
+      (files?.certificateImage?.length || 0);
 
     return asyncHandleOperation(async () => {
       const workerProfile = await this.findAndAuthorizeWithCleanup(
         id,
-        uploadedPaths,
+        [],
         requestUserId,
         requestUserRole,
       );
 
       if (
         workerProfile.status === WorkerStatus.APPROVED &&
-        uploadedPaths.length > 0
+        fileCount > 0
       ) {
-        deleteFiles(uploadedPaths);
         throw new ForbiddenException(
           'Không thể thay đổi giấy tờ sau khi đã được xác nhận',
         );
       }
 
+      const deleteOldDocs = async (type: WorkerDocumentType, newCount: number) => {
+        if (newCount > 0) {
+          const oldDocs = await this.workerDocumentRepository.find({
+            where: { worker: { id: workerProfile.id }, type },
+          });
+          for (const doc of oldDocs) {
+            if (doc.filePublicId) {
+              await this.uploadService.deleteImage(doc.filePublicId).catch(() => { });
+            }
+            await this.workerDocumentRepository.remove(doc);
+          }
+        }
+      };
+
+      await deleteOldDocs(WorkerDocumentType.CITIZEN_CARD, files?.citizenCardImage?.length || 0);
+      await deleteOldDocs(WorkerDocumentType.CERTIFICATE, files?.certificateImage?.length || 0);
+
       const newDocs: WorkerDocumentEntity[] = [];
       if (files?.citizenCardImage) {
         for (const file of files.citizenCardImage) {
+          const uploadResult = await this.uploadService.uploadImage(file);
           const doc = this.workerDocumentRepository.create({
-            worker: { id: workerProfile.id },
+            worker: workerProfile,
             type: WorkerDocumentType.CITIZEN_CARD,
-            filePath: normalizeUploadPath(file) || '',
+            fileUrl: uploadResult.url,
+            filePublicId: uploadResult.public_id,
           });
           newDocs.push(doc);
         }
       }
       if (files?.certificateImage) {
         for (const file of files.certificateImage) {
+          const uploadResult = await this.uploadService.uploadImage(file);
           const doc = this.workerDocumentRepository.create({
-            worker: { id: workerProfile.id },
+            worker: workerProfile,
             type: WorkerDocumentType.CERTIFICATE,
-            filePath: normalizeUploadPath(file) || '',
+            fileUrl: uploadResult.url,
+            filePublicId: uploadResult.public_id,
           });
           newDocs.push(doc);
         }
@@ -202,7 +218,6 @@ export class WorkersService {
         await this.workerDocumentRepository.save(newDocs);
       }
 
-      // Trả về profile kèm danh sách giấy tờ
       return toWorkerProfileResponseDto(
         await this.findWorkerOrFail(workerProfile.id),
       );
@@ -224,14 +239,13 @@ export class WorkersService {
     const workerProfile = await this.findWorkerOrFail(id);
     assertCanUpdate(workerProfile, requestUserId, requestUserRole);
 
-    // Lấy tất cả filePath của loại giấy tờ này
     const docs = await this.workerDocumentRepository.find({
       where: { worker: { id }, type: type as WorkerDocumentType },
     });
     if (!docs.length) {
       throw new NotFoundException('Chưa có ảnh giấy tờ này');
     }
-    return docs.map((d) => d.filePath);
+    return docs.map((d) => d.fileUrl);
   }
 
   async approveWorker(
@@ -240,6 +254,7 @@ export class WorkersService {
   ): Promise<WorkerProfileResponseDto> {
     return asyncHandleOperation(async () => {
       const workerProfile = await this.findWorkerOrFail(id);
+      console.log(workerProfile)
       if (workerProfile.status === WorkerStatus.APPROVED) {
         throw new BadRequestException('Worker đã được phê duyệt trước đó');
       }
@@ -308,7 +323,8 @@ export class WorkersService {
       documents: (worker.documents || []).map((doc) => ({
         id: doc.id,
         type: doc.type,
-        filePath: doc.filePath,
+        fileUrl: doc.fileUrl || null,
+        filePublicId: doc.filePublicId || null,
         createdAt: doc.createdAt,
       })),
     };
@@ -340,14 +356,12 @@ export class WorkersService {
     });
 
     if (!worker) {
-      deleteFiles(cleanPaths);
       throw new NotFoundException('Không tìm thấy thông tin worker');
     }
 
     try {
       assertCanUpdate(worker, requestUserId, requestUserRole);
     } catch (e) {
-      deleteFiles(cleanPaths);
       throw e;
     }
 

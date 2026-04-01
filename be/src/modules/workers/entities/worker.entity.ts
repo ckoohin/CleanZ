@@ -36,7 +36,10 @@ export class WorkerEntity {
   bio!: string;
 
   @Column({ type: 'text', nullable: true })
-  avatarPath!: string | null;
+  avatarPublicId!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  avatarUrl!: string | null;
 
   @OneToMany(() => WorkerDocumentEntity, (document) => document.worker, {
     cascade: true,

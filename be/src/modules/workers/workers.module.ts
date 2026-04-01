@@ -5,12 +5,18 @@ import { WorkersService } from './workers.service';
 import { WorkerEntity } from './entities/worker.entity';
 import { User } from '../users/entities/user.entity';
 import { WorkerDocumentEntity } from './entities/worker-document.entity';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WorkerEntity, User, WorkerDocumentEntity]),
+    TypeOrmModule.forFeature([
+      WorkerEntity,
+      User,
+      WorkerDocumentEntity
+    ]),
+    UploadModule,
   ],
   controllers: [WorkersController],
   providers: [WorkersService],
 })
-export class WorkersModule {}
+export class WorkersModule { }
