@@ -1,0 +1,72 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { User } from '../../users/entities/user.entity';
+import { JwtPayload } from '../types/JwtPayLoad';
+import { TokenService } from '../../token/token.service';
+import { RequestWithCookies } from '../types/RequestWithCookies';
+import { CookieHelper } from 'src/common/helpers/cookie.helper';
+
+@Injectable()
+export class JwtRefreshStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-refresh',
+) {
+  constructor(
+    configService: ConfigService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly tokenService: TokenService,
+    private readonly cookieHelper: CookieHelper,
+  ) {
+    const secret = configService.get<string>('JWT_REFRESH_SECRET');
+
+    if (!secret) {
+      throw new Error('JWT_REFRESH_SECRET is not defined');
+    }
+
+    super({
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: RequestWithCookies) => {
+          return request.cookies['refresh_token'] ?? null;
+        },
+      ]),
+      secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      passReqToCallback: true,
+    });
+  }
+
+  async validate(req: RequestWithCookies, payload: JwtPayload): Promise<User> {
+    const refreshToken = req.cookies['refresh_token'];
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token không tồn tại');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub, is_active: true },
+    });
+
+    if (!user) {
+      this.cookieHelper.clearTokenCookies(req.res!);
+      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn');
+    }
+
+    const validToken = await this.tokenService.validateRefreshToken(
+      refreshToken,
+      user.id,
+    );
+
+    if (!validToken) {
+      this.cookieHelper.clearTokenCookies(req.res!);
+      throw new UnauthorizedException('Refresh token không hợp lệ');
+    }
+
+    return user;
+  }
+}
