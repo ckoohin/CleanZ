@@ -27,7 +27,7 @@ export class WorkerDocumentEntity {
   @Column({ type: 'text', nullable: true })
   filePublicId!: string | null;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   fileUrl!: string;
   @CreateDateColumn()
   createdAt!: Date;
