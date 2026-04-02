@@ -1,5 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
-import { Column } from 'typeorm';
+import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 export class UpdateWorkerProfileDto {
   @IsOptional()

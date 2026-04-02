@@ -31,6 +31,7 @@ export class WorkerEntity {
 
   @Column({ type: 'varchar', length: 11 })
   phone!: string;
+
   @Column({ nullable: true, type: 'text' })
   experience!: string;
 

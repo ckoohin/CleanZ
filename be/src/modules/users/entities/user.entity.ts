@@ -19,6 +19,9 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
+  @Column({ type: 'varchar', length: 11 })
+  phone!: string;
+
   @Exclude()
   @Column({ select: false, nullable: true })
   password?: string;

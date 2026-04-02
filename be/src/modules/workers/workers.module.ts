@@ -9,14 +9,10 @@ import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      WorkerEntity,
-      User,
-      WorkerDocumentEntity
-    ]),
+    TypeOrmModule.forFeature([WorkerEntity, User, WorkerDocumentEntity]),
     UploadModule,
   ],
   controllers: [WorkersController],
   providers: [WorkersService],
 })
-export class WorkersModule { }
+export class WorkersModule {}

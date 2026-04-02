@@ -16,7 +16,10 @@ import { UserRole } from 'src/common/enums/user-role.enum';
 import { User } from '../users/entities/user.entity';
 import { WorkerDocumentEntity } from './entities/worker-document.entity';
 import { WorkerDocumentType } from 'src/common/enums/type-docs-worker.enum';
-import { assertCanAccess, assertCanUpdate } from 'src/common/helpers/file.helper';
+import {
+  assertCanAccess,
+  assertCanUpdate,
+} from 'src/common/helpers/file.helper';
 import { UploadService } from '../upload/upload.service';
 import { toWorkerProfileResponseDto } from './mapper/worker.mapper';
 
@@ -33,7 +36,7 @@ export class WorkersService {
     @InjectRepository(WorkerDocumentEntity)
     private readonly workerDocumentRepository: Repository<WorkerDocumentEntity>,
     private readonly uploadService: UploadService,
-  ) { }
+  ) {}
 
   async createProfileWorker(
     userId: string,
@@ -135,7 +138,7 @@ export class WorkersService {
       const updated = await this.workerRepository.save(workerProfile);
 
       if (oldAvatarPublicId) {
-        await this.uploadService.deleteImage(oldAvatarPublicId).catch(() => { });
+        await this.uploadService.deleteImage(oldAvatarPublicId).catch(() => {});
       }
       return toWorkerProfileResponseDto(updated);
     }, 'Lỗi khi cập nhật avatar');
@@ -163,31 +166,39 @@ export class WorkersService {
         requestUserRole,
       );
 
-      if (
-        workerProfile.status === WorkerStatus.APPROVED &&
-        fileCount > 0
-      ) {
+      if (workerProfile.status === WorkerStatus.APPROVED && fileCount > 0) {
         throw new ForbiddenException(
           'Không thể thay đổi giấy tờ sau khi đã được xác nhận',
         );
       }
 
-      const deleteOldDocs = async (type: WorkerDocumentType, newCount: number) => {
+      const deleteOldDocs = async (
+        type: WorkerDocumentType,
+        newCount: number,
+      ) => {
         if (newCount > 0) {
           const oldDocs = await this.workerDocumentRepository.find({
             where: { worker: { id: workerProfile.id }, type },
           });
           for (const doc of oldDocs) {
             if (doc.filePublicId) {
-              await this.uploadService.deleteImage(doc.filePublicId).catch(() => { });
+              await this.uploadService
+                .deleteImage(doc.filePublicId)
+                .catch(() => {});
             }
             await this.workerDocumentRepository.remove(doc);
           }
         }
       };
 
-      await deleteOldDocs(WorkerDocumentType.CITIZEN_CARD, files?.citizenCardImage?.length || 0);
-      await deleteOldDocs(WorkerDocumentType.CERTIFICATE, files?.certificateImage?.length || 0);
+      await deleteOldDocs(
+        WorkerDocumentType.CITIZEN_CARD,
+        files?.citizenCardImage?.length || 0,
+      );
+      await deleteOldDocs(
+        WorkerDocumentType.CERTIFICATE,
+        files?.certificateImage?.length || 0,
+      );
 
       const newDocs: WorkerDocumentEntity[] = [];
       if (files?.citizenCardImage) {
@@ -254,7 +265,7 @@ export class WorkersService {
   ): Promise<WorkerProfileResponseDto> {
     return asyncHandleOperation(async () => {
       const workerProfile = await this.findWorkerOrFail(id);
-      console.log(workerProfile)
+      console.log(workerProfile);
       if (workerProfile.status === WorkerStatus.APPROVED) {
         throw new BadRequestException('Worker đã được phê duyệt trước đó');
       }
@@ -348,7 +359,7 @@ export class WorkersService {
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<WorkerEntity> {
-    const cleanPaths = filePaths.filter(Boolean) as string[];
+    // const cleanPaths = filePaths.filter(Boolean) as string[];
 
     const worker = await this.workerRepository.findOne({
       where: { id },
@@ -359,11 +370,7 @@ export class WorkersService {
       throw new NotFoundException('Không tìm thấy thông tin worker');
     }
 
-    try {
-      assertCanUpdate(worker, requestUserId, requestUserRole);
-    } catch (e) {
-      throw e;
-    }
+    assertCanUpdate(worker, requestUserId, requestUserRole);
 
     return worker;
   }

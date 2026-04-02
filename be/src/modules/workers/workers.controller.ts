@@ -17,7 +17,10 @@ import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
-import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  FileInterceptor,
+  FileFieldsInterceptor,
+} from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 
@@ -28,7 +31,7 @@ const UUIDParam = new ParseUUIDPipe({
 @Controller('workers')
 @Auth()
 export class WorkersController {
-  constructor(private readonly workersService: WorkersService) { }
+  constructor(private readonly workersService: WorkersService) {}
 
   private static readonly privateImageKeys = [
     { name: 'citizenCardImage', maxCount: 10 }, // Cho phép tối đa 10 file mỗi loại
@@ -96,20 +99,23 @@ export class WorkersController {
 
   @Patch(':id/documents')
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'citizenCardImage', maxCount: 2 },
-      { name: 'certificateImage', maxCount: 10 },
-    ], {
-      storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          cb(new Error('Chỉ chấp nhận file ảnh'), false);
-          return;
-        }
-        cb(null, true);
+    FileFieldsInterceptor(
+      [
+        { name: 'citizenCardImage', maxCount: 2 },
+        { name: 'certificateImage', maxCount: 10 },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 5 * 1024 * 1024 },
+        fileFilter: (_req, file, cb) => {
+          if (!file.mimetype.startsWith('image/')) {
+            cb(new Error('Chỉ chấp nhận file ảnh'), false);
+            return;
+          }
+          cb(null, true);
+        },
       },
-    }),
+    ),
   )
   async updateDocuments(
     @Param('id', UUIDParam) id: string,
@@ -150,7 +156,6 @@ export class WorkersController {
   async getAllDocuments(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
-    
   ) {
     return this.workersService.getAllWorkerDocuments(
       id,
