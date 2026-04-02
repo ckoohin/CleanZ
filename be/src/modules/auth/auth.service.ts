@@ -103,7 +103,7 @@ export class AuthService {
         throw new BadRequestException('Email không tồn tại');
       }
 
-      if (user.is_verified) {
+      if (user.isVerified) {
         throw new BadRequestException('Email đã được xác thực');
       }
 
@@ -153,13 +153,13 @@ export class AuthService {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
-      if (!user.is_verified) {
+      if (!user.isVerified) {
         throw new BadRequestException(
           'Email chưa được xác thực. Vui lòng kiểm tra hộp thư để xác thực.',
         );
       }
 
-      if (!user.is_active) {
+      if (!user.isActive) {
         throw new BadRequestException(
           'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.',
         );

@@ -19,20 +19,20 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column({ type: 'varchar', length: 11 })
+  @Column({ type: 'varchar', length: 11, nullable: true })
   phone!: string;
 
   @Exclude()
   @Column({ select: false, nullable: true })
   password?: string;
 
-  @Column({ length: 100 })
+  @Column({ name: 'full_name', length: 100 })
   fullName!: string;
 
   @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL })
   provider: AuthProvider;
 
-  @Column({ nullable: true })
+  @Column({ name: 'provider_id', nullable: true })
   providerId?: string;
 
   @Column({ nullable: true })
@@ -45,20 +45,20 @@ export class User {
   })
   role!: UserRole;
 
-  @Column({ type: 'boolean', default: true })
-  is_active: boolean;
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
 
-  @Column({ type: 'boolean', default: false })
-  is_verified: boolean;
+  @Column({ name: 'is_verified', type: 'boolean', default: false })
+  isVerified: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
-  last_login: Date;
+  @Column({ name: 'last_login', type: 'timestamp', nullable: true })
+  lastLogin: Date;
 
-  @CreateDateColumn()
-  created_at: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
 
-  @UpdateDateColumn()
-  updated_at: Date;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   @OneToMany(() => Token, (token) => token.user)
   tokens: Token[];

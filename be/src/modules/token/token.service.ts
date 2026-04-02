@@ -24,8 +24,8 @@ export class TokenService {
       user,
       type,
       token: tokenValue,
-      expires_at: expiresAt,
-      is_used: false,
+      expiresAt: expiresAt,
+      isUsed: false,
     });
     return this.tokenRepository.save(token);
   }
@@ -51,8 +51,8 @@ export class TokenService {
       where: {
         user: { id: userId },
         type: TokenType.REFRESH,
-        is_used: false,
-        expires_at: MoreThan(new Date()),
+        isUsed: false,
+        expiresAt: MoreThan(new Date()),
       },
       relations: ['user'],
     });
@@ -75,15 +75,15 @@ export class TokenService {
       where: {
         token: tokenValue,
         type,
-        is_used: false,
-        expires_at: MoreThan(new Date()),
+        isUsed: false,
+        expiresAt: MoreThan(new Date()),
       },
       relations: ['user'],
     });
   }
 
   async markAsUsed(tokenId: string): Promise<void> {
-    await this.tokenRepository.update(tokenId, { is_used: true });
+    await this.tokenRepository.update(tokenId, { isUsed: true });
   }
 
   async revokeAllTokensByUser(userId: string, type: TokenType): Promise<void> {
@@ -108,8 +108,8 @@ export class TokenService {
       where: {
         user: { id: userId },
         type: TokenType.LOGIN_OTP,
-        is_used: false,
-        expires_at: MoreThan(new Date()),
+        isUsed: false,
+        expiresAt: MoreThan(new Date()),
       },
       relations: ['user'],
     });

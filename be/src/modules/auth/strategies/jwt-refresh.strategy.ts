@@ -49,7 +49,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
     }
 
     const user = await this.userRepository.findOne({
-      where: { id: payload.sub, is_active: true },
+      where: { id: payload.sub, isActive: true },
     });
 
     if (!user) {

@@ -49,8 +49,8 @@ export class UsersService {
         fullName: dto.fullName,
         provider: dto.provider,
         providerId: dto.providerId,
-        is_verified: true,
-        is_active: true,
+        isVerified: true,
+        isActive: true,
       });
 
       return await this.userRepository.save(user);
@@ -108,7 +108,7 @@ export class UsersService {
 
   async updateLastLogin(id: string): Promise<void> {
     return asyncHandleOperation(async () => {
-      await this.userRepository.update(id, { last_login: new Date() });
+      await this.userRepository.update(id, { lastLogin: new Date() });
     }, 'Lỗi khi cập nhật thời gian đăng nhập');
   }
 
@@ -131,7 +131,7 @@ export class UsersService {
 
   async markAsVerified(id: string): Promise<void> {
     return asyncHandleOperation(async () => {
-      await this.userRepository.update(id, { is_verified: true });
+      await this.userRepository.update(id, { isVerified: true });
     }, 'Lỗi khi xác thực email');
   }
 
@@ -161,8 +161,8 @@ export class UsersService {
         provider: dto.provider,
         providerId: dto.providerId,
         avatar: dto.avatar,
-        is_verified: true,
-        is_active: true,
+        isVerified: true,
+        isActive: true,
       });
 
       return await this.userRepository.save(user);

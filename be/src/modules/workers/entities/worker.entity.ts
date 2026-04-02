@@ -17,13 +17,13 @@ export enum WorkerStatus {
   REJECTED = 'rejected',
 }
 
-@Entity('workerProfiles')
+@Entity('worker_profiles')
 export class WorkerEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @OneToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user!: User;
 
   @Column({ nullable: true, type: 'text' })
@@ -38,10 +38,10 @@ export class WorkerEntity {
   @Column({ nullable: true, type: 'text' })
   bio!: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'avatar_public_id', type: 'text', nullable: true })
   avatarPublicId!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'avatar_url', type: 'text', nullable: true })
   avatarUrl!: string | null;
 
   @OneToMany(() => WorkerDocumentEntity, (document) => document.worker, {
@@ -49,10 +49,10 @@ export class WorkerEntity {
   })
   documents?: WorkerDocumentEntity[];
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'total_jobs', type: 'int', default: 0 })
   totalJobs!: number;
 
-  @Column({ type: 'float', default: 0 })
+  @Column({ name: 'avg_rating', type: 'float', default: 0 })
   avgRating!: number;
 
   @Column({
@@ -62,13 +62,15 @@ export class WorkerEntity {
   })
   status!: WorkerStatus;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
-  @Column({ type: 'uuid', nullable: true })
+
+  @Column({ name: 'last_changed_by_admin_id', type: 'uuid', nullable: true })
   lastChangedByAdminId?: string;
-  @Column({ type: 'text', nullable: true })
+
+  @Column({ name: 'last_changed_by_admin_name', type: 'text', nullable: true })
   lastChangedByAdminName?: string;
 }

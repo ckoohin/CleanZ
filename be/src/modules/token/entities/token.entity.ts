@@ -19,15 +19,15 @@ export class Token {
   @Column()
   token: string;
 
-  @Column()
-  expires_at: Date;
+  @Column({ name: 'expires_at' })
+  expiresAt: Date;
 
-  @Column({ default: false })
-  is_used: boolean;
+  @Column({ name: 'is_used', default: false })
+  isUsed: boolean;
 
   @ManyToOne(() => User, (user) => user.tokens, { onDelete: 'CASCADE' })
   user: User;
 
-  @CreateDateColumn()
-  created_at: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
 }
