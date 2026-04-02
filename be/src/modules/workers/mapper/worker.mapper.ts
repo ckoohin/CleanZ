@@ -20,6 +20,7 @@ export const toWorkerProfileResponseDto = (
     id: entity.id,
     userId: entity.user.id,
     fullName: entity.user.fullName,
+    phone: entity.phone ?? "",
     skills: entity.skills,
     experience: entity.experience,
     bio: entity.bio,

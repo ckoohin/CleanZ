@@ -1,10 +1,16 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { Column } from 'typeorm';
 
 export class UpdateWorkerProfileDto {
   @IsOptional()
   @IsString({ message: 'Kỹ năng phải là chuỗi ký tự' })
   @MaxLength(500, { message: 'Kỹ năng không được vượt quá 500 ký tự' })
   skills?: string;
+
+  @Matches(/^[0-9]{10,11}$/, {
+    message: 'Phone must be 10-11 digits',
+  })
+  phone!: string;
 
   @IsOptional()
   @IsString({ message: 'Kinh nghiệm phải là chuỗi ký tự' })

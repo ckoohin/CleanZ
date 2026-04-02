@@ -4,6 +4,7 @@ export class WorkerProfileResponseDto {
   id!: string;
   userId!: string;
   fullName!: string;
+  phone!: string;
   skills!: string;
   experience!: string;
   bio!: string;

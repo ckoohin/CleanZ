@@ -29,6 +29,8 @@ export class WorkerEntity {
   @Column({ nullable: true, type: 'text' })
   skills!: string;
 
+  @Column({ type: 'varchar', length: 11 })
+  phone!: string;
   @Column({ nullable: true, type: 'text' })
   experience!: string;
 
