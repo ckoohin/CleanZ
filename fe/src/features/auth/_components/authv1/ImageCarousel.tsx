@@ -160,7 +160,7 @@ export function ImageCarousel({ valueAuthType }: { valueAuthType: "signup" | "si
 
       {/* Brand Overlay đồng nhất với theme Zinc */}
       <div className="absolute top-12 left-12 z-10">
-        <Link href="/home">
+        <Link href="/">
           <div className="group flex items-center gap-3 px-5 py-2.5 rounded-2xl 
           bg-zinc-900/40 backdrop-blur-2xl border border-white/10 shadow-2xl
           transition-all duration-300 hover:bg-zinc-800/60 hover:scale-[1.03] cursor-pointer"
