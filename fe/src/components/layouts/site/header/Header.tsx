@@ -293,13 +293,12 @@ export const Header: React.FC<HeaderProps> = ({
                     </Link>
                   </Button>
                 </motion.div>
-
               </div>
 
               {/* avatar */}
               <AvatarProfile />
 
-              {/* <ThemeToggle /> */}
+              <ThemeToggle />
               {/* mobile toggle */}
               <Button
                 variant="ghost"

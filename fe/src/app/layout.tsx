@@ -4,6 +4,7 @@ import './globals.css';
 import Providers from './providers';
 import { cn } from '@/lib/utils';
 import { Toaster } from 'sonner';
+import { ThemeToggleProvider } from '@/contexts/themeToggle.context';
 
 const sourceSans3 = Source_Sans_3({subsets:['latin'],variable:'--font-sans'});
 
@@ -35,10 +36,12 @@ export default function RootLayout({
       <body
         suppressHydrationWarning
         className={cn(inter.className, "bg-background font-display text-text-main antialiased")}>
-        <Toaster richColors={true} position='top-right'/>
-        <Providers>
-          {children}
-        </Providers>
+        <Toaster richColors={true} position='top-right' />
+        <ThemeToggleProvider>
+          <Providers>
+            {children}
+          </Providers>
+        </ThemeToggleProvider>
       </body>
     </html>
   );
