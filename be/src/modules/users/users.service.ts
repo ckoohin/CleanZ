@@ -4,15 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { CreateGoogleUserDto } from './dto/create-google-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
-import { CreateFacebookUserDto } from './dto/create-facebook-user.dto';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
+import { CreateOAuthUserDto } from './dto/create-oauth-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -40,21 +39,6 @@ export class UsersService {
 
       return await this.userRepository.save(user);
     }, 'Lỗi khi tạo người dùng');
-  }
-
-  async createGoogleUser(dto: CreateGoogleUserDto): Promise<User> {
-    return asyncHandleOperation(async () => {
-      const user = this.userRepository.create({
-        email: dto.email,
-        fullName: dto.fullName,
-        provider: dto.provider,
-        providerId: dto.providerId,
-        isVerified: true,
-        isActive: true,
-      });
-
-      return await this.userRepository.save(user);
-    }, 'Lỗi khi tạo người dùng Google');
   }
 
   async findAll(): Promise<User[]> {
@@ -153,7 +137,7 @@ export class UsersService {
     return bcrypt.hash(password, 10);
   }
 
-  async createFacebookUser(dto: CreateFacebookUserDto): Promise<User> {
+  async createOAuthUser(dto: CreateOAuthUserDto): Promise<User> {
     return asyncHandleOperation(async () => {
       const user = this.userRepository.create({
         email: dto.email,

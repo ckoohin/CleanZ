@@ -1,6 +1,6 @@
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 
-export class CreateFacebookUserDto {
+export class CreateOAuthUserDto {
   email!: string;
   fullName!: string;
   provider!: AuthProvider;
