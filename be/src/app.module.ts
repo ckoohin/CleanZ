@@ -12,6 +12,7 @@ import { TokenModule } from './modules/token/token.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
 import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module';
+import { ServicesModule } from './services/services.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module
     UploadModule,
     AuthGoogleModule,
     AuthFacebookModule,
+    ServicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
