@@ -80,4 +80,30 @@ export class MailService {
       },
     });
   }
+
+  async sendBookingNotificationEmail(
+    email: string,
+    fullName: string,
+    subject: string,
+    context: {
+      serviceName: string;
+      bookingId: string;
+      status: string;
+      bookingType: string;
+      address?: string;
+      scheduledDate?: string;
+      scheduledTime?: string;
+      totalPrice: number;
+    },
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      template: 'booking-notification',
+      context: {
+        fullName,
+        ...context,
+      },
+    });
+  }
 }

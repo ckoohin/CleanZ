@@ -8,6 +8,7 @@ export const toServiceResponseDto = (
     id: entity.id,
     name: entity.name,
     category: entity.category,
+    supportedLocationTypes: entity.supportedLocationTypes,
     description: entity.description,
     basePrice: Number(entity.basePrice),
     duration: entity.duration,

@@ -12,6 +12,13 @@ import { User } from '../../users/entities/user.entity';
 import { WorkerDocumentEntity } from './worker-document.entity';
 import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
 import { WorkerPresenceEntity } from './worker-presence.entity';
+import { WorkerServiceEntity } from './worker-service.entity';
+
+export enum WorkerStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
 
 @Entity('worker_profiles')
 export class WorkerEntity {
@@ -44,6 +51,11 @@ export class WorkerEntity {
     cascade: true,
   })
   documents?: WorkerDocumentEntity[];
+
+  @OneToMany(() => WorkerServiceEntity, (ws) => ws.worker, {
+    cascade: true,
+  })
+  workerServices?: WorkerServiceEntity[];
 
   @Column({ name: 'total_jobs', type: 'int', default: 0 })
   totalJobs!: number;

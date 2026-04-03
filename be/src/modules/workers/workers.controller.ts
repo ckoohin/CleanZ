@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -14,6 +15,8 @@ import {
 } from '@nestjs/common';
 import { WorkersService } from './workers.service';
 import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
+import { CreateWorkerServiceDto } from './dto/create-worker-service.dto';
+import { UpdateWorkerServiceDto } from './dto/update-worker-service.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
@@ -207,6 +210,22 @@ export class WorkersController {
     );
   }
 
+  // ─── Worker Services Endpoints ──────────────────────────
+
+  @Post(':id/services')
+  createWorkerService(
+    @Param('id', UUIDParam) id: string,
+    @Body() dto: CreateWorkerServiceDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.createWorkerService(
+      id,
+      dto,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
   @Get(':id')
   async findById(
     @Param('id', UUIDParam) id: string,
@@ -214,6 +233,41 @@ export class WorkersController {
   ) {
     return this.workersService.findWorkerById(
       id,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  @Get(':id/services')
+  async getWorkerServices(@Param('id', UUIDParam) id: string) {
+    return this.workersService.getWorkerServices(id);
+  }
+
+  @Patch(':id/services/:wsId')
+  async updateWorkerService(
+    @Param('id', UUIDParam) id: string,
+    @Param('wsId', UUIDParam) wsId: string,
+    @Body() dto: UpdateWorkerServiceDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.updateWorkerService(
+      id,
+      wsId,
+      dto,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  @Delete(':id/services/:wsId')
+  async deleteWorkerService(
+    @Param('id', UUIDParam) id: string,
+    @Param('wsId', UUIDParam) wsId: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.deleteWorkerService(
+      id,
+      wsId,
       currentUser.id,
       currentUser.role,
     );

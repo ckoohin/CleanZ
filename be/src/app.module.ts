@@ -13,6 +13,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
 import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module';
 import { ServicesModule } from './modules/services/services.module';
+import { BookingModule } from './modules/booking/booking.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ServicesModule } from './modules/services/services.module';
     AuthGoogleModule,
     AuthFacebookModule,
     ServicesModule,
+    BookingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

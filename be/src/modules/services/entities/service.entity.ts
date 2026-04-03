@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ServiceLocationType } from 'src/common/enums/service-location-type.enum';
 
 @Entity('services')
 export class ServiceEntity {
@@ -17,33 +18,42 @@ export class ServiceEntity {
   @Column({ type: 'varchar', length: 100 })
   category!: string;
 
+  @Column({
+    name: 'supported_location_types',
+    type: 'enum',
+    enum: ServiceLocationType,
+    array: true,
+    default: `{${ServiceLocationType.AT_SHOP}}`,
+  })
+  supportedLocationTypes!: ServiceLocationType[];
+
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ name: 'base_price', type: 'decimal', precision: 10, scale: 2 })
   basePrice!: number;
 
   @Column({ type: 'int', nullable: true })
   duration?: number;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'image_url', type: 'text', nullable: true })
   imageUrl?: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'image_public_id', type: 'varchar', nullable: true })
   imagePublicId?: string | null;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'created_by_admin_id', type: 'uuid', nullable: true })
   createdByAdminId?: string;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'last_updated_by_admin_id', type: 'uuid', nullable: true })
   lastUpdatedByAdminId?: string;
 }
