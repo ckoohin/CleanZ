@@ -67,7 +67,6 @@ export function useRegister() {
       toast.success(res.message);
     },
     onError: (error: any) => {
-      console.log(error.response);
       toast.error(error.response?.data?.errors?.message);
     },
   });
@@ -116,7 +115,6 @@ export function useResendVerificationEmail() {
       toast.success(res.message);
     },
     onError: (error: any) => {
-      // console.log(error.response);
       toast.error(error.response?.data?.errors?.message);
       return error;
     },

@@ -100,6 +100,24 @@ const SERVICES: ServiceItem[] = [
     duration: "60 phút",
     bookingUrl: "/booking/yoga",
   },
+  {
+    id: 4,
+    title: "Yoga Hatha cá nhân",
+    desc: "Buổi 1-1 tập trung vào căn chỉnh tư thế, kỹ thuật thở và sự rõ ràng tinh thần.",
+    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
+    tag: "Sức khỏe", rating: "4.8", reviews: "210",
+    price: "250.000đ", unit: "/ giờ", duration: "60 phút",
+    bookingUrl: "/booking/yoga",
+  },
+  {
+    id: 5,
+    title: "Yoga Hatha cá nhân",
+    desc: "Buổi 1-1 tập trung vào căn chỉnh tư thế, kỹ thuật thở và sự rõ ràng tinh thần.",
+    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
+    tag: "Sức khỏe", rating: "4.8", reviews: "210",
+    price: "250.000đ", unit: "/ giờ", duration: "60 phút",
+    bookingUrl: "/booking/yoga",
+  },
 ];
 
 const WHY_US_ITEMS: WhyUsItem[] = [
@@ -145,13 +163,8 @@ export default function HomePagee() {
         className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 mb-24"
       />
 
-      {/* Recommended services */}
       <ServicesSection
-        title="Dịch vụ nổi bật"
-        subtitle="Chuyên viên được tuyển chọn kỹ càng dựa trên hoạt động của bạn."
         services={SERVICES}
-        viewAllHref="/services"
-        className="max-w-7xl mx-auto px-6 mb-32"
       />
 
       {/* Why choose us */}
@@ -175,7 +188,7 @@ export default function HomePagee() {
         secondaryHref="/pricing"
         image="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1000&q=80"
         stat="50.000+"
-        className="max-w-7xl mx-auto px-6 my-28"
+        className="mx-auto my-28"
       />
     </div>
   );

@@ -1,6 +1,7 @@
-import { User } from "./user.type";
+// enums & literals
+export type UserRole = 'ADMIN' | 'WORKER' | 'CUSTOMER';
 
-export type AuthProvider = 'LOCAL' | 'GOOGLE' | 'APPLE';
+export type AuthProvider = 'local' | 'google' | 'facebook';
 
 export interface LoginCredentials {
   email: string;

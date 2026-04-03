@@ -20,7 +20,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon, LogOut } from "lucide-react"
+import ConfirmDialog from "../common/ConfirmDialog"
+import { Button } from "../ui/button"
 
 export function NavUser({
   user,
@@ -98,11 +100,25 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOutIcon
-              />
-              Log out
-            </DropdownMenuItem>
+            <ConfirmDialog
+              trigger={
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault()
+                  }}
+                >
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  Đăng xuất
+                </DropdownMenuItem>
+              }
+              title="Xác nhận đăng xuất"
+              description="Bạn có chắc chắn muốn đăng xuất?"
+              confirmText="Đăng xuất"
+              cancelText="Hủy"
+            // onConfirm={() => {
+            //   logout.mutate()
+            // }}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

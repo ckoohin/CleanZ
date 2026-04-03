@@ -71,6 +71,10 @@ function redirectToLogin(req: NextRequest, pathname: string, searchParams: URLSe
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/worker/:path*", "/customer/:path*"],
+  matcher: [
+    // "/admin/:path*",
+    "/worker/:path*",
+    "/customer/:path*"
+  ],
 };
   

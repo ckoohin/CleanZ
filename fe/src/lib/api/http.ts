@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { authApi } from '@/features/auth/services/auth.service';
-
+import { toast } from "sonner";
 const baseURL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
 
 const http = axios.create({
@@ -45,6 +45,27 @@ const refreshToken = async (): Promise<boolean> => {
     return false;
   }
 };
+// xử lý lỗi api
+const handleApiErrorGlobal = (error: AxiosError) => {
+  //  mất mạng
+  if (error.code === "ERR_NETWORK") {
+    toast.error("Không có kết nối internet");
+    return;
+  }
+
+  // server không phản hồi
+  if (!error.response) {
+    toast.error("Server không phản hồi");
+    return;
+  }
+
+  // lỗi từ backend
+  const message =
+    (error.response.data as any)?.errors?.message ||
+    (error.response.data as any)?.message;
+
+  toast.error(message || "Có lỗi xảy ra");
+};
 
 http.interceptors.request.use(
   (config) => config,
@@ -54,19 +75,28 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
-    if (error.response?.status !== 401 || !originalRequest) {
+    if (error.code === "ERR_NETWORK" || !error.response) {
+      handleApiErrorGlobal(error);
       return Promise.reject(error);
     }
 
-    // Chỉ skip refresh cho login và refresh endpoint
-    // /auth/logout cần accessToken hợp lệ → cho phép refresh trước khi gọi logout
+    const status = error.response.status;
+
+    if (status !== 401 || !originalRequest) {
+      handleApiErrorGlobal(error);
+      return Promise.reject(error);
+    }
+
     const isAuthEndpoint =
-      originalRequest.url?.includes('/auth/login') ||
-      originalRequest.url?.includes('/auth/refresh');
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/refresh");
 
     if (isAuthEndpoint) {
+      handleApiErrorGlobal(error);
       return Promise.reject(error);
     }
 
