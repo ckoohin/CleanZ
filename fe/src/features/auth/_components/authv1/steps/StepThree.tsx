@@ -11,18 +11,13 @@ import { signupStepThree } from '@/features/auth/schemas/signup.schema';
 import { useRegisterContext } from '@/features/auth/context/register.context';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { SignupStepThreeProps } from '@/features/auth/types/step.type';
 
 // interface StepThreeProps {
 //   formData: FormData;
 //   updateFormData: (data: Partial<FormData>) => void;
 //   onSubmit: () => void;
 // }
-
-export interface SignupStepThreeProps {
-  password?: string;
-  confirmPassword?: string;
-  checkedTerms?: string;
-}
 
 export function StepThree() {
   const { isPending, formData, updateFormData, onSubmit } = useRegisterContext()

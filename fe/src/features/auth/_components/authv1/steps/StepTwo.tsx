@@ -8,18 +8,13 @@ import { Button } from '@/components/ui/button';
 import { signupStepTowSchema } from '@/features/auth/schemas/signup.schema';
 import { useZodValidation } from '@/features/auth/hooks/useZodValidation';
 import { useRegisterContext } from '@/features/auth/context/register.context';
+import { TErrorStepTwo } from '@/features/auth/types/step.type';
 
 // interface StepTwoProps {
 //   formData: FormData;
 //   updateFormData: (data: Partial<FormData>) => void;
 //   onNext: () => void;
 // }
-
-export interface TErrorStepTwo {
-  lastName?: string;
-  firstName?: string;
-  dateOfBirth?: string;
-}
 
 export function StepTwo() {
   const { formData, updateFormData, nextStep } = useRegisterContext()

@@ -9,17 +9,13 @@ import { Button } from '@/components/ui/button';
 import { signupStepOne } from "@/features/auth/schemas/signup.schema";
 import { useZodValidation } from '@/features/auth/hooks/useZodValidation';
 import { useRegisterContext } from '@/features/auth/context/register.context';
+import { TErrorStepOne } from '@/features/auth/types/step.type';
 
 // interface StepOneProps {
 //   formData: FormData;
 //   updateFormData: (data: Partial<FormData>) => void;
 //   onNext: () => void;
 // }
-
-export interface TErrorStepOne {
-  username?: string;
-  email?: string;
-}
 
 export function StepOne() {
   const { updateFormData, nextStep, formData } = useRegisterContext()

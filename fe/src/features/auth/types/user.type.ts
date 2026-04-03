@@ -6,27 +6,19 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
+  phone?: string | null;
   role: UserRole;
   avatar?: string | null;
   isActive: boolean;
   isVerified: boolean;
-  lastLogin?: string;
+  lastLogin?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface Profile {
-    id: string,
-    email: string,
-    fullName: string,
-    provider: AuthProvider,
-    providerId: string,
-    role: UserRole,
-    is_active: boolean,
-    is_verified: boolean,
-    last_login: string,
-    created_at: string,
-    updated_at: string
+export interface Profile extends User {
+  provider: AuthProvider;
+  providerId?: string | null;
 }
 
 export type ProfileResponse = Profile;

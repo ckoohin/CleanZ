@@ -1,4 +1,4 @@
-import type { User, UserRole } from "@/features/auth/types/auth.type";
+import { User, UserRole } from "./types/user.type";
 
 export function hasRole(user: User | null | undefined, role: UserRole): boolean {
   return user?.role === role;
