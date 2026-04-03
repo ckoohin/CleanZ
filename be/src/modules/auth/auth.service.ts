@@ -54,16 +54,16 @@ export class AuthService {
         },
       );
 
-      const frontendUrl =
-        this.configService.get<string>('FRONTEND_URL') ||
-        `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
-      const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
+      // const frontendUrl =
+      //   this.configService.get<string>('FRONTEND_URL') ||
+      //   `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
+      // const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
 
-      await this.mailService.sendVerificationEmail(
-        user.email,
-        user.fullName,
-        verificationUrl,
-      );
+      // await this.mailService.sendVerificationEmail(
+      //   user.email,
+      //   user.fullName,
+      //   verificationUrl,
+      // );
 
       return {
         message:
@@ -170,7 +170,7 @@ export class AuthService {
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
       await this.tokenService.createOtpToken(user, otpHash, expiresAt);
 
-      await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
+      // await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',

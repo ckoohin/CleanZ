@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { WorkerDocumentEntity } from './worker-document.entity';
+import { WorkerServiceEntity } from './worker-service.entity';
 
 export enum WorkerStatus {
   PENDING = 'pending',
@@ -48,6 +49,11 @@ export class WorkerEntity {
     cascade: true,
   })
   documents?: WorkerDocumentEntity[];
+
+  @OneToMany(() => WorkerServiceEntity, (ws) => ws.worker, {
+    cascade: true,
+  })
+  workerServices?: WorkerServiceEntity[];
 
   @Column({ name: 'total_jobs', type: 'int', default: 0 })
   totalJobs!: number;

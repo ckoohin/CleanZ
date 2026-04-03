@@ -22,6 +22,15 @@ import {
 } from 'src/common/helpers/file.helper';
 import { UploadService } from '../upload/upload.service';
 import { toWorkerProfileResponseDto } from './mapper/worker.mapper';
+import { WorkerServiceEntity } from './entities/worker-service.entity';
+import { ServiceEntity } from '../services/entities/service.entity';
+import { CreateWorkerServiceDto } from './dto/create-worker-service.dto';
+import { UpdateWorkerServiceDto } from './dto/update-worker-service.dto';
+import { ServiceLocationType } from 'src/common/enums/service-location-type.enum';
+import {
+  toWorkerServiceResponseDto,
+  toWorkerServiceResponseDtoList,
+} from './mapper/worker-service.mapper';
 
 const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate'] as const;
 type DocumentType = (typeof VALID_DOCUMENT_TYPES)[number];
@@ -35,6 +44,10 @@ export class WorkersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(WorkerDocumentEntity)
     private readonly workerDocumentRepository: Repository<WorkerDocumentEntity>,
+    @InjectRepository(WorkerServiceEntity)
+    private readonly workerServiceRepository: Repository<WorkerServiceEntity>,
+    @InjectRepository(ServiceEntity)
+    private readonly serviceRepository: Repository<ServiceEntity>,
     private readonly uploadService: UploadService,
   ) {}
 
@@ -373,5 +386,178 @@ export class WorkersService {
     assertCanUpdate(worker, requestUserId, requestUserRole);
 
     return worker;
+  }
+
+  // ─── Worker Services CRUD ───────────────────────────────
+
+  async createWorkerService(
+    workerId: string,
+    dto: CreateWorkerServiceDto,
+    requestUserId: string,
+    requestUserRole: UserRole,
+  ) {
+    return asyncHandleOperation(async () => {
+      const worker = await this.findWorkerOrFail(workerId);
+      assertCanUpdate(worker, requestUserId, requestUserRole);
+
+      const service = await this.serviceRepository.findOne({
+        where: { id: dto.serviceId, isActive: true },
+      });
+      if (!service) {
+        throw new NotFoundException(
+          'Không tìm thấy dịch vụ hoặc dịch vụ đã bị ẩn',
+        );
+      }
+
+      // Validate locationTypes là subset của service.supportedLocationTypes
+      const invalidTypes = dto.locationTypes.filter(
+        (lt) => !service.supportedLocationTypes.includes(lt),
+      );
+      if (invalidTypes.length > 0) {
+        throw new BadRequestException(
+          `Dịch vụ "${service.name}" không hỗ trợ loại: ${invalidTypes.join(', ')}. Chỉ hỗ trợ: ${service.supportedLocationTypes.join(', ')}`,
+        );
+      }
+
+      // Validate shopAddress bắt buộc khi có AT_SHOP
+      if (
+        dto.locationTypes.includes(ServiceLocationType.AT_SHOP) &&
+        !dto.shopAddress
+      ) {
+        throw new BadRequestException(
+          'Địa chỉ quán bắt buộc khi dịch vụ tại quán (at_shop)',
+        );
+      }
+
+      // Kiểm tra đã đăng ký dịch vụ này chưa
+      const existing = await this.workerServiceRepository.findOne({
+        where: {
+          worker: { id: workerId },
+          service: { id: dto.serviceId },
+        },
+      });
+      if (existing) {
+        throw new ConflictException('Bạn đã đăng ký dịch vụ này rồi');
+      }
+
+      const workerService = this.workerServiceRepository.create({
+        worker: { id: workerId } as WorkerEntity,
+        service: { id: dto.serviceId } as ServiceEntity,
+        locationTypes: dto.locationTypes,
+        customPrice: dto.customPrice,
+        description: dto.description,
+        shopAddress: dto.shopAddress,
+      });
+
+      const saved = await this.workerServiceRepository.save(workerService);
+
+      // Reload with relations
+      const result = await this.workerServiceRepository.findOne({
+        where: { id: saved.id },
+        relations: ['service'],
+      });
+
+      return toWorkerServiceResponseDto(result!);
+    }, 'Lỗi khi đăng ký dịch vụ cho worker');
+  }
+
+  async getWorkerServices(workerId: string) {
+    const worker = await this.workerRepository.findOne({
+      where: { id: workerId },
+    });
+    if (!worker) {
+      throw new NotFoundException('Không tìm thấy worker');
+    }
+
+    const workerServices = await this.workerServiceRepository.find({
+      where: { worker: { id: workerId }, isAvailable: true },
+      relations: ['service'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return toWorkerServiceResponseDtoList(workerServices);
+  }
+
+  async updateWorkerService(
+    workerId: string,
+    workerServiceId: string,
+    dto: UpdateWorkerServiceDto,
+    requestUserId: string,
+    requestUserRole: UserRole,
+  ) {
+    return asyncHandleOperation(async () => {
+      const worker = await this.findWorkerOrFail(workerId);
+      assertCanUpdate(worker, requestUserId, requestUserRole);
+
+      const workerService = await this.workerServiceRepository.findOne({
+        where: { id: workerServiceId, worker: { id: workerId } },
+        relations: ['service'],
+      });
+      if (!workerService) {
+        throw new NotFoundException('Không tìm thấy dịch vụ đã đăng ký');
+      }
+
+      // Validate locationTypes nếu có update
+      if (dto.locationTypes) {
+        const invalidTypes = dto.locationTypes.filter(
+          (lt) => !workerService.service.supportedLocationTypes.includes(lt),
+        );
+        if (invalidTypes.length > 0) {
+          throw new BadRequestException(
+            `Dịch vụ "${workerService.service.name}" không hỗ trợ loại: ${invalidTypes.join(', ')}`,
+          );
+        }
+
+        // Validate shopAddress khi chuyển sang AT_SHOP
+        if (
+          dto.locationTypes.includes(ServiceLocationType.AT_SHOP) &&
+          !dto.shopAddress &&
+          !workerService.shopAddress
+        ) {
+          throw new BadRequestException(
+            'Địa chỉ quán bắt buộc khi dịch vụ tại quán (at_shop)',
+          );
+        }
+      }
+
+      Object.assign(workerService, dto);
+      const updated = await this.workerServiceRepository.save(workerService);
+
+      return toWorkerServiceResponseDto(updated);
+    }, 'Lỗi khi cập nhật dịch vụ worker');
+  }
+
+  async deleteWorkerService(
+    workerId: string,
+    workerServiceId: string,
+    requestUserId: string,
+    requestUserRole: UserRole,
+  ) {
+    return asyncHandleOperation(async () => {
+      const worker = await this.findWorkerOrFail(workerId);
+      assertCanUpdate(worker, requestUserId, requestUserRole);
+
+      const workerService = await this.workerServiceRepository.findOne({
+        where: { id: workerServiceId, worker: { id: workerId } },
+      });
+      if (!workerService) {
+        throw new NotFoundException('Không tìm thấy dịch vụ đã đăng ký');
+      }
+
+      await this.workerServiceRepository.remove(workerService);
+
+      return { message: 'Đã xóa dịch vụ thành công' };
+    }, 'Lỗi khi xóa dịch vụ worker');
+  }
+
+  async findWorkerServiceById(id: string): Promise<WorkerServiceEntity> {
+    const workerService = await this.workerServiceRepository.findOne({
+      where: { id },
+      relations: ['service', 'worker', 'worker.user'],
+    });
+    if (!workerService) {
+      throw new NotFoundException('Không tìm thấy dịch vụ worker');
+    }
+    return workerService;
   }
 }
