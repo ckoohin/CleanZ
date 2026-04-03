@@ -5,16 +5,16 @@ import { useRouter } from 'next/navigation';
 
 type SocialSignInProps = {
   url_gg: string;
-  url_apple: string;
+  url_facebook: string;
   text_gg: string;
-  text_apple: string;
+  text_facebook: string;
 }
 
 export function SocialSignIn({
   url_gg,
-  url_apple,
+  url_facebook,
   text_gg,
-  text_apple
+  text_facebook
 }: SocialSignInProps) {
   const router = useRouter()
 
@@ -61,13 +61,16 @@ export function SocialSignIn({
         type="button"
         variant="outline"
         size="lg"
-        className="w-full"
-        onClick={() => openPopup(url_apple, 'Apple Sign In')}
+        className="w-full hover:bg-blue-600 hover:text-white group"
+        onClick={() => openPopup(url_facebook, 'Facebook Sign In')}
       >
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" className='text-[#1877F2] group-hover:!text-white' fill="currentColor">
+          <path d="M279.14 288l14.22-92.66h-88.91V127.66c0-25.35  
+            12.42-50.06 52.24-50.06H293V6.26S259.43 
+            0 225.36 0C141.09 0 89.09 54.42 
+            89.09 153.12V195.3H0V288h89.09v224h107.45V288z"/>
         </svg>
-        <span>{text_apple}</span>
+        <span>{text_facebook}</span>
       </Button>
     </div>
   );

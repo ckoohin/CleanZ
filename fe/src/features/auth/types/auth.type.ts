@@ -1,7 +1,7 @@
 // enums & literals
-export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'TECHNICIAN';
+export type UserRole = 'ADMIN' | 'WORKER' | 'CUSTOMER';
 
-export type AuthProvider = 'LOCAL' | 'GOOGLE' | 'APPLE';
+export type AuthProvider = 'local' | 'google' | 'facebook';
 
 // user
 export interface User {
@@ -108,8 +108,6 @@ export interface LoginFormValues {
   password: string;
   rememberMe: boolean;
 }
-
-
 
 // error
 

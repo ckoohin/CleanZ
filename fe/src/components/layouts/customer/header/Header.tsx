@@ -236,7 +236,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* avatar */}
               <AvatarProfile />
 
-              {/* <ThemeToggle /> */}
+              <ThemeToggle />
               {/* mobile toggle */}
               <Button
                 variant="ghost"

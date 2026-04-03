@@ -65,7 +65,6 @@ export function useRegister() {
       toast.success(res.message)
     },
     onError: (error: any) => {
-      console.log(error.response);
       toast.error(error.response?.data?.errors?.message);
     }
   })
@@ -84,8 +83,7 @@ export function useLogout() {
       router.push('/login');
     },
     onError: (error: any) => {
-      console.error("Logout error:", error);
-      toast.error(
+      console.error("Logout error:", error);      toast.error(
         error.response?.data?.errors?.message
       );
     }
@@ -115,7 +113,6 @@ export function useResendVerificationEmail() {
       toast.success(res.message) 
     },
     onError: (error: any) => {
-      // console.log(error.response);
       toast.error(error.response?.data?.errors?.message);
       return error
     }
@@ -135,12 +132,7 @@ export function useVerifyOtp() {
       router.push(`/`)
     },
     onError: (error: any) => {
-      // console.log(error.response);
-      if (error.response?.data?.errors?.message) {
-        toast.error(error.response?.data?.errors?.message);
-        return
-      }
-
+      console.log(error.response);
       toast.error("Lỗi kết lối vui lòng xem lại mạng")
     }
   })

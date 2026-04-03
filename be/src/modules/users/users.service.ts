@@ -86,6 +86,7 @@ export class UsersService {
       if (!updatedUser) {
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       }
+      
       return updatedUser;
     }, 'Lỗi khi cập nhật người dùng');
   }

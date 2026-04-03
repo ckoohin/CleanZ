@@ -116,9 +116,9 @@ export function MultiStepForm() {
         >
           <SocialSignIn
             url_gg={`${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
-            url_apple={`${process.env.NEXT_PUBLIC_API_URL}/auth/apple`}
+            url_facebook={`${process.env.NEXT_PUBLIC_API_URL}/auth/facebook`}
             text_gg="Tạo tài khoản với Google"
-            text_apple="Tạo tài khoản với Apple"
+            text_facebook="Tạo tài khoản với Facebook"
           />
         </motion.div>
 

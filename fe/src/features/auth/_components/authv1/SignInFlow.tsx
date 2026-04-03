@@ -43,7 +43,7 @@ export const SignInFlow = () => {
             // console.log(formData);
 
             login.mutate(formData)
-            
+
         } catch (error) {
             console.log(error);
         }
@@ -175,10 +175,10 @@ export const SignInFlow = () => {
                         custom={3} variants={fadeUp} initial="hidden" animate="show"
                     >
                         <SocialSignIn
-                            url_gg="http://localhost:5000/api/v1/auth/google"
-                            url_apple="http://localhost:5000/api/v1/auth/apple"
+                            url_gg={`${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
+                            url_facebook={`${process.env.NEXT_PUBLIC_API_URL}/auth/facebook`}
                             text_gg="Đăng nhập với Google"
-                            text_apple="Đăng nhập với Apple"
+                            text_facebook="Đăng nhập với Facebook"
                         />
                     </motion.div>
 

@@ -7,9 +7,8 @@ import { User } from "@/features/auth/types/auth.type";
 import TopLoadingBar from "@/components/loadings/TopLoadingBar";
 
 const ROLE_ROUTES: Record<string, string> = {
-  ADMIN: "/admin",
-  STAFF: "/staff",
-  TECHNICIAN: "/technician",
+  ADMIN: "/admin/home",
+  WORKER: "/worker/home",
   CUSTOMER: "/customer/home",
 };
 
@@ -23,6 +22,9 @@ export default function Page() {
 
   useEffect(() => {
     if (isLoading) return;
+
+    console.log(me);
+    
 
     const route = me?.role ? ROLE_ROUTES[me.role] : "/home";
     router.replace(route ?? "/home");

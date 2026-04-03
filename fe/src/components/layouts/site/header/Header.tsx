@@ -402,7 +402,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="p-1.5">
-</div>
+          </div>
         </div>
       </div>
     </>
