@@ -9,7 +9,7 @@ export interface WhyUsItem {
 export interface StatItem {
   value: string;
   label: string;
-  variant: "primary" | "default"; 
+  variant?: "primary" | "default";
 }
 
 export interface WhyUsSectionProps {

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Star, Clock, ArrowRight, CalendarCheck } from "lucide-react";
 import { cardVariants } from "../motions/service.motion";
-import { ServiceItem } from "@/features/home/_components/ServicesSection";
+import { ServiceItem } from "@/features/home/types/service.type";
 
 interface ServiceCardProps {
   service: ServiceItem;

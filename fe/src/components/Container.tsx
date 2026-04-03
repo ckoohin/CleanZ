@@ -32,7 +32,7 @@ export default function Container({
     return (
         <div
             className={cn(
-                "relative flex w-full flex-col overflow-x-clip overflow-y-scroll",
+                "relative flex w-full flex-col overflow-x-clip",
                 className
             )}
             {...props}
@@ -60,8 +60,8 @@ export default function Container({
             )}
 
             <div className={cn(
-                "flex relative h-full z-10 w-full mx-auto flex-col px-4",
-                isTables ? "max-w-[2080px]" : "max-w-[1600px]",
+                "flex relative h-full z-10 w-full mx-auto flex-col px-5",
+                isTables ? "max-w-[2080px]" : "max-w-7xl",
                 classNameContent
             )}>
                 {children}

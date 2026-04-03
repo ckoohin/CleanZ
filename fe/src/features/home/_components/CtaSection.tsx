@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { CalendarCheck, ChevronRight } from "lucide-react";
 import { CtaSectionProps } from "../types/ctaSection.type";
+import Container from "@/components/Container";
 
 export const CtaSection: React.FC<CtaSectionProps> = ({
   title = "Sẵn sàng tìm chuyên viên hoàn hảo?",

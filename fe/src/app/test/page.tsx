@@ -32,11 +32,11 @@ import HeroSection from "@/features/home/_components/HeroSection";
 import Footer from "@/components/layouts/site/footer/Footer";
 import HomePagee from "@/features/home/HomePage";
 import { ServicesSection } from "@/features/services/_components/ServicesSection";
-import { ServiceItem } from "@/features/home/_components/ServicesSection";
 import CategorySection from "@/features/services/_components/CategorySection";
 import { CategoryItem } from "@/features/services/types/service.type";
 import { CtaSection } from "@/features/home/_components/CtaSection";
 import Container from "@/components/Container";
+import { ServiceItem } from "@/features/home/types/service.type";
 
 const CATEGORIES: CategoryItem[] = [
     { icon: Wrench, label: "Sửa chữa", color: "bg-blue-50 text-blue-600", href: "/services/repair" },
