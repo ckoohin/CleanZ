@@ -3,7 +3,6 @@ import { motion, Variants } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Star, Clock, ArrowRight, CalendarCheck } from "lucide-react";
 import { headingVariants } from "../motions/service.motion";
-import { ServiceItem } from "@/features/home/_components/ServicesSection";
 
 import {
   Carousel,
@@ -15,6 +14,7 @@ import {
 import ServiceCard from "@/features/services/_components/ServiceCard";
 import Container from "@/components/Container";
 import { cn } from "@/lib/utils";
+import { ServiceItem } from "@/features/home/types/service.type";
 
 interface ServicesSectionProps {
   title?: string;
@@ -34,7 +34,6 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   return (
     <>
       <Container
-        classNameContent="px-14 pb-20"
         className={cn("scrollbar-hide", className)}>
         <motion.div
           className="flex items-end justify-between mb-10"

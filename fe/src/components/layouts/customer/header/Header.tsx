@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useLogout } from "@/features/auth/hooks/auth.hooks";
+import Container from "@/components/Container";
 
 interface HeaderProps {
   navLinks?: NavLink[];
@@ -72,31 +73,32 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       {/* header top */}
-      <div className="w-full bg-primary text-primary-foreground">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-9 flex items-center justify-between text-xs font-medium">
-          <div className="flex items-center gap-3 md:gap-4">
-            <Link href="tel:18006868" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
-              <Phone className="w-3 h-3" />
-              <span className="font-bold">1800 6868</span>
-              <span className="opacity-60 hidden sm:inline">(Miễn phí)</span>
-            </Link>
-            <Separator orientation="vertical" className="h-3 bg-primary-foreground/30" />
-            <span className="hidden md:flex items-center gap-1.5 opacity-85">
-              <Sparkles className="w-3 h-3" />
-              Mới: Dịch vụ điều dưỡng tại nhà — đặt ngay hôm nay!
-            </span>
-          </div>
-          <div className="hidden sm:flex items-center gap-4 opacity-85">
-            <a href="/partner" className="hover:opacity-100 transition-opacity hover:underline underline-offset-2">
-              Trở thành đối tác
-            </a>
-            <Separator orientation="vertical" className="h-3 bg-primary-foreground/30" />
-            <a href="/worker" className="hover:opacity-100 transition-opacity hover:underline underline-offset-2">
-              Đăng ký làm thợ
-            </a>
-          </div>
+      <Container
+        className="bg-primary text-primary-foreground"
+        classNameContent="px-4 md:px-6 h-9 flex items-center justify-between text-xs font-medium"
+      >
+        <div className="flex items-center gap-3 md:gap-4">
+          <Link href="tel:18006868" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
+            <Phone className="w-3 h-3" />
+            <span className="font-bold">1800 6868</span>
+            <span className="opacity-60 hidden sm:inline">(Miễn phí)</span>
+          </Link>
+          <Separator orientation="vertical" className="h-3 bg-primary-foreground/30" />
+          <span className="hidden md:flex items-center gap-1.5 opacity-85">
+            <Sparkles className="w-3 h-3" />
+            Mới: Dịch vụ điều dưỡng tại nhà — đặt ngay hôm nay!
+          </span>
         </div>
-      </div>
+        <div className="hidden sm:flex items-center gap-4 opacity-85">
+          <a href="/partner" className="hover:opacity-100 transition-opacity hover:underline underline-offset-2">
+            Trở thành đối tác
+          </a>
+          <Separator orientation="vertical" className="h-3 bg-primary-foreground/30" />
+          <a href="/worker" className="hover:opacity-100 transition-opacity hover:underline underline-offset-2">
+            Đăng ký làm thợ
+          </a>
+        </div>
+      </Container>
 
       {/* header bottom */}
       <header className={cn(
@@ -105,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
           ? "border-b border-border shadow-sm"
           : "border-b border-transparent"
       )}>
-        <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <Container>
           <div className="h-16 flex items-center justify-between gap-3">
 
             <div className="flex items-center gap-4 shrink-0">
@@ -248,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
             </div>
           </div>
-        </div>
+        </Container>
       </header>
 
       {/* mobile menu overlay */}
@@ -340,7 +342,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="p-1.5">
-</div>
+          </div>
         </div>
       </div>
     </>

@@ -55,7 +55,7 @@ export const WhyUsSection: React.FC<WhyUsSectionProps> = ({
                 <motion.div
                   key={t}
                   className="flex gap-4"
-                  variants={fadeUp(i * 0.1)}
+                  // variants={ fadeUp(i * 0.1) }
                   initial="hidden"
                   whileInView="visible"
                   viewport={{ once: true, margin: "-40px" }}
