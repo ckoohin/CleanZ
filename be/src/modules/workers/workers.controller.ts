@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -14,6 +15,8 @@ import {
 } from '@nestjs/common';
 import { WorkersService } from './workers.service';
 import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
+import { CreateWorkerServiceDto } from './dto/create-worker-service.dto';
+import { UpdateWorkerServiceDto } from './dto/update-worker-service.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
@@ -23,6 +26,7 @@ import {
 } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
+import { UpdateWorkerPresenceDto } from './dto/update-worker-presence.dto';
 
 const UUIDParam = new ParseUUIDPipe({
   exceptionFactory: () => new NotFoundException('Người dùng không tồn tại'),
@@ -33,10 +37,30 @@ const UUIDParam = new ParseUUIDPipe({
 export class WorkersController {
   constructor(private readonly workersService: WorkersService) {}
 
-  private static readonly privateImageKeys = [
-    { name: 'citizenCardImage', maxCount: 10 }, // Cho phép tối đa 10 file mỗi loại
-    { name: 'certificateImage', maxCount: 10 },
-  ];
+  @Get('/profile')
+  async getProfile(@CurrentUser() currentUser: AuthUser) {
+    return this.workersService.getProfileWorker(
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  @Get('presence/me')
+  async getMyPresence(@CurrentUser() currentUser: AuthUser) {
+    return this.workersService.getMyPresence(currentUser.id, currentUser.role);
+  }
+
+  @Patch('presence/me')
+  async updateMyPresence(
+    @Body() dto: UpdateWorkerPresenceDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.updateMyPresence(
+      currentUser.id,
+      currentUser.role,
+      dto,
+    );
+  }
 
   @Post(':userId/apply')
   async applyToWorker(
@@ -45,26 +69,6 @@ export class WorkersController {
   ) {
     return this.workersService.createProfileWorker(
       userId,
-      currentUser.id,
-      currentUser.role,
-    );
-  }
-  @Get('/profile')
-  async getProfile(@CurrentUser() currentUser: AuthUser) {
-    return this.workersService.getProfileWorker(
-      currentUser.id,
-      currentUser.role,
-    );
-  }
-  @Patch(':id')
-  async update(
-    @Param('id', UUIDParam) id: string,
-    @Body() dto: UpdateWorkerProfileDto,
-    @CurrentUser() currentUser: AuthUser,
-  ) {
-    return this.workersService.update(
-      id,
-      dto,
       currentUser.id,
       currentUser.role,
     );
@@ -89,6 +93,9 @@ export class WorkersController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() currentUser: AuthUser,
   ) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn ảnh đại diện');
+    }
     return this.workersService.updateAvatar(
       id,
       file,
@@ -101,8 +108,8 @@ export class WorkersController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'citizenCardImage', maxCount: 2 },
-        { name: 'certificateImage', maxCount: 10 },
+        { name: 'citizenCard', maxCount: 2 },
+        { name: 'certificate', maxCount: 10 },
       ],
       {
         storage: memoryStorage(),
@@ -121,14 +128,21 @@ export class WorkersController {
     @Param('id', UUIDParam) id: string,
     @UploadedFiles()
     files: {
-      citizenCardImage?: Express.Multer.File[];
-      certificateImage?: Express.Multer.File[];
+      citizenCard?: Express.Multer.File[];
+      certificate?: Express.Multer.File[];
     },
     @CurrentUser() currentUser: AuthUser,
   ) {
-    if (files.citizenCardImage && files.citizenCardImage.length > 2) {
+    const citizenCardCount = files?.citizenCard?.length ?? 0;
+    const certificateCount = files?.certificate?.length ?? 0;
+
+    if (citizenCardCount > 2) {
       throw new BadRequestException('Chỉ được upload tối đa 2 ảnh CCCD');
     }
+    if (certificateCount > 10) {
+      throw new BadRequestException('Chỉ được upload tối đa 10 ảnh chứng chỉ');
+    }
+
     return this.workersService.updateDocuments(
       id,
       files,
@@ -163,15 +177,16 @@ export class WorkersController {
       currentUser.role,
     );
   }
+
   @Patch(':id/approve')
   @AdminOnly()
   async approveWorker(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    console.log('Admin', currentUser);
     return this.workersService.approveWorker(id, currentUser.id);
   }
+
   @Patch(':id/reject')
   @AdminOnly()
   async rejectWorker(
@@ -179,5 +194,82 @@ export class WorkersController {
     @CurrentUser() currentUser: AuthUser,
   ) {
     return this.workersService.rejectWorker(id, currentUser.id);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id', UUIDParam) id: string,
+    @Body() dto: UpdateWorkerProfileDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.update(
+      id,
+      dto,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  // ─── Worker Services Endpoints ──────────────────────────
+
+  @Post(':id/services')
+  createWorkerService(
+    @Param('id', UUIDParam) id: string,
+    @Body() dto: CreateWorkerServiceDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.createWorkerService(
+      id,
+      dto,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  @Get(':id')
+  async findById(
+    @Param('id', UUIDParam) id: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.findWorkerById(
+      id,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  @Get(':id/services')
+  async getWorkerServices(@Param('id', UUIDParam) id: string) {
+    return this.workersService.getWorkerServices(id);
+  }
+
+  @Patch(':id/services/:wsId')
+  async updateWorkerService(
+    @Param('id', UUIDParam) id: string,
+    @Param('wsId', UUIDParam) wsId: string,
+    @Body() dto: UpdateWorkerServiceDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.updateWorkerService(
+      id,
+      wsId,
+      dto,
+      currentUser.id,
+      currentUser.role,
+    );
+  }
+
+  @Delete(':id/services/:wsId')
+  async deleteWorkerService(
+    @Param('id', UUIDParam) id: string,
+    @Param('wsId', UUIDParam) wsId: string,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.workersService.deleteWorkerService(
+      id,
+      wsId,
+      currentUser.id,
+      currentUser.role,
+    );
   }
 }

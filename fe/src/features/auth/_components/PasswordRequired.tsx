@@ -1,9 +1,6 @@
 import { CheckCircle2, Circle } from 'lucide-react';
-import React from 'react'
+import { PasswordRequiredProps } from '../types/auth.type';
 
-export interface PasswordRequiredProps {
-    password: string;
-}
 const passwordRequirements = [
     { label: 'Ít nhất 8 ký tự', test: (pw: string) => pw.length >= 8 },
     { label: 'Chứa ít nhất một chữ số', test: (pw: string) => /\d/.test(pw) },

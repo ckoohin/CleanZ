@@ -1,5 +1,6 @@
-import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, Profile, VerifyOtpCredentials, VerifyEmailCredentials, VerifyEmailResponse, ResendVerificationEmailCredentials, ResendVerificationEmailResponse, ForgotPasswordCredentials, ForgotPasswordResponse, ResetPasswordCredentials, ResetPasswordResponse, VerifyOtpResponse } from '@/features/auth/types/auth.type';
+import type { LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, VerifyOtpCredentials, VerifyEmailCredentials, VerifyEmailResponse, ResendVerificationEmailCredentials, ResendVerificationEmailResponse, ForgotPasswordCredentials, ForgotPasswordResponse, ResetPasswordCredentials, ResetPasswordResponse, VerifyOtpResponse } from '@/features/auth/types/auth.type';
 import http from '@/lib/api/http';
+import { Profile, User } from '../types/user.type';
 
 export const authApi = {
 

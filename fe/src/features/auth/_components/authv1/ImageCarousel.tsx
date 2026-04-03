@@ -85,7 +85,12 @@ export function ImageCarousel({ valueAuthType }: { valueAuthType: "signup" | "si
   const slides = valueAuthType === "signup" ? slidesSignUp : slidesSignIn;
   const SLIDE_DURATION = 4500;
 
-  useEffect(() => { setCurrentSlide(0); }, [valueAuthType]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentSlide(0);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [valueAuthType]);
 
   useEffect(() => {
     const timer = setInterval(() => {

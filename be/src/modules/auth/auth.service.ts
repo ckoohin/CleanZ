@@ -141,6 +141,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<{ message: string; userId: string }> {
     return asyncHandleOperation(async () => {
       const user = await this.usersService.findByEmail(dto.email);
+
       if (!user || !user.password) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }

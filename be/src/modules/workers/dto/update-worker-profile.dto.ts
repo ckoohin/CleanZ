@@ -6,8 +6,9 @@ export class UpdateWorkerProfileDto {
   @MaxLength(500, { message: 'Kỹ năng không được vượt quá 500 ký tự' })
   skills?: string;
 
+  @IsOptional()
   @Matches(/^[0-9]{10,11}$/, {
-    message: 'Phone must be 10-11 digits',
+    message: 'Số điện thoại phải có độ dài từ 10 đến 11 ký tự',
   })
   phone!: string;
 

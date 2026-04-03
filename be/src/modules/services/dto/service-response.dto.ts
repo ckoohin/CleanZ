@@ -1,7 +1,10 @@
+import { ServiceLocationType } from 'src/common/enums/service-location-type.enum';
+
 export class ServiceResponseDto {
   id!: string;
   name!: string;
   category!: string;
+  supportedLocationTypes!: ServiceLocationType[];
   description?: string;
   basePrice!: number;
   duration?: number;

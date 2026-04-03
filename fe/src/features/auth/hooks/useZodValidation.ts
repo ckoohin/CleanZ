@@ -1,6 +1,5 @@
 import { z } from "zod";
-
-type ErrorMap = Record<string, string>;
+import { ErrorMap } from "../types/error.type";
 
 export function useZodValidation<T>(schema: z.ZodSchema<T>) {
   return (data: unknown) => {

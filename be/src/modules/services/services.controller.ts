@@ -1,16 +1,16 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  Query, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
   UseInterceptors,
   UploadedFile,
   ParseUUIDPipe,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -23,23 +23,33 @@ import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; 
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/jpg',
+  'image/webp',
+];
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 @Controller('services')
-@Auth() 
+@Auth()
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Post()
-  @AdminOnly() 
+  @AdminOnly()
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: memoryStorage(), 
+      storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, callback) => {
         if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-          return callback(new BadRequestException('File không hợp lệ. Chỉ chấp nhận jpg, jpeg, png, webp.'), false);
+          return callback(
+            new BadRequestException(
+              'File không hợp lệ. Chỉ chấp nhận jpg, jpeg, png, webp.',
+            ),
+            false,
+          );
         }
         callback(null, true);
       },
@@ -47,10 +57,14 @@ export class ServicesController {
   )
   async create(
     @Body() createServiceDto: CreateServiceDto,
-    @UploadedFile() file: Express.Multer.File, 
+    @UploadedFile() file: Express.Multer.File,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.servicesService.createService(createServiceDto, file, currentUser.id);
+    return this.servicesService.createService(
+      createServiceDto,
+      file,
+      currentUser.id,
+    );
   }
 
   @Get()
@@ -71,7 +85,12 @@ export class ServicesController {
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, callback) => {
         if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-          return callback(new BadRequestException('File không hợp lệ. Chỉ chấp nhận jpg, jpeg, png, webp.'), false);
+          return callback(
+            new BadRequestException(
+              'File không hợp lệ. Chỉ chấp nhận jpg, jpeg, png, webp.',
+            ),
+            false,
+          );
         }
         callback(null, true);
       },
@@ -83,7 +102,12 @@ export class ServicesController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.servicesService.updateService(id, updateServiceDto, file, currentUser.id);
+    return this.servicesService.updateService(
+      id,
+      updateServiceDto,
+      file,
+      currentUser.id,
+    );
   }
 
   @Delete(':id')

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft } from 'lucide-react';
 import { StepOne } from '@/features/auth/_components/authv1/steps/StepOne';
@@ -6,26 +5,10 @@ import { StepTwo } from '@/features/auth/_components/authv1/steps/StepTwo';
 import { StepThree } from '@/features/auth/_components/authv1/steps/StepThree';
 import { ProgressIndicator } from './ProgressIndicator';
 import { Button } from '@/components/ui/button';
-import { Toaster } from 'sonner';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useRegister } from '../../hooks/auth.hooks';
 import { useRegisterContext } from '../../context/register.context';
 import { fadeUp } from './SignInFlow';
 import { SocialSignIn } from './SocialSignIn';
-export interface FormData {
-  // Step 1
-  username: string;
-  email: string;
-  // Step 2
-  lastName: string,
-  firstName: string,
-  dateOfBirth: string,
-  // Step 3
-  password: string;
-  confirmPassword: string;
-  checkedTerms: boolean;
-}
 
 const TOTAL_STEPS = 3;
 export function MultiStepForm() {

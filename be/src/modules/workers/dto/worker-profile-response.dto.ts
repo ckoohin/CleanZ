@@ -1,4 +1,4 @@
-import { WorkerStatus } from '../entities/worker.entity';
+import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
 
 export class WorkerProfileResponseDto {
   id!: string;
@@ -13,7 +13,7 @@ export class WorkerProfileResponseDto {
   hasCertificateImage!: boolean;
   totalJobs!: number;
   avgRating!: number;
-  status!: WorkerStatus;
+  approvalStatus!: APPROVAL_STATUS;
   createdAt!: Date;
   updatedAt!: Date;
   lastChangedByAdminName?: string;

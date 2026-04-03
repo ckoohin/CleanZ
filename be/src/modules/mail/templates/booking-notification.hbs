@@ -1,0 +1,64 @@
+<div
+  style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'
+>
+  <div style='text-align: center; padding: 20px 0;'>
+    <h1 style='color: #166534; margin: 0;'>KingOfService</h1>
+  </div>
+  <div
+    style='background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px;'
+  >
+    <h2 style='color: #1f2937; margin-top: 0;'>Xin chào, {{fullName}}!</h2>
+
+    <p style='color: #4b5563; line-height: 1.6;'>
+      Thông báo về booking của bạn:
+    </p>
+
+    <div
+      style='background: #f3f4f6; border-radius: 12px; padding: 20px; margin: 20px 0;'
+    >
+      <table style='width: 100%; border-collapse: collapse;'>
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Mã booking:</td>
+          <td style='padding: 8px 0; color: #1f2937; font-weight: bold; font-size: 14px;'>{{bookingId}}</td>
+        </tr>
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Dịch vụ:</td>
+          <td style='padding: 8px 0; color: #1f2937; font-weight: bold; font-size: 14px;'>{{serviceName}}</td>
+        </tr>
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Trạng thái:</td>
+          <td style='padding: 8px 0; font-size: 14px;'>
+            <span style='background: #166534; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px;'>
+              {{status}}
+            </span>
+          </td>
+        </tr>
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Loại:</td>
+          <td style='padding: 8px 0; color: #1f2937; font-size: 14px;'>{{bookingType}}</td>
+        </tr>
+        {{#if address}}
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Địa chỉ:</td>
+          <td style='padding: 8px 0; color: #1f2937; font-size: 14px;'>{{address}}</td>
+        </tr>
+        {{/if}}
+        {{#if scheduledDate}}
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Ngày hẹn:</td>
+          <td style='padding: 8px 0; color: #1f2937; font-size: 14px;'>{{scheduledDate}} {{scheduledTime}}</td>
+        </tr>
+        {{/if}}
+        <tr>
+          <td style='padding: 8px 0; color: #6b7280; font-size: 14px;'>Tổng tiền:</td>
+          <td style='padding: 8px 0; color: #166534; font-weight: bold; font-size: 16px;'>{{totalPrice}} VNĐ</td>
+        </tr>
+      </table>
+    </div>
+
+    <hr style='border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;' />
+    <p style='color: #9ca3af; font-size: 12px;'>
+      Đây là email tự động từ KingOfService. Vui lòng không trả lời email này.
+    </p>
+  </div>
+</div>

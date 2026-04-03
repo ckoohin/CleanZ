@@ -52,4 +52,58 @@ export class MailService {
       },
     });
   }
+
+  async sendWorkerApprovedEmail(
+    email: string,
+    fullName: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Hồ sơ worker của bạn đã được phê duyệt',
+      template: 'worker-approved',
+      context: {
+        fullName,
+      },
+    });
+  }
+
+  async sendWorkerRejectedEmail(
+    email: string,
+    fullName: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Hồ sơ worker của bạn đã bị từ chối',
+      template: 'worker-rejected',
+      context: {
+        fullName,
+      },
+    });
+  }
+
+  async sendBookingNotificationEmail(
+    email: string,
+    fullName: string,
+    subject: string,
+    context: {
+      serviceName: string;
+      bookingId: string;
+      status: string;
+      bookingType: string;
+      address?: string;
+      scheduledDate?: string;
+      scheduledTime?: string;
+      totalPrice: number;
+    },
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      template: 'booking-notification',
+      context: {
+        fullName,
+        ...context,
+      },
+    });
+  }
 }

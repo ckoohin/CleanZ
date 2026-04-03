@@ -1,9 +1,5 @@
 import { motion } from 'motion/react';
-
-interface ProgressIndicatorProps {
-  currentStep: number;
-  totalSteps: number;
-}
+import { ProgressIndicatorProps } from '../../types/progress.type';
 
 export function ProgressIndicator({ currentStep, totalSteps }: ProgressIndicatorProps) {
   const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;

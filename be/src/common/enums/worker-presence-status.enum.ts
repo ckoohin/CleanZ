@@ -1,0 +1,4 @@
+export enum WORKER_PRESENCE_STATUS {
+  ONLINE = 'ONLINE',
+  OFFLINE = 'OFFLINE',
+}

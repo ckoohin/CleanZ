@@ -61,3 +61,4 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 PROJECT_SUMMARY.md
 DEVELOPMENT_RULES.md
 uploads/**
+package-lock.json

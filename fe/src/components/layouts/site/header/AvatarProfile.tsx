@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useLogout, useProfile } from "@/features/auth/hooks/auth.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Profile } from "@/features/auth/types/auth.type";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 

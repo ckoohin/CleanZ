@@ -2,19 +2,7 @@ import React from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { CalendarCheck, ChevronRight } from "lucide-react";
-import Container from "@/components/Container";
-
-interface CtaSectionProps {
-  title?: string;
-  subtitle?: string;
-  primaryLabel?: string;
-  primaryHref?: string;
-  secondaryLabel?: string;
-  secondaryHref?: string;
-  image?: string;
-  stat?: string;
-  className?: string;
-}
+import { CtaSectionProps } from "../types/ctaSection.type";
 
 export const CtaSection: React.FC<CtaSectionProps> = ({
   title = "Sẵn sàng tìm chuyên viên hoàn hảo?",
