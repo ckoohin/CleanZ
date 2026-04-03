@@ -10,13 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CardDescription, CardTitle } from "@/components/ui/card";
-
-type RegisterValues = {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-};
+import { RegisterValues } from "../types/auth.type";
 
 const formV: Variants = {
   hidden: { opacity: 0 },

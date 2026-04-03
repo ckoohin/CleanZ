@@ -11,22 +11,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useProfile } from "@/features/auth/hooks/auth.hooks";
+import type { UserRole } from "@/features/auth/types/user.type";
 
-// ─── Mock data ───────────────────────────────────────────────────────────────
-
-const USER = {
-  fullName: "Nguyễn Văn An",
-  email: "nguyenvanan@gmail.com",
-  phone: "0912 345 678",
-  avatar: "",
-  role: "CUSTOMER" as const,
-  isVerified: true,
-  joinedAt: "Tháng 3, 2024",
-  totalOrders: 12,
-  totalSpent: "4.800.000đ",
-  rating: 4.9,
+const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: "Quản trị viên",
+  STAFF: "Nhân viên",
+  CUSTOMER: "Khách hàng",
+  TECHNICIAN: "Thợ dịch vụ",
 };
+
+function formatMemberSince(iso: string) {
+  const d = new Date(iso);
+  return `Tháng ${d.getMonth() + 1}, ${d.getFullYear()}`;
+}
 
 const ADDRESSES = [
   { id: 1, label: "Nhà", icon: Home, address: "123 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM", isDefault: true },
@@ -60,6 +60,48 @@ const fadeUp: Variants = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const { data: profile, isLoading, isError } = useProfile();
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground text-center">
+          Không tải được thông tin tài khoản. Vui lòng thử lại sau.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading || !profile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="relative h-36 bg-[#0D47A1] dark:bg-[#060E24] overflow-hidden" />
+        <div className="max-w-3xl mx-auto px-4 pb-16 -mt-14">
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-end gap-5">
+              <Skeleton className="w-20 h-20 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2 pb-1">
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-64" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+            </div>
+            <Separator />
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const avatarUrl = profile.avatar ?? "";
+  const phoneDisplay = profile.phone?.trim() ? profile.phone : "Chưa cập nhật";
+  const statPlaceholder = "—";
+
   return (
     <div className="min-h-screen bg-background">
 
@@ -89,9 +131,9 @@ export default function ProfilePage() {
               {/* Avatar */}
               <div className="relative shrink-0">
                 <Avatar className="w-20 h-20 border-4 border-card shadow-md">
-                  <AvatarImage src={USER.avatar} />
+                  <AvatarImage src={avatarUrl || undefined} alt={profile.fullName} />
                   <AvatarFallback className="text-xl font-bold bg-primary/10 text-primary">
-                    {USER.fullName.slice(0, 2).toUpperCase()}
+                    {profile.fullName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow border-2 border-card">
@@ -102,17 +144,17 @@ export default function ProfilePage() {
               {/* Name + meta */}
               <div className="flex-1 min-w-0 pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold text-foreground truncate">{USER.fullName}</h1>
-                  {USER.isVerified && (
+                  <h1 className="text-xl font-bold text-foreground truncate">{profile.fullName}</h1>
+                  {profile.isVerified && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">{USER.email}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{profile.email}</p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <Badge className="bg-primary/10 text-primary border-0 text-xs font-semibold">
-                    Khách hàng
+                    {ROLE_LABELS[profile.role]}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">Thành viên từ {USER.joinedAt}</span>
+                  <span className="text-xs text-muted-foreground">Thành viên từ {formatMemberSince(profile.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -121,9 +163,9 @@ export default function ProfilePage() {
             <Separator className="my-4" />
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: "Đơn dịch vụ", value: USER.totalOrders },
-                { label: "Tổng chi tiêu", value: USER.totalSpent },
-                { label: "Đánh giá TB", value: `★ ${USER.rating}` },
+                { label: "Đơn dịch vụ", value: statPlaceholder },
+                { label: "Tổng chi tiêu", value: statPlaceholder },
+                { label: "Đánh giá TB", value: statPlaceholder },
               ].map((s) => (
                 <div key={s.label} className="text-center bg-muted/50 rounded-xl py-3">
                   <p className="text-base font-bold text-foreground">{s.value}</p>
@@ -140,9 +182,9 @@ export default function ProfilePage() {
             icon={User}
             title="Thông tin cá nhân"
           >
-            <InfoRow icon={User} label="Họ tên" value={USER.fullName} />
-            <InfoRow icon={Mail} label="Email" value={USER.email} verified />
-            <InfoRow icon={Phone} label="Số điện thoại" value={USER.phone} />
+            <InfoRow icon={User} label="Họ tên" value={profile.fullName} />
+            <InfoRow icon={Mail} label="Email" value={profile.email} verified={profile.isVerified} />
+            <InfoRow icon={Phone} label="Số điện thoại" value={phoneDisplay} />
           </SectionCard>
         </motion.div>
 
@@ -185,7 +227,7 @@ export default function ProfilePage() {
 
         {/* ── Lịch sử đặt dịch vụ ── */}
         <motion.div custom={3} variants={fadeUp} initial="hidden" animate="show" className="mb-4">
-          <SectionCard icon={ClipboardList} title="Lịch sử dịch vụ" count={USER.totalOrders}>
+          <SectionCard icon={ClipboardList} title="Lịch sử dịch vụ" count={ORDER_HISTORY.length}>
             <div className="space-y-2">
               {ORDER_HISTORY.map((order) => (
                 <div
@@ -240,16 +282,28 @@ export default function ProfilePage() {
 
             <div className="flex items-center justify-between p-3 rounded-xl border border-border mt-2">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  profile.isVerified ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-muted"
+                )}>
+                  <ShieldCheck className={cn("w-4 h-4", profile.isVerified ? "text-emerald-500" : "text-muted-foreground")} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Email đã xác thực</p>
-                  <p className="text-xs text-muted-foreground">{USER.email}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {profile.isVerified ? "Email đã xác thực" : "Email chưa xác thực"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{profile.email}</p>
                 </div>
               </div>
-              <Badge className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border-0 text-xs">
-                Đã xác thực
+              <Badge
+                className={cn(
+                  "border-0 text-xs",
+                  profile.isVerified
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {profile.isVerified ? "Đã xác thực" : "Chưa xác thực"}
               </Badge>
             </div>
           </SectionCard>

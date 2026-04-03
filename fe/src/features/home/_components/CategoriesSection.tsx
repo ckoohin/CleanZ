@@ -1,18 +1,6 @@
 import { motion, Variants } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
-
-export interface CategoryItem {
-  icon: LucideIcon;
-  label: string;
-  color: string;
-  href?: string;
-}
-
-interface CategorySectionProps {
-  items: CategoryItem[];
-  className?: string;
-}
+import { CategorySectionProps } from "../types/category.type";
 
 const containerVariants: Variants = {
   hidden: {},
@@ -22,12 +10,17 @@ const containerVariants: Variants = {
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 24, scale: 0.95 },
   visible: {
-    opacity: 1, y: 0, scale: 1,
-    transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] },
   },
 };
 
-export const CategorySection: React.FC<CategorySectionProps> = ({ items, className }) => {
+export const CategorySection: React.FC<CategorySectionProps> = ({
+  items,
+  className,
+}) => {
   return (
     <section className={className}>
       <motion.div
@@ -44,10 +37,14 @@ export const CategorySection: React.FC<CategorySectionProps> = ({ items, classNa
               onClick={() => href && (window.location.href = href)}
             >
               <CardContent className="flex flex-col items-center text-center p-5 gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} group-hover:scale-110 transition-transform duration-200`}>
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} group-hover:scale-110 transition-transform duration-200`}
+                >
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-sm font-semibold text-foreground">{label}</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {label}
+                </span>
               </CardContent>
             </Card>
           </motion.div>

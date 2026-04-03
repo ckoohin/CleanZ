@@ -4,9 +4,8 @@ import { useEffect, useRef } from 'react';
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel';
 import { MultiStepForm } from '@/features/auth/_components/authv1/MultiStepForm';
 import { Toaster, toast } from 'sonner';
-import { motion, Variants } from "motion/react"
+import { motion } from "motion/react"
 import { fadeUp } from './SignInFlow';
-import { SocialSignIn } from './SocialSignIn';
 
 export function SignUpFlow() {
   const shownRef = useRef(false);
