@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { Mail, User } from 'lucide-react'; // Thêm User icon cho trực quan
-import { type FormData } from '@/features/auth/_components/authv1/MultiStepForm';
-import { SocialSignIn } from '@/features/auth/_components/authv1/SocialSignIn';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';

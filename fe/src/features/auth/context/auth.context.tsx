@@ -1,12 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { User } from "@/features/auth/types/auth.type";
-
-type AuthContextType = {
-  user: User | null;
-  setUser: (user: User | null) => void;
-};
+import { AuthContextType } from "@/features/auth/types/auth.type";
+import { User } from "../types/user.type";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 

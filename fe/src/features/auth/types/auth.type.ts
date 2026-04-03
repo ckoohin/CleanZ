@@ -1,35 +1,6 @@
-// enums & literals
-export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'TECHNICIAN';
+import { User } from "./user.type";
 
 export type AuthProvider = 'LOCAL' | 'GOOGLE' | 'APPLE';
-
-// user
-export interface User {
-  id: string;
-  email: string;
-  fullName: string;
-  role: UserRole;
-  avatar?: string | null;
-  isActive: boolean;
-  isVerified: boolean;
-  lastLogin?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Profile {
-    id: string,
-    email: string,
-    fullName: string,
-    provider: AuthProvider,
-    providerId: string,
-    role: UserRole,
-    is_active: boolean,
-    is_verified: boolean,
-    last_login: string,
-    created_at: string,
-    updated_at: string
-}
 
 export interface LoginCredentials {
   email: string;
@@ -78,8 +49,6 @@ export type LoginResponse = {
 
 export type RegisterResponse = AuthResponse;
 
-export type ProfileResponse = Profile;
-
 export type RegisterFormValues = RegisterCredentials;
 
 export interface VerifyEmailResponse {
@@ -109,10 +78,6 @@ export interface LoginFormValues {
   rememberMe: boolean;
 }
 
-
-
-// error
-
 export interface ErrorResponse {
     errors: {
         message: string,
@@ -122,4 +87,25 @@ export interface ErrorResponse {
     path: string,
     statusCode: number,
     timestamp: string
+}
+
+export type AuthContextType = {
+  user: User | null;
+  setUser: (user: User | null) => void;
+};
+
+export type RegisterValues = {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+};
+
+export interface PasswordRequiredProps {
+    password: string;
+}
+
+export type LoginValues = {
+    email: string;
+    password: string; 
 }

@@ -2,29 +2,7 @@ import React from "react";
 import { motion, Variants } from "motion/react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LucideIcon } from "lucide-react";
-
-export interface WhyUsItem {
-  icon: LucideIcon;
-  title: string;
-  desc: string;
-}
-
-export interface StatItem {
-  value: string;
-  label: string;
-  variant: "primary" | "default"; 
-}
-
-interface WhyUsSectionProps {
-  badge?: string;
-  title?: string;
-  titleHighlight?: string;
-  items: WhyUsItem[];
-  stats: StatItem[];
-  images: { src: string; alt: string }[];
-  className?: string;
-}
+import { WhyUsSectionProps } from "../types/whyUsSection.type";
 
 const fadeUp = (delay = 0) => ({
   hidden:  { opacity: 0, y: 28 },

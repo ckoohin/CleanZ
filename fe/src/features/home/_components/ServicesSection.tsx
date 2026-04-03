@@ -5,32 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Star, Clock, ArrowRight, CalendarCheck } from "lucide-react";
-
-export interface ServiceItem {
-  id: string | number;
-  title: string;
-  desc: string;
-  image: string;
-  tag: string;
-  rating: string;
-  reviews: string;
-  price: string;
-  unit: string;
-  duration: string;
-  bookingUrl?: string;
-}
-
-interface ServiceCardProps {
-  service: ServiceItem;
-}
-
-interface ServicesSectionProps {
-  title?: string;
-  subtitle?: string;
-  services: ServiceItem[];
-  viewAllHref?: string;
-  className?: string;
-}
+import { ServiceCardProps, ServicesSectionProps } from "../types/service.type";
 
 const headingVariants: Variants = {
   hidden:  { opacity: 0, y: 20 },

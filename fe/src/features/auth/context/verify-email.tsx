@@ -1,11 +1,9 @@
 "use client"
 import { createContext, useContext, useState } from "react"
-import { FormData } from "../_components/authv1/MultiStepForm"
+import { FormData } from "../types/form.type"
 import { useRegister } from "../hooks/auth.hooks"
 
-type TVerifyEmailContext = {
-    
-}
+type TVerifyEmailContext = {}
 
 const VerifyEmailContext = createContext<TVerifyEmailContext | null>(null)
 

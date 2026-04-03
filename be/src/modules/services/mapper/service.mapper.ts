@@ -1,7 +1,9 @@
 import { ServiceEntity } from '../entities/service.entity';
 import { ServiceResponseDto } from '../dto/service-response.dto';
 
-export const toServiceResponseDto = (entity: ServiceEntity): ServiceResponseDto => {
+export const toServiceResponseDto = (
+  entity: ServiceEntity,
+): ServiceResponseDto => {
   return {
     id: entity.id,
     name: entity.name,
@@ -18,6 +20,8 @@ export const toServiceResponseDto = (entity: ServiceEntity): ServiceResponseDto 
   };
 };
 
-export const toServiceResponseDtoList = (entities: ServiceEntity[]): ServiceResponseDto[] => {
-  return entities.map(entity => toServiceResponseDto(entity));
+export const toServiceResponseDtoList = (
+  entities: ServiceEntity[],
+): ServiceResponseDto[] => {
+  return entities.map((entity) => toServiceResponseDto(entity));
 };

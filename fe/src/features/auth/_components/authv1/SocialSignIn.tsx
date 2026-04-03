@@ -1,14 +1,7 @@
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-type SocialSignInProps = {
-  url_gg: string;
-  url_apple: string;
-  text_gg: string;
-  text_apple: string;
-}
+import { SocialSignInProps } from '../../types/social.type';
 
 export function SocialSignIn({
   url_gg,

@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, Min, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  Min,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateServiceDto {
   @IsString({ message: 'Tên dịch vụ phải là chuỗi' })

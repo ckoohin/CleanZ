@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import axios from "axios";
-import type { User } from "@/features/auth/types/auth.type";
+import { User } from "./types/user.type";
 
 const baseURL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";

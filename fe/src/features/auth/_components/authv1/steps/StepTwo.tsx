@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { User, UserCircle, Calendar } from 'lucide-react';
-import { type FormData } from '@/features/auth/_components/authv1/MultiStepForm';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
