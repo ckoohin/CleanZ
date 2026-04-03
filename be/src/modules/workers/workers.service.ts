@@ -7,24 +7,25 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { WorkerEntity, WorkerStatus } from './entities/worker.entity';
+import { WorkerEntity } from './entities/worker.entity';
 import { UpdateWorkerProfileDto } from './dto/update-worker-profile.dto';
 import { WorkerProfileResponseDto } from './dto/worker-profile-response.dto';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { UserRole } from 'src/common/enums/user-role.enum';
-
+import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
 import { User } from '../users/entities/user.entity';
-import { WorkerDocumentEntity } from './entities/worker-document.entity';
-import { WorkerDocumentType } from 'src/common/enums/type-docs-worker.enum';
+import { WorkerPresenceEntity } from './entities/worker-presence.entity';
+import { WORKER_PRESENCE_STATUS } from 'src/common/enums/worker-presence-status.enum';
 import {
   assertCanAccess,
   assertCanUpdate,
 } from 'src/common/helpers/file.helper';
-import { UploadService } from '../upload/upload.service';
+import { MailService } from '../mail/mail.service';
 import { toWorkerProfileResponseDto } from './mapper/worker.mapper';
-
-const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate'] as const;
-type DocumentType = (typeof VALID_DOCUMENT_TYPES)[number];
+import { WorkerPresenceResponseDto } from './dto/worker-presence-response.dto';
+import { UpdateWorkerPresenceDto } from './dto/update-worker-presence.dto';
+import { DataSource } from 'typeorm';
+import { WorkerUploadService } from './worker-upload.service';
 
 @Injectable()
 export class WorkersService {
@@ -33,9 +34,11 @@ export class WorkersService {
     private readonly workerRepository: Repository<WorkerEntity>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(WorkerDocumentEntity)
-    private readonly workerDocumentRepository: Repository<WorkerDocumentEntity>,
-    private readonly uploadService: UploadService,
+    @InjectRepository(WorkerPresenceEntity)
+    private readonly workerPresenceRepository: Repository<WorkerPresenceEntity>,
+    private readonly mailService: MailService,
+    private readonly dataSource: DataSource,
+    private readonly workerUploadService: WorkerUploadService,
   ) {}
 
   async createProfileWorker(
@@ -69,11 +72,12 @@ export class WorkersService {
         user: { id: userId },
       });
 
-      let savedProfile;
+      let savedProfile: WorkerEntity;
       try {
         savedProfile = await this.workerRepository.save(newProfile);
-      } catch (error: any) {
-        if (error?.code === '23505') {
+      } catch (error: unknown) {
+        const err = error as { code?: string };
+        if (err.code === '23505') {
           throw new ConflictException('Hồ sơ đã tồn tại.');
         }
         throw error;
@@ -123,116 +127,29 @@ export class WorkersService {
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<WorkerProfileResponseDto> {
-    return asyncHandleOperation(async () => {
-      const workerProfile = await this.findAndAuthorizeWithCleanup(
-        id,
-        [],
-        requestUserId,
-        requestUserRole,
-      );
-      const oldAvatarPublicId = workerProfile.avatarPublicId;
-      const uploadResult = await this.uploadService.uploadImage(file);
-
-      workerProfile.avatarPublicId = uploadResult.public_id;
-      workerProfile.avatarUrl = uploadResult.url;
-      const updated = await this.workerRepository.save(workerProfile);
-
-      if (oldAvatarPublicId) {
-        await this.uploadService.deleteImage(oldAvatarPublicId).catch(() => {});
-      }
-      return toWorkerProfileResponseDto(updated);
-    }, 'Lỗi khi cập nhật avatar');
+    return this.workerUploadService.updateAvatar(
+      id,
+      file,
+      requestUserId,
+      requestUserRole,
+    );
   }
 
   async updateDocuments(
     id: string,
     files: {
-      citizenCardImage?: Express.Multer.File[];
-      certificateImage?: Express.Multer.File[];
+      citizenCard?: Express.Multer.File[];
+      certificate?: Express.Multer.File[];
     },
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<WorkerProfileResponseDto> {
-    // No local paths, just check file count
-    const fileCount =
-      (files?.citizenCardImage?.length || 0) +
-      (files?.certificateImage?.length || 0);
-
-    return asyncHandleOperation(async () => {
-      const workerProfile = await this.findAndAuthorizeWithCleanup(
-        id,
-        [],
-        requestUserId,
-        requestUserRole,
-      );
-
-      if (workerProfile.status === WorkerStatus.APPROVED && fileCount > 0) {
-        throw new ForbiddenException(
-          'Không thể thay đổi giấy tờ sau khi đã được xác nhận',
-        );
-      }
-
-      const deleteOldDocs = async (
-        type: WorkerDocumentType,
-        newCount: number,
-      ) => {
-        if (newCount > 0) {
-          const oldDocs = await this.workerDocumentRepository.find({
-            where: { worker: { id: workerProfile.id }, type },
-          });
-          for (const doc of oldDocs) {
-            if (doc.filePublicId) {
-              await this.uploadService
-                .deleteImage(doc.filePublicId)
-                .catch(() => {});
-            }
-            await this.workerDocumentRepository.remove(doc);
-          }
-        }
-      };
-
-      await deleteOldDocs(
-        WorkerDocumentType.CITIZEN_CARD,
-        files?.citizenCardImage?.length || 0,
-      );
-      await deleteOldDocs(
-        WorkerDocumentType.CERTIFICATE,
-        files?.certificateImage?.length || 0,
-      );
-
-      const newDocs: WorkerDocumentEntity[] = [];
-      if (files?.citizenCardImage) {
-        for (const file of files.citizenCardImage) {
-          const uploadResult = await this.uploadService.uploadImage(file);
-          const doc = this.workerDocumentRepository.create({
-            worker: workerProfile,
-            type: WorkerDocumentType.CITIZEN_CARD,
-            fileUrl: uploadResult.url,
-            filePublicId: uploadResult.public_id,
-          });
-          newDocs.push(doc);
-        }
-      }
-      if (files?.certificateImage) {
-        for (const file of files.certificateImage) {
-          const uploadResult = await this.uploadService.uploadImage(file);
-          const doc = this.workerDocumentRepository.create({
-            worker: workerProfile,
-            type: WorkerDocumentType.CERTIFICATE,
-            fileUrl: uploadResult.url,
-            filePublicId: uploadResult.public_id,
-          });
-          newDocs.push(doc);
-        }
-      }
-      if (newDocs.length > 0) {
-        await this.workerDocumentRepository.save(newDocs);
-      }
-
-      return toWorkerProfileResponseDto(
-        await this.findWorkerOrFail(workerProfile.id),
-      );
-    }, 'Lỗi khi cập nhật giấy tờ worker');
+    return this.workerUploadService.updateDocuments(
+      id,
+      files,
+      requestUserId,
+      requestUserRole,
+    );
   }
 
   async getDocumentPaths(
@@ -241,75 +158,153 @@ export class WorkersService {
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<string[]> {
-    if (!VALID_DOCUMENT_TYPES.includes(type as DocumentType)) {
-      throw new BadRequestException(
-        `Loại giấy tờ không hợp lệ. Chỉ chấp nhận: ${VALID_DOCUMENT_TYPES.join(', ')}`,
-      );
-    }
-
-    const workerProfile = await this.findWorkerOrFail(id);
-    assertCanUpdate(workerProfile, requestUserId, requestUserRole);
-
-    const docs = await this.workerDocumentRepository.find({
-      where: { worker: { id }, type: type as WorkerDocumentType },
-    });
-    if (!docs.length) {
-      throw new NotFoundException('Chưa có ảnh giấy tờ này');
-    }
-    return docs.map((d) => d.fileUrl);
+    return this.workerUploadService.getDocumentPaths(
+      id,
+      type,
+      requestUserId,
+      requestUserRole,
+    );
   }
 
   async approveWorker(
     id: string,
     adminId: string,
-  ): Promise<WorkerProfileResponseDto> {
+  ): Promise<{ message: string; worker: WorkerProfileResponseDto }> {
     return asyncHandleOperation(async () => {
       const workerProfile = await this.findWorkerOrFail(id);
-      console.log(workerProfile);
-      if (workerProfile.status === WorkerStatus.APPROVED) {
+      if (workerProfile.approvalStatus === APPROVAL_STATUS.APPROVED) {
         throw new BadRequestException('Worker đã được phê duyệt trước đó');
       }
-      workerProfile.status = WorkerStatus.APPROVED;
-      workerProfile.lastChangedByAdminId = adminId;
-      const updated = await this.workerRepository.save(workerProfile);
       let adminName: string | undefined = undefined;
-      if (updated.lastChangedByAdminId) {
-        const admin = await this.userRepository.findOne({
-          where: { id: updated.lastChangedByAdminId },
+      let userEmail: string = workerProfile.user.email;
+      let userFullName: string = workerProfile.user.fullName;
+
+      await this.dataSource.transaction(async (tx) => {
+        workerProfile.approvalStatus = APPROVAL_STATUS.APPROVED;
+        workerProfile.lastChangedByAdminId = adminId;
+        const admin = await tx.findOne(User, {
+          where: { id: adminId },
+          select: ['id', 'fullName'],
         });
         adminName = admin?.fullName;
-      }
-      return toWorkerProfileResponseDto({
-        ...updated,
-        lastChangedByAdminName: adminName,
+        await tx.save(workerProfile);
+        const user = await tx.findOne(User, {
+          where: { id: workerProfile.user.id },
+        });
+        if (!user) throw new NotFoundException('Người dùng không tồn tại');
+        userEmail = user.email;
+        userFullName = user.fullName;
+        user.role = UserRole.WORKER;
+        await tx.save(user);
+
+        const existingPresence = await tx.findOne(WorkerPresenceEntity, {
+          where: { worker: { id: workerProfile.id } },
+        });
+
+        if (!existingPresence) {
+          const workerPresence = tx.create(WorkerPresenceEntity, {
+            worker: workerProfile,
+            status: WORKER_PRESENCE_STATUS.OFFLINE,
+            isBusy: false,
+          });
+          await tx.save(workerPresence);
+        }
       });
+      const finalWorker = await this.findWorkerOrFail(id);
+      await this.mailService
+        .sendWorkerApprovedEmail(userEmail, userFullName)
+        .catch(() => {});
+
+      return {
+        message: 'Phê duyệt hồ sơ worker thành công',
+        worker: toWorkerProfileResponseDto({
+          ...finalWorker,
+          lastChangedByAdminName: adminName,
+        }),
+      };
     }, 'Lỗi khi phê duyệt worker');
   }
-
   async rejectWorker(
     id: string,
     adminId: string,
-  ): Promise<WorkerProfileResponseDto> {
+  ): Promise<{ message: string; worker: WorkerProfileResponseDto }> {
     return asyncHandleOperation(async () => {
       const workerProfile = await this.findWorkerOrFail(id);
-      if (workerProfile.status === WorkerStatus.REJECTED) {
+      if (workerProfile.approvalStatus === APPROVAL_STATUS.REJECTED) {
         throw new BadRequestException('Worker đã bị từ chối trước đó');
       }
-      workerProfile.status = WorkerStatus.REJECTED;
-      workerProfile.lastChangedByAdminId = adminId;
-      const updated = await this.workerRepository.save(workerProfile);
+
       let adminName: string | undefined = undefined;
-      if (updated.lastChangedByAdminId) {
-        const admin = await this.userRepository.findOne({
-          where: { id: updated.lastChangedByAdminId },
+      const userEmail = workerProfile.user.email;
+      const userFullName = workerProfile.user.fullName;
+
+      await this.dataSource.transaction(async (tx) => {
+        workerProfile.approvalStatus = APPROVAL_STATUS.REJECTED;
+        workerProfile.lastChangedByAdminId = adminId;
+
+        const admin = await tx.findOne(User, {
+          where: { id: adminId },
+          select: ['id', 'fullName'],
         });
         adminName = admin?.fullName;
-      }
-      return toWorkerProfileResponseDto({
-        ...updated,
-        lastChangedByAdminName: adminName,
+        await tx.save(workerProfile);
+        const user = await tx.findOne(User, {
+          where: { id: workerProfile.user.id },
+        });
+        if (!user) throw new NotFoundException('Người dùng không tồn tại');
+        user.role = UserRole.CUSTOMER;
+        await tx.save(user);
       });
+      const finalWorker = await this.findWorkerOrFail(id);
+      await this.mailService
+        .sendWorkerRejectedEmail(userEmail, userFullName)
+        .catch(() => {});
+
+      return {
+        message: 'Từ chối hồ sơ worker thành công',
+        worker: toWorkerProfileResponseDto({
+          ...finalWorker,
+          lastChangedByAdminName: adminName,
+        }),
+      };
     }, 'Lỗi khi từ chối worker');
+  }
+
+  async getMyPresence(
+    userId: string,
+    userRole: UserRole,
+  ): Promise<WorkerPresenceResponseDto> {
+    return asyncHandleOperation(async () => {
+      const workerProfile = await this.findApprovedWorkerByUserOrFail(
+        userId,
+        userRole,
+      );
+      const workerPresence =
+        await this.getOrCreateWorkerPresence(workerProfile);
+
+      return this.toWorkerPresenceResponseDto(workerPresence);
+    }, 'Lỗi khi lấy trạng thái hoạt động của worker');
+  }
+
+  async updateMyPresence(
+    userId: string,
+    userRole: UserRole,
+    dto: UpdateWorkerPresenceDto,
+  ): Promise<WorkerPresenceResponseDto> {
+    return asyncHandleOperation(async () => {
+      const workerProfile = await this.findApprovedWorkerByUserOrFail(
+        userId,
+        userRole,
+      );
+      const workerPresence =
+        await this.getOrCreateWorkerPresence(workerProfile);
+
+      workerPresence.status = dto.status;
+      const updatedPresence =
+        await this.workerPresenceRepository.save(workerPresence);
+
+      return this.toWorkerPresenceResponseDto(updatedPresence);
+    }, 'Lỗi khi cập nhật trạng thái hoạt động của worker');
   }
 
   async getAllWorkerDocuments(
@@ -317,29 +312,35 @@ export class WorkersService {
     requestUserId: string,
     requestUserRole: UserRole,
   ) {
-    const worker = await this.workerRepository.findOne({
-      where: { id: workerId },
-      relations: ['user', 'documents'],
-    });
-    if (!worker) throw new NotFoundException('Không tìm thấy worker');
-    if (
-      requestUserRole !== UserRole.ADMIN &&
-      worker.user.id !== requestUserId
-    ) {
-      throw new ForbiddenException(
-        'Bạn không có quyền truy cập tài nguyên này',
-      );
-    }
-    return {
-      documents: (worker.documents || []).map((doc) => ({
-        id: doc.id,
-        type: doc.type,
-        fileUrl: doc.fileUrl || null,
-        filePublicId: doc.filePublicId || null,
-        createdAt: doc.createdAt,
-      })),
-    };
+    return this.workerUploadService.getAllWorkerDocuments(
+      workerId,
+      requestUserId,
+      requestUserRole,
+    );
   }
+
+  async findWorkerById(
+    id: string,
+    requestUserId: string,
+    requestUserRole: UserRole,
+  ): Promise<WorkerProfileResponseDto> {
+    const worker = await this.findWorkerOrFail(id);
+
+    if (requestUserRole === UserRole.ADMIN) {
+      return toWorkerProfileResponseDto(worker);
+    }
+
+    if (worker.user.id === requestUserId) {
+      return toWorkerProfileResponseDto(worker);
+    }
+
+    if (worker.approvalStatus !== APPROVAL_STATUS.APPROVED) {
+      throw new NotFoundException('Không tìm thấy thông tin worker');
+    }
+
+    return toWorkerProfileResponseDto(worker);
+  }
+
   // ─── Private helpers ─────────────────────────────────────
 
   private async findWorkerOrFail(id: string): Promise<WorkerEntity> {
@@ -353,25 +354,68 @@ export class WorkersService {
     return worker;
   }
 
-  private async findAndAuthorizeWithCleanup(
-    id: string,
-    filePaths: (string | undefined)[],
-    requestUserId: string,
-    requestUserRole: UserRole,
-  ): Promise<WorkerEntity> {
-    // const cleanPaths = filePaths.filter(Boolean) as string[];
-
-    const worker = await this.workerRepository.findOne({
-      where: { id },
-      relations: ['user', 'documents'],
+  private async findWorkerByUserId(
+    userId: string,
+  ): Promise<WorkerEntity | null> {
+    return this.workerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'documents', 'workerPresence'],
     });
+  }
 
-    if (!worker) {
-      throw new NotFoundException('Không tìm thấy thông tin worker');
+  private async findApprovedWorkerByUserOrFail(
+    userId: string,
+    userRole: UserRole,
+  ): Promise<WorkerEntity> {
+    if (userRole !== UserRole.WORKER) {
+      throw new ForbiddenException('Bạn không thể thực hiện hành động này.');
     }
 
-    assertCanUpdate(worker, requestUserId, requestUserRole);
+    const worker = await this.findWorkerByUserId(userId);
+
+    if (!worker) {
+      throw new NotFoundException('Không tìm thấy hồ sơ worker');
+    }
+
+    if (worker.approvalStatus !== APPROVAL_STATUS.APPROVED) {
+      throw new ForbiddenException(
+        'Worker chưa được phê duyệt để bật trạng thái hoạt động',
+      );
+    }
 
     return worker;
+  }
+
+  private async getOrCreateWorkerPresence(
+    worker: WorkerEntity,
+  ): Promise<WorkerPresenceEntity> {
+    const existingPresence = await this.workerPresenceRepository.findOne({
+      where: { worker: { id: worker.id } },
+      relations: ['worker'],
+    });
+
+    if (existingPresence) {
+      return existingPresence;
+    }
+
+    const workerPresence = this.workerPresenceRepository.create({
+      worker,
+      status: WORKER_PRESENCE_STATUS.OFFLINE,
+      isBusy: false,
+    });
+
+    return this.workerPresenceRepository.save(workerPresence);
+  }
+
+  private toWorkerPresenceResponseDto(
+    workerPresence: WorkerPresenceEntity,
+  ): WorkerPresenceResponseDto {
+    return {
+      workerId: workerPresence.worker.id,
+      status: workerPresence.status,
+      isBusy: workerPresence.isBusy,
+      createdAt: workerPresence.createdAt,
+      updatedAt: workerPresence.updatedAt,
+    };
   }
 }

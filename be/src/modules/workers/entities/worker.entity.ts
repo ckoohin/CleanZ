@@ -10,12 +10,8 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { WorkerDocumentEntity } from './worker-document.entity';
-
-export enum WorkerStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-}
+import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
+import { WorkerPresenceEntity } from './worker-presence.entity';
 
 @Entity('worker_profiles')
 export class WorkerEntity {
@@ -29,8 +25,8 @@ export class WorkerEntity {
   @Column({ nullable: true, type: 'text' })
   skills!: string;
 
-  @Column({ type: 'varchar', length: 11 })
-  phone!: string;
+  @Column({ type: 'varchar', length: 11, nullable: true })
+  phone?: string;
 
   @Column({ nullable: true, type: 'text' })
   experience!: string;
@@ -56,11 +52,18 @@ export class WorkerEntity {
   avgRating!: number;
 
   @Column({
+    name: 'approval_status',
     type: 'enum',
-    enum: WorkerStatus,
-    default: WorkerStatus.PENDING,
+    enum: APPROVAL_STATUS,
+    default: APPROVAL_STATUS.PENDING,
   })
-  status!: WorkerStatus;
+  approvalStatus!: APPROVAL_STATUS;
+
+  @OneToOne(
+    () => WorkerPresenceEntity,
+    (workerPresence) => workerPresence.worker,
+  )
+  workerPresence?: WorkerPresenceEntity;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

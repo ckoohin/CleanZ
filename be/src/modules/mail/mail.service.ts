@@ -52,4 +52,32 @@ export class MailService {
       },
     });
   }
+
+  async sendWorkerApprovedEmail(
+    email: string,
+    fullName: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Hồ sơ worker của bạn đã được phê duyệt',
+      template: 'worker-approved',
+      context: {
+        fullName,
+      },
+    });
+  }
+
+  async sendWorkerRejectedEmail(
+    email: string,
+    fullName: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Hồ sơ worker của bạn đã bị từ chối',
+      template: 'worker-rejected',
+      context: {
+        fullName,
+      },
+    });
+  }
 }
