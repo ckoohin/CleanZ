@@ -3,6 +3,24 @@ export type UserRole = 'ADMIN' | 'WORKER' | 'CUSTOMER';
 
 export type AuthProvider = 'local' | 'google' | 'facebook';
 
+export interface User {
+    id: string,
+    email: string,
+    phone: string,
+    fullName: string,
+    provider: string,
+    providerId: string,
+    avatar: string,
+    role: UserRole,
+    isActive: boolean,
+    isVerified: boolean,
+    lastLogin: string,
+    createdAt: string,
+    updatedAt: string
+}
+
+
+
 export interface LoginCredentials {
   email: string;
   password: string;

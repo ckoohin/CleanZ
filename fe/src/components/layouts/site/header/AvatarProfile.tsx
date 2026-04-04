@@ -54,7 +54,7 @@ export const AvatarProfile: React.FC<AvatarProfileProps> = () => {
           <button className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-muted transition-colors outline-none">
             <div className="relative">
               <Avatar className="w-8 h-8">
-                <AvatarImage src={"jahsgjh"} alt={profile.fullName} />
+                <AvatarImage src={profile.avatar as string} alt={profile.fullName} />
                 <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
                   {profile.fullName.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
@@ -73,7 +73,7 @@ export const AvatarProfile: React.FC<AvatarProfileProps> = () => {
 
           <div className="px-4 py-3.5 flex items-center gap-3 bg-muted/40">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={"ạhsdgadgsu"} alt={profile.fullName} />
+              <AvatarImage src={profile.avatar as string} alt={profile.fullName} />
               <AvatarFallback className="text-sm font-bold bg-primary/10 text-primary">
                 {profile.fullName.slice(0, 2).toUpperCase()}
               </AvatarFallback>

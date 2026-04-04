@@ -1,5 +1,4 @@
 "use client"
-
 import React, { useEffect, useRef, useState } from 'react'
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel'
 import { Toaster, toast } from 'sonner'

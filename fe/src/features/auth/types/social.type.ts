@@ -1,6 +1,6 @@
 export type SocialSignInProps = {
   url_gg: string;
-  url_apple: string;
+  url_facebook: string;
   text_gg: string;
-  text_apple: string;
+  text_facebook: string;
 }

@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* header top */}
       <Container
         className="bg-primary text-primary-foreground"
-        classNameContent="px-4 md:px-6 h-9 flex items-center justify-between text-xs font-medium"
+        classNameContent="flex flex-row px-4 md:px-6 h-9 flex items-center justify-between text-xs font-medium"
       >
         <div className="flex items-center gap-3 md:gap-4">
           <Link href="tel:18006868" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
