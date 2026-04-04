@@ -34,9 +34,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   return (
     <>
       <Container
+        classNameContent="px-4"
         className={cn("scrollbar-hide", className)}>
         <motion.div
-          className="flex items-end justify-between mb-10"
+          className="flex items-end justify-between px-2 mb-5 sm:mb-10"
           variants={headingVariants}
           initial="hidden"
           whileInView="visible"

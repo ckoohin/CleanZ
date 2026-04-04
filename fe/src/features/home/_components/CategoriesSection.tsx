@@ -23,10 +23,11 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 }) => {
   return (
     <Container
-      className="-mt-16 relative z-20 mb-24"
+      className="-mt-16 relative "
+      classNameContent="z-20 mb-10 sm:mb-20"
     >
         <motion.div
-          className="grid grid-cols-3 md:grid-cols-6 gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"

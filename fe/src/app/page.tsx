@@ -23,9 +23,6 @@ export default function Page() {
   useEffect(() => {
     if (isLoading) return;
 
-    console.log(me);
-    
-
     const route = me?.role ? ROLE_ROUTES[me.role] : "/home";
     router.replace(route ?? "/home");
   }, [me, isLoading, router]);
