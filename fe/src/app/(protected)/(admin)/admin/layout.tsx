@@ -15,44 +15,47 @@ import {
     SidebarTrigger,
 } from "@/components/ui/sidebar"
 
-export default function Page() {
+export default function AdminLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
     return (
         <SidebarProvider>
             <AppSidebar />
-            <SidebarInset>
-                <header className="flex flex pr-5 justify-between h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-                    <div className="flex items-center gap-2 px-4">
-                        <SidebarTrigger className="-ml-1" />
+            <SidebarInset className="bg-background">
+                <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-6 border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0 z-40">
+                    <div className="flex items-center gap-4">
+                        <SidebarTrigger className="-ml-1 text-primary hover:bg-primary/10 transition-colors" />
                         <Separator
                             orientation="vertical"
-                            className="mr-2 data-[orientation=vertical]:h-4"
+                            className="mr-2 h-4"
                         />
                         <Breadcrumb>
                             <BreadcrumbList>
-                                <BreadcrumbItem className="hidden md:block">
-                                    <BreadcrumbLink href="#">
-                                        Build Your Application
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink href="/admin" className="font-medium hover:text-primary transition-colors">
+                                        Hệ thống KingOfService
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
-                                <BreadcrumbSeparator className="hidden md:block" />
+                                <BreadcrumbSeparator />
                                 <BreadcrumbItem>
-                                    <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                                    <BreadcrumbPage className="font-bold text-primary">Dashboard</BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
                         </Breadcrumb>
                     </div>
-                    <div>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden md:flex flex-col items-end mr-2">
+                             <span className="text-[10px] font-black uppercase tracking-wider text-primary opacity-80">Quản trị viên</span>
+                             <span className="text-xs font-bold">Admin Root</span>
+                        </div>
                         <ThemeToggle />
                     </div>
                 </header>
-                <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-                    <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                        <div className="aspect-video rounded-xl bg-muted/50" />
-                        <div className="aspect-video rounded-xl bg-muted/50" />
-                        <div className="aspect-video rounded-xl bg-muted/50" />
-                    </div>
-                    <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
-                </div>
+                <main className="flex-1 p-6 md:p-8 animate-in fade-in duration-500">
+                    {children}
+                </main>
             </SidebarInset>
         </SidebarProvider>
     )
