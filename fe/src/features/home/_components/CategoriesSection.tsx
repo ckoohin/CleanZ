@@ -18,6 +18,9 @@ const itemVariants: Variants = {
   },
 };
 
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+
 export const CategorySection: React.FC<CategorySectionProps> = ({
   items,
 }) => {
@@ -26,33 +29,40 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
       className="-mt-16 relative "
       classNameContent="z-20 mb-10 sm:mb-20"
     >
-        <motion.div
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-        >
-          {items.map(({ icon: Icon, label, color, href }) => (
-            <motion.div key={label} variants={itemVariants}>
-              <Card
-                className="group cursor-pointer border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200"
-                onClick={() => href && (window.location.href = href)}
-              >
-                <CardContent className="flex flex-col items-center text-center p-5 gap-3">
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} group-hover:scale-110 transition-transform duration-200`}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">
-                    {label}
-                  </span>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </motion.div>
+      <div className="flex items-center justify-between mb-10">
+        <h2 className="text-2xl font-bold tracking-tight text-[#1a1a1a]">Danh mục phổ biến</h2>
+        <Link href="/categories" className="text-[#fd7e14] hover:text-[#e66a00] flex items-center gap-1.5 font-bold transition-colors group">
+           Xem tất cả 
+           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
+      <motion.div
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+      >
+        {items.map(({ icon: Icon, label, color, href }) => (
+          <motion.div key={label} variants={itemVariants}>
+            <Card
+              className="group cursor-pointer border border-border/60 hover:border-[#fd7e14]/30 hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden"
+              onClick={() => href && (window.location.href = href)}
+            >
+              <CardContent className="flex flex-col items-center text-center p-6 gap-4">
+                <div
+                  className={`w-14 h-14 rounded-xl flex items-center justify-center ${color} group-hover:scale-110 group-hover:bg-[#fd7e14] group-hover:text-white transition-all duration-300 shadow-sm`}
+                >
+                  <Icon className="w-6 h-6" />
+                </div>
+                <span className="text-sm font-bold text-[#1a1a1a] group-hover:text-[#fd7e14] transition-colors">
+                  {label}
+                </span>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
     </Container>
   );
 };

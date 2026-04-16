@@ -20,25 +20,27 @@ import { MoreHorizontalIcon, FolderIcon, ArrowRightIcon, Trash2Icon } from "luci
 
 export function NavProjects({
   projects,
+  label,
 }: {
   projects: {
     name: string
     url: string
     icon: React.ReactNode
   }[]
+  label?: string
 }) {
   const { isMobile } = useSidebar()
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Projects</SidebarGroupLabel>
+    <SidebarGroup>
+      {label && <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/70 mb-2 px-2">{label}</SidebarGroupLabel>}
       <SidebarMenu>
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild className="hover:text-primary">
               <a href={item.url}>
                 {item.icon}
-                <span>{item.name}</span>
+                <span className="font-medium">{item.name}</span>
               </a>
             </SidebarMenuButton>
             <DropdownMenu>
@@ -47,8 +49,7 @@ export function NavProjects({
                   showOnHover
                   className="aria-expanded:bg-muted"
                 >
-                  <MoreHorizontalIcon
-                  />
+                  <MoreHorizontalIcon />
                   <span className="sr-only">More</span>
                 </SidebarMenuAction>
               </DropdownMenuTrigger>
@@ -59,28 +60,20 @@ export function NavProjects({
               >
                 <DropdownMenuItem>
                   <FolderIcon className="text-muted-foreground" />
-                  <span>View Project</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <ArrowRightIcon className="text-muted-foreground" />
-                  <span>Share Project</span>
+                  <span>View Details</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <Trash2Icon className="text-muted-foreground" />
-                  <span>Delete Project</span>
+                   <Settings2Icon className="text-muted-foreground" />
+                   <span>Settings</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
         ))}
-        <SidebarMenuItem>
-          <SidebarMenuButton className="text-sidebar-foreground/70">
-            <MoreHorizontalIcon className="text-sidebar-foreground/70" />
-            <span>More</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
   )
 }
+
+import { Settings2Icon } from "lucide-react"
