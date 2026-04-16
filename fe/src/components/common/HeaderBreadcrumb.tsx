@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
-import { sidebarSections } from "@/components/layouts/admin/sideber/sidebar.config";
+import { sidebarSections } from "@/components/layouts/admin/sidebar/sidebar.config";
 
 export default function HeaderBreadcrumb() {
   const pathname = usePathname();

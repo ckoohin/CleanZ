@@ -1,4 +1,5 @@
 // components/ui/LogoApp.tsx
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import React from "react";
 
@@ -6,11 +7,13 @@ type LogoVariant = "default" | "pill" | "icon-only";
 type LogoSize   = "sm" | "md" | "lg";
 
 interface TLogoAppProps {
-  href?:      string;
-  className?: string;
-  variant?:   LogoVariant;
-  size?:      LogoSize;
-  text?:      string;
+  href?:           string;
+  className?:      string;
+  markClassName?:  string;
+  textClassName?:  string;
+  variant?:        LogoVariant;
+  size?:           LogoSize;
+  text?:           string;
 }
 
 const SIZE_MAP = {
@@ -20,9 +23,9 @@ const SIZE_MAP = {
 };
 
 /* K lettermark — dùng --primary (indigo) */
-function LogoMark({ size }: { size: number }) {
+function LogoMark({ size, className }: { size: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 30 30" fill="none">
+    <svg width={size} height={size} viewBox="0 0 30 30" fill="none" className={cn("shrink-0", className)}>
       <rect width="30" height="30" rx="7"
         className="fill-primary" />
       <text
@@ -41,18 +44,20 @@ function LogoMark({ size }: { size: number }) {
 }
 
 export default function LogoApp({
-  href      = "/",
-  className = "",
-  variant   = "default",
-  size      = "md",
-  text      = "KOS",
+  href          = "/",
+  className     = "",
+  markClassName = "",
+  textClassName = "",
+  variant       = "default",
+  size          = "md",
+  text          = "KOS",
 }: TLogoAppProps) {
   const s = SIZE_MAP[size];
 
   if (variant === "icon-only") {
     return (
-      <Link href={href} className={`inline-flex select-none ${className}`}>
-        <LogoMark size={s.mark + 6} />
+      <Link href={href} className={cn("inline-flex select-none", className)}>
+        <LogoMark size={s.mark + 6} className={markClassName} />
       </Link>
     );
   }
@@ -61,9 +66,12 @@ export default function LogoApp({
     return (
       <Link
         href={href}
-        className={`inline-flex items-center gap-2 bg-accent border border-border rounded-full px-3 py-1.5 select-none hover:border-primary/30 transition-colors ${className}`}
+        className={cn(
+          "inline-flex items-center gap-2 bg-accent border border-border rounded-full px-3 py-1.5 select-none hover:border-primary/30 transition-colors",
+          className
+        )}
       >
-        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+        <div className={cn("w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0", markClassName)}>
           <svg width="10" height="10" viewBox="0 0 30 30" fill="none">
             <text x="15" y="21" textAnchor="middle"
               fontFamily="'Playfair Display', serif"
@@ -72,7 +80,7 @@ export default function LogoApp({
           </svg>
         </div>
         <span
-          className="text-[15px] font-medium tracking-[0.06em] text-foreground leading-none"
+          className={cn("text-[15px] font-medium tracking-[0.06em] text-foreground leading-none", textClassName)}
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
           {text}
@@ -84,18 +92,18 @@ export default function LogoApp({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-2.5 select-none group ${className}`}
+      className={cn("inline-flex items-center gap-2.5 select-none group", className)}
     >
-      <LogoMark size={s.mark} />
+      <LogoMark size={s.mark} className={markClassName} />
       <span
-        className="font-medium tracking-[0.08em] text-foreground leading-none"
+        className={cn("font-medium tracking-[0.08em] text-foreground leading-none", textClassName)}
         style={{
           fontFamily: "'Playfair Display', Georgia, serif",
           fontSize: s.font,
         }}
       >
         {text}
-        <span className="text-primary">.</span>
+        <span className="text-primary font-bold">.</span>
       </span>
     </Link>
   );

@@ -114,7 +114,7 @@ export default function ProfilePage() {
 
         {/* ── Profile card ── */}
         <motion.div
-          className="relative -mt-16 mb-6"
+          className="relative md:-mt-16 -mt-27 mb-6"
           custom={0} variants={fadeUp} initial="hidden" animate="show"
         >
           <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
@@ -175,7 +175,7 @@ export default function ProfilePage() {
         </motion.div>
 
         {/* ── Layout ── */}
-        <div className="flex gap-5 items-start">
+        <div className="flex md:flex-row flex-col gap-5 items-start">
 
           {/* Sidebar tabs — desktop */}
           <motion.aside
@@ -232,7 +232,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             <AnimatePresence mode="wait">
               <motion.div key={activeTab} variants={tabAnim} initial="hidden" animate="show" exit="exit">
                 {activeTab === "info"     && <TabInfo    profile={profile} phoneDisplay={phoneDisplay} />}
