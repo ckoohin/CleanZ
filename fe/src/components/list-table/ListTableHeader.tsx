@@ -2,7 +2,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/src/components/ui/table"
+} from "@/components/ui/table"
 
 import { Column } from "./types"
 
