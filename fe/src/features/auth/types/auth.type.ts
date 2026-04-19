@@ -127,4 +127,5 @@ export interface PasswordRequiredProps {
 export type LoginValues = {
     email: string;
     password: string; 
+    rememberMe: boolean;
 }

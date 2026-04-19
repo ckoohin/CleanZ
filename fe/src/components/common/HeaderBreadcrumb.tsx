@@ -3,7 +3,36 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
-import { sidebarSections } from "@/components/layouts/admin/sidebar/sidebar.config";
+
+const TITLE_MAP: Record<string, string> = {
+  "admin": "Quản trị",
+  "dashboard": "Bảng điều khiển",
+  "services": "Dịch vụ",
+  "categories": "Danh mục",
+  "pricing": "Bảng giá chuyển động",
+  "bookings": "Đơn hàng",
+  "active": "Đang thực hiện",
+  "history": "Lịch sử",
+  "refunds": "Hoàn tiền",
+  "staff": "Nhân viên",
+  "verification": "Xác minh",
+  "schedule": "Lịch làm việc",
+  "payroll": "Bảng lương",
+  "customers": "Khách hàng",
+  "loyalty": "Loyalty",
+  "plans": "Gói Subscription",
+  "finance": "Tài chính",
+  "transactions": "Giao dịch",
+  "invoices": "Hóa đơn",
+  "reviews": "Đánh giá",
+  "analytics": "Phân tích",
+  "content": "Nội dung",
+  "banners": "Banner",
+  "faqs": "FAQs",
+  "notifications": "Thông báo",
+  "settings": "Cài đặt",
+  "roles": "Phân quyền",
+};
 
 export default function HeaderBreadcrumb() {
   const pathname = usePathname();
@@ -11,9 +40,8 @@ export default function HeaderBreadcrumb() {
   const segments = pathname.split("/").filter(Boolean);
 
   const getLabel = (path: string, segment: string) => {
-    for (const section of sidebarSections) {
-      const item = section.items.find((i: any) => i.href === path);
-      if (item) return item.label;
+    if (TITLE_MAP[segment.toLowerCase()]) {
+      return TITLE_MAP[segment.toLowerCase()];
     }
 
     // nếu là id
@@ -21,7 +49,7 @@ export default function HeaderBreadcrumb() {
       return "Chi tiết";
     }
 
-    return segment;
+    return segment.charAt(0).toUpperCase() + segment.slice(1);
   };
 
   return (

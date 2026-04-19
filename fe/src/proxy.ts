@@ -17,7 +17,7 @@ function parseCookieValue(setCookieHeader: string, name: string): string | null 
   return setCookieHeader.split(";")[0].split("=").slice(1).join("=");
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const accessToken = req.cookies.get("access_token")?.value;
   const refreshTokenCookie = req.cookies.get("refresh_token")?.value;

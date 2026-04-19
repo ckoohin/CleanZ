@@ -1,7 +1,7 @@
 import {
   Table,
   TableBody,
-} from "@/src/components/ui/table"
+} from "@/components/ui/table"
 
 import ListTableHeader from "./ListTableHeader"
 import ListTableRow from "./ListTableRow"
