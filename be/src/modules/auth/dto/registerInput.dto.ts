@@ -7,8 +7,13 @@ import {
   Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
+  @ApiProperty({
+    example: 'worker01@example.com',
+    description: 'Email đăng ký của người dùng',
+  })
   @IsNotEmpty({ message: 'Email không được để trống nhé' })
   @IsEmail({}, { message: 'Email không hợp lệ' })
   @Transform(({ value }: { value: unknown }) =>
@@ -16,6 +21,12 @@ export class RegisterDto {
   )
   email: string;
 
+  @ApiProperty({
+    example: 'Str0ng@Pass123',
+    minLength: 8,
+    maxLength: 32,
+    description: 'Mật khẩu phải có chữ thường, chữ hoa, số và ký tự đặc biệt',
+  })
   @IsString()
   @MinLength(8, { message: 'Mật khẩu phải có ít nhất 8 ký tự' })
   @MaxLength(32, { message: 'Mật khẩu không được vượt quá 32 ký tự' })
@@ -25,6 +36,11 @@ export class RegisterDto {
   })
   password: string;
 
+  @ApiProperty({
+    example: 'Nguyen Van A',
+    maxLength: 100,
+    description: 'Họ và tên người dùng',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Họ và tên không được để trống' })
   @MaxLength(100)

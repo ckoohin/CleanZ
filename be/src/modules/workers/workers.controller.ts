@@ -27,6 +27,17 @@ import {
 import { memoryStorage } from 'multer';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { UpdateWorkerPresenceDto } from './dto/update-worker-presence.dto';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 
 const UUIDParam = new ParseUUIDPipe({
   exceptionFactory: () => new NotFoundException('Người dùng không tồn tại'),
@@ -34,10 +45,15 @@ const UUIDParam = new ParseUUIDPipe({
 
 @Controller('workers')
 @Auth()
+@ApiTags('Workers')
+@ApiBearerAuth('access-token')
 export class WorkersController {
   constructor(private readonly workersService: WorkersService) {}
 
   @Get('/profile')
+  @ApiOperation({ summary: 'Lấy hồ sơ worker hiện tại' })
+  @ApiOkResponse({ description: 'Lấy hồ sơ worker thành công' })
+  @ApiUnauthorizedResponse({ description: 'Token không hợp lệ' })
   async getProfile(@CurrentUser() currentUser: AuthUser) {
     return this.workersService.getProfileWorker(
       currentUser.id,
@@ -46,11 +62,19 @@ export class WorkersController {
   }
 
   @Get('presence/me')
+  @ApiOperation({ summary: 'Lấy trạng thái hiện diện của worker hiện tại' })
+  @ApiOkResponse({ description: 'Lấy trạng thái hiện diện thành công' })
   async getMyPresence(@CurrentUser() currentUser: AuthUser) {
     return this.workersService.getMyPresence(currentUser.id, currentUser.role);
   }
 
   @Patch('presence/me')
+  @ApiOperation({
+    summary: 'Cập nhật trạng thái hiện diện của worker hiện tại',
+  })
+  @ApiBody({ type: UpdateWorkerPresenceDto })
+  @ApiOkResponse({ description: 'Cập nhật trạng thái hiện diện thành công' })
+  @ApiBadRequestResponse({ description: 'Payload không hợp lệ' })
   async updateMyPresence(
     @Body() dto: UpdateWorkerPresenceDto,
     @CurrentUser() currentUser: AuthUser,
@@ -63,6 +87,10 @@ export class WorkersController {
   }
 
   @Post(':userId/apply')
+  @ApiOperation({ summary: 'Nộp đơn trở thành worker' })
+  @ApiParam({ name: 'userId', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiOkResponse({ description: 'Tạo hồ sơ worker thành công' })
+  @ApiBadRequestResponse({ description: 'userId không hợp lệ' })
   async applyToWorker(
     @Param('userId', UUIDParam) userId: string,
     @CurrentUser() currentUser: AuthUser,
@@ -75,6 +103,22 @@ export class WorkersController {
   }
 
   @Patch(':id/avatar')
+  @ApiOperation({ summary: 'Cập nhật ảnh đại diện worker' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: { type: 'string', format: 'binary' },
+      },
+      required: ['avatar'],
+    },
+  })
+  @ApiOkResponse({ description: 'Cập nhật avatar thành công' })
+  @ApiBadRequestResponse({
+    description: 'Thiếu file hoặc file ảnh không hợp lệ',
+  })
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: memoryStorage(),
@@ -105,6 +149,30 @@ export class WorkersController {
   }
 
   @Patch(':id/documents')
+  @ApiOperation({ summary: 'Cập nhật giấy tờ worker (CCCD và chứng chỉ)' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        citizenCard: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Tối đa 2 ảnh CCCD',
+        },
+        certificate: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Tối đa 10 ảnh chứng chỉ',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Cập nhật giấy tờ thành công' })
+  @ApiBadRequestResponse({
+    description: 'Số lượng file vượt giới hạn hoặc file sai định dạng',
+  })
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -152,6 +220,11 @@ export class WorkersController {
   }
 
   @Get(':id/documents/:type')
+  @ApiOperation({ summary: 'Lấy tài liệu worker theo loại' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiParam({ name: 'type', example: 'citizenCard' })
+  @ApiOkResponse({ description: 'Lấy danh sách tài liệu theo loại thành công' })
+  @ApiBadRequestResponse({ description: 'ID hoặc type không hợp lệ' })
   async getDocumentByType(
     @Param('id', UUIDParam) id: string,
     @Param('type') type: string,
@@ -167,6 +240,9 @@ export class WorkersController {
   }
 
   @Get(':id/documents')
+  @ApiOperation({ summary: 'Lấy toàn bộ tài liệu của worker' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiOkResponse({ description: 'Lấy toàn bộ tài liệu thành công' })
   async getAllDocuments(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
@@ -180,6 +256,10 @@ export class WorkersController {
 
   @Patch(':id/approve')
   @AdminOnly()
+  @ApiOperation({ summary: 'Phê duyệt worker (Admin)' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiOkResponse({ description: 'Phê duyệt worker thành công' })
+  @ApiUnauthorizedResponse({ description: 'Không có quyền phê duyệt' })
   async approveWorker(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
@@ -189,6 +269,10 @@ export class WorkersController {
 
   @Patch(':id/reject')
   @AdminOnly()
+  @ApiOperation({ summary: 'Từ chối hồ sơ worker (Admin)' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiOkResponse({ description: 'Từ chối worker thành công' })
+  @ApiUnauthorizedResponse({ description: 'Không có quyền từ chối' })
   async rejectWorker(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
@@ -197,6 +281,11 @@ export class WorkersController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Cập nhật hồ sơ worker' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiBody({ type: UpdateWorkerProfileDto })
+  @ApiOkResponse({ description: 'Cập nhật hồ sơ worker thành công' })
+  @ApiBadRequestResponse({ description: 'Payload hoặc ID không hợp lệ' })
   async update(
     @Param('id', UUIDParam) id: string,
     @Body() dto: UpdateWorkerProfileDto,
@@ -227,6 +316,10 @@ export class WorkersController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Lấy thông tin worker theo ID' })
+  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
+  @ApiOkResponse({ description: 'Lấy thông tin worker thành công' })
+  @ApiBadRequestResponse({ description: 'ID không hợp lệ' })
   async findById(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,

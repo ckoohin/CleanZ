@@ -8,12 +8,22 @@ import {
   Matches,
 } from 'class-validator';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
+  @ApiProperty({
+    example: 'newuser@example.com',
+    description: 'Email tài khoản',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Email không được để trống' })
   email!: string;
 
+  @ApiPropertyOptional({
+    example: 'Str0ngPass1',
+    minLength: 6,
+    description: 'Mật khẩu người dùng (bắt buộc với account local)',
+  })
   @IsString()
   @IsOptional()
   @IsNotEmpty({ message: 'Password không được để trống' })
@@ -23,11 +33,21 @@ export class CreateUserDto {
   })
   password!: string;
 
+  @ApiProperty({
+    example: 'Nguyen Thi B',
+    maxLength: 100,
+    description: 'Họ tên người dùng',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Họ tên không được để trống' })
   @MaxLength(100, { message: 'Họ tên không được vượt quá 100 ký tự' })
   fullName!: string;
 
+  @ApiPropertyOptional({
+    enum: UserRole,
+    example: UserRole.CUSTOMER,
+    description: 'Vai trò tài khoản',
+  })
   @IsEnum(UserRole, { message: 'Role phải là Worker hoặc Customer' })
   @IsOptional()
   role?: UserRole;
