@@ -11,7 +11,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty({
-    example: 'worker01@example.com',
+    example: 'staff01@example.com',
     description: 'Email đăng ký của người dùng',
   })
   @IsNotEmpty({ message: 'Email không được để trống nhé' })
@@ -19,7 +19,7 @@ export class RegisterDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase().trim() : value,
   )
-  email: string;
+  email!: string;
 
   @ApiProperty({
     example: 'Str0ng@Pass123',
@@ -34,7 +34,7 @@ export class RegisterDto {
     message:
       'Mật khẩu phải có ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt',
   })
-  password: string;
+  password!: string;
 
   @ApiProperty({
     example: 'Nguyen Van A',
@@ -43,9 +43,9 @@ export class RegisterDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Họ và tên không được để trống' })
-  @MaxLength(100)
+  @MaxLength(100, { message: 'Họ và tên không được vượt quá 100 ký tự' })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase().trim() : value,
   )
-  fullName: string;
+  fullName!: string;
 }

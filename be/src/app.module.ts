@@ -5,7 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
 import { UsersModule } from './modules/users/users.module';
-import { WorkersModule } from './modules/workers/workers.module';
+import { StaffsModule } from './modules/staffs/staffs.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TokenModule } from './modules/token/token.module';
@@ -13,7 +13,6 @@ import { UploadModule } from './modules/upload/upload.module';
 import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
 import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module';
 import { ServicesModule } from './modules/services/services.module';
-import { BookingModule } from './modules/booking/booking.module';
 
 @Module({
   imports: [
@@ -28,14 +27,13 @@ import { BookingModule } from './modules/booking/booking.module';
     }),
     AuthModule,
     UsersModule,
-    WorkersModule,
+    StaffsModule,
     CustomersModule,
     TokenModule,
     UploadModule,
     AuthGoogleModule,
     AuthFacebookModule,
     ServicesModule,
-    BookingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

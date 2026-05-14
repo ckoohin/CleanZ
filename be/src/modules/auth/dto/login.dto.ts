@@ -10,7 +10,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
   @ApiProperty({
-    example: 'worker01@example.com',
+    example: 'staff01@example.com',
     description: 'Email dùng để đăng nhập',
   })
   @IsString()
@@ -18,7 +18,7 @@ export class LoginDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase().trim() : value,
   )
-  email: string;
+  email!: string;
 
   @ApiProperty({
     example: 'Str0ng@Pass123',
@@ -30,5 +30,5 @@ export class LoginDto {
   @IsNotEmpty({ message: 'Mật khẩu không được để trống' })
   @MaxLength(32, { message: 'Mật khẩu không dài quá 32 ký tự' })
   @MinLength(8, { message: 'Mật khẩu tối thiểu 8 ký tự' })
-  password: string;
+  password!: string;
 }
