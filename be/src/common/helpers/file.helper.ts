@@ -1,6 +1,6 @@
+import { StaffEntity } from 'src/modules/staffs/entities/staff.entity';
 import { UserRole } from '../enums/user-role.enum';
 import { ForbiddenException } from '@nestjs/common';
-import { WorkerEntity } from 'src/modules/workers/entities/worker.entity';
 
 export const assertCanAccess = (
   //check quyeen truy cập
@@ -18,13 +18,13 @@ export const assertCanAccess = (
 
 export const assertCanUpdate = (
   //Check quyền update
-  workerProfile: WorkerEntity,
+  staffProfile: StaffEntity,
   requestUserId: string,
   requestUserRole: UserRole,
 ) => {
   assertCanAccess(
     requestUserId,
-    workerProfile.user.id,
+    staffProfile.user.id,
     requestUserRole,
     'Bạn không có quyền cập nhật thông tin này',
   );

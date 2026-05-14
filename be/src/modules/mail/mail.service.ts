@@ -53,28 +53,28 @@ export class MailService {
     });
   }
 
-  async sendWorkerApprovedEmail(
+  async sendStaffApprovedEmail(
     email: string,
     fullName: string,
   ): Promise<void> {
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Hồ sơ worker của bạn đã được phê duyệt',
-      template: 'worker-approved',
+      subject: 'Hồ sơ staff của bạn đã được phê duyệt',
+      template: 'staff-approved',
       context: {
         fullName,
       },
     });
   }
 
-  async sendWorkerRejectedEmail(
+  async sendStaffRejectedEmail(
     email: string,
     fullName: string,
   ): Promise<void> {
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Hồ sơ worker của bạn đã bị từ chối',
-      template: 'worker-rejected',
+      subject: 'Hồ sơ staff của bạn đã bị từ chối',
+      template: 'staff-rejected',
       context: {
         fullName,
       },

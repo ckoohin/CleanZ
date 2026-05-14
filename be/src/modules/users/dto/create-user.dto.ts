@@ -28,7 +28,7 @@ export class CreateUserDto {
   @MaxLength(100, { message: 'Họ tên không được vượt quá 100 ký tự' })
   fullName!: string;
 
-  @IsEnum(UserRole, { message: 'Role phải là Worker hoặc Customer' })
+  @IsEnum(UserRole, { message: 'Role phải là Staff hoặc Customer' })
   @IsOptional()
   role?: UserRole;
 }
