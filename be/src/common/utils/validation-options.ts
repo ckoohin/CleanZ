@@ -23,6 +23,7 @@ function generateErrors(errors: ValidationError[]): FormattedErrors {
 const validationOptions: ValidationPipeOptions = {
   transform: true,
   whitelist: true,
+  stopAtFirstError: true,
   errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
   exceptionFactory: (errors: ValidationError[]) => {
     return new UnprocessableEntityException({
