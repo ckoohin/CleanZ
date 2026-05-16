@@ -2,38 +2,32 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { BookingEntity } from './entities/booking.entity';
-import { BookingAddonEntity } from './entities/booking-addon.entity';
-import { CustomerEntity } from '../customers/entities/customer.entity';
-import { ServiceEntity } from '../services/entities/service.entity';
-import { CreateBookingDto } from './dto/create-booking.dto';
+import { CancelBookingDto } from './dto/cancel-booking.dto';
+import { AssignStaffDto } from './dto/assign-staff.dto';
 import { BookingResponseDto } from './dto/booking-response.dto';
 import { BookingMapper } from './mapper/booking.mapper';
 import { BookingStatus } from '../../common/enums/booking-status.enum';
-import { PaymentStatus } from '../../common/enums/payment-status.enum';
-import { getAddonFakeData } from './fake-data/services-fake-data';
-import { generateOrderCode } from 'src/common/helpers/generate-code';
 import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthUser } from '../auth/types/AuthRequest';
 import { GetBookingHistoryQueryDto } from './dto/get-booking-history-query.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { StaffServiceEntity } from '../staffs/entities/staff-service.entity';
 
 @Injectable()
 export class BookingsService {
   constructor(
     @InjectRepository(BookingEntity)
     private readonly bookingRepository: Repository<BookingEntity>,
-    @InjectRepository(CustomerEntity)
-    private readonly customerRepository: Repository<CustomerEntity>,
-    @InjectRepository(ServiceEntity)
-    private readonly serviceRepository: Repository<ServiceEntity>,
+    @InjectRepository(StaffServiceEntity)
+    private readonly staffServiceRepository: Repository<StaffServiceEntity>,
   ) {}
 
+// Rule: Admin, staff, customer
   async getBookingHistory(
     currentUser: AuthUser,
     query: GetBookingHistoryQueryDto,
@@ -73,9 +67,11 @@ export class BookingsService {
     }
 
     if (currentUser.role === UserRole.STAFF) {
-      bookingQuery.andWhere('staffUser.id = :staffUserId', {
-        staffUserId: currentUser.id,
-      });
+      bookingQuery
+        .andWhere('staffService.id IS NOT NULL')
+        .andWhere('staffUser.id = :staffUserId', {
+          staffUserId: currentUser.id,
+        });
     }
 
     if (query.status) {
@@ -150,121 +146,15 @@ export class BookingsService {
     return BookingMapper.toResponseDto(booking);
   }
 
-  async create(
-    userId: string,
-    createBookingDto: CreateBookingDto,
+  // Rule: Customer, Admin
+
+  async cancelBooking(
+    id: string,
+    currentUser: AuthUser,
+    cancelBookingDto: CancelBookingDto,
   ): Promise<BookingResponseDto> {
-    const customer = await this.customerRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user'],
-    });
-
-    if (!customer) {
-      throw new NotFoundException('Customer profile không tồn tại');
-    }
-
-    // Check customer có booking đang hoạt động nào không
-    const activeBooking = await this.bookingRepository.findOne({
-      where: {
-        customer: { id: customer.id },
-        status: In([
-          BookingStatus.PENDING,
-          BookingStatus.CONFIRMED,
-          BookingStatus.IN_PROGRESS,
-        ]),
-      },
-    });
-
-    if (activeBooking) {
-      throw new ConflictException(
-        'Bạn đã có booking đang hoạt động. Vui lòng hoàn thành hoặc hủy booking hiện tại trước khi tạo booking mới.',
-      );
-    }
-
-    // check service (Chỉ lấy dv đang active, dv hỗ trợ locationType)
-    const service = await this.serviceRepository.findOne({
-      where: { id: createBookingDto.serviceId },
-    });
-
-    if (!service || !service.isActive) {
-      throw new NotFoundException('Dịch vụ không tồn tại hoặc đã bị tạm ẩn');
-    }
-    if (
-      !service.supportedLocationTypes.includes(createBookingDto.locationType)
-    ) {
-      throw new BadRequestException(
-        `Dịch vụ không hỗ trợ loại địa điểm ${createBookingDto.locationType}`,
-      );
-    }
-
-    if (!createBookingDto.address || createBookingDto.address.trim() === '') {
-      throw new BadRequestException('Địa chỉ là bắt buộc');
-    }
-
-    // Valid giờ
-    const bookingDateTime = new Date(
-      `${createBookingDto.bookingDate}T${createBookingDto.bookingTime}:00`,
-    );
-    const now = new Date();
-
-    if (bookingDateTime <= now) {
-      throw new BadRequestException(
-        'Ngày và giờ đặt lịch phải lớn hơn thời điểm hiện tại',
-      );
-    }
-    const hourlyRate = Number(service.basePrice);
-    let basePrice = 0;
-
-    if (createBookingDto.estimatedHours) {
-      basePrice = hourlyRate * createBookingDto.estimatedHours;
-    }
-
-    // dv bổ sung (nếu có)
-    const addons: BookingAddonEntity[] = [];
-    let addonsTotal = 0;
-    if (
-      createBookingDto.addonServiceIds &&
-      createBookingDto.addonServiceIds.length > 0
-    ) {
-      for (const addonId of createBookingDto.addonServiceIds) {
-        const addonData = getAddonFakeData(addonId);
-        if (!addonData) {
-          throw new BadRequestException(
-            `Dịch vụ bổ sung ${addonId} không tồn tại`,
-          );
-        }
-        const addon = new BookingAddonEntity();
-        addon.addonName = addonData.name;
-        addon.addonPrice = addonData.basePrice!;
-        addons.push(addon);
-        addonsTotal += addonData.basePrice!;
-      }
-    }
-    const totalPrice = basePrice + addonsTotal;
-    const orderCode = generateOrderCode();
-    const booking = this.bookingRepository.create({
-      orderCode,
-      customer,
-      service,
-      locationType: createBookingDto.locationType,
-      address: createBookingDto.address,
-      bookingDate: new Date(createBookingDto.bookingDate),
-      bookingTime: createBookingDto.bookingTime,
-      estimatedHours: createBookingDto.estimatedHours,
-      hourlyRate: createBookingDto.estimatedHours ? hourlyRate : undefined,
-      quotedPrice: totalPrice,
-      totalPrice: totalPrice,
-      specialRequests: createBookingDto.specialRequests,
-      notes: createBookingDto.notes,
-      status: BookingStatus.PENDING,
-      paymentStatus: PaymentStatus.UNPAID,
-    });
-    if (addons.length > 0) {
-      booking.addons = addons;
-    }
-    const savedBooking = await this.bookingRepository.save(booking);
-    const bookingWithRelations = await this.bookingRepository.findOne({
-      where: { id: savedBooking.id },
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
       relations: [
         'customer',
         'customer.user',
@@ -277,9 +167,130 @@ export class BookingsService {
       ],
     });
 
-    if (!bookingWithRelations) {
-      throw new NotFoundException('Booking không tồn tại sau khi tạo');
+    if (!booking) {
+      throw new NotFoundException('Booking không tồn tại');
     }
-    return BookingMapper.toResponseDto(bookingWithRelations);
+    if (currentUser.role === UserRole.CUSTOMER) {
+      if (booking.customer.user.id !== currentUser.id) {
+        throw new ForbiddenException('Bạn không có quyền hủy booking này');
+      }
+      if (booking.status !== BookingStatus.PENDING) {
+        throw new BadRequestException(
+          'Bạn chỉ có thể hủy booking ở trạng thái chờ xác nhận (PENDING). Vui lòng liên hệ admin để được hỗ trợ.',
+        );
+      }
+    }
+    if (currentUser.role === UserRole.ADMIN) {
+      if (
+        booking.status === BookingStatus.COMPLETED ||
+        booking.status === BookingStatus.CANCELLED
+      ) {
+        throw new BadRequestException(
+          `Không thể hủy booking ở trạng thái ${booking.status}`,
+        );
+      }
+    }
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancelledBy = currentUser.id;
+    booking.cancellationReason = cancelBookingDto.cancellationReason;
+    booking.cancelledAt = new Date();
+    const updatedBooking = await this.bookingRepository.save(booking);
+    return BookingMapper.toResponseDto(updatedBooking);
+  }
+
+  // ======================== ADMIN ONLY ========================
+
+  async assignStaff(
+    id: string,
+    assignStaffDto: AssignStaffDto,
+  ): Promise<BookingResponseDto | { warning: string }> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id },
+      relations: [
+        'customer',
+        'customer.user',
+        'service',
+        'staffService',
+        'staffService.service',
+        'staffService.staff',
+        'staffService.staff.user',
+        'addons',
+      ],
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking không tồn tại');
+    }
+
+    if (booking.status === BookingStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Không thể gán staff cho booking đã hoàn thành',
+      );
+    }
+
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('Không thể gán staff cho booking đã hủy');
+    }
+
+    const serviceId: string = booking.service.id;
+
+    // Tìm staffService của staff đó match với booking's service
+    let staffService = await this.staffServiceRepository.findOne({
+      where: {
+        staff: { id: assignStaffDto.staffId },
+        service: { id: serviceId },
+      },
+      relations: ['staff', 'service'],
+    });
+
+    // Nếu staff đc chọn ko match với bk service
+    if (!staffService) {
+      // Lần 1: Cảnh báo, yêu cầu xác nhận
+      if (!assignStaffDto.forceAssign) {
+        return {
+          warning:
+            'Nhân viên chưa đăng ký dịch vụ này, bạn có muốn tiếp tục gán không?',
+        };
+      }
+
+      // Lần 2 (forceAssign=true): Bỏ qua valid, auto tạo staffService cho staff đó
+      staffService = this.staffServiceRepository.create({
+        staff: { id: assignStaffDto.staffId },
+        service: { id: serviceId },
+        locationTypes: [booking.locationType],
+        isAvailable: true,
+      });
+      staffService = await this.staffServiceRepository.save(staffService);
+      const reloadedStaffService = await this.staffServiceRepository.findOne({
+        where: { id: staffService.id },
+        relations: ['staff', 'staff.user', 'service'],
+      });
+      if (reloadedStaffService) {
+        staffService = reloadedStaffService;
+      }
+    }
+    booking.staffService = staffService;
+    if (booking.status === BookingStatus.PENDING) {
+      booking.status = BookingStatus.CONFIRMED;
+      booking.confirmedAt = new Date();
+    }
+    await this.bookingRepository.save(booking);
+    const updatedBooking = await this.bookingRepository.findOne({
+      where: { id: booking.id },
+      relations: [
+        'customer',
+        'customer.user',
+        'service',
+        'staffService',
+        'staffService.service',
+        'staffService.staff',
+        'staffService.staff.user',
+        'addons',
+      ],
+    });
+    if (!updatedBooking) {
+      throw new NotFoundException('Booking không tồn tại sau khi gán staff');
+    }
+    return BookingMapper.toResponseDto(updatedBooking);
   }
 }

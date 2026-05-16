@@ -137,6 +137,12 @@ export class BookingEntity {
   @Column({ name: 'cancelled_by', type: 'uuid', nullable: true })
   cancelledBy?: string;
 
+  @Column({ name: 'cancellation_reason', type: 'text', nullable: true })
+  cancellationReason?: string;
+
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  cancelledAt?: Date;
+
   @Column({ name: 'rescheduled_from', type: 'uuid', nullable: true })
   rescheduledFrom?: string;
 

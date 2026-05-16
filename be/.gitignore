@@ -50,7 +50,7 @@ docs
 # temp directory
 .temp
 .tmp
-
+.claude
 # Runtime data
 pids
 *.pid
@@ -62,3 +62,7 @@ PROJECT_SUMMARY.md
 DEVELOPMENT_RULES.md
 uploads/**
 package-lock.json
+
+test
+test/booking.e2e-spec-ts
+testsprite_tests

@@ -24,7 +24,7 @@ Module Bookings quản lý việc đặt lịch dịch vụ của khách hàng. 
 | `staff_service_id` | uuid | YES | FK to staff_services.id (null khi chưa assign) | `null` hoặc uuid |
 | `booking_type` | enum | NO | Loại booking (scheduled/instant) | `scheduled` |
 | `location_type` | enum | NO | Địa điểm dịch vụ (home/at_shop) | `home` |
-| `address` | text | YES | Địa chỉ (bắt buộc nếu location_type=home) | `123 Nguyen Hue, Q1, HCMC` |
+| `address` | text | NO | Địa chỉ cụ thể (bắt buộc cho cả home và at_shop) | `123 Nguyen Hue, Q1, HCMC` |
 | `booking_date` | date | NO | Ngày đặt lịch | `2026-05-20` |
 | `booking_time` | time | NO | Giờ đặt lịch | `09:00` |
 | `estimated_hours` | decimal(5,2) | YES | Số giờ ước tính | `3.00` |
@@ -38,6 +38,8 @@ Module Bookings quản lý việc đặt lịch dịch vụ của khách hàng. 
 | `payment_status` | enum | NO | Trạng thái thanh toán | `unpaid` |
 | `confirmed_at` | timestamp | YES | Thời điểm xác nhận | `2026-05-15T04:30:00Z` |
 | `cancelled_by` | uuid | YES | ID người hủy booking | `null` hoặc uuid |
+| `cancellation_reason` | text | YES | Lý do hủy booking | `Có việc đột xuất` |
+| `cancelled_at` | timestamp | YES | Thời điểm hủy | `2026-05-15T10:30:00Z` |
 | `rescheduled_from` | uuid | YES | ID booking gốc nếu là reschedule | `null` hoặc uuid |
 | `created_at` | timestamp | NO | Thời điểm tạo | `2026-05-15T04:22:45Z` |
 | `updated_at` | timestamp | NO | Thời điểm cập nhật | `2026-05-15T04:22:45Z` |
@@ -85,8 +87,10 @@ enum ServiceLocationType {
 2. ✅ Booking mới tạo có `status = PENDING` và `staff_service_id = null`
 3. ✅ `order_code` được generate tự động và unique
 4. ✅ `booking_date` + `booking_time` phải trong tương lai
-5. ✅ `address` bắt buộc nếu `location_type = home`
+5. ✅ `address` bắt buộc cho cả `location_type = home` và `at_shop`
 6. ✅ `service` phải active và hỗ trợ `location_type` được chọn
+7. ✅ Customer chỉ có thể hủy booking ở trạng thái PENDING
+8. ✅ Admin có thể hủy booking ở trạng thái PENDING, CONFIRMED, IN_PROGRESS
 
 ---
 
@@ -231,7 +235,7 @@ Content-Type: application/json
 ```json
 {
   "statusCode": 400,
-  "message": "Địa chỉ bắt buộc khi chọn dịch vụ tại nhà",
+  "message": "Địa chỉ là bắt buộc",
   "error": "Bad Request"
 }
 ```
@@ -309,7 +313,7 @@ Content-Type: application/json
    ├─ Check active booking (Rule 1)
    ├─ Validate service exists & active
    ├─ Validate location type supported
-   ├─ Validate address if HOME
+   ├─ Validate address (bắt buộc cho cả HOME và AT_SHOP)
    ├─ Validate datetime in future
    ├─ Calculate pricing (base + addons)
    ├─ Generate unique order code (Rule 3)
@@ -446,7 +450,7 @@ POST /api/bookings
 }
 ```
 
-**Test Case 3: Lỗi - Thiếu address khi location_type = home**
+**Test Case 3: Lỗi - Thiếu address 
 ```json
 POST /api/bookings
 {
@@ -455,7 +459,7 @@ POST /api/bookings
   "bookingDate": "2026-05-20",
   "bookingTime": "09:00"
 }
-// Expected: 400 Bad Request - "Địa chỉ bắt buộc khi chọn dịch vụ tại nhà"
+// Expected: 400 Bad Request - "Địa chỉ bắt buộc "
 ```
 
 **Test Case 4: Lỗi - Booking date trong quá khứ**
@@ -489,17 +493,7 @@ POST /api/bookings
 
 ## Testing với Postman
 
-### 1. Setup Environment
-
-Tạo environment với variables:
-```
-base_url: http://localhost:3000/api
-customer_token: <JWT token của customer>
-service_id: 4f4f0dc4-2ed0-4a6f-bd04-e802cc8b8d9b
-```
-
-### 2. Create Booking Request
-
+### Create Booking Request
 ```
 Method: POST
 URL: {{base_url}}/bookings
@@ -520,30 +514,42 @@ Body (raw JSON):
 }
 ```
 
-### 3. Verify Response
+---
 
-Check:
-- ✅ Status code = 201
-- ✅ `orderCode` có format `BK{timestamp}{random}`
-- ✅ `status` = `pending`
-- ✅ `paymentStatus` = `unpaid`
-- ✅ `staffServiceId` = `null`
-- ✅ `staffName` = `null`
-- ✅ `totalPrice` = basePrice × hours + addons
+## Implemented Features
+
+### ✅ Create Booking (POST /api/v1/bookings)
+- Customer tạo booking mới
+- Validation: customer chỉ có 1 booking active, address bắt buộc, datetime trong tương lai
+- Response: status=PENDING, staff chưa assign
+
+### ✅ Get Booking History (GET /api/v1/bookings)
+- Admin: Xem tất cả bookings
+- Customer: Xem bookings của mình
+- Staff: Xem bookings được gán cho mình
+- Filter: status, bookingDateFrom, bookingDateTo
+- Pagination: page, limit
+
+### ✅ Get Booking Details (GET /api/v1/bookings/:id)
+- Admin: Xem mọi booking
+- Customer: Chỉ xem booking của mình
+- Staff: Chỉ xem booking được gán
+
+### ✅ Cancel Booking (PATCH /api/v1/bookings/:id/cancel)
+- Customer: Chỉ hủy được khi status=PENDING
+- Admin: Hủy được status=PENDING, CONFIRMED, IN_PROGRESS
+- Không thể hủy khi status=COMPLETED hoặc CANCELLED
 
 ---
 
 ## Next Features (Chưa implement)
 
-1. **GET /api/bookings** - List bookings (with filters)
-2. **GET /api/bookings/:id** - Get booking details
-3. **PATCH /api/bookings/:id** - Update booking
-4. **DELETE /api/bookings/:id** - Cancel booking
-5. **POST /api/bookings/:id/assign-staff** - Assign staff (Admin/Staff)
-6. **PATCH /api/bookings/:id/confirm** - Confirm booking (Staff)
-7. **PATCH /api/bookings/:id/start** - Start service (Staff)
-8. **PATCH /api/bookings/:id/complete** - Complete service (Staff)
-9. **POST /api/bookings/:id/reschedule** - Reschedule booking
+1. **PATCH /api/bookings/:id** - Update booking
+2. **POST /api/bookings/:id/assign-staff** - Assign staff (Admin/Staff)
+3. **PATCH /api/bookings/:id/confirm** - Confirm booking (Staff)
+4. **PATCH /api/bookings/:id/start** - Start service (Staff)
+5. **PATCH /api/bookings/:id/complete** - Complete service (Staff)
+6. **POST /api/bookings/:id/reschedule** - Reschedule booking
 
 ---
 

@@ -12,6 +12,8 @@ export class BookingMapper {
     response.orderCode = booking.orderCode;
     response.customerId = booking.customer.id;
     response.customerName = booking.customer.user.fullName;
+    response.customerPhone = booking.customer.user.phone;
+    response.customerEmail = booking.customer.user.email;
     response.serviceId = booking.service.id;
     response.serviceName = booking.service.name;
     if (booking.staffService) {
@@ -48,6 +50,9 @@ export class BookingMapper {
     response.status = booking.status;
     response.paymentStatus = booking.paymentStatus;
     response.confirmedAt = booking.confirmedAt;
+    response.cancelledBy = booking.cancelledBy;
+    response.cancellationReason = booking.cancellationReason;
+    response.cancelledAt = booking.cancelledAt;
     response.createdAt = booking.createdAt;
     response.updatedAt = booking.updatedAt;
 

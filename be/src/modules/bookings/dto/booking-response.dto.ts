@@ -25,6 +25,12 @@ export class BookingResponseDto {
   @ApiProperty({ description: 'Tên khách hàng' })
   customerName!: string;
 
+  @ApiPropertyOptional({ description: 'Số điện thoại khách hàng' })
+  customerPhone?: string;
+
+  @ApiPropertyOptional({ description: 'Email khách hàng' })
+  customerEmail?: string;
+
   @ApiProperty({ description: 'ID dịch vụ' })
   serviceId!: string;
 
@@ -89,6 +95,15 @@ export class BookingResponseDto {
 
   @ApiPropertyOptional({ description: 'Thời điểm xác nhận' })
   confirmedAt?: Date;
+
+  @ApiPropertyOptional({ description: 'ID người hủy booking' })
+  cancelledBy?: string;
+
+  @ApiPropertyOptional({ description: 'Lý do hủy booking' })
+  cancellationReason?: string;
+
+  @ApiPropertyOptional({ description: 'Thời điểm hủy' })
+  cancelledAt?: Date;
 
   @ApiProperty({ description: 'Thời điểm tạo' })
   createdAt!: Date;
