@@ -37,7 +37,7 @@ function LogoMark({ size, className }: { size: number; className?: string }) {
         className="fill-primary-foreground"
         letterSpacing="0.04em"
       >
-        K
+        C
       </text>
     </svg>
   );
@@ -50,7 +50,7 @@ export default function LogoApp({
   textClassName = "",
   variant       = "default",
   size          = "md",
-  text          = "KOS",
+  text          = "CleanZ",
 }: TLogoAppProps) {
   const s = SIZE_MAP[size];
 
@@ -76,7 +76,7 @@ export default function LogoApp({
             <text x="15" y="21" textAnchor="middle"
               fontFamily="'Playfair Display', serif"
               fontSize="15" fontWeight="500"
-              fill="white">K</text>
+              fill="white">C</text>
           </svg>
         </div>
         <span

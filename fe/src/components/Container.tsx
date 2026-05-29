@@ -1,36 +1,29 @@
 "use client"
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { ReactNode, HTMLAttributes } from "react";
 
-type ContainerProps = {
+export interface ContainerProps extends HTMLAttributes<HTMLDivElement> {
     children: ReactNode;
     className?: string;
-    withGrain?: boolean;
-    url_img?: string;
-    classOverlay?: string;
-    overlay?: boolean;
-    classNameUrlImg?: string;
     classNameContent?: string;
-} & React.HTMLAttributes<HTMLDivElement>;
-import { usePathname } from "next/navigation"
+    url_img?: string;
+    classNameUrlImg?: string;
+    overlay?: boolean;
+    classOverlay?: string;
+}
 
 export default function Container({
     children,
     className,
-    classOverlay,
-    classNameUrlImg,
     classNameContent,
     url_img,
+    classNameUrlImg,
     overlay = false,
+    classOverlay,
     ...props
 }: ContainerProps) {
-
-    const pathname = usePathname()
-
-    const isTables = pathname.endsWith("/tables")
-
     return (
-        <div
+        <section
             className={cn(
                 "relative flex w-full flex-col overflow-x-clip",
                 className
@@ -43,30 +36,27 @@ export default function Container({
                     classNameUrlImg
                 )}>
                     <img
-                        src={`${url_img}`}
+                        src={url_img}
                         alt=""
-                        className={cn(
-                            "w-full object-cover h-full object-cover object-center",
-                        )}
+                        className="w-full h-full object-cover object-center"
                     />
                 </div>
             )}
 
             {overlay && (
                 <div className={cn(
-                    "absolute z-1 bg-gray-400/40 w-full h-full",
+                    "absolute inset-0 z-[1] bg-black/40",
                     classOverlay
-                )}></div>
+                )} />
             )}
 
             <div className={cn(
-                "flex relative h-full z-10 w-full mx-auto flex-col px-5",
-                isTables ? "max-w-[2080px]" : "max-w-7xl",
+                "relative z-10 w-full max-w-7xl mx-auto px-5 md:px-8 flex flex-col h-full",
                 classNameContent
             )}>
                 {children}
             </div>
-        </div>
+        </section>
     );
 }
 

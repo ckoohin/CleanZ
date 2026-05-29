@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel';
 import { MultiStepForm } from '@/features/auth/_components/authv1/MultiStepForm';
 import { Toaster, toast } from 'sonner';
 import { motion } from "motion/react"
 import { fadeUp } from './SignInFlow';
+import { Briefcase } from 'lucide-react';
 
 export function SignUpFlow() {
   const shownRef = useRef(false);
@@ -52,6 +54,20 @@ export function SignUpFlow() {
               custom={1} variants={fadeUp} initial="hidden" animate="show"
             >
               <MultiStepForm />
+            </motion.div>
+
+            {/* Staff Register Link */}
+            <motion.div
+              custom={2} variants={fadeUp} initial="hidden" animate="show"
+              className="pt-2"
+            >
+              <Link
+                href="/register-staff"
+                className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 group"
+              >
+                <Briefcase className="w-4 h-4 group-hover:scale-110 transition-transform" aria-hidden="true" />
+                <span className="text-sm font-bold">Muốn trở thành Đối tác CleanZ? Đăng ký tại đây</span>
+              </Link>
             </motion.div>
 
           </div>

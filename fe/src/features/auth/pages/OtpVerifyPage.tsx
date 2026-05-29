@@ -24,6 +24,7 @@ export default function OtpVerifyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId") ?? "";
+  const redirectPath = searchParams.get("redirect") ?? "/";
 
   if (!userId) {
     router.push("/login");
@@ -55,9 +56,9 @@ export default function OtpVerifyPage() {
 
   useEffect(() => {
     if (status !== "success") return;
-    const t = setTimeout(() => router.replace("/"), 2000);
+    const t = setTimeout(() => router.replace(redirectPath), 2000);
     return () => clearTimeout(t);
-  }, [status, router]);
+  }, [status, router, redirectPath]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);

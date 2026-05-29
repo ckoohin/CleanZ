@@ -64,7 +64,7 @@ const handleApiErrorGlobal = (error: AxiosError) => {
     (error.response.data as any)?.errors?.message ||
     (error.response.data as any)?.message;
 
-  toast.error(message || "Có lỗi xảy ra");
+  toast.error(message || "Có lỗi xảy ra, vui lòng thử lại sau");
 };
 
 http.interceptors.request.use(

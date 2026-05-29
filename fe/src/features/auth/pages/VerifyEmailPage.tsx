@@ -42,11 +42,10 @@ export default function VerifyEmailPage() {
     const interval = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
-          router.push("/login");
-          toast.success("Chào mừng bạn đến với King Of Service xin mời đăng nhập", { duration: 2000 })
+          router.push("/login-staff?verified=true");
+          toast.success("Email đã xác thực! Vui lòng đăng nhập để tiếp tục.", { duration: 2000 })
           return 0;
         }
-
         return c - 1;
       });
     }, 1000);
@@ -162,7 +161,7 @@ function SuccessState({ countdown }: { countdown: number }) {
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold rounded-xl gap-2"
           asChild
         >
-          <Link href="/login">
+          <Link href="/login-staff?verified=true">
             Đăng nhập ngay
             <ArrowRight className="w-4 h-4" />
           </Link>

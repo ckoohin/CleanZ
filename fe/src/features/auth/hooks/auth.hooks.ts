@@ -16,6 +16,37 @@ import type {
 } from "@/features/auth/types/auth.type";
 import { toast } from "sonner";
 
+interface ApiErrorResponse {
+  message?: string;
+  errors?: string | Record<string, string>;
+}
+
+interface AxiosErrorLike {
+  response?: {
+    data?: ApiErrorResponse;
+  };
+}
+  
+export function getErrorMessage(error: unknown): string {
+  const err = error as AxiosErrorLike;
+  const responseData = err.response?.data;
+
+  if (!responseData) return "Lỗi kết nối, vui lòng thử lại";
+
+  if (typeof responseData.message === "string") return responseData.message;
+
+  const errors = responseData.errors;
+  if (errors) {
+    if (typeof errors === "string") return errors;
+    if (typeof errors === "object") {
+      const firstError = Object.values(errors)[0];
+      if (typeof firstError === "string") return firstError;
+    }
+  }
+
+  return "Đã xảy ra lỗi, vui lòng thử lại";
+}
+
 export function useAuth() {
   return useQuery({
     queryKey: queryKeys.auth.me(),
@@ -34,7 +65,7 @@ export function useProfile() {
   });
 }
 
-export function useLogin() {
+export function useLogin(redirectUrl?: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -46,13 +77,17 @@ export function useLogin() {
 
       toast.success(res.message);
 
-      router.push(
-        `${process.env.NEXT_PUBLIC_CLIENT_URL}/otp-verify?userId=${res.userId}`,
-      );
+      const url = new URL("/otp-verify", window.location.origin);
+      url.searchParams.set("userId", res.userId);
+      if (redirectUrl) {
+        url.searchParams.set("redirect", redirectUrl);
+      }
+
+      router.push(url.pathname + url.search);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Login error:", error);
-      toast.error(error.response?.data?.errors?.message);
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -66,8 +101,8 @@ export function useRegister() {
       console.log(res);
       toast.success(res.message);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.errors?.message);
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -128,20 +163,19 @@ export function useVerifyOtp() {
   return useMutation({
     mutationFn: (credentials: VerifyOtpCredentials) =>
       authApi.verifyOtp(credentials),
-    onSuccess: (res: any) => {
-      // console.log(res.message);
+    onSuccess: (res: { message: string }, _variables, _context) => {
       toast.success(res.message);
 
-      router.push(`/`);
-    },
-    onError: (error: any) => {
-      // console.log(error.response);
-      if (error.response?.data?.errors?.message) {
-        toast.error(error.response?.data?.errors?.message);
-        return;
-      }
+      // Đọc redirect param từ URL hiện tại
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectUrl = searchParams.get("redirect") || "/";
 
-      toast.error("Lỗi kết lối vui lòng xem lại mạng");
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+      router.replace(redirectUrl);
+    },
+    onError: (error: unknown) => {
+      console.error("Verify OTP error:", error);
+      toast.error(getErrorMessage(error));
     },
   });
 }
