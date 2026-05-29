@@ -35,6 +35,7 @@ export class UsersService {
         fullName: dto.fullName,
         password: hashedPassword,
         provider: AuthProvider.LOCAL,
+        role: dto.role,
       });
 
       return await this.userRepository.save(user);

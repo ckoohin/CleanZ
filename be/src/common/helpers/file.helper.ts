@@ -1,4 +1,4 @@
-import { StaffEntity } from 'src/modules/staffs/entities/staff.entity';
+import { StaffEntity } from 'src/modules/staff/entities/staff.entity';
 import { UserRole } from '../enums/user-role.enum';
 import { ForbiddenException } from '@nestjs/common';
 
