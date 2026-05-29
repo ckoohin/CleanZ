@@ -50,21 +50,23 @@ export function SocialSignIn({
         }}
       />
 
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        className="w-full hover:bg-blue-600 hover:text-white group"
-        onClick={() => openPopup(url_facebook, 'Facebook Sign In')}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" className='text-[#1877F2] group-hover:!text-white' fill="currentColor">
-          <path d="M279.14 288l14.22-92.66h-88.91V127.66c0-25.35  
-            12.42-50.06 52.24-50.06H293V6.26S259.43 
-            0 225.36 0C141.09 0 89.09 54.42 
-            89.09 153.12V195.3H0V288h89.09v224h107.45V288z"/>
-        </svg>
-        <span>{text_facebook}</span>
-      </Button>
+      {url_facebook && text_facebook && (
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="w-full hover:bg-blue-600 hover:text-white group"
+          onClick={() => openPopup(url_facebook, 'Facebook Sign In')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" className='text-[#1877F2] group-hover:!text-white' fill="currentColor">
+            <path d="M279.14 288l14.22-92.66h-88.91V127.66c0-25.35  
+              12.42-50.06 52.24-50.06H293V6.26S259.43 
+              0 225.36 0C141.09 0 89.09 54.42 
+              89.09 153.12V195.3H0V288h89.09v224h107.45V288z"/>
+          </svg>
+          <span>{text_facebook}</span>
+        </Button>
+      )}
     </div>
   );
 }

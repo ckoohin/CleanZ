@@ -16,6 +16,7 @@ import {
   LogOut,
   ChevronDown,
   Shield,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -99,6 +100,27 @@ export const AvatarProfile: React.FC<AvatarProfileProps> = () => {
                 </Link>
               </DropdownMenuItem>
             ))}
+          </div>
+
+          <DropdownMenuSeparator />
+
+          {/* Dành cho Đối tác / Thợ */}
+          <div className="p-1.5">
+            {profile.role === 'STAFF' || profile.role === 'ADMIN' ? (
+              <DropdownMenuItem asChild className="rounded-xl px-3 py-2.5 cursor-pointer text-primary focus:bg-primary/10">
+                <Link href="/staff" className="flex items-center gap-3 text-sm font-bold">
+                  <BriefcaseBusiness className="w-4 h-4 shrink-0" />
+                  Khu vực Đối tác (Staff)
+                </Link>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem asChild className="rounded-xl px-3 py-2.5 cursor-pointer text-primary focus:bg-primary/10">
+                <Link href="/become-partner" className="flex items-center gap-3 text-sm font-bold">
+                  <BriefcaseBusiness className="w-4 h-4 shrink-0" />
+                  Trở thành đối tác dọn dẹp ngay
+                </Link>
+              </DropdownMenuItem>
+            )}
           </div>
 
           <DropdownMenuSeparator />
