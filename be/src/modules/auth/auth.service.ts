@@ -173,6 +173,8 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
+      console.log(otp)
+      
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',
         userId: user.id,

@@ -5,9 +5,12 @@ import {
   MaxLength,
   IsNotEmpty,
   Matches,
+  IsEnum,
+  IsOptional,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class RegisterDto {
   @ApiProperty({
@@ -48,4 +51,14 @@ export class RegisterDto {
     typeof value === 'string' ? value.toLowerCase().trim() : value,
   )
   fullName!: string;
+
+  @ApiProperty({
+    example: 'CUSTOMER',
+    enum: UserRole,
+    description: 'Role của người dùng (mặc định là CUSTOMER)',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Role không hợp lệ' })
+  role?: UserRole;
 }

@@ -15,7 +15,7 @@ export class ServiceEntity {
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, default: 'Khác' })
   category!: string;
 
   @Column({
