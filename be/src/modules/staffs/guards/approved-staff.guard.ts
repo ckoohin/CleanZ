@@ -4,12 +4,12 @@ import {
   ExecutionContext,
   ForbiddenException,
 } from '@nestjs/common';
-import { StaffService } from '../staff.service';
+import { StaffsService } from '../staffs.service';
 import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
 
 @Injectable()
 export class ApprovedStaffGuard implements CanActivate {
-  constructor(private readonly staffService: StaffService) {}
+  constructor(private readonly staffService: StaffsService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();

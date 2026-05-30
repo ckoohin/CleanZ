@@ -9,7 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { CustomerEntity } from '../../customers/entities/customer.entity';
-import { StaffServiceEntity } from '../../staff/entities/staff-service.entity';
+import { StaffServiceEntity } from '../../staffs/entities/staff-service.entity';
 import { ServiceEntity } from '../../services/entities/service.entity';
 import { BookingStatus } from '../../../common/enums/booking-status.enum';
 import { PaymentStatus } from '../../../common/enums/payment-status.enum';

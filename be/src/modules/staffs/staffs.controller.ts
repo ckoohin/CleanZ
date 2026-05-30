@@ -12,11 +12,15 @@ import {
   UploadedFile,
   UploadedFiles,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { StaffsService } from './staffs.service';
+import { UpdateStaffProfileDto } from './dto/update-staff-profile.dto';
+import { CreateStaffServiceDto } from './dto/create-staff-service.dto';
+import { UpdateStaffServiceDto } from './dto/update-staff-service.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import type { AuthUser } from '../auth/types/AuthRequest';
+import { type AuthUser } from '../auth/types/AuthRequest';
 import {
   FileInterceptor,
   FileFieldsInterceptor,
@@ -24,20 +28,9 @@ import {
 import { memoryStorage } from 'multer';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { UpdateStaffPresenceDto } from './dto/update-staff-presence.dto';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { UpdateStaffProfileDto } from './dto/update-staff-profile.dto';
-import { CreateStaffServiceDto } from './dto/create-staff-service.dto';
-import { UpdateStaffServiceDto } from './dto/update-staff-service.dto';
+import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
+import { AdminReviewDto } from './dto/admin-review.dto';
+import { BanStaffDto } from './dto/ban-staff.dto';
 
 const UUIDParam = new ParseUUIDPipe({
   exceptionFactory: () => new NotFoundException('Người dùng không tồn tại'),
@@ -45,38 +38,39 @@ const UUIDParam = new ParseUUIDPipe({
 
 @Controller('staffs')
 @Auth()
-@ApiTags('staffs')
-@ApiBearerAuth('access-token')
 export class StaffsController {
-  constructor(private readonly staffsService: StaffsService) {}
+  constructor(private readonly staffService: StaffsService) {}
+
+  @Get()
+  @AdminOnly()
+  async findAll(
+    @Query('status') status?: APPROVAL_STATUS,
+    @Query('keyword') keyword?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.staffService.findAll({ status, keyword, page, limit });
+  }
 
   @Get('/profile')
-  @ApiOperation({ summary: 'Lấy hồ sơ staff hiện tại' })
-  @ApiOkResponse({ description: 'Lấy hồ sơ staff thành công' })
-  @ApiUnauthorizedResponse({ description: 'Token không hợp lệ' })
   async getProfile(@CurrentUser() currentUser: AuthUser) {
-    return this.staffsService.getProfileStaff(currentUser.id, currentUser.role);
+    return this.staffService.getProfileStaff(
+      currentUser.id,
+      currentUser.role,
+    );
   }
 
   @Get('presence/me')
-  @ApiOperation({ summary: 'Lấy trạng thái hiện diện của staff hiện tại' })
-  @ApiOkResponse({ description: 'Lấy trạng thái hiện diện thành công' })
   async getMyPresence(@CurrentUser() currentUser: AuthUser) {
-    return this.staffsService.getMyPresence(currentUser.id, currentUser.role);
+    return this.staffService.getMyPresence(currentUser.id, currentUser.role);
   }
 
   @Patch('presence/me')
-  @ApiOperation({
-    summary: 'Cập nhật trạng thái hiện diện của staff hiện tại',
-  })
-  @ApiBody({ type: UpdateStaffPresenceDto })
-  @ApiOkResponse({ description: 'Cập nhật trạng thái hiện diện thành công' })
-  @ApiBadRequestResponse({ description: 'Payload không hợp lệ' })
   async updateMyPresence(
     @Body() dto: UpdateStaffPresenceDto,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.updateMyPresence(
+    return this.staffService.updateMyPresence(
       currentUser.id,
       currentUser.role,
       dto,
@@ -84,15 +78,11 @@ export class StaffsController {
   }
 
   @Post(':userId/apply')
-  @ApiOperation({ summary: 'Nộp đơn trở thành staff' })
-  @ApiParam({ name: 'userId', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiOkResponse({ description: 'Tạo hồ sơ staff thành công' })
-  @ApiBadRequestResponse({ description: 'userId không hợp lệ' })
   async applyToStaff(
     @Param('userId', UUIDParam) userId: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.createProfileStaff(
+    return this.staffService.createProfileStaff(
       userId,
       currentUser.id,
       currentUser.role,
@@ -100,22 +90,6 @@ export class StaffsController {
   }
 
   @Patch(':id/avatar')
-  @ApiOperation({ summary: 'Cập nhật ảnh đại diện staff' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        avatar: { type: 'string', format: 'binary' },
-      },
-      required: ['avatar'],
-    },
-  })
-  @ApiOkResponse({ description: 'Cập nhật avatar thành công' })
-  @ApiBadRequestResponse({
-    description: 'Thiếu file hoặc file ảnh không hợp lệ',
-  })
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: memoryStorage(),
@@ -137,7 +111,7 @@ export class StaffsController {
     if (!file) {
       throw new BadRequestException('Vui lòng chọn ảnh đại diện');
     }
-    return this.staffsService.updateAvatar(
+    return this.staffService.updateAvatar(
       id,
       file,
       currentUser.id,
@@ -146,35 +120,14 @@ export class StaffsController {
   }
 
   @Patch(':id/documents')
-  @ApiOperation({ summary: 'Cập nhật giấy tờ staff (CCCD và chứng chỉ)' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        citizenCard: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-          description: 'Tối đa 2 ảnh CCCD',
-        },
-        certificate: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-          description: 'Tối đa 10 ảnh chứng chỉ',
-        },
-      },
-    },
-  })
-  @ApiOkResponse({ description: 'Cập nhật giấy tờ thành công' })
-  @ApiBadRequestResponse({
-    description: 'Số lượng file vượt giới hạn hoặc file sai định dạng',
-  })
   @UseInterceptors(
     FileFieldsInterceptor(
       [
         { name: 'citizenCard', maxCount: 2 },
         { name: 'certificate', maxCount: 10 },
+        { name: 'criminalRecord', maxCount: 3 },
+        { name: 'healthCertificate', maxCount: 3 },
+        { name: 'idWithSelfie', maxCount: 1 },
       ],
       {
         storage: memoryStorage(),
@@ -195,6 +148,9 @@ export class StaffsController {
     files: {
       citizenCard?: Express.Multer.File[];
       certificate?: Express.Multer.File[];
+      criminalRecord?: Express.Multer.File[];
+      healthCertificate?: Express.Multer.File[];
+      idWithSelfie?: Express.Multer.File[];
     },
     @CurrentUser() currentUser: AuthUser,
   ) {
@@ -208,7 +164,7 @@ export class StaffsController {
       throw new BadRequestException('Chỉ được upload tối đa 10 ảnh chứng chỉ');
     }
 
-    return this.staffsService.updateDocuments(
+    return this.staffService.updateDocuments(
       id,
       files,
       currentUser.id,
@@ -217,17 +173,12 @@ export class StaffsController {
   }
 
   @Get(':id/documents/:type')
-  @ApiOperation({ summary: 'Lấy tài liệu staff theo loại' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiParam({ name: 'type', example: 'citizenCard' })
-  @ApiOkResponse({ description: 'Lấy danh sách tài liệu theo loại thành công' })
-  @ApiBadRequestResponse({ description: 'ID hoặc type không hợp lệ' })
   async getDocumentByType(
     @Param('id', UUIDParam) id: string,
     @Param('type') type: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    const filePaths = await this.staffsService.getDocumentPaths(
+    const filePaths = await this.staffService.getDocumentPaths(
       id,
       type,
       currentUser.id,
@@ -237,14 +188,11 @@ export class StaffsController {
   }
 
   @Get(':id/documents')
-  @ApiOperation({ summary: 'Lấy toàn bộ tài liệu của staff' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiOkResponse({ description: 'Lấy toàn bộ tài liệu thành công' })
   async getAllDocuments(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.getAllStaffDocuments(
+    return this.staffService.getAllStaffDocuments(
       id,
       currentUser.id,
       currentUser.role,
@@ -253,42 +201,72 @@ export class StaffsController {
 
   @Patch(':id/approve')
   @AdminOnly()
-  @ApiOperation({ summary: 'Phê duyệt staff (Admin)' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiOkResponse({ description: 'Phê duyệt staff thành công' })
-  @ApiUnauthorizedResponse({ description: 'Không có quyền phê duyệt' })
   async approveStaff(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.approveStaff(id, currentUser.id);
+    return this.staffService.approveStaff(id, currentUser.id);
   }
 
   @Patch(':id/reject')
   @AdminOnly()
-  @ApiOperation({ summary: 'Từ chối hồ sơ staff (Admin)' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiOkResponse({ description: 'Từ chối staff thành công' })
-  @ApiUnauthorizedResponse({ description: 'Không có quyền từ chối' })
   async rejectStaff(
+    @Param('id', UUIDParam) id: string,
+    @Body() dto: AdminReviewDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.staffService.rejectStaff(id, currentUser.id, dto.notes);
+  }
+
+  @Patch(':id/request-info')
+  @AdminOnly()
+  async requestMoreInfo(
+    @Param('id', UUIDParam) id: string,
+    @Body() dto: AdminReviewDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.staffService.requestMoreInfo(id, currentUser.id, dto.notes);
+  }
+
+  @Post(':id/ban')
+  @AdminOnly()
+  async banStaff(
+    @Param('id', UUIDParam) id: string,
+    @Body() dto: BanStaffDto,
+    @CurrentUser() currentUser: AuthUser,
+  ) {
+    return this.staffService.banStaff(id, currentUser.id, dto);
+  }
+
+  @Post(':id/unban')
+  @AdminOnly()
+  async unbanStaff(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.rejectStaff(id, currentUser.id);
+    return this.staffService.unbanStaff(id, currentUser.id);
+  }
+
+  @Get(':id/penalties')
+  @AdminOnly()
+  async getPenalties(
+    @Param('id', UUIDParam) id: string,
+  ) {
+    return this.staffService.getPenalties(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Cập nhật hồ sơ staff' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiBody({ type: UpdateStaffProfileDto })
-  @ApiOkResponse({ description: 'Cập nhật hồ sơ staff thành công' })
-  @ApiBadRequestResponse({ description: 'Payload hoặc ID không hợp lệ' })
   async update(
     @Param('id', UUIDParam) id: string,
     @Body() dto: UpdateStaffProfileDto,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.update(id, dto, currentUser.id, currentUser.role);
+    return this.staffService.update(
+      id,
+      dto,
+      currentUser.id,
+      currentUser.role,
+    );
   }
 
   // ─── Staff Services Endpoints ──────────────────────────
@@ -299,7 +277,7 @@ export class StaffsController {
     @Body() dto: CreateStaffServiceDto,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.createStaffService(
+    return this.staffService.createStaffService(
       id,
       dto,
       currentUser.id,
@@ -308,15 +286,11 @@ export class StaffsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lấy thông tin staff theo ID' })
-  @ApiParam({ name: 'id', example: '6a4f7a8f-2e6a-4db3-a6b8-cd191889f72b' })
-  @ApiOkResponse({ description: 'Lấy thông tin staff thành công' })
-  @ApiBadRequestResponse({ description: 'ID không hợp lệ' })
   async findById(
     @Param('id', UUIDParam) id: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.findStaffById(
+    return this.staffService.findStaffById(
       id,
       currentUser.id,
       currentUser.role,
@@ -325,7 +299,7 @@ export class StaffsController {
 
   @Get(':id/services')
   async getStaffServices(@Param('id', UUIDParam) id: string) {
-    return this.staffsService.getStaffServices(id);
+    return this.staffService.getStaffServices(id);
   }
 
   @Patch(':id/services/:wsId')
@@ -335,7 +309,7 @@ export class StaffsController {
     @Body() dto: UpdateStaffServiceDto,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.updateStaffService(
+    return this.staffService.updateStaffService(
       id,
       wsId,
       dto,
@@ -350,7 +324,7 @@ export class StaffsController {
     @Param('wsId', UUIDParam) wsId: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffsService.deleteStaffService(
+    return this.staffService.deleteStaffService(
       id,
       wsId,
       currentUser.id,

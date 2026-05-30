@@ -8,8 +8,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
 import { BookingEntity } from './entities/booking.entity';
-import { StaffEntity } from '../staff/entities/staff.entity';
-import { StaffServiceEntity } from '../staff/entities/staff-service.entity';
+import { StaffEntity } from '../staffs/entities/staff.entity';
+import { StaffServiceEntity } from '../staffs/entities/staff-service.entity';
 import { BookingResponseDto } from './dto/booking-response.dto';
 import { BookingMapper } from './mapper/booking.mapper';
 import { BookingStatus } from '../../common/enums/booking-status.enum';

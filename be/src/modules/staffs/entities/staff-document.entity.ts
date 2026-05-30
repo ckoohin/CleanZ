@@ -15,7 +15,7 @@ export class StaffDocumentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => StaffEntity, (staff) => staff.documents, {
+  @ManyToOne('StaffEntity', (staff: StaffEntity) => staff.documents, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'staff_id' })

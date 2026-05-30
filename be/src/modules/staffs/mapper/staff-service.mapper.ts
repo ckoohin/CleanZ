@@ -8,7 +8,7 @@ export const toStaffServiceResponseDto = (
     id: entity.id,
     serviceId: entity.service.id,
     serviceName: entity.service.name,
-    serviceCategory: entity.service.category,
+    serviceCategory: entity.service.category || '',
     serviceSupportedLocationTypes: entity.service.supportedLocationTypes,
     locationTypes: entity.locationTypes,
     customPrice: entity.customPrice ? Number(entity.customPrice) : undefined,

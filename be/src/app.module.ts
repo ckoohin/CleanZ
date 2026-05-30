@@ -5,7 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
 import { UsersModule } from './modules/users/users.module';
-import { StaffModule } from './modules/staff/staff.module';
+import { StaffsModule } from './modules/staffs/staffs.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TokenModule } from './modules/token/token.module';
@@ -28,7 +28,7 @@ import { BookingsModule } from './modules/bookings/bookings.module';
     }),
     AuthModule,
     UsersModule,
-    StaffModule,
+    StaffsModule,
     CustomersModule,
     TokenModule,
     UploadModule,

@@ -4,7 +4,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsBoolean,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -28,12 +27,16 @@ export class UpdateStaffServiceDto {
   @IsOptional()
   description?: string;
 
-  @ValidateIf((o) => o.locationTypes?.includes(ServiceLocationType.AT_SHOP))
+  @ValidateIf((o: UpdateStaffServiceDto) => {
+    return (
+      Array.isArray(o.locationTypes) &&
+      o.locationTypes.includes(ServiceLocationType.AT_SHOP)
+    );
+  })
   @IsString({ message: 'Địa chỉ quán phải là chuỗi' })
   @IsOptional()
   shopAddress?: string;
 
-  @IsBoolean()
   @IsOptional()
   isAvailable?: boolean;
 }

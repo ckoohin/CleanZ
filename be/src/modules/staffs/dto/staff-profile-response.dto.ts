@@ -11,6 +11,14 @@ export class StaffProfileResponseDto {
   avatarUrl!: string | null;
   hasCitizenCardImage!: boolean;
   hasCertificateImage!: boolean;
+  hasCriminalRecordImage!: boolean;
+  hasHealthCertificateImage!: boolean;
+  hasIdWithSelfieImage!: boolean;
+  addressResident?: string;
+  addressCurrent?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
   totalJobs!: number;
   avgRating!: number;
   approvalStatus!: APPROVAL_STATUS;
@@ -18,4 +26,5 @@ export class StaffProfileResponseDto {
   updatedAt!: Date;
   lastChangedByAdminName?: string;
   lastChangedByAdminId?: string;
+  adminNotes?: string;
 }

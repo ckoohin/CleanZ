@@ -10,6 +10,7 @@ import { StaffServiceEntity } from './entities/staff-service.entity';
 import { ServiceEntity } from '../services/entities/service.entity';
 import { UploadModule } from '../upload/upload.module';
 import { StaffPresenceEntity } from './entities/staff-presence.entity';
+import { StaffPenaltyEntity } from './entities/staff-penalty.entity';
 import { MailService } from '../mail/mail.service';
 
 @Module({
@@ -21,6 +22,7 @@ import { MailService } from '../mail/mail.service';
       StaffPresenceEntity,
       StaffServiceEntity,
       ServiceEntity,
+      StaffPenaltyEntity,
     ]),
     UploadModule,
   ],

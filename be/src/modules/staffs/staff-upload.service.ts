@@ -17,7 +17,7 @@ import { StaffProfileResponseDto } from './dto/staff-profile-response.dto';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { toStaffProfileResponseDto } from './mapper/staff.mapper';
 
-const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate'] as const;
+const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate', 'criminalRecord', 'healthCertificate', 'idWithSelfie'] as const;
 type DocumentType = (typeof VALID_DOCUMENT_TYPES)[number];
 
 @Injectable()
@@ -61,12 +61,19 @@ export class StaffUploadService {
     files: {
       citizenCard?: Express.Multer.File[];
       certificate?: Express.Multer.File[];
+      criminalRecord?: Express.Multer.File[];
+      healthCertificate?: Express.Multer.File[];
+      idWithSelfie?: Express.Multer.File[];
     },
     requestUserId: string,
     requestUserRole: UserRole,
   ): Promise<StaffProfileResponseDto> {
     const fileCount =
-      (files?.citizenCard?.length || 0) + (files?.certificate?.length || 0);
+      (files?.citizenCard?.length || 0) +
+      (files?.certificate?.length || 0) +
+      (files?.criminalRecord?.length || 0) +
+      (files?.healthCertificate?.length || 0) +
+      (files?.idWithSelfie?.length || 0);
 
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findAndAuthorize(
@@ -107,46 +114,37 @@ export class StaffUploadService {
       };
 
       await Promise.all([
-        deleteOldDocs(
-          StaffDocumentType.CITIZEN_CARD,
-          files?.citizenCard?.length || 0,
-        ),
-        deleteOldDocs(
-          StaffDocumentType.CERTIFICATE,
-          files?.certificate?.length || 0,
-        ),
+        deleteOldDocs(StaffDocumentType.CITIZEN_CARD, files?.citizenCard?.length || 0),
+        deleteOldDocs(StaffDocumentType.CERTIFICATE, files?.certificate?.length || 0),
+        deleteOldDocs(StaffDocumentType.CRIMINAL_RECORD, files?.criminalRecord?.length || 0),
+        deleteOldDocs(StaffDocumentType.HEALTH_CERTIFICATE, files?.healthCertificate?.length || 0),
+        deleteOldDocs(StaffDocumentType.ID_WITH_SELFIE, files?.idWithSelfie?.length || 0),
       ]);
 
       const uploadTasks: Promise<StaffDocumentEntity>[] = [];
 
-      if (files?.citizenCard) {
-        for (const file of files.citizenCard) {
-          uploadTasks.push(
-            this.uploadService.uploadImage(file).then((result) =>
-              this.staffDocumentRepository.create({
-                staff: staffProfile,
-                type: StaffDocumentType.CITIZEN_CARD,
-                fileUrl: result.url,
-                filePublicId: result.public_id,
-              }),
-            ),
-          );
+      const processFiles = (fileArray: Express.Multer.File[] | undefined, docType: StaffDocumentType) => {
+        if (fileArray) {
+          for (const file of fileArray) {
+            uploadTasks.push(
+              this.uploadService.uploadImage(file).then((result) =>
+                this.staffDocumentRepository.create({
+                  staff: staffProfile,
+                  type: docType,
+                  fileUrl: result.url,
+                  filePublicId: result.public_id,
+                }),
+              ),
+            );
+          }
         }
-      }
-      if (files?.certificate) {
-        for (const file of files.certificate) {
-          uploadTasks.push(
-            this.uploadService.uploadImage(file).then((result) =>
-              this.staffDocumentRepository.create({
-                staff: staffProfile,
-                type: StaffDocumentType.CERTIFICATE,
-                fileUrl: result.url,
-                filePublicId: result.public_id,
-              }),
-            ),
-          );
-        }
-      }
+      };
+
+      processFiles(files.citizenCard, StaffDocumentType.CITIZEN_CARD);
+      processFiles(files.certificate, StaffDocumentType.CERTIFICATE);
+      processFiles(files.criminalRecord, StaffDocumentType.CRIMINAL_RECORD);
+      processFiles(files.healthCertificate, StaffDocumentType.HEALTH_CERTIFICATE);
+      processFiles(files.idWithSelfie, StaffDocumentType.ID_WITH_SELFIE);
 
       if (uploadTasks.length > 0) {
         const newDocs = await Promise.all(uploadTasks);
@@ -193,7 +191,10 @@ export class StaffUploadService {
       relations: ['user', 'documents'],
     });
     if (!staff) throw new NotFoundException('Không tìm thấy staff');
-    if (requestUserRole !== UserRole.ADMIN && staff.user.id !== requestUserId) {
+    if (
+      requestUserRole !== UserRole.ADMIN &&
+      staff.user.id !== requestUserId
+    ) {
       throw new ForbiddenException(
         'Bạn không có quyền truy cập tài nguyên này',
       );

@@ -13,14 +13,9 @@ import { StaffDocumentEntity } from './staff-document.entity';
 import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
 import { StaffPresenceEntity } from './staff-presence.entity';
 import { StaffServiceEntity } from './staff-service.entity';
+import { StaffPenaltyEntity } from './staff-penalty.entity';
 
-export enum StaffStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-}
-
-@Entity('staff')
+@Entity('staff_profiles')
 export class StaffEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -47,15 +42,33 @@ export class StaffEntity {
   @Column({ name: 'avatar_url', type: 'text', nullable: true })
   avatarUrl!: string | null;
 
-  @OneToMany(() => StaffDocumentEntity, (document) => document.staff, {
+  @Column({ name: 'address_resident', type: 'text', nullable: true })
+  addressResident?: string;
+
+  @Column({ name: 'address_current', type: 'text', nullable: true })
+  addressCurrent?: string;
+
+  @Column({ name: 'bank_name', type: 'varchar', length: 100, nullable: true })
+  bankName?: string;
+
+  @Column({ name: 'bank_account_number', type: 'varchar', length: 50, nullable: true })
+  bankAccountNumber?: string;
+
+  @Column({ name: 'bank_account_name', type: 'varchar', length: 100, nullable: true })
+  bankAccountName?: string;
+
+  @OneToMany('StaffDocumentEntity', (document: StaffDocumentEntity) => document.staff, {
     cascade: true,
   })
   documents?: StaffDocumentEntity[];
 
-  @OneToMany(() => StaffServiceEntity, (ws) => ws.staff, {
+  @OneToMany('StaffServiceEntity', (ws: StaffServiceEntity) => ws.staff, {
     cascade: true,
   })
   staffServices?: StaffServiceEntity[];
+
+  @OneToMany('StaffPenaltyEntity', (penalty: StaffPenaltyEntity) => penalty.staff)
+  penalties?: StaffPenaltyEntity[];
 
   @Column({ name: 'total_jobs', type: 'int', default: 0 })
   totalJobs!: number;
@@ -71,7 +84,10 @@ export class StaffEntity {
   })
   approvalStatus!: APPROVAL_STATUS;
 
-  @OneToOne(() => StaffPresenceEntity, (staffPresence) => staffPresence.staff)
+  @OneToOne(
+    'StaffPresenceEntity',
+    (staffPresence: StaffPresenceEntity) => staffPresence.staff,
+  )
   staffPresence?: StaffPresenceEntity;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -85,4 +101,7 @@ export class StaffEntity {
 
   @Column({ name: 'last_changed_by_admin_name', type: 'text', nullable: true })
   lastChangedByAdminName?: string;
+
+  @Column({ name: 'admin_notes', type: 'text', nullable: true })
+  adminNotes?: string;
 }

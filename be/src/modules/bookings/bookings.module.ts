@@ -8,8 +8,8 @@ import { BookingEntity } from './entities/booking.entity';
 import { CustomerEntity } from '../customers/entities/customer.entity';
 import { ServiceEntity } from '../services/entities/service.entity';
 import { BookingAddonEntity } from './entities/booking-addon.entity';
-import { StaffEntity } from '../staff/entities/staff.entity';
-import { StaffServiceEntity } from '../staff/entities/staff-service.entity';
+import { StaffEntity } from '../staffs/entities/staff.entity';
+import { StaffServiceEntity } from '../staffs/entities/staff-service.entity';
 
 @Module({
   imports: [
