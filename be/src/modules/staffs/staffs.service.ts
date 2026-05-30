@@ -15,6 +15,7 @@ import { UserRole } from 'src/common/enums/user-role.enum';
 import { APPROVAL_STATUS } from 'src/common/enums/approval-status.enum';
 import { User } from '../users/entities/user.entity';
 import { StaffPresenceEntity } from './entities/staff-presence.entity';
+import { STAFF_PRESENCE_STATUS } from 'src/common/enums/staff-presence-status.enum';
 import {
   assertCanAccess,
   assertCanUpdate,
@@ -35,10 +36,13 @@ import {
   toStaffServiceResponseDtoList,
 } from './mapper/staff-service.mapper';
 import { StaffDocumentEntity } from './entities/staff-document.entity';
+import { StaffPenaltyEntity } from './entities/staff-penalty.entity';
+import { PenaltyType } from 'src/common/enums/penalty-type.enum';
+import { BanStaffDto } from './dto/ban-staff.dto';
 import { UploadService } from '../upload/upload.service';
-import { STAFF_PRESENCE_STATUS } from 'src/common/enums/staff-presence-status.enum';
 
-// type DocumentType = (typeof VALID_DOCUMENT_TYPES)[number];
+const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate'] as const;
+type DocumentType = (typeof VALID_DOCUMENT_TYPES)[number];
 
 @Injectable()
 export class StaffsService {
@@ -54,12 +58,53 @@ export class StaffsService {
     private readonly staffUploadService: StaffUploadService,
     @InjectRepository(StaffDocumentEntity)
     private readonly staffDocumentRepository: Repository<StaffDocumentEntity>,
+    @InjectRepository(StaffPenaltyEntity)
+    private readonly staffPenaltyRepository: Repository<StaffPenaltyEntity>,
     @InjectRepository(StaffServiceEntity)
     private readonly staffServiceRepository: Repository<StaffServiceEntity>,
     @InjectRepository(ServiceEntity)
     private readonly serviceRepository: Repository<ServiceEntity>,
     private readonly uploadService: UploadService,
   ) {}
+
+  async findAll(query: {
+    status?: APPROVAL_STATUS;
+    keyword?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { status, keyword, page = 1, limit = 10 } = query;
+    const qb = this.staffRepository
+      .createQueryBuilder('staff')
+      .leftJoinAndSelect('staff.user', 'user')
+      .leftJoinAndSelect('staff.documents', 'documents');
+
+    if (status) {
+      qb.andWhere('staff.approvalStatus = :status', { status });
+    }
+
+    if (keyword) {
+      qb.andWhere(
+        '(LOWER(user.fullName) LIKE LOWER(:keyword) OR user.phone LIKE :keyword)',
+        { keyword: `%${keyword}%` },
+      );
+    }
+
+    qb.orderBy('staff.createdAt', 'DESC');
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      data: items.map((item) => toStaffProfileResponseDto(item)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
   async createProfileStaff(
     userId: string,
@@ -107,6 +152,7 @@ export class StaffsService {
       );
     }, 'Lỗi khi tạo hồ sơ staff');
   }
+
   async getProfileStaff(
     requestUserId: string,
     requestUserRole: UserRole,
@@ -116,11 +162,15 @@ export class StaffsService {
       relations: ['user', 'documents'],
     });
     if (!staff) throw new NotFoundException('Không tìm thấy hồ sơ staff');
-    if (requestUserRole !== UserRole.ADMIN && staff.user.id !== requestUserId) {
+    if (
+      requestUserRole !== UserRole.ADMIN &&
+      staff.user.id !== requestUserId
+    ) {
       throw new ForbiddenException('Bạn không có quyền truy cập hồ sơ này');
     }
     return toStaffProfileResponseDto(staff);
   }
+
   async update(
     id: string,
     dto: UpdateStaffProfileDto,
@@ -199,11 +249,15 @@ export class StaffsService {
       await this.dataSource.transaction(async (tx) => {
         staffProfile.approvalStatus = APPROVAL_STATUS.APPROVED;
         staffProfile.lastChangedByAdminId = adminId;
+        staffProfile.adminNotes = undefined; // Clear notes when approved
+
         const admin = await tx.findOne(User, {
           where: { id: adminId },
           select: ['id', 'fullName'],
         });
         adminName = admin?.fullName;
+        staffProfile.lastChangedByAdminName = adminName;
+
         await tx.save(staffProfile);
         const user = await tx.findOne(User, {
           where: { id: staffProfile.user.id },
@@ -234,23 +288,19 @@ export class StaffsService {
 
       return {
         message: 'Phê duyệt hồ sơ staff thành công',
-        staff: toStaffProfileResponseDto({
-          ...finalStaff,
-          lastChangedByAdminName: adminName,
-        }),
+        staff: toStaffProfileResponseDto(finalStaff),
       };
     }, 'Lỗi khi phê duyệt staff');
   }
+
   async rejectStaff(
     id: string,
     adminId: string,
+    notes: string,
   ): Promise<{ message: string; staff: StaffProfileResponseDto }> {
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findStaffOrFail(id);
-      if (staffProfile.approvalStatus === APPROVAL_STATUS.REJECTED) {
-        throw new BadRequestException('Staff đã bị từ chối trước đó');
-      }
-
+      
       let adminName: string | undefined = undefined;
       const userEmail = staffProfile.user.email;
       const userFullName = staffProfile.user.fullName;
@@ -258,12 +308,15 @@ export class StaffsService {
       await this.dataSource.transaction(async (tx) => {
         staffProfile.approvalStatus = APPROVAL_STATUS.REJECTED;
         staffProfile.lastChangedByAdminId = adminId;
+        staffProfile.adminNotes = notes;
 
         const admin = await tx.findOne(User, {
           where: { id: adminId },
           select: ['id', 'fullName'],
         });
         adminName = admin?.fullName;
+        staffProfile.lastChangedByAdminName = adminName;
+
         await tx.save(staffProfile);
         const user = await tx.findOne(User, {
           where: { id: staffProfile.user.id },
@@ -272,19 +325,129 @@ export class StaffsService {
         user.role = UserRole.CUSTOMER;
         await tx.save(user);
       });
+      
       const finalStaff = await this.findStaffOrFail(id);
+      // Bạn có thể tạo thêm template mail cho trường hợp bị từ chối kèm lý do
       await this.mailService
-        .sendStaffRejectedEmail(userEmail, userFullName)
+        .sendStaffRejectedEmail(userEmail, userFullName) 
         .catch(() => {});
 
       return {
         message: 'Từ chối hồ sơ staff thành công',
-        staff: toStaffProfileResponseDto({
-          ...finalStaff,
-          lastChangedByAdminName: adminName,
-        }),
+        staff: toStaffProfileResponseDto(finalStaff),
       };
     }, 'Lỗi khi từ chối staff');
+  }
+
+  async requestMoreInfo(
+    id: string,
+    adminId: string,
+    notes: string,
+  ): Promise<{ message: string; staff: StaffProfileResponseDto }> {
+    return asyncHandleOperation(async () => {
+      const staffProfile = await this.findStaffOrFail(id);
+      
+      let adminName: string | undefined = undefined;
+
+      await this.dataSource.transaction(async (tx) => {
+        staffProfile.approvalStatus = APPROVAL_STATUS.NEED_INFO;
+        staffProfile.lastChangedByAdminId = adminId;
+        staffProfile.adminNotes = notes;
+
+        const admin = await tx.findOne(User, {
+          where: { id: adminId },
+          select: ['id', 'fullName'],
+        });
+        adminName = admin?.fullName;
+        staffProfile.lastChangedByAdminName = adminName;
+
+        await tx.save(staffProfile);
+      });
+
+      const finalStaff = await this.findStaffOrFail(id);
+      
+      // TODO: Gửi mail thông báo yêu cầu bổ sung thông tin kèm notes
+      
+      return {
+        message: 'Đã gửi yêu cầu bổ sung thông tin',
+        staff: toStaffProfileResponseDto(finalStaff),
+      };
+    }, 'Lỗi khi yêu cầu bổ sung thông tin');
+  }
+
+  async banStaff(
+    id: string,
+    adminId: string,
+    dto: BanStaffDto,
+  ): Promise<{ message: string }> {
+    return asyncHandleOperation(async () => {
+      const staffProfile = await this.findStaffOrFail(id);
+      
+      const penalty = this.staffPenaltyRepository.create({
+        staff: staffProfile,
+        reason: dto.reason,
+        type: dto.type,
+        createdBy: { id: adminId } as User,
+        startsAt: new Date(),
+      });
+      
+      const now = new Date();
+      if (dto.type === PenaltyType.DAYS_2) {
+        penalty.endsAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+      } else if (dto.type === PenaltyType.DAYS_7) {
+        penalty.endsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else if (dto.type === PenaltyType.PERMANENT) {
+        penalty.endsAt = null;
+        // Also deactivate user
+        await this.userRepository.update(staffProfile.user.id, { isActive: false });
+      }
+      
+      await this.staffPenaltyRepository.save(penalty);
+      
+      return { message: 'Khóa tài khoản staff thành công' };
+    }, 'Lỗi khi khóa tài khoản staff');
+  }
+
+  async unbanStaff(id: string, adminId: string): Promise<{ message: string }> {
+    return asyncHandleOperation(async () => {
+      const staffProfile = await this.findStaffOrFail(id);
+      
+      // Find active penalty
+      const penalty = await this.staffPenaltyRepository
+        .createQueryBuilder('penalty')
+        .where('penalty.staff = :staffId', { staffId: staffProfile.id })
+        .andWhere('(penalty.endsAt > :now OR penalty.endsAt IS NULL)', { now: new Date() })
+        .orderBy('penalty.createdAt', 'DESC')
+        .getOne();
+      
+      if (penalty) {
+        penalty.endsAt = new Date(); // Set to now to expire it
+        await this.staffPenaltyRepository.save(penalty);
+      }
+      
+      // Also ensure user is active (if it was permanent ban)
+      await this.userRepository.update(staffProfile.user.id, { isActive: true });
+      
+      return { message: 'Gỡ khóa tài khoản staff thành công' };
+    }, 'Lỗi khi gỡ khóa tài khoản staff');
+  }
+
+  async isBanned(staffId: string): Promise<boolean> {
+    const penalty = await this.staffPenaltyRepository
+      .createQueryBuilder('penalty')
+      .where('penalty.staff = :staffId', { staffId })
+      .andWhere('(penalty.endsAt > :now OR penalty.endsAt IS NULL)', { now: new Date() })
+      .getOne();
+      
+    return !!penalty;
+  }
+
+  async getPenalties(id: string) {
+    return this.staffPenaltyRepository.find({
+      where: { staff: { id } },
+      order: { createdAt: 'DESC' },
+      relations: ['createdBy'],
+    });
   }
 
   async getMyPresence(
@@ -296,7 +459,8 @@ export class StaffsService {
         userId,
         userRole,
       );
-      const staffPresence = await this.getOrCreateStaffPresence(staffProfile);
+      const staffPresence =
+        await this.getOrCreateStaffPresence(staffProfile);
 
       return this.toStaffPresenceResponseDto(staffPresence);
     }, 'Lỗi khi lấy trạng thái hoạt động của staff');
@@ -312,7 +476,8 @@ export class StaffsService {
         userId,
         userRole,
       );
-      const staffPresence = await this.getOrCreateStaffPresence(staffProfile);
+      const staffPresence =
+        await this.getOrCreateStaffPresence(staffProfile);
 
       staffPresence.status = dto.status;
       const updatedPresence =
@@ -369,7 +534,9 @@ export class StaffsService {
     return staff;
   }
 
-  private async findStaffByUserId(userId: string): Promise<StaffEntity | null> {
+  private async findStaffByUserId(
+    userId: string,
+  ): Promise<StaffEntity | null> {
     return this.staffRepository.findOne({
       where: { user: { id: userId } },
       relations: ['user', 'documents', 'staffPresence'],
@@ -431,6 +598,7 @@ export class StaffsService {
       updatedAt: staffPresence.updatedAt,
     };
   }
+
   // ─── Staff Services CRUD ───────────────────────────────
 
   async createStaffService(
@@ -452,7 +620,6 @@ export class StaffsService {
         );
       }
 
-      // Validate locationTypes là subset của service.supportedLocationTypes
       const invalidTypes = dto.locationTypes.filter(
         (lt) => !service.supportedLocationTypes.includes(lt),
       );
@@ -462,7 +629,6 @@ export class StaffsService {
         );
       }
 
-      // Validate shopAddress bắt buộc khi có AT_SHOP
       if (
         dto.locationTypes.includes(ServiceLocationType.AT_SHOP) &&
         !dto.shopAddress
@@ -472,7 +638,6 @@ export class StaffsService {
         );
       }
 
-      // Kiểm tra đã đăng ký dịch vụ này chưa
       const existing = await this.staffServiceRepository.findOne({
         where: {
           staff: { id: staffId },
@@ -494,10 +659,9 @@ export class StaffsService {
 
       const saved = await this.staffServiceRepository.save(staffService);
 
-      // Reload with relations
       const result = await this.staffServiceRepository.findOne({
         where: { id: saved.id },
-        relations: ['service'],
+        relations: ['service', 'service.category'],
       });
 
       return toStaffServiceResponseDto(result!);
@@ -514,7 +678,7 @@ export class StaffsService {
 
     const staffServices = await this.staffServiceRepository.find({
       where: { staff: { id: staffId }, isAvailable: true },
-      relations: ['service'],
+      relations: ['service', 'service.category'],
       order: { createdAt: 'DESC' },
     });
 
@@ -534,13 +698,12 @@ export class StaffsService {
 
       const staffService = await this.staffServiceRepository.findOne({
         where: { id: staffServiceId, staff: { id: staffId } },
-        relations: ['service'],
+        relations: ['service', 'service.category'],
       });
       if (!staffService) {
         throw new NotFoundException('Không tìm thấy dịch vụ đã đăng ký');
       }
 
-      // Validate locationTypes nếu có update
       if (dto.locationTypes) {
         const invalidTypes = dto.locationTypes.filter(
           (lt) => !staffService.service.supportedLocationTypes.includes(lt),
@@ -551,7 +714,6 @@ export class StaffsService {
           );
         }
 
-        // Validate shopAddress khi chuyển sang AT_SHOP
         if (
           dto.locationTypes.includes(ServiceLocationType.AT_SHOP) &&
           !dto.shopAddress &&
@@ -596,7 +758,7 @@ export class StaffsService {
   async findStaffServiceById(id: string): Promise<StaffServiceEntity> {
     const staffService = await this.staffServiceRepository.findOne({
       where: { id },
-      relations: ['service', 'staff', 'staff.user'],
+      relations: ['service', 'service.category', 'staff', 'staff.user'],
     });
     if (!staffService) {
       throw new NotFoundException('Không tìm thấy dịch vụ staff');

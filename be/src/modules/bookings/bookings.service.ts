@@ -16,7 +16,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import type { AuthUser } from '../auth/types/AuthRequest';
 import { GetBookingHistoryQueryDto } from './dto/get-booking-history-query.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
-import { StaffServiceEntity } from '../staff/entities/staff-service.entity';
+import { StaffServiceEntity } from '../staffs/entities/staff-service.entity';
 
 @Injectable()
 export class BookingsService {

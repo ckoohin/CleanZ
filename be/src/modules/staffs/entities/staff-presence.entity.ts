@@ -15,7 +15,7 @@ export class StaffPresenceEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @OneToOne(() => StaffEntity, (staff) => staff.staffPresence, {
+  @OneToOne('StaffEntity', (staff: StaffEntity) => staff.staffPresence, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'staff_id' })

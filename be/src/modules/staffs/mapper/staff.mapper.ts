@@ -7,14 +7,16 @@ export const toStaffProfileResponseDto = (
 ): StaffProfileResponseDto => {
   let hasCitizenCardImage = false;
   let hasCertificateImage = false;
+  let hasCriminalRecordImage = false;
+  let hasHealthCertificateImage = false;
+  let hasIdWithSelfieImage = false;
 
   if (Array.isArray(entity.documents)) {
-    hasCitizenCardImage = entity.documents.some(
-      (doc) => doc.type === StaffDocumentType.CITIZEN_CARD,
-    );
-    hasCertificateImage = entity.documents.some(
-      (doc) => doc.type === StaffDocumentType.CERTIFICATE,
-    );
+    hasCitizenCardImage = entity.documents.some((doc) => doc.type === StaffDocumentType.CITIZEN_CARD);
+    hasCertificateImage = entity.documents.some((doc) => doc.type === StaffDocumentType.CERTIFICATE);
+    hasCriminalRecordImage = entity.documents.some((doc) => doc.type === StaffDocumentType.CRIMINAL_RECORD);
+    hasHealthCertificateImage = entity.documents.some((doc) => doc.type === StaffDocumentType.HEALTH_CERTIFICATE);
+    hasIdWithSelfieImage = entity.documents.some((doc) => doc.type === StaffDocumentType.ID_WITH_SELFIE);
   }
 
   return {
@@ -28,6 +30,14 @@ export const toStaffProfileResponseDto = (
     avatarUrl: entity.avatarUrl || null,
     hasCitizenCardImage,
     hasCertificateImage,
+    hasCriminalRecordImage,
+    hasHealthCertificateImage,
+    hasIdWithSelfieImage,
+    addressResident: entity.addressResident,
+    addressCurrent: entity.addressCurrent,
+    bankName: entity.bankName,
+    bankAccountNumber: entity.bankAccountNumber,
+    bankAccountName: entity.bankAccountName,
     totalJobs: entity.totalJobs,
     avgRating: entity.avgRating,
     approvalStatus: entity.approvalStatus,
@@ -35,5 +45,6 @@ export const toStaffProfileResponseDto = (
     updatedAt: entity.updatedAt,
     lastChangedByAdminId: entity.lastChangedByAdminId,
     lastChangedByAdminName: entity.lastChangedByAdminName,
+    adminNotes: entity.adminNotes,
   };
 };
