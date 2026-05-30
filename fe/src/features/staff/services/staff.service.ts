@@ -12,19 +12,19 @@ export interface StaffServiceItem {
 
 export const staffApi = {
   getProfile: (): Promise<StaffProfile> => {
-    return http.get<StaffProfile>('/staff/profile').then((res) => res.data);
+    return http.get<StaffProfile>('/staffs/profile').then((res) => res.data);
   },
 
   apply: (userId: string): Promise<StaffProfile> => {
-    return http.post<StaffProfile>(`/staff/${userId}/apply`).then((res) => res.data);
+    return http.post<StaffProfile>(`/staffs/${userId}/apply`).then((res) => res.data);
   },
 
   updateProfile: (id: string, data: UpdateStaffProfileDto): Promise<StaffProfile> => {
-    return http.patch<StaffProfile>(`/staff/${id}`, data).then((res) => res.data);
+    return http.patch<StaffProfile>(`/staffs/${id}`, data).then((res) => res.data);
   },
 
   updateDocuments: (id: string, formData: FormData): Promise<StaffProfile> => {
-    return http.patch<StaffProfile>(`/staff/${id}/documents`, formData, {
+    return http.patch<StaffProfile>(`/staffs/${id}/documents`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -32,7 +32,7 @@ export const staffApi = {
   },
 
   addService: (id: string, data: CreateStaffServiceDto): Promise<StaffProfile> => {
-    return http.post<StaffProfile>(`/staff/${id}/services`, data).then((res) => res.data);
+    return http.post<StaffProfile>(`/staffs/${id}/services`, data).then((res) => res.data);
   },
 
   getAvailableServices: (): Promise<ServiceListResponse> => {
@@ -41,11 +41,12 @@ export const staffApi = {
 
   // Lấy danh sách dịch vụ mà staff đã đăng ký
   getMyStaffServices: (staffId: string): Promise<StaffServiceItem[]> => {
-    return http.get<StaffServiceItem[]>(`/staff/${staffId}/services`).then((res) => res.data);
+    return http.get<StaffServiceItem[]>(`/staffs/${staffId}/services`).then((res) => res.data);
   },
 
   // Lấy danh sách giấy tờ đã nộp của chính mình
   getMyDocuments: (staffId: string): Promise<{ documents: Array<{ id: string; type: string; fileUrl: string }> }> => {
-    return http.get(`/staff/${staffId}/documents`).then((res) => res.data);
+    return http.get(`/staffs/${staffId}/documents`).then((res) => res.data);
   },
 };
+

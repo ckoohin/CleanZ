@@ -41,7 +41,7 @@ interface StaffPenalty {
   reason: string;
   type: string;
   createdAt: string;
-  endsAt?: string;
+  endsAt: string | null;
   createdBy?: {
     fullName?: string;
   };
@@ -127,7 +127,8 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ staffId, isO
   const [banOpen, setBanOpen] = useState(false);
 
   const parsedNotes = parseAdminNotes(staff?.adminNotes);
-  const docs: Array<{ id: string; type: string; fileUrl: string }> = docsData?.documents ?? [];
+  const docs = (docsData?.documents ?? [])
+    .filter((d) => d.fileUrl !== null) as Array<{ id: string; type: string; fileUrl: string }>;
   const getDocsByType = (type: string) => docs.filter((d) => d.type === type);
 
   const isPending  = staff?.approvalStatus === StaffStatus.PENDING;
