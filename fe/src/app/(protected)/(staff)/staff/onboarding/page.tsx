@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { StaffRegistrationWizard } from "@/features/staff/_components/StaffRegistrationWizard";
+import { StaffRegistrationWizard } from "@/features/staffs/_components/StaffRegistrationWizard";
 
 export default function StaffOnboardingPage() {
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { StaffApprovalTable } from "@/features/admin-staff/_components/StaffApprovalTable";
+import { StaffApprovalTable } from "@/features/admin-staffs/_components/StaffApprovalTable";
 import { Users, ShieldCheck } from "lucide-react";
 
 export default function StaffVerificationPage() {

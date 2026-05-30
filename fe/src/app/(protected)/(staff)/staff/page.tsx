@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useStaffProfile } from '@/features/staff/hooks/staff.hooks';
-import { StaffStatus } from '@/features/staff/types/staff.type';
+import { useStaffProfile } from '@/features/staffs/hooks/staff.hooks';
+import { StaffStatus } from '@/features/staffs/types/staff.type';
 import {
   Clock,
   CheckCircle2,
@@ -31,9 +31,9 @@ import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
-import { StaffSidebar } from '@/features/staff/_components/StaffSidebar';
-import { StaffRegistrationWizard } from '@/features/staff/_components/StaffRegistrationWizard';
-import { parseAdminNotes } from '@/features/admin-staff/_components/AdminRequestInfoModal';
+import { StaffSidebar } from '@/features/staffs/_components/StaffSidebar';
+import { StaffRegistrationWizard } from '@/features/staffs/_components/StaffRegistrationWizard';
+import { parseAdminNotes } from '@/features/admin-staffs/_components/AdminRequestInfoModal';
 
 // ─── Status Banners (khi chưa được duyệt) ────────────────────────────────────
 
