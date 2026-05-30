@@ -45,11 +45,13 @@ export const Header: React.FC<HeaderProps> = ({
   const [cityOpen, setCityOpen] = useState(false);
   const [city, setCity] = useState("Hà Nội");
   const [query, setQuery] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const cityRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setIsMounted(true);
     const fn = () => setScrolled(window.scrollY > 12);
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
@@ -362,12 +364,12 @@ export const Header: React.FC<HeaderProps> = ({
             <Separator className="my-3" />
 
             {/* Partner links */}
-            <a href="/partner" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors">
+            <a href="/become-partner" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors">
               Trở thành đối tác
               <ChevronDown className="w-3.5 h-3.5 -rotate-90 opacity-40" />
             </a>
-            <a href="/worker" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors">
-              Đăng ký làm thợ
+            <a href="/register-staff" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors">
+              Đăng ký làm nhân viên
               <ChevronDown className="w-3.5 h-3.5 -rotate-90 opacity-40" />
             </a>
           </div>
@@ -380,22 +382,24 @@ export const Header: React.FC<HeaderProps> = ({
             <Button className="w-full font-semibold rounded-xl" asChild>
               <a href="/auth/register">Đăng ký miễn phí</a>
             </Button>
-            <ConfirmDialog
-              trigger={
-                <Button
-                  className="w-full font-semibold rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20">
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  Đăng xuất
-                </Button>
-              }
-              title="Xác nhận đăng xuất"
-              description="Bạn có chắc chắn muốn đăng xuất?"
-              confirmText="Đăng xuất"
-              cancelText="Hủy"
-              onConfirm={() => {
-                logout.mutate()
-              }}
-            />
+            {isMounted && (
+              <ConfirmDialog
+                trigger={
+                  <Button
+                    className="w-full font-semibold rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20">
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    Đăng xuất
+                  </Button>
+                }
+                title="Xác nhận đăng xuất"
+                description="Bạn có chắc chắn muốn đăng xuất?"
+                confirmText="Đăng xuất"
+                cancelText="Hủy"
+                onConfirm={() => {
+                  logout.mutate()
+                }}
+              />
+            )}
             <p className="text-center text-xs text-muted-foreground pt-1">
               Hotline: <a href="tel:18006868" className="text-primary font-bold">1800 6868</a> (miễn phí)
             </p>
