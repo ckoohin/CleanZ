@@ -2,7 +2,7 @@
 
 import { Calendar, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { StaffSidebar } from '@/features/staff/_components/StaffSidebar';
+import { StaffSidebar } from '@/features/staffs/_components/StaffSidebar';
 
 export default function StaffSchedulePage() {
   return (

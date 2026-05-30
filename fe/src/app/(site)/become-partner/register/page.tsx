@@ -1,5 +1,5 @@
 import React from "react";
-import { StaffRegistrationWizard } from "@/features/staff/_components/StaffRegistrationWizard";
+import { StaffRegistrationWizard } from "@/features/staffs/_components/StaffRegistrationWizard";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

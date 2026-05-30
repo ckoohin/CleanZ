@@ -19,8 +19,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { useStaffProfile, useUpdateStaffProfile } from '@/features/staff/hooks/staff.hooks';
-import { StaffSidebar } from '@/features/staff/_components/StaffSidebar';
+import { useStaffProfile, useUpdateStaffProfile } from '@/features/staffs/hooks/staff.hooks';
+import { StaffSidebar } from '@/features/staffs/_components/StaffSidebar';
 
 const schema = z.object({
   phone: z.string().min(9, 'Số điện thoại không hợp lệ').optional().or(z.literal('')),

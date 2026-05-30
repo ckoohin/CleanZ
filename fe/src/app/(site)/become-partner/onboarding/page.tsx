@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const PartnerOnboardingWizard = dynamic(
-  () => import("@/features/staff/_components/PartnerOnboardingWizard").then(m => m.PartnerOnboardingWizard),
+  () => import("@/features/staffs/_components/PartnerOnboardingWizard").then(m => m.PartnerOnboardingWizard),
   {
     loading: () => (
       <div className="flex items-center justify-center h-screen">

@@ -1,7 +1,7 @@
 'use client';
 
 import { DollarSign, TrendingUp, Clock } from 'lucide-react';
-import { StaffSidebar } from '@/features/staff/_components/StaffSidebar';
+import { StaffSidebar } from '@/features/staffs/_components/StaffSidebar';
 
 export default function StaffEarningsPage() {
   return (

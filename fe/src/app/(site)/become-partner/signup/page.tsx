@@ -1,5 +1,5 @@
 import React from "react";
-import { PartnerSignupWizard } from "@/features/staff/_components/PartnerSignupWizard";
+import { PartnerSignupWizard } from "@/features/staffs/_components/PartnerSignupWizard";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
