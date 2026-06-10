@@ -101,7 +101,7 @@ http.interceptors.response.use(
     }
 
     if (originalRequest._retry) {
-      onUnauthenticated?.();
+      // onUnauthenticated?.();
       return Promise.reject(error);
     }
 
@@ -128,7 +128,7 @@ http.interceptors.response.use(
     processQueue(error);
     isRefreshing = false;
 
-    onUnauthenticated?.();
+    // onUnauthenticated?.();
 
     return Promise.reject(error);
   }

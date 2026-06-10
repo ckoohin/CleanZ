@@ -14,7 +14,7 @@ const TITLE_MAP: Record<string, string> = {
   "active": "Đang thực hiện",
   "history": "Lịch sử",
   "refunds": "Hoàn tiền",
-  "staff": "Nhân viên",
+  "tasker": "Nhân viên",
   "verification": "Xác minh",
   "schedule": "Lịch làm việc",
   "payroll": "Bảng lương",

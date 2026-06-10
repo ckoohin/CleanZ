@@ -23,6 +23,7 @@ import {
 import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon, LogOut } from "lucide-react"
 import ConfirmDialog from "../common/ConfirmDialog"
 import { Button } from "../ui/button"
+import { useLogout } from "@/features/auth/hooks/auth.hooks"
 
 export function NavUser({
   user,
@@ -34,6 +35,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const logout = useLogout()
 
   return (
     <SidebarMenu>
@@ -115,9 +117,9 @@ export function NavUser({
               description="Bạn có chắc chắn muốn đăng xuất?"
               confirmText="Đăng xuất"
               cancelText="Hủy"
-            // onConfirm={() => {
-            //   logout.mutate()
-            // }}
+              onConfirm={() => {
+                logout.mutate()
+              }}
             />
           </DropdownMenuContent>
         </DropdownMenu>
