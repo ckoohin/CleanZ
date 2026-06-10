@@ -12,11 +12,21 @@ export const toStaffProfileResponseDto = (
   let hasIdWithSelfieImage = false;
 
   if (Array.isArray(entity.documents)) {
-    hasCitizenCardImage = entity.documents.some((doc) => doc.type === StaffDocumentType.CITIZEN_CARD);
-    hasCertificateImage = entity.documents.some((doc) => doc.type === StaffDocumentType.CERTIFICATE);
-    hasCriminalRecordImage = entity.documents.some((doc) => doc.type === StaffDocumentType.CRIMINAL_RECORD);
-    hasHealthCertificateImage = entity.documents.some((doc) => doc.type === StaffDocumentType.HEALTH_CERTIFICATE);
-    hasIdWithSelfieImage = entity.documents.some((doc) => doc.type === StaffDocumentType.ID_WITH_SELFIE);
+    hasCitizenCardImage = entity.documents.some(
+      (doc) => doc.type === StaffDocumentType.CITIZEN_CARD,
+    );
+    hasCertificateImage = entity.documents.some(
+      (doc) => doc.type === StaffDocumentType.CERTIFICATE,
+    );
+    hasCriminalRecordImage = entity.documents.some(
+      (doc) => doc.type === StaffDocumentType.CRIMINAL_RECORD,
+    );
+    hasHealthCertificateImage = entity.documents.some(
+      (doc) => doc.type === StaffDocumentType.HEALTH_CERTIFICATE,
+    );
+    hasIdWithSelfieImage = entity.documents.some(
+      (doc) => doc.type === StaffDocumentType.ID_WITH_SELFIE,
+    );
   }
 
   return {

@@ -27,7 +27,7 @@ export class BookingsService {
     private readonly staffServiceRepository: Repository<StaffServiceEntity>,
   ) {}
 
-// Rule: Admin, staff, customer
+  // Rule: Admin, staff, customer
   async getBookingHistory(
     currentUser: AuthUser,
     query: GetBookingHistoryQueryDto,
@@ -66,7 +66,7 @@ export class BookingsService {
       });
     }
 
-    if (currentUser.role === UserRole.STAFF) {
+    if (currentUser.role === UserRole.TASKER) {
       bookingQuery
         .andWhere('staffService.id IS NOT NULL')
         .andWhere('staffUser.id = :staffUserId', {
@@ -135,7 +135,7 @@ export class BookingsService {
     ) {
       throw new ForbiddenException('Bạn không có quyền xem booking này');
     }
-    if (currentUser.role === UserRole.STAFF) {
+    if (currentUser.role === UserRole.TASKER) {
       const assignedStaffUserId = booking.staffService?.staff?.user?.id;
 
       if (!assignedStaffUserId || assignedStaffUserId !== currentUser.id) {

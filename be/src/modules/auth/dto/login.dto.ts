@@ -4,9 +4,12 @@ import {
   MinLength,
   MaxLength,
   IsNotEmpty,
+  IsOptional,
+  IsEnum,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class LoginDto {
   @ApiProperty({
@@ -31,4 +34,12 @@ export class LoginDto {
   @MaxLength(32, { message: 'Mật khẩu không dài quá 32 ký tự' })
   @MinLength(8, { message: 'Mật khẩu tối thiểu 8 ký tự' })
   password!: string;
+
+  @ApiPropertyOptional({
+    enum: UserRole,
+    description: 'Quyền (Role) mong đợi của portal đang đăng nhập',
+  })
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Role không hợp lệ' })
+  role?: UserRole;
 }

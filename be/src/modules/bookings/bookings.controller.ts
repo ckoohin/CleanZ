@@ -39,7 +39,7 @@ export class BookingsController {
   ) {}
 
   @Get()
-  @Auth(UserRole.ADMIN, UserRole.STAFF, UserRole.CUSTOMER)
+  @Auth(UserRole.ADMIN, UserRole.TASKER, UserRole.CUSTOMER)
   @ApiOperation({
     summary: 'Lấy lịch sử booking',
     description:
@@ -57,7 +57,7 @@ export class BookingsController {
   }
 
   @Get('available')
-  @Auth(UserRole.STAFF)
+  @Auth(UserRole.TASKER)
   @ApiOperation({
     summary: 'Lấy danh sách booking chưa có ai nhận',
     description:
@@ -74,7 +74,7 @@ export class BookingsController {
   }
 
   @Get(':id')
-  @Auth(UserRole.ADMIN, UserRole.STAFF, UserRole.CUSTOMER)
+  @Auth(UserRole.ADMIN, UserRole.TASKER, UserRole.CUSTOMER)
   @ApiOperation({
     summary: 'Lấy chi tiết booking',
     description:
@@ -168,7 +168,7 @@ export class BookingsController {
   }
 
   @Patch(':id/accept')
-  @Auth(UserRole.STAFF)
+  @Auth(UserRole.TASKER)
   @ApiOperation({
     summary: 'Nhận booking',
     description:
