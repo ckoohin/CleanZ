@@ -1,6 +1,6 @@
 import { AuthProvider } from "./auth.type";
 
-export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'TECHNICIAN';
+export type UserRole = 'ADMIN' | 'TASKER' | 'CUSTOMER' | 'TECHNICIAN';
 
 export interface User {
   id: string;

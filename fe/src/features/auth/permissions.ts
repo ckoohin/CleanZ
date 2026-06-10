@@ -12,8 +12,8 @@ export function isAdmin(user: User | null | undefined): boolean {
   return hasRole(user, "ADMIN");
 }
 
-export function isStaff(user: User | null | undefined): boolean {
-  return hasRole(user, "STAFF");
+export function isTasker(user: User | null | undefined): boolean {
+  return hasRole(user, "TASKER");
 }
 
 export function isCustomer(user: User | null | undefined): boolean {

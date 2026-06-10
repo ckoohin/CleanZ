@@ -77,13 +77,13 @@ const adminData = {
     },
     {
       title: "Quản lý Nhân sự",
-      url: "/admin/staff",
+      url: "/admin/tasker",
       icon: <ShieldCheck />,
       items: [
-        { title: "Danh sách đối tác", url: "/admin/staff" },
-        { title: "Xác minh hồ sơ", url: "/admin/staff/verification" },
-        { title: "Lịch làm việc", url: "/admin/staff/schedule" },
-        { title: "Bảng lương & Thu nhập", url: "/admin/staff/payroll" },
+        { title: "Danh sách đối tác", url: "/admin/tasker" },
+        { title: "Xác minh hồ sơ", url: "/admin/tasker/verification" },
+        { title: "Lịch làm việc", url: "/admin/tasker/schedule" },
+        { title: "Bảng lương & Thu nhập", url: "/admin/tasker/payroll" },
       ],
     },
     {

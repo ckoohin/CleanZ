@@ -23,7 +23,7 @@ import type { UserRole } from "@/features/auth/types/user.type";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "Quản trị viên",
-  STAFF: "Nhân viên",
+  TASKER: "Nhân viên",
   CUSTOMER: "Khách hàng",
   TECHNICIAN: "Thợ dịch vụ",
 };

@@ -9,8 +9,8 @@ export default function CustomerGroupLayout({
     children: React.ReactNode;
 }) {
     return (
-        <RoleGuard allowedRoles={['CUSTOMER']}>
+        <>
             {children}
-        </RoleGuard>
+        </>
     );
 }

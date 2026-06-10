@@ -7,57 +7,57 @@ import { ChevronLeft } from "lucide-react";
 
 const slidesSignUp = [
   {
-    image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=1920&auto=format&fit=crop",
-    title: "Sửa Chữa & Bảo Trì",
-    description: "Kết nối thợ điện, nước và điện lạnh lành nghề ngay khi bạn cần.",
+    image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=1200",
+    title: "Không Gian Hoàn Mỹ",
+    description: "Tận hưởng không gian sống sạch sẽ, gọn gàng và tinh tươm mỗi ngày.",
   },
   {
-    image: "https://govigroup.com/wp-content/uploads/2024/10/don-dep-van-phong-vhe-cleaning.jpg",
-    title: "Vệ Sinh & Dọn Dẹp",
-    description: "Dịch vụ dọn nhà, giặt sofa, nệm chuyên nghiệp mang lại không gian sạch sẽ.",
+    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1200",
+    title: "Trải Nghiệm Đẳng Cấp",
+    description: "Mang tiêu chuẩn dọn dẹp khách sạn 5 sao vào chính ngôi nhà của bạn.",
   },
   {
-    image: "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?q=80&w=1920&auto=format&fit=crop",
-    title: "Chăm Sóc & Làm Đẹp",
-    description: "Đặt lịch Spa, Salon tóc hoặc Nail tại nhà với trải nghiệm 5 sao.",
+    image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=1200",
+    title: "Bếp Nấu Sáng Bóng",
+    description: "Làm sạch chuyên sâu không gian bếp, trả lại sự bóng bẩy nguyên bản.",
   },
   {
-    image: "https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?q=80&w=1920&auto=format&fit=crop",
-    title: "Y Tế & Sức Khỏe",
-    description: "Dịch vụ điều dưỡng và bác sĩ tại nhà, chăm sóc sức khỏe cho người thân yêu.",
+    image: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=1200",
+    title: "Phòng Ngủ Thư Giãn",
+    description: "Sắp xếp lại không gian nghỉ ngơi, mang lại giấc ngủ sâu và trọn vẹn.",
   },
   {
-    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1920&auto=format&fit=crop",
-    title: "Gia Sư Chuyên Nghiệp",
-    description: "Tìm kiếm gia sư phù hợp cho mọi cấp học từ tiểu học đến luyện thi đại học.",
+    image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&q=80&w=1200",
+    title: "Tổ Ấm Yêu Thương",
+    description: "Giải phóng thời gian dọn dẹp để bạn dành trọn vẹn cho gia đình.",
   },
 ];
 
 const slidesSignIn = [
   {
-    image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?q=80&w=1920&auto=format&fit=crop",
-    title: "Quản Lý Lịch Hẹn",
-    description: "Giao diện lịch trực quan giúp bạn theo dõi và quản lý mọi dịch vụ dễ dàng.",
+    image: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&q=80&w=1200",
+    title: "Môi Trường Trong Lành",
+    description: "Không gian thoáng đãng, sạch sẽ giúp bảo vệ sức khỏe cho cả gia đình bạn.",
   },
   {
-    image: "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?q=80&w=1920&auto=format&fit=crop",
-    title: "Thanh Toán Đa Năng",
-    description: "Hỗ trợ Ví điện tử, Banking và QR Check-in an toàn, nhanh chóng.",
+    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=1200",
+    title: "Vệ Sinh Chuyên Sâu",
+    description: "Đánh bay mọi vết bẩn cứng đầu với quy trình làm sạch chuẩn 5 sao.",
   },
   {
-    image: "https://images.unsplash.com/photo-1521791136368-7d89c19c39ad?q=80&w=1920&auto=format&fit=crop",
-    title: "Kết Nối Thông Minh",
-    description: "Hệ thống tự động điều phối thợ gần bạn nhất để đảm bảo thời gian phục vụ.",
+    image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&q=80&w=1200",
+    title: "Nội Thất Sáng Bóng",
+    description: "Dịch vụ giặt sofa, rèm cửa, nệm giúp diệt khuẩn và khử mùi hiệu quả.",
   },
   {
-    image: "https://images.unsplash.com/photo-1552581234-26160f608093?q=80&w=1920&auto=format&fit=crop",
-    title: "Chất Lượng Tin Cậy",
-    description: "Đánh giá và phản hồi từ khách hàng giúp nâng cao uy tín cộng đồng thợ.",
+    image: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&q=80&w=1200",
+    title: "Tiết Kiệm Thời Gian",
+    description: "Thảnh thơi tận hưởng cuộc sống, việc dọn dẹp nhà cửa đã có CleanZ lo.",
   },
   {
-    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=1920&auto=format&fit=crop",
-    title: "Fitness & Sức Trẻ",
-    description: "Tìm kiếm huấn luyện viên cá nhân (PT) và các lớp Yoga phù hợp với bạn.",
+    image: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=1200",
+    title: "Chất Lượng Uy Tín",
+    description: "Đội ngũ nhân viên giàu kinh nghiệm, tận tâm mang lại sự hài lòng tuyệt đối.",
   },
 ];
 
