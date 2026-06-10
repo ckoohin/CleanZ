@@ -404,7 +404,7 @@ export class StaffsService {
     }, 'Lỗi khi khóa tài khoản staff');
   }
 
-  async unbanStaff(id: string, adminId: string): Promise<{ message: string }> {
+  async unbanStaff(id: string): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findStaffOrFail(id);
 
