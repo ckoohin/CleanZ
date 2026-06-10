@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { HeaderNav } from "./HeaderNav";
 import { HeaderActions } from "./HeaderActions";
 import { AvatarProfile } from "./AvatarProfile";
+import { LoggedInBanner } from "./LoggedInBanner";
 import { NavLink, HeaderAction, NAV_LINKS, HEADER_ACTIONS } from "./nav.config";
 import LogoApp from "@/components/logo/LogoApp";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { useLogout } from "@/features/auth/hooks/auth.hooks";
+import { useLogout, useProfile } from "@/features/auth/hooks/auth.hooks";
 
 interface HeaderProps {
   navLinks?: NavLink[];
@@ -38,7 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   navLinks = NAV_LINKS,
   actions = HEADER_ACTIONS,
 }) => {
-  const logout = useLogout()
+  const logout = useLogout();
+  const { data: profile } = useProfile();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -51,10 +53,13 @@ export const Header: React.FC<HeaderProps> = ({
   const cityRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
+    const timer = setTimeout(() => setIsMounted(true), 0);
     const fn = () => setScrolled(window.scrollY > 12);
     window.addEventListener("scroll", fn, { passive: true });
-    return () => window.removeEventListener("scroll", fn);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("scroll", fn);
+    };
   }, []);
 
   useEffect(() => {
@@ -235,9 +240,10 @@ export const Header: React.FC<HeaderProps> = ({
 
               <Separator orientation="vertical" className="h-5 mx-1 hidden md:block" />
 
-              <div className="hidden md:flex items-center gap-1.5">
+              {!profile && (
+                <div className="hidden md:flex items-center gap-1.5">
 
-                {/* LOGIN */}
+                  {/* LOGIN */}
                 <motion.div
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.96 }}
@@ -296,6 +302,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </Button>
                 </motion.div>
               </div>
+              )}
 
               {/* avatar */}
               <AvatarProfile />
@@ -368,7 +375,7 @@ export const Header: React.FC<HeaderProps> = ({
               Trở thành đối tác
               <ChevronDown className="w-3.5 h-3.5 -rotate-90 opacity-40" />
             </a>
-            <a href="/register-staff" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors">
+            <a href="/register-tasker" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors">
               Đăng ký làm nhân viên
               <ChevronDown className="w-3.5 h-3.5 -rotate-90 opacity-40" />
             </a>
@@ -376,13 +383,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Panel footer: auth */}
           <div className="border-t border-border p-4 space-y-2">
-            <Button variant="outline" className="w-full font-semibold" asChild>
-              <a href="/auth/login">Đăng nhập</a>
-            </Button>
-            <Button className="w-full font-semibold rounded-xl" asChild>
-              <a href="/auth/register">Đăng ký miễn phí</a>
-            </Button>
-            {isMounted && (
+            {!profile && (
+              <>
+                <Button variant="outline" className="w-full font-semibold" asChild>
+                  <a href="/login">Đăng nhập</a>
+                </Button>
+                <Button className="w-full font-semibold rounded-xl" asChild>
+                  <a href="/register">Đăng ký miễn phí</a>
+                </Button>
+              </>
+            )}
+            {isMounted && profile && (
               <ConfirmDialog
                 trigger={
                   <Button
@@ -409,6 +420,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+      <LoggedInBanner />
     </>
   );
 };

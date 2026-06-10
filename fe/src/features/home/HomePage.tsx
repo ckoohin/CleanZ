@@ -109,43 +109,39 @@ const WHY_IMAGES = [
 ];
 
 
+import { MobileHomeView } from "@/features/home/_components/MobileHomeView";
+
 export default function HomePagee() {
   return (
     <>
-
-      <HeroCarousel />
-
-      <HeroSection />
-
-      <CategorySection
-        items={CATEGORIES}
-      />
-
-      <ServicesSection
-        services={SERVICES}
-      />
-
-      <CtaSection
-        title="Sẵn sàng tìm chuyên viên hoàn hảo?"
-        subtitle="Hơn 50.000 gia đình tin tưởng King of Service cho nhu cầu hàng ngày."
-        primaryLabel="Đặt dịch vụ ngay"
-        primaryHref="/services"
-        secondaryLabel="Xem bảng giá"
-        secondaryHref="/pricing"
-        image="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1000&q=80"
-        stat="50.000+"
-        className="mx-auto my-28"
-      />
-
-      <WhyUsSection
-        badge="Vì sao chọn chúng tôi"
-        title="Dịch vụ được định nghĩa lại qua"
-        titleHighlight="sự rõ ràng"
-        items={WHY_US}
-        stats={STATS}
-        images={WHY_IMAGES}
-        className="bg-muted/40 border-y border-border py-24"
-      />
+      <MobileHomeView />
+      
+      <div className="hidden lg:block">
+        <HeroCarousel />
+        <HeroSection />
+        <CategorySection items={CATEGORIES} />
+        <ServicesSection services={SERVICES} />
+        <CtaSection
+          title="Sẵn sàng tìm chuyên viên hoàn hảo?"
+          subtitle="Hơn 50.000 gia đình tin tưởng King of Service cho nhu cầu hàng ngày."
+          primaryLabel="Đặt dịch vụ ngay"
+          primaryHref="/services"
+          secondaryLabel="Xem bảng giá"
+          secondaryHref="/pricing"
+          image="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1000&q=80"
+          stat="50.000+"
+          className="mx-auto my-28"
+        />
+        <WhyUsSection
+          badge="Vì sao chọn chúng tôi"
+          title="Dịch vụ được định nghĩa lại qua"
+          titleHighlight="sự rõ ràng"
+          items={WHY_US}
+          stats={STATS}
+          images={WHY_IMAGES}
+          className="bg-muted/40 border-y border-border py-24"
+        />
+      </div>
     </>
   );
 }

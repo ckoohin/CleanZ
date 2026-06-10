@@ -25,7 +25,11 @@ export class StaffPenaltyEntity {
   @Column({ type: 'enum', enum: PenaltyType })
   type!: PenaltyType;
 
-  @Column({ name: 'starts_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'starts_at',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   startsAt!: Date;
 
   @Column({ name: 'ends_at', type: 'timestamp', nullable: true })

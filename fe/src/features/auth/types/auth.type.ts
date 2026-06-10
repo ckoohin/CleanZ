@@ -1,5 +1,5 @@
 // enums & literals
-export type UserRole = 'ADMIN' | 'WORKER' | 'CUSTOMER' | 'STAFF';
+export type UserRole = 'ADMIN' | 'WORKER' | 'CUSTOMER' | 'TASKER';
 
 export type AuthProvider = 'local' | 'google' | 'facebook';
 
@@ -25,12 +25,14 @@ export interface LoginCredentials {
   email: string;
   password: string;
   rememberMe?: boolean;
+  role?: UserRole;
 }
 
 export interface RegisterCredentials {
   email: string;
   password: string;
   fullName: string;
+  phone?: string;
   role?: string;
 }
 

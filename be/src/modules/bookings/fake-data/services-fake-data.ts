@@ -82,7 +82,9 @@ export const SERVICES_FAKE_DATA: ServiceFakeData[] = [
 ];
 
 // eslint-disable-next-line prettier/prettier
-export function getServiceFakeData(serviceId: string): ServiceFakeData | undefined {
+export function getServiceFakeData(
+  serviceId: string,
+): ServiceFakeData | undefined {
   return SERVICES_FAKE_DATA.find((s) => s.id === serviceId);
 }
 

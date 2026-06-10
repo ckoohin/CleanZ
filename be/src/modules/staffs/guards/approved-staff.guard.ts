@@ -21,9 +21,11 @@ export class ApprovedStaffGuard implements CanActivate {
 
     try {
       const staff = await this.staffService.getProfileStaff(user.id, user.role);
-      
+
       if (staff.approvalStatus !== APPROVAL_STATUS.APPROVED) {
-        throw new ForbiddenException('Tài khoản của bạn chưa được phê duyệt để thực hiện hành động này');
+        throw new ForbiddenException(
+          'Tài khoản của bạn chưa được phê duyệt để thực hiện hành động này',
+        );
       }
 
       const isBanned = await this.staffService.isBanned(staff.id);

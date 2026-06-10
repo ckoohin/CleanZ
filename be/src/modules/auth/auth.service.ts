@@ -146,6 +146,12 @@ export class AuthService {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
+      if (dto.role && user.role !== dto.role) {
+        throw new UnauthorizedException(
+          'Bạn không có quyền truy cập vào hệ thống này',
+        );
+      }
+
       const isPasswordValid = await this.comparePassword(
         dto.password,
         user.password,
@@ -173,8 +179,8 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
-      console.log(otp)
-      
+      console.log(otp);
+
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',
         userId: user.id,

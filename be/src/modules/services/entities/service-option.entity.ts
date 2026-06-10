@@ -27,7 +27,13 @@ export class ServiceOptionEntity {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ name: 'additional_price', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    name: 'additional_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
   additionalPrice!: number;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })

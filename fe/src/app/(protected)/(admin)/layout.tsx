@@ -9,8 +9,11 @@ export default function AdminGroupLayout({
     children: React.ReactNode;
 }) {
     return (
-        <RoleGuard allowedRoles={['ADMIN']}>
+        <>
+            {/* Tạm thời gỡ RoleGuard để test giao diện */}
+            {/* <RoleGuard allowedRoles={['ADMIN']}> */}
             {children}
-        </RoleGuard>
+            {/* </RoleGuard> */}
+        </>
     );
 }

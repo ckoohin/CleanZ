@@ -53,7 +53,7 @@ export default function AdminLayout({
                         <ThemeToggle />
                     </div>
                 </header>
-                <main className="flex-1 p-6 md:p-8 animate-in fade-in duration-500">
+                <main className="flex-1 p-3 md:p-4 animate-in fade-in duration-500">
                     {children}
                 </main>
             </SidebarInset>

@@ -25,8 +25,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
-type AvatarProfileProps = {
-};
 
 const MENU_ITEMS = [
   { icon: User, label: "Hồ sơ của tôi", href: "/customer/profile" },
@@ -36,7 +34,7 @@ const MENU_ITEMS = [
   { icon: Settings, label: "Cài đặt", href: "/customer/settings" },
 ];
 
-export const AvatarProfile: React.FC<AvatarProfileProps> = () => {
+export const AvatarProfile: React.FC = () => {
   const { data: profile, isLoading } = useProfile();
 
   const logout = useLogout()
@@ -106,11 +104,11 @@ export const AvatarProfile: React.FC<AvatarProfileProps> = () => {
 
           {/* Dành cho Đối tác / Thợ */}
           <div className="p-1.5">
-            {profile.role === 'STAFF' || profile.role === 'ADMIN' ? (
+            {profile.role === 'TASKER' || profile.role === 'ADMIN' ? (
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2.5 cursor-pointer text-primary focus:bg-primary/10">
-                <Link href="/staff" className="flex items-center gap-3 text-sm font-bold">
+                <Link href="/tasker" className="flex items-center gap-3 text-sm font-bold">
                   <BriefcaseBusiness className="w-4 h-4 shrink-0" />
-                  Khu vực Đối tác (Staff)
+                  Khu vực Đối tác (Tasker)
                 </Link>
               </DropdownMenuItem>
             ) : (

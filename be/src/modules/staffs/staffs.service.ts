@@ -41,9 +41,6 @@ import { PenaltyType } from 'src/common/enums/penalty-type.enum';
 import { BanStaffDto } from './dto/ban-staff.dto';
 import { UploadService } from '../upload/upload.service';
 
-const VALID_DOCUMENT_TYPES = ['citizenCard', 'certificate'] as const;
-type DocumentType = (typeof VALID_DOCUMENT_TYPES)[number];
-
 @Injectable()
 export class StaffsService {
   constructor(
@@ -162,10 +159,7 @@ export class StaffsService {
       relations: ['user', 'documents'],
     });
     if (!staff) throw new NotFoundException('Không tìm thấy hồ sơ staff');
-    if (
-      requestUserRole !== UserRole.ADMIN &&
-      staff.user.id !== requestUserId
-    ) {
+    if (requestUserRole !== UserRole.ADMIN && staff.user.id !== requestUserId) {
       throw new ForbiddenException('Bạn không có quyền truy cập hồ sơ này');
     }
     return toStaffProfileResponseDto(staff);
@@ -265,7 +259,7 @@ export class StaffsService {
         if (!user) throw new NotFoundException('Người dùng không tồn tại');
         userEmail = user.email;
         userFullName = user.fullName;
-        user.role = UserRole.STAFF;
+        user.role = UserRole.TASKER;
         await tx.save(user);
 
         const existingPresence = await tx.findOne(StaffPresenceEntity, {
@@ -300,7 +294,7 @@ export class StaffsService {
   ): Promise<{ message: string; staff: StaffProfileResponseDto }> {
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findStaffOrFail(id);
-      
+
       let adminName: string | undefined = undefined;
       const userEmail = staffProfile.user.email;
       const userFullName = staffProfile.user.fullName;
@@ -325,11 +319,11 @@ export class StaffsService {
         user.role = UserRole.CUSTOMER;
         await tx.save(user);
       });
-      
+
       const finalStaff = await this.findStaffOrFail(id);
       // Bạn có thể tạo thêm template mail cho trường hợp bị từ chối kèm lý do
       await this.mailService
-        .sendStaffRejectedEmail(userEmail, userFullName) 
+        .sendStaffRejectedEmail(userEmail, userFullName)
         .catch(() => {});
 
       return {
@@ -346,7 +340,7 @@ export class StaffsService {
   ): Promise<{ message: string; staff: StaffProfileResponseDto }> {
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findStaffOrFail(id);
-      
+
       let adminName: string | undefined = undefined;
 
       await this.dataSource.transaction(async (tx) => {
@@ -365,9 +359,9 @@ export class StaffsService {
       });
 
       const finalStaff = await this.findStaffOrFail(id);
-      
+
       // TODO: Gửi mail thông báo yêu cầu bổ sung thông tin kèm notes
-      
+
       return {
         message: 'Đã gửi yêu cầu bổ sung thông tin',
         staff: toStaffProfileResponseDto(finalStaff),
@@ -382,7 +376,7 @@ export class StaffsService {
   ): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findStaffOrFail(id);
-      
+
       const penalty = this.staffPenaltyRepository.create({
         staff: staffProfile,
         reason: dto.reason,
@@ -390,7 +384,7 @@ export class StaffsService {
         createdBy: { id: adminId } as User,
         startsAt: new Date(),
       });
-      
+
       const now = new Date();
       if (dto.type === PenaltyType.DAYS_2) {
         penalty.endsAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
@@ -399,35 +393,41 @@ export class StaffsService {
       } else if (dto.type === PenaltyType.PERMANENT) {
         penalty.endsAt = null;
         // Also deactivate user
-        await this.userRepository.update(staffProfile.user.id, { isActive: false });
+        await this.userRepository.update(staffProfile.user.id, {
+          isActive: false,
+        });
       }
-      
+
       await this.staffPenaltyRepository.save(penalty);
-      
+
       return { message: 'Khóa tài khoản staff thành công' };
     }, 'Lỗi khi khóa tài khoản staff');
   }
 
-  async unbanStaff(id: string, adminId: string): Promise<{ message: string }> {
+  async unbanStaff(id: string): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
       const staffProfile = await this.findStaffOrFail(id);
-      
+
       // Find active penalty
       const penalty = await this.staffPenaltyRepository
         .createQueryBuilder('penalty')
         .where('penalty.staff = :staffId', { staffId: staffProfile.id })
-        .andWhere('(penalty.endsAt > :now OR penalty.endsAt IS NULL)', { now: new Date() })
+        .andWhere('(penalty.endsAt > :now OR penalty.endsAt IS NULL)', {
+          now: new Date(),
+        })
         .orderBy('penalty.createdAt', 'DESC')
         .getOne();
-      
+
       if (penalty) {
         penalty.endsAt = new Date(); // Set to now to expire it
         await this.staffPenaltyRepository.save(penalty);
       }
-      
+
       // Also ensure user is active (if it was permanent ban)
-      await this.userRepository.update(staffProfile.user.id, { isActive: true });
-      
+      await this.userRepository.update(staffProfile.user.id, {
+        isActive: true,
+      });
+
       return { message: 'Gỡ khóa tài khoản staff thành công' };
     }, 'Lỗi khi gỡ khóa tài khoản staff');
   }
@@ -436,9 +436,11 @@ export class StaffsService {
     const penalty = await this.staffPenaltyRepository
       .createQueryBuilder('penalty')
       .where('penalty.staff = :staffId', { staffId })
-      .andWhere('(penalty.endsAt > :now OR penalty.endsAt IS NULL)', { now: new Date() })
+      .andWhere('(penalty.endsAt > :now OR penalty.endsAt IS NULL)', {
+        now: new Date(),
+      })
       .getOne();
-      
+
     return !!penalty;
   }
 
@@ -459,8 +461,7 @@ export class StaffsService {
         userId,
         userRole,
       );
-      const staffPresence =
-        await this.getOrCreateStaffPresence(staffProfile);
+      const staffPresence = await this.getOrCreateStaffPresence(staffProfile);
 
       return this.toStaffPresenceResponseDto(staffPresence);
     }, 'Lỗi khi lấy trạng thái hoạt động của staff');
@@ -476,8 +477,7 @@ export class StaffsService {
         userId,
         userRole,
       );
-      const staffPresence =
-        await this.getOrCreateStaffPresence(staffProfile);
+      const staffPresence = await this.getOrCreateStaffPresence(staffProfile);
 
       staffPresence.status = dto.status;
       const updatedPresence =
@@ -534,9 +534,7 @@ export class StaffsService {
     return staff;
   }
 
-  private async findStaffByUserId(
-    userId: string,
-  ): Promise<StaffEntity | null> {
+  private async findStaffByUserId(userId: string): Promise<StaffEntity | null> {
     return this.staffRepository.findOne({
       where: { user: { id: userId } },
       relations: ['user', 'documents', 'staffPresence'],
@@ -547,7 +545,7 @@ export class StaffsService {
     userId: string,
     userRole: UserRole,
   ): Promise<StaffEntity> {
-    if (userRole !== UserRole.STAFF) {
+    if (userRole !== UserRole.TASKER) {
       throw new ForbiddenException('Bạn không thể thực hiện hành động này.');
     }
 

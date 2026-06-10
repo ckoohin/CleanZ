@@ -54,10 +54,7 @@ export class StaffsController {
 
   @Get('/profile')
   async getProfile(@CurrentUser() currentUser: AuthUser) {
-    return this.staffService.getProfileStaff(
-      currentUser.id,
-      currentUser.role,
-    );
+    return this.staffService.getProfileStaff(currentUser.id, currentUser.role);
   }
 
   @Get('presence/me')
@@ -240,18 +237,13 @@ export class StaffsController {
 
   @Post(':id/unban')
   @AdminOnly()
-  async unbanStaff(
-    @Param('id', UUIDParam) id: string,
-    @CurrentUser() currentUser: AuthUser,
-  ) {
-    return this.staffService.unbanStaff(id, currentUser.id);
+  async unbanStaff(@Param('id', UUIDParam) id: string) {
+    return this.staffService.unbanStaff(id);
   }
 
   @Get(':id/penalties')
   @AdminOnly()
-  async getPenalties(
-    @Param('id', UUIDParam) id: string,
-  ) {
+  async getPenalties(@Param('id', UUIDParam) id: string) {
     return this.staffService.getPenalties(id);
   }
 
@@ -261,12 +253,7 @@ export class StaffsController {
     @Body() dto: UpdateStaffProfileDto,
     @CurrentUser() currentUser: AuthUser,
   ) {
-    return this.staffService.update(
-      id,
-      dto,
-      currentUser.id,
-      currentUser.role,
-    );
+    return this.staffService.update(id, dto, currentUser.id, currentUser.role);
   }
 
   // ─── Staff Services Endpoints ──────────────────────────

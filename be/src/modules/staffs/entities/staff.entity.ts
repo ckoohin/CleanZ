@@ -51,15 +51,29 @@ export class StaffEntity {
   @Column({ name: 'bank_name', type: 'varchar', length: 100, nullable: true })
   bankName?: string;
 
-  @Column({ name: 'bank_account_number', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'bank_account_number',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   bankAccountNumber?: string;
 
-  @Column({ name: 'bank_account_name', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'bank_account_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   bankAccountName?: string;
 
-  @OneToMany('StaffDocumentEntity', (document: StaffDocumentEntity) => document.staff, {
-    cascade: true,
-  })
+  @OneToMany(
+    'StaffDocumentEntity',
+    (document: StaffDocumentEntity) => document.staff,
+    {
+      cascade: true,
+    },
+  )
   documents?: StaffDocumentEntity[];
 
   @OneToMany('StaffServiceEntity', (ws: StaffServiceEntity) => ws.staff, {
@@ -67,7 +81,10 @@ export class StaffEntity {
   })
   staffServices?: StaffServiceEntity[];
 
-  @OneToMany('StaffPenaltyEntity', (penalty: StaffPenaltyEntity) => penalty.staff)
+  @OneToMany(
+    'StaffPenaltyEntity',
+    (penalty: StaffPenaltyEntity) => penalty.staff,
+  )
   penalties?: StaffPenaltyEntity[];
 
   @Column({ name: 'total_jobs', type: 'int', default: 0 })
