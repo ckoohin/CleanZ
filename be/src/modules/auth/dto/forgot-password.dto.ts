@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class ForgotPasswordDto {
   @ApiProperty({
-    example: 'staff01@example.com',
+    example: 'tasker01@example.com',
     description: 'Email nhận hướng dẫn đặt lại mật khẩu',
   })
   @IsEmail({}, { message: 'Email không hợp lệ' })

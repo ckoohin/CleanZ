@@ -8,7 +8,12 @@ describe('TokenController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TokenController],
-      providers: [TokenService],
+      providers: [
+        {
+          provide: TokenService,
+          useValue: {},
+        },
+      ],
     }).compile();
 
     controller = module.get<TokenController>(TokenController);

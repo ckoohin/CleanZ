@@ -13,7 +13,7 @@ import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class LoginDto {
   @ApiProperty({
-    example: 'staff01@example.com',
+    example: 'tasker01@example.com',
     description: 'Email dùng để đăng nhập',
   })
   @IsString()
