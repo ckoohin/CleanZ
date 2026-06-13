@@ -19,7 +19,7 @@ const ServiceCard = memo(({ service: s, index = 0 }: ServiceCardProps) => (
     viewport={{ once: true, margin: "-40px" }}
     className="h-full"
   >
-    <Card className="group relative overflow-hidden border border-border/60 hover:shadow-[0_20px_50px_rgba(var(--primary),0.1)] hover:border-primary/20 transition-all duration-500 flex flex-col h-full rounded-[1.8rem] md:rounded-[2rem] bg-card/60 backdrop-blur-sm">
+    <Card className="group relative overflow-hidden border border-border/60 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/20 transition-all duration-500 flex flex-col h-full rounded-[1.8rem] md:rounded-[2rem] bg-card/60 backdrop-blur-sm">
       {/* Badge Tags */}
       <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20 flex flex-col gap-1.5 md:gap-2">
          <Badge variant="secondary" className="bg-background/90 backdrop-blur-md text-[8px] md:text-[9px] uppercase tracking-wider font-black px-2 md:px-3 py-0.5 md:py-1 border border-border/50 text-foreground w-fit">

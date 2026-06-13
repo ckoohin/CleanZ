@@ -59,7 +59,7 @@ export default function HomeError({
 
           <div className="pt-8 flex items-center justify-center gap-4 opacity-40">
              <Sparkles className="w-4 h-4 text-primary" />
-             <span className="text-[10px] font-black uppercase tracking-[0.2em]">KingOfService Recovery Mode</span>
+             <span className="text-[10px] font-black uppercase tracking-[0.2em]">CleanZ Recovery Mode</span>
           </div>
         </div>
       </Container>

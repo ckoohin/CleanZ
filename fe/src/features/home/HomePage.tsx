@@ -22,126 +22,130 @@ import { StatItem, WhyUsItem } from "./types/whyUsSection.type";
 
 
 const CATEGORIES: CategoryItem[] = [
-  { icon: Wrench, label: "Sửa chữa", color: "bg-blue-50 text-blue-600", href: "/services/repair" },
-  { icon: Sparkles, label: "Dọn dẹp", color: "bg-emerald-50 text-emerald-600", href: "/services/cleaning" },
-  { icon: Scissors, label: "Làm đẹp", color: "bg-rose-50 text-rose-600", href: "/services/beauty" },
-  { icon: HeartPulse, label: "Sức khỏe", color: "bg-red-50 text-red-600", href: "/services/health" },
-  { icon: BookOpen, label: "Gia sư", color: "bg-amber-50 text-amber-600", href: "/services/tutor" },
-  { icon: Dumbbell, label: "Fitness", color: "bg-violet-50 text-violet-600", href: "/services/fitness" },
+  { icon: Sparkles, label: "Dọn theo giờ", color: "bg-emerald-50 text-emerald-600", href: "/customer" },
+  { icon: Wrench, label: "Tổng vệ sinh", color: "bg-blue-50 text-blue-600", href: "/customer" },
+  { icon: HeartPulse, label: "Giặt Sofa/Nệm", color: "bg-rose-50 text-rose-600", href: "/customer" },
+  { icon: Scissors, label: "Vệ sinh rèm", color: "bg-purple-50 text-purple-600", href: "/customer" },
+  { icon: BookOpen, label: "Tạp vụ VP", color: "bg-amber-50 text-amber-600", href: "/customer" },
+  { icon: UserCheck, label: "Vệ sinh kính", color: "bg-cyan-50 text-cyan-600", href: "/customer" },
 ];
 
 const SERVICES: ServiceItem[] = [
   {
     id: 1,
-    title: "Dọn nhà chuyên sâu",
-    desc: "Vệ sinh toàn diện mọi bề mặt, bếp và phòng tắm sáng bóng, lau kính đến từng chi tiết.",
+    title: "Dọn dẹp nhà theo giờ",
+    desc: "Giải pháp dọn dẹp linh hoạt, đặt lịch nhanh chóng. Người giúp việc có mặt sau 60 phút, dọn sạch mọi ngóc ngách.",
     image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80",
-    tag: "Dọn dẹp", rating: "4.9", reviews: "128",
-    price: "150.000đ", unit: "/ buổi", duration: "3–4 giờ",
-    bookingUrl: "/booking/cleaning",
+    tag: "Phổ biến nhất", rating: "4.9", reviews: "12.5k",
+    price: "70.000đ", unit: "/ giờ", duration: "Từ 2 giờ",
+    bookingUrl: "/customer",
   },
   {
     id: 2,
-    title: "Kiểm tra điều hòa",
-    desc: "Chẩn đoán toàn bộ hệ thống làm lạnh và sưởi ấm, đảm bảo hiệu suất tối đa.",
-    image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80",
-    tag: "Sửa chữa", rating: "5.0", reviews: "84",
-    price: "200.000đ", unit: "/ lần", duration: "1–2 giờ",
-    bookingUrl: "/booking/hvac",
+    title: "Tổng vệ sinh chuyên sâu",
+    desc: "Làm sạch toàn diện nhà mới xây, nhà lâu ngày không dọn. Bao gồm máy móc chuyên dụng và dung dịch tẩy rửa.",
+    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&q=80",
+    tag: "Chuyên sâu", rating: "5.0", reviews: "3.2k",
+    price: "150.000đ", unit: "/ buổi", duration: "4–8 giờ",
+    bookingUrl: "/customer",
+  },
+  {
+    id: 3,
+    title: "Giặt Sofa & Nệm tại nhà",
+    desc: "Giặt sạch vết bẩn, khử mùi và diệt khuẩn 99% bằng công nghệ phun hút hơi nước nóng 140 độ C.",
+    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80",
+    tag: "Bảo vệ sức khoẻ", rating: "4.8", reviews: "8.1k",
+    price: "250.000đ", unit: "/ bộ", duration: "1.5–2 giờ",
+    bookingUrl: "/customer",
   },
   {
     id: 4,
-    title: "Yoga Hatha cá nhân",
-    desc: "Buổi 1-1 tập trung vào căn chỉnh tư thế, kỹ thuật thở và sự rõ ràng tinh thần.",
-    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
-    tag: "Sức khỏe", rating: "4.8", reviews: "210",
-    price: "250.000đ", unit: "/ giờ", duration: "60 phút",
-    bookingUrl: "/booking/yoga",
+    title: "Vệ sinh sau xây dựng",
+    desc: "Làm sạch triệt để xi măng, sơn thừa, bụi mịn công trình. Đội ngũ đông đảo, thiết bị công nghiệp công suất lớn.",
+    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&q=80",
+    tag: "Dự án mới", rating: "4.9", reviews: "1.2k",
+    price: "15.000đ", unit: "/ m2", duration: "1-2 ngày",
+    bookingUrl: "/customer",
   },
   {
     id: 5,
-    title: "Yoga Hatha cá nhân",
-    desc: "Buổi 1-1 tập trung vào căn chỉnh tư thế, kỹ thuật thở và sự rõ ràng tinh thần.",
-    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
-    tag: "Sức khỏe", rating: "4.8", reviews: "210",
-    price: "250.000đ", unit: "/ giờ", duration: "60 phút",
-    bookingUrl: "/booking/yoga",
+    title: "Vệ sinh rèm cửa",
+    desc: "Tháo lắp giặt sấy tận xưởng hoặc giặt hơi nước tại nhà. Trả lại phom dáng chuẩn và hương thơm tươi mát cho rèm.",
+    image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80",
+    tag: "Làm sạch", rating: "4.7", reviews: "5.5k",
+    price: "120.000đ", unit: "/ kg", duration: "Trong ngày",
+    bookingUrl: "/customer",
   },
   {
     id: 6,
-    title: "Yoga Hatha cá nhân",
-    desc: "Buổi 1-1 tập trung vào căn chỉnh tư thế, kỹ thuật thở và sự rõ ràng tinh thần.",
-    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
-    tag: "Sức khỏe", rating: "4.8", reviews: "210",
-    price: "250.000đ", unit: "/ giờ", duration: "60 phút",
-    bookingUrl: "/booking/yoga",
+    title: "Tạp vụ văn phòng",
+    desc: "Cung cấp nhân sự vệ sinh văn phòng chuyên nghiệp, đảm bảo không gian làm việc xanh - sạch - đẹp mỗi ngày.",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80",
+    tag: "Dành cho DN", rating: "4.9", reviews: "900+",
+    price: "65.000đ", unit: "/ giờ", duration: "Định kỳ",
+    bookingUrl: "/customer",
   },
 ];
 
 const WHY_US = [
   {
     icon: CreditCard,
-    title: "Giá minh bạch",
-    desc: "Không phí ẩn hay tính giờ bất ngờ. Bạn biết chính xác chi phí trước khi đặt.",
+    title: "Giá cả minh bạch",
+    desc: "Hiển thị chi tiết và chính xác giá tiền ngay trên ứng dụng. Bạn không cần phải trả thêm bất kỳ khoản phụ phí nào.",
   },
   {
     icon: UserCheck,
-    title: "Đối tác chất lượng cao",
-    desc: "Chỉ 3% nhà cung cấp xuất sắc vượt qua quy trình kiểm duyệt nhiều bước của chúng tôi.",
+    title: "Người làm chuẩn mực",
+    desc: "100% nhân viên có hồ sơ lý lịch rõ ràng, được đào tạo bài bản về kỹ năng nghề nghiệp và giao tiếp.",
   },
   {
     icon: Award,
-    title: "Cam kết hài lòng",
-    desc: "Không hài lòng? Chúng tôi sẽ xử lý hoặc hoàn tiền cho bạn. Không cần giải thích.",
+    title: "An toàn & Bảo hiểm",
+    desc: "CleanZ bảo vệ quyền lợi của bạn với chính sách bảo hiểm hư hỏng, mất mát tài sản lên đến 100 triệu đồng.",
   },
 ];
 
 const STATS: StatItem[] = [
-  { value: "50K+", label: "Gia đình tin tưởng" },
-  { value: "4.9/5", label: "Đánh giá trung bình" },
-  { value: "98%", label: "Tỷ lệ hài lòng" },
+  { value: "2 Triệu+", label: "Giờ làm việc" },
+  { value: "4.9/5", label: "Điểm đánh giá" },
+  { value: "100.000+", label: "Khách hàng tin dùng" },
 ];
 
 const WHY_IMAGES = [
-  { src: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80", alt: "Dọn nhà chuyên sâu" },
-  { src: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80", alt: "Kiểm tra điều hòa" },
-  { src: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80", alt: "Yoga Hatha cá nhân" },
+  { src: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80", alt: "Nhân viên dọn dẹp" },
+  { src: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&q=80", alt: "Thiết bị chuyên dụng" },
+  { src: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&q=80", alt: "An tâm tuyệt đối" },
 ];
 
 
-import { MobileHomeView } from "@/features/home/_components/MobileHomeView";
 
 export default function HomePagee() {
   return (
     <>
-      <MobileHomeView />
-      
-      <div className="hidden lg:block">
-        <HeroCarousel />
-        <HeroSection />
-        <CategorySection items={CATEGORIES} />
-        <ServicesSection services={SERVICES} />
-        <CtaSection
-          title="Sẵn sàng tìm chuyên viên hoàn hảo?"
-          subtitle="Hơn 50.000 gia đình tin tưởng King of Service cho nhu cầu hàng ngày."
-          primaryLabel="Đặt dịch vụ ngay"
-          primaryHref="/services"
-          secondaryLabel="Xem bảng giá"
-          secondaryHref="/pricing"
-          image="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1000&q=80"
-          stat="50.000+"
-          className="mx-auto my-28"
-        />
-        <WhyUsSection
-          badge="Vì sao chọn chúng tôi"
-          title="Dịch vụ được định nghĩa lại qua"
-          titleHighlight="sự rõ ràng"
-          items={WHY_US}
-          stats={STATS}
-          images={WHY_IMAGES}
-          className="bg-muted/40 border-y border-border py-24"
-        />
-      </div>
+      <HeroCarousel />
+      <HeroSection />
+      <CategorySection items={CATEGORIES} />
+      <ServicesSection services={SERVICES} />
+      <CtaSection
+        title="Thảnh thơi tận hưởng cuộc sống"
+        subtitle="Hơn 100.000 gia đình Việt Nam đã tin tưởng giao phó việc nhà cho CleanZ."
+        primaryLabel="Trải nghiệm ngay"
+        primaryHref="/customer"
+        secondaryLabel="Tìm hiểu thêm"
+        secondaryHref="/about"
+        image="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1000&q=80"
+        stat="100.000+"
+        className="mx-auto my-12 md:my-28"
+      />
+      <WhyUsSection
+        badge="Vì sao chọn CleanZ"
+        title="Tiêu chuẩn dọn dẹp hàng đầu"
+        titleHighlight="Đông Nam Á"
+        items={WHY_US}
+        stats={STATS}
+        images={WHY_IMAGES}
+        className="bg-muted/40 border-y border-border py-12 md:py-24"
+      />
     </>
   );
 }

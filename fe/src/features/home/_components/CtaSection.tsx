@@ -7,7 +7,7 @@ import Container from "@/components/Container";
 
 export const CtaSection: React.FC<CtaSectionProps> = ({
   title = "Sẵn sàng tìm chuyên viên hoàn hảo?",
-  subtitle = "Hơn 50.000 gia đình tin tưởng King of Service cho nhu cầu hàng ngày của họ.",
+  subtitle = "Hơn 50.000 gia đình tin tưởng CleanZ cho nhu cầu hàng ngày của họ.",
   primaryLabel = "Đặt dịch vụ ngay",
   primaryHref = "/services",
   secondaryLabel = "Xem bảng giá",
@@ -83,7 +83,7 @@ export const CtaSection: React.FC<CtaSectionProps> = ({
             >
               <img
                 src={image}
-                alt="King of Service app"
+                alt="CleanZ app"
                 className="w-full h-full object-cover rounded-2xl"
                 loading="lazy"
               />

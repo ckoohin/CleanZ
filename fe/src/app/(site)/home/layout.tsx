@@ -6,9 +6,7 @@ function HomeLayout(
     { children }: { children: React.ReactNode }) {
     return (
         <>
-            <div className="hidden lg:block">
-                <Header />
-            </div>
+            <Header />
             
             <main>
                 {children}

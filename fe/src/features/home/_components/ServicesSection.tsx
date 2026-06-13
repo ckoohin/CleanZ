@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Star, Clock, ArrowRight, CalendarCheck } from "lucide-react";
 import { ServiceCardProps, ServicesSectionProps } from "../types/service.type";
+import { BookingStepper } from "@/features/services/_components/BookingStepper";
+import { ServiceItem } from "@/features/home/types/service.type";
 
 const headingVariants: Variants = {
   hidden:  { opacity: 0, y: 20 },
@@ -20,7 +22,7 @@ const cardVariants: Variants = {
   }),
 };
 
-const ServiceCard: React.FC<ServiceCardProps & { index: number }> = ({ service: s, index }) => (
+const ServiceCard: React.FC<ServiceCardProps & { index: number, onBook: (service: ServiceItem) => void }> = ({ service: s, index, onBook }) => (
   <motion.div
     custom={index}
     variants={cardVariants}
@@ -73,12 +75,10 @@ const ServiceCard: React.FC<ServiceCardProps & { index: number }> = ({ service: 
         <Button
           className="w-full mt-1 font-semibold gap-2 rounded-xl"
           size="sm"
-          asChild
+          onClick={() => onBook(s)}
         >
-          <a href={s.bookingUrl ?? "#"}>
-            <CalendarCheck className="w-3.5 h-3.5" />
-            Đặt ngay
-          </a>
+          <CalendarCheck className="w-3.5 h-3.5" />
+          Đặt ngay
         </Button>
       </CardContent>
     </Card>
@@ -92,6 +92,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   viewAllHref = "/services",
   className,
 }) => {
+  const [bookingModalOpen, React_setBookingModalOpen] = React.useState(false);
+  const [selectedService, React_setSelectedService] = React.useState<ServiceItem | null>(null);
+
+  const handleBook = (service: ServiceItem) => {
+    React_setSelectedService(service);
+    React_setBookingModalOpen(true);
+  };
+
   return (
     <section className={className}>
       <motion.div
@@ -115,9 +123,15 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {services.map((s, i) => (
-          <ServiceCard key={s.id} service={s} index={i} />
+          <ServiceCard key={s.id} service={s} index={i} onBook={handleBook} />
         ))}
       </div>
+
+      <BookingStepper 
+        open={bookingModalOpen} 
+        onOpenChange={React_setBookingModalOpen} 
+        service={selectedService} 
+      />
     </section>
   );
 };

@@ -23,7 +23,8 @@ import {
   ArrowRight,
   TrendingUp,
   Award,
-  ChevronRight
+  ChevronRight,
+  LucideIcon
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,13 +33,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import Container from "@/components/Container";
 import ServiceCard from "../_components/ServiceCard";
+import { BookingStepper } from "../_components/BookingStepper";
+import { ServiceItem } from "@/features/services/types/service.type";
 import { 
   containerVariants, 
   headingVariants 
 } from "../motions/service.motion";
 
 // Dữ liệu mẫu (Thực tế nên lấy từ API)
-const CATEGORY_MAP: Record<string, any> = {
+interface CategoryMapItem {
+  icon: LucideIcon;
+  label: string;
+  color: string;
+  bg: string;
+  theme: string;
+  desc: string;
+  image: string;
+}
+
+const CATEGORY_MAP: Record<string, CategoryMapItem> = {
   "repair": { 
     icon: Wrench, 
     label: "Sửa chữa", 
@@ -119,12 +132,24 @@ export const CategoryDetailPage = () => {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
+
+  // Booking modal state
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const handleBook = (service: ServiceItem) => {
+    setSelectedService(service);
+    setBookingModalOpen(true);
+  };
+
+  
+  
+  
   
   const category = CATEGORY_MAP[slug] || { 
     icon: SparklesIcon, 
     label: slug?.charAt(0).toUpperCase() + slug?.slice(1) || "Dịch vụ", 
     color: "text-primary", 
-    bg: "rgba(var(--primary), 0.1)",
+    bg: "var(--color-primary-10)",
     theme: "hsl(var(--primary))",
     desc: "Khám phá các dịch vụ chất lượng cao trong danh mục này.",
     image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1600&q=80"
@@ -134,6 +159,8 @@ export const CategoryDetailPage = () => {
   const [sortBy, setBy] = useState("popular");
 
   const filteredServices = useMemo(() => {
+  // booking state moved to top of component
+
     return DUMMY_SERVICES.filter(s => 
       s.categoryId === slug && 
       (s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -155,7 +182,7 @@ export const CategoryDetailPage = () => {
       />
 
       {/* Hero Header Section */}
-      <section className="relative pt-24 pb-16 md:pt-40 md:pb-32 overflow-hidden border-b border-border/40">
+      <section className="relative pt-8 pb-16 md:pt-16 md:pb-32 overflow-hidden border-b border-border/40">
         <div className="absolute inset-0 z-0">
           <img 
             src={category.image} 
@@ -250,7 +277,8 @@ export const CategoryDetailPage = () => {
               <div className="flex flex-col gap-4 shrink-0 lg:w-[320px] pt-6 md:pt-0">
                 <Button 
                    size="lg" 
-                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-16 md:h-20 rounded-2xl md:rounded-[1.5rem] font-black text-base md:text-lg shadow-2xl shadow-primary/30"
+                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 md:h-20 rounded-2xl md:rounded-[1.5rem] font-black text-base md:text-lg shadow-2xl shadow-primary/30 mb-4"
+                   onClick={() => handleBook(DUMMY_SERVICES[0] as any)}
                 >
                   Đặt yêu cầu ngay
                 </Button>
@@ -330,8 +358,9 @@ export const CategoryDetailPage = () => {
                 {filteredServices.map((service, index) => (
                   <ServiceCard 
                     key={service.id} 
-                    service={service as any} 
+                    service={service} 
                     index={index}
+                    onBook={handleBook}
                   />
                 ))}
               </motion.div>
@@ -421,7 +450,7 @@ export const CategoryDetailPage = () => {
              <div className="w-full lg:w-1/2 flex flex-col gap-8 md:gap-12 text-sans">
                 <div className="space-y-4 md:space-y-6">
                    <h2 className="text-3xl md:text-6xl font-light text-foreground leading-tight" style={{ fontFamily: "'Times New Roman', serif" }}>
-                     Tại sao nên đặt tại <span className="italic text-primary">KingOfService</span>?
+                     Tại sao nên đặt tại <span className="italic text-primary">CleanZ</span>?
                    </h2>
                    <p className="text-muted-foreground text-sm md:text-lg font-light leading-relaxed">
                      Thấu hiểu nỗi lo của bạn khi để người lạ vào nhà.
@@ -493,6 +522,8 @@ export const CategoryDetailPage = () => {
            </div>
         </Container>
       </section>
+    {/* Booking Modal */}
+    <BookingStepper open={bookingModalOpen} onOpenChange={setBookingModalOpen} service={selectedService} />
     </div>
   );
 };

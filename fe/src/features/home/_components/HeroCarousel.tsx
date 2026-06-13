@@ -12,151 +12,152 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { THeroService } from "../types/hero.type";
+import Link from "next/link";
 
 export const heroServices: THeroService[] = [
   {
     id: 1,
-    title: "VỆ SINH",
-    highlight: "TOÀN NHÀ",
+    title: "DỌN DẸP",
+    highlight: "THEO GIỜ",
     description:
-      "Dọn dẹp chuyên sâu từng góc nhà — bếp, phòng ngủ, nhà tắm. Đội ngũ được đào tạo bài bản, thiết bị hiện đại, sạch chuẩn khách sạn.",
+      "Giải pháp làm sạch linh hoạt cho người bận rộn. Thợ dọn dẹp có mặt sau 60 phút, tính tiền theo số giờ thực tế, mang lại không gian trong lành tức thì.",
     image:
       "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1920&q=85",
     status: "Phổ Biến Nhất",
     statusColor: "bg-emerald-500",
-    bookingUrl: "/booking/cleaning",
+    bookingUrl: "/customer",
     stats: [
       { label: "Đánh giá", value: "4.9★" },
-      { label: "Đã đặt", value: "12k+" },
-      { label: "Từ", value: "150k" },
+      { label: "Đã đặt", value: "15k+" },
+      { label: "Từ", value: "70k/h" },
     ],
-    tag: "Vệ sinh",
+    tag: "Linh hoạt",
   },
   {
     id: 2,
-    title: "SỬA CHỮA",
-    highlight: "ĐIỆN NƯỚC",
+    title: "TỔNG VỆ SINH",
+    highlight: "CHUYÊN SÂU",
     description:
-      "Thợ lành nghề, có chứng chỉ, xử lý nhanh mọi sự cố điện — nước tại nhà. Cam kết đúng giờ, báo giá minh bạch trước khi làm.",
+      "Làm sạch toàn diện mọi ngóc ngách: từ trần nhà, gầm giường đến các khe hẹp nhất. Sử dụng thiết bị chuyên dụng và dung dịch an toàn cho sức khỏe.",
     image:
-      "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=1920&q=85",
-    status: "Đặt Ngay",
+      "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=1920&q=85",
+    status: "Gói Cao Cấp",
     statusColor: "bg-blue-500",
-    bookingUrl: "/booking/repair",
+    bookingUrl: "/customer",
     stats: [
-      { label: "Đánh giá", value: "4.8★" },
-      { label: "Thợ", value: "350+" },
-      { label: "Từ", value: "200k" },
+      { label: "Đánh giá", value: "5.0★" },
+      { label: "Lượt dọn", value: "8k+" },
+      { label: "Từ", value: "150k" },
     ],
-    tag: "Sửa chữa",
+    tag: "Chuyên sâu",
   },
   {
     id: 3,
-    title: "MASSAGE",
-    highlight: "TẠI NHÀ",
+    title: "VỆ SINH",
+    highlight: "SAU XÂY DỰNG",
     description:
-      "Chuyên viên massage được chứng nhận đến tận nhà bạn. Thư giãn hoàn toàn sau ngày dài làm việc, không cần ra khỏi nhà.",
+      "Xử lý triệt để xi măng, sơn thừa, bụi mịn sau thi công. Bàn giao không gian sống hoàn hảo, sạch bóng sẵn sàng dọn vào ở ngay lập tức.",
     image:
-      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=85",
-    status: "Hot Tuần Này",
-    statusColor: "bg-rose-500",
-    bookingUrl: "/booking/massage",
+      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1920&q=85",
+    status: "Chuyên Nghiệp",
+    statusColor: "bg-amber-500",
+    bookingUrl: "/customer",
     stats: [
-      { label: "Đánh giá", value: "5.0★" },
-      { label: "Buổi", value: "8k+" },
-      { label: "Từ", value: "250k" },
+      { label: "Đánh giá", value: "4.8★" },
+      { label: "Dự án", value: "500+" },
+      { label: "Từ", value: "15k/m2" },
     ],
-    tag: "Sức khoẻ",
+    tag: "Dự án mới",
   },
   {
     id: 4,
-    title: "GIA SƯ",
-    highlight: "TẠI NHÀ",
+    title: "GIẶT",
+    highlight: "SOFA & NỆM",
     description:
-      "Kết nối với gia sư uy tín cho mọi cấp độ và môn học. Lịch học linh hoạt, theo dõi tiến độ minh bạch, hiệu quả được cam kết.",
+      "Công nghệ phun hút hơi nước nóng 140 độ C, diệt khuẩn 99% giúp bộ sofa và nệm ngủ nhà bạn sạch sẽ, thơm tho và an toàn tuyệt đối cho da nhạy cảm.",
     image:
-      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1920&q=85",
-    status: "Đang Ưu Đãi",
-    statusColor: "bg-amber-500",
-    bookingUrl: "/booking/tutor",
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1920&q=85",
+    status: "Hot Tuần Này",
+    statusColor: "bg-rose-500",
+    bookingUrl: "/customer",
     stats: [
       { label: "Đánh giá", value: "4.9★" },
-      { label: "Gia sư", value: "500+" },
-      { label: "Từ", value: "180k" },
+      { label: "Lượt giặt", value: "12k+" },
+      { label: "Từ", value: "250k" },
     ],
-    tag: "Giáo dục",
+    tag: "Giặt là",
   },
   {
     id: 5,
-    title: "CHĂM SÓC",
-    highlight: "SẮC ĐẸP",
+    title: "VỆ SINH",
+    highlight: "RÈM CỬA",
     description:
-      "Nail, cắt tóc, chăm sóc da tại nhà bởi chuyên viên được đào tạo chính quy. Mang cả salon đến tận nơi bạn muốn.",
+      "Tháo lắp giặt sấy tận xưởng hoặc giặt hơi nước trực tiếp tại nhà. Giữ nguyên phom dáng, đánh bay hoàn toàn bụi bẩn lâu ngày bám trên rèm.",
     image:
       "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1920&q=85",
-    status: "Top Đánh Giá",
+    status: "Bảo Vệ Sức Khoẻ",
     statusColor: "bg-pink-500",
-    bookingUrl: "/booking/beauty",
+    bookingUrl: "/customer",
     stats: [
-      { label: "Đánh giá", value: "4.9★" },
-      { label: "Lượt", value: "6k+" },
+      { label: "Đánh giá", value: "4.8★" },
+      { label: "Lượt giặt", value: "6k+" },
       { label: "Từ", value: "120k" },
     ],
-    tag: "Làm đẹp",
+    tag: "Giặt là",
   },
   {
     id: 6,
-    title: "HUẤN LUYỆN",
-    highlight: "CÁ NHÂN",
+    title: "TẠP VỤ",
+    highlight: "VĂN PHÒNG",
     description:
-      "Personal trainer đến nhà hoặc tại gym gần bạn. Lịch tập cá nhân hóa, theo dõi chỉ số sức khỏe, đạt mục tiêu nhanh hơn.",
+      "Cung cấp nhân sự tạp vụ văn phòng chuyên nghiệp theo giờ hoặc định kỳ. Đảm bảo môi trường làm việc công ty luôn xanh - sạch - đẹp, tạo cảm hứng.",
     image:
-      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1920&q=85",
-    status: "Đang Chiêu Sinh",
-    statusColor: "bg-orange-500",
-    bookingUrl: "/booking/fitness",
+      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=85",
+    status: "Cho Doanh Nghiệp",
+    statusColor: "bg-cyan-500",
+    bookingUrl: "/customer",
     stats: [
-      { label: "Đánh giá", value: "4.8★" },
-      { label: "Trainer", value: "120+" },
-      { label: "Từ", value: "300k" },
+      { label: "Đánh giá", value: "4.7★" },
+      { label: "Công ty", value: "900+" },
+      { label: "Từ", value: "60k/h" },
     ],
-    tag: "Fitness",
+    tag: "B2B",
   },
   {
     id: 7,
-    title: "SỬA ĐIỀU",
-    highlight: "HÒA",
+    title: "DỌN DẸP",
+    highlight: "ĐỊNH KỲ",
     description:
-      "Vệ sinh, nạp gas, sửa chữa điều hòa tất cả hãng. Thợ có kinh nghiệm 5+ năm, bảo hành 30 ngày, giá cạnh tranh.",
+      "Gói dịch vụ dọn dẹp thường xuyên hàng tuần/tháng. Đảm bảo nhà cửa luôn tươm tất với mức giá siêu tiết kiệm dành riêng cho đăng ký dài hạn.",
     image:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=85",
-    status: "Yêu Cầu Nhiều",
-    statusColor: "bg-cyan-500",
-    bookingUrl: "/booking/hvac",
+      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1920&q=85",
+    status: "Siêu Tiết Kiệm",
+    statusColor: "bg-orange-500",
+    bookingUrl: "/customer",
     stats: [
-      { label: "Đánh giá", value: "4.7★" },
-      { label: "Lượt sửa", value: "9k+" },
-      { label: "Từ", value: "200k" },
+      { label: "Đánh giá", value: "5.0★" },
+      { label: "Gia đình", value: "15k+" },
+      { label: "Giảm tới", value: "20%" },
     ],
-    tag: "Điện lạnh",
+    tag: "Định kỳ",
   },
   {
     id: 8,
-    title: "ĐIỀU DƯỠNG",
-    highlight: "TẠI NHÀ",
+    title: "VỆ SINH",
+    highlight: "KÍNH MẶT NGOÀI",
     description:
-      "Dịch vụ y tế tại nhà — điều dưỡng, thay băng, tiêm thuốc, chăm sóc người cao tuổi. Đội ngũ y tế chuyên nghiệp.",
+      "Dịch vụ đu dây lau kính mặt ngoài cho tòa nhà cao tầng, showroom. Đội ngũ thợ có chứng chỉ an toàn, hóa chất chuyên dụng làm kính sáng bóng không tì vết.",
     image:
-      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1920&q=85",
-    status: "Đáng Tin Cậy",
-    statusColor: "bg-teal-500",
-    bookingUrl: "/booking/nursing",
+      "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1920&q=85",
+    status: "Đặc Biệt",
+    statusColor: "bg-indigo-500",
+    bookingUrl: "/customer",
     stats: [
-      { label: "Đánh giá", value: "5.0★" },
-      { label: "Điều dưỡng", value: "80+" },
-      { label: "Từ", value: "350k" },
+      { label: "Đánh giá", value: "4.8★" },
+      { label: "Toà nhà", value: "120+" },
+      { label: "Khảo sát", value: "Free" },
     ],
-    tag: "Y tế",
+    tag: "Mặt tiền",
   },
 ];
 
@@ -252,7 +253,7 @@ const HeroCarousel = () => {
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.55 }}
-              className="text-6xl md:text-8xl font-black text-white leading-[0.88] mb-6 tracking-tighter uppercase"
+              className="text-4xl sm:text-6xl md:text-8xl font-black text-white leading-[0.88] mb-6 tracking-tighter uppercase"
             >
               {slide.title}
               <br />
@@ -274,7 +275,7 @@ const HeroCarousel = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.32, duration: 0.5 }}
-              className="flex items-center gap-6 mb-10"
+              className="flex items-center gap-3 md:gap-6 mb-10"
             >
               {slide.stats.map((s, i) => (
                 <div key={i} className="flex flex-col">
@@ -299,7 +300,7 @@ const HeroCarousel = () => {
               transition={{ delay: 0.36, duration: 0.5 }}
               className="flex flex-wrap gap-4"
             >
-              <a href={slide.bookingUrl}>
+              <Link href={slide.bookingUrl}>
                 <button className="group relative overflow-hidden bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-full font-black text-sm transition-all flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 uppercase tracking-widest">
                   <CalendarCheck className="w-4 h-4" />
                   Đặt Dịch Vụ Ngay
@@ -307,13 +308,13 @@ const HeroCarousel = () => {
                   {/* shine sweep */}
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                 </button>
-              </a>
-              <a href="/services">
+              </Link>
+              <Link href="/customer">
                 <button className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 px-8 py-4 rounded-full font-black text-sm transition-all flex items-center gap-3 hover:scale-105 active:scale-95 uppercase tracking-widest">
                   <Search className="w-4 h-4" />
                   Khám Phá Dịch Vụ
                 </button>
-              </a>
+              </Link>
             </motion.div>
 
             <motion.div
