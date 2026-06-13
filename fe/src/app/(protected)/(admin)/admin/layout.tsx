@@ -35,7 +35,7 @@ export default function AdminLayout({
                             <BreadcrumbList>
                                 <BreadcrumbItem>
                                     <BreadcrumbLink href="/admin" className="font-medium hover:text-primary transition-colors">
-                                        Hệ thống KingOfService
+                                        Hệ thống CleanZ
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator />

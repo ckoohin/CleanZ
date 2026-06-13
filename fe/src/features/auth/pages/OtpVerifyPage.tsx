@@ -72,7 +72,7 @@ export default function OtpVerifyPage() {
 
     try {
       await verifyOtp({ userId, otp: code });
-      toast.success("Chào mừng bạn đến với King Of Service", { duration: 2000 })
+      toast.success("Chào mừng bạn đến với CleanZ", { duration: 2000 })
       setStatus("success");
     } catch {
       setStatus("error");
@@ -119,7 +119,7 @@ export default function OtpVerifyPage() {
                 <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
                   <span className="text-[10px] font-bold text-white">K</span>
                 </div>
-                <span className="text-xs font-semibold text-foreground">King Of Service</span>
+                <span className="text-xs font-semibold text-foreground">CleanZ</span>
               </div>
             </div>
 
