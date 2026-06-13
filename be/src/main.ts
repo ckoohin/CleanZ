@@ -24,10 +24,10 @@ async function bootstrap() {
   const apiVersion = '1.0.0';
   const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('King of service')
+    .setTitle('CleanZ')
     .setDescription(
       [
-        'API documentation for King of service backend.',
+        'API documentation for CleanZ backend.',
         'Base path: /api/v1',
         'Authentication: JWT (Bearer) and HTTP-only cookies (accessToken, refreshToken).',
       ].join('\n'),

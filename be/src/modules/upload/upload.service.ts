@@ -8,7 +8,7 @@ import * as streamifier from 'streamifier';
 import { AppException } from '../../common/exceptions/app.exception';
 import { asyncHandleOperation } from '../../common/utils/async-handle.utils';
 
-const UPLOAD_FOLDER = 'kingofservice/uploads';
+const UPLOAD_FOLDER = 'CleanZ/uploads';
 
 export interface UploadResult {
   url: string;
