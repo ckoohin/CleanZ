@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/features/auth/hooks/auth.hooks";
-import type { UserRole } from "@/features/auth/types/user.type";
+import type { UserRole, Profile } from "@/features/auth/types/user.type";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -252,7 +252,7 @@ export default function ProfilePage() {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-function TabInfo({ profile, phoneDisplay }: { profile: any; phoneDisplay: string }) {
+function TabInfo({ profile, phoneDisplay }: { profile: Profile; phoneDisplay: string }) {
   return (
     <div className="space-y-3">
       <TabCard title="Thông tin cá nhân" icon={User}
@@ -344,7 +344,7 @@ function TabOrders() {
   );
 }
 
-function TabSecurity({ profile }: { profile: any }) {
+function TabSecurity({ profile }: { profile: Profile }) {
   return (
     <div className="space-y-3">
       <TabCard title="Xác thực & Bảo mật" icon={ShieldCheck}>

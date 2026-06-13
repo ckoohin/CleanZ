@@ -116,7 +116,7 @@ export default function ServiceBookingPage() {
               </Button>
               <div className="flex flex-col">
                  <h1 className="font-bold text-sm md:text-lg truncate max-w-[200px] md:max-w-none">{DUMMY_SERVICE.title}</h1>
-                 <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest font-black">KingOfService Premium</p>
+                 <p className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-widest font-black">CleanZ Premium</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

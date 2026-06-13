@@ -25,7 +25,7 @@ export const PartnerHeader = () => {
         <Container classNameContent="flex-row items-center justify-center gap-2 text-sm font-medium">
           <Info className="w-4 h-4 shrink-0" />
           <p className="text-center">
-            Nếu bạn là Đối tác KingOfService đang gặp sự cố về tài khoản, vui lòng truy cập{" "}
+            Nếu bạn là Đối tác CleanZ đang gặp sự cố về tài khoản, vui lòng truy cập{" "}
             <a href="/help" className="underline font-bold hover:text-black transition-colors">
               Trung tâm trợ giúp.
             </a>

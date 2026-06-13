@@ -42,7 +42,7 @@ export const PremiumStatsCard = ({
       className={cn(
         // Base Layout: Mobile first
         "relative group overflow-hidden p-6 md:p-8 flex flex-col gap-4",
-        // Responsive Radius: Bo góc cực lớn chuẩn KingOfService
+        // Responsive Radius: Bo góc cực lớn chuẩn CleanZ
         "rounded-[2.5rem] md:rounded-[3.5rem]",
         // Design: Glassmorphism phong cách Premium
         "bg-card/40 backdrop-blur-xl border border-border/40 shadow-xl shadow-primary/5",
@@ -91,7 +91,7 @@ export const PremiumStatsCard = ({
       {/* Footer Decoration: Thêm font Serif cho sự sang trọng */}
       <div className="pt-2 md:pt-4 border-t border-border/10">
          <p className="text-[9px] md:text-[11px] font-serif italic opacity-40 text-muted-foreground group-hover:opacity-60 transition-opacity">
-           Dữ liệu được cập nhật theo thời gian thực từ hệ thống KingOfService
+           Dữ liệu được cập nhật theo thời gian thực từ hệ thống CleanZ
          </p>
       </div>
     </motion.div>

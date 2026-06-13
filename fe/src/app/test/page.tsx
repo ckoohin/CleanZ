@@ -210,7 +210,7 @@ export default function TestPage() {
         {/* Header Title */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-            <Sparkles size={12} /> KingOfService Base Components
+            <Sparkles size={12} /> CleanZ Base Components
           </div>
           <h1 className="text-3xl font-black text-balance leading-tight tracking-tight">
             Trang Kiểm Thử Base Components Dùng Chung

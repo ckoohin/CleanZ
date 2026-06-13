@@ -32,12 +32,12 @@ import {
 const customerData = {
   user: {
     name: "Lê Minh Tâm",
-    email: "customer@kingofservice.com",
+    email: "customer@CleanZ.com",
     avatar: "https://i.pravatar.cc/150?u=customer",
   },
   teams: [
     {
-      name: "KingOfService",
+      name: "CleanZ",
       logo: <Sparkles className="text-primary fill-primary/20" />,
       plan: "Tài khoản cá nhân",
     },

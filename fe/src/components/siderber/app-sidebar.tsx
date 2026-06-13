@@ -27,16 +27,16 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Dữ liệu quản trị KingOfService
+// Dữ liệu quản trị CleanZ
 const adminData = {
   user: {
     name: "Admin Root",
-    email: "admin@kingofservice.com",
+    email: "admin@CleanZ.com",
     avatar: "https://i.pravatar.cc/150?u=admin",
   },
   teams: [
     {
-      name: "KingOfService",
+      name: "CleanZ",
       logo: (
         <Sparkles className="text-primary fill-primary/20" />
       ),

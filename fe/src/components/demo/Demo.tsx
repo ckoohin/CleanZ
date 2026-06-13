@@ -79,7 +79,7 @@ const STATS_DASHBOARD = [
 
 const REVIEWS = [
   { name: "Nguyễn Thị Lan", avatar: "N", rating: 5, time: "2 ngày trước", text: "Dịch vụ tuyệt vời! Thợ đến đúng giờ, làm việc chuyên nghiệp và nhiệt tình. Nhà sạch bóng từng góc." },
-  { name: "Trần Minh Khoa", avatar: "T", rating: 4, time: "5 ngày trước", text: "Kỹ thuật viên có tay nghề cao, giải thích rõ ràng vấn đề. Sẽ tiếp tục ủng hộ KingOfService." },
+  { name: "Trần Minh Khoa", avatar: "T", rating: 4, time: "5 ngày trước", text: "Kỹ thuật viên có tay nghề cao, giải thích rõ ràng vấn đề. Sẽ tiếp tục ủng hộ CleanZ." },
 ];
 
 const BOOKING_STEPS = [
@@ -163,7 +163,7 @@ const NavSection = () => (
             <Sparkles className="w-4 h-4 text-primary-foreground" aria-hidden="true" />
           </div>
           <span className="font-bold text-foreground" style={{ fontFamily: "Georgia, serif" }}>
-            KingOfService
+            CleanZ
           </span>
           <nav className="hidden md:flex items-center gap-6 ml-8">
             {["Trang chủ", "Dịch vụ", "Đặt lịch", "Về chúng tôi"].map(item => (
@@ -790,7 +790,7 @@ const CTASection = () => (
     <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
     <div className="absolute -bottom-12 -left-12 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
     <div className="relative z-10">
-      <p className="text-white/70 text-[10px] font-black tracking-[0.2em] uppercase mb-4">KingOfService · Premium UI</p>
+      <p className="text-white/70 text-[10px] font-black tracking-[0.2em] uppercase mb-4">CleanZ · Premium UI</p>
       <h2 className="text-[clamp(24px,4vw,48px)] font-light text-white leading-tight mb-4"
         style={{ fontFamily: "'Times New Roman', Georgia, serif" }}>
         Sẵn sàng xây dựng{" "}
@@ -798,7 +798,7 @@ const CTASection = () => (
         của bạn?
       </h2>
       <p className="text-white/80 text-sm max-w-sm mx-auto mb-8 leading-relaxed">
-        Frontend Design · KingOfService Standards · Brand #FFA000 — tất cả hợp nhất tạo nên trải nghiệm premium.
+        Frontend Design · CleanZ Standards · Brand #FFA000 — tất cả hợp nhất tạo nên trải nghiệm premium.
       </p>
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
         <button className="w-full sm:w-auto h-12 px-8 rounded-2xl bg-white text-primary font-bold text-sm hover:bg-white/90 transition-colors shadow-lg">
@@ -858,7 +858,7 @@ export default function Demo() {
               <span className="text-sm font-bold text-foreground" style={{ fontFamily: "Georgia, serif" }}>
                 UI Demo
               </span>
-              <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">KingOfService</span>
+              <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">CleanZ</span>
             </div>
           </div>
 
@@ -924,7 +924,7 @@ export default function Demo() {
         <motion.h1 variants={fadeUp} custom={0.1}
           className="text-[clamp(32px,5vw,64px)] font-light tracking-[-0.02em] text-foreground leading-tight"
           style={{ fontFamily: "'Times New Roman', Georgia, serif" }}>
-          KingOfService{" "}
+          CleanZ{" "}
           <em className="italic not-italic text-primary">UI</em>{" "}
           Demo
         </motion.h1>
@@ -964,7 +964,7 @@ export default function Demo() {
             <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
               <Sparkles className="w-3 h-3 text-primary-foreground" />
             </div>
-            <span className="text-sm font-bold text-foreground">KingOfService</span>
+            <span className="text-sm font-bold text-foreground">CleanZ</span>
             <span className="text-xs text-muted-foreground">· UI Demo</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">

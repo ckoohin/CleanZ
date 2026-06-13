@@ -3,16 +3,15 @@ import { motion } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Star, Clock, ArrowRight, CalendarCheck, ShieldCheck, Heart } from "lucide-react";
+import { Star, Clock, ArrowRight, ShieldCheck, Heart } from "lucide-react";
 import { cardVariants } from "../motions/service.motion";
-import { ServiceItem } from "@/features/home/types/service.type";
+import { ServiceItem } from "@/features/services/types/service.type";
 
 interface ServiceCardProps {
   service: ServiceItem;
 }
 
-const ServiceCard: React.FC<ServiceCardProps & { index: number }> = ({ service: s, index }) => (
+const ServiceCard: React.FC<ServiceCardProps & { index: number } & { onBook?: (service: ServiceItem) => void }> = ({ service: s, index, onBook }) => (
   <motion.div
     custom={index}
     variants={cardVariants}
@@ -21,93 +20,85 @@ const ServiceCard: React.FC<ServiceCardProps & { index: number }> = ({ service: 
     viewport={{ once: true, margin: "-40px" }}
     className="h-full"
   >
-    <Card className="group relative overflow-hidden border border-border/60 hover:shadow-[0_20px_50px_rgba(var(--primary),0.1)] hover:border-primary/20 transition-all duration-500 flex flex-col h-full rounded-[1.8rem] md:rounded-[2rem] bg-card/60 backdrop-blur-sm">
-      {/* Badge Tags */}
-      <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20 flex flex-col gap-1.5 md:gap-2">
-         <Badge variant="secondary" className="bg-background/90 backdrop-blur-md text-[8px] md:text-[9px] uppercase tracking-wider font-black px-2 md:px-3 py-0.5 md:py-1 border border-border/50 text-foreground w-fit">
-            {s.tag}
-         </Badge>
-         {index % 3 === 0 && (
-           <Badge className="bg-primary text-primary-foreground text-[8px] md:text-[9px] uppercase tracking-wider font-black px-2 md:px-3 py-0.5 md:py-1 border-none w-fit">
-              🔥 Bán chạy
-           </Badge>
-         )}
-      </div>
-
-      {/* Like Button */}
-      <button className="absolute top-3 right-3 md:top-4 md:right-4 z-20 w-9 h-9 md:w-10 md:h-10 rounded-full bg-background/80 backdrop-blur-md flex items-center justify-center border border-border/50 text-muted-foreground hover:text-rose-500 hover:scale-110 transition-all">
-         <Heart className="w-3.5 h-3.5 md:w-4 h-4" />
-      </button>
-
-      {/* Image Section */}
-      <div className="relative h-48 md:h-64 overflow-hidden shrink-0">
+    <Card className="group flex flex-col h-full overflow-hidden border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm hover:shadow-xl transition-all duration-300">
+      
+      {/* Image Section - Aspect Ratio */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
         <img
           src={s.image}
           alt={s.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
         
-        {/* Rating Floating */}
-        <div className="absolute bottom-3 right-3 md:bottom-4 md:right-4 bg-white text-black px-2 py-1 md:px-3 md:py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black flex items-center gap-1 md:gap-1.5 shadow-xl">
-          <Star className="w-3 md:w-3.5 h-3 md:h-3.5 fill-amber-500 text-amber-500" />
-          {s.rating}
-          <span className="text-[8px] md:text-[10px] text-black/40 font-bold">({s.reviews})</span>
+        {/* Badge Tags Top Left */}
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+          <Badge variant="secondary" className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 text-slate-800 dark:text-slate-200 border-none">
+            {s.tag}
+          </Badge>
+          {index % 3 === 0 && (
+            <Badge className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border-none w-fit shadow-md">
+              Hot
+            </Badge>
+          )}
         </div>
 
-        {/* Price Floating */}
-        <div className="absolute bottom-3 left-3 md:bottom-4 md:left-4 text-white">
-           <div className="flex items-baseline gap-1">
-              <span className="text-xl md:text-2xl font-black">{s.price}</span>
-              <span className="text-[8px] md:text-[10px] font-bold opacity-60 uppercase tracking-tighter">{s.unit}</span>
-           </div>
+        {/* Like Button Top Right */}
+        <button className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shadow-sm">
+          <Heart className="w-4 h-4" />
+        </button>
+
+        {/* Rating Bottom Right */}
+        <div className="absolute bottom-3 right-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm text-slate-900 dark:text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm">
+          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+          {s.rating}
+          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">({s.reviews})</span>
         </div>
       </div>
 
       {/* Content Section */}
-      <CardContent className="p-6 md:p-8 flex-1 flex flex-col font-sans">
-        <div className="flex-1">
-           <div className="flex items-center gap-1.5 mb-2 md:mb-3">
-              <ShieldCheck className="w-3 md:w-3.5 h-3 md:h-3.5 text-emerald-500" />
-              <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-emerald-500">Bảo hiểm 100%</span>
-           </div>
-           <h3 className="font-bold text-base md:text-xl text-foreground leading-tight mb-2 md:mb-3 group-hover:text-primary transition-colors line-clamp-2">
-              {s.title}
-           </h3>
-           <p className="text-muted-foreground text-[11px] md:text-[13px] line-clamp-2 leading-relaxed font-light mb-4 md:mb-6">
-             {s.desc}
-           </p>
+      <CardContent className="p-5 flex-1 flex flex-col">
+        <div className="flex items-center gap-1.5 mb-2.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Bảo hiểm 100%</span>
         </div>
+        
+        <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1 mb-1.5 group-hover:text-primary transition-colors">
+          {s.title}
+        </h3>
+        
+        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-4">
+          {s.desc}
+        </p>
 
-        <div className="flex items-center justify-between py-3 md:py-4 border-t border-border/40">
-           <div className="flex flex-col">
-              <span className="text-[8px] md:text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5 md:mb-1">Thời gian</span>
-              <div className="flex items-center gap-1 text-foreground font-bold text-[10px] md:text-xs uppercase">
-                 <Clock className="w-3 md:w-3.5 h-3 md:h-3.5 text-primary" />
-                 {s.duration}
+        <div className="mt-auto">
+          <div className="flex items-center justify-between py-3 border-y border-slate-100 dark:border-slate-800 mb-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Thời gian</span>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <Clock className="w-3.5 h-3.5 text-primary" />
+                {s.duration}
               </div>
-           </div>
-           <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-border/40" />
-           <div className="flex flex-col items-end">
-              <span className="text-[8px] md:text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5 md:mb-1">Trạng thái</span>
-              <span className="text-[9px] md:text-[10px] font-bold text-emerald-500 flex items-center gap-1">
-                 <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                 Sẵn sàng
-              </span>
-           </div>
-        </div>
+            </div>
+            
+            <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-700" />
+            
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Chi phí từ</span>
+              <div className="flex items-baseline gap-1 text-primary">
+                <span className="text-base font-bold">{s.price}</span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{s.unit}</span>
+              </div>
+            </div>
+          </div>
 
-        <Button
-          className="w-full mt-4 md:mt-6 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-[10px] md:text-xs uppercase tracking-widest gap-2 md:gap-3 rounded-xl md:rounded-2xl h-12 md:h-14 shadow-lg shadow-primary/10 border-none group/btn"
-          asChild
-        >
-          <a href={s.bookingUrl ?? "#"}>
-            <CalendarCheck className="w-3.5 h-3.5 md:w-4 h-4 group-hover/btn:rotate-12 transition-transform" />
+          <Button
+            className="w-full h-11 bg-slate-900 hover:bg-primary text-white dark:bg-white dark:text-slate-900 dark:hover:bg-primary dark:hover:text-white font-semibold rounded-xl transition-colors"
+            onClick={() => onBook && onBook(s)}
+          >
             Đặt lịch ngay
-            <ArrowRight className="w-3 h-3 md:w-3.5 md:h-3.5 opacity-0 group-hover/btn:opacity-100 group-hover/btn:translate-x-1 transition-all" />
-          </a>
-        </Button>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   </motion.div>

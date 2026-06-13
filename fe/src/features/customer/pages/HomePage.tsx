@@ -4,16 +4,16 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Sparkles,
-  Wrench,
-  ShieldCheck,
-  Zap,
+  Wind,
+  Home,
+  Shirt,
+  Bug,
+  Armchair,
+  Briefcase,
   Clock,
   MapPin,
-  HeartPulse,
   ChevronRight,
   Search,
-  BookOpen,
-  Dumbbell,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,19 +25,19 @@ import { cn } from '@/lib/utils';
 // Modern tinted palette for services (Apple-style pastel/tinted backgrounds)
 const MAIN_SERVICES = [
   { id: 'cleaning', label: "Dọn dẹp", icon: Sparkles, color: "text-emerald-600", bg: "bg-emerald-500/10" },
-  { id: 'repair', label: "Sửa chữa", icon: Wrench, color: "text-amber-600", bg: "bg-amber-500/10" },
-  { id: 'health', label: "Y tế", icon: HeartPulse, color: "text-rose-600", bg: "bg-rose-500/10" },
-  { id: 'beauty', label: "Làm đẹp", icon: Zap, color: "text-purple-600", bg: "bg-purple-500/10" },
-  { id: 'tutor', label: "Gia sư", icon: BookOpen, color: "text-blue-600", bg: "bg-blue-500/10" },
-  { id: 'fitness', label: "Fitness", icon: Dumbbell, color: "text-orange-600", bg: "bg-orange-500/10" },
-  { id: 'security', label: "Bảo vệ", icon: ShieldCheck, color: "text-slate-700", bg: "bg-slate-500/10" },
+  { id: 'ac-cleaning', label: "Máy lạnh", icon: Wind, color: "text-cyan-600", bg: "bg-cyan-500/10" },
+  { id: 'deep-cleaning', label: "Tổng vệ sinh", icon: Home, color: "text-indigo-600", bg: "bg-indigo-500/10" },
+  { id: 'laundry', label: "Giặt là", icon: Shirt, color: "text-blue-600", bg: "bg-blue-500/10" },
+  { id: 'pest-control', label: "Diệt côn trùng", icon: Bug, color: "text-red-600", bg: "bg-red-500/10" },
+  { id: 'sofa-cleaning', label: "Sofa/Nệm", icon: Armchair, color: "text-amber-600", bg: "bg-amber-500/10" },
+  { id: 'office-cleaning', label: "Tạp vụ", icon: Briefcase, color: "text-slate-700", bg: "bg-slate-500/10" },
   { id: 'more', label: "Tất cả", icon: ChevronRight, color: "text-gray-500", bg: "bg-gray-500/10" },
 ];
 
 const PROMOS = [
-  { title: "Giảm 30% dọn dẹp", code: "KOS30", img: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80" },
-  { title: "Y tế tại nhà 199k", code: "CARE24", img: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&q=80" },
-  { title: "Giảm 50k Sofa", code: "SOFA50", img: "https://images.unsplash.com/photo-1567016432779-094069958ea5?w=800&q=80" },
+  { title: "Giảm 30% dọn dẹp", code: "CLEAN30", img: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80" },
+  { title: "Vệ sinh máy lạnh 199k", code: "AC199", img: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&q=80" },
+  { title: "Giảm 50k giặt Sofa", code: "SOFA50", img: "https://images.unsplash.com/photo-1567016432779-094069958ea5?w=800&q=80" },
 ];
 
 const ONGOING_SERVICE = {

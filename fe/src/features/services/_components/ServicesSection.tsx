@@ -12,9 +12,10 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import ServiceCard from "@/features/services/_components/ServiceCard";
+import { BookingStepper } from "@/features/services/_components/BookingStepper";
 import Container from "@/components/Container";
 import { cn } from "@/lib/utils";
-import { ServiceItem } from "@/features/home/types/service.type";
+import { ServiceItem } from "@/features/services/types/service.type";
 
 interface ServicesSectionProps {
   title?: string;
@@ -31,6 +32,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   viewAllHref = "/services",
   className,
 }) => {
+  const [bookingModalOpen, setBookingModalOpen] = React.useState(false);
+  const [selectedService, setSelectedService] = React.useState<ServiceItem | null>(null);
+
+  const handleBook = (service: ServiceItem) => {
+    setSelectedService(service);
+    setBookingModalOpen(true);
+  };
+
   return (
     <>
       <Container
@@ -66,7 +75,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               {services.map((s, i) => (
                 <CarouselItem key={s.id} className="basis-1/1 sm:basis-1/2 lg:basis-1/3 xl:basis-1/4" >
                   <div className="p-1">
-                    <ServiceCard key={s.id} service={s} index={i} />
+                    <ServiceCard key={s.id} service={s} index={i} onBook={() => handleBook(s)} />
                   </div>
                 </CarouselItem>
               ))}
@@ -77,6 +86,11 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         </div>
       </Container>
 
+      <BookingStepper 
+        open={bookingModalOpen} 
+        onOpenChange={setBookingModalOpen} 
+        service={selectedService} 
+      />
     </>
   );
 };

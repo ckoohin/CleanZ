@@ -8,10 +8,16 @@ export type NavLink = {
 };
 
 export const NAV_LINKS: NavLink[] = [
+  { label: "Về CleanZ",   href: "/about" },
   { label: "Danh mục",    href: "/categories" },
   { label: "Dịch vụ",     href: "/services" },
   { label: "Lịch đặt",    href: "/bookings" },
   { label: "Trợ giúp",    href: "/support" },
+];
+
+export const PARTNER_LINKS: NavLink[] = [
+  { label: "Trở thành đối tác", href: "/become-partner" },
+  { label: "Đăng ký làm nhân viên", href: "/register-tasker" },
 ];
 
 export type HeaderAction = {
