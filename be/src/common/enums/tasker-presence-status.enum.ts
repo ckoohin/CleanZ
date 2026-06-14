@@ -1,0 +1,4 @@
+export enum TASKER_PRESENCE_STATUS {
+  ONLINE = 'ONLINE',
+  OFFLINE = 'OFFLINE',
+}

@@ -5,15 +5,18 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
 import { UsersModule } from './modules/users/users.module';
-import { StaffsModule } from './modules/staffs/staffs.module';
-import { CustomersModule } from './modules/customers/customers.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TokenModule } from './modules/token/token.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { AuthGoogleModule } from './modules/auth-google/auth-google.module';
 import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module';
-import { ServicesModule } from './modules/services/services.module';
-import { BookingsModule } from './modules/bookings/bookings.module';
+import { TaskerModule } from './modules/tasker/tasker.module';
+import { CustomerModule } from './modules/customer/customer.module';
+import { BookingModule } from './modules/booking/booking.module';
+import { IncidentModule } from './modules/incident/incident.module';
+import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
+import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -28,14 +31,17 @@ import { BookingsModule } from './modules/bookings/bookings.module';
     }),
     AuthModule,
     UsersModule,
-    StaffsModule,
-    CustomersModule,
     TokenModule,
     UploadModule,
     AuthGoogleModule,
     AuthFacebookModule,
-    ServicesModule,
-    BookingsModule,
+    TaskerModule,
+    CustomerModule,
+    BookingModule,
+    IncidentModule,
+    SupportTicketModule,
+    WithdrawalModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

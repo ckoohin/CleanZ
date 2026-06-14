@@ -60,11 +60,22 @@ const handleApiErrorGlobal = (error: AxiosError) => {
   }
 
   // lỗi từ backend
-  const message =
+  let displayMessage: any =
     (error.response.data as any)?.errors?.message ||
-    (error.response.data as any)?.message;
+    (error.response.data as any)?.message ||
+    (error.response.data as any)?.errors;
 
-  toast.error(message || "Có lỗi xảy ra, vui lòng thử lại sau");
+  if (displayMessage && typeof displayMessage === "object") {
+    if (Array.isArray(displayMessage)) {
+      displayMessage = displayMessage.join(", ");
+    } else {
+      displayMessage = Object.values(displayMessage)
+        .map((val: any) => (typeof val === "object" ? JSON.stringify(val) : String(val)))
+        .join(", ");
+    }
+  }
+
+  toast.error(displayMessage || "Có lỗi xảy ra, vui lòng thử lại sau");
 };
 
 http.interceptors.request.use(
