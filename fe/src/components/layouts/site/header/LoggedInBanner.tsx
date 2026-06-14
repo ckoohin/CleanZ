@@ -55,7 +55,7 @@ export const LoggedInBanner = () => {
 
             <div className="flex-1 text-center sm:text-left z-10">
               <h4 className="text-sm font-bold text-foreground mb-1 leading-tight">
-                Chào mừng trở lại, {profile.fullName?.split(" ").pop() || "bạn"}!
+                Chào mừng trở lại!
               </h4>
               <p className="text-xs text-muted-foreground leading-relaxed pr-2">
                 Sẵn sàng đặt dịch vụ và dọn dẹp nhà cửa ngay hôm nay?
