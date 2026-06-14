@@ -1,0 +1,103 @@
+import { Controller, Get, Patch, Param, Query, Body, NotFoundException, ParseUUIDPipe } from '@nestjs/common';
+import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
+import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
+import { AdminCustomerRepository } from './repositories/admin-customer.repository';
+import { UsersService } from 'src/modules/users/users.service';
+import { DateRangeQueryDto, RevenueChartQueryDto, BookingDetailsQueryDto } from './dto/date-range-query.dto';
+import { CustomerQueryDto } from './dto/customer-query.dto';
+
+@AdminOnly()
+@Controller('admin')
+export class AdminController {
+  constructor(
+    private readonly dashboardRepo: AdminDashboardRepository,
+    private readonly customerRepo: AdminCustomerRepository,
+    private readonly usersService: UsersService,
+  ) {}
+
+  // ─── Dashboard Endpoints ───
+
+  @Get('dashboard/alerts')
+  getAlerts() {
+    return this.dashboardRepo.getAlerts();
+  }
+
+  @Get('dashboard/kpis')
+  getKpis(@Query() query: DateRangeQueryDto) {
+    return this.dashboardRepo.getKpis(new Date(query.fromDate), new Date(query.toDate));
+  }
+
+  @Get('dashboard/gmv-chart')
+  getGmvChart(@Query() query: RevenueChartQueryDto) {
+    return this.dashboardRepo.getGmvChart(new Date(query.fromDate), new Date(query.toDate), query.groupBy);
+  }
+
+  @Get('dashboard/booking-status-snapshot')
+  getBookingStatusSnapshot() {
+    return this.dashboardRepo.getBookingStatusSnapshot();
+  }
+
+  @Get('dashboard/booking-details')
+  getBookingDetails(
+    @Query() query: BookingDetailsQueryDto,
+  ) {
+    return this.dashboardRepo.getBookingDetails(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+      query.limit ? Math.min(query.limit, 50) : 10,
+    );
+  }
+
+  @Get('dashboard/finance-breakdown')
+  getFinanceBreakdown(@Query() query: DateRangeQueryDto) {
+    return this.dashboardRepo.getFinanceBreakdown(new Date(query.fromDate), new Date(query.toDate));
+  }
+
+  @Get('dashboard/tasker-stats')
+  getTaskerStats(@Query('limit') limit?: string) {
+    return this.dashboardRepo.getTaskerStats(limit ? Math.min(parseInt(limit, 10), 20) : 5);
+  }
+
+  // ─── Customer Management Endpoints ───
+
+  @Get('customers')
+  getCustomers(@Query() query: CustomerQueryDto) {
+    return this.customerRepo.getCustomers(query);
+  }
+
+  @Get('customers/:id')
+  async getCustomerDetail(@Param('id', ParseUUIDPipe) id: string) {
+    const detail = await this.customerRepo.getCustomerDetail(id);
+    if (!detail) {
+      throw new NotFoundException(`Không tìm thấy khách hàng với id ${id}`);
+    }
+    return detail;
+  }
+
+  @Get('customers/:id/bookings')
+  getCustomerBookings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.customerRepo.getCustomerBookings(
+      id,
+      page ? Math.max(1, parseInt(page, 10)) : 1,
+      limit ? Math.min(Math.max(1, parseInt(limit, 10)), 50) : 10,
+    );
+  }
+
+  @Patch('customers/:id/status')
+  async updateCustomerStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    // Get the customer to find associated userId
+    const detail = await this.customerRepo.getCustomerDetail(id);
+    if (!detail) {
+      throw new NotFoundException(`Không tìm thấy khách hàng với id ${id}`);
+    }
+    const user = await this.usersService.toggleUserActiveStatus(detail.userId, isActive);
+    return { message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', isActive: user.isActive };
+  }
+}
