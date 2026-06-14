@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
@@ -177,6 +178,15 @@ export class BookingEntity {
 
   @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
   cancelledAt?: Date | null;
+
+  @Column({
+    name: 'cancelled_by',
+    type: 'enum',
+    enum: CancelledBy,
+    enumName: 'cancelled_by',
+    nullable: true,
+  })
+  cancelledBy?: CancelledBy | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
