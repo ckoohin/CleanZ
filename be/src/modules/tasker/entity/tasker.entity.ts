@@ -10,6 +10,7 @@ import {
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { TaskerDocumentType } from 'src/common/enums/type-docs-tasker.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
+import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 
 @Entity('taskers')
@@ -120,6 +121,15 @@ export class TaskerEntity {
 
   @Column({ name: 'doc_note', type: 'text', nullable: true })
   docNote?: string | null;
+
+  @Column({
+    name: 'presence_status',
+    type: 'enum',
+    enum: TASKER_PRESENCE_STATUS,
+    enumName: 'tasker_presence_status',
+    default: TASKER_PRESENCE_STATUS.OFFLINE,
+  })
+  presenceStatus!: TASKER_PRESENCE_STATUS;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
