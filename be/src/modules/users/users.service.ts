@@ -6,7 +6,7 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { UserEntity } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
@@ -16,11 +16,11 @@ import { CreateOAuthUserDto } from './dto/create-oauth-user.dto';
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<User> {
+  async create(dto: CreateUserDto): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const existingUser = await this.findByEmail(dto.email);
 
@@ -42,13 +42,13 @@ export class UsersService {
     }, 'Lỗi khi tạo người dùng');
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(): Promise<UserEntity[]> {
     return asyncHandleOperation(async () => {
       return await this.userRepository.find();
     }, 'Lỗi khi lấy Users');
   }
 
-  async findOne(id: string): Promise<User> {
+  async findOne(id: string): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
       if (!user) {
@@ -58,7 +58,7 @@ export class UsersService {
     }, 'Lỗi khi lấy một người dùng');
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<UserEntity | null> {
     return asyncHandleOperation(() => {
       return this.userRepository
         .createQueryBuilder('user')
@@ -68,7 +68,7 @@ export class UsersService {
     }, 'Lỗi khi tìm người dùng theo email');
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
       if (!user) {
@@ -121,7 +121,18 @@ export class UsersService {
     }, 'Lỗi khi xác thực email');
   }
 
-  async remove(id: string): Promise<User> {
+  async toggleUserActiveStatus(id: string, isActive: boolean): Promise<UserEntity> {
+    return asyncHandleOperation(async () => {
+      const user = await this.userRepository.findOneBy({ id });
+      if (!user) {
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      }
+      await this.userRepository.update(id, { isActive });
+      return { ...user, isActive };
+    }, 'Lỗi khi cập nhật trạng thái người dùng');
+  }
+
+  async remove(id: string): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
 
@@ -139,14 +150,14 @@ export class UsersService {
     return bcrypt.hash(password, 10);
   }
 
-  async createOAuthUser(dto: CreateOAuthUserDto): Promise<User> {
+  async createOAuthUser(dto: CreateOAuthUserDto): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const user = this.userRepository.create({
         email: dto.email,
         fullName: dto.fullName,
         provider: dto.provider,
         providerId: dto.providerId,
-        avatar: dto.avatar,
+        avatarUrl: dto.avatar,
         isVerified: true,
         isActive: true,
       });

@@ -9,6 +9,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  DeleteDateColumn,
 } from 'typeorm';
 
 @Entity('users')
@@ -23,20 +24,14 @@ export class User {
   phone!: string;
 
   @Exclude()
-  @Column({ select: false, nullable: true })
+  @Column({ name: 'password_hash', select: false, nullable: true })
   password?: string;
+
+  @Column({ name: 'avatar_url', nullable: true })
+  avatarUrl?: string;
 
   @Column({ name: 'full_name', length: 100 })
   fullName!: string;
-
-  @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL })
-  provider: AuthProvider;
-
-  @Column({ name: 'provider_id', nullable: true })
-  providerId?: string;
-
-  @Column({ nullable: true })
-  avatar?: string;
 
   @Column({
     type: 'enum',
@@ -45,21 +40,32 @@ export class User {
   })
   role!: UserRole;
 
+  @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL })
+  provider!: AuthProvider;
+
+  @Column({ name: 'provider_id', nullable: true })
+  providerId?: string;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column({ name: 'is_verified', type: 'boolean', default: false })
-  isVerified: boolean;
+  isVerified!: boolean;
 
   @Column({ name: 'last_login', type: 'timestamp', nullable: true })
-  lastLogin: Date;
+  lastLogin!: Date;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  updatedAt!: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
 
   @OneToMany(() => Token, (token) => token.user)
-  tokens: Token[];
+  tokens?: Token[];
 }
+
+export { User as UserEntity };

@@ -14,7 +14,7 @@ import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class RegisterDto {
   @ApiProperty({
-    example: 'staff01@example.com',
+    example: 'tasker01@example.com',
     description: 'Email đăng ký của người dùng',
   })
   @IsNotEmpty({ message: 'Email không được để trống nhé' })
