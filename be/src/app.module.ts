@@ -13,6 +13,10 @@ import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module
 import { TaskerModule } from './modules/tasker/tasker.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { IncidentModule } from './modules/incident/incident.module';
+import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
+import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -34,6 +38,10 @@ import { BookingModule } from './modules/booking/booking.module';
     TaskerModule,
     CustomerModule,
     BookingModule,
+    IncidentModule,
+    SupportTicketModule,
+    WithdrawalModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

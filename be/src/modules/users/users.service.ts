@@ -121,6 +121,17 @@ export class UsersService {
     }, 'Lỗi khi xác thực email');
   }
 
+  async toggleUserActiveStatus(id: string, isActive: boolean): Promise<UserEntity> {
+    return asyncHandleOperation(async () => {
+      const user = await this.userRepository.findOneBy({ id });
+      if (!user) {
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      }
+      await this.userRepository.update(id, { isActive });
+      return { ...user, isActive };
+    }, 'Lỗi khi cập nhật trạng thái người dùng');
+  }
+
   async remove(id: string): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });

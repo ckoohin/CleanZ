@@ -1,25 +1,21 @@
 "use client"
 
 import * as React from "react"
-import { 
-  LayoutDashboard, 
-  CalendarClock, 
-  Wallet, 
-  MapPin, 
-  UserCircle, 
-  MessageSquare, 
-  ShieldCheck,
-  Star,
+import {
+  CalendarClock,
+  Grid,
+  LayoutDashboard,
+  MapPin,
+  MessageSquare,
   Settings,
-  Sparkles,
-  Search,
-  Grid
+  Star,
+  Wallet,
 } from "lucide-react"
 
-import { NavMain } from "@/components/siderber/nav-main"
-import { NavProjects } from "@/components/siderber/nav-projects"
-import { NavUser } from "@/components/siderber/nav-user"
-import { TeamSwitcher } from "@/components/siderber/team-switcher"
+import { NavMain } from "@/components/sidebar/nav-main"
+import { NavProjects } from "@/components/sidebar/nav-projects"
+import { NavUser } from "@/components/sidebar/nav-user"
+import { SidebarBrand } from "@/components/sidebar/team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -30,18 +26,6 @@ import {
 } from "@/components/ui/sidebar"
 
 const customerData = {
-  user: {
-    name: "Lê Minh Tâm",
-    email: "customer@kingofservice.com",
-    avatar: "https://i.pravatar.cc/150?u=customer",
-  },
-  teams: [
-    {
-      name: "KingOfService",
-      logo: <Sparkles className="text-primary fill-primary/20" />,
-      plan: "Tài khoản cá nhân",
-    },
-  ],
   navMain: [
     {
       title: "Tổng quan",
@@ -105,7 +89,7 @@ export function CustomerSidebar({ ...props }: React.ComponentProps<typeof Sideba
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40" {...props}>
       <SidebarHeader className="h-16 border-b border-border/40 justify-center">
-        <TeamSwitcher teams={customerData.teams} />
+        <SidebarBrand />
       </SidebarHeader>
       <SidebarContent className="py-2 scrollbar-hide bg-sidebar transition-colors duration-300">
         <NavMain items={customerData.navMain} label="Bảng điều khiển" />
@@ -113,7 +97,7 @@ export function CustomerSidebar({ ...props }: React.ComponentProps<typeof Sideba
         <NavProjects projects={customerData.support} label="Hệ thống" />
       </SidebarContent>
       <SidebarFooter className="border-t border-border/40 p-4">
-        <NavUser user={customerData.user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
