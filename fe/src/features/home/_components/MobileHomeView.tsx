@@ -16,18 +16,18 @@ import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
   { icon: Sparkles, label: "Dọn dẹp", color: "bg-emerald-50 text-emerald-600" },
-  { icon: Wrench, label: "Sửa chữa", color: "bg-amber-50 text-amber-600" },
-  { icon: HeartPulse, label: "Y tế", color: "bg-rose-50 text-rose-600" },
-  { icon: Scissors, label: "Làm đẹp", color: "bg-purple-50 text-purple-600" },
-  { icon: BookOpen, label: "Gia sư", color: "bg-blue-50 text-blue-600" },
-  { icon: Dumbbell, label: "Fitness", color: "bg-orange-50 text-orange-600" },
-  { icon: ShieldCheck, label: "Bảo vệ", color: "bg-slate-100 text-slate-600" },
+  { icon: Wrench, label: "Tổng vệ sinh", color: "bg-amber-50 text-amber-600" },
+  { icon: HeartPulse, label: "Giặt Sofa", color: "bg-rose-50 text-rose-600" },
+  { icon: Scissors, label: "Vệ sinh rèm", color: "bg-purple-50 text-purple-600" },
+  { icon: BookOpen, label: "Tạp vụ VP", color: "bg-blue-50 text-blue-600" },
+  { icon: Dumbbell, label: "Vệ sinh kính", color: "bg-cyan-50 text-cyan-600" },
+  { icon: ShieldCheck, label: "Khử khuẩn", color: "bg-slate-100 text-slate-600" },
   { icon: ChevronRight, label: "Tất cả", color: "bg-gray-50 text-gray-600" },
 ];
 
 const RECENT = [
   { title: "Dọn dẹp căn hộ", time: "Hôm qua", price: "200.000đ", icon: Clock },
-  { title: "Sửa điều hòa", time: "Tuần trước", price: "150.000đ", icon: Wrench },
+  { title: "Giặt 2 bộ Sofa", time: "Tuần trước", price: "400.000đ", icon: HeartPulse },
 ];
 
 export function MobileHomeView() {

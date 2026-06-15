@@ -22,12 +22,12 @@ import { StatItem, WhyUsItem } from "./types/whyUsSection.type";
 
 
 const CATEGORIES: CategoryItem[] = [
-  { icon: Sparkles, label: "Dọn theo giờ", color: "bg-emerald-50 text-emerald-600", href: "/customer" },
-  { icon: Wrench, label: "Tổng vệ sinh", color: "bg-blue-50 text-blue-600", href: "/customer" },
-  { icon: HeartPulse, label: "Giặt Sofa/Nệm", color: "bg-rose-50 text-rose-600", href: "/customer" },
-  { icon: Scissors, label: "Vệ sinh rèm", color: "bg-purple-50 text-purple-600", href: "/customer" },
-  { icon: BookOpen, label: "Tạp vụ VP", color: "bg-amber-50 text-amber-600", href: "/customer" },
-  { icon: UserCheck, label: "Vệ sinh kính", color: "bg-cyan-50 text-cyan-600", href: "/customer" },
+  { icon: Sparkles, label: "Dọn theo giờ", color: "bg-emerald-50 text-emerald-600", href: "/services/cleaning" },
+  { icon: Wrench, label: "Tổng vệ sinh", color: "bg-blue-50 text-blue-600", href: "/services/deep-cleaning" },
+  { icon: HeartPulse, label: "Giặt Sofa/Nệm", color: "bg-rose-50 text-rose-600", href: "/services/sofa" },
+  { icon: Scissors, label: "Vệ sinh rèm", color: "bg-purple-50 text-purple-600", href: "/services/curtain" },
+  { icon: BookOpen, label: "Tạp vụ VP", color: "bg-amber-50 text-amber-600", href: "/services/office" },
+  { icon: UserCheck, label: "Vệ sinh kính", color: "bg-cyan-50 text-cyan-600", href: "/services/glass" },
 ];
 
 const SERVICES: ServiceItem[] = [
