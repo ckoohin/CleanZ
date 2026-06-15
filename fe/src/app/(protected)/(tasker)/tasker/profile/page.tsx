@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import {
   User, Phone, MapPin, CreditCard, FileText,
   CheckCircle2, AlertCircle, Camera, Save, Loader2,
-  ArrowLeft,
+  ArrowLeft, Wallet, Navigation, Award, CalendarDays, History, Settings, Wrench, HelpCircle, Share2, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,37 @@ function SectionCard({ title, icon: Icon, children }: {
   );
 }
 
+function ActionCard({ title, icon: Icon, children, href }: {
+  title: string;
+  icon: React.ElementType;
+  children?: React.ReactNode;
+  href?: string;
+}) {
+  const CardContent = (
+    <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/50 transition-colors group cursor-pointer h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
+          </div>
+          <h2 className="font-bold text-sm text-foreground">{title}</h2>
+        </div>
+        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+          <ChevronRight className="w-3.5 h-3.5" />
+        </div>
+      </div>
+      <div className="flex-1">
+        {children}
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return <Link href={href} className="block h-full">{CardContent}</Link>;
+  }
+  return CardContent;
+}
+
 export default function TaskerProfilePage() {
   const { data: tasker, isLoading } = useTaskerProfile();
   const updateProfile = useUpdateTaskerProfile();
@@ -104,26 +135,17 @@ export default function TaskerProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen">
-        <TaskerSidebar />
-        <main className="flex-1 p-8">
-          <div className="max-w-3xl mx-auto space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />
-            ))}
-          </div>
-        </main>
+      <div className="p-5 md:p-8 max-w-3xl mx-auto space-y-4 w-full">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <TaskerSidebar />
-
-      <main className="flex-1 min-w-0 pt-14 lg:pt-0">
-        <div className="p-5 md:p-8 max-w-3xl mx-auto">
-          {/* Header */}
+    <div className="p-5 md:p-8 max-w-3xl mx-auto w-full">
+      {/* Header */}
           <div className="mb-8">
             <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2 text-muted-foreground">
               <Link href="/tasker" className="flex items-center gap-2">
@@ -137,9 +159,119 @@ export default function TaskerProfilePage() {
               Hồ sơ <span className="italic text-primary">cá nhân</span>
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Cập nhật thông tin để tăng tỷ lệ nhận đơn hàng.
+              Quản lý tài khoản, thu nhập và cập nhật thông tin cá nhân của bạn.
             </p>
           </div>
+
+          {/* --- CÁC MỤC CHỨC NĂNG BỔ SUNG (Tài chính, Hành trình, Cài đặt...) --- */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            {/* 1. Tài chính */}
+            <ActionCard title="Tài chính" icon={Wallet}>
+              <div className="text-center space-y-2 mt-2">
+                <p className="font-bold text-foreground text-sm">Tài khoản chính</p>
+                <div className="inline-flex items-baseline justify-center px-6 py-2 rounded-xl border border-border bg-muted/30">
+                  <span className="text-2xl font-black text-primary tracking-tight">0</span>
+                  <span className="text-sm font-bold ml-1 text-primary">đ</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-sm mt-4 text-muted-foreground border-t border-border pt-3">
+                <span>Tài khoản khuyến mãi:</span>
+                <span className="font-bold text-foreground">0đ</span>
+              </div>
+            </ActionCard>
+
+            {/* 2. Hành trình */}
+            <ActionCard title="Hành trình" icon={Navigation}>
+              <div className="flex items-center justify-between h-full pt-2">
+                <div className="text-sm">
+                  <span className="text-primary font-bold">Cấp 1</span>
+                  <span className="font-bold text-foreground"> - Ong Non</span>
+                </div>
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xl">
+                  🐝
+                </div>
+              </div>
+            </ActionCard>
+
+            {/* 3. Điểm ưu đãi */}
+            <ActionCard title="Điểm ưu đãi" icon={Award}>
+              <div className="flex items-center gap-2 h-full pt-2">
+                <Award className="w-5 h-5 text-primary" />
+                <span className="font-bold text-foreground text-sm">0 bPoint</span>
+              </div>
+            </ActionCard>
+
+            {/* 4. Báo cáo tuần */}
+            <ActionCard title="Báo cáo tuần" icon={CalendarDays}>
+              <div className="space-y-3 mt-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Thu nhập tuần này</span>
+                  <span className="font-bold text-foreground">0đ</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Việc đã hoàn thành</span>
+                  <span className="font-bold text-foreground">0</span>
+                </div>
+              </div>
+            </ActionCard>
+
+            {/* 5. Lịch sử thu nhập */}
+            <ActionCard title="Lịch sử thu nhập" icon={History}>
+              <div className="flex justify-between items-center text-sm h-full pt-2">
+                <span className="text-muted-foreground">Thu nhập tháng này</span>
+                <span className="font-bold text-foreground">0đ</span>
+              </div>
+            </ActionCard>
+
+            {/* 6. Cài đặt */}
+            <ActionCard title="Cài đặt" icon={Settings}>
+              <div className="flex justify-between items-center text-sm h-full pt-2">
+                <span className="text-muted-foreground">Nhận thông báo việc</span>
+                <span className="font-bold text-primary">Mở</span>
+              </div>
+            </ActionCard>
+
+            {/* 7. Bộ dụng cụ và hóa chất */}
+            <ActionCard title="Bộ dụng cụ và hóa chất" icon={Wrench}>
+              <div className="flex items-center text-sm text-muted-foreground h-full pt-2">
+                Quản lý bộ dụng cụ, hóa chất
+              </div>
+            </ActionCard>
+
+            {/* 8. Hỗ trợ */}
+            <ActionCard title="Hỗ trợ" icon={HelpCircle}>
+              <div className="flex items-center text-sm text-muted-foreground h-full pt-2">
+                Kênh hỗ trợ tài khoản và công việc
+              </div>
+            </ActionCard>
+          </div>
+
+          {/* 9. Chia sẻ */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-primary/10 rounded-2xl p-6 shadow-sm relative overflow-hidden mb-8 border border-primary/20"
+          >
+            <div className="relative z-10 w-2/3">
+              <h2 className="text-primary font-black text-xl mb-2">
+                Chia sẻ
+              </h2>
+              <p className="text-foreground/80 text-sm mb-4 leading-snug">
+                Chia sẻ để nhận các<br />ưu đãi hấp dẫn
+              </p>
+              <button type="button" className="bg-primary text-primary-foreground px-5 py-2 rounded-xl font-bold text-sm shadow-sm hover:scale-105 active:scale-95 transition-transform">
+                Xem thêm
+              </button>
+            </div>
+            <div className="absolute right-[-10px] bottom-[-10px] w-32 h-32 opacity-30 pointer-events-none">
+               <div className="w-full h-full flex items-end justify-end p-4 text-primary">
+                 <Share2 className="w-24 h-24" />
+               </div>
+            </div>
+          </motion.div>
+
+          <Separator className="mb-8" />
+          <h2 className="text-xl font-bold mb-6">Chỉnh sửa thông tin cá nhân</h2>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Avatar & Identity */}
@@ -319,7 +451,5 @@ export default function TaskerProfilePage() {
             </motion.div>
           </form>
         </div>
-      </main>
-    </div>
   );
 }
