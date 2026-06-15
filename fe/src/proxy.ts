@@ -78,11 +78,10 @@ export async function proxy(req: NextRequest) {
   if (activeToken) {
     const role = getUserRole(activeToken);
     
-    if (pathname.startsWith("/admin") && role !== "ADMIN") {
-      return redirectToLogin(req, pathname, searchParams);
-    }
+    // if (pathname.startsWith("/admin") && role !== "ADMIN") {
+    //   return redirectToLogin(req, pathname, searchParams);
+    // }
     
-    // [TẮT TẠM] Bypass kiểm tra role /tasker để check UI - bật lại khi cần
     // if (pathname.startsWith("/tasker") && role !== "TASKER" && role !== "ADMIN") {
     //   return redirectToLogin(req, pathname, searchParams);
     // }
@@ -116,7 +115,7 @@ function redirectToLogin(req: NextRequest, pathname: string, searchParams: URLSe
 export const config = {
   matcher: [
     // "/admin/:path*",
-    // "/tasker/:path*",  // [TẮT TẠM] bypass hoàn toàn để check UI - bật lại khi xong
+    // "/tasker/:path*",
     // "/customer/:path*"
   ],
 };

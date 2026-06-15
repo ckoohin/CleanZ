@@ -1,0 +1,25 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Antennas -->
+  <path d="M50 32 L35 18" stroke="#fd7e14" stroke-width="5" stroke-linecap="round" />
+  <path d="M50 32 L65 18" stroke="#fd7e14" stroke-width="5" stroke-linecap="round" />
+  <circle cx="33" cy="14" r="6" fill="#fd7e14" />
+  <circle cx="67" cy="14" r="6" fill="#fd7e14" />
+  
+  <!-- Ears -->
+  <rect x="14" y="46" width="8" height="22" rx="4" fill="#fd7e14" />
+  <rect x="78" y="46" width="8" height="22" rx="4" fill="#fd7e14" />
+  
+  <!-- Helmet Outline -->
+  <rect x="22" y="32" width="56" height="46" rx="23" stroke="#fd7e14" stroke-width="5" fill="transparent" />
+  
+  <!-- Eyes (Happy arcs) -->
+  <path d="M38 52 Q 42 46 46 52" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" fill="none" />
+  <path d="M54 52 Q 58 46 62 52" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" fill="none" />
+  
+  <!-- Cheeks -->
+  <circle cx="34" cy="62" r="4" fill="#FF7EB3" />
+  <circle cx="66" cy="62" r="4" fill="#FF7EB3" />
+  
+  <!-- Mouth -->
+  <path d="M44 60 Q 50 70 56 60" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" fill="none" />
+</svg>

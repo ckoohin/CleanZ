@@ -42,9 +42,15 @@ function NavUserSkeleton() {
   )
 }
 
-export function NavUser() {
+type User = { name: string; email: string; avatar: string; fullName: string }
+
+export function NavUser({
+  user
+}: {
+  user?:  User
+}) {
   const { isMobile } = useSidebar()
-  const { data: user, isLoading } = useAuth()
+  const { data: data, isLoading } = useAuth()
   const logout = useLogout()
 
   if (isLoading) return <NavUserSkeleton />
