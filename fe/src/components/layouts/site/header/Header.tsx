@@ -30,9 +30,9 @@ interface HeaderProps {
 
 const SUGGESTIONS = [
   { icon: TrendingUp, label: "Dọn nhà cuối tuần", tag: "Hot" },
-  { icon: Zap, label: "Sửa điều hòa khẩn", tag: "Nhanh" },
-  { icon: Star, label: "Massage thư giãn 60p", tag: "4.9★" },
-  { icon: Clock, label: "Gia sư toán cấp 2", tag: "" },
+  { icon: Zap, label: "Giặt Sofa khẩn cấp", tag: "Nhanh" },
+  { icon: Star, label: "Vệ sinh máy lạnh", tag: "4.9★" },
+  { icon: Clock, label: "Tổng vệ sinh 4 tiếng", tag: "" },
 ];
 
 const CITIES = ["TP. Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Hải Phòng"];

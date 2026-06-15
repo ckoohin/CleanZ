@@ -235,28 +235,28 @@ export function BaseTableList<T>({
 
   // ── Pagination ───────────────────────────────
   const getPageNumbers = (): (number | "...")[] => {
-    if (totalPages <= 9) {
+    if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
     
-    if (page <= 5) {
-      return [1, 2, 3, 4, 5, 6, "...", totalPages - 2, totalPages - 1, totalPages];
+    if (page <= 4) {
+      return [1, 2, 3, 4, 5, "...", totalPages];
     }
     
-    if (page >= totalPages - 4) {
+    if (page >= totalPages - 3) {
       return [
-        1, 2, 3, 
+        1, 
         "...", 
-        totalPages - 5, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages
+        totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages
       ];
     }
     
     return [
-      1, 2, 3, 
+      1, 
       "...", 
       page - 1, page, page + 1, 
       "...", 
-      totalPages - 2, totalPages - 1, totalPages
+      totalPages
     ];
   };
 

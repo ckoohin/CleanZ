@@ -45,37 +45,51 @@ const refreshToken = async (): Promise<boolean> => {
     return false;
   }
 };
+export interface ApiErrorResponse {
+  message?: string;
+  errors?: {
+    message?: string;
+    [key: string]: unknown;
+  };
+}
+
 // xử lý lỗi api
-const handleApiErrorGlobal = (error: AxiosError) => {
-  //  mất mạng
-  if (error.code === "ERR_NETWORK") {
-    toast.error("Không có kết nối internet");
+const handleApiErrorGlobal = (error: AxiosError<ApiErrorResponse>) => {
+  // Kiểm tra trạng thái mạng của thiết bị (chỉ chạy trên Client)
+  const isOnline = typeof window !== 'undefined' ? window.navigator.onLine : true;
+
+  if (!isOnline) {
+    toast.error("Mất kết nối Internet. Vui lòng kiểm tra lại Wifi/3G.", { id: "network-error" });
     return;
   }
 
-  // server không phản hồi
-  if (!error.response) {
-    toast.error("Server không phản hồi");
+  // Nếu có mạng nhưng vẫn dính ERR_NETWORK hoặc không có response -> Server down, sập nguồn hoặc bị block (CORS)
+  if (error.code === "ERR_NETWORK" || !error.response) {
+    toast.error("Hệ thống máy chủ đang bảo trì hoặc gặp sự cố. Vui lòng thử lại sau.", { id: "server-down" });
     return;
   }
 
   // lỗi từ backend
-  let displayMessage: any =
-    (error.response.data as any)?.errors?.message ||
-    (error.response.data as any)?.message ||
-    (error.response.data as any)?.errors;
+  const responseData = error.response.data as Record<string, unknown> | undefined;
+  const errorsObj = responseData?.errors as Record<string, unknown> | undefined;
+
+  let displayMessage: unknown =
+    errorsObj?.message ||
+    responseData?.message ||
+    responseData?.errors;
 
   if (displayMessage && typeof displayMessage === "object") {
     if (Array.isArray(displayMessage)) {
       displayMessage = displayMessage.join(", ");
     } else {
-      displayMessage = Object.values(displayMessage)
-        .map((val: any) => (typeof val === "object" ? JSON.stringify(val) : String(val)))
+      displayMessage = Object.values(displayMessage as Record<string, unknown>)
+        .map((val: unknown) => (typeof val === "object" && val !== null ? JSON.stringify(val) : String(val)))
         .join(", ");
     }
   }
 
-  toast.error(displayMessage || "Có lỗi xảy ra, vui lòng thử lại sau");
+  const finalMessage = (displayMessage as string) || "Có lỗi xảy ra, vui lòng thử lại sau";
+  toast.error(finalMessage, { id: finalMessage });
 };
 
 http.interceptors.request.use(
@@ -85,7 +99,7 @@ http.interceptors.request.use(
 
 http.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
+  async (error: AxiosError<ApiErrorResponse>) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
