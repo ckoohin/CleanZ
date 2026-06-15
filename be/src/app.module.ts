@@ -13,6 +13,7 @@ import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module
 import { TaskerModule } from './modules/tasker/tasker.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { BookingModule } from './modules/booking/booking.module';
     TaskerModule,
     CustomerModule,
     BookingModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [AppService],

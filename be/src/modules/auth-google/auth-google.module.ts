@@ -8,9 +8,16 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { CookieHelper } from 'src/common/helpers/cookie.helper';
+import { CustomerModule } from '../customer/customer.module';
 
 @Module({
-  imports: [PassportModule, ConfigModule, UsersModule, AuthModule],
+  imports: [
+    PassportModule,
+    ConfigModule,
+    UsersModule,
+    AuthModule,
+    CustomerModule,
+  ],
   controllers: [AuthGoogleController],
   providers: [AuthGoogleService, GoogleStrategy, CookieHelper],
 })

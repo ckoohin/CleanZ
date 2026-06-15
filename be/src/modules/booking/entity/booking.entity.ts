@@ -54,11 +54,17 @@ export class BookingEntity {
   @Column({ type: 'text', nullable: true })
   note?: string | null;
 
-  @Column({ name: 'scheduled_start', type: 'timestamp' })
-  scheduledStart!: Date;
+  @Column({ name: 'scheduled_start_date', type: 'date', nullable: true })
+  scheduledStartDate?: string | null;
 
-  @Column({ name: 'scheduled_end', type: 'timestamp' })
-  scheduledEnd!: Date;
+  @Column({ name: 'scheduled_start_time', type: 'time', nullable: true })
+  scheduledStartTime?: string | null;
+
+  @Column({ name: 'scheduled_end_date', type: 'date', nullable: true })
+  scheduledEndDate?: string | null;
+
+  @Column({ name: 'scheduled_end_time', type: 'time', nullable: true })
+  scheduledEndTime?: string | null;
 
   @Column({
     name: 'duration_hours',
