@@ -48,7 +48,7 @@ const CORE_VALUES = [
 const TIMELINE = [
   { year: "2024", title: "Ra mắt ý tưởng", desc: "Đội ngũ sáng lập phôi thai ý tưởng về một siêu ứng dụng tiện ích gia đình khác biệt." },
   { year: "2025", title: "CleanZ V1.0", desc: "Chính thức ra mắt bản thử nghiệm tại TP.HCM với dịch vụ Dọn nhà theo giờ, đạt 5.000 user đầu tiên." },
-  { year: "2026", title: "Bùng nổ hệ sinh thái", desc: "Mở rộng 15 tỉnh thành, ra mắt hàng loạt dịch vụ mới như Vệ sinh máy lạnh, Giặt rèm, Phun côn trùng." },
+  { year: "2026", title: "Bùng nổ dịch vụ", desc: "Mở rộng 15 tỉnh thành, ra mắt hàng loạt dịch vụ mới như Vệ sinh máy lạnh, Giặt rèm, Phun côn trùng." },
 ];
 
 const PRESS_LOGOS = [
@@ -82,8 +82,8 @@ export default function AboutPage() {
                 <p>
                   CleanZ ra đời với một khát vọng duy nhất: <strong>Giải quyết bài toán việc nhà rườm rà</strong> và giải phóng phụ nữ khỏi những áp lực không tên.
                 </p>
-                <p>
-                  Không chỉ là một ứng dụng dọn dẹp, chúng tôi xây dựng một hệ sinh thái giúp <strong>hàng ngàn người lao động</strong> có công việc ổn định, thu nhập cao và một môi trường làm việc được tôn trọng.
+                <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed mb-6">
+                  Không chỉ là một ứng dụng dọn dẹp, chúng tôi xây dựng một nền tảng giúp <strong>hàng ngàn người lao động</strong> có công việc ổn định, thu nhập cao và một môi trường làm việc được tôn trọng.
                 </p>
               </div>
             </motion.div>
