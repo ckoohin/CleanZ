@@ -62,7 +62,7 @@ const DUMMY_SERVICE = {
     { icon: Sparkles, title: "Sạch sâu", desc: "Hóa chất đạt chuẩn an toàn" },
   ],
   process: [
-    { step: "01", title: "Khảo sát và Phân loại", desc: "Chuyên gia kiểm tra tình trạng bề mặt và vật liệu để chọn hóa chất phù hợp." },
+    { step: "01", title: "Khảo sát và Phân loại", desc: "Nhân viên kiểm tra tình trạng bề mặt và vật liệu để chọn hóa chất phù hợp." },
     { step: "02", title: "Dọn dẹp thô", desc: "Thu gom rác, hút bụi toàn bộ sàn nhà và các hốc tường." },
     { step: "03", title: "Vệ sinh chi tiết", desc: "Lau kính, khử khuẩn bếp, phòng tắm bằng máy hơi nước nóng." },
     { step: "04", title: "Nghiệm thu", desc: "Khách hàng kiểm tra và ký biên bản hoàn thành." },
@@ -188,7 +188,7 @@ export default function ServiceBookingPage() {
             <section className="space-y-12">
                <div className="space-y-4">
                   <Badge variant="outline" className="text-[10px] font-black uppercase tracking-[0.2em] border-primary/20 text-primary rounded-full px-4">Quy trình</Badge>
-                  <h3 className="text-3xl md:text-5xl font-light" style={{ fontFamily: "'Times New Roman', serif" }}>Cách chúng tôi <span className="italic text-primary">làm việc</span></h3>
+                  <h3 className="text-2xl md:text-4xl font-bold tracking-tight">Cách chúng tôi <span className="italic text-primary">làm việc</span></h3>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   {DUMMY_SERVICE.process.map((step, i) => (
@@ -234,7 +234,7 @@ export default function ServiceBookingPage() {
 
             {/* FAQ Accordion */}
             <section className="space-y-10">
-               <h3 className="text-2xl md:text-4xl font-light" style={{ fontFamily: "'Times New Roman', serif" }}>Câu hỏi thường gặp</h3>
+               <h3 className="text-xl md:text-3xl font-bold tracking-tight">Câu hỏi thường gặp</h3>
                <Accordion type="single" collapsible className="w-full">
                  {DUMMY_SERVICE.faqs.map((faq, i) => (
                    <AccordionItem key={i} value={`item-${i}`} className="border-border/40 px-2">
@@ -329,7 +329,7 @@ export default function ServiceBookingPage() {
                    {/* 3. Expert Selection */}
                    <section className="space-y-6">
                       <h4 className="flex items-center gap-3 font-bold text-lg">
-                         <User className="w-5 h-5 text-emerald-500" /> Chuyên gia
+                         <User className="w-5 h-5 text-emerald-500" /> Nhân viên
                       </h4>
                       <div className="grid grid-cols-3 gap-3">
                          {DUMMY_SERVICE.experts.map((exp) => (
