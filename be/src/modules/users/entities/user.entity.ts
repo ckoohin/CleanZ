@@ -1,6 +1,7 @@
 import { Exclude } from 'class-transformer';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { BaseEntity } from 'src/common/utils/base-entity';
 import { Token } from 'src/modules/token/entities/token.entity';
 import {
   Entity,
@@ -13,10 +14,7 @@ import {
 } from 'typeorm';
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
+export class User extends BaseEntity {
   @Column({ unique: true })
   email!: string;
 
@@ -55,6 +53,7 @@ export class User {
   @Column({ name: 'last_login', type: 'timestamp', nullable: true })
   lastLogin!: Date;
 
+<<<<<<< Updated upstream
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
@@ -64,6 +63,8 @@ export class User {
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt?: Date;
 
+=======
+>>>>>>> Stashed changes
   @OneToMany(() => Token, (token) => token.user)
   tokens?: Token[];
 }
