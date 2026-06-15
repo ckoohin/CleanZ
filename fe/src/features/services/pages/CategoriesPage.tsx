@@ -121,7 +121,7 @@ const blurVariants: Variants = {
 const STEPS = [
   {
     title: "Chọn danh mục",
-    desc: "Tìm kiếm và lựa chọn lĩnh vực bạn cần hỗ trợ từ hệ sinh thái đa dạng.",
+    desc: "Tìm kiếm và lựa chọn lĩnh vực bạn cần hỗ trợ từ danh sách dịch vụ của chúng tôi.",
     icon: LayoutGrid
   },
   {
@@ -131,7 +131,7 @@ const STEPS = [
   },
   {
     title: "Đặt lịch & Xong",
-    desc: "Xác nhận thời gian và chuyên gia của chúng tôi sẽ có mặt ngay.",
+    desc: "Xác nhận thời gian và nhân viên của chúng tôi sẽ có mặt ngay.",
     icon: ShieldCheck
   }
 ];
@@ -215,7 +215,7 @@ export const CategoriesPage = () => {
               </h1>
               
               <p className="text-slate-500 dark:text-slate-400 text-sm md:text-lg mb-10 max-w-2xl mx-auto leading-relaxed px-4 md:px-2">
-                Nền tảng kết nối trực tiếp bạn với hàng ngàn chuyên gia vệ sinh được đào tạo bài bản, kiểm tra nhân thân rõ ràng. Nhanh chóng - Tiện lợi - An toàn.
+                Nền tảng kết nối trực tiếp bạn với hàng ngàn nhân viên vệ sinh được đào tạo bài bản, kiểm tra nhân thân rõ ràng. Nhanh chóng - Tiện lợi - An toàn.
               </p>
 
               {/* Enhanced Search Bar */}
@@ -406,7 +406,7 @@ export const CategoriesPage = () => {
                 Cam kết chất lượng <br/> cho mọi nhà.
               </h2>
               <p className="text-white/80 text-base md:text-lg mb-8 leading-relaxed">
-                Đội ngũ chuyên gia dọn dẹp được chọn lọc kỹ lưỡng, đảm bảo mang đến không gian sống hoàn hảo nhất.
+                Đội ngũ nhân viên dọn dẹp được chọn lọc kỹ lưỡng, đảm bảo mang đến không gian sống hoàn hảo nhất.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" className="bg-white text-black hover:bg-white/90 rounded-full px-8 h-12 font-bold shadow-xl">
