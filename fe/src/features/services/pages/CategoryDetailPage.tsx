@@ -52,80 +52,79 @@ interface CategoryMapItem {
 }
 
 const CATEGORY_MAP: Record<string, CategoryMapItem> = {
-  "repair": { 
-    icon: Wrench, 
-    label: "Sửa chữa", 
-    color: "text-blue-500", 
-    bg: "rgba(59, 130, 246, 0.1)", 
-    theme: "#3b82f6",
-    desc: "Khắc phục mọi sự cố điện nước, điều hòa và gia dụng trong ngôi nhà của bạn với đội ngũ kỹ thuật viên tay nghề cao.",
-    image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=1600&q=80"
-  },
   "cleaning": { 
     icon: Sparkles, 
-    label: "Dọn dẹp", 
+    label: "Dọn dẹp nhà cửa", 
     color: "text-emerald-500", 
     bg: "rgba(16, 185, 129, 0.1)", 
     theme: "#10b981",
     desc: "Không gian sống sạch bóng với đội ngũ vệ sinh chuyên nghiệp, tận tâm và hóa chất an toàn cho sức khỏe.",
     image: "https://images.unsplash.com/photo-1581578731548-c64695cc6954?w=1600&q=80"
   },
-  "beauty": { 
-    icon: Scissors, 
-    label: "Làm đẹp", 
+  "deep-cleaning": { 
+    icon: Wrench, 
+    label: "Tổng vệ sinh", 
+    color: "text-blue-500", 
+    bg: "rgba(59, 130, 246, 0.1)", 
+    theme: "#3b82f6",
+    desc: "Làm sạch toàn diện nhà mới xây, nhà lâu ngày không dọn với máy móc chuyên dụng công suất lớn.",
+    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=1600&q=80"
+  },
+  "sofa": { 
+    icon: HeartPulse, 
+    label: "Giặt Sofa/Nệm", 
     color: "text-rose-500", 
     bg: "rgba(244, 63, 94, 0.1)", 
     theme: "#f43f5e",
-    desc: "Chăm sóc nhan sắc và thư giãn cơ thể ngay tại sự thoải mái của ngôi nhà bạn bởi các chuyên gia spa hàng đầu.",
-    image: "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=1600&q=80"
+    desc: "Giặt sạch vết bẩn, khử mùi và diệt khuẩn 99% bằng công nghệ phun hút hơi nước nóng 140 độ C.",
+    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1600&q=80"
   },
-  "health": { 
-    icon: HeartPulse, 
-    label: "Sức khỏe", 
-    color: "text-red-500", 
-    bg: "rgba(239, 68, 68, 0.1)", 
-    theme: "#ef4444",
-    desc: "Dịch vụ y tế tại gia, chăm sóc sức khỏe toàn diện cho bạn và người thân với sự tận tâm như người nhà.",
-    image: "https://images.unsplash.com/photo-1576091160550-2173bdd99625?w=1600&q=80"
+  "curtain": { 
+    icon: Scissors, 
+    label: "Vệ sinh rèm", 
+    color: "text-purple-500", 
+    bg: "rgba(168, 85, 247, 0.1)", 
+    theme: "#a855f7",
+    desc: "Tháo lắp giặt sấy tận xưởng hoặc giặt hơi nước tại nhà. Trả lại phom dáng chuẩn và hương thơm tươi mát cho rèm.",
+    image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&q=80"
   },
-  "tutor": { 
+  "office": { 
     icon: BookOpen, 
-    label: "Gia sư", 
+    label: "Tạp vụ VP", 
     color: "text-amber-500", 
     bg: "rgba(245, 158, 11, 0.1)", 
     theme: "#f59e0b",
-    desc: "Nâng tầm kiến thức với đội ngũ gia sư giỏi, phương pháp sư phạm hiện đại và lộ trình học tập cá nhân hóa.",
-    image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1600&q=80"
+    desc: "Cung cấp nhân sự vệ sinh văn phòng chuyên nghiệp, đảm bảo không gian làm việc xanh - sạch - đẹp mỗi ngày.",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80"
   },
-  "fitness": { 
+  "glass": { 
     icon: Dumbbell, 
-    label: "Fitness", 
-    color: "text-violet-500", 
-    bg: "rgba(139, 92, 246, 0.1)", 
-    theme: "#8b5cf6",
-    desc: "Luyện tập hiệu quả cùng huấn luyện viên cá nhân, duy trì cơ thể khỏe mạnh và tinh thần sảng khoái mỗi ngày.",
-    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=80"
+    label: "Vệ sinh kính", 
+    color: "text-cyan-500", 
+    bg: "rgba(6, 182, 212, 0.1)", 
+    theme: "#06b6d4",
+    desc: "Đội ngũ đu dây chuyên nghiệp làm sạch kính mặt ngoài tòa nhà, showroom an toàn và hiệu quả.",
+    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1600&q=80"
   },
 };
 
-const DUMMY_SERVICES = [
+const DUMMY_SERVICES = (slug: string) => [
   ...Array(4).fill(null).map((_, i) => ({
     id: i + 1,
-    title: "Dịch vụ tiêu chuẩn " + (i + 1),
-    desc: "Mô tả dịch vụ chi tiết cho khách hàng tham khảo.",
-    image: "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=800&q=80",
-    tag: "Dịch vụ", rating: "4.9", reviews: "45",
-    price: "250.000đ", unit: "/ lần", duration: "1–2 giờ",
-    bookingUrl: "/booking/service-" + (i + 1),
-    categoryId: "repair"
+    title: `Gói tiêu chuẩn ${i + 2} giờ`,
+    desc: "Người giúp việc sẽ thực hiện các công việc vệ sinh theo yêu cầu trong khoảng thời gian đã đặt.",
+    image: CATEGORY_MAP[slug]?.image || "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=800&q=80",
+    tag: "Phổ biến", rating: "4.9", reviews: "450",
+    price: `${(i + 2) * 60}.000đ`, unit: "/ lần", duration: `${i + 2} giờ`,
+    categoryId: slug
   }))
 ];
 
 const EXPERTS = [
-  { name: "Nguyễn Văn A", role: "Kỹ thuật", rating: 4.9, avatar: "https://i.pravatar.cc/150?u=1" },
-  { name: "Trần Thị B", role: "Thợ lành nghề", rating: 5.0, avatar: "https://i.pravatar.cc/150?u=2" },
-  { name: "Lê Văn C", role: "Kỹ sư", rating: 4.8, avatar: "https://i.pravatar.cc/150?u=3" },
-  { name: "Phạm Minh D", role: "Vệ sinh", rating: 4.9, avatar: "https://i.pravatar.cc/150?u=4" },
+  { name: "Nguyễn Thị A", role: "Nhân viên vệ sinh", rating: 4.9, avatar: "https://i.pravatar.cc/150?img=1" },
+  { name: "Trần Thị B", role: "Chuyên viên làm sạch", rating: 5.0, avatar: "https://i.pravatar.cc/150?img=5" },
+  { name: "Lê Thị C", role: "Cô giúp việc", rating: 4.8, avatar: "https://i.pravatar.cc/150?img=9" },
+  { name: "Phạm Thị D", role: "Nhân viên vệ sinh", rating: 4.9, avatar: "https://i.pravatar.cc/150?img=16" },
 ];
 
 export const CategoryDetailPage = () => {
@@ -161,7 +160,7 @@ export const CategoryDetailPage = () => {
   const filteredServices = useMemo(() => {
   // booking state moved to top of component
 
-    return DUMMY_SERVICES.filter(s => 
+    return DUMMY_SERVICES(slug).filter(s => 
       s.categoryId === slug && 
       (s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
        s.desc.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -278,7 +277,7 @@ export const CategoryDetailPage = () => {
                 <Button 
                    size="lg" 
                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 md:h-20 rounded-2xl md:rounded-[1.5rem] font-black text-base md:text-lg shadow-2xl shadow-primary/30 mb-4"
-                   onClick={() => handleBook(DUMMY_SERVICES[0] as any)}
+                   onClick={() => handleBook(DUMMY_SERVICES(slug)[0] as any)}
                 >
                   Đặt yêu cầu ngay
                 </Button>
@@ -306,7 +305,7 @@ export const CategoryDetailPage = () => {
             <div className="flex items-center gap-4 w-full">
                <div className="w-1.5 h-10 md:w-2 md:h-12 bg-primary rounded-full shrink-0" />
                <div>
-                  <h2 className="text-2xl md:text-5xl font-light text-foreground" style={{ fontFamily: "'Times New Roman', serif" }}>
+                  <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">
                     Các gói dịch vụ
                   </h2>
                   <p className="text-muted-foreground text-[11px] md:text-sm font-light mt-1">Lựa chọn phù hợp nhất cho gia đình bạn.</p>
@@ -373,7 +372,7 @@ export const CategoryDetailPage = () => {
                 <div className="w-16 h-16 md:w-24 md:h-24 bg-muted/30 rounded-full flex items-center justify-center mx-auto mb-8">
                   <Search className="w-8 h-8 md:w-10 md:h-10 text-muted-foreground/30" />
                 </div>
-                <h3 className="text-2xl md:text-4xl font-light text-foreground mb-4" style={{ fontFamily: "'Times New Roman', serif" }}>Chưa có dịch vụ</h3>
+                <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground mb-4">Chưa có dịch vụ</h3>
                 <p className="text-muted-foreground max-w-xs mx-auto text-sm md:text-lg font-light leading-relaxed">
                    Hãy liên hệ hỗ trợ để được báo giá riêng!
                 </p>
@@ -449,7 +448,7 @@ export const CategoryDetailPage = () => {
 
              <div className="w-full lg:w-1/2 flex flex-col gap-8 md:gap-12 text-sans">
                 <div className="space-y-4 md:space-y-6">
-                   <h2 className="text-3xl md:text-6xl font-light text-foreground leading-tight" style={{ fontFamily: "'Times New Roman', serif" }}>
+                   <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground leading-tight">
                      Tại sao nên đặt tại <span className="italic text-primary">CleanZ</span>?
                    </h2>
                    <p className="text-muted-foreground text-sm md:text-lg font-light leading-relaxed">
@@ -501,7 +500,7 @@ export const CategoryDetailPage = () => {
         <Container className="px-5 md:px-0">
            <div className="bg-card/40 backdrop-blur-md border border-border/60 rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-20 text-sans">
               <div className="text-center max-w-2xl mx-auto mb-12 md:mb-16">
-                 <h2 className="text-2xl md:text-4xl font-light mb-4" style={{ fontFamily: "'Times New Roman', serif" }}>Thắc mắc phổ biến</h2>
+                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-4">Thắc mắc phổ biến</h2>
                  <p className="text-muted-foreground text-xs md:text-base font-light">Giải đáp nhanh cho bạn.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-x-20">
