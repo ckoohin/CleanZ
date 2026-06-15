@@ -1,71 +1,81 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard,
+  Home,
+  Mail,
+  HeartHandshake,
   User,
-  Calendar,
-  DollarSign,
-  Bell,
   LogOut,
-  ChevronRight,
   Star,
-  Menu,
-  X,
   Wifi,
   WifiOff,
+  Bot,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
 import { useLogout } from "@/features/auth/hooks/auth.hooks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import LogoApp from "@/components/logo/LogoApp";
 
-const NAV_ITEMS = [
-  { href: "/tasker", label: "Tổng quan", icon: LayoutDashboard, exact: true },
-  { href: "/tasker/profile", label: "Hồ sơ cá nhân", icon: User },
-  { href: "/tasker/schedule", label: "Lịch làm việc", icon: Calendar },
-  { href: "/tasker/earnings", label: "Thu nhập", icon: DollarSign },
-  { href: "/tasker/notifications", label: "Thông báo", icon: Bell },
+// ─── Nav config ───────────────────────────────────────────────────────────────
+
+const ALL_NAV_ITEMS = [
+  { href: "/tasker",               label: "Trang chủ", icon: Home, exact: true },
+  { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
+  { href: "/tasker/benefits",      label: "Phúc lợi",  icon: HeartHandshake },
+  { href: "/tasker/profile",       label: "Tài khoản", icon: User },
 ];
+
+// Bottom nav: 2 bên FAB center
+const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
+const RIGHT_TABS = [ALL_NAV_ITEMS[2], ALL_NAV_ITEMS[3]];
 
 interface TaskerSidebarProps {
   className?: string;
+  /** Callback khi bấm nút Bật/Tắt hoạt động — guard xử lý ở parent */
+  onToggleOnline?: () => void;
 }
 
-export function TaskerSidebar({ className }: TaskerSidebarProps) {
-  const pathname = usePathname();
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+function isTabActive(href: string, exact: boolean | undefined, pathname: string) {
+  return exact ? pathname === href : pathname.startsWith(href);
+}
+
+// ─── Desktop Sidebar ──────────────────────────────────────────────────────────
+
+function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
   const { data: tasker } = useTaskerProfile();
   const logout = useLogout();
-  const [isOnline, setIsOnline] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const isActive = (item: (typeof NAV_ITEMS)[0]) => {
-    if (item.exact) return pathname === item.href;
-    return pathname.startsWith(item.href);
-  };
+  const [isOnline, setIsOnline] = useState(false);
+  const pathname = usePathname();
 
   const initials = tasker?.fullName
     ? tasker.fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : "S";
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+  return (
+    <aside
+      className={cn(
+        "hidden lg:flex flex-col w-60 border-r border-border bg-card/80 backdrop-blur-md shrink-0 sticky top-0 h-screen",
+        className
+      )}
+    >
       {/* Brand */}
       <div className="px-6 py-6 border-b border-border/50">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
-            <span className="text-white font-black text-sm">C</span>
-          </div>
-          <div>
-            <p className="font-bold text-sm leading-tight">CleanZ</p>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
-              Đối tác
-            </p>
+        <div className="flex items-center gap-2.5">
+          <LogoApp variant="icon-only" size="md" />
+          <div className="flex flex-col">
+            <span className="font-black tracking-tight leading-none text-[22px]">
+              Clean<span className="text-primary">Z</span><span className="text-primary font-black">.</span>
+            </span>
+            <span className="text-[10px] text-primary font-bold uppercase tracking-widest mt-1">PARTNER</span>
           </div>
         </div>
       </div>
@@ -73,7 +83,7 @@ export function TaskerSidebar({ className }: TaskerSidebarProps) {
       {/* Online toggle */}
       <div className="px-4 py-3 border-b border-border/30">
         <button
-          onClick={() => setIsOnline((v) => !v)}
+          onClick={() => { onToggleOnline ? onToggleOnline() : setIsOnline((v) => !v); }}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all",
             isOnline
@@ -81,53 +91,44 @@ export function TaskerSidebar({ className }: TaskerSidebarProps) {
               : "bg-muted/50 text-muted-foreground hover:bg-muted"
           )}
         >
-          {isOnline ? (
-            <Wifi className="w-4 h-4" aria-hidden="true" />
-          ) : (
-            <WifiOff className="w-4 h-4" aria-hidden="true" />
-          )}
+          {isOnline
+            ? <Wifi className="w-4 h-4" aria-hidden="true" />
+            : <WifiOff className="w-4 h-4" aria-hidden="true" />}
           {isOnline ? "Đang hoạt động" : "Không hoạt động"}
-          <div
-            className={cn(
-              "ml-auto w-2 h-2 rounded-full",
-              isOnline ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
-            )}
-          />
+          <div className={cn("ml-auto w-2 h-2 rounded-full", isOnline ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40")} />
         </button>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item);
+        {ALL_NAV_ITEMS.map((item) => {
+          const active = isTabActive(item.href, item.exact, pathname);
           return (
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative",
                 active
                   ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <item.icon
-                className={cn("w-4 h-4 shrink-0", active ? "text-primary-foreground" : "")}
-                aria-hidden="true"
-              />
+              <item.icon className={cn("w-4 h-4 shrink-0", active ? "text-primary-foreground" : "")} aria-hidden="true" />
               <span>{item.label}</span>
               {active && (
-                <ChevronRight className="w-3 h-3 ml-auto text-primary-foreground/70" aria-hidden="true" />
+                <motion.div
+                  layoutId="desktop-nav-indicator"
+                  className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary-foreground/60"
+                />
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* User Profile Footer */}
+      {/* Footer */}
       <div className="p-4 border-t border-border/50">
-        {/* Stats mini */}
         <div className="flex gap-2 mb-3 px-1">
           <div className="flex-1 text-center">
             <p className="text-lg font-black">{tasker?.totalJobs ?? 0}</p>
@@ -142,101 +143,267 @@ export function TaskerSidebar({ className }: TaskerSidebarProps) {
             <p className="text-[10px] text-muted-foreground">Đánh giá</p>
           </div>
         </div>
-
         <div className="flex items-center gap-3">
           <Avatar className="w-9 h-9 shrink-0">
             <AvatarImage src={tasker?.avatarUrl ?? undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-              {initials}
-            </AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{tasker?.fullName ?? "Đối tác"}</p>
             <p className="text-xs text-muted-foreground truncate">{tasker?.phone ?? "Chưa cập nhật SĐT"}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-8 h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+          <button
+            className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-all shrink-0"
             onClick={() => logout.mutate()}
+            aria-label="Đăng xuất"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
-          </Button>
+          </button>
         </div>
+      </div>
+    </aside>
+  );
+}
+
+// ─── Mobile Top Bar ───────────────────────────────────────────────────────────
+
+function MobileTopBar() {
+  const { data: tasker } = useTaskerProfile();
+
+  const initials = tasker?.fullName
+    ? tasker.fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "S";
+
+  return (
+    <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 bg-card/90 backdrop-blur-md border-b border-border/50 flex items-center px-4 gap-3">
+      <div className="flex items-center gap-2">
+        <LogoApp variant="icon-only" size="sm" />
+        <div className="flex flex-col">
+          <span className="font-black tracking-tight leading-none text-[18px]">
+            Clean<span className="text-primary">Z</span><span className="text-primary font-black">.</span>
+          </span>
+          <span className="text-[9px] text-primary font-bold uppercase tracking-widest mt-0.5">PARTNER</span>
+        </div>
+      </div>
+
+      <div className="ml-auto flex items-center gap-3">
+        <div className="flex flex-col items-end text-right">
+          <span className="text-[10px] text-muted-foreground leading-none font-medium">Xin chào,</span>
+          <span className="text-sm font-bold text-foreground leading-tight truncate max-w-[120px] mt-0.5">
+            {tasker?.fullName?.split(" ").pop() ?? "Đối tác"}
+          </span>
+        </div>
+        
+        <Link href="/tasker/notifications" className="relative w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card"></span>
+        </Link>
+
+        <Avatar className="w-9 h-9 border-2 border-background shadow-sm ring-1 ring-border shrink-0">
+          <AvatarImage src={tasker?.avatarUrl ?? undefined} />
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{initials}</AvatarFallback>
+        </Avatar>
       </div>
     </div>
   );
+}
+
+// ─── Single Bottom Tab ────────────────────────────────────────────────────────
+
+function BottomTab({ href, label, icon: Icon, exact }: {
+  href: string; label: string; icon: React.ElementType; exact?: boolean;
+}) {
+  const pathname = usePathname();
+  const active = isTabActive(href, exact, pathname);
 
   return (
-    <>
-      {/* Desktop sidebar */}
-      <aside
-        className={cn(
-          "hidden lg:flex flex-col w-60 border-r border-border bg-card/80 backdrop-blur-md shrink-0 sticky top-0 h-screen",
-          className
+    <Link
+      href={href}
+      className="flex-1 flex flex-col items-center justify-center gap-[3px] pt-2 pb-1 relative touch-manipulation min-w-0"
+      aria-current={active ? "page" : undefined}
+    >
+      {/* Active dot */}
+      <AnimatePresence>
+        {active && (
+          <motion.div
+            layoutId="bottom-nav-dot"
+            className="absolute top-1 w-5 h-0.5 rounded-full bg-primary"
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            exit={{ opacity: 0, scaleX: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          />
         )}
-      >
-        <SidebarContent />
-      </aside>
+      </AnimatePresence>
 
-      {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-card/80 backdrop-blur-md border-b border-border flex items-center px-4 gap-3">
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="w-9 h-9 rounded-xl border border-border flex items-center justify-center"
-          aria-label="Mở menu"
+      <motion.div
+        animate={active ? { y: -1, scale: 1.08 } : { y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 450, damping: 22 }}
+      >
+        <Icon
+          className={cn("w-[23px] h-[23px] transition-colors duration-150", active ? "text-primary" : "text-muted-foreground/60")}
+          strokeWidth={active ? 2.2 : 1.8}
+          aria-hidden="true"
+        />
+      </motion.div>
+
+      <span className={cn(
+        "text-[10px] leading-none font-medium transition-colors duration-150 truncate",
+        active ? "text-primary font-semibold" : "text-muted-foreground/60"
+      )}>
+        {label}
+      </span>
+    </Link>
+  );
+}
+
+// ─── Mobile Bottom Nav — bTaskee style ────────────────────────────────────────
+
+const CleanZBotIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    {/* Antennas */}
+    <path d="M50 32 L35 18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+    <path d="M50 32 L65 18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+    <circle cx="33" cy="14" r="6" fill="currentColor" />
+    <circle cx="67" cy="14" r="6" fill="currentColor" />
+    
+    {/* Ears */}
+    <rect x="14" y="46" width="8" height="22" rx="4" fill="currentColor" />
+    <rect x="78" y="46" width="8" height="22" rx="4" fill="currentColor" />
+    
+    {/* Helmet Outline */}
+    <rect x="22" y="32" width="56" height="46" rx="23" stroke="currentColor" strokeWidth="5" fill="white" />
+    
+    {/* Eyes (Happy arcs) */}
+    <path d="M38 52 Q 42 46 46 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
+    <path d="M54 52 Q 58 46 62 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
+    
+    {/* Cheeks */}
+    <circle cx="34" cy="62" r="4" fill="#FF7EB3" />
+    <circle cx="66" cy="62" r="4" fill="#FF7EB3" />
+    
+    {/* Mouth */}
+    <path d="M44 60 Q 50 70 56 60" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
+  </svg>
+);
+
+function MobileBottomNav({
+  isOnline,
+  onToggleOnline,
+}: {
+  isOnline: boolean;
+  onToggleOnline: () => void;
+}) {
+  return (
+    // Wrapper cố định bottom — bao gồm cả FAB nổi
+    <div
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
+      {/* Nút Toggle Online/Offline nổi lên ở góc phải */}
+      <div className="absolute right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+74px)]">
+        <motion.button
+          onClick={onToggleOnline}
+          whileTap={{ scale: 0.92 }}
+          className={cn(
+            "relative w-[48px] h-[48px] rounded-full flex flex-col items-center justify-center gap-[1px]",
+            "shadow-md transition-colors duration-300 border-[2.5px] border-background",
+            isOnline
+              ? "bg-emerald-500 shadow-emerald-500/30 text-white"
+              : "bg-orange-500 shadow-orange-500/30 text-white"
+          )}
+          aria-label={isOnline ? "Tắt hoạt động" : "Bật hoạt động"}
         >
-          <Menu className="w-4 h-4" aria-hidden="true" />
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-white font-black text-xs">C</span>
-          </div>
-          <span className="font-bold text-sm">CleanZ Partner</span>
+          {isOnline ? (
+            <>
+              <Wifi className="w-4 h-4 relative z-10" strokeWidth={2.5} />
+              <span className="text-[7.5px] font-bold leading-none relative z-10 uppercase tracking-widest mt-0.5">Online</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-4 h-4 relative z-10" strokeWidth={2.5} />
+              <span className="text-[7.5px] font-bold leading-none relative z-10 uppercase tracking-widest mt-0.5">Offline</span>
+            </>
+          )}
+
+          {/* Pulse ring khi online */}
+          {isOnline && (
+            <motion.div
+              className="absolute inset-0 rounded-full bg-emerald-400"
+              animate={{ scale: [1, 1.4], opacity: [0.5, 0] }}
+              transition={{ repeat: Infinity, duration: 1.8, ease: "easeOut" }}
+            />
+          )}
+        </motion.button>
+      </div>
+
+      {/* Background Tab bar với SVG tạo đường cong */}
+      <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px))] pointer-events-none drop-shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:drop-shadow-[0_-4px_16px_rgba(0,0,0,0.4)] text-card">
+        <div className="flex w-full" style={{ height: "62px" }}>
+          <div className="flex-1 bg-current rounded-tl-[24px]" />
+          <svg width="100" height="62" viewBox="0 0 100 62" className="shrink-0 fill-current">
+            <path d="M0,0 C 20,0 26,36 50,36 C 74,36 80,0 100,0 L100,62 L0,62 Z" />
+          </svg>
+          <div className="flex-1 bg-current rounded-tr-[24px]" />
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <div className={cn("w-2 h-2 rounded-full", isOnline ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40")} />
-          <Avatar className="w-8 h-8">
-            <AvatarImage src={tasker?.avatarUrl ?? undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{initials}</AvatarFallback>
-          </Avatar>
+        <div className="w-full bg-current" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
+      </div>
+
+      {/* Nội dung Tab bar */}
+      <div className="relative flex items-stretch h-[62px]">
+        <div className="flex-1 flex px-1">
+          {LEFT_TABS.map((t) => <BottomTab key={t.href} {...t} />)}
+        </div>
+        <div className="w-[100px] shrink-0" aria-hidden="true" />
+        <div className="flex-1 flex px-1">
+          {RIGHT_TABS.map((t) => <BottomTab key={t.href} {...t} />)}
         </div>
       </div>
 
-      {/* Mobile drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.div
-              className="lg:hidden fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border flex flex-col"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            >
-              <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                <span className="font-bold">Menu</span>
-                <button
-                  onClick={() => setMobileOpen(false)}
-                  className="w-8 h-8 rounded-lg border border-border flex items-center justify-center"
-                >
-                  <X className="w-4 h-4" aria-hidden="true" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <SidebarContent />
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* FAB nổi lên — Custom Vector Icon thay vì ảnh thô */}
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+12px)]">
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          className={cn(
+            "relative w-[60px] h-[60px] rounded-full flex flex-col items-center justify-center gap-[2px]",
+            "border-[3.5px] border-background",
+            "bg-white shadow-[0_8px_20px_rgba(0,0,0,0.1)] text-primary", 
+            "transition-colors duration-300"
+          )}
+          aria-label="Chat AI Trợ lý"
+        >
+          {/* Custom SVG Icon kế thừa text-primary (màu cam) để đồng bộ CleanZ */}
+          <CleanZBotIcon className="w-[38px] h-[38px] text-primary" />
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
+
+export function TaskerSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
+  // Shared online state giữa TopBar
+  const [isOnline, setIsOnline] = useState(false);
+
+  const handleToggle = () => {
+    if (onToggleOnline) {
+      onToggleOnline();
+    } else {
+      setIsOnline(!isOnline);
+    }
+  };
+
+  return (
+    <>
+      {/* Desktop: sidebar trái */}
+      <DesktopSidebar className={className} onToggleOnline={handleToggle} />
+
+      {/* Mobile */}
+      <MobileTopBar />
+      <MobileBottomNav isOnline={isOnline} onToggleOnline={handleToggle} />
     </>
   );
 }

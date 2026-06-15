@@ -1,15 +1,11 @@
 'use client';
 
 import { DollarSign, TrendingUp, Clock } from 'lucide-react';
-import { TaskerSidebar } from '@/features/tasker/_components/TaskerSidebar';
 
 export default function TaskerEarningsPage() {
   return (
-    <div className="flex min-h-screen bg-background">
-      <TaskerSidebar />
-      <main className="flex-1 min-w-0 pt-14 lg:pt-0">
-        <div className="p-5 md:p-8 max-w-4xl mx-auto">
-          <div className="mb-8">
+    <div className="p-5 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-8">
             <h1 className="text-3xl font-light" style={{ fontFamily: 'var(--font-serif)' }}>
               Thu <span className="italic text-primary">nhập</span>
             </h1>
@@ -49,8 +45,6 @@ export default function TaskerEarningsPage() {
               <Clock className="w-3 h-3" aria-hidden="true" /> Sắp ra mắt
             </div>
           </div>
-        </div>
-      </main>
     </div>
   );
 }
