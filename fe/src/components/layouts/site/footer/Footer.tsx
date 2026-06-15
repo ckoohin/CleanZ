@@ -20,13 +20,12 @@ import LogoApp from "@/components/logo/LogoApp";
 
 const LINKS = {
   "Dịch Vụ": [
-    "Vệ sinh nhà cửa",
-    "Sửa chữa điện nước",
-    "Massage tại nhà",
-    "Chăm sóc sắc đẹp",
-    "Gia sư tại nhà",
-    "Huấn luyện cá nhân",
-    "Điều dưỡng tại nhà",
+    "Dọn dẹp nhà cửa",
+    "Tổng vệ sinh",
+    "Giặt Sofa & Nệm",
+    "Vệ sinh rèm cửa",
+    "Vệ sinh kính",
+    "Tạp vụ văn phòng",
   ],
   "Công Ty": [
     "Về chúng tôi",

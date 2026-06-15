@@ -2,16 +2,18 @@
 
 import { useSidebar } from "@/components/ui/sidebar"
 import LogoApp from "../logo/LogoApp"
+import { cn } from "@/lib/utils"
 
 export function SidebarBrand() {
   const { state } = useSidebar()
 
   return (
-    <div className="flex items-center px-2 py-1">
+    <div className={cn("flex items-center w-full", state === "collapsed" ? "justify-center px-0" : "px-2 py-1")}>
       <LogoApp
         href="/admin"
         variant={state === "collapsed" ? "icon-only" : "default"}
-        size="sm"
+        size="md"
+        textClassName="text-sidebar-foreground drop-shadow-sm"
       />
     </div>
   )
