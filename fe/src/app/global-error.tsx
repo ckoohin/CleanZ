@@ -47,7 +47,7 @@ export default function GlobalError({
                  Hệ thống gặp sự cố!
                </h1>
                <p className="text-slate-300 font-medium text-xs sm:text-sm md:text-base max-w-md mx-auto leading-relaxed px-2 sm:px-0">
-                 Chúng tôi vô cùng xin lỗi vì sự bất tiện này. Một lỗi kỹ thuật vừa xảy ra và các chuyên gia CleanZ đã được thông báo để xử lý ngay lập tức.
+                 Chúng tôi vô cùng xin lỗi vì sự bất tiện này. Một lỗi kỹ thuật vừa xảy ra và đội ngũ kỹ thuật CleanZ đã được thông báo để xử lý ngay lập tức.
                </p>
                
                {error?.digest && (

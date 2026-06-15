@@ -8,10 +8,9 @@ export type NavLink = {
 };
 
 export const NAV_LINKS: NavLink[] = [
+  { label: "Trang chủ",   href: "/" },
   { label: "Về CleanZ",   href: "/about" },
-  { label: "Danh mục",    href: "/categories" },
   { label: "Dịch vụ",     href: "/services" },
-  { label: "Lịch đặt",    href: "/bookings" },
   { label: "Trợ giúp",    href: "/support" },
 ];
 

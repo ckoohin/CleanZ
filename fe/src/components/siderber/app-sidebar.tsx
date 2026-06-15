@@ -17,8 +17,8 @@ import {
 
 import { NavMain } from "@/components/siderber/nav-main"
 import { NavProjects } from "@/components/siderber/nav-projects"
-import { NavUser } from "@/components/siderber/nav-user"
-import { TeamSwitcher } from "@/components/siderber/team-switcher"
+import { NavUser } from "@/components/sidebar/nav-user"
+import { SidebarBrand } from "@/components/sidebar/team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -33,6 +33,7 @@ const adminData = {
     name: "Admin Root",
     email: "admin@CleanZ.com",
     avatar: "https://i.pravatar.cc/150?u=admin",
+    fullName: "Ngô Đức Admin"
   },
   teams: [
     {
@@ -48,7 +49,6 @@ const adminData = {
       title: "Tổng quan",
       url: "/admin",
       icon: <LayoutDashboard />,
-      isActive: true,
       items: [
         { title: "Bảng điều khiển", url: "/admin" },
         { title: "Hoạt động gần đây", url: "/admin/activity" },
@@ -72,39 +72,39 @@ const adminData = {
         { title: "Đơn đặt lịch mới", url: "/admin/bookings" },
         { title: "Đang thực hiện", url: "/admin/bookings/active" },
         { title: "Lịch sử đơn hàng", url: "/admin/bookings/history" },
-        { title: "Khiếu nại & Hoàn tiền", url: "/admin/refunds" },
+        { title: "Sự cố & Khiếu nại", url: "/admin/incidents" },
       ],
     },
     {
       title: "Quản lý Nhân sự",
-      url: "/admin/tasker",
+      url: "/admin/taskers",
       icon: <ShieldCheck />,
       items: [
-        { title: "Danh sách đối tác", url: "/admin/tasker" },
-        { title: "Xác minh hồ sơ", url: "/admin/tasker/verification" },
-        { title: "Lịch làm việc", url: "/admin/tasker/schedule" },
-        { title: "Bảng lương & Thu nhập", url: "/admin/tasker/payroll" },
+        { title: "Danh sách đối tác", url: "/admin/taskers" },
+        { title: "Xác minh hồ sơ", url: "/admin/taskers/verification" },
+        { title: "Lịch làm việc", url: "/admin/taskers/schedule" },
+        { title: "Bảng lương & Thu nhập", url: "/admin/taskers/payroll" },
       ],
     },
     {
       title: "Khách hàng",
-      url: "/admin/customers",
+      url: "/admin/users",
       icon: <Users />,
       items: [
-        { title: "Danh sách khách hàng", url: "/admin/customers" },
-        { title: "Phân hạng Loyalty", url: "/admin/customers/loyalty" },
-        { title: "Gói Subscription", url: "/admin/customers/plans" },
+        { title: "Danh sách khách hàng", url: "/admin/users" },
+        { title: "Phân hạng Loyalty", url: "/admin/users/loyalty" },
+        { title: "Gói Subscription", url: "/admin/users/plans" },
       ],
     },
   ],
   secondaryNav: [
     {
       title: "Tài chính & Hóa đơn",
-      url: "/admin/finance",
+      url: "/admin/finances",
       icon: <CreditCard />,
       items: [
-        { title: "Giao dịch", url: "/admin/finance/transactions" },
-        { title: "Quản lý hóa đơn", url: "/admin/finance/invoices" },
+        { title: "Yêu cầu rút tiền", url: "/admin/finances" },
+        { title: "Quản lý hóa đơn", url: "/admin/finances/invoices" },
       ],
     },
     {
@@ -141,12 +141,13 @@ const adminData = {
     },
   ],
 }
+type User = { name: string; email: string; avatar: string;  }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40" {...props}>
       <SidebarHeader className="h-16 border-b border-border/40 justify-center">
-        <TeamSwitcher teams={adminData.teams} />
+        <SidebarBrand />
       </SidebarHeader>
       <SidebarContent className="py-2 scrollbar-hide bg-sidebar transition-colors duration-300">
         <NavMain items={adminData.navMain} label="Menu Chính" />
