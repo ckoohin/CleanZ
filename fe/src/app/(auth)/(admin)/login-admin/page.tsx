@@ -188,7 +188,7 @@ function AdminLoginContent() {
   )
 
   return (
-    <div className="relative flex min-h-screen bg-slate-950 text-foreground overflow-hidden font-sans">
+    <div className="relative flex h-screen w-full bg-slate-950 text-foreground overflow-hidden font-sans">
       <Toaster richColors position="top-right" />
       {/* Background Decor */}
       <div className="absolute inset-0 lg:relative lg:flex-1 h-full w-full bg-slate-950 overflow-hidden">
