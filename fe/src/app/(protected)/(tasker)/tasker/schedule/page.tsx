@@ -2,15 +2,11 @@
 
 import { Calendar, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { TaskerSidebar } from '@/features/tasker/_components/TaskerSidebar';
 
 export default function TaskerSchedulePage() {
   return (
-    <div className="flex min-h-screen bg-background">
-      <TaskerSidebar />
-      <main className="flex-1 min-w-0 pt-14 lg:pt-0">
-        <div className="p-5 md:p-8 max-w-4xl mx-auto">
-          <div className="mb-8">
+    <div className="p-5 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-8">
             <h1 className="text-3xl font-light" style={{ fontFamily: 'var(--font-serif)' }}>
               Lịch <span className="italic text-primary">làm việc</span>
             </h1>
@@ -31,8 +27,6 @@ export default function TaskerSchedulePage() {
               <Clock className="w-3 h-3" aria-hidden="true" /> Sắp ra mắt
             </div>
           </div>
-        </div>
-      </main>
     </div>
   );
 }

@@ -2,7 +2,10 @@
 
 import React from 'react';
 import { useTaskerProfile } from '@/features/tasker/hooks/tasker.hooks';
+import { useTaskerActionGuard } from '@/features/tasker/hooks/useTaskerActionGuard';
+import { TaskerVerificationModal } from '@/features/tasker/_components/TaskerVerificationModal';
 import { TaskerStatus } from '@/features/tasker/types/tasker.type';
+import { usePathname } from 'next/navigation';
 import {
   Clock,
   CheckCircle2,
@@ -30,206 +33,116 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
-import { TaskerSidebar } from '@/features/tasker/_components/TaskerSidebar';
-import { TaskerRegistrationWizard } from '@/features/tasker/_components/TaskerRegistrationWizard';
+import { motion } from 'framer-motion';
 import { parseAdminNotes } from '@/features/admin-tasker/_components/AdminRequestInfoModal';
 
-// ─── Status Banners (khi chưa được duyệt) ────────────────────────────────────
+// ─── Status Banner (hiển thị phía trên, không thay thế layout) ───────────────
 
-function NoProfileBanner() {
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-      <div className="w-full rounded-2xl border border-border bg-muted/50 p-10 flex flex-col items-center gap-5 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <FileText className="w-8 h-8 text-primary" aria-hidden="true" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold">Bạn chưa có hồ sơ Đối tác</h2>
-          <p className="text-muted-foreground leading-relaxed max-w-md">
-            Hoàn thiện hồ sơ để bắt đầu nhận đơn và kiếm thu nhập cùng CleanZ.
-          </p>
-        </div>
-        <Button asChild size="lg" className="rounded-xl px-10 h-12 font-bold shadow-lg shadow-primary/20">
-          <Link href="/tasker/onboarding" className="flex items-center gap-2">
-            Bắt đầu nộp hồ sơ <ArrowRight className="w-4 h-4" aria-hidden="true" />
-          </Link>
-        </Button>
-      </div>
-    </motion.div>
-  );
-}
-
-function PendingReviewView({ tasker }: { tasker: {
-  fullName?: string;
-  phone?: string;
-  bankName?: string;
-  bankAccountNumber?: string;
-  hasCitizenCardImage?: boolean;
-  hasIdWithSelfieImage?: boolean;
-  hasCriminalRecordImage?: boolean;
-  hasHealthCertificateImage?: boolean;
-} }) {
-  if (!tasker) return null;
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-      <div className="w-full rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-8 space-y-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-          <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 flex items-center justify-center shrink-0">
-            <Clock className="h-7 w-7 text-yellow-600" aria-hidden="true" />
+function StatusBanner({ status, adminNotes }: {
+  status: TaskerStatus | undefined;
+  adminNotes?: string;
+}) {
+  if (!status) {
+    // Chưa có hồ sơ
+    return (
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="w-full rounded-2xl border border-orange-500/20 bg-orange-500/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
+            <FileText className="w-5 h-5 text-orange-600" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-yellow-700 mb-1">Hồ sơ đang chờ xét duyệt</h2>
-            <p className="text-yellow-600/80 leading-relaxed text-sm">
-              Chúng tôi đã nhận được hồ sơ của bạn. Admin sẽ xem xét và phản hồi trong vòng <strong>24h làm việc</strong>. Bạn có thể xem lại thông tin đã nộp bên dưới.
-            </p>
+            <p className="font-semibold text-sm text-orange-700">Bạn chưa có hồ sơ Đối tác</p>
+            <p className="text-xs text-orange-600/70 mt-0.5">Hoàn thiện hồ sơ để bắt đầu nhận đơn và kiếm thu nhập.</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0 bg-yellow-500/10 px-3 py-1.5 rounded-full">
+          <Button asChild size="sm" className="rounded-xl shrink-0 bg-orange-500 hover:bg-orange-600 gap-2">
+            <Link href="/tasker/onboarding">
+              Nộp hồ sơ ngay <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (status === TaskerStatus.APPROVED) {
+    return null; // Không hiện banner khi đã xác minh
+  }
+
+  if (status === TaskerStatus.PENDING) {
+    return (
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="w-full rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5 text-yellow-600" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-yellow-700">Hồ sơ đang chờ xét duyệt</p>
+            <p className="text-xs text-yellow-600/70 mt-0.5">Admin sẽ phản hồi trong vòng <strong>24h làm việc</strong>. Bạn chưa thể nhận đơn trong thời gian này.</p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-yellow-500/10 px-3 py-1.5 rounded-full shrink-0">
             <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-            <span className="text-xs font-semibold text-yellow-600 uppercase tracking-widest">Đang xử lý</span>
-          </div>
-        </div>bg-linear-to-br
-
-        <div className="border-t border-yellow-500/10 pt-6">
-          <h3 className="font-bold text-sm mb-4 text-foreground">Thông tin đã nộp</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-card p-4 rounded-xl border border-border space-y-1">
-              <p className="text-xs text-muted-foreground">Họ và tên</p>
-              <p className="text-sm font-semibold">{tasker.fullName || 'Chưa cập nhật'}</p>
-            </div>
-            <div className="bg-white dark:bg-card p-4 rounded-xl border border-border space-y-1">
-              <p className="text-xs text-muted-foreground">Số điện thoại</p>
-              <p className="text-sm font-semibold">{tasker.phone || 'Chưa cập nhật'}</p>
-            </div>
-            <div className="bg-white dark:bg-card p-4 rounded-xl border border-border space-y-1">
-              <p className="text-xs text-muted-foreground">Tài khoản ngân hàng</p>
-              <p className="text-sm font-semibold">
-                {tasker.bankName ? `${tasker.bankName} - ${tasker.bankAccountNumber}` : 'Chưa cập nhật'}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-card p-4 rounded-xl border border-border space-y-1">
-              <p className="text-xs text-muted-foreground">Giấy tờ đính kèm</p>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {tasker.hasCitizenCardImage ? (
-                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">CCCD: Đã nộp</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">CCCD: Thiếu</Badge>
-                )}
-                {tasker.hasIdWithSelfieImage ? (
-                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">Selfie: Đã nộp</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">Selfie: Thiếu</Badge>
-                )}
-                {tasker.hasCriminalRecordImage && (
-                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">LLTP: Đã nộp</Badge>
-                )}
-                {tasker.hasHealthCertificateImage && (
-                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">Sức khỏe: Đã nộp</Badge>
-                )}
-              </div>
-            </div>
+            <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">Đang xử lý</span>
           </div>
         </div>
-      </div>
-    </motion.div>
-  );
-}
+      </motion.div>
+    );
+  }
 
-function NeedInfoBanner({ adminNotes }: { adminNotes?: string }) {
-  const parsed = parseAdminNotes(adminNotes);
-
-  return (
-    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
-      <div className="w-full rounded-2xl border border-blue-500/20 bg-blue-500/8 p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-          <Info className="w-40 h-40 -mr-20 -mt-20 rotate-12 text-blue-600" aria-hidden="true" />
-        </div>
-        <div className="flex flex-col md:flex-row items-start gap-6">
-          <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center shrink-0">
-            <Info className="h-7 w-7 text-blue-600" aria-hidden="true" />
+  if (status === TaskerStatus.NEED_INFO) {
+    const parsed = parseAdminNotes(adminNotes);
+    return (
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="w-full rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 flex flex-col sm:flex-row items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+            <Info className="w-5 h-5 text-blue-600" aria-hidden="true" />
           </div>
-          <div className="flex-1 min-w-0 space-y-4">
-            <div>
-              <h2 className="text-lg font-bold text-blue-700">Cần bổ sung thêm thông tin</h2>
-              <p className="text-blue-600/70 text-sm mt-0.5">Admin đã xem xét hồ sơ và có yêu cầu cụ thể bên dưới</p>
-            </div>
-
-            {/* Structured items (v2 JSON) */}
+          <div className="flex-1 min-w-0 space-y-2">
+            <p className="font-semibold text-sm text-blue-700">Cần bổ sung thêm thông tin</p>
             {parsed && parsed.itemLabels.length > 0 && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-xl border border-blue-200 dark:border-blue-800 space-y-3">
-                <p className="font-semibold text-[10px] uppercase tracking-widest text-blue-500 flex items-center gap-1.5">
-                  <ListChecks className="w-3 h-3" aria-hidden="true" /> Các mục cần bổ sung:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {parsed.itemLabels.map((label) => (
-                    <Badge key={label} variant="outline" className="bg-white/60 dark:bg-white/10 border-blue-300 text-blue-700 text-xs">
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-                {parsed.note && (
-                  <p className="text-blue-700 dark:text-blue-300 leading-relaxed italic text-sm border-t border-blue-200 dark:border-blue-700 pt-3">
-                    &ldquo;{parsed.note}&rdquo;
-                  </p>
-                )}
+              <div className="flex flex-wrap gap-1.5">
+                {parsed.itemLabels.map((label) => (
+                  <Badge key={label} variant="outline" className="text-[10px] bg-blue-50 border-blue-200 text-blue-700">
+                    <ListChecks className="w-2.5 h-2.5 mr-1" aria-hidden="true" />
+                    {label}
+                  </Badge>
+                ))}
               </div>
             )}
-
-            {/* Fallback: plain text notes (v1) */}
             {!parsed && adminNotes && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
-                <p className="font-semibold text-[10px] uppercase tracking-widest text-blue-500 mb-2 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" aria-hidden="true" /> Ghi chú từ Admin:
-                </p>
-                <p className="text-blue-700 dark:text-blue-300 leading-relaxed italic text-sm">
-                  &ldquo;{adminNotes}&rdquo;
-                </p>
-              </div>
+              <p className="text-xs text-blue-600/80 italic">{adminNotes}</p>
             )}
+          </div>
+          <Button asChild size="sm" className="rounded-xl shrink-0 gap-2 bg-blue-600 hover:bg-blue-700">
+            <Link href="/tasker/onboarding">
+              Bổ sung ngay <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      </motion.div>
+    );
+  }
 
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              <Button asChild className="rounded-xl bg-blue-600 hover:bg-blue-700 px-6 h-11 shadow-md shadow-blue-500/20 group">
-                <Link href="/tasker/onboarding" className="flex items-center gap-2">
-                  Bổ sung hồ sơ ngay
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                </Link>
-              </Button>
-              <p className="text-xs text-blue-600/60 italic">Sau khi cập nhật, hồ sơ sẽ được xét duyệt lại.</p>
-            </div>
+  if (status === TaskerStatus.REJECTED) {
+    return (
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="w-full rounded-2xl border border-red-500/20 bg-red-500/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+            <XCircle className="w-5 h-5 text-red-600" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-red-700">Hồ sơ không được duyệt</p>
+            {adminNotes && <p className="text-xs text-red-600/70 mt-0.5 italic">Lý do: {adminNotes}</p>}
+            <p className="text-xs text-red-600/60 mt-1">Liên hệ hotline <span className="font-bold">1800 6868</span> để được hỗ trợ.</p>
           </div>
         </div>
-      </div>
-    </motion.div>
-  );
+      </motion.div>
+    );
+  }
+
+  return null;
 }
 
-function RejectedBanner({ adminNotes }: { adminNotes?: string }) {
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="w-full rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800/50 p-8 flex flex-col md:flex-row items-start gap-6">
-        <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
-          <XCircle className="h-7 w-7 text-red-600" aria-hidden="true" />
-        </div>
-        <div className="flex-1 space-y-3">
-          <h2 className="text-lg font-bold text-red-800 dark:text-red-300">Hồ sơ không được duyệt</h2>
-          <div className="bg-white/60 dark:bg-white/5 p-4 rounded-xl border border-red-100 dark:border-red-800/30">
-            <span className="font-bold text-red-700 dark:text-red-400">Lý do: </span>
-            <span className="text-red-700 dark:text-red-400 leading-relaxed italic text-sm">
-              {adminNotes || 'Không có lý do cụ thể.'}
-            </span>
-          </div>
-          <p className="text-red-700/70 dark:text-red-400/70 text-sm leading-relaxed">
-            Nếu có thắc mắc, vui lòng liên hệ hỗ trợ qua Hotline{' '}
-            <span className="font-bold underline">1800 6868</span>.
-          </p>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── APPROVED Dashboard ───────────────────────────────────────────────────────
+// ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: React.ElementType;
@@ -255,6 +168,8 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
     </motion.div>
   );
 }
+
+// ─── Profile Completion Card ──────────────────────────────────────────────────
 
 function ProfileCompletionCard({ tasker }: { tasker: ReturnType<typeof useTaskerProfile>['data'] }) {
   if (!tasker) return null;
@@ -300,7 +215,17 @@ function ProfileCompletionCard({ tasker }: { tasker: ReturnType<typeof useTasker
   );
 }
 
-function ApprovedDashboard({ tasker }: { tasker: NonNullable<ReturnType<typeof useTaskerProfile>['data']> }) {
+// ─── Main Dashboard (hiển thị cho MỌI tasker — locked khi chưa verified) ─────
+
+function MainDashboard({
+  tasker,
+  isVerified,
+  onToggleOnline,
+}: {
+  tasker: NonNullable<ReturnType<typeof useTaskerProfile>['data']>;
+  isVerified: boolean;
+  onToggleOnline: () => void;
+}) {
   const initials = tasker.fullName
     ? tasker.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
     : 'S';
@@ -311,7 +236,12 @@ function ApprovedDashboard({ tasker }: { tasker: NonNullable<ReturnType<typeof u
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-emerald-500/20 bg-emerald-500/8 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+        className={cn(
+          'rounded-2xl border p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4',
+          isVerified
+            ? 'border-emerald-500/20 bg-emerald-500/8'
+            : 'border-border bg-muted/30'
+        )}
       >
         <Avatar className="w-14 h-14">
           <AvatarImage src={tasker.avatarUrl ?? undefined} />
@@ -319,39 +249,71 @@ function ApprovedDashboard({ tasker }: { tasker: NonNullable<ReturnType<typeof u
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-lg font-bold truncate">Chào mừng, {tasker.fullName ?? 'Đối tác'}!</h2>
-            <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30 text-[10px] font-bold uppercase tracking-widest">
-              <CheckCircle2 className="w-3 h-3 mr-1" aria-hidden="true" /> Đã xác minh
-            </Badge>
+            <h2 className="text-lg font-bold truncate">Xin chào, {tasker.fullName ?? 'Đối tác'}!</h2>
+            {isVerified ? (
+              <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30 text-[10px] font-bold uppercase tracking-widest">
+                <CheckCircle2 className="w-3 h-3 mr-1" aria-hidden="true" /> Đã xác minh
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Chưa xác minh
+              </Badge>
+            )}
           </div>
-          <p className="text-muted-foreground text-sm">Sẵn sàng nhận đơn và kiếm thu nhập hôm nay!</p>
+          <p className="text-muted-foreground text-sm">
+            {isVerified
+              ? 'Sẵn sàng nhận đơn và kiếm thu nhập hôm nay!'
+              : 'Hoàn thiện hồ sơ để bắt đầu nhận đơn.'}
+          </p>
         </div>
-        <Button asChild size="sm" className="rounded-xl shrink-0">
-          <Link href="/tasker/schedule" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" aria-hidden="true" /> Xem lịch
-          </Link>
-        </Button>
+        {isVerified && (
+          <Button asChild size="sm" className="rounded-xl shrink-0">
+            <Link href="/tasker/schedule" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" aria-hidden="true" /> Xem lịch
+            </Link>
+          </Button>
+        )}
       </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Briefcase} label="Tổng đơn" value={tasker.totalJobs} sub="Đã hoàn thành" color="bg-primary/10 text-primary" />
-        <StatCard icon={Star} label="Đánh giá TB" value={tasker.avgRating > 0 ? tasker.avgRating.toFixed(1) + '★' : '—'} sub="Từ khách hàng" color="bg-yellow-500/10 text-yellow-600" />
+        <StatCard icon={Briefcase} label="Tổng đơn" value={isVerified ? tasker.totalJobs : '—'} sub="Đã hoàn thành" color="bg-primary/10 text-primary" />
+        <StatCard icon={Star} label="Đánh giá TB" value={isVerified && tasker.avgRating > 0 ? tasker.avgRating.toFixed(1) + '★' : '—'} sub="Từ khách hàng" color="bg-yellow-500/10 text-yellow-600" />
         <StatCard icon={DollarSign} label="Thu nhập tháng" value="—" sub="Sắp ra mắt" color="bg-emerald-500/10 text-emerald-600" />
-        <StatCard icon={TrendingUp} label="Đơn đang xử lý" value="0" sub="Hôm nay" color="bg-blue-500/10 text-blue-600" />
+        <StatCard icon={TrendingUp} label="Đơn đang xử lý" value={isVerified ? '0' : '—'} sub="Hôm nay" color="bg-blue-500/10 text-blue-600" />
       </div>
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Activity / Jobs placeholder */}
+        {/* Left: Activity */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold">Đơn hàng gần đây</h3>
-            <Button variant="ghost" size="sm" className="text-primary text-xs gap-1">
-              Xem tất cả <ChevronRight className="w-3 h-3" aria-hidden="true" />
-            </Button>
+            {isVerified && (
+              <Button variant="ghost" size="sm" className="text-primary text-xs gap-1">
+                Xem tất cả <ChevronRight className="w-3 h-3" aria-hidden="true" />
+              </Button>
+            )}
           </div>
-          <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-12 flex flex-col items-center gap-3 text-center">
+
+          {/* Locked overlay khi chưa verified */}
+          <div className={cn('rounded-2xl border border-dashed bg-muted/30 p-12 flex flex-col items-center gap-3 text-center relative', !isVerified && 'border-muted')}>
+            {!isVerified && (
+              <div className="absolute inset-0 rounded-2xl bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-10">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Cần xác minh tài khoản</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl h-8 text-xs mt-1"
+                  onClick={onToggleOnline}
+                >
+                  Bật hoạt động để nhận đơn
+                </Button>
+              </div>
+            )}
             <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
               <Zap className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
             </div>
@@ -393,76 +355,95 @@ function ApprovedDashboard({ tasker }: { tasker: NonNullable<ReturnType<typeof u
   );
 }
 
+// ─── Skeleton Loading ─────────────────────────────────────────────────────────
+
+function TaskerPageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="h-6 w-48 bg-muted animate-pulse rounded-lg" />
+      <div className="h-20 w-full bg-muted animate-pulse rounded-2xl" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-28 bg-muted animate-pulse rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 function TaskerPage() {
   const { data: tasker, isLoading } = useTaskerProfile();
-  const isApproved = tasker?.approvalStatus === TaskerStatus.APPROVED;
+  const isVerified = tasker?.approvalStatus === TaskerStatus.APPROVED;
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="space-y-4">
-          <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
-          <div className="h-28 w-full bg-muted animate-pulse rounded-2xl" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-28 bg-muted animate-pulse rounded-2xl" />
-            ))}
-          </div>
-        </div>
-      );
-    }
+  // Guard hook — dùng chung cho toàn page
+  const guard = useTaskerActionGuard(tasker);
 
-    if (!tasker) return <NoProfileBanner />;
-
-    switch (tasker.approvalStatus) {
-      case TaskerStatus.PENDING:    return <PendingReviewView tasker={tasker} />;
-      case TaskerStatus.NEED_INFO:  return (
-        <div className="space-y-6">
-          <NeedInfoBanner adminNotes={tasker.adminNotes} />
-          <TaskerRegistrationWizard />
-        </div>
-      );
-      case TaskerStatus.REJECTED:   return <RejectedBanner adminNotes={tasker.adminNotes} />;
-      case TaskerStatus.APPROVED:   return <ApprovedDashboard tasker={tasker} />;
-      default:                     return <NoProfileBanner />;
-    }
+  // Handler khi bật hoạt động — gọi guard trước
+  const handleToggleOnline = () => {
+    guard.requireVerified(() => {
+      // TODO: Gọi API set isOnline thật khi BE sẵn sàng
+      console.log('Toggle online — tasker is verified');
+    });
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar chỉ hiển thị khi đã được duyệt */}
-      {isApproved && <TaskerSidebar />}
-
-      {/* Main content */}
-      <main className={cn('flex-1 min-w-0', isApproved && 'lg:pt-0 pt-14')}>
-        <div className="p-5 md:p-8 max-w-6xl mx-auto">
-          {/* Page header */}
-          <div className="mb-8 space-y-1">
-            <h1
-              className="text-3xl md:text-4xl font-light leading-tight"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              {isApproved ? (
-                <>Khu vực <span className="italic text-primary">Đối tác</span></>
-              ) : (
-                <>Tài khoản <span className="italic text-primary">Đối tác CleanZ</span></>
-              )}
-            </h1>
-            {!isLoading && (
-              <p className="text-muted-foreground text-sm">
-                {isApproved
-                  ? 'Quản lý lịch trình, thu nhập và đơn hàng của bạn.'
-                  : 'Theo dõi trạng thái xét duyệt hồ sơ đối tác.'}
-              </p>
-            )}
-          </div>
-
-          {renderContent()}
+    <>
+      <div className="p-5 md:p-8 max-w-6xl mx-auto space-y-6">
+        {/* Page header */}
+        <div className="space-y-1">
+          <h1
+            className="text-3xl md:text-4xl font-light leading-tight"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            Khu vực <span className="italic text-primary">Đối tác</span>
+          </h1>
+          {!isLoading && (
+            <p className="text-muted-foreground text-sm">
+              {isVerified
+                ? 'Quản lý lịch trình, thu nhập và đơn hàng của bạn.'
+                : 'Theo dõi trạng thái xét duyệt hồ sơ đối tác.'}
+            </p>
+          )}
         </div>
-      </main>
-    </div>
+
+        {/* Status Banner — CHỈ hiện khi cần, không thay thế layout */}
+        {!isLoading && (
+          <StatusBanner status={tasker?.approvalStatus} adminNotes={tasker?.adminNotes} />
+        )}
+
+        {/* Dashboard content — LUÔN render skeleton hoặc real */}
+        {isLoading ? (
+          <TaskerPageSkeleton />
+        ) : tasker ? (
+          <MainDashboard
+            tasker={tasker}
+            isVerified={isVerified}
+            onToggleOnline={handleToggleOnline}
+          />
+        ) : (
+          // null tasker đã được handle bởi StatusBanner (banner cam) + empty dashboard
+          <MainDashboard
+            tasker={{
+              id: '', userId: '', skills: '', experience: '', bio: '',
+              avatarUrl: null, approvalStatus: TaskerStatus.PENDING,
+              totalJobs: 0, avgRating: 0,
+            }}
+            isVerified={false}
+            onToggleOnline={handleToggleOnline}
+          />
+        )}
+      </div>
+
+      {/* Verification Modal — mount ở root page để không bị clip */}
+      <TaskerVerificationModal
+        isOpen={guard.isModalOpen}
+        onClose={guard.closeModal}
+        onCtaClick={(guard as ReturnType<typeof useTaskerActionGuard> & { _handleCtaClick: () => void })._handleCtaClick}
+        state={guard.verificationState}
+      />
+    </>
   );
 }
 
