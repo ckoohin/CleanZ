@@ -29,7 +29,7 @@ const MOCK_TASKER_DATA: TaskerProfile[] = Array.from({ length: 500 }).map((_, i)
   fullName: `Ứng viên mẫu ${i + 1}`,
   phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
   experience: `${Math.floor(Math.random() * 5) + 1} năm kinh nghiệm`,
-  skills: ["Dọn dẹp", "Nấu ăn", "Giặt ủi", "Sửa chữa", "Vệ sinh máy lạnh"][i % 5],
+  skills: ["Dọn dẹp", "Nấu ăn", "Giặt Sofa", "Tổng vệ sinh", "Vệ sinh máy lạnh"][i % 5],
   bio: "Chăm chỉ, thật thà",
   avatarUrl: null,
   approvalStatus: [TaskerStatus.PENDING, TaskerStatus.APPROVED, TaskerStatus.NEED_INFO, TaskerStatus.REJECTED][i % 4],
