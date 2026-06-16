@@ -32,7 +32,8 @@ export class UpdateBookingScheduleAddressDto {
 
   @ApiPropertyOptional({
     example: 'HN',
-    description: 'Mã tỉnh/thành. Hiện hệ thống chỉ hỗ trợ Hà Nội.',
+    description:
+      'Mã tỉnh/thành dùng để kiểm tra khu vực hỗ trợ. Có thể bỏ nếu địa chỉ đã lưu đủ thông tin để hệ thống tự kiểm tra.',
   })
   @IsOptional()
   @IsString()
@@ -40,7 +41,7 @@ export class UpdateBookingScheduleAddressDto {
   provinceCode?: string;
 
   @ApiPropertyOptional({
-    example: '2026-06-15T09:00:00.000Z',
+    example: '2026-06-17T07:00:00.000Z',
     description:
       'Thời gian bắt đầu dịch vụ dạng ISO. Có thể bỏ nếu đã gửi scheduledDate và scheduledTime.',
   })
@@ -53,7 +54,7 @@ export class UpdateBookingScheduleAddressDto {
   scheduledStart?: string;
 
   @ApiPropertyOptional({
-    example: '2026-06-15',
+    example: '2026-06-17',
     description: 'Ngày làm dịch vụ mới, format YYYY-MM-DD',
   })
   @ValidateIf((dto: UpdateBookingScheduleAddressDto) => !dto.scheduledStart)
@@ -65,7 +66,7 @@ export class UpdateBookingScheduleAddressDto {
   scheduledDate?: string;
 
   @ApiPropertyOptional({
-    example: '19:00',
+    example: '14:00',
     description: 'Giờ bắt đầu làm dịch vụ mới, format HH:mm theo giờ Việt Nam',
   })
   @ValidateIf((dto: UpdateBookingScheduleAddressDto) => !dto.scheduledStart)

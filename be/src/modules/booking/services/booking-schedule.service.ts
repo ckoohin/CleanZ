@@ -17,8 +17,14 @@ export interface BookingScheduleDraft {
   scheduledStart?: string;
   scheduledDate?: string;
   scheduledTime?: string;
-  durationHours: number;
+  durationHours?: number;
   voucherCode?: string;
+}
+
+export interface BookingScheduleStartContext {
+  scheduledStart: Date;
+  scheduledStartDate: string;
+  scheduledStartTime: string;
 }
 
 export interface BookingScheduleContext {
@@ -33,7 +39,7 @@ export interface BookingScheduleContext {
 
 @Injectable()
 export class BookingScheduleService {
-  buildSchedule(dto: BookingScheduleDraft): BookingScheduleContext {
+  buildScheduleStart(dto: BookingScheduleDraft): BookingScheduleStartContext {
     const scheduledStart = this.resolveScheduledStart(dto);
     if (Number.isNaN(scheduledStart.getTime())) {
       throw new BadRequestException('Thời gian bắt đầu không hợp lệ');
@@ -43,18 +49,30 @@ export class BookingScheduleService {
       throw new BadRequestException('Thời gian đặt lịch phải ở tương lai');
     }
 
+    return {
+      scheduledStart,
+      scheduledStartDate: formatVietnamDate(scheduledStart),
+      scheduledStartTime: formatVietnamTime(scheduledStart),
+    };
+  }
+
+  buildSchedule(
+    dto: BookingScheduleDraft,
+    durationHours: number,
+  ): BookingScheduleContext {
+    const scheduleStart = this.buildScheduleStart(dto);
     const scheduledEnd = new Date(
-      scheduledStart.getTime() + dto.durationHours * 60 * 60 * 1000,
+      scheduleStart.scheduledStart.getTime() + durationHours * 60 * 60 * 1000,
     );
 
     return {
-      scheduledStart,
+      scheduledStart: scheduleStart.scheduledStart,
       scheduledEnd,
-      scheduledStartDate: formatVietnamDate(scheduledStart),
-      scheduledStartTime: formatVietnamTime(scheduledStart),
+      scheduledStartDate: scheduleStart.scheduledStartDate,
+      scheduledStartTime: scheduleStart.scheduledStartTime,
       scheduledEndDate: formatVietnamDate(scheduledEnd),
       scheduledEndTime: formatVietnamTime(scheduledEnd),
-      durationHours: dto.durationHours,
+      durationHours,
     };
   }
 

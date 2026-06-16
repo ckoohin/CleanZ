@@ -16,7 +16,7 @@ export const getDatabaseConfig = (
     database: configService.get('DB_DATABASE', { infer: true }),
 
     autoLoadEntities: true,
-    synchronize: true,
+    synchronize: false,
     logging: isDev,
     // ssl: { rejectUnauthorized: false },
   };

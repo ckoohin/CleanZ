@@ -60,6 +60,7 @@ interface BookingPricingContext {
 
 export type CustomerBookingQuoteResponse = Record<string, unknown>;
 export type CustomerBookingDetailResponse = Record<string, unknown>;
+export type CustomerBookingCreatedResponse = Record<string, unknown>;
 
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
 
@@ -124,7 +125,10 @@ export class CustomerBookingService {
     }, 'Không thể báo giá booking');
   }
 
-  async create(userId: string, dto: CreateBookingDto): Promise<BookingEntity> {
+  async create(
+    userId: string,
+    dto: CreateBookingDto,
+  ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
       return this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -167,8 +171,8 @@ export class CustomerBookingService {
           paymentMethod,
           paymentStatus: PaymentStatus.PENDING,
           voucherId: context.voucher?.id,
-          isRecurring: dto.isRecurring ?? false,
-          recurringRule: dto.recurringRule,
+          isRecurring: false,
+          recurringRule: null,
         });
         const savedBooking = await bookingRepository.save(booking);
 
@@ -191,7 +195,11 @@ export class CustomerBookingService {
         });
         await logRepository.save(statusLog);
 
-        return savedBooking;
+        return this.mapCreatedBookingResponse(
+          savedBooking,
+          context,
+          paymentMethod,
+        );
       });
     }, 'Không thể tạo booking');
   }
@@ -462,7 +470,7 @@ export class CustomerBookingService {
     userId: string,
     dto: BookingScheduleDraft,
   ): Promise<BookingPricingContext> {
-    const schedule = this.bookingScheduleService.buildSchedule(dto);
+    const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
 
     const customerRepository = manager.getRepository(CustomerEntity);
     const addressRepository = manager.getRepository(CustomerAddressEntity);
@@ -510,11 +518,15 @@ export class CustomerBookingService {
     const price = await this.pricingService.calculateBookingPrice(manager, {
       serviceId: dto.serviceId,
       durationHours: dto.durationHours,
-      scheduledStart: schedule.scheduledStart,
-      scheduledStartTime: schedule.scheduledStartTime,
+      scheduledStart: scheduleStart.scheduledStart,
+      scheduledStartTime: scheduleStart.scheduledStartTime,
       hasPet: addressRef?.hasPet ?? false,
       voucherCode: dto.voucherCode,
     });
+    const schedule = this.bookingScheduleService.buildSchedule(
+      dto,
+      price.durationHours,
+    );
 
     return {
       customer,
@@ -554,5 +566,61 @@ export class CustomerBookingService {
       }
     }
     throw new BadRequestException('Không thể tạo mã booking, vui lòng thử lại');
+  }
+
+  private mapCreatedBookingResponse(
+    booking: BookingEntity,
+    context: BookingPricingContext,
+    paymentMethod: PaymentMethod,
+  ): CustomerBookingCreatedResponse {
+    return {
+      id: booking.id,
+      bookingCode: booking.bookingCode,
+      status: booking.status,
+      service: {
+        id: context.service.id,
+        name: context.service.name,
+        description: context.service.description ?? null,
+      },
+      address: {
+        id: context.addressRef?.id ?? null,
+        label: context.addressRef?.label ?? null,
+        fullAddress: context.bookingAddress,
+        wardDetail: context.addressRef?.wardDetail ?? null,
+        latitude: context.addressRef?.latitude ?? null,
+        longitude: context.addressRef?.longitude ?? null,
+        hasPet: context.addressRef?.hasPet ?? false,
+      },
+      schedule: {
+        scheduledStartDate: context.scheduledStartDate,
+        scheduledStartTime: context.scheduledStartTime,
+        scheduledEndDate: context.scheduledEndDate,
+        scheduledEndTime: context.scheduledEndTime,
+        durationHours: context.durationHours,
+      },
+      price: {
+        basePrice: context.basePrice,
+        addonPrice: context.addonPrice,
+        peakFee: context.peakFee,
+        petFee: context.petFee,
+        waitingFee: context.waitingFee,
+        discountAmount: context.discountAmount,
+        totalPrice: context.totalPrice,
+      },
+      payment: {
+        method: paymentMethod,
+        status: PaymentStatus.PENDING,
+      },
+      voucher: context.voucher
+        ? {
+            id: context.voucher.id,
+            code: context.voucher.code,
+            name: context.voucher.name,
+          }
+        : null,
+      note: booking.note ?? null,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+    };
   }
 }
