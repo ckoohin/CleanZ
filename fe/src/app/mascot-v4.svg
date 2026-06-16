@@ -1,0 +1,90 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Ultra-smooth Glow for LEDs -->
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="strongGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Premium Metallic Orange Gradient -->
+    <linearGradient id="premiumOrange" x1="14" y1="14" x2="86" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffb067" />
+      <stop offset="35%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#9a3412" />
+    </linearGradient>
+
+    <!-- Obsidian Glass Visor Gradient -->
+    <linearGradient id="obsidianGlass" x1="16" y1="40" x2="84" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="45%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
+
+    <!-- Micro-texture for Glass -->
+    <pattern id="scanlines" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="2" fill="#ffffff" fill-opacity="0.03" />
+    </pattern>
+  </defs>
+
+  <!-- Ambient Ground Shadow -->
+  <ellipse cx="50" cy="94" rx="26" ry="4" fill="#000000" opacity="0.18" filter="url(#softGlow)" />
+
+  <!-- Cybernetic Antennas (Sleek, integrated into the back of the sphere) -->
+  <path d="M32 24 L22 10 Q 28 8 36 18 Z" fill="#64748b" />
+  <path d="M68 24 L78 10 Q 72 8 64 18 Z" fill="#64748b" />
+  <!-- Antenna Neon Tips -->
+  <circle cx="22" cy="10" r="3" fill="#00f2fe" filter="url(#softGlow)" />
+  <circle cx="22" cy="10" r="1.5" fill="#ffffff" />
+  <circle cx="78" cy="10" r="3" fill="#00f2fe" filter="url(#softGlow)" />
+  <circle cx="78" cy="10" r="1.5" fill="#ffffff" />
+
+  <!-- ========================================== -->
+  <!-- MAIN CASING: PERFECT METALLIC ORB          -->
+  <!-- ========================================== -->
+  <circle cx="50" cy="54" r="36" fill="url(#premiumOrange)" />
+  
+  <!-- Outer Bezel Highlight (Rim light for 3D realism) -->
+  <circle cx="50" cy="54" r="36" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.6" />
+  
+  <!-- Top Highlight (Dome curve) -->
+  <path d="M14 54 A 36 36 0 0 1 86 54 A 32 32 0 0 0 14 54 Z" fill="#ffffff" opacity="0.15" />
+  <!-- Bottom Shadow (Weight/Depth) -->
+  <path d="M14 54 A 36 36 0 0 0 86 54 A 34 34 0 0 1 14 54 Z" fill="#431407" opacity="0.35" />
+
+  <!-- ========================================== -->
+  <!-- EDGE-TO-EDGE PANORAMIC VISOR               -->
+  <!-- ========================================== -->
+  <rect x="15" y="38" width="70" height="32" rx="16" fill="url(#obsidianGlass)" />
+  
+  <!-- Visor Bezel / Inner Edge -->
+  <rect x="15" y="38" width="70" height="32" rx="16" stroke="#000000" stroke-width="1.5" stroke-opacity="0.9" />
+  <rect x="16" y="39" width="68" height="30" rx="15" stroke="#ffffff" stroke-width="1" stroke-opacity="0.15" />
+
+  <!-- Digital Texture Overlay (Scanlines) -->
+  <rect x="17" y="40" width="66" height="28" rx="14" fill="url(#scanlines)" />
+
+  <!-- Smooth Glass Reflection Arc -->
+  <path d="M15 54 C 15 45 22 38 31 38 L69 38 C 78 38 85 45 85 54 C 60 70 30 45 15 54 Z" fill="#ffffff" opacity="0.08" />
+
+  <!-- ========================================== -->
+  <!-- LED DIGITAL DISPLAY                        -->
+  <!-- ========================================== -->
+
+  <!-- Pure White LED Eyes (Pill / Capsule shape) -->
+  <rect x="32" y="47" width="10" height="5" rx="2.5" fill="#ffffff" filter="url(#strongGlow)" />
+  <rect x="58" y="47" width="10" height="5" rx="2.5" fill="#ffffff" filter="url(#strongGlow)" />
+  
+  <!-- Bright LED core -->
+  <rect x="33" y="48" width="8" height="3" rx="1.5" fill="#ffffff" />
+  <rect x="59" y="48" width="8" height="3" rx="1.5" fill="#ffffff" />
+
+  <!-- Minimalist AI Smile (Sleek Cyan Curve) -->
+  <path d="M45 58 Q 50 61 55 58" stroke="#00f2fe" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#softGlow)" />
+  <!-- Core of the smile -->
+  <path d="M45 58 Q 50 61 55 58" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.9" />
+</svg>
