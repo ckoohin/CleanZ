@@ -6,9 +6,10 @@ import { AuthModule } from '../auth/auth.module';
 import { FacebookStrategy } from './strategies/facebook.stratrgy';
 import { PassportModule } from '@nestjs/passport';
 import { CookieHelper } from 'src/common/helpers/cookie.helper';
+import { CustomerModule } from '../customer/customer.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, PassportModule],
+  imports: [UsersModule, AuthModule, PassportModule, CustomerModule],
   controllers: [AuthFacebookController],
   providers: [AuthFacebookService, FacebookStrategy, CookieHelper],
 })

@@ -1,9 +1,22 @@
-import { Controller, Get, Patch, Param, Query, Body, NotFoundException, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Query,
+  Body,
+  NotFoundException,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
 import { UsersService } from 'src/modules/users/users.service';
-import { DateRangeQueryDto, RevenueChartQueryDto, BookingDetailsQueryDto } from './dto/date-range-query.dto';
+import {
+  DateRangeQueryDto,
+  RevenueChartQueryDto,
+  BookingDetailsQueryDto,
+} from './dto/date-range-query.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
 
 @AdminOnly()
@@ -24,12 +37,19 @@ export class AdminController {
 
   @Get('dashboard/kpis')
   getKpis(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getKpis(new Date(query.fromDate), new Date(query.toDate));
+    return this.dashboardRepo.getKpis(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
   }
 
   @Get('dashboard/gmv-chart')
   getGmvChart(@Query() query: RevenueChartQueryDto) {
-    return this.dashboardRepo.getGmvChart(new Date(query.fromDate), new Date(query.toDate), query.groupBy);
+    return this.dashboardRepo.getGmvChart(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+      query.groupBy,
+    );
   }
 
   @Get('dashboard/booking-status-snapshot')
@@ -38,9 +58,7 @@ export class AdminController {
   }
 
   @Get('dashboard/booking-details')
-  getBookingDetails(
-    @Query() query: BookingDetailsQueryDto,
-  ) {
+  getBookingDetails(@Query() query: BookingDetailsQueryDto) {
     return this.dashboardRepo.getBookingDetails(
       new Date(query.fromDate),
       new Date(query.toDate),
@@ -50,12 +68,17 @@ export class AdminController {
 
   @Get('dashboard/finance-breakdown')
   getFinanceBreakdown(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getFinanceBreakdown(new Date(query.fromDate), new Date(query.toDate));
+    return this.dashboardRepo.getFinanceBreakdown(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
   }
 
   @Get('dashboard/tasker-stats')
   getTaskerStats(@Query('limit') limit?: string) {
-    return this.dashboardRepo.getTaskerStats(limit ? Math.min(parseInt(limit, 10), 20) : 5);
+    return this.dashboardRepo.getTaskerStats(
+      limit ? Math.min(parseInt(limit, 10), 20) : 5,
+    );
   }
 
   // ─── Customer Management Endpoints ───
@@ -97,7 +120,13 @@ export class AdminController {
     if (!detail) {
       throw new NotFoundException(`Không tìm thấy khách hàng với id ${id}`);
     }
-    const user = await this.usersService.toggleUserActiveStatus(detail.userId, isActive);
-    return { message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', isActive: user.isActive };
+    const user = await this.usersService.toggleUserActiveStatus(
+      detail.userId,
+      isActive,
+    );
+    return {
+      message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản',
+      isActive: user.isActive,
+    };
   }
 }

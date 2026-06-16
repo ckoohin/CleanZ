@@ -3,9 +3,18 @@ import { DataSource } from 'typeorm';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
-import { IncidentEntity, IncidentStatus } from 'src/modules/incident/entity/incident.entity';
-import { SupportTicketEntity, SupportTicketStatus } from 'src/modules/support-ticket/entity/support-ticket.entity';
-import { WithdrawalEntity, WithdrawalStatus } from 'src/modules/withdrawal/entity/withdrawal.entity';
+import {
+  IncidentEntity,
+  IncidentStatus,
+} from 'src/modules/incident/entity/incident.entity';
+import {
+  SupportTicketEntity,
+  SupportTicketStatus,
+} from 'src/modules/support-ticket/entity/support-ticket.entity';
+import {
+  WithdrawalEntity,
+  WithdrawalStatus,
+} from 'src/modules/withdrawal/entity/withdrawal.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
@@ -17,95 +26,107 @@ export class AdminDashboardRepository {
   constructor(private readonly dataSource: DataSource) {}
 
   async getAlerts() {
-    const [unassigned, urgentUnassigned, pendingKyc, openIncidents, overdueIncidents, openTickets, slaBreached, pendingWithdrawals, withdrawalTotal] =
-      await Promise.all([
-        // Đơn chưa có tasker nhận
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .where('b.status = :status', { status: BookingStatus.POSTED })
-          .andWhere('b.tasker IS NULL')
-          .getCount(),
+    const [
+      unassigned,
+      urgentUnassigned,
+      pendingKyc,
+      openIncidents,
+      overdueIncidents,
+      openTickets,
+      slaBreached,
+      pendingWithdrawals,
+      withdrawalTotal,
+    ] = await Promise.all([
+      // Đơn chưa có tasker nhận
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.status = :status', { status: BookingStatus.POSTED })
+        .andWhere('b.tasker IS NULL')
+        .getCount(),
 
-        // Đơn chưa có tasker nhận sắp hết hạn (scheduled_start trong 2h)
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .where('b.status = :status', { status: BookingStatus.POSTED })
-          .andWhere('b.tasker IS NULL')
-          .andWhere('b.scheduledStart <= :deadline', {
-            deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
-          })
-          .getCount(),
+      // Đơn chưa có tasker nhận sắp hết hạn (scheduled_start trong 2h)
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.status = :status', { status: BookingStatus.POSTED })
+        .andWhere('b.tasker IS NULL')
+        .andWhere('b.scheduledStart <= :deadline', {
+          deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        })
+        .getCount(),
 
-        // Tasker chờ duyệt KYC
-        this.dataSource
-          .getRepository(TaskerEntity)
-          .createQueryBuilder('t')
-          .where('t.docStatus = :status', { status: DocumentStatus.PENDING })
-          .getCount(),
+      // Tasker chờ duyệt KYC
+      this.dataSource
+        .getRepository(TaskerEntity)
+        .createQueryBuilder('t')
+        .where('t.docStatus = :status', { status: DocumentStatus.PENDING })
+        .getCount(),
 
-        // Sự cố đang mở
-        this.dataSource
-          .getRepository(IncidentEntity)
-          .createQueryBuilder('i')
-          .where('i.status != :status', { status: IncidentStatus.RESOLVED })
-          .getCount()
-          .catch(() => 0),
+      // Sự cố đang mở
+      this.dataSource
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('i')
+        .where('i.status != :status', { status: IncidentStatus.RESOLVED })
+        .getCount()
+        .catch(() => 0),
 
-        // Sự cố quá hạn
-        this.dataSource
-          .getRepository(IncidentEntity)
-          .createQueryBuilder('i')
-          .where('i.status != :status', { status: IncidentStatus.RESOLVED })
-          .andWhere('i.overdueAt IS NOT NULL')
-          .andWhere('i.overdueAt < :now', { now: new Date() })
-          .getCount()
-          .catch(() => 0),
+      // Sự cố quá hạn
+      this.dataSource
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('i')
+        .where('i.status != :status', { status: IncidentStatus.RESOLVED })
+        .andWhere('i.overdueAt IS NOT NULL')
+        .andWhere('i.overdueAt < :now', { now: new Date() })
+        .getCount()
+        .catch(() => 0),
 
-        // Ticket đang mở
-        this.dataSource
-          .getRepository(SupportTicketEntity)
-          .createQueryBuilder('t')
-          .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
-          .getCount()
-          .catch(() => 0),
+      // Ticket đang mở
+      this.dataSource
+        .getRepository(SupportTicketEntity)
+        .createQueryBuilder('t')
+        .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
+        .getCount()
+        .catch(() => 0),
 
-        // Ticket vi phạm SLA
-        this.dataSource
-          .getRepository(SupportTicketEntity)
-          .createQueryBuilder('t')
-          .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
-          .andWhere('t.overdueAt IS NOT NULL')
-          .andWhere('t.overdueAt < :now', { now: new Date() })
-          .getCount()
-          .catch(() => 0),
+      // Ticket vi phạm SLA
+      this.dataSource
+        .getRepository(SupportTicketEntity)
+        .createQueryBuilder('t')
+        .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
+        .andWhere('t.overdueAt IS NOT NULL')
+        .andWhere('t.overdueAt < :now', { now: new Date() })
+        .getCount()
+        .catch(() => 0),
 
-        // Yêu cầu rút tiền chờ duyệt
-        this.dataSource
-          .getRepository(WithdrawalEntity)
-          .createQueryBuilder('w')
-          .where('w.status = :status', { status: WithdrawalStatus.PENDING })
-          .getCount()
-          .catch(() => 0),
+      // Yêu cầu rút tiền chờ duyệt
+      this.dataSource
+        .getRepository(WithdrawalEntity)
+        .createQueryBuilder('w')
+        .where('w.status = :status', { status: WithdrawalStatus.PENDING })
+        .getCount()
+        .catch(() => 0),
 
-        // Tổng tiền rút đang chờ
-        this.dataSource
-          .getRepository(WithdrawalEntity)
-          .createQueryBuilder('w')
-          .select('COALESCE(SUM(w.amount), 0)', 'total')
-          .where('w.status = :status', { status: WithdrawalStatus.PENDING })
-          .getRawOne()
-          .then((r) => Number(r?.total ?? 0))
-          .catch(() => 0),
-      ]);
+      // Tổng tiền rút đang chờ
+      this.dataSource
+        .getRepository(WithdrawalEntity)
+        .createQueryBuilder('w')
+        .select('COALESCE(SUM(w.amount), 0)', 'total')
+        .where('w.status = :status', { status: WithdrawalStatus.PENDING })
+        .getRawOne()
+        .then((r) => Number(r?.total ?? 0))
+        .catch(() => 0),
+    ]);
 
     return {
       unassignedBookings: { count: unassigned, urgentCount: urgentUnassigned },
       pendingKyc: { count: pendingKyc },
       openIncidents: { count: openIncidents, overdueCount: overdueIncidents },
       openTickets: { count: openTickets, slaBreachedCount: slaBreached },
-      pendingWithdrawals: { count: pendingWithdrawals, totalAmount: withdrawalTotal },
+      pendingWithdrawals: {
+        count: pendingWithdrawals,
+        totalAmount: withdrawalTotal,
+      },
     };
   }
 
@@ -117,67 +138,84 @@ export class AdminDashboardRepository {
     const calcChange = (cur: number, prev: number) =>
       prev === 0 ? null : Math.round(((cur - prev) / prev) * 1000) / 10;
 
-    const [cur, prev, activeTaskers, onlineTaskers, totalCustomers, returningCustomers] =
-      await Promise.all([
-        // Kỳ hiện tại
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .select([
-            'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
-            'COUNT(*) AS total_orders',
-            'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
-            'COALESCE(SUM(CASE WHEN b.paymentStatus = :refunded THEN b.totalPrice ELSE 0 END), 0) AS total_refund',
-          ])
-          .where('b.createdAt BETWEEN :from AND :to', { from, to })
-          .setParameter('completed', BookingStatus.COMPLETED)
-          .setParameter('cancelled', [BookingStatus.CANCELLED, BookingStatus.EXPIRED])
-          .setParameter('refunded', 'REFUNDED')
-          .getRawOne(),
+    const [
+      cur,
+      prev,
+      activeTaskers,
+      onlineTaskers,
+      totalCustomers,
+      returningCustomers,
+    ] = await Promise.all([
+      // Kỳ hiện tại
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .select([
+          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
+          'COUNT(*) AS total_orders',
+          'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
+          'COALESCE(SUM(CASE WHEN b.paymentStatus = :refunded THEN b.totalPrice ELSE 0 END), 0) AS total_refund',
+        ])
+        .where('b.createdAt BETWEEN :from AND :to', { from, to })
+        .setParameter('completed', BookingStatus.COMPLETED)
+        .setParameter('cancelled', [
+          BookingStatus.CANCELLED,
+          BookingStatus.EXPIRED,
+        ])
+        .setParameter('refunded', 'REFUNDED')
+        .getRawOne(),
 
-        // Kỳ trước để tính % thay đổi
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .select([
-            'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
-            'COUNT(*) AS total_orders',
-            'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
-          ])
-          .where('b.createdAt BETWEEN :from AND :to', { from: prevFrom, to: prevTo })
-          .setParameter('completed', BookingStatus.COMPLETED)
-          .setParameter('cancelled', [BookingStatus.CANCELLED, BookingStatus.EXPIRED])
-          .getRawOne(),
+      // Kỳ trước để tính % thay đổi
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .select([
+          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
+          'COUNT(*) AS total_orders',
+          'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
+        ])
+        .where('b.createdAt BETWEEN :from AND :to', {
+          from: prevFrom,
+          to: prevTo,
+        })
+        .setParameter('completed', BookingStatus.COMPLETED)
+        .setParameter('cancelled', [
+          BookingStatus.CANCELLED,
+          BookingStatus.EXPIRED,
+        ])
+        .getRawOne(),
 
-        // Tasker active (snapshot, không filter ngày)
-        this.dataSource
-          .getRepository(TaskerEntity)
-          .createQueryBuilder('t')
-          .where('t.status = :status', { status: TaskerStatus.ACTIVE })
-          .getCount(),
+      // Tasker active (snapshot, không filter ngày)
+      this.dataSource
+        .getRepository(TaskerEntity)
+        .createQueryBuilder('t')
+        .where('t.status = :status', { status: TaskerStatus.ACTIVE })
+        .getCount(),
 
-        // Tasker online
-        this.dataSource
-          .getRepository(TaskerEntity)
-          .createQueryBuilder('t')
-          .where('t.status = :status', { status: TaskerStatus.ACTIVE })
-          .andWhere('t.presenceStatus = :presence', { presence: TASKER_PRESENCE_STATUS.ONLINE })
-          .getCount(),
+      // Tasker online
+      this.dataSource
+        .getRepository(TaskerEntity)
+        .createQueryBuilder('t')
+        .where('t.status = :status', { status: TaskerStatus.ACTIVE })
+        .andWhere('t.presenceStatus = :presence', {
+          presence: TASKER_PRESENCE_STATUS.ONLINE,
+        })
+        .getCount(),
 
-        // Khách hàng mới trong kỳ
-        this.dataSource
-          .getRepository(CustomerEntity)
-          .createQueryBuilder('c')
-          .where('c.createdAt BETWEEN :from AND :to', { from, to })
-          .getCount(),
+      // Khách hàng mới trong kỳ
+      this.dataSource
+        .getRepository(CustomerEntity)
+        .createQueryBuilder('c')
+        .where('c.createdAt BETWEEN :from AND :to', { from, to })
+        .getCount(),
 
-        // Khách quay lại (đặt >= 2 lần)
-        this.dataSource
-          .getRepository(CustomerEntity)
-          .createQueryBuilder('c')
-          .where('c.totalBookings >= 2')
-          .getCount(),
-      ]);
+      // Khách quay lại (đặt >= 2 lần)
+      this.dataSource
+        .getRepository(CustomerEntity)
+        .createQueryBuilder('c')
+        .where('c.totalBookings >= 2')
+        .getCount(),
+    ]);
 
     const gmv = Number(cur.gmv);
     const prevGmv = Number(prev.gmv);
@@ -185,8 +223,12 @@ export class AdminDashboardRepository {
     const prevOrders = Number(prev.total_orders);
     const cancelledOrders = Number(cur.cancelled_orders);
     const prevCancelled = Number(prev.cancelled_orders);
-    const cancelRate = totalOrders > 0 ? Math.round((cancelledOrders / totalOrders) * 1000) / 10 : 0;
-    const prevCancelRate = prevOrders > 0 ? Math.round((prevCancelled / prevOrders) * 1000) / 10 : 0;
+    const cancelRate =
+      totalOrders > 0
+        ? Math.round((cancelledOrders / totalOrders) * 1000) / 10
+        : 0;
+    const prevCancelRate =
+      prevOrders > 0 ? Math.round((prevCancelled / prevOrders) * 1000) / 10 : 0;
     const completedOrders = await this.dataSource
       .getRepository(BookingEntity)
       .createQueryBuilder('b')
@@ -198,16 +240,33 @@ export class AdminDashboardRepository {
     const prevNewCustomers = await this.dataSource
       .getRepository(CustomerEntity)
       .createQueryBuilder('c')
-      .where('c.createdAt BETWEEN :from AND :to', { from: prevFrom, to: prevTo })
+      .where('c.createdAt BETWEEN :from AND :to', {
+        from: prevFrom,
+        to: prevTo,
+      })
       .getCount();
 
     return {
       gmv: { value: gmv, change: calcChange(gmv, prevGmv) },
       aov: { value: aov, change: null },
-      totalOrders: { value: totalOrders, change: calcChange(totalOrders, prevOrders) },
-      cancelRate: { value: cancelRate, change: calcChange(cancelRate, prevCancelRate) },
-      newCustomers: { value: totalCustomers, change: calcChange(totalCustomers, prevNewCustomers) },
-      returningRate: { value: totalCustomers > 0 ? Math.round((returningCustomers / totalCustomers) * 1000) / 10 : 0 },
+      totalOrders: {
+        value: totalOrders,
+        change: calcChange(totalOrders, prevOrders),
+      },
+      cancelRate: {
+        value: cancelRate,
+        change: calcChange(cancelRate, prevCancelRate),
+      },
+      newCustomers: {
+        value: totalCustomers,
+        change: calcChange(totalCustomers, prevNewCustomers),
+      },
+      returningRate: {
+        value:
+          totalCustomers > 0
+            ? Math.round((returningCustomers / totalCustomers) * 1000) / 10
+            : 0,
+      },
       totalRefund: { value: Number(cur.total_refund), change: null },
       activeTaskers: { total: activeTaskers, online: onlineTaskers },
     };
@@ -238,7 +297,9 @@ export class AdminDashboardRepository {
       label: new Date(r.period).toLocaleDateString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
-        ...(groupBy === GroupBy.MONTH ? { month: 'short', day: undefined } : {}),
+        ...(groupBy === GroupBy.MONTH
+          ? { month: 'short', day: undefined }
+          : {}),
       }),
       gmv: Number(r.gmv),
       orders: Number(r.orders),
@@ -332,9 +393,18 @@ export class AdminDashboardRepository {
         status: r.status,
         scheduledStart: r.scheduledStart,
       })),
-      recurring: recurring.map((r) => ({ rule: r.rule ?? 'Không xác định', count: Number(r.count) })),
-      cancelReasons: cancelReasons.map((r) => ({ cancelledBy: r.cancelledBy ?? 'SYSTEM', count: Number(r.count) })),
-      peakHours: peakHours.map((r) => ({ hour: hourLabel(Number(r.hour_block)), count: Number(r.count) })),
+      recurring: recurring.map((r) => ({
+        rule: r.rule ?? 'Không xác định',
+        count: Number(r.count),
+      })),
+      cancelReasons: cancelReasons.map((r) => ({
+        cancelledBy: r.cancelledBy ?? 'SYSTEM',
+        count: Number(r.count),
+      })),
+      peakHours: peakHours.map((r) => ({
+        hour: hourLabel(Number(r.hour_block)),
+        count: Number(r.count),
+      })),
     };
   }
 
@@ -367,7 +437,10 @@ export class AdminDashboardRepository {
       paymentMix: paymentRows.map((r) => ({
         method: r.method,
         count: Number(r.count),
-        percent: totalOrders > 0 ? Math.round((Number(r.count) / totalOrders) * 1000) / 10 : 0,
+        percent:
+          totalOrders > 0
+            ? Math.round((Number(r.count) / totalOrders) * 1000) / 10
+            : 0,
       })),
       feeBreakdown: {
         peakFee: Number(feeRow?.peak_fee ?? 0),
@@ -407,7 +480,9 @@ export class AdminDashboardRepository {
           't.docExpiredDate AS "docExpiredDate"',
         ])
         .where('t.docExpiredDate IS NOT NULL')
-        .andWhere('t.docExpiredDate <= :deadline', { deadline: thirtyDaysLater })
+        .andWhere('t.docExpiredDate <= :deadline', {
+          deadline: thirtyDaysLater,
+        })
         .andWhere('t.docExpiredDate >= :now', { now: new Date() })
         .orderBy('t.docExpiredDate', 'ASC')
         .getRawMany(),
@@ -421,9 +496,15 @@ export class AdminDashboardRepository {
       })),
       docExpiring: docExpiring.map((t) => {
         const daysLeft = Math.ceil(
-          (new Date(t.docExpiredDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+          (new Date(t.docExpiredDate).getTime() - Date.now()) /
+            (1000 * 60 * 60 * 24),
         );
-        return { fullName: t.fullName, docType: t.docType, docExpiredDate: t.docExpiredDate, daysLeft };
+        return {
+          fullName: t.fullName,
+          docType: t.docType,
+          docExpiredDate: t.docExpiredDate,
+          daysLeft,
+        };
       }),
     };
   }
