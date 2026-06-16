@@ -14,6 +14,7 @@ import { TokenModule } from '../token/token.module';
 import { UsersModule } from '../users/users.module';
 import { MailModule } from '../mail/mail.module';
 import { CookieHelper } from 'src/common/helpers/cookie.helper';
+import { CustomerModule } from '../customer/customer.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CookieHelper } from 'src/common/helpers/cookie.helper';
     TypeOrmModule.forFeature([User]),
     TokenModule,
     UsersModule,
+    CustomerModule,
     MailModule,
   ],
   controllers: [AuthController],

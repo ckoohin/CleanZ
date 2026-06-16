@@ -1,25 +1,71 @@
-<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Antennas -->
-  <path d="M50 32 L35 18" stroke="#fd7e14" stroke-width="5" stroke-linecap="round" />
-  <path d="M50 32 L65 18" stroke="#fd7e14" stroke-width="5" stroke-linecap="round" />
-  <circle cx="33" cy="14" r="6" fill="#fd7e14" />
-  <circle cx="67" cy="14" r="6" fill="#fd7e14" />
-  
-  <!-- Ears -->
-  <rect x="14" y="46" width="8" height="22" rx="4" fill="#fd7e14" />
-  <rect x="78" y="46" width="8" height="22" rx="4" fill="#fd7e14" />
-  
-  <!-- Helmet Outline -->
-  <rect x="22" y="32" width="56" height="46" rx="23" stroke="#fd7e14" stroke-width="5" fill="transparent" />
-  
-  <!-- Eyes (Happy arcs) -->
-  <path d="M38 52 Q 42 46 46 52" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" fill="none" />
-  <path d="M54 52 Q 58 46 62 52" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" fill="none" />
-  
-  <!-- Cheeks -->
-  <circle cx="34" cy="62" r="4" fill="#FF7EB3" />
-  <circle cx="66" cy="62" r="4" fill="#FF7EB3" />
-  
-  <!-- Mouth -->
-  <path d="M44 60 Q 50 70 56 60" stroke="#fd7e14" stroke-width="4" stroke-linecap="round" fill="none" />
+<svg viewBox="8 5 84 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Premium 3D Orange Gradient for the Shell -->
+    <linearGradient id="shellGradient" x1="16" y1="24" x2="84" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ff9a44" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+
+    <!-- Deep Glass Visor Gradient -->
+    <linearGradient id="visorGradient" x1="22" y1="34" x2="78" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Cyberpunk Scanline Pattern for Visor -->
+    <pattern id="scanlines" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="2" fill="#ffffff" fill-opacity="0.04" />
+    </pattern>
+  </defs>
+
+  <g>
+    <!-- Modern Tech Antennas (Soft curved stems) -->
+    <path d="M42 26 Q 36 18 32 12" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M58 26 Q 64 18 68 12" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" fill="none" />
+    
+    <!-- Glowing LED Antenna Tips (Soft Ovals) -->
+    <ellipse cx="31" cy="11" rx="5" ry="4" fill="#22d3ee" />
+    <ellipse cx="31" cy="11" rx="2" ry="1.5" fill="#ffffff" />
+    <ellipse cx="69" cy="11" rx="5" ry="4" fill="#22d3ee" />
+    <ellipse cx="69" cy="11" rx="2" ry="1.5" fill="#ffffff" />
+
+    <!-- Mechanical Side Nodes (Robot Ears) - fully pill shaped -->
+    <rect x="11" y="38" width="10" height="30" rx="5" fill="#cbd5e1" />
+    <rect x="79" y="38" width="10" height="30" rx="5" fill="#cbd5e1" />
+    
+    <!-- Outer Casing (Softer, rounder squircle) -->
+    <rect x="16" y="24" width="68" height="62" rx="26" fill="url(#shellGradient)" />
+    
+    <!-- 3D Casing Highlights & Shadows -->
+    <rect x="16" y="24" width="68" height="62" rx="26" stroke="#ffffff" stroke-width="2.5" stroke-opacity="0.4" />
+    <path d="M19 64 C 19 80 28 86 38 86 L62 86 C 72 86 81 80 81 64" stroke="#9a3412" stroke-width="4" stroke-linecap="round" opacity="0.5" fill="none" />
+
+    <!-- Futuristic Panoramic Visor (Extremely round ends) -->
+    <rect x="22" y="35" width="56" height="36" rx="18" fill="url(#visorGradient)" />
+    
+    <!-- Scanlines over Visor (Digital Texture) -->
+    <rect x="22" y="35" width="56" height="36" rx="18" fill="url(#scanlines)" />
+
+    <!-- Visor Inner Glow (Subtle Cyan Rim) -->
+    <rect x="22" y="35" width="56" height="36" rx="18" stroke="#22d3ee" stroke-width="1.5" stroke-opacity="0.4" />
+
+    <!-- Glossy Glass Reflection (Curved organic shape) -->
+    <path d="M22 51 C 22 43 28 35 38 35 L62 35 C 70 35 78 41 78 47 C 60 62 40 39 22 51 Z" fill="#ffffff" opacity="0.1" />
+
+    <!-- Soft Pill/Oval Eyes (Very modern and friendly like EVE/Astro Bot) -->
+    <g>
+      <ellipse cx="36" cy="48" rx="4.5" ry="6.5" fill="#ffffff" />
+      <ellipse cx="64" cy="48" rx="4.5" ry="6.5" fill="#ffffff" />
+    </g>
+
+    <!-- Digital Cheeks (Soft oval blushes) -->
+    <ellipse cx="28" cy="55" rx="3.5" ry="2.5" fill="#22d3ee" opacity="0.85" />
+    <ellipse cx="72" cy="55" rx="3.5" ry="2.5" fill="#22d3ee" opacity="0.85" />
+
+    <!-- Soft Capsule Mouth (Friendly and cute tech) -->
+    <rect x="44" y="56" width="12" height="4" rx="2" fill="#22d3ee" />
+    
+    <!-- Subtle curve to make the mouth look like a tiny smile -->
+    <path d="M46 59 Q 50 61 54 59" stroke="#020617" stroke-width="1" fill="none" opacity="0.5" />
+  </g>
 </svg>

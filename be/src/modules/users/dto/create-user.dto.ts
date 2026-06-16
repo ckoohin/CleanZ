@@ -43,6 +43,18 @@ export class CreateUserDto {
   @MaxLength(100, { message: 'Họ tên không được vượt quá 100 ký tự' })
   fullName!: string;
 
+  @ApiPropertyOptional({
+    example: '0901234567',
+    description: 'Số điện thoại người dùng',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^0\d{9,10}$/, {
+    message: 'Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số',
+  })
+  phone?: string;
+
   @IsEnum(UserRole, { message: 'Role phải là Tasker hoặc Customer' })
   @IsOptional()
   role?: UserRole;

@@ -33,6 +33,7 @@ export class UsersService {
       const user = this.userRepository.create({
         email: dto.email,
         fullName: dto.fullName,
+        phone: dto.phone,
         password: hashedPassword,
         provider: AuthProvider.LOCAL,
         role: dto.role,
@@ -121,7 +122,10 @@ export class UsersService {
     }, 'Lỗi khi xác thực email');
   }
 
-  async toggleUserActiveStatus(id: string, isActive: boolean): Promise<UserEntity> {
+  async toggleUserActiveStatus(
+    id: string,
+    isActive: boolean,
+  ): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
       if (!user) {

@@ -25,6 +25,9 @@ export class TaskerEntity {
   @Column({ name: 'working_address', type: 'text', nullable: true })
   workingAddress?: string | null;
 
+  @Column({ name: 'bio', type: 'text', nullable: true })
+  bio?: string | null;
+
   @Column({
     type: 'enum',
     enum: TaskerStatus,
@@ -101,6 +104,15 @@ export class TaskerEntity {
   @Column({ name: 'doc_back_url', type: 'text', nullable: true })
   docBackUrl?: string | null;
 
+  @Column({ name: 'criminal_record_url', type: 'text', nullable: true })
+  criminalRecordUrl?: string | null;
+
+  @Column({ name: 'health_certificate_url', type: 'text', nullable: true })
+  healthCertificateUrl?: string | null;
+
+  @Column({ name: 'certificate_url', type: 'text', nullable: true })
+  certificateUrl?: string | null;
+
   @Column({ name: 'doc_issued_date', type: 'date', nullable: true })
   docIssuedDate?: Date | null;
 
@@ -130,6 +142,25 @@ export class TaskerEntity {
     default: TASKER_PRESENCE_STATUS.OFFLINE,
   })
   presenceStatus!: TASKER_PRESENCE_STATUS;
+
+  @Column({ name: 'bank_name', type: 'varchar', length: 100, nullable: true })
+  bankName?: string | null;
+
+  @Column({
+    name: 'bank_account_number',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  bankAccountNumber?: string | null;
+
+  @Column({
+    name: 'bank_account_name',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  bankAccountName?: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

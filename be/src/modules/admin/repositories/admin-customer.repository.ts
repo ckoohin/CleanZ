@@ -115,17 +115,22 @@ export class AdminCustomerRepository {
       ])
       .where('c.id = :customerId', { customerId })
       .setParameter('completed', BookingStatus.COMPLETED)
-      .setParameter('cancelled', [BookingStatus.CANCELLED, BookingStatus.EXPIRED])
+      .setParameter('cancelled', [
+        BookingStatus.CANCELLED,
+        BookingStatus.EXPIRED,
+      ])
       .getRawOne();
 
     const totalBookings = Number(row?.total_bookings ?? 0);
     const completedBookings = Number(row?.completed_bookings ?? 0);
     const cancelledBookings = Number(row?.cancelled_bookings ?? 0);
     const totalSpent = Number(row?.total_spent ?? 0);
-    const completionRate = totalBookings > 0
-      ? Math.round((completedBookings / totalBookings) * 1000) / 10
-      : 0;
-    const aov = completedBookings > 0 ? Math.round(totalSpent / completedBookings) : 0;
+    const completionRate =
+      totalBookings > 0
+        ? Math.round((completedBookings / totalBookings) * 1000) / 10
+        : 0;
+    const aov =
+      completedBookings > 0 ? Math.round(totalSpent / completedBookings) : 0;
 
     return {
       totalBookings,

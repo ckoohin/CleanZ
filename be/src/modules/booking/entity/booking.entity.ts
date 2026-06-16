@@ -8,7 +8,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
-import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
@@ -55,11 +54,17 @@ export class BookingEntity {
   @Column({ type: 'text', nullable: true })
   note?: string | null;
 
-  @Column({ name: 'scheduled_start', type: 'timestamp' })
-  scheduledStart!: Date;
+  @Column({ name: 'scheduled_start_date', type: 'date', nullable: true })
+  scheduledStartDate?: string | null;
 
-  @Column({ name: 'scheduled_end', type: 'timestamp' })
-  scheduledEnd!: Date;
+  @Column({ name: 'scheduled_start_time', type: 'time', nullable: true })
+  scheduledStartTime?: string | null;
+
+  @Column({ name: 'scheduled_end_date', type: 'date', nullable: true })
+  scheduledEndDate?: string | null;
+
+  @Column({ name: 'scheduled_end_time', type: 'time', nullable: true })
+  scheduledEndTime?: string | null;
 
   @Column({
     name: 'duration_hours',
@@ -178,15 +183,6 @@ export class BookingEntity {
 
   @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
   cancelledAt?: Date | null;
-
-  @Column({
-    name: 'cancelled_by',
-    type: 'enum',
-    enum: CancelledBy,
-    enumName: 'cancelled_by',
-    nullable: true,
-  })
-  cancelledBy?: CancelledBy | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

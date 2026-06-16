@@ -1,4 +1,14 @@
-import { IsDateString, IsEnum, IsOptional, Validate, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments, IsInt, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 @ValidatorConstraint({ name: 'isAfterFromDate', async: false })
