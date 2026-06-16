@@ -8,7 +8,7 @@ export interface CategoryItem {
 }
 
 export interface ServiceItem {
-  id: number;
+  id: string | number;
   title: string;
   desc: string;
   image: string;
@@ -18,5 +18,6 @@ export interface ServiceItem {
   price: string;
   unit: string;
   duration: string;
-  bookingUrl: string;
+  bookingUrl?: string;
+  categoryId?: string;
 }

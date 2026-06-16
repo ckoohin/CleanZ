@@ -87,7 +87,7 @@ export function SignUpFlow() {
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base mt-3 leading-relaxed">
               Trở thành thành viên của{" "}
-              <span className="font-semibold text-primary">King Of Service</span>{" "}
+              <span className="font-semibold text-primary">CleanZ</span>{" "}
               ngay hôm nay và khám phá trải nghiệm dịch vụ đỉnh cao.
             </p>
           </motion.div>

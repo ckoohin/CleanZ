@@ -16,7 +16,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'King Of Service — Nền tảng dọn dẹp',
+  title: 'CleanZ — Nền tảng dọn dẹp',
   description: 'Kết nối khách hàng với đối tác dọn dẹp chuyên nghiệp.',
 };
 
@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={cn("font-sans", sourceSans3.variable, playfair.variable)}
+      className={cn("font-sans overflow-x-hidden w-full", sourceSans3.variable, playfair.variable)}
     >
       <head>
         <meta charSet="utf-8" />
@@ -40,7 +40,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={cn("bg-background text-foreground antialiased")}
+        className={cn("bg-background text-foreground antialiased overflow-x-hidden")}
       >
         <Toaster richColors={true} position="top-right" />
         <ThemeToggleProvider>

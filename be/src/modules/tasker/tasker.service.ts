@@ -31,22 +31,42 @@ export class TaskerService {
     userId: string,
     dto: SubmitTaskerProfileDto,
     files: {
+      avatar?: Express.Multer.File[];
       docFront?: Express.Multer.File[];
       docBack?: Express.Multer.File[];
+      criminalRecord?: Express.Multer.File[];
+      healthCertificate?: Express.Multer.File[];
+      certificate?: Express.Multer.File[];
     },
   ): Promise<TaskerProfileResponse> {
     return asyncHandleOperation(async () => {
+      const avatar = files.avatar?.[0];
       const docFront = files.docFront?.[0];
       const docBack = files.docBack?.[0];
+      if (!avatar) {
+        throw new BadRequestException('Vui lòng upload ảnh đại diện');
+      }
       if (!docFront || !docBack) {
         throw new BadRequestException(
           'Vui lòng upload đủ ảnh mặt trước và mặt sau căn cước',
         );
       }
+      await this.assertProfileCanBeSubmitted(userId);
 
-      const [frontUpload, backUpload] = await Promise.all([
+      const [
+        avatarUpload,
+        frontUpload,
+        backUpload,
+        criminalRecordUpload,
+        healthCertificateUpload,
+        certificateUpload,
+      ] = await Promise.all([
+        this.uploadService.uploadImage(avatar),
         this.uploadService.uploadImage(docFront),
         this.uploadService.uploadImage(docBack),
+        this.uploadOptionalImage(files.criminalRecord?.[0]),
+        this.uploadOptionalImage(files.healthCertificate?.[0]),
+        this.uploadOptionalImage(files.certificate?.[0]),
       ]);
       const phone = this.normalizePhone(dto.phone);
 
@@ -80,24 +100,50 @@ export class TaskerService {
           user.role = UserRole.TASKER;
         }
         user.phone = phone;
+        user.avatarUrl = avatarUpload.url;
         await userRepository.save(user);
 
         tasker = taskerRepository.create({
           ...(tasker ?? {}),
           user,
-          workingAddress: dto.workingAddress?.trim() || null,
+          workingAddress: this.resolveOptionalText(
+            dto.workingAddress,
+            tasker?.workingAddress,
+          ),
+          bio: this.resolveOptionalText(dto.bio, tasker?.bio),
           status: TaskerStatus.PENDING,
           docType: dto.docType,
           docIdNumber: dto.docIdNumber,
           docFrontUrl: frontUpload.url,
           docBackUrl: backUpload.url,
-          docIssuedDate: dto.docIssuedDate ? new Date(dto.docIssuedDate) : null,
-          docExpiredDate: dto.docExpiredDate
-            ? new Date(dto.docExpiredDate)
-            : null,
+          criminalRecordUrl:
+            criminalRecordUpload?.url ?? tasker?.criminalRecordUrl ?? null,
+          healthCertificateUrl:
+            healthCertificateUpload?.url ??
+            tasker?.healthCertificateUrl ??
+            null,
+          certificateUrl:
+            certificateUpload?.url ?? tasker?.certificateUrl ?? null,
+          docIssuedDate: this.resolveOptionalDate(
+            dto.docIssuedDate,
+            tasker?.docIssuedDate,
+          ),
+          docExpiredDate: this.resolveOptionalDate(
+            dto.docExpiredDate,
+            tasker?.docExpiredDate,
+          ),
           docStatus: DocumentStatus.PENDING,
           docReviewedAt: null,
           docNote: null,
+          bankName: this.resolveOptionalText(dto.bankName, tasker?.bankName),
+          bankAccountNumber: this.resolveOptionalText(
+            dto.bankAccountNumber,
+            tasker?.bankAccountNumber,
+          ),
+          bankAccountName: this.resolveOptionalText(
+            dto.bankAccountName,
+            tasker?.bankAccountName,
+          ),
         });
 
         return taskerRepository.save(tasker);
@@ -105,6 +151,59 @@ export class TaskerService {
 
       return this.mapProfile(tasker);
     }, 'Không thể nộp hồ sơ tasker');
+  }
+
+  private async assertProfileCanBeSubmitted(userId: string): Promise<void> {
+    const [user, tasker] = await Promise.all([
+      this.dataSource.getRepository(UserEntity).findOne({
+        where: { id: userId },
+      }),
+      this.taskerRepository.findOne({
+        where: { user: { id: userId } },
+      }),
+    ]);
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy user');
+    }
+
+    if (tasker?.docStatus === DocumentStatus.APPROVED) {
+      throw new ConflictException(
+        'Không thể thay đổi hồ sơ sau khi đã được duyệt',
+      );
+    }
+  }
+
+  private async uploadOptionalImage(
+    file?: Express.Multer.File,
+  ): Promise<{ url: string; public_id: string } | null> {
+    if (!file) {
+      return null;
+    }
+
+    return this.uploadService.uploadImage(file);
+  }
+
+  private resolveOptionalText(
+    value: string | undefined,
+    currentValue?: string | null,
+  ): string | null {
+    if (value === undefined) {
+      return currentValue ?? null;
+    }
+
+    return value.trim() || null;
+  }
+
+  private resolveOptionalDate(
+    value: string | undefined,
+    currentValue?: Date | null,
+  ): Date | null {
+    if (value === undefined) {
+      return currentValue ?? null;
+    }
+
+    return value ? new Date(value) : null;
   }
 
   private normalizePhone(value: string): string {
@@ -236,22 +335,51 @@ export class TaskerService {
   }
 
   private mapProfile(tasker: TaskerEntity): TaskerProfileResponse {
+    const fullName = tasker.user?.fullName ?? null;
+    const phone = tasker.user?.phone ?? null;
+    const avatarUrl = tasker.user?.avatarUrl ?? null;
+
     return {
       id: tasker.id,
+      userId: tasker.user?.id ?? null,
       status: tasker.status,
+      approvalStatus: tasker.docStatus.toLowerCase(),
       workingAddress: tasker.workingAddress ?? null,
+      bio: tasker.bio ?? null,
+      fullName,
+      phone,
+      avatarUrl,
+      bankName: tasker.bankName ?? null,
+      bankAccountNumber: tasker.bankAccountNumber ?? null,
+      bankAccountName: tasker.bankAccountName ?? null,
+      adminNotes: tasker.docNote ?? null,
+      totalJobs: tasker.totalCompletedJobs,
+      avgRating: Number(tasker.ratingAvg),
+      hasCitizenCardImage: Boolean(tasker.docFrontUrl && tasker.docBackUrl),
+      hasCriminalRecordImage: Boolean(tasker.criminalRecordUrl),
+      hasHealthCertificateImage: Boolean(tasker.healthCertificateUrl),
+      hasCertificateImage: Boolean(tasker.certificateUrl),
+      hasIdWithSelfieImage: Boolean(avatarUrl),
+      bank: {
+        name: tasker.bankName ?? null,
+        accountNumber: tasker.bankAccountNumber ?? null,
+        accountName: tasker.bankAccountName ?? null,
+      },
       user: {
         id: tasker.user?.id ?? null,
         email: tasker.user?.email ?? null,
-        fullName: tasker.user?.fullName ?? null,
-        phone: tasker.user?.phone ?? null,
-        avatarUrl: tasker.user?.avatarUrl ?? null,
+        fullName,
+        phone,
+        avatarUrl,
       },
       document: {
         type: tasker.docType ?? null,
         idNumber: tasker.docIdNumber ?? null,
         frontUrl: tasker.docFrontUrl ?? null,
         backUrl: tasker.docBackUrl ?? null,
+        criminalRecordUrl: tasker.criminalRecordUrl ?? null,
+        healthCertificateUrl: tasker.healthCertificateUrl ?? null,
+        certificateUrl: tasker.certificateUrl ?? null,
         issuedDate: tasker.docIssuedDate ?? null,
         expiredDate: tasker.docExpiredDate ?? null,
         status: tasker.docStatus,

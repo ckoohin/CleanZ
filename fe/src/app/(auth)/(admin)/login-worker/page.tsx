@@ -90,7 +90,7 @@ export default function WorkerLoginPage() {
                        </div>
                        <Input 
                          type={loginMethod === "phone" ? "tel" : "email"}
-                         placeholder={loginMethod === "phone" ? "Ví dụ: 0988xxxxxx" : "worker@kingofservice.com"}
+                         placeholder={loginMethod === "phone" ? "Ví dụ: 0988xxxxxx" : "worker@CleanZ.com"}
                          className="h-16 pl-14 rounded-3xl bg-muted/30 border-border/20 focus:bg-background transition-all outline-none text-base"
                        />
                     </div>

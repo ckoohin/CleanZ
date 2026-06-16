@@ -184,7 +184,7 @@ export function ImageCarousel({ valueAuthType }: { valueAuthType: "signup" | "si
             <span className="text-[12px] group-hover:hidden font-black text-white uppercase tracking-[0.3em]
               group-hover:text-primary transition"
             >
-              King Of Service
+              CleanZ
             </span>
           </div>
         </Link>

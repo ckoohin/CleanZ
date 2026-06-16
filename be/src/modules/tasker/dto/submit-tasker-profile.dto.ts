@@ -24,6 +24,18 @@ export class SubmitTaskerProfileDto {
   )
   workingAddress?: string;
 
+  @ApiPropertyOptional({
+    example: 'Tôi có 2 năm kinh nghiệm dọn dẹp căn hộ và nhà phố.',
+    description: 'Giới thiệu ngắn về tasker',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  bio?: string;
+
   @ApiProperty({
     example: '09876543210',
     description:
@@ -74,4 +86,40 @@ export class SubmitTaskerProfileDto {
   @IsOptional()
   @IsDateString()
   docExpiredDate?: string;
+
+  @ApiPropertyOptional({
+    example: 'Vietcombank',
+    description: 'Tên ngân hàng nhận thanh toán',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  bankName?: string;
+
+  @ApiPropertyOptional({
+    example: '1234567890',
+    description: 'Số tài khoản ngân hàng',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional({
+    example: 'NGUYEN VAN A',
+    description: 'Tên chủ tài khoản ngân hàng',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  bankAccountName?: string;
 }

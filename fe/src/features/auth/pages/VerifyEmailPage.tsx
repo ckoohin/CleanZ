@@ -75,7 +75,7 @@ export default function VerifyEmailPage() {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-xs font-bold text-white">K</span>
               </div>
-              <span className="text-sm font-semibold text-foreground tracking-wide">King Of Service</span>
+              <span className="text-sm font-semibold text-foreground tracking-wide">CleanZ</span>
             </div>
 
             {status === "loading" && <LoadingState />}
@@ -141,7 +141,7 @@ function SuccessState({ countdown }: { countdown: number }) {
         <h1 className="text-2xl font-bold text-foreground mb-2">Xác thực thành công!</h1>
         <p className="text-sm text-muted-foreground leading-relaxed mb-8">
           Email của bạn đã được xác minh. Chào mừng bạn đến với{" "}
-          <span className="font-semibold text-primary">King Of Service</span>.
+          <span className="font-semibold text-primary">CleanZ</span>.
         </p>
 
         <div className="w-full bg-muted rounded-full h-1.5 mb-3 overflow-hidden">

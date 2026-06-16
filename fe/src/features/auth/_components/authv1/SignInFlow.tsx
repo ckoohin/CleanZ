@@ -112,7 +112,7 @@ export const SignInFlow = () => {
                 </h1>
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
                     Sử dụng tài khoản{' '}
-                    <span className="font-semibold text-primary">King Of Service</span>{' '}
+                    <span className="font-semibold text-primary">CleanZ</span>{' '}
                     để tiếp tục dịch vụ
                 </p>
             </motion.div>

@@ -20,13 +20,12 @@ import LogoApp from "@/components/logo/LogoApp";
 
 const LINKS = {
   "Dịch Vụ": [
-    "Vệ sinh nhà cửa",
-    "Sửa chữa điện nước",
-    "Massage tại nhà",
-    "Chăm sóc sắc đẹp",
-    "Gia sư tại nhà",
-    "Huấn luyện cá nhân",
-    "Điều dưỡng tại nhà",
+    "Dọn dẹp nhà cửa",
+    "Tổng vệ sinh",
+    "Giặt Sofa & Nệm",
+    "Vệ sinh rèm cửa",
+    "Vệ sinh kính",
+    "Tạp vụ văn phòng",
   ],
   "Công Ty": [
     "Về chúng tôi",
@@ -66,7 +65,7 @@ const TRUST_BADGES = [
 
 const CONTACT = [
   { icon: Phone,  text: "1800 6868 (Miễn phí)" },
-  { icon: Mail,   text: "support@kingofservice.vn" },
+  { icon: Mail,   text: "support@CleanZ.vn" },
   { icon: MapPin, text: "72 Lê Thánh Tôn, Q.1, TP.HCM" },
 ];
 
@@ -198,7 +197,7 @@ export default function Footer() {
         {/* ── BOTTOM BAR ── */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-muted-foreground text-xs">
-            © 2024 King of Service. Bảo lưu mọi quyền. GPKD số: 0123456789 — ĐKKD tại Sở KHĐT TP.HCM.
+            © 2024 CleanZ. Bảo lưu mọi quyền. GPKD số: 0123456789 — ĐKKD tại Sở KHĐT TP.HCM.
           </p>
           <div className="flex flex-wrap gap-5 justify-center">
             {["Điều khoản", "Bảo mật", "Cookie", "Trợ năng"].map((t) => (

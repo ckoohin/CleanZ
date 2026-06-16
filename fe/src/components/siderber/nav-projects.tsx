@@ -17,6 +17,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { MoreHorizontalIcon, FolderIcon, ArrowRightIcon, Trash2Icon } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export function NavProjects({
   projects,
@@ -30,6 +32,7 @@ export function NavProjects({
   label?: string
 }) {
   const { isMobile } = useSidebar()
+  const pathname = usePathname()
 
   return (
     <SidebarGroup>
@@ -37,11 +40,11 @@ export function NavProjects({
       <SidebarMenu>
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild className="hover:text-primary">
-              <a href={item.url}>
+            <SidebarMenuButton asChild isActive={pathname === item.url} className="hover:text-primary">
+              <Link href={item.url}>
                 {item.icon}
                 <span className="font-medium">{item.name}</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

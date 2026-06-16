@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
                 <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
                   <span className="text-[10px] font-bold text-white">K</span>
                 </div>
-                <span className="text-xs font-semibold text-foreground">King Of Service</span>
+                <span className="text-xs font-semibold text-foreground">CleanZ</span>
               </div>
             </div>
 
@@ -268,7 +268,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          © 2025 King Of Service
+          © 2025 CleanZ
         </p>
       </motion.div>
     </div>

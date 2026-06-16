@@ -14,6 +14,7 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
 
 export default function AdminLayout({
     children,
@@ -34,8 +35,8 @@ export default function AdminLayout({
                         <Breadcrumb>
                             <BreadcrumbList>
                                 <BreadcrumbItem>
-                                    <BreadcrumbLink href="/admin" className="font-medium hover:text-primary transition-colors">
-                                        Hệ thống KingOfService
+                                    <BreadcrumbLink asChild className="font-medium hover:text-primary transition-colors">
+                                        <Link href="/admin">Hệ thống CleanZ</Link>
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator />

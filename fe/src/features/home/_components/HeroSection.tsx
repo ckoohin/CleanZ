@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import Container from "@/components/Container";
 
 const TRUST_BADGES = [
-  { icon: BadgeCheck, label: "Thợ đã xác minh" },
-  { icon: ShieldCheck, label: "Công việc có bảo hiểm" },
-  { icon: Clock, label: "Hỗ trợ 24/7" },
+  { icon: BadgeCheck, label: "Nhân viên chuẩn mực" },
+  { icon: ShieldCheck, label: "Bảo hiểm tài sản 100Tr" },
+  { icon: Clock, label: "Có mặt sau 60 phút" },
 ];
 
 const containerVariants = {
@@ -78,54 +78,50 @@ export default function HeroSection() {
         >
           <motion.div
             variants={itemVariants}
-            className="inline-flex items-center gap-2 bg-accent/50 text-accent-foreground border border-primary/20 text-[11px] font-medium tracking-[0.1em] uppercase px-3.5 py-1.5 rounded-full mb-9 backdrop-blur-sm"
+            className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-full mb-8 backdrop-blur-md"
           >
-            <span className="w-[5px] h-[5px] rounded-full bg-primary animate-pulse" />
-            1,200+ thợ đã được xác minh
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(253,126,20,0.8)]" />
+            100,000+ GIA ĐÌNH TIN DÙNG
           </motion.div>
 
           <motion.h1
             variants={itemVariants}
-            className="text-[clamp(48px,8vw,85px)] font-light leading-[1.06] tracking-[-0.02em] text-foreground mb-6"
-            style={{ fontFamily: "'Times New Roman', Georgia, serif" }}
+            className="text-[clamp(42px,7vw,76px)] font-black leading-[1.1] tracking-tight text-slate-900 dark:text-white mb-6 font-serif"
           >
-            Mọi dịch vụ,{" "}
+            Không gian sạch sẽ, <br className="hidden md:block" />
             <motion.em
-              initial={{ backgroundSize: "0% 1px" }}
-              whileInView={{ backgroundSize: "100% 2px" }}
+              initial={{ backgroundSize: "0% 3px" }}
+              whileInView={{ backgroundSize: "100% 3px" }}
               transition={{ delay: 0.8, duration: 1 }}
-              className="not-italic italic font-normal text-primary relative bg-gradient-to-r from-transparent via-primary/50 to-transparent bg-bottom bg-no-repeat"
+              className="not-italic text-primary relative bg-linear-to-r from-transparent via-primary/30 to-transparent bg-bottom bg-no-repeat pb-1"
             >
-              chính xác
-            </motion.em>{" "}
-            trong từng chi tiết
+              cuộc sống thảnh thơi
+            </motion.em>
           </motion.h1>
 
           <motion.p
             variants={itemVariants}
-            className="text-[16px] leading-[1.75] font-light text-muted-foreground max-w-[480px] mx-auto mb-11"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            className="text-base md:text-lg leading-relaxed font-normal text-slate-600 dark:text-slate-300 max-w-xl mx-auto mb-10"
           >
-            Thợ chất lượng, giá minh bạch và đặt lịch dễ dàng — tất cả trong một nền tảng chuyên nghiệp.
+            Giải pháp dọn dẹp nhà cửa thông minh. Đặt lịch nhanh chóng trong 60 giây, nhân viên chuyên nghiệp có mặt chỉ sau 1 giờ.
           </motion.p>
 
           <motion.div
             variants={itemVariants}
-            className="max-w-[580px] mx-auto mb-12"
+            className="max-w-[600px] mx-auto mb-14"
           >
             <div
-              className="flex items-center gap-2.5 bg-card/80 backdrop-blur-md border border-border rounded-2xl p-[6px] pl-4
-              shadow-lg shadow-primary/5 transition-all duration-300
-              focus-within:border-primary/40 focus-within:shadow-primary/10"
+              className="flex items-center gap-3 bg-white dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] p-2 pl-6
+              shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300
+              focus-within:border-primary/50 focus-within:shadow-[0_8px_30px_rgba(253,126,20,0.15)] focus-within:ring-4 ring-primary/10"
             >
-              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <Search className="w-5 h-5 text-slate-400 shrink-0" />
               <input
-                className="flex-1 bg-transparent border-none outline-none text-sm font-light text-foreground placeholder:text-muted-foreground/70"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-                placeholder="Bạn đang cần tìm dịch vụ gì?"
+                className="flex-1 bg-transparent border-none outline-none text-base font-medium text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal"
+                placeholder="Bạn muốn dọn dẹp gì hôm nay?"
               />
-              <Button size="sm" className="rounded-xl px-6 h-10 text-[13px] font-bold shadow-md shadow-primary/20">
-                Tìm kiếm
+              <Button size="lg" className="rounded-full px-8 h-12 text-[15px] font-bold shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all">
+                Tìm ngay
               </Button>
             </div>
           </motion.div>
@@ -140,14 +136,13 @@ export default function HeroSection() {
                 <motion.span
                   key={label}
                   whileHover={{ scale: 1.05, color: "var(--primary)" }}
-                  className="relative flex items-center gap-2 text-[13px] text-muted-foreground px-5 py-2 cursor-default transition-colors
-                  [&:not(:first-child)]:before:absolute [&:not(:first-child)]:before:left-0
-                  [&:not(:first-child)]:before:top-1/2 [&:not(:first-child)]:before:-translate-y-1/2
-                  [&:not(:first-child)]:before:h-3.5 [&:not(:first-child)]:before:w-px
-                  [&:not(:first-child)]:before:bg-border/60"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  className="relative flex items-center gap-2.5 text-[14px] font-medium text-slate-600 dark:text-slate-400 px-6 py-2 cursor-default transition-colors
+                  not-first:before:absolute not-first:before:left-0
+                  not-first:before:top-1/2 not-first:before:-translate-y-1/2
+                  not-first:before:h-4 not-first:before:w-px
+                  not-first:before:bg-slate-300 dark:not-first:before:bg-slate-700"
                 >
-                  <Icon className="w-4 h-4 text-primary shrink-0" strokeWidth={2} />
+                  <Icon className="w-5 h-5 text-primary shrink-0" strokeWidth={2.5} />
                   {label}
                 </motion.span>
               ))}

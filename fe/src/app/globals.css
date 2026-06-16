@@ -128,11 +128,15 @@
         font-feature-settings: "rlig" 1, "calt" 1;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        max-width: 100%;
+        overflow-x: hidden;
     }
 
     html {
         @apply font-sans;
         scroll-behavior: smooth;
+        max-width: 100%;
+        overflow-x: hidden;
     }
 
     ::selection {

@@ -43,8 +43,12 @@ export class TaskerController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
+        { name: 'avatar', maxCount: 1 },
         { name: 'docFront', maxCount: 1 },
         { name: 'docBack', maxCount: 1 },
+        { name: 'criminalRecord', maxCount: 1 },
+        { name: 'healthCertificate', maxCount: 1 },
+        { name: 'certificate', maxCount: 1 },
       ],
       {
         storage: memoryStorage(),
@@ -67,17 +71,33 @@ export class TaskerController {
   @ApiOperation({
     summary: 'Tasker nộp hồ sơ đăng ký làm tasker',
     description:
-      'FE gửi multipart/form-data gồm số điện thoại, thông tin giấy tờ và 2 file ảnh docFront/docBack. Backend tự upload ảnh lên cloud storage rồi lưu URL vào hồ sơ. Nếu user chưa có hồ sơ tasker thì hệ thống tạo mới; nếu hồ sơ từng bị từ chối thì cho nộp lại và chuyển về PENDING. Hồ sơ đã APPROVED thì không được nộp lại và không thể đổi số điện thoại.',
+      'FE gửi multipart/form-data gồm avatar, số điện thoại, thông tin hồ sơ, thông tin ngân hàng, giấy tờ và 2 file ảnh docFront/docBack. Backend tự upload ảnh lên cloud storage rồi lưu URL vào hồ sơ. Nếu user chưa có hồ sơ tasker thì hệ thống tạo mới; nếu hồ sơ từng bị từ chối thì cho nộp lại và chuyển về PENDING. Hồ sơ đã APPROVED thì không được nộp lại và không thể đổi số điện thoại.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['phone', 'docType', 'docIdNumber', 'docFront', 'docBack'],
+      required: [
+        'avatar',
+        'phone',
+        'docType',
+        'docIdNumber',
+        'docFront',
+        'docBack',
+      ],
       properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh đại diện tasker, bắt buộc khi nộp hồ sơ',
+        },
         workingAddress: {
           type: 'string',
           example: '12 Nguyen Trai, Thanh Xuan, Ha Noi',
+        },
+        bio: {
+          type: 'string',
+          example: 'Tôi có 2 năm kinh nghiệm dọn dẹp căn hộ và nhà phố.',
         },
         phone: {
           type: 'string',
@@ -112,6 +132,33 @@ export class TaskerController {
           format: 'binary',
           description: 'Ảnh mặt sau căn cước',
         },
+        criminalRecord: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh lý lịch tư pháp',
+        },
+        healthCertificate: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh giấy khám sức khỏe',
+        },
+        certificate: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh chứng chỉ nghiệp vụ nếu có',
+        },
+        bankName: {
+          type: 'string',
+          example: 'Vietcombank',
+        },
+        bankAccountNumber: {
+          type: 'string',
+          example: '1234567890',
+        },
+        bankAccountName: {
+          type: 'string',
+          example: 'NGUYEN VAN A',
+        },
       },
     },
   })
@@ -120,8 +167,12 @@ export class TaskerController {
     @Body() dto: SubmitTaskerProfileDto,
     @UploadedFiles()
     files: {
+      avatar?: Express.Multer.File[];
       docFront?: Express.Multer.File[];
       docBack?: Express.Multer.File[];
+      criminalRecord?: Express.Multer.File[];
+      healthCertificate?: Express.Multer.File[];
+      certificate?: Express.Multer.File[];
     },
   ) {
     return this.taskerService.submitProfile(user.id, dto, files);

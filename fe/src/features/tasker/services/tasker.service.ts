@@ -1,5 +1,13 @@
-import http from '@/lib/api/http';
+import axios from 'axios';
 import { CreateTaskerServiceDto, ServiceListResponse, TaskerProfile, UpdateTaskerProfileDto } from '../types/tasker.type';
+
+// Axios instance riêng cho tasker → gọi qua Next.js API proxy
+const taskerHttp = axios.create({
+  baseURL: '/api',   // Next.js API routes (proxy tới BE /staffs/...)
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
+});
 
 export interface TaskerServiceItem {
   id: string;
@@ -11,42 +19,46 @@ export interface TaskerServiceItem {
 }
 
 export const taskerApi = {
+  // GET /api/taskers/profile → BE /staffs/profile
   getProfile: (): Promise<TaskerProfile> => {
-    return http.get<TaskerProfile>('/taskers/profile').then((res) => res.data);
+    return taskerHttp.get<TaskerProfile>('/taskers/profile').then((res) => res.data);
   },
 
+  // POST /api/taskers/{userId}/apply → BE /staffs/{userId}/apply
   apply: (userId: string): Promise<TaskerProfile> => {
-    return http.post<TaskerProfile>(`/taskers/${userId}/apply`).then((res) => res.data);
+    return taskerHttp.post<TaskerProfile>(`/taskers/${userId}/apply`).then((res) => res.data);
   },
 
+  // PATCH /api/taskers/{id} → BE /staffs/{id}
   updateProfile: (id: string, data: UpdateTaskerProfileDto): Promise<TaskerProfile> => {
-    return http.patch<TaskerProfile>(`/taskers/${id}`, data).then((res) => res.data);
+    return taskerHttp.patch<TaskerProfile>(`/taskers/${id}`, data).then((res) => res.data);
   },
 
+  // PATCH /api/taskers/{id}/documents → BE /staffs/{id}/documents (multipart)
   updateDocuments: (id: string, formData: FormData): Promise<TaskerProfile> => {
-    return http.patch<TaskerProfile>(`/taskers/${id}/documents`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    return taskerHttp.patch<TaskerProfile>(`/taskers/${id}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     }).then((res) => res.data);
   },
 
+  // POST /api/taskers/{id}/services → BE /staffs/{id}/services
   addService: (id: string, data: CreateTaskerServiceDto): Promise<TaskerProfile> => {
-    return http.post<TaskerProfile>(`/taskers/${id}/services`, data).then((res) => res.data);
+    return taskerHttp.post<TaskerProfile>(`/taskers/${id}/services`, data).then((res) => res.data);
   },
 
+  // GET /services (vẫn gọi thẳng BE vì là public endpoint)
   getAvailableServices: (): Promise<ServiceListResponse> => {
-    return http.get<ServiceListResponse>('/services').then((res) => res.data);
+    const beURL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+    return axios.get<ServiceListResponse>(`${beURL}/services`, { withCredentials: true }).then((res) => res.data);
   },
 
-  // Lấy danh sách dịch vụ mà tasker đã đăng ký
+  // GET /api/taskers/{taskerId}/services → BE /staffs/{taskerId}/services
   getMyTaskerServices: (taskerId: string): Promise<TaskerServiceItem[]> => {
-    return http.get<TaskerServiceItem[]>(`/taskers/${taskerId}/services`).then((res) => res.data);
+    return taskerHttp.get<TaskerServiceItem[]>(`/taskers/${taskerId}/services`).then((res) => res.data);
   },
 
-  // Lấy danh sách giấy tờ đã nộp của chính mình
+  // GET /api/taskers/{taskerId}/documents → BE /staffs/{taskerId}/documents
   getMyDocuments: (taskerId: string): Promise<{ documents: Array<{ id: string; type: string; fileUrl: string }> }> => {
-    return http.get(`/taskers/${taskerId}/documents`).then((res) => res.data);
+    return taskerHttp.get(`/taskers/${taskerId}/documents`).then((res) => res.data);
   },
 };
-
