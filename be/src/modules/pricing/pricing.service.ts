@@ -4,13 +4,12 @@ import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { VoucherService } from 'src/modules/voucher/voucher.service';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { SystemConfigService } from '../system-config/system-config.service';
-import { SYSTEM_CONFIG_KEYS } from '../system-config/system-config.keys';
 import { PricingConfigEntity } from './entity/pricing-config.entity';
 import { ServiceEntity } from './entity/service.entity';
 
 export interface CalculateBookingPriceInput {
   serviceId?: string;
-  durationHours: number;
+  durationHours?: number;
   scheduledStart: Date;
   scheduledStartTime: string;
   hasPet: boolean;
@@ -25,6 +24,7 @@ export interface ServiceSummary {
 
 export interface BookingPriceResult {
   service: ServiceEntity;
+  durationHours: number;
   basePrice: number;
   addonPrice: number;
   peakFee: number;
@@ -49,16 +49,21 @@ export class PricingService {
   ): Promise<BookingPriceResult> {
     const serviceRepository = manager.getRepository(ServiceEntity);
     const pricingRepository = manager.getRepository(PricingConfigEntity);
-    const defaultServiceName = await this.getDefaultServiceName(manager);
 
     const service = await this.findBookingService(
       serviceRepository,
-      defaultServiceName,
+      input.durationHours,
       input.serviceId,
     );
     if (!service) {
       throw new NotFoundException(
-        `Dịch vụ ${defaultServiceName} không tồn tại hoặc đã ngừng hoạt động`,
+        'Không tìm thấy gói dịch vụ phù hợp hoặc gói đã ngừng hoạt động',
+      );
+    }
+    const durationHours = toNumber(service.baseDurationHours);
+    if (!Number.isFinite(durationHours) || durationHours <= 0) {
+      throw new NotFoundException(
+        `Dịch vụ ${service.name} chưa được cấu hình thời lượng`,
       );
     }
 
@@ -67,13 +72,11 @@ export class PricingService {
       .innerJoin('pricing.service', 'service')
       .where('service.id = :serviceId', { serviceId: service.id })
       .andWhere('pricing.is_active = true')
-      .andWhere('pricing.duration_hours = :durationHours::numeric', {
-        durationHours: input.durationHours,
-      })
+      .orderBy('pricing.created_at', 'DESC')
       .getOne();
     if (!pricing) {
       throw new NotFoundException(
-        `Không tìm thấy cấu hình giá cho dịch vụ ${service.name} trong ${input.durationHours} giờ`,
+        `Không tìm thấy cấu hình giá cho dịch vụ ${service.name}`,
       );
     }
 
@@ -104,6 +107,7 @@ export class PricingService {
 
     return {
       service,
+      durationHours,
       basePrice,
       addonPrice,
       peakFee,
@@ -138,13 +142,6 @@ export class PricingService {
     });
   }
 
-  async getDefaultServiceName(manager: EntityManager): Promise<string> {
-    return this.systemConfigService.getRequiredString(
-      manager,
-      SYSTEM_CONFIG_KEYS.DEFAULT_SERVICE_NAME,
-    );
-  }
-
   async getServiceSummaryById(
     manager: EntityManager,
     serviceId: string,
@@ -160,14 +157,14 @@ export class PricingService {
 
     return {
       id: serviceId,
-      name: await this.getDefaultServiceName(manager),
+      name: 'Dịch vụ đã ngừng hoạt động',
       description: null,
     };
   }
 
   private findBookingService(
     serviceRepository: Repository<ServiceEntity>,
-    defaultServiceName: string,
+    durationHours?: number,
     serviceId?: string,
   ): Promise<ServiceEntity | null> {
     if (serviceId) {
@@ -175,13 +172,17 @@ export class PricingService {
         where: { id: serviceId, isActive: true },
       });
     }
+    if (durationHours === undefined) {
+      return Promise.resolve(null);
+    }
 
     return serviceRepository
       .createQueryBuilder('service')
       .where('service.is_active = true')
-      .andWhere('LOWER(service.name) = LOWER(:name)', {
-        name: defaultServiceName,
+      .andWhere('service.base_duration_hours = :durationHours::numeric', {
+        durationHours,
       })
+      .orderBy('service.created_at', 'ASC')
       .getOne();
   }
 }

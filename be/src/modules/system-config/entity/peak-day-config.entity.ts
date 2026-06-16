@@ -30,7 +30,7 @@ export class PeakDayConfigEntity {
     type: 'numeric',
     precision: 5,
     scale: 4,
-    default: 0.1,
+    default: '0.1',
   })
   peakRate!: number;
 

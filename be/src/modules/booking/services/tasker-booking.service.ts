@@ -200,12 +200,8 @@ export class TaskerBookingService {
         .getMany();
 
       const services = await this.findServicesByBookingServiceIds(bookings);
-      const defaultServiceName =
-        await this.pricingService.getDefaultServiceName(
-          this.dataSource.manager,
-        );
       const items = bookings.map((booking) =>
-        this.mapPostedBookingItem(booking, services, defaultServiceName),
+        this.mapPostedBookingItem(booking, services),
       );
 
       return {
@@ -478,7 +474,6 @@ export class TaskerBookingService {
   private mapPostedBookingItem(
     booking: BookingEntity,
     services: Map<string, ServiceEntity>,
-    defaultServiceName: string,
   ): TaskerPostedBookingItem {
     const service = services.get(booking.serviceId);
 
@@ -494,7 +489,7 @@ export class TaskerBookingService {
           }
         : {
             id: booking.serviceId,
-            name: defaultServiceName,
+            name: 'Dịch vụ đã ngừng hoạt động',
             description: null,
           },
       area: {

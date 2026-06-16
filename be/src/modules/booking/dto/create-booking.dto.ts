@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -12,14 +11,14 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 
 export class CreateBookingDto {
   @ApiPropertyOptional({
-    example: 'c03b2f95-2dd7-4979-a49a-23a3562df2db',
+    example: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
     description:
-      'ID dịch vụ customer muốn đặt. Nếu bỏ trống, hệ thống dùng dịch vụ mặc định Dọn dẹp.',
+      'ID gói dịch vụ customer muốn đặt. Khi truyền serviceId, hệ thống tự lấy thời lượng từ services.base_duration_hours.',
   })
   @IsOptional()
   @IsUUID()
@@ -44,11 +43,10 @@ export class CreateBookingDto {
   @IsNotEmpty()
   address?: string;
 
-  @ApiProperty({
-    example: 'HCM',
+  @ApiPropertyOptional({
+    example: 'HN',
     description:
-      'Mã tỉnh/thành. Hiện giá dọn dẹp áp dụng như nhau ở mọi nơi nên field này không bắt buộc.',
-    required: false,
+      'Mã tỉnh/thành dùng để kiểm tra khu vực hỗ trợ. Hiện hệ thống chỉ phục vụ Hà Nội và có thể tự kiểm tra từ địa chỉ đã lưu.',
   })
   @IsOptional()
   @IsString()
@@ -56,7 +54,7 @@ export class CreateBookingDto {
   provinceCode?: string;
 
   @ApiPropertyOptional({
-    example: '2026-06-15T09:00:00.000Z',
+    example: '2026-06-17T07:00:00.000Z',
     description:
       'Thời gian bắt đầu dịch vụ dạng ISO. Có thể bỏ nếu đã gửi scheduledDate và scheduledTime.',
   })
@@ -67,7 +65,7 @@ export class CreateBookingDto {
   scheduledStart?: string;
 
   @ApiPropertyOptional({
-    example: '2026-06-15',
+    example: '2026-06-17',
     description: 'Ngày làm dịch vụ, format YYYY-MM-DD',
   })
   @ValidateIf((dto: CreateBookingDto) => !dto.scheduledStart)
@@ -78,7 +76,7 @@ export class CreateBookingDto {
   scheduledDate?: string;
 
   @ApiPropertyOptional({
-    example: '19:00',
+    example: '14:00',
     description: 'Giờ bắt đầu làm dịch vụ, format HH:mm theo giờ Việt Nam',
   })
   @ValidateIf((dto: CreateBookingDto) => !dto.scheduledStart)
@@ -88,13 +86,15 @@ export class CreateBookingDto {
   })
   scheduledTime?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 3,
-    description: 'Số giờ làm dịch vụ',
+    description:
+      'Chỉ dùng khi không truyền serviceId để hệ thống tự tìm gói theo số giờ. FE nên ưu tiên truyền serviceId và bỏ field này.',
   })
+  @IsOptional()
   @IsNumber()
   @Min(0.5)
-  durationHours!: number;
+  durationHours?: number;
 
   @ApiPropertyOptional({
     example: 'Nhà có mèo, vui lòng gọi trước khi tới.',
@@ -122,21 +122,4 @@ export class CreateBookingDto {
   @IsString()
   @MaxLength(50)
   voucherCode?: string;
-
-  @ApiPropertyOptional({
-    example: false,
-    description: 'Đặt lịch lặp lại hay không',
-  })
-  @IsOptional()
-  @IsBoolean()
-  isRecurring?: boolean;
-
-  @ApiPropertyOptional({
-    example: 'FREQ=WEEKLY;COUNT=4',
-    description: 'Rule lặp lại nếu isRecurring = true',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  recurringRule?: string;
 }
