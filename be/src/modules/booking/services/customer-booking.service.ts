@@ -1,8 +1,12 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { NotificationType } from 'src/common/enums/notification-type.enum';
+import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
+import { NotificationService } from 'src/modules/notification/notification.service';
 import { generateOrderCode } from 'src/common/helpers/generate-code';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
@@ -74,7 +78,10 @@ export class CustomerBookingService {
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly voucherService: VoucherService,
+    private readonly notificationService: NotificationService,
   ) {}
+
+  private readonly logger = new Logger(CustomerBookingService.name);
 
   async quote(
     userId: string,
@@ -404,12 +411,16 @@ export class CustomerBookingService {
     dto: CancelBookingDto,
   ): Promise<CustomerBookingDetailResponse> {
     return asyncHandleOperation(async () => {
+      let taskerUserId: string | undefined;
+      let bookingCode = '';
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
           .getRepository(BookingEntity)
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.customer', 'customer')
           .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
           .setLock('pessimistic_write', undefined, ['booking'])
           .where('booking.id = :bookingId', { bookingId })
           .andWhere('customerUser.id = :userId', { userId })
@@ -426,6 +437,8 @@ export class CustomerBookingService {
         const oldStatus = booking.status;
         booking.status = BookingStatus.CANCELLED;
         booking.cancelledAt = new Date();
+        taskerUserId = booking.tasker?.user?.id;
+        bookingCode = booking.bookingCode;
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
@@ -460,6 +473,23 @@ export class CustomerBookingService {
         });
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
       });
+
+      // Sau commit: nếu đơn đã có tasker → báo tasker rằng customer đã hủy.
+      if (taskerUserId) {
+        void this.notificationService
+          .notify({
+            userId: taskerUserId,
+            type: NotificationType.BOOKING_CANCELLED,
+            title: 'Đơn đã bị khách hủy',
+            content: `Đơn ${bookingCode} đã bị khách hàng hủy.`,
+            referenceType: NotificationRefType.BOOKING,
+            referenceId: bookingId,
+            dedupeKey: `booking:${bookingId}:${NotificationType.BOOKING_CANCELLED}`,
+          })
+          .catch((err) =>
+            this.logger.error(`Không thể enqueue noti hủy booking: ${err}`),
+          );
+      }
 
       return { message: 'Booking đã được hủy thành công' };
     }, 'Không thể hủy booking');

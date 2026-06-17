@@ -9,6 +9,10 @@ export type AllConfigType = {
 
   FRONTEND_URL: string;
 
+  REDIS_HOST: string;
+  REDIS_PORT: number;
+  REDIS_PASSWORD?: string;
+
   MAIL_HOST: string;
   MAIL_PORT: number;
   MAIL_USER: string;

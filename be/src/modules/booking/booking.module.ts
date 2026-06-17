@@ -18,6 +18,7 @@ import { SystemConfigModule } from '../system-config/system-config.module';
 import { TrackingModule } from '../tracking/tracking.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WalletModule } from '../wallet/wallet.module';
     TrackingModule,
     VoucherModule,
     WalletModule,
+    NotificationModule,
   ],
   controllers: [BookingController],
   providers: [
