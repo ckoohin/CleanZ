@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -25,6 +26,9 @@ import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
+import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
+import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
+import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { ReviewTaskerProfileDto } from './dto/review-tasker-profile.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { TaskerService } from './tasker.service';
@@ -252,5 +256,72 @@ export class TaskerController {
     @Body() dto: ReviewTaskerProfileDto,
   ) {
     return this.taskerService.reviewProfile(user.id, taskerId, dto);
+  }
+
+  // ─── Admin: new management endpoints ──────────────────────────────────────
+  // NOTE: literal routes (admin/profiles/*) are defined above; parametric
+  // routes (admin/:id/*) are defined here — NestJS resolves by segment count.
+
+  @Get('admin')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem danh sách tất cả tasker với filter' })
+  listTaskers(@Query() dto: QueryTaskersDto) {
+    return this.taskerService.listTaskers(dto);
+  }
+
+  @Get('admin/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem chi tiết một tasker' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  getTaskerDetail(@Param('id') id: string) {
+    return this.taskerService.getTaskerDetail(id);
+  }
+
+  @Patch('admin/:id/approve')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin duyệt tasker — chuyển sang ACTIVE' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  approveTasker(@Param('id') id: string) {
+    return this.taskerService.approveTasker(id);
+  }
+
+  @Patch('admin/:id/reject')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin từ chối hồ sơ tasker' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  rejectTasker(@Param('id') id: string, @Body() dto: AdminReviewTaskerDto) {
+    return this.taskerService.rejectTasker(id, dto);
+  }
+
+  @Patch('admin/:id/request-info')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin yêu cầu tasker bổ sung thông tin' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  requestMoreInfo(@Param('id') id: string, @Body() dto: AdminReviewTaskerDto) {
+    return this.taskerService.requestMoreInfo(id, dto);
+  }
+
+  @Post('admin/:id/ban')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin khóa tài khoản tasker' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  banTasker(@Param('id') id: string, @Body() dto: AdminBanTaskerDto) {
+    return this.taskerService.banTasker(id, dto);
+  }
+
+  @Post('admin/:id/unban')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin mở khóa tài khoản tasker' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  unbanTasker(@Param('id') id: string) {
+    return this.taskerService.unbanTasker(id);
+  }
+
+  @Get('admin/:id/penalties')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Lịch sử vi phạm của tasker (placeholder)' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  getPenalties(@Param('id') id: string) {
+    return this.taskerService.getPenalties(id);
   }
 }
