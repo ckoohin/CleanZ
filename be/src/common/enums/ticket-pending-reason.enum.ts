@@ -1,0 +1,5 @@
+export enum TicketPendingReason {
+  WAIT_CUSTOMER = 'WAIT_CUSTOMER',
+  WAIT_TASKER = 'WAIT_TASKER',
+  WAIT_INTERNAL = 'WAIT_INTERNAL',
+}
