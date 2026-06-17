@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
+import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import {
@@ -356,14 +357,15 @@ export class AdminDashboardRepository {
 
       // Lý do huỷ đơn
       this.dataSource
-        .getRepository(BookingEntity)
-        .createQueryBuilder('b')
-        .select(['b.cancelled_by AS "cancelledBy"', 'COUNT(*) AS count'])
-        .where('b.status IN (:...statuses)', {
+        .getRepository(BookingStatusLogEntity)
+        .createQueryBuilder('log')
+        .innerJoin('log.booking', 'b')
+        .select(['log.cancelled_by AS "cancelledBy"', 'COUNT(*) AS count'])
+        .where('log.new_status IN (:...statuses)', {
           statuses: [BookingStatus.CANCELLED, BookingStatus.EXPIRED],
         })
-        .andWhere('b.created_at BETWEEN :from AND :to', { from, to })
-        .groupBy('b.cancelled_by')
+        .andWhere('log.created_at BETWEEN :from AND :to', { from, to })
+        .groupBy('log.cancelled_by')
         .orderBy('count', 'DESC')
         .getRawMany(),
 
