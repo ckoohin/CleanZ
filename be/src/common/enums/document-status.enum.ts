@@ -3,4 +3,5 @@ export enum DocumentStatus {
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   EXPIRED = 'EXPIRED',
+  NEED_INFO = 'NEED_INFO',
 }
