@@ -134,6 +134,9 @@ export class TaskerEntity {
   @Column({ name: 'doc_note', type: 'text', nullable: true })
   docNote?: string | null;
 
+  @Column({ name: 'ban_reason', type: 'varchar', length: 500, nullable: true })
+  banReason?: string | null;
+
   @Column({
     name: 'presence_status',
     type: 'enum',
