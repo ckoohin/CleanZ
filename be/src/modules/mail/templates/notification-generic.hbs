@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body style="font-family: Arial, sans-serif; background:#f4f4f7; margin:0; padding:24px;">
+    <table align="center" width="600" cellpadding="0" cellspacing="0"
+      style="background:#ffffff; border-radius:8px; overflow:hidden;">
+      <tr>
+        <td style="background:#0ea5e9; padding:20px 28px; color:#ffffff;">
+          <h2 style="margin:0; font-size:18px;">CleanZ</h2>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px;">
+          <p style="margin:0 0 8px; color:#111827;">Xin chào {{fullName}},</p>
+          <h3 style="margin:0 0 12px; color:#111827;">{{title}}</h3>
+          {{#if content}}
+          <p style="margin:0 0 16px; color:#374151; line-height:1.6;">{{content}}</p>
+          {{/if}}
+          <p style="margin:24px 0 0; color:#9ca3af; font-size:12px;">
+            Đây là email thông báo tự động từ CleanZ. Vui lòng không trả lời email này.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

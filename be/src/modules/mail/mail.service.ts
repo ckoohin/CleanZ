@@ -81,6 +81,24 @@ export class MailService {
     });
   }
 
+  async sendNotificationEmail(
+    email: string,
+    fullName: string,
+    subject: string,
+    context: { title: string; content?: string | null },
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      template: 'notification-generic',
+      context: {
+        fullName,
+        title: context.title,
+        content: context.content ?? '',
+      },
+    });
+  }
+
   async sendBookingNotificationEmail(
     email: string,
     fullName: string,

@@ -16,6 +16,7 @@ import { PricingModule } from '../pricing/pricing.module';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WalletModule } from '../wallet/wallet.module';
     SystemConfigModule,
     VoucherModule,
     WalletModule,
+    NotificationModule,
   ],
   controllers: [BookingController],
   providers: [

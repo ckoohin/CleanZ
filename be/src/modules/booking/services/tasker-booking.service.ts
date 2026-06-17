@@ -2,10 +2,14 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { NotificationType } from 'src/common/enums/notification-type.enum';
+import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
+import { NotificationService } from 'src/modules/notification/notification.service';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { PricingService } from 'src/modules/pricing/pricing.service';
@@ -174,12 +178,40 @@ const CUSTOMER_CONTACT_VISIBLE_STATUSES = [
 
 @Injectable()
 export class TaskerBookingService {
+  private readonly logger = new Logger(TaskerBookingService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly bookingPolicyService: BookingPolicyService,
     private readonly pricingService: PricingService,
     private readonly walletService: WalletService,
+    private readonly notificationService: NotificationService,
   ) {}
+
+  private emitBookingNotification(
+    userId: string | undefined,
+    type: NotificationType,
+    bookingId: string,
+    title: string,
+    content: string,
+  ): void {
+    if (!userId) return;
+    void this.notificationService
+      .notify({
+        userId,
+        type,
+        title,
+        content,
+        referenceType: NotificationRefType.BOOKING,
+        referenceId: bookingId,
+        dedupeKey: `booking:${bookingId}:${type}`,
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Không thể enqueue noti booking ${bookingId}/${type}: ${err}`,
+        ),
+      );
+  }
 
   async findPostedBookings(
     userId: string,
@@ -287,7 +319,8 @@ export class TaskerBookingService {
     bookingId: string,
   ): Promise<TaskerAcceptBookingResponse> {
     return asyncHandleOperation(async () => {
-      return this.dataSource.transaction(async (manager) => {
+      let customerUserId: string | undefined;
+      const result = await this.dataSource.transaction(async (manager) => {
         const tasker = await this.findTaskerProfile(userId);
         this.bookingPolicyService.assertTaskerCanAcceptBooking(tasker);
         await this.walletService.getOrCreateTaskerWallet(manager, tasker);
@@ -296,6 +329,8 @@ export class TaskerBookingService {
           .getRepository(BookingEntity)
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
           .setLock('pessimistic_write', undefined, ['booking'])
           .where('booking.id = :bookingId', { bookingId })
           .getOne();
@@ -312,6 +347,7 @@ export class TaskerBookingService {
 
         booking.tasker = tasker;
         booking.status = BookingStatus.CONFIRMED;
+        customerUserId = booking.customer?.user?.id;
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
@@ -346,6 +382,16 @@ export class TaskerBookingService {
           },
         };
       });
+
+      this.emitBookingNotification(
+        customerUserId,
+        NotificationType.BOOKING_CONFIRMED,
+        result.id,
+        'Đơn đặt lịch đã được xác nhận',
+        `Tasker đã nhận đơn ${result.bookingCode}. Vui lòng chuẩn bị cho buổi dịch vụ.`,
+      );
+
+      return result;
     }, 'Không thể nhận booking');
   }
 
@@ -430,6 +476,14 @@ export class TaskerBookingService {
 
         return savedBooking;
       });
+
+      this.emitBookingNotification(
+        booking.customer?.user?.id,
+        NotificationType.TASKER_ON_THE_WAY,
+        booking.id,
+        'Tasker đang trên đường tới',
+        'Tasker đã bắt đầu di chuyển tới địa điểm của bạn.',
+      );
 
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);
