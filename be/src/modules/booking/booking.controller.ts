@@ -63,7 +63,7 @@ export class BookingController {
   @Post()
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Customer tạo yêu cầu dịch vụ' })
+  @ApiOperation({ summary: '02. Customer tạo yêu cầu dịch vụ' })
   @ApiBody({
     type: CreateBookingDto,
     examples: {
@@ -101,7 +101,7 @@ export class BookingController {
   @Post('quote')
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Customer xem báo giá trước khi tạo booking' })
+  @ApiOperation({ summary: '01. Customer xem báo giá trước khi tạo booking' })
   @ApiBody({
     type: QuoteBookingDto,
     examples: {
@@ -129,7 +129,7 @@ export class BookingController {
 
   @Get('tasker/posted')
   @Auth(UserRole.TASKER)
-  @ApiOperation({ summary: 'Tasker xem danh sách booking đang chờ nhận' })
+  @ApiOperation({ summary: '04. Tasker xem danh sách booking đang chờ nhận' })
   @ApiOkResponse({ description: 'Lấy danh sách booking posted thành công' })
   @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
   findPostedBookingsForTasker(
@@ -142,7 +142,7 @@ export class BookingController {
   @Auth(UserRole.TASKER)
   @ApiOperation({
     summary:
-      'Tasker xem chi tiết booking posted gồm khoảng cách, dịch vụ, giá, ngày giờ',
+      '05. Tasker xem chi tiết booking posted gồm khoảng cách, dịch vụ, giá, ngày giờ',
   })
   @ApiParam({
     name: 'id',
@@ -169,7 +169,7 @@ export class BookingController {
   @Auth(UserRole.TASKER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Tasker pick/nhận booking đang ở trạng thái posted',
+    summary: '06. Tasker pick/nhận booking đang ở trạng thái posted',
     description:
       'Sau khi pick, booking chuyển sang CONFIRMED. Ở trạng thái này tasker vẫn chỉ xem được thông tin hạn chế, chưa thấy thông tin liên hệ customer.',
   })
@@ -190,7 +190,7 @@ export class BookingController {
   @Get('tasker/:id')
   @Auth(UserRole.TASKER)
   @ApiOperation({
-    summary: 'Tasker xem chi tiết booking đã nhận',
+    summary: '07. Tasker xem chi tiết booking đã nhận',
     description:
       'Nếu booking mới ở CONFIRMED, response có khoảng cách nếu FE gửi tọa độ, giá trị đơn và tên customer, nhưng chưa có số điện thoại, địa chỉ đầy đủ, ghi chú. Từ TASKER_ON_THE_WAY trở đi mới trả địa chỉ đầy đủ, ghi chú và thông tin liên hệ customer.',
   })
@@ -218,7 +218,7 @@ export class BookingController {
   @Patch('tasker/:id/on-the-way')
   @Auth(UserRole.TASKER)
   @ApiOperation({
-    summary: 'Tasker chuyển booking sang trạng thái đang tới',
+    summary: '08. Tasker chuyển booking sang trạng thái đang tới',
     description:
       'Chỉ booking ở CONFIRMED mới được chuyển sang TASKER_ON_THE_WAY. Sau bước này tasker mới xem được thông tin liên hệ customer và địa chỉ đầy đủ.',
   })
@@ -238,11 +238,80 @@ export class BookingController {
     return this.taskerBookingService.markOnTheWay(userId, bookingId);
   }
 
+  @Patch('tasker/:id/check-in')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: '09. Tasker check-in khi đã đến nơi',
+    description:
+      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime và chuyển sang màn hình tasker đã đến.',
+  })
+  @ApiParam({
+    name: 'id',
+    example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
+  })
+  @ApiOkResponse({ description: 'Check-in booking thành công' })
+  @ApiNotFoundResponse({
+    description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+  })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  markTaskerCheckedIn(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return this.taskerBookingService.markCheckedIn(userId, bookingId);
+  }
+
+  @Patch('tasker/:id/start')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: '10. Tasker bắt đầu làm việc',
+    description:
+      'Chỉ booking ở CHECKED_IN mới được chuyển sang IN_PROGRESS. FE không cần tiếp tục tracking đường đi, chỉ hiển thị thời gian làm việc và thông tin booking.',
+  })
+  @ApiParam({
+    name: 'id',
+    example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
+  })
+  @ApiOkResponse({ description: 'Bắt đầu booking thành công' })
+  @ApiNotFoundResponse({
+    description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+  })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  markTaskerInProgress(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return this.taskerBookingService.markInProgress(userId, bookingId);
+  }
+
+  @Patch('tasker/:id/complete')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: '11. Tasker hoàn thành booking',
+    description:
+      'Chỉ booking ở IN_PROGRESS mới được chuyển sang COMPLETED. Với CASH, hệ thống demo mark payment PAID, cộng ví tasker và ghi phí nền tảng. Với thanh toán online, booking phải PAID trước.',
+  })
+  @ApiParam({
+    name: 'id',
+    example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
+  })
+  @ApiOkResponse({ description: 'Hoàn thành booking thành công' })
+  @ApiNotFoundResponse({
+    description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+  })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  markTaskerCompleted(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return this.taskerBookingService.markCompleted(userId, bookingId);
+  }
+
   @Post('admin/expire-overdue')
   @AdminOnly()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Xử lý booking quá hạn',
+    summary: '03B. Hệ thống xử lý booking quá hạn',
     description:
       'API demo để test luồng hệ thống tự chuyển booking POSTED sang EXPIRED khi đã qua scheduled start mà chưa có tasker nhận. Service này cũng tự chạy nền theo interval.',
   })
@@ -254,7 +323,7 @@ export class BookingController {
   @Patch('/customer/:id/cancel')
   @Auth(UserRole.CUSTOMER)
   @ApiOperation({
-    summary: 'Customer hủy booking ở trạng thái POSTED hoặc CONFIRMED',
+    summary: '03C. Customer hủy booking ở trạng thái POSTED hoặc CONFIRMED',
   })
   @ApiParam({
     name: 'id',
@@ -276,7 +345,7 @@ export class BookingController {
 
   @Get(':id')
   @Auth(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'Customer xem chi tiết booking của chính mình' })
+  @ApiOperation({ summary: '03. Customer xem chi tiết booking của chính mình' })
   @ApiParam({
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
@@ -296,7 +365,7 @@ export class BookingController {
   @Auth(UserRole.CUSTOMER)
   @ApiOperation({
     summary:
-      'Customer đổi địa chỉ, ngày và giờ khi booking chưa có tasker nhận',
+      '03A. Customer đổi địa chỉ, ngày và giờ khi booking chưa có tasker nhận',
     description:
       'Chỉ cập nhật địa chỉ/lịch làm. Thời lượng vẫn giữ theo service đã chọn của booking, FE không gửi durationHours.',
   })

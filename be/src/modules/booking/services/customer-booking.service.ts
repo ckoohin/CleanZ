@@ -482,6 +482,11 @@ export class CustomerBookingService {
     if (!customer) {
       throw new NotFoundException('Không tìm thấy hồ sơ customer');
     }
+    if (!customer.user.phone?.trim()) {
+      throw new BadRequestException(
+        'Vui lòng cập nhật số điện thoại trước khi đặt booking',
+      );
+    }
 
     const addressRef = dto.addressId
       ? await addressRepository.findOne({

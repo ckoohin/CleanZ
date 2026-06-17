@@ -162,6 +162,26 @@ export class PricingService {
     };
   }
 
+  async getPlatformCommissionRateByServiceId(
+    manager: EntityManager,
+    serviceId: string,
+  ): Promise<number> {
+    const pricing = await manager
+      .getRepository(PricingConfigEntity)
+      .createQueryBuilder('pricing')
+      .innerJoin('pricing.service', 'service')
+      .where('service.id = :serviceId', { serviceId })
+      .andWhere('pricing.is_active = true')
+      .orderBy('pricing.created_at', 'DESC')
+      .getOne();
+
+    if (!pricing) {
+      throw new NotFoundException('Không tìm thấy cấu hình hoa hồng dịch vụ');
+    }
+
+    return toNumber(pricing.platformCommissionRate);
+  }
+
   private findBookingService(
     serviceRepository: Repository<ServiceEntity>,
     durationHours?: number,

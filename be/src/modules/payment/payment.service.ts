@@ -58,4 +58,27 @@ export class PaymentService {
     payment.amount = amount;
     return paymentRepository.save(payment);
   }
+
+  async markLatestPendingPaymentAsPaid(
+    manager: EntityManager,
+    bookingId: string,
+    paidAt: Date,
+  ): Promise<PaymentEntity | null> {
+    const paymentRepository = manager.getRepository(PaymentEntity);
+    const payment = await paymentRepository.findOne({
+      where: {
+        booking: { id: bookingId },
+        status: PaymentStatus.PENDING,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!payment) {
+      return null;
+    }
+
+    payment.status = PaymentStatus.PAID;
+    payment.paidAt = paidAt;
+    return paymentRepository.save(payment);
+  }
 }

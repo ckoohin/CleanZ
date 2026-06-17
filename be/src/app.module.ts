@@ -18,6 +18,7 @@ import { IncidentModule } from './modules/incident/incident.module';
 import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
 import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AdminModule } from './modules/admin/admin.module';
     SupportTicketModule,
     WithdrawalModule,
     AdminModule,
+    TrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

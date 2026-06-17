@@ -6,13 +6,20 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { PaymentMethod } from 'src/common/enums/payment-method.enum';
+import { PaymentStatus } from 'src/common/enums/payment-status.enum';
+import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
+import { PaymentService } from 'src/modules/payment/payment.service';
 import { PricingService } from 'src/modules/pricing/pricing.service';
 import { ServiceEntity } from 'src/modules/pricing/entity/service.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { WalletService } from 'src/modules/wallet/wallet.service';
+import { GoongMapService } from 'src/modules/goong/goong-map.service';
+import { TrackingGateway } from 'src/modules/tracking/tracking.gateway';
+import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerBookingLocationDto } from '../dto/tasker-booking-location.dto';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
@@ -154,10 +161,8 @@ export interface TaskerAssignedBookingDetailResponse {
   };
   createdAt: Date;
   updatedAt: Date;
-}
-
-interface BookingDistanceRaw {
-  distance_meters?: string | number | null;
+  checkedInAt?: Date | null;
+  completedAt?: Date | null;
 }
 
 interface TaskerLocationInput {
@@ -177,8 +182,11 @@ export class TaskerBookingService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly bookingPolicyService: BookingPolicyService,
+    private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly walletService: WalletService,
+    private readonly goongMapService: GoongMapService,
+    private readonly trackingGateway: TrackingGateway,
   ) {}
 
   async findPostedBookings(
@@ -219,50 +227,35 @@ export class TaskerBookingService {
     return asyncHandleOperation(async () => {
       await this.assertTaskerProfileExists(userId);
 
-      const distanceExpression = `
-        ST_DistanceSphere(
-          ST_MakePoint(:currentLongitude, :currentLatitude),
-          ST_MakePoint(
-            CAST(addressRef.longitude AS double precision),
-            CAST(addressRef.latitude AS double precision)
-          )
-        )
-      `;
-
-      const { entities, raw } = await this.dataSource
+      const booking = await this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
         .leftJoinAndSelect('booking.addressRef', 'addressRef')
         .leftJoinAndSelect('booking.tasker', 'tasker')
-        .addSelect(distanceExpression, 'distance_meters')
         .where('booking.id = :bookingId', { bookingId })
         .andWhere('booking.status = :status', { status: BookingStatus.POSTED })
         .andWhere('tasker.id IS NULL')
         .andWhere('addressRef.latitude IS NOT NULL')
         .andWhere('addressRef.longitude IS NOT NULL')
-        .setParameters({
-          currentLatitude: location.currentLatitude,
-          currentLongitude: location.currentLongitude,
-        })
-        .getRawAndEntities();
+        .getOne();
 
-      const booking = entities[0];
       if (!booking) {
         throw new NotFoundException(
           'Booking không tồn tại, không còn ở trạng thái posted hoặc thiếu tọa độ địa chỉ',
         );
       }
 
-      const distanceMeters = this.parseDistanceMeters(
-        (raw[0] as BookingDistanceRaw | undefined)?.distance_meters,
+      const distance = await this.calculateDistanceFromTaskerLocation(
+        booking,
+        location,
       );
+      if (!distance) {
+        throw new NotFoundException('Booking thiếu tọa độ địa chỉ');
+      }
       const service = await this.findServiceByBooking(booking);
 
       return {
-        distance: {
-          meters: distanceMeters,
-          kilometers: Number((distanceMeters / 1000).toFixed(2)),
-        },
+        distance,
         service,
         price: {
           totalPrice: toNumber(booking.totalPrice),
@@ -434,6 +427,255 @@ export class TaskerBookingService {
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);
     }, 'Không thể cập nhật trạng thái tasker đang tới');
+  }
+
+  async markCheckedIn(
+    userId: string,
+    bookingId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return asyncHandleOperation(async () => {
+      const booking = await this.dataSource.transaction(async (manager) => {
+        const tasker = await this.findTaskerProfile(userId);
+        const bookingRepository = manager.getRepository(BookingEntity);
+        const booking = await bookingRepository
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.addressRef', 'addressRef')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .andWhere('tasker.id = :taskerId', { taskerId: tasker.id })
+          .getOne();
+
+        if (!booking) {
+          throw new NotFoundException(
+            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+          );
+        }
+
+        if (booking.status !== BookingStatus.TASKER_ON_THE_WAY) {
+          throw new BadRequestException(
+            'Chỉ booking ở trạng thái TASKER_ON_THE_WAY mới có thể check-in',
+          );
+        }
+
+        const oldStatus = booking.status;
+        const checkedInAt = new Date();
+        booking.status = BookingStatus.CHECKED_IN;
+        booking.checkedInAt = checkedInAt;
+        const savedBooking = await bookingRepository.save(booking);
+
+        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
+          booking: savedBooking,
+          oldStatus,
+          newStatus: BookingStatus.CHECKED_IN,
+          changedByUser: { id: userId } as UserEntity,
+          note: 'Tasker đã đến nơi',
+          cancellationFee: 0,
+          refundAmount: 0,
+        });
+        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+
+        return savedBooking;
+      });
+
+      const arrivedAt =
+        booking.checkedInAt?.toISOString() ?? new Date().toISOString();
+      await this.trackingGateway.emitTaskerArrived(booking.id, {
+        bookingId: booking.id,
+        status: booking.status,
+        arrivedAt,
+        trackingStopped: true,
+      });
+
+      const service = await this.findServiceByBooking(booking);
+      return this.mapAssignedBookingDetail(booking, service, null);
+    }, 'Không thể check-in booking');
+  }
+
+  async markInProgress(
+    userId: string,
+    bookingId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return asyncHandleOperation(async () => {
+      const startedAt = new Date();
+      const booking = await this.dataSource.transaction(async (manager) => {
+        const tasker = await this.findTaskerProfile(userId);
+        const bookingRepository = manager.getRepository(BookingEntity);
+        const booking = await bookingRepository
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.addressRef', 'addressRef')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .andWhere('tasker.id = :taskerId', { taskerId: tasker.id })
+          .getOne();
+
+        if (!booking) {
+          throw new NotFoundException(
+            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+          );
+        }
+
+        if (booking.status !== BookingStatus.CHECKED_IN) {
+          throw new BadRequestException(
+            'Chỉ booking ở trạng thái CHECKED_IN mới có thể bắt đầu làm việc',
+          );
+        }
+
+        const oldStatus = booking.status;
+        booking.status = BookingStatus.IN_PROGRESS;
+        const savedBooking = await bookingRepository.save(booking);
+
+        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
+          booking: savedBooking,
+          oldStatus,
+          newStatus: BookingStatus.IN_PROGRESS,
+          changedByUser: { id: userId } as UserEntity,
+          note: 'Tasker bắt đầu làm việc',
+          cancellationFee: 0,
+          refundAmount: 0,
+        });
+        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+
+        return savedBooking;
+      });
+
+      await this.trackingGateway.emitBookingInProgress(booking.id, {
+        bookingId: booking.id,
+        status: booking.status,
+        startedAt: startedAt.toISOString(),
+      });
+
+      const service = await this.findServiceByBooking(booking);
+      return this.mapAssignedBookingDetail(booking, service, null);
+    }, 'Không thể bắt đầu booking');
+  }
+
+  async markCompleted(
+    userId: string,
+    bookingId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return asyncHandleOperation(async () => {
+      const settlement = await this.dataSource.transaction(async (manager) => {
+        const tasker = await this.findTaskerProfile(userId);
+        const bookingRepository = manager.getRepository(BookingEntity);
+        const booking = await bookingRepository
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.addressRef', 'addressRef')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .andWhere('tasker.id = :taskerId', { taskerId: tasker.id })
+          .getOne();
+
+        if (!booking) {
+          throw new NotFoundException(
+            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+          );
+        }
+
+        if (booking.status !== BookingStatus.IN_PROGRESS) {
+          throw new BadRequestException(
+            'Chỉ booking ở trạng thái IN_PROGRESS mới có thể hoàn thành',
+          );
+        }
+
+        if (
+          booking.paymentMethod !== PaymentMethod.CASH &&
+          booking.paymentStatus !== PaymentStatus.PAID
+        ) {
+          throw new BadRequestException(
+            'Booking chưa thanh toán nên chưa thể hoàn thành',
+          );
+        }
+
+        const completedAt = new Date();
+        const oldStatus = booking.status;
+        booking.status = BookingStatus.COMPLETED;
+        booking.completedAt = completedAt;
+        if (booking.paymentMethod === PaymentMethod.CASH) {
+          booking.paymentStatus = PaymentStatus.PAID;
+          await this.paymentService.markLatestPendingPaymentAsPaid(
+            manager,
+            booking.id,
+            completedAt,
+          );
+        }
+        const savedBooking = await bookingRepository.save(booking);
+
+        const totalPrice = toNumber(savedBooking.totalPrice);
+        const commissionRate =
+          await this.pricingService.getPlatformCommissionRateByServiceId(
+            manager,
+            savedBooking.serviceId,
+          );
+        const platformFee = Math.round((totalPrice * commissionRate) / 100);
+        const taskerEarning = Math.max(totalPrice - platformFee, 0);
+        const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+          manager,
+          tasker,
+        );
+        await this.walletService.creditWallet(manager, {
+          wallet: taskerWallet,
+          amount: taskerEarning,
+          type: WalletTransactionType.TASKER_EARNING,
+          booking: savedBooking,
+          description: `Thu nhập tasker từ booking ${savedBooking.bookingCode}`,
+        });
+        if (platformFee > 0) {
+          await this.walletService.recordPlatformIncome(
+            manager,
+            platformFee,
+            savedBooking,
+            `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
+          );
+        }
+
+        await manager
+          .getRepository(TaskerEntity)
+          .increment({ id: tasker.id }, 'totalCompletedJobs', 1);
+        await manager
+          .getRepository(CustomerEntity)
+          .increment({ id: savedBooking.customer.id }, 'totalBookings', 1);
+
+        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
+          booking: savedBooking,
+          oldStatus,
+          newStatus: BookingStatus.COMPLETED,
+          changedByUser: { id: userId } as UserEntity,
+          note: 'Tasker hoàn thành công việc',
+          cancellationFee: 0,
+          refundAmount: 0,
+        });
+        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+
+        return {
+          booking: savedBooking,
+          taskerEarning,
+          platformFee,
+        };
+      });
+
+      const completedAt =
+        settlement.booking.completedAt?.toISOString() ??
+        new Date().toISOString();
+      await this.trackingGateway.emitBookingCompleted(settlement.booking.id, {
+        bookingId: settlement.booking.id,
+        status: settlement.booking.status,
+        completedAt,
+        paymentStatus: settlement.booking.paymentStatus,
+      });
+
+      const service = await this.findServiceByBooking(settlement.booking);
+      return this.mapAssignedBookingDetail(settlement.booking, service, null);
+    }, 'Không thể hoàn thành booking');
   }
 
   private async assertTaskerProfileExists(userId: string): Promise<void> {
@@ -637,23 +879,14 @@ export class TaskerBookingService {
     const addressLatitude = booking.addressRef.latitude;
     const addressLongitude = booking.addressRef.longitude;
 
-    const raw = await this.dataSource.query<
-      Array<{ distance_meters: string | number | null }>
-    >(
-      `
-        SELECT ST_DistanceSphere(
-          ST_MakePoint($1, $2),
-          ST_MakePoint($3, $4)
-        ) AS distance_meters
-      `,
-      [currentLongitude, currentLatitude, addressLongitude, addressLatitude],
-    );
-    const distanceMeters = this.parseDistanceMeters(raw[0]?.distance_meters);
+    const route = await this.goongMapService.calculateDrivingRoute({
+      originLatitude: currentLatitude,
+      originLongitude: currentLongitude,
+      destinationLatitude: Number(addressLatitude),
+      destinationLongitude: Number(addressLongitude),
+    });
 
-    return {
-      meters: distanceMeters,
-      kilometers: Number((distanceMeters / 1000).toFixed(2)),
-    };
+    return route.distance;
   }
 
   private async findServiceByBooking(booking: BookingEntity): Promise<{
@@ -665,16 +898,5 @@ export class TaskerBookingService {
       this.dataSource.manager,
       booking.serviceId,
     );
-  }
-
-  private parseDistanceMeters(
-    value: string | number | null | undefined,
-  ): number {
-    const distanceMeters = Number(value);
-    if (!Number.isFinite(distanceMeters)) {
-      throw new BadRequestException('Không thể tính khoảng cách booking');
-    }
-
-    return Number(distanceMeters.toFixed(2));
   }
 }
