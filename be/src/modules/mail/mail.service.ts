@@ -81,6 +81,50 @@ export class MailService {
     });
   }
 
+  async sendNotificationEmail(
+    email: string,
+    fullName: string,
+    subject: string,
+    context: { title: string; content?: string | null },
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      template: 'notification-generic',
+      context: {
+        fullName,
+        title: context.title,
+        content: context.content ?? '',
+      },
+    });
+  }
+
+  async sendTaskerRequestInfoEmail(
+    email: string,
+    fullName: string,
+    notes: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Hồ sơ tasker của bạn cần bổ sung thông tin',
+      template: 'tasker-request-info',
+      context: { fullName, notes },
+    });
+  }
+
+  async sendTaskerBannedEmail(
+    email: string,
+    fullName: string,
+    reason: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Tài khoản tasker của bạn đã bị tạm khóa',
+      template: 'tasker-banned',
+      context: { fullName, reason },
+    });
+  }
+
   async sendBookingNotificationEmail(
     email: string,
     fullName: string,

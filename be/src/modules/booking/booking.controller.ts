@@ -33,6 +33,7 @@ import {
 } from './dto/tasker-booking-location.dto';
 import { UpdateBookingScheduleAddressDto } from './dto/update-booking-schedule-address.dto';
 import {
+  CustomerBookingCreatedResponse,
   CustomerBookingDetailResponse,
   CustomerBookingQuoteResponse,
   CustomerBookingService,
@@ -63,13 +64,37 @@ export class BookingController {
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Customer tạo yêu cầu dịch vụ' })
-  @ApiBody({ type: CreateBookingDto })
+  @ApiBody({
+    type: CreateBookingDto,
+    examples: {
+      byService: {
+        summary: 'Tạo booking theo gói service',
+        description:
+          'FE chỉ cần truyền serviceId. Thời lượng lấy từ services.base_duration_hours, giá lấy từ pricing_configs theo service_id.',
+        value: {
+          scheduledDate: '2026-06-17',
+          scheduledTime: '14:00',
+          serviceId: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
+          note: 'Nhà có mèo, vui lòng gọi trước khi tới.',
+        },
+      },
+      byDefaultAddressAndCash: {
+        summary: 'Dùng địa chỉ mặc định và thanh toán tiền mặt',
+        value: {
+          scheduledDate: '2026-06-17',
+          scheduledTime: '14:00',
+          serviceId: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
+          paymentMethod: 'CASH',
+        },
+      },
+    },
+  })
   @ApiCreatedResponse({ description: 'Tạo booking thành công' })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   create(
     @CurrentUser('id') userId: string,
     @Body() createBookingDto: CreateBookingDto,
-  ) {
+  ): Promise<CustomerBookingCreatedResponse> {
     return this.customerBookingService.create(userId, createBookingDto);
   }
 
@@ -77,8 +102,23 @@ export class BookingController {
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Customer xem báo giá trước khi tạo booking' })
-  @ApiBody({ type: QuoteBookingDto })
-  @ApiCreatedResponse({ description: 'Báo giá booking thành công' })
+  @ApiBody({
+    type: QuoteBookingDto,
+    examples: {
+      byService: {
+        summary: 'Báo giá theo gói service',
+        description:
+          'Không cần truyền durationHours khi đã chọn serviceId. petFee lấy theo địa chỉ có has_pet, phụ phí giờ cao điểm lấy từ peak_day_configs.',
+        value: {
+          scheduledDate: '2026-06-17',
+          scheduledTime: '14:00',
+          serviceId: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
+          note: 'Nhà có mèo, vui lòng gọi trước khi tới.',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Báo giá booking thành công' })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   quote(
     @CurrentUser('id') userId: string,
@@ -257,6 +297,8 @@ export class BookingController {
   @ApiOperation({
     summary:
       'Customer đổi địa chỉ, ngày và giờ khi booking chưa có tasker nhận',
+    description:
+      'Chỉ cập nhật địa chỉ/lịch làm. Thời lượng vẫn giữ theo service đã chọn của booking, FE không gửi durationHours.',
   })
   @ApiParam({
     name: 'id',

@@ -20,17 +20,6 @@ export class PricingConfigEntity {
   @JoinColumn({ name: 'service_id' })
   service!: ServiceEntity;
 
-  @Column({ name: 'province_code', type: 'varchar', length: 20 })
-  provinceCode!: string;
-
-  @Column({
-    name: 'duration_hours',
-    type: 'numeric',
-    precision: 4,
-    scale: 1,
-  })
-  durationHours!: number;
-
   @Column({ name: 'base_price', type: 'numeric', precision: 12, scale: 2 })
   basePrice!: number;
 

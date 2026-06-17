@@ -190,7 +190,8 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
-      console.log(otp);
+      // [DEV] Log OTP để đăng nhập khi không có email thật. Gỡ trước khi lên production.
+      console.log(`\n========== OTP đăng nhập (${user.email}): ${otp} ==========\n`);
 
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',
