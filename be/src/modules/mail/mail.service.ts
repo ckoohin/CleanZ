@@ -96,6 +96,9 @@ export class MailService {
         title: context.title,
         content: context.content ?? '',
       },
+    });
+  }
+
   async sendTaskerRequestInfoEmail(
     email: string,
     fullName: string,

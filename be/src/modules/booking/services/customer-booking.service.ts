@@ -36,7 +36,10 @@ import {
   BookingScheduleDraft,
   BookingScheduleService,
 } from './booking-schedule.service';
-import { BookingPolicyService } from './booking-policy.service';
+import {
+  ACTIVE_BOOKING_STATUSES,
+  BookingPolicyService,
+} from './booking-policy.service';
 import { BookingLocationPolicyService } from './booking-location-policy.service';
 
 interface BookingPricingContext {
@@ -65,6 +68,9 @@ interface BookingPricingContext {
 export type CustomerBookingQuoteResponse = Record<string, unknown>;
 export type CustomerBookingDetailResponse = Record<string, unknown>;
 export type CustomerBookingCreatedResponse = Record<string, unknown>;
+export interface CustomerActiveBookingResponse {
+  booking: CustomerBookingDetailResponse | null;
+}
 
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
 
@@ -321,6 +327,33 @@ export class CustomerBookingService {
         updatedAt: booking.updatedAt,
       };
     }, 'Không thể lấy chi tiết booking');
+  }
+
+  async findMyActiveBooking(
+    userId: string,
+  ): Promise<CustomerActiveBookingResponse> {
+    return asyncHandleOperation(async () => {
+      const activeBooking = await this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .innerJoin('booking.customer', 'customer')
+        .innerJoin('customer.user', 'customerUser')
+        .select('booking.id', 'id')
+        .where('customerUser.id = :userId', { userId })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: ACTIVE_BOOKING_STATUSES,
+        })
+        .orderBy('booking.createdAt', 'DESC')
+        .getRawOne<{ id: string }>();
+
+      if (!activeBooking) {
+        return { booking: null };
+      }
+
+      return {
+        booking: await this.findMyBookingDetail(userId, activeBooking.id),
+      };
+    }, 'Không thể lấy booking đang hoạt động');
   }
 
   async updateScheduleAndAddress(

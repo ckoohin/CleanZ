@@ -17,7 +17,7 @@ const FINISHED_BOOKING_STATUSES = [
   BookingStatus.COMPLETED,
 ];
 
-const ACTIVE_BOOKING_STATUSES = Object.values(BookingStatus).filter(
+export const ACTIVE_BOOKING_STATUSES = Object.values(BookingStatus).filter(
   (status) => !FINISHED_BOOKING_STATUSES.includes(status),
 );
 

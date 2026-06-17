@@ -33,6 +33,7 @@ import {
 } from './dto/tasker-booking-location.dto';
 import { UpdateBookingScheduleAddressDto } from './dto/update-booking-schedule-address.dto';
 import {
+  CustomerActiveBookingResponse,
   CustomerBookingCreatedResponse,
   CustomerBookingDetailResponse,
   CustomerBookingQuoteResponse,
@@ -341,6 +342,21 @@ export class BookingController {
     @Body() dto: CancelBookingDto,
   ): Promise<CustomerBookingDetailResponse> {
     return this.customerBookingService.cancelByCustomer(userId, bookingId, dto);
+  }
+
+  @Get('/my-booking')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({
+    summary: '03D. Customer lấy booking đang hoạt động của chính mình',
+    description:
+      'Trả về booking active hiện tại nếu có. Active gồm các trạng thái chưa kết thúc: POSTED, CONFIRMED, TASKER_ON_THE_WAY, CHECKED_IN, IN_PROGRESS. Nếu không có booking active, response trả booking = null.',
+  })
+  @ApiOkResponse({ description: 'Lấy booking đang hoạt động thành công' })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  findMyActiveBooking(
+    @CurrentUser('id') userId: string,
+  ): Promise<CustomerActiveBookingResponse> {
+    return this.customerBookingService.findMyActiveBooking(userId);
   }
 
   @Get(':id')

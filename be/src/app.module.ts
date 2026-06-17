@@ -18,12 +18,9 @@ import { IncidentModule } from './modules/incident/incident.module';
 import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
 import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
 import { AdminModule } from './modules/admin/admin.module';
-<<<<<<< HEAD
 import { TrackingModule } from './modules/tracking/tracking.module';
-=======
 import { QueueModule } from './modules/queue/queue.module';
 import { NotificationModule } from './modules/notification/notification.module';
->>>>>>> 128fb84 (feat: implement notification system with multi-channel support)
 
 @Module({
   imports: [
