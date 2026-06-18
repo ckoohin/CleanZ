@@ -52,12 +52,9 @@ export class AdminDashboardRepository {
         .createQueryBuilder('b')
         .where('b.status = :status', { status: BookingStatus.POSTED })
         .andWhere('b.tasker IS NULL')
-        .andWhere(
-          'b.scheduled_start <= :deadline',
-          {
-            deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
-          },
-        )
+        .andWhere('b.scheduled_start <= :deadline', {
+          deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        })
         .getCount(),
 
       // Tasker chờ duyệt KYC
@@ -98,8 +95,7 @@ export class AdminDashboardRepository {
         .getRepository(SupportTicketEntity)
         .createQueryBuilder('t')
         .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
-        .andWhere('t.overdueAt IS NOT NULL')
-        .andWhere('t.overdueAt < :now', { now: new Date() })
+        .andWhere('t.slaBreached = :breached', { breached: true })
         .getCount()
         .catch(() => 0),
 
