@@ -1,10 +1,24 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AllConfigType } from 'src/config/config.type';
 import { QueueBoardService } from './queue-board.service';
 
+@Global()
 @Module({
   imports: [
-    // Đăng ký các queue theo kế hoạch
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AllConfigType>) => ({
+        connection: {
+          host: configService.get('REDIS_HOST', { infer: true }),
+          port: Number(configService.get('REDIS_PORT', { infer: true })),
+          password:
+            configService.get('REDIS_PASSWORD', { infer: true }) || undefined,
+        },
+      }),
+    }),
     BullModule.registerQueue(
       { name: 'bookingQueue' },
       { name: 'notificationQueue' },

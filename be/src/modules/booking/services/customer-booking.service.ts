@@ -1,8 +1,12 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { NotificationType } from 'src/common/enums/notification-type.enum';
+import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
+import { NotificationService } from 'src/modules/notification/notification.service';
 import { generateOrderCode } from 'src/common/helpers/generate-code';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
@@ -32,7 +36,10 @@ import {
   BookingScheduleDraft,
   BookingScheduleService,
 } from './booking-schedule.service';
-import { BookingPolicyService } from './booking-policy.service';
+import {
+  ACTIVE_BOOKING_STATUSES,
+  BookingPolicyService,
+} from './booking-policy.service';
 import { BookingLocationPolicyService } from './booking-location-policy.service';
 
 interface BookingPricingContext {
@@ -60,6 +67,10 @@ interface BookingPricingContext {
 
 export type CustomerBookingQuoteResponse = Record<string, unknown>;
 export type CustomerBookingDetailResponse = Record<string, unknown>;
+export type CustomerBookingCreatedResponse = Record<string, unknown>;
+export interface CustomerActiveBookingResponse {
+  booking: CustomerBookingDetailResponse | null;
+}
 
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
 
@@ -73,7 +84,10 @@ export class CustomerBookingService {
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly voucherService: VoucherService,
+    private readonly notificationService: NotificationService,
   ) {}
+
+  private readonly logger = new Logger(CustomerBookingService.name);
 
   async quote(
     userId: string,
@@ -124,7 +138,10 @@ export class CustomerBookingService {
     }, 'Không thể báo giá booking');
   }
 
-  async create(userId: string, dto: CreateBookingDto): Promise<BookingEntity> {
+  async create(
+    userId: string,
+    dto: CreateBookingDto,
+  ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
       return this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -167,8 +184,8 @@ export class CustomerBookingService {
           paymentMethod,
           paymentStatus: PaymentStatus.PENDING,
           voucherId: context.voucher?.id,
-          isRecurring: dto.isRecurring ?? false,
-          recurringRule: dto.recurringRule,
+          isRecurring: false,
+          recurringRule: null,
         });
         const savedBooking = await bookingRepository.save(booking);
 
@@ -191,7 +208,11 @@ export class CustomerBookingService {
         });
         await logRepository.save(statusLog);
 
-        return savedBooking;
+        return this.mapCreatedBookingResponse(
+          savedBooking,
+          context,
+          paymentMethod,
+        );
       });
     }, 'Không thể tạo booking');
   }
@@ -308,6 +329,33 @@ export class CustomerBookingService {
     }, 'Không thể lấy chi tiết booking');
   }
 
+  async findMyActiveBooking(
+    userId: string,
+  ): Promise<CustomerActiveBookingResponse> {
+    return asyncHandleOperation(async () => {
+      const activeBooking = await this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .innerJoin('booking.customer', 'customer')
+        .innerJoin('customer.user', 'customerUser')
+        .select('booking.id', 'id')
+        .where('customerUser.id = :userId', { userId })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: ACTIVE_BOOKING_STATUSES,
+        })
+        .orderBy('booking.createdAt', 'DESC')
+        .getRawOne<{ id: string }>();
+
+      if (!activeBooking) {
+        return { booking: null };
+      }
+
+      return {
+        booking: await this.findMyBookingDetail(userId, activeBooking.id),
+      };
+    }, 'Không thể lấy booking đang hoạt động');
+  }
+
   async updateScheduleAndAddress(
     userId: string,
     bookingId: string,
@@ -396,12 +444,16 @@ export class CustomerBookingService {
     dto: CancelBookingDto,
   ): Promise<CustomerBookingDetailResponse> {
     return asyncHandleOperation(async () => {
+      let taskerUserId: string | undefined;
+      let bookingCode = '';
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
           .getRepository(BookingEntity)
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.customer', 'customer')
           .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
           .setLock('pessimistic_write', undefined, ['booking'])
           .where('booking.id = :bookingId', { bookingId })
           .andWhere('customerUser.id = :userId', { userId })
@@ -418,6 +470,8 @@ export class CustomerBookingService {
         const oldStatus = booking.status;
         booking.status = BookingStatus.CANCELLED;
         booking.cancelledAt = new Date();
+        taskerUserId = booking.tasker?.user?.id;
+        bookingCode = booking.bookingCode;
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
@@ -453,6 +507,23 @@ export class CustomerBookingService {
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
       });
 
+      // Sau commit: nếu đơn đã có tasker → báo tasker rằng customer đã hủy.
+      if (taskerUserId) {
+        void this.notificationService
+          .notify({
+            userId: taskerUserId,
+            type: NotificationType.BOOKING_CANCELLED,
+            title: 'Đơn đã bị khách hủy',
+            content: `Đơn ${bookingCode} đã bị khách hàng hủy.`,
+            referenceType: NotificationRefType.BOOKING,
+            referenceId: bookingId,
+            dedupeKey: `booking:${bookingId}:${NotificationType.BOOKING_CANCELLED}`,
+          })
+          .catch((err) =>
+            this.logger.error(`Không thể enqueue noti hủy booking: ${err}`),
+          );
+      }
+
       return { message: 'Booking đã được hủy thành công' };
     }, 'Không thể hủy booking');
   }
@@ -462,7 +533,7 @@ export class CustomerBookingService {
     userId: string,
     dto: BookingScheduleDraft,
   ): Promise<BookingPricingContext> {
-    const schedule = this.bookingScheduleService.buildSchedule(dto);
+    const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
 
     const customerRepository = manager.getRepository(CustomerEntity);
     const addressRepository = manager.getRepository(CustomerAddressEntity);
@@ -473,6 +544,11 @@ export class CustomerBookingService {
     });
     if (!customer) {
       throw new NotFoundException('Không tìm thấy hồ sơ customer');
+    }
+    if (!customer.user.phone?.trim()) {
+      throw new BadRequestException(
+        'Vui lòng cập nhật số điện thoại trước khi đặt booking',
+      );
     }
 
     const addressRef = dto.addressId
@@ -510,11 +586,15 @@ export class CustomerBookingService {
     const price = await this.pricingService.calculateBookingPrice(manager, {
       serviceId: dto.serviceId,
       durationHours: dto.durationHours,
-      scheduledStart: schedule.scheduledStart,
-      scheduledStartTime: schedule.scheduledStartTime,
+      scheduledStart: scheduleStart.scheduledStart,
+      scheduledStartTime: scheduleStart.scheduledStartTime,
       hasPet: addressRef?.hasPet ?? false,
       voucherCode: dto.voucherCode,
     });
+    const schedule = this.bookingScheduleService.buildSchedule(
+      dto,
+      price.durationHours,
+    );
 
     return {
       customer,
@@ -554,5 +634,61 @@ export class CustomerBookingService {
       }
     }
     throw new BadRequestException('Không thể tạo mã booking, vui lòng thử lại');
+  }
+
+  private mapCreatedBookingResponse(
+    booking: BookingEntity,
+    context: BookingPricingContext,
+    paymentMethod: PaymentMethod,
+  ): CustomerBookingCreatedResponse {
+    return {
+      id: booking.id,
+      bookingCode: booking.bookingCode,
+      status: booking.status,
+      service: {
+        id: context.service.id,
+        name: context.service.name,
+        description: context.service.description ?? null,
+      },
+      address: {
+        id: context.addressRef?.id ?? null,
+        label: context.addressRef?.label ?? null,
+        fullAddress: context.bookingAddress,
+        wardDetail: context.addressRef?.wardDetail ?? null,
+        latitude: context.addressRef?.latitude ?? null,
+        longitude: context.addressRef?.longitude ?? null,
+        hasPet: context.addressRef?.hasPet ?? false,
+      },
+      schedule: {
+        scheduledStartDate: context.scheduledStartDate,
+        scheduledStartTime: context.scheduledStartTime,
+        scheduledEndDate: context.scheduledEndDate,
+        scheduledEndTime: context.scheduledEndTime,
+        durationHours: context.durationHours,
+      },
+      price: {
+        basePrice: context.basePrice,
+        addonPrice: context.addonPrice,
+        peakFee: context.peakFee,
+        petFee: context.petFee,
+        waitingFee: context.waitingFee,
+        discountAmount: context.discountAmount,
+        totalPrice: context.totalPrice,
+      },
+      payment: {
+        method: paymentMethod,
+        status: PaymentStatus.PENDING,
+      },
+      voucher: context.voucher
+        ? {
+            id: context.voucher.id,
+            code: context.voucher.code,
+            name: context.voucher.name,
+          }
+        : null,
+      note: booking.note ?? null,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+    };
   }
 }

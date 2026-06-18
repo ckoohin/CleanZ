@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
+import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import {
@@ -51,9 +52,12 @@ export class AdminDashboardRepository {
         .createQueryBuilder('b')
         .where('b.status = :status', { status: BookingStatus.POSTED })
         .andWhere('b.tasker IS NULL')
-        .andWhere('b.scheduledStart <= :deadline', {
-          deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        })
+        .andWhere(
+          'b.scheduled_start <= :deadline',
+          {
+            deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
+          },
+        )
         .getCount(),
 
       // Tasker chờ duyệt KYC
@@ -151,10 +155,10 @@ export class AdminDashboardRepository {
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
         .select([
-          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
+          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.total_price ELSE 0 END), 0) AS gmv',
           'COUNT(*) AS total_orders',
           'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
-          'COALESCE(SUM(CASE WHEN b.paymentStatus = :refunded THEN b.totalPrice ELSE 0 END), 0) AS total_refund',
+          'COALESCE(SUM(CASE WHEN b.payment_status = :refunded THEN b.total_price ELSE 0 END), 0) AS total_refund',
         ])
         .where('b.createdAt BETWEEN :from AND :to', { from, to })
         .setParameter('completed', BookingStatus.COMPLETED)
@@ -170,7 +174,7 @@ export class AdminDashboardRepository {
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
         .select([
-          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
+          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.total_price ELSE 0 END), 0) AS gmv',
           'COUNT(*) AS total_orders',
           'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
         ])
@@ -284,13 +288,13 @@ export class AdminDashboardRepository {
       .getRepository(BookingEntity)
       .createQueryBuilder('b')
       .select([
-        `DATE_TRUNC('${trunc}', b.scheduledStart) AS period`,
-        'COALESCE(SUM(b.totalPrice), 0) AS gmv',
+        `DATE_TRUNC('${trunc}', b.scheduled_start) AS period`,
+        'COALESCE(SUM(b.total_price), 0) AS gmv',
         'COUNT(*) AS orders',
       ])
-      .where('b.scheduledStart BETWEEN :from AND :to', { from, to })
-      .groupBy(`DATE_TRUNC('${trunc}', b.scheduledStart)`)
-      .orderBy(`DATE_TRUNC('${trunc}', b.scheduledStart)`, 'ASC')
+      .where('b.scheduled_start BETWEEN :from AND :to', { from, to })
+      .groupBy(`DATE_TRUNC('${trunc}', b.scheduled_start)`)
+      .orderBy(`DATE_TRUNC('${trunc}', b.scheduled_start)`, 'ASC')
       .getRawMany();
 
     return rows.map((r) => ({
@@ -333,11 +337,11 @@ export class AdminDashboardRepository {
         .leftJoin('b.customer', 'c')
         .leftJoin('c.user', 'u')
         .select([
-          'b.bookingCode AS "bookingCode"',
-          'u.fullName AS "customerName"',
-          'b.totalPrice AS "totalPrice"',
+          'b.booking_code AS "bookingCode"',
+          'u.full_name AS "customerName"',
+          'b.total_price AS "totalPrice"',
           'b.status AS status',
-          'b.scheduledStart AS "scheduledStart"',
+          'b.scheduled_start AS "scheduledStart"',
         ])
         .where('b.createdAt BETWEEN :from AND :to', { from, to })
         .orderBy('b.createdAt', 'DESC')
@@ -357,14 +361,15 @@ export class AdminDashboardRepository {
 
       // Lý do huỷ đơn
       this.dataSource
-        .getRepository(BookingEntity)
-        .createQueryBuilder('b')
-        .select(['b.cancelledBy AS "cancelledBy"', 'COUNT(*) AS count'])
-        .where('b.status IN (:...statuses)', {
+        .getRepository(BookingStatusLogEntity)
+        .createQueryBuilder('log')
+        .innerJoin('log.booking', 'b')
+        .select(['log.cancelled_by AS "cancelledBy"', 'COUNT(*) AS count'])
+        .where('log.new_status IN (:...statuses)', {
           statuses: [BookingStatus.CANCELLED, BookingStatus.EXPIRED],
         })
-        .andWhere('b.createdAt BETWEEN :from AND :to', { from, to })
-        .groupBy('b.cancelledBy')
+        .andWhere('log.created_at BETWEEN :from AND :to', { from, to })
+        .groupBy('log.cancelled_by')
         .orderBy('count', 'DESC')
         .getRawMany(),
 
@@ -373,10 +378,10 @@ export class AdminDashboardRepository {
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
         .select([
-          `FLOOR(EXTRACT(HOUR FROM b.scheduledStart) / 3) * 3 AS hour_block`,
+          `FLOOR(EXTRACT(HOUR FROM b.scheduled_start) / 3) * 3 AS hour_block`,
           'COUNT(*) AS count',
         ])
-        .where('b.scheduledStart BETWEEN :from AND :to', { from, to })
+        .where('b.scheduled_start BETWEEN :from AND :to', { from, to })
         .groupBy('hour_block')
         .orderBy('hour_block', 'ASC')
         .getRawMany(),

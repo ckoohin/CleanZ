@@ -11,11 +11,14 @@ import { BookingScheduleService } from './services/booking-schedule.service';
 import { BookingExpirationService } from './services/booking-expiration.service';
 import { CustomerAddressEntity } from '../customer/entity/customer-address.entity';
 import { CustomerEntity } from '../customer/entity/customer.entity';
+import { GoongMapModule } from '../goong/goong-map.module';
 import { PaymentModule } from '../payment/payment.module';
 import { PricingModule } from '../pricing/pricing.module';
 import { SystemConfigModule } from '../system-config/system-config.module';
+import { TrackingModule } from '../tracking/tracking.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -27,9 +30,12 @@ import { WalletModule } from '../wallet/wallet.module';
     ]),
     PaymentModule,
     PricingModule,
+    GoongMapModule,
     SystemConfigModule,
+    TrackingModule,
     VoucherModule,
     WalletModule,
+    NotificationModule,
   ],
   controllers: [BookingController],
   providers: [
