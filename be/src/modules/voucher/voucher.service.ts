@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { toNumber } from 'src/common/helpers/number.helper';
-import { VoucherEntity, VoucherType } from './entity/voucher.entity';
+import { VoucherEntity } from './entity/voucher.entity';
+import { VoucherType } from 'src/common/enums/voucher-type.enum';
 
 @Injectable()
 export class VoucherService {
