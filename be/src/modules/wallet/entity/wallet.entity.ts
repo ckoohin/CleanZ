@@ -1,17 +1,20 @@
 import {
-  Check,
+  Entity,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  Entity,
+  UpdateDateColumn,
+  OneToMany,
   Index,
+  Check,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
-import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
-import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+import { WalletOwnerType } from '../../../common/enums/wallet-owner-type.enum';
+import { WalletTransactionEntity } from './wallet-transaction.entity';
+import { WithdrawalRequestEntity } from '../../finance/entity/withdrawal-request.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
+import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 
 @Entity('wallets')
 @Index('idx_wallets_owner_type', ['ownerType'])
@@ -53,12 +56,8 @@ export class WalletEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({
-    name: 'owner_type',
-    type: 'enum',
-    enum: WalletOwnerType,
-    enumName: 'wallet_owner_type',
-  })
+  @Index('idx_wallets_owner_type')
+  @Column({ type: 'enum', enum: WalletOwnerType, name: 'owner_type' })
   ownerType!: WalletOwnerType;
 
   @ManyToOne(() => CustomerEntity, {
@@ -81,17 +80,23 @@ export class WalletEntity {
   balance!: number;
 
   @Column({
-    name: 'hold_balance',
     type: 'numeric',
     precision: 12,
     scale: 2,
     default: 0,
+    name: 'hold_balance',
   })
   holdBalance!: number;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
+
+  @OneToMany(() => WalletTransactionEntity, (wt) => wt.wallet)
+  transactions!: WalletTransactionEntity[];
+
+  @OneToMany(() => WithdrawalRequestEntity, (wr) => wr.wallet)
+  withdrawalRequests!: WithdrawalRequestEntity[];
 }
