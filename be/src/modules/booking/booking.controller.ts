@@ -50,9 +50,18 @@ import {
   BookingExpirationService,
   ExpireOverdueBookingsResponse,
 } from './services/booking-expiration.service';
+import {
+  CUSTOMER_ACTIVE_BOOKING_SCHEMA,
+  CUSTOMER_BOOKING_DETAIL_SCHEMA,
+  CUSTOMER_BOOKING_QUOTE_SCHEMA,
+  EXPIRE_OVERDUE_BOOKINGS_SCHEMA,
+  TASKER_ACCEPT_BOOKING_SCHEMA,
+  TASKER_ASSIGNED_BOOKING_SCHEMA,
+  TASKER_POSTED_BOOKING_DETAIL_SCHEMA,
+  TASKER_POSTED_BOOKING_LIST_SCHEMA,
+} from './swagger/booking-response.schemas';
 
 @Controller('booking')
-@ApiTags('Booking')
 @ApiBearerAuth('access-token')
 export class BookingController {
   constructor(
@@ -64,7 +73,12 @@ export class BookingController {
   @Post()
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: '02. Customer tạo yêu cầu dịch vụ' })
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer step 2 — Tạo booking',
+    description:
+      'Thực hiện sau bước báo giá. Booking mới có trạng thái POSTED và chờ tasker nhận. Response trả snapshot dịch vụ, lịch, giá, thanh toán và voucher tại thời điểm tạo.',
+  })
   @ApiBody({
     type: CreateBookingDto,
     examples: {
@@ -90,7 +104,10 @@ export class BookingController {
       },
     },
   })
-  @ApiCreatedResponse({ description: 'Tạo booking thành công' })
+  @ApiCreatedResponse({
+    description: 'Booking được tạo với trạng thái POSTED',
+    schema: CUSTOMER_BOOKING_DETAIL_SCHEMA,
+  })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   create(
     @CurrentUser('id') userId: string,
@@ -102,7 +119,12 @@ export class BookingController {
   @Post('quote')
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '01. Customer xem báo giá trước khi tạo booking' })
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer step 1 — Xem báo giá',
+    description:
+      'Bước đầu tiên của customer. API kiểm tra địa chỉ, khu vực hỗ trợ, thời lượng service, giờ cao điểm, thú cưng và voucher; không tạo booking hay payment.',
+  })
   @ApiBody({
     type: QuoteBookingDto,
     examples: {
@@ -119,7 +141,10 @@ export class BookingController {
       },
     },
   })
-  @ApiOkResponse({ description: 'Báo giá booking thành công' })
+  @ApiOkResponse({
+    description: 'Trả lịch dự kiến và chi tiết các thành phần giá',
+    schema: CUSTOMER_BOOKING_QUOTE_SCHEMA,
+  })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   quote(
     @CurrentUser('id') userId: string,
@@ -130,8 +155,16 @@ export class BookingController {
 
   @Get('tasker/posted')
   @Auth(UserRole.TASKER)
-  @ApiOperation({ summary: '04. Tasker xem danh sách booking đang chờ nhận' })
-  @ApiOkResponse({ description: 'Lấy danh sách booking posted thành công' })
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker step 1 — Xem danh sách booking đang chờ nhận',
+    description:
+      'Chỉ trả booking POSTED chưa có tasker. Thông tin địa chỉ được giới hạn ở khu vực công khai, chưa trả thông tin liên hệ customer.',
+  })
+  @ApiOkResponse({
+    description: 'Danh sách booking khả dụng cho tasker',
+    schema: TASKER_POSTED_BOOKING_LIST_SCHEMA,
+  })
   @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
   findPostedBookingsForTasker(
     @CurrentUser('id') userId: string,
@@ -141,15 +174,20 @@ export class BookingController {
 
   @Get('tasker/posted/:id')
   @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary:
-      '05. Tasker xem chi tiết booking posted gồm khoảng cách, dịch vụ, giá, ngày giờ',
+    summary: 'Tasker step 2 — Xem chi tiết booking đang chờ nhận',
+    description:
+      'FE gửi tọa độ hiện tại của tasker. Response trả khoảng cách, dịch vụ, giá và lịch; chưa trả địa chỉ đầy đủ hoặc thông tin liên hệ customer.',
   })
   @ApiParam({
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Lấy chi tiết booking posted thành công' })
+  @ApiOkResponse({
+    description: 'Chi tiết công khai của booking POSTED',
+    schema: TASKER_POSTED_BOOKING_DETAIL_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không còn ở trạng thái posted',
   })
@@ -169,8 +207,9 @@ export class BookingController {
   @Post('tasker/posted/:id/accept')
   @Auth(UserRole.TASKER)
   @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary: '06. Tasker pick/nhận booking đang ở trạng thái posted',
+    summary: 'Tasker step 3 — Nhận booking',
     description:
       'Sau khi pick, booking chuyển sang CONFIRMED. Ở trạng thái này tasker vẫn chỉ xem được thông tin hạn chế, chưa thấy thông tin liên hệ customer.',
   })
@@ -178,7 +217,10 @@ export class BookingController {
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Tasker nhận booking thành công' })
+  @ApiOkResponse({
+    description: 'Booking chuyển POSTED → CONFIRMED',
+    schema: TASKER_ACCEPT_BOOKING_SCHEMA,
+  })
   @ApiNotFoundResponse({ description: 'Booking không tồn tại' })
   @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
   acceptPostedBooking(
@@ -190,8 +232,9 @@ export class BookingController {
 
   @Get('tasker/:id')
   @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary: '07. Tasker xem chi tiết booking đã nhận',
+    summary: 'Tasker step 4 — Xem booking đã nhận',
     description:
       'Nếu booking mới ở CONFIRMED, response có khoảng cách nếu FE gửi tọa độ, giá trị đơn và tên customer, nhưng chưa có số điện thoại, địa chỉ đầy đủ, ghi chú. Từ TASKER_ON_THE_WAY trở đi mới trả địa chỉ đầy đủ, ghi chú và thông tin liên hệ customer.',
   })
@@ -199,7 +242,11 @@ export class BookingController {
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Lấy chi tiết booking của tasker thành công' })
+  @ApiOkResponse({
+    description:
+      'Chi tiết booking; trường liên hệ phụ thuộc trạng thái và canContactCustomer',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
   })
@@ -218,8 +265,9 @@ export class BookingController {
 
   @Patch('tasker/:id/on-the-way')
   @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary: '08. Tasker chuyển booking sang trạng thái đang tới',
+    summary: 'Tasker step 5 — Bắt đầu di chuyển',
     description:
       'Chỉ booking ở CONFIRMED mới được chuyển sang TASKER_ON_THE_WAY. Sau bước này tasker mới xem được thông tin liên hệ customer và địa chỉ đầy đủ.',
   })
@@ -227,7 +275,11 @@ export class BookingController {
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Cập nhật trạng thái thành công' })
+  @ApiOkResponse({
+    description:
+      'Booking chuyển CONFIRMED → TASKER_ON_THE_WAY và mở thông tin liên hệ customer',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
   })
@@ -241,8 +293,9 @@ export class BookingController {
 
   @Patch('tasker/:id/check-in')
   @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary: '09. Tasker check-in khi đã đến nơi',
+    summary: 'Tasker step 6 — Check-in khi đến nơi',
     description:
       'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime và chuyển sang màn hình tasker đã đến.',
   })
@@ -250,7 +303,10 @@ export class BookingController {
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Check-in booking thành công' })
+  @ApiOkResponse({
+    description: 'Booking chuyển TASKER_ON_THE_WAY → CHECKED_IN',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
   })
@@ -264,8 +320,9 @@ export class BookingController {
 
   @Patch('tasker/:id/start')
   @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary: '10. Tasker bắt đầu làm việc',
+    summary: 'Tasker step 7 — Bắt đầu làm việc',
     description:
       'Chỉ booking ở CHECKED_IN mới được chuyển sang IN_PROGRESS. FE không cần tiếp tục tracking đường đi, chỉ hiển thị thời gian làm việc và thông tin booking.',
   })
@@ -273,7 +330,10 @@ export class BookingController {
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Bắt đầu booking thành công' })
+  @ApiOkResponse({
+    description: 'Booking chuyển CHECKED_IN → IN_PROGRESS',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
   })
@@ -287,8 +347,9 @@ export class BookingController {
 
   @Patch('tasker/:id/complete')
   @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
   @ApiOperation({
-    summary: '11. Tasker hoàn thành booking',
+    summary: 'Tasker step 8 — Hoàn thành công việc',
     description:
       'Chỉ booking ở IN_PROGRESS mới được chuyển sang COMPLETED. Với CASH, hệ thống demo mark payment PAID, cộng ví tasker và ghi phí nền tảng. Với thanh toán online, booking phải PAID trước.',
   })
@@ -296,7 +357,11 @@ export class BookingController {
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
-  @ApiOkResponse({ description: 'Hoàn thành booking thành công' })
+  @ApiOkResponse({
+    description:
+      'Booking chuyển IN_PROGRESS → COMPLETED và thực hiện quyết toán',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc tasker hiện tại',
   })
@@ -311,27 +376,37 @@ export class BookingController {
   @Post('admin/expire-overdue')
   @AdminOnly()
   @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – System/Admin Flow')
   @ApiOperation({
-    summary: '03B. Hệ thống xử lý booking quá hạn',
+    summary: 'System/Admin step 1 — Xử lý booking POSTED quá hạn',
     description:
       'API demo để test luồng hệ thống tự chuyển booking POSTED sang EXPIRED khi đã qua scheduled start mà chưa có tasker nhận. Service này cũng tự chạy nền theo interval.',
   })
-  @ApiOkResponse({ description: 'Xử lý booking quá hạn thành công' })
+  @ApiOkResponse({
+    description: 'Số booking đã chuyển POSTED → EXPIRED',
+    schema: EXPIRE_OVERDUE_BOOKINGS_SCHEMA,
+  })
   expireOverduePostedBookings(): Promise<ExpireOverdueBookingsResponse> {
     return this.bookingExpirationService.expireOverduePostedBookings();
   }
 
   @Patch('/customer/:id/cancel')
   @Auth(UserRole.CUSTOMER)
+  @ApiTags('Booking – Customer Flow')
   @ApiOperation({
-    summary: '03C. Customer hủy booking ở trạng thái POSTED hoặc CONFIRMED',
+    summary: 'Customer optional step — Hủy booking',
+    description:
+      'Chỉ dùng khi booking đang POSTED hoặc CONFIRMED. Response trả chi tiết booking sau khi chuyển sang CANCELLED.',
   })
   @ApiParam({
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
   @ApiBody({ type: CancelBookingDto })
-  @ApiOkResponse({ description: 'Hủy booking thành công' })
+  @ApiOkResponse({
+    description: 'Booking sau khi hủy',
+    schema: CUSTOMER_BOOKING_DETAIL_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc customer hiện tại',
   })
@@ -346,12 +421,16 @@ export class BookingController {
 
   @Get('/my-booking')
   @Auth(UserRole.CUSTOMER)
+  @ApiTags('Booking – Customer Flow')
   @ApiOperation({
-    summary: '03D. Customer lấy booking đang hoạt động của chính mình',
+    summary: 'Customer step 3 — Lấy booking đang hoạt động',
     description:
       'Trả về booking active hiện tại nếu có. Active gồm các trạng thái chưa kết thúc: POSTED, CONFIRMED, TASKER_ON_THE_WAY, CHECKED_IN, IN_PROGRESS. Nếu không có booking active, response trả booking = null.',
   })
-  @ApiOkResponse({ description: 'Lấy booking đang hoạt động thành công' })
+  @ApiOkResponse({
+    description: 'Trả booking active gần nhất hoặc booking = null',
+    schema: CUSTOMER_ACTIVE_BOOKING_SCHEMA,
+  })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   findMyActiveBooking(
     @CurrentUser('id') userId: string,
@@ -361,10 +440,19 @@ export class BookingController {
 
   @Get(':id')
   @Auth(UserRole.CUSTOMER)
-  @ApiOperation({ summary: '03. Customer xem chi tiết booking của chính mình' })
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer step 4 — Xem chi tiết và theo dõi booking',
+    description:
+      'Dùng endpoint này để refresh trạng thái, tasker, payment và statusLogs trong suốt vòng đời booking.',
+  })
   @ApiParam({
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
+  })
+  @ApiOkResponse({
+    description: 'Chi tiết đầy đủ booking thuộc customer hiện tại',
+    schema: CUSTOMER_BOOKING_DETAIL_SCHEMA,
   })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc customer hiện tại',
@@ -379,9 +467,9 @@ export class BookingController {
 
   @Patch(':id/schedule-address')
   @Auth(UserRole.CUSTOMER)
+  @ApiTags('Booking – Customer Flow')
   @ApiOperation({
-    summary:
-      '03A. Customer đổi địa chỉ, ngày và giờ khi booking chưa có tasker nhận',
+    summary: 'Customer optional step — Đổi lịch hoặc địa chỉ',
     description:
       'Chỉ cập nhật địa chỉ/lịch làm. Thời lượng vẫn giữ theo service đã chọn của booking, FE không gửi durationHours.',
   })
@@ -390,7 +478,11 @@ export class BookingController {
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
   })
   @ApiBody({ type: UpdateBookingScheduleAddressDto })
-  @ApiOkResponse({ description: 'Cập nhật booking thành công' })
+  @ApiOkResponse({
+    description:
+      'Chi tiết booking sau khi tính lại lịch và giá theo địa chỉ mới',
+    schema: CUSTOMER_BOOKING_DETAIL_SCHEMA,
+  })
   @ApiNotFoundResponse({
     description: 'Booking không tồn tại hoặc không thuộc customer hiện tại',
   })

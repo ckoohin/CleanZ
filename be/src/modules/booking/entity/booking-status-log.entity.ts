@@ -7,15 +7,12 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import { BookingEntity } from './booking.entity';
 
-export enum CancelledBy {
-  CUSTOMER = 'CUSTOMER',
-  TASKER = 'TASKER',
-  SYSTEM = 'SYSTEM',
-}
+export { CancelledBy };
 
 @Entity('booking_status_logs')
 export class BookingStatusLogEntity {

@@ -52,12 +52,22 @@ export class UsersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lấy danh sách người dùng với filter + pagination (Admin)' })
+  @ApiOperation({
+    summary: 'Lấy danh sách người dùng với filter + pagination (Admin)',
+  })
   @ApiQuery({ name: 'keyword', required: false })
-  @ApiQuery({ name: 'role', required: false, enum: ['ADMIN', 'CUSTOMER', 'TASKER'] })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: ['ADMIN', 'CUSTOMER', 'TASKER'],
+  })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
-  @ApiQuery({ name: 'provider', required: false, enum: ['LOCAL', 'GOOGLE', 'FACEBOOK'] })
+  @ApiQuery({
+    name: 'provider',
+    required: false,
+    enum: ['LOCAL', 'GOOGLE', 'FACEBOOK'],
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiOkResponse({ description: 'Lấy danh sách người dùng thành công' })
@@ -67,7 +77,9 @@ export class UsersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lấy chi tiết người dùng kèm profile liên kết (Admin)' })
+  @ApiOperation({
+    summary: 'Lấy chi tiết người dùng kèm profile liên kết (Admin)',
+  })
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })
   @ApiOkResponse({ description: 'Lấy thông tin người dùng thành công' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy user' })
@@ -97,7 +109,11 @@ export class UsersController {
     @Body() dto: UpdateUserStatusDto,
     @CurrentUser('id') currentUserId: string,
   ) {
-    return this.usersService.toggleUserActiveStatus(id, dto.isActive, currentUserId);
+    return this.usersService.toggleUserActiveStatus(
+      id,
+      dto.isActive,
+      currentUserId,
+    );
   }
 
   @Post(':id/reset-password')

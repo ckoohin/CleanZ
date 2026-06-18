@@ -16,8 +16,6 @@ import { NotificationService } from 'src/modules/notification/notification.servi
 import { toNumber } from 'src/common/helpers/number.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { PaymentService } from 'src/modules/payment/payment.service';
-import { PricingService } from 'src/modules/pricing/pricing.service';
-import { ServiceEntity } from 'src/modules/pricing/entity/service.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { WalletService } from 'src/modules/wallet/wallet.service';
@@ -28,6 +26,8 @@ import { TaskerBookingLocationDto } from '../dto/tasker-booking-location.dto';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingPolicyService } from './booking-policy.service';
+import { ServiceEntity } from 'src/modules/service/entity/service.entity';
+import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
 interface TaskerPostedBookingItem {
   id: string;

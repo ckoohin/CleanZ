@@ -14,7 +14,7 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
   async findWithPagination(
     query: PricingListQueryDto,
   ): Promise<PaginatedData<PricingConfigEntity>> {
-    const { page = 1, limit = 20, serviceId, provinceCode, isActive } = query;
+    const { page = 1, limit = 20, serviceId, isActive } = query;
     const skip = (page - 1) * limit;
 
     const qb = this.createQueryBuilder('pc')
@@ -23,9 +23,6 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
 
     if (serviceId) {
       qb.andWhere('pc.serviceId = :serviceId', { serviceId });
-    }
-    if (provinceCode) {
-      qb.andWhere('pc.provinceCode = :provinceCode', { provinceCode });
     }
     if (isActive !== undefined) {
       qb.andWhere('pc.isActive = :isActive', { isActive: isActive === 'true' });
@@ -37,14 +34,12 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
 
   async findDuplicate(
     serviceId: string,
-    provinceCode: string,
-    durationHours: number,
     excludeId?: string,
   ): Promise<PricingConfigEntity | null> {
-    const qb = this.createQueryBuilder('pc')
-      .where('pc.serviceId = :serviceId', { serviceId })
-      .andWhere('pc.provinceCode = :provinceCode', { provinceCode })
-      .andWhere('pc.durationHours = :durationHours', { durationHours });
+    const qb = this.createQueryBuilder('pc').where(
+      'pc.serviceId = :serviceId',
+      { serviceId },
+    );
 
     if (excludeId) {
       qb.andWhere('pc.id != :excludeId', { excludeId });
@@ -66,22 +61,5 @@ export class PeakDayConfigRepository extends Repository<PeakDayConfigEntity> {
       qb.where('pdc.isActive = true');
     }
     return qb.getMany();
-  }
-
-  async findOverlapping(
-    startAt: Date,
-    endAt: Date,
-    excludeId?: string,
-  ): Promise<PeakDayConfigEntity | null> {
-    const qb = this.createQueryBuilder('pdc')
-      .where('pdc.isActive = true')
-      .andWhere('pdc.startAt < :endAt', { endAt })
-      .andWhere('pdc.endAt > :startAt', { startAt });
-
-    if (excludeId) {
-      qb.andWhere('pdc.id != :excludeId', { excludeId });
-    }
-
-    return qb.getOne();
   }
 }

@@ -44,7 +44,7 @@ export class PricingController {
 
   @Post('configs')
   @ApiOperation({
-    summary: 'Create pricing config (service × province × duration)',
+    summary: 'Create pricing config for a service',
   })
   @ApiCreatedResponse()
   async createConfig(@Body() dto: CreatePricingConfigDto) {

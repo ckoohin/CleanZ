@@ -8,9 +8,9 @@ export abstract class BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt!: Date;
 }

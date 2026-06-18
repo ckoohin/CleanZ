@@ -23,8 +23,8 @@ import { QueueModule } from './modules/queue/queue.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { ServicesModule } from './modules/service/services.module';
 import { PricingModule } from './modules/pricing/pricing.module';
-import { VouchersModule } from './modules/voucher/vouchers.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
 
 @Module({
   imports: [
@@ -56,7 +56,7 @@ import { FinanceModule } from './modules/finance/finance.module';
     NotificationModule,
     ServicesModule,
     PricingModule,
-    VouchersModule,
+    VoucherModule,
     FinanceModule,
   ],
   controllers: [AppController],

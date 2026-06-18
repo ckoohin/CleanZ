@@ -1,13 +1,10 @@
 import {
   IsUUID,
-  IsString,
   IsNumber,
   IsOptional,
   IsBoolean,
   Min,
   Max,
-  IsNotEmpty,
-  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -16,21 +13,6 @@ export class CreatePricingConfigDto {
   @ApiProperty({ example: 'uuid-of-service' })
   @IsUUID()
   serviceId!: string;
-
-  @ApiProperty({
-    example: '01',
-    description: 'Province code (e.g. 01 = Hà Nội)',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(20)
-  provinceCode!: string;
-
-  @ApiProperty({ example: 2.0 })
-  @IsNumber({ maxDecimalPlaces: 1 })
-  @Min(0.5)
-  @Type(() => Number)
-  durationHours!: number;
 
   @ApiProperty({ example: 180000 })
   @IsNumber({ maxDecimalPlaces: 2 })

@@ -16,20 +16,26 @@ export class PeakDayConfigEntity {
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
-  @Index('idx_peak_day_configs_range')
-  @Column({ type: 'timestamp', name: 'start_at' })
-  startAt!: Date;
+  @Column({ name: 'start_time', type: 'time', nullable: true })
+  startTime?: string | null;
 
-  @Column({ type: 'timestamp', name: 'end_at' })
-  endAt!: Date;
+  @Column({ name: 'end_time', type: 'time', nullable: true })
+  endTime?: string | null;
+
+  @Index('idx_peak_day_configs_range')
+  @Column({ type: 'timestamp', name: 'start_at', nullable: true })
+  startAt?: Date | null;
+
+  @Column({ type: 'timestamp', name: 'end_at', nullable: true })
+  endAt?: Date | null;
 
   @Column({
     type: 'numeric',
     precision: 5,
     scale: 2,
-    default: 1.0,
+    default: () => '0.1',
     name: 'peak_rate',
-    comment: 'Price multiplier >= 1.0 (e.g. 1.2 = +20%)',
+    comment: 'Peak surcharge rate (e.g. 0.1 = +10%)',
   })
   peakRate!: number;
 

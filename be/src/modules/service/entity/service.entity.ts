@@ -6,6 +6,7 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  OneToOne,
   Index,
 } from 'typeorm';
 
@@ -39,8 +40,8 @@ export class ServiceEntity {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @OneToMany(() => PricingConfigEntity, (pc) => pc.service)
-  pricingConfigs!: PricingConfigEntity[];
+  @OneToOne(() => PricingConfigEntity, (pricing) => pricing.service)
+  pricingConfig?: PricingConfigEntity;
 
   @OneToMany(() => VoucherEntity, (v) => v.service)
   vouchers!: VoucherEntity[];
