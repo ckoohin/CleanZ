@@ -1,23 +1,23 @@
 import {
+  Entity,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  Entity,
-  JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  OneToMany,
+  JoinColumn,
+  Index,
 } from 'typeorm';
-import { ServiceEntity } from 'src/modules/pricing/entity/service.entity';
-
-export enum VoucherType {
-  PERCENT = 'PERCENT',
-  FIXED = 'FIXED',
-}
+import { VoucherType } from '../../../common/enums/voucher-type.enum';
+import { ServiceEntity } from '../../service/entity/service.entity';
+import { CustomerVoucherEntity } from './customer-voucher.entity';
 
 @Entity('vouchers')
 export class VoucherEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index('uq_voucher_code', { unique: true })
   @Column({ type: 'varchar', length: 50, unique: true })
   code!: string;
 
@@ -27,53 +27,59 @@ export class VoucherEntity {
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
-  @Column({ type: 'enum', enum: VoucherType, enumName: 'voucher_type' })
+  @Column({ type: 'enum', enum: VoucherType })
   type!: VoucherType;
 
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   value!: number;
 
   @Column({
-    name: 'max_discount',
     type: 'numeric',
     precision: 12,
     scale: 2,
     nullable: true,
+    name: 'max_discount',
   })
-  maxDiscount?: number | null;
+  maxDiscount!: number | null;
 
   @Column({
-    name: 'min_order_amount',
     type: 'numeric',
     precision: 12,
     scale: 2,
     default: 0,
+    name: 'min_order_amount',
   })
   minOrderAmount!: number;
 
-  @Column({ name: 'usage_limit', type: 'int', nullable: true })
-  usageLimit?: number | null;
+  @Column({ type: 'int', nullable: true, name: 'usage_limit' })
+  usageLimit!: number | null;
 
-  @Column({ name: 'used_count', type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0, name: 'used_count' })
   usedCount!: number;
 
-  @ManyToOne(() => ServiceEntity, {
+  @Column({ type: 'uuid', nullable: true, name: 'service_id' })
+  serviceId!: string | null;
+
+  @Index('idx_vouchers_active_dates')
+  @Column({ type: 'timestamp', nullable: true, name: 'start_date' })
+  startDate!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'end_date' })
+  endDate!: Date | null;
+
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  isActive!: boolean;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
+
+  @ManyToOne(() => ServiceEntity, (s) => s.vouchers, {
     nullable: true,
     onDelete: 'SET NULL',
-    onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'service_id' })
   service?: ServiceEntity | null;
 
-  @Column({ name: 'start_date', type: 'timestamp', nullable: true })
-  startDate?: Date | null;
-
-  @Column({ name: 'end_date', type: 'timestamp', nullable: true })
-  endDate?: Date | null;
-
-  @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive!: boolean;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
-  createdAt!: Date;
+  @OneToMany(() => CustomerVoucherEntity, (cv) => cv.voucher)
+  customerVouchers!: CustomerVoucherEntity[];
 }
