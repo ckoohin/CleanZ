@@ -1,5 +1,7 @@
+
 // enums & literals
 export type UserRole = 'ADMIN' | 'WORKER' | 'CUSTOMER' | 'TASKER';
+
 
 export type AuthProvider = 'local' | 'google' | 'facebook';
 
