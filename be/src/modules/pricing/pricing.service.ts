@@ -5,7 +5,7 @@ import { VoucherService } from 'src/modules/voucher/voucher.service';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { SystemConfigService } from '../system-config/system-config.service';
 import { PricingConfigEntity } from './entity/pricing-config.entity';
-import { ServiceEntity } from './entity/service.entity';
+import { ServiceEntity } from '../service/entity/service.entity';
 
 export interface CalculateBookingPriceInput {
   serviceId?: string;
@@ -35,7 +35,6 @@ export interface BookingPriceResult {
   totalPrice: number;
   voucher?: VoucherEntity | null;
 }
-
 @Injectable()
 export class PricingService {
   constructor(
