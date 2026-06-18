@@ -62,7 +62,15 @@ export class UsersService {
 
   async findAll(query: QueryUsersDto) {
     return asyncHandleOperation(async () => {
-      const { keyword, role, isActive, isVerified, provider, page = 1, limit = 10 } = query;
+      const {
+        keyword,
+        role,
+        isActive,
+        isVerified,
+        provider,
+        page = 1,
+        limit = 10,
+      } = query;
       const safeLimit = Math.min(limit, 100);
       const qb = this.userRepository.createQueryBuilder('user');
 
@@ -73,9 +81,12 @@ export class UsersService {
         );
       }
       if (role !== undefined) qb.andWhere('user.role = :role', { role });
-      if (isActive !== undefined) qb.andWhere('user.isActive = :isActive', { isActive });
-      if (isVerified !== undefined) qb.andWhere('user.isVerified = :isVerified', { isVerified });
-      if (provider !== undefined) qb.andWhere('user.provider = :provider', { provider });
+      if (isActive !== undefined)
+        qb.andWhere('user.isActive = :isActive', { isActive });
+      if (isVerified !== undefined)
+        qb.andWhere('user.isVerified = :isVerified', { isVerified });
+      if (provider !== undefined)
+        qb.andWhere('user.provider = :provider', { provider });
 
       const [data, total] = await qb
         .orderBy('user.createdAt', 'DESC')
@@ -83,7 +94,10 @@ export class UsersService {
         .take(safeLimit)
         .getManyAndCount();
 
-      return ResponseHelper.success({ data, total, page, limit: safeLimit }, 'Users fetched');
+      return ResponseHelper.success(
+        { data, total, page, limit: safeLimit },
+        'Users fetched',
+      );
     }, 'Lỗi khi lấy danh sách users');
   }
 
@@ -100,7 +114,8 @@ export class UsersService {
   async findOneWithProfile(id: string) {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
-      if (!user) throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      if (!user)
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
 
       const [customerProfile, taskerProfile] = await Promise.all([
         this.customerRepository.findOne({ where: { user: { id } } }),
@@ -151,7 +166,9 @@ export class UsersService {
       }
 
       if (updateUserDto.password) {
-        updateUserDto.password = await this.hashPassword(updateUserDto.password);
+        updateUserDto.password = await this.hashPassword(
+          updateUserDto.password,
+        );
       }
 
       await this.userRepository.update(id, updateUserDto);
@@ -171,7 +188,11 @@ export class UsersService {
     }, 'Lỗi khi cập nhật thời gian đăng nhập');
   }
 
-  async updateProvider(id: string, provider: AuthProvider, providerId: string): Promise<void> {
+  async updateProvider(
+    id: string,
+    provider: AuthProvider,
+    providerId: string,
+  ): Promise<void> {
     return asyncHandleOperation(async () => {
       await this.userRepository.update(id, { provider, providerId });
     }, 'Lỗi khi cập nhật provider');
@@ -203,7 +224,8 @@ export class UsersService {
         );
       }
       const user = await this.userRepository.findOneBy({ id });
-      if (!user) throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      if (!user)
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       await this.userRepository.update(id, { isActive });
       return { ...user, isActive };
     }, 'Lỗi khi cập nhật trạng thái người dùng');
@@ -212,10 +234,14 @@ export class UsersService {
   async softRemove(id: string, requestingUserId: string) {
     return asyncHandleOperation(async () => {
       if (id === requestingUserId) {
-        throw new AppException('Không thể tự xóa tài khoản của mình', HttpStatus.FORBIDDEN);
+        throw new AppException(
+          'Không thể tự xóa tài khoản của mình',
+          HttpStatus.FORBIDDEN,
+        );
       }
       const user = await this.userRepository.findOneBy({ id });
-      if (!user) throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      if (!user)
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       await this.userRepository.softDelete(id);
       return ResponseHelper.success(null, 'User deleted');
     }, 'Lỗi khi xóa người dùng');
@@ -223,8 +249,12 @@ export class UsersService {
 
   async restore(id: string) {
     return asyncHandleOperation(async () => {
-      const user = await this.userRepository.findOne({ where: { id }, withDeleted: true });
-      if (!user) throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      const user = await this.userRepository.findOne({
+        where: { id },
+        withDeleted: true,
+      });
+      if (!user)
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       if (!user.deletedAt) {
         throw new AppException('User chưa bị xóa', HttpStatus.BAD_REQUEST);
       }
@@ -237,18 +267,25 @@ export class UsersService {
   async sendPasswordResetEmail(id: string) {
     return asyncHandleOperation(async () => {
       const user = await this.userRepository.findOneBy({ id });
-      if (!user) throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      if (!user)
+        throw new NotFoundException(`Không tìm thấy user với id ${id}`);
 
       const token = this.jwtService.sign(
         { sub: user.id, email: user.email },
         {
           secret: this.configService.get<string>('JWT_RESET_PASSWORD_SECRET'),
-          expiresIn: this.configService.get<string>('JWT_RESET_PASSWORD_EXPIRES_IN') as StringValue,
+          expiresIn: this.configService.get<string>(
+            'JWT_RESET_PASSWORD_EXPIRES_IN',
+          ) as StringValue,
         },
       );
 
       const resetUrl = `${this.configService.get<string>('FRONTEND_URL')}/reset-password?token=${token}`;
-      await this.mailService.sendResetPasswordEmail(user.email, user.fullName, resetUrl);
+      await this.mailService.sendResetPasswordEmail(
+        user.email,
+        user.fullName,
+        resetUrl,
+      );
       return ResponseHelper.success(null, 'Password reset email sent');
     }, 'Lỗi khi gửi email reset mật khẩu');
   }

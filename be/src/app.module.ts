@@ -20,6 +20,10 @@ import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { ServicesModule } from './modules/service/services.module';
+import { PricingModule } from './modules/pricing/pricing.module';
+import { VouchersModule } from './modules/voucher/vouchers.module';
+import { FinanceModule } from './modules/finance/finance.module';
 
 @Module({
   imports: [
@@ -48,6 +52,10 @@ import { NotificationModule } from './modules/notification/notification.module';
     AdminModule,
     QueueModule,
     NotificationModule,
+    ServicesModule,
+    PricingModule,
+    VouchersModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

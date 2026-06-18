@@ -3,15 +3,7 @@ import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { BaseEntity } from 'src/common/utils/base-entity';
 import { Token } from 'src/modules/token/entities/token.entity';
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-  DeleteDateColumn,
-} from 'typeorm';
+import { Entity, Column, OneToMany, DeleteDateColumn } from 'typeorm';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -53,18 +45,9 @@ export class User extends BaseEntity {
   @Column({ name: 'last_login', type: 'timestamp', nullable: true })
   lastLogin!: Date;
 
-<<<<<<< Updated upstream
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt!: Date;
-
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt?: Date;
 
-=======
->>>>>>> Stashed changes
   @OneToMany(() => Token, (token) => token.user)
   tokens?: Token[];
 }
