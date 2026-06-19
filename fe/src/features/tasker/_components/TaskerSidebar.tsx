@@ -14,7 +14,7 @@ import {
   Star,
   Wifi,
   WifiOff,
-  Bot,
+  Briefcase,
   Bell,
   Settings,
 } from "lucide-react";
@@ -28,8 +28,8 @@ import LogoApp from "@/components/logo/LogoApp";
 
 const ALL_NAV_ITEMS = [
   { href: "/tasker",               label: "Trang chủ", icon: Home, exact: true },
+  { href: "/tasker/jobs",          label: "Nhận đơn",  icon: Briefcase },
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
-  { href: "/tasker/benefits",      label: "Phúc lợi",  icon: HeartHandshake },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
 ];
 

@@ -7,18 +7,17 @@ import {
   Home, 
   ClipboardList, 
   Wallet, 
-  MessageCircle, 
+  HeadphonesIcon, 
   User,
-  Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
-  { label: 'Trang chủ', icon: Home, href: '/customer' },
-  { label: 'Hoạt động', icon: ClipboardList, href: '/customer/activity' },
-  { label: 'Thanh toán', icon: Wallet, href: '/customer/payment' },
-  { label: 'Tin nhắn', icon: MessageCircle, href: '/customer/messages' },
-  { label: 'Tài khoản', icon: '/customer/profile', iconComp: User }, // Use iconComp for ease
+  { label: 'Trang chủ',  icon: Home,            href: '/customer' },
+  { label: 'Hoạt động',  icon: ClipboardList,   href: '/customer/history' },
+  { label: 'Ví',         icon: Wallet,           href: '/customer/wallet' },
+  { label: 'Hỗ trợ',    icon: HeadphonesIcon,   href: '/customer/support-tickets' },
+  { label: 'Tài khoản',  icon: User,             href: '/customer/profile' },
 ]
 
 export function BottomNav() {
@@ -27,8 +26,8 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border/40 px-2 pb-safe-offset-2 h-20 flex items-center justify-around md:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
       {NAV_ITEMS.map((item) => {
-        const isActive = pathname === item.href
-        const Icon = item.iconComp || item.icon as any
+        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+        const Icon = item.icon
         
         return (
           <Link 
