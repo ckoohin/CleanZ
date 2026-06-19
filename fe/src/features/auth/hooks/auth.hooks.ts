@@ -4,15 +4,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/features/auth/services/auth.service";
 import { queryKeys } from "@/features/auth/queries/auth.query";
+import { ROUTES } from "@/constants/routes";
 import type {
   ForgotPasswordCredentials,
+  ForgotPasswordResponse,
   LoginCredentials,
   LoginResponse,
   RegisterCredentials,
+  RegisterResponse,
   ResendVerificationEmailCredentials,
+  ResendVerificationEmailResponse,
   ResetPasswordCredentials,
+  ResetPasswordResponse,
   VerifyEmailCredentials,
+  VerifyEmailResponse,
   VerifyOtpCredentials,
+  VerifyOtpResponse,
 } from "@/features/auth/types/auth.type";
 import { toast } from "sonner";
 
@@ -77,7 +84,7 @@ export function useLogin(redirectUrl?: string) {
 
       toast.success(res.message);
 
-      const url = new URL("/otp-verify", window.location.origin);
+      const url = new URL(ROUTES.AUTH.OTP_VERIFY, window.location.origin);
       url.searchParams.set("userId", res.userId);
       if (redirectUrl) {
         url.searchParams.set("redirect", redirectUrl);
@@ -97,9 +104,10 @@ export function useRegister() {
   return useMutation({
     mutationFn: (credentials: RegisterCredentials) =>
       authApi.register(credentials),
-    onSuccess: (res: any) => {
+    onSuccess: (res: RegisterResponse) => {
       console.log(res);
-      toast.success(res.message);
+      // Giả định backend trả về thông báo thành công trong res, hoặc tùy chỉnh toast
+      toast.success("Đăng ký thành công!");
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error));
@@ -114,29 +122,42 @@ export function useLogout() {
   return useMutation({
     mutationFn: authApi.logout,
     onSuccess: () => {
+      // Lấy user hiện tại trước khi xóa để biết nên redirect về login nào
+      const currentUser = queryClient.getQueryData<{ role?: string }>(queryKeys.auth.me());
+      const role = currentUser?.role;
+
       queryClient.removeQueries({ queryKey: queryKeys.auth.me() });
       queryClient.clear();
       toast.success("Đăng xuất thành công");
-      router.push("/login");
+
+      // Redirect về đúng trang login theo role
+      if (role === 'ADMIN') {
+        router.push(ROUTES.AUTH.LOGIN_ADMIN);
+      } else if (role === 'TASKER') {
+        router.push(ROUTES.AUTH.LOGIN_TASKER);
+      } else {
+        router.push(ROUTES.AUTH.LOGIN);
+      }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Logout error:", error);
-      toast.error(error.response?.data?.errors?.message);
+      toast.error(getErrorMessage(error));
     },
   });
 }
+
 
 export function useVerifyEmail() {
   return useMutation({
     mutationFn: (credentials: VerifyEmailCredentials) =>
       authApi.verifyEmail(credentials),
-    onSuccess: (res: any) => {
+    onSuccess: (res: VerifyEmailResponse) => {
       // console.log(res);
       toast.success(res.message);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // console.log(error.response);
-      toast.error(error.response?.data?.errors?.message);
+      toast.error(getErrorMessage(error));
       return error;
     },
   });
@@ -145,12 +166,11 @@ export function useResendVerificationEmail() {
   return useMutation({
     mutationFn: (credentials: ResendVerificationEmailCredentials) =>
       authApi.resendVerificationEmail(credentials),
-    onSuccess: (res: any) => {
-      // console.log(res);
+    onSuccess: (res: ResendVerificationEmailResponse) => {
       toast.success(res.message);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.errors?.message);
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
       return error;
     },
   });
@@ -163,12 +183,12 @@ export function useVerifyOtp() {
   return useMutation({
     mutationFn: (credentials: VerifyOtpCredentials) =>
       authApi.verifyOtp(credentials),
-    onSuccess: (res: { message: string }, _variables, _context) => {
+    onSuccess: (res: VerifyOtpResponse, _variables, _context) => {
       toast.success(res.message);
 
       // Đọc redirect param từ URL hiện tại
       const searchParams = new URLSearchParams(window.location.search);
-      const redirectUrl = searchParams.get("redirect") || "/";
+      const redirectUrl = searchParams.get("redirect") || ROUTES.HOME;
 
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
       router.replace(redirectUrl);
@@ -184,13 +204,13 @@ export function useForgotPassword() {
   return useMutation({
     mutationFn: (credentials: ForgotPasswordCredentials) =>
       authApi.forgotPassword(credentials),
-    onSuccess: (res: any) => {
+    onSuccess: (res: ForgotPasswordResponse) => {
       // console.log(res);
       toast.success(res.message);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // console.log(error.response);
-      toast.error(error.response?.data?.errors?.message);
+      toast.error(getErrorMessage(error));
       return error;
     },
   });
@@ -200,13 +220,13 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: (credentials: ResetPasswordCredentials) =>
       authApi.resetPassword(credentials),
-    onSuccess: (res: any) => {
+    onSuccess: (res: ResetPasswordResponse) => {
       // console.log(res);
       toast.success(res.message);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // console.log(error.response);
-      toast.error(error.response?.data?.errors?.message);
+      toast.error(getErrorMessage(error));
       return error;
     },
   });
