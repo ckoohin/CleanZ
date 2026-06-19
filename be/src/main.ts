@@ -76,6 +76,15 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, swaggerDocument, {
     useGlobalPrefix: true,
   });
+
   await app.listen(port);
+
+  console.log('================================');
+  console.log('PORT ENV:', process.env.PORT);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+  console.log('RUNNING ON: http://localhost:' + port);
+  console.log('SWAGGER: http://localhost:' + port + '/api/v1/docs');
+  console.log('================================');
 }
+
 void bootstrap();
