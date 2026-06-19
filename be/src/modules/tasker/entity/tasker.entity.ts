@@ -137,6 +137,10 @@ export class TaskerEntity {
   @Column({ name: 'ban_reason', type: 'varchar', length: 500, nullable: true })
   banReason?: string | null;
 
+  // Hạn nạp bổ sung cọc sau khi cọc < tối thiểu (Phase 2 — FR-E4). NULL = không cần nạp.
+  @Column({ name: 'deposit_topup_due', type: 'timestamp', nullable: true })
+  depositTopupDue?: Date | null;
+
   @Column({
     name: 'presence_status',
     type: 'enum',
