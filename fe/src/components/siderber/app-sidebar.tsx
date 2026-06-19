@@ -12,7 +12,22 @@ import {
   Settings2,
   ShieldCheck,
   Star,
-  Sparkles
+  Sparkles,
+  Ticket,
+  Wallet,
+  ArrowDownToLine,
+  HeadphonesIcon,
+  MapPin,
+  Bell,
+  Tag,
+  Activity,
+  ClipboardList,
+  UserCog,
+  Truck,
+  AlertTriangle,
+  PackageCheck,
+  PiggyBank,
+  TrendingUp,
 } from "lucide-react"
 
 import { NavMain } from "@/components/siderber/nav-main"
@@ -27,31 +42,55 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Dữ liệu quản trị CleanZ
+// ─── Dữ liệu quản trị CleanZ ─────────────────────────────────────────────────
 const adminData = {
   user: {
     name: "Admin Root",
     email: "admin@CleanZ.com",
     avatar: "https://i.pravatar.cc/150?u=admin",
-    fullName: "Ngô Đức Admin"
+    fullName: "Ngô Đức Admin",
   },
   teams: [
     {
       name: "CleanZ",
-      logo: (
-        <Sparkles className="text-primary fill-primary/20" />
-      ),
+      logo: <Sparkles className="text-primary fill-primary/20" />,
       plan: "Quản trị hệ thống",
     },
   ],
-  navMain: [
+
+  // ── NHÓM 1: Tổng quan ─────────────────────────────────────────────────────
+  overview: [
     {
-      title: "Tổng quan",
+      title: "Dashboard",
       url: "/admin",
       icon: <LayoutDashboard />,
       items: [
         { title: "Bảng điều khiển", url: "/admin" },
-        { title: "Hoạt động gần đây", url: "/admin/activity" },
+        { title: "Hoạt động hệ thống", url: "/admin/activity" },
+      ],
+    },
+    {
+      title: "Báo cáo & Phân tích",
+      url: "/admin/reports",
+      icon: <BarChart3 />,
+      items: [
+        { title: "Doanh thu tổng hợp", url: "/admin/reports" },
+        { title: "Hiệu suất Tasker", url: "/admin/reports/taskers" },
+        { title: "Xu hướng đặt dịch vụ", url: "/admin/reports/bookings" },
+      ],
+    },
+  ],
+
+  // ── NHÓM 2: Nghiệp vụ chính ──────────────────────────────────────────────
+  core: [
+    {
+      title: "Quản lý Đơn hàng",
+      url: "/admin/bookings",
+      icon: <CalendarCheck />,
+      items: [
+        { title: "Tất cả đơn hàng", url: "/admin/bookings" },
+        { title: "Đang thực hiện", url: "/admin/bookings/active" },
+        { title: "Sự cố & Khiếu nại", url: "/admin/incidents" },
       ],
     },
     {
@@ -60,88 +99,99 @@ const adminData = {
       icon: <Wrench />,
       items: [
         { title: "Danh sách dịch vụ", url: "/admin/services" },
-        { title: "Danh mục", url: "/admin/categories" },
-        { title: "Bảng giá chuyển động", url: "/admin/pricing" },
-      ],
-    },
-    {
-      title: "Quản lý Đơn hàng",
-      url: "/admin/bookings",
-      icon: <CalendarCheck />,
-      items: [
-        { title: "Đơn đặt lịch mới", url: "/admin/bookings" },
-        { title: "Đang thực hiện", url: "/admin/bookings/active" },
-        { title: "Lịch sử đơn hàng", url: "/admin/bookings/history" },
-        { title: "Sự cố & Khiếu nại", url: "/admin/incidents" },
-      ],
-    },
-    {
-      title: "Quản lý Nhân sự",
-      url: "/admin/taskers",
-      icon: <ShieldCheck />,
-      items: [
-        { title: "Danh sách đối tác", url: "/admin/taskers" },
-        { title: "Xác minh hồ sơ", url: "/admin/taskers/verification" },
-        { title: "Lịch làm việc", url: "/admin/taskers/schedule" },
-        { title: "Bảng lương & Thu nhập", url: "/admin/taskers/payroll" },
+        { title: "Bảng giá dịch vụ", url: "/admin/pricing" },
       ],
     },
     {
       title: "Khách hàng",
-      url: "/admin/users",
+      url: "/admin/customers",
       icon: <Users />,
       items: [
-        { title: "Danh sách khách hàng", url: "/admin/users" },
-        { title: "Phân hạng Loyalty", url: "/admin/users/loyalty" },
-        { title: "Gói Subscription", url: "/admin/users/plans" },
+        { title: "Danh sách khách hàng", url: "/admin/customers" },
+        { title: "Đánh giá & Phản hồi", url: "/admin/reviews" },
       ],
     },
   ],
-  secondaryNav: [
+
+  // ── NHÓM 3: Nhân sự & Vận hành ──────────────────────────────────────────
+  operations: [
     {
-      title: "Tài chính & Hóa đơn",
+      title: "Quản lý Tasker",
+      url: "/admin/taskers",
+      icon: <UserCog />,
+      items: [
+        { title: "Danh sách Tasker", url: "/admin/taskers" },
+        { title: "Xác minh hồ sơ", url: "/admin/taskers/verification" },
+        { title: "Lịch làm việc", url: "/admin/taskers/schedule" },
+        { title: "Bảng lương", url: "/admin/taskers/payroll" },
+      ],
+    },
+    {
+      title: "Theo dõi GPS",
+      url: "/admin/tracking",
+      icon: <Truck />,
+      items: [
+        { title: "Theo dõi đơn hàng", url: "/admin/tracking" },
+        { title: "Lộ trình Tasker", url: "/admin/tracking/routes" },
+      ],
+    },
+    {
+      title: "Thông báo",
+      url: "/admin/notifications",
+      icon: <Bell />,
+      items: [
+        { title: "Broadcast & Lịch sử", url: "/admin/notifications" },
+      ],
+    },
+  ],
+
+  // ── NHÓM 4: Tài chính ────────────────────────────────────────────────────
+  finance: [
+    {
+      title: "Tài chính & Ví",
       url: "/admin/finances",
-      icon: <CreditCard />,
+      icon: <Wallet />,
       items: [
-        { title: "Yêu cầu rút tiền", url: "/admin/finances" },
-        { title: "Quản lý hóa đơn", url: "/admin/finances/invoices" },
+        { title: "Lịch sử giao dịch", url: "/admin/finances" },
+        { title: "Yêu cầu rút tiền", url: "/admin/withdrawals" },
+        { title: "Quản lý ví", url: "/admin/wallets" },
       ],
     },
     {
-      title: "Đánh giá & Phản hồi",
-      url: "/admin/reviews",
-      icon: <Star />,
-    },
-    {
-      title: "Báo cáo & Phân tích",
-      url: "/admin/analytics",
-      icon: <BarChart3 />,
-    },
-    {
-      title: "Cấu hình nội dung",
-      url: "/admin/content",
-      icon: <FileText />,
+      title: "Voucher & Khuyến mãi",
+      url: "/admin/vouchers",
+      icon: <Ticket />,
       items: [
-        { title: "Banner quảng cáo", url: "/admin/content/banners" },
-        { title: "FAQs & Trang tĩnh", url: "/admin/content/faqs" },
-        { title: "Cài đặt thông báo", url: "/admin/content/notifications" },
+        { title: "Danh sách voucher", url: "/admin/vouchers" },
+        { title: "Tạo voucher mới", url: "/admin/vouchers/create" },
       ],
     },
   ],
-  settings: [
+
+  // ── NHÓM 5: Hỗ trợ & Hệ thống ───────────────────────────────────────────
+  support: [
     {
-      name: "Cài đặt hệ thống",
+      title: "Hỗ trợ khách hàng",
+      url: "/admin/support-tickets",
+      icon: <HeadphonesIcon />,
+      items: [
+        { title: "Hàng đợi ticket", url: "/admin/support-tickets" },
+      ],
+    },
+    {
+      title: "Cấu hình hệ thống",
       url: "/admin/settings",
       icon: <Settings2 />,
-    },
-    {
-      name: "Phân quyền & Role",
-      url: "/admin/roles",
-      icon: <ShieldCheck />,
+      items: [
+        { title: "Cài đặt chung", url: "/admin/settings" },
+        { title: "Phân quyền & Role", url: "/admin/roles" },
+        { title: "Nhân viên hệ thống", url: "/admin/staff" },
+      ],
     },
   ],
 }
-type User = { name: string; email: string; avatar: string;  }
+
+type User = { name: string; email: string; avatar: string }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -150,9 +200,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarBrand />
       </SidebarHeader>
       <SidebarContent className="py-2 scrollbar-hide bg-sidebar transition-colors duration-300">
-        <NavMain items={adminData.navMain} label="Menu Chính" />
-        <NavMain items={adminData.secondaryNav} label="Vận hành & Tài chính" />
-        <NavProjects projects={adminData.settings} label="Hệ thống" />
+        <NavMain items={adminData.overview} label="Tổng quan" />
+        <NavMain items={adminData.core} label="Nghiệp vụ chính" />
+        <NavMain items={adminData.operations} label="Nhân sự & Vận hành" />
+        <NavMain items={adminData.finance} label="Tài chính" />
+        <NavMain items={adminData.support} label="Hỗ trợ & Hệ thống" />
       </SidebarContent>
       <SidebarFooter className="border-t border-border/40 p-4">
         <NavUser user={adminData.user} />
