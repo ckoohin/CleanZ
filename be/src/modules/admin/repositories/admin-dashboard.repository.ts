@@ -4,10 +4,8 @@ import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
-import {
-  IncidentEntity,
-  IncidentStatus,
-} from 'src/modules/incident/entity/incident.entity';
+import { IncidentEntity } from 'src/modules/incident/entity/incident.entity';
+import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import {
   SupportTicketEntity,
   SupportTicketStatus,
@@ -64,21 +62,21 @@ export class AdminDashboardRepository {
         .where('t.docStatus = :status', { status: DocumentStatus.PENDING })
         .getCount(),
 
-      // Sự cố đang mở
+      // Sự cố đang mở (chưa đóng)
       this.dataSource
         .getRepository(IncidentEntity)
         .createQueryBuilder('i')
-        .where('i.status != :status', { status: IncidentStatus.RESOLVED })
+        .where('i.status != :status', { status: IncidentStatus.CLOSED })
         .getCount()
         .catch(() => 0),
 
-      // Sự cố quá hạn
+      // Sự cố quá hạn (quá hạn ra quyết định mà chưa đóng)
       this.dataSource
         .getRepository(IncidentEntity)
         .createQueryBuilder('i')
-        .where('i.status != :status', { status: IncidentStatus.RESOLVED })
-        .andWhere('i.overdueAt IS NOT NULL')
-        .andWhere('i.overdueAt < :now', { now: new Date() })
+        .where('i.status != :status', { status: IncidentStatus.CLOSED })
+        .andWhere('i.decisionDueAt IS NOT NULL')
+        .andWhere('i.decisionDueAt < :now', { now: new Date() })
         .getCount()
         .catch(() => 0),
 

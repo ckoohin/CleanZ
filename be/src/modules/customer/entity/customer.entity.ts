@@ -36,6 +36,10 @@ export class CustomerEntity {
   @Column({ name: 'total_cancelled', type: 'int', default: 0 })
   totalCancelled!: number;
 
+  // Khóa quyền báo cáo sự cố khi khai gian (BR-13). NULL = không bị khóa.
+  @Column({ name: 'reporting_locked_until', type: 'timestamp', nullable: true })
+  reportingLockedUntil?: Date | null;
+
   @OneToMany(() => CustomerAddressEntity, (address) => address.customer)
   addresses?: CustomerAddressEntity[];
 
