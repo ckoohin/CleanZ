@@ -105,7 +105,7 @@ export default function ProfilePage() {
         <div className="absolute inset-0 bg-primary/8" />
         <div className="absolute top-0 inset-x-0 h-1 bg-primary" />
         <div className="absolute top-5 right-8 grid grid-cols-6 gap-2 opacity-20">
-          {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-1 rounded-full bg-white" />)}
+          {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-1 rounded-full bg-card" />)}
         </div>
         <div className="absolute -bottom-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-2xl" />
       </div>

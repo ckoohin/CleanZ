@@ -30,7 +30,7 @@ const MAIN_SERVICES = [
   { id: 'laundry', label: "Giặt là", icon: Shirt, color: "text-blue-600", bg: "bg-blue-500/10" },
   { id: 'pest-control', label: "Diệt côn trùng", icon: Bug, color: "text-red-600", bg: "bg-red-500/10" },
   { id: 'sofa-cleaning', label: "Sofa/Nệm", icon: Armchair, color: "text-amber-600", bg: "bg-amber-500/10" },
-  { id: 'office-cleaning', label: "Tạp vụ", icon: Briefcase, color: "text-slate-700", bg: "bg-slate-500/10" },
+  { id: 'office-cleaning', label: "Tạp vụ", icon: Briefcase, color: "text-foreground/90", bg: "bg-muted/10" },
   { id: 'more', label: "Tất cả", icon: ChevronRight, color: "text-gray-500", bg: "bg-gray-500/10" },
 ];
 
@@ -154,12 +154,12 @@ export default function AppleStyleHomePage() {
                    
                    <div className="relative z-10 flex items-end justify-between w-full">
                       <div>
-                        <Badge className="bg-white/20 text-white hover:bg-white/30 backdrop-blur-md mb-3 text-[10px] uppercase tracking-wider font-bold border-none">
+                        <Badge className="bg-card/20 text-white hover:bg-card/30 backdrop-blur-md mb-3 text-[10px] uppercase tracking-wider font-bold border-none">
                           {promo.code}
                         </Badge>
                         <h3 className="text-xl md:text-2xl font-bold text-white leading-tight">{promo.title}</h3>
                       </div>
-                      <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-card/20 backdrop-blur-md flex items-center justify-center shrink-0">
                          <ArrowRight className="w-5 h-5 text-white" />
                       </div>
                    </div>
