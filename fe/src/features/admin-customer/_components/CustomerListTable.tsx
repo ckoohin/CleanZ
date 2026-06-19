@@ -13,7 +13,8 @@ import { useAdminCustomers } from "../hooks/useAdminCustomer";
 import type { CustomerListItem } from "../types/customer.types";
 import { CustomerStatusToggle } from "./CustomerStatusToggle";
 import { CustomerDetailDrawer } from "./CustomerDetailDrawer";
-import { Eye, ShieldAlert, ListFilter, ShieldCheck, UserCheck } from "lucide-react";
+import { CustomerStatsBar } from "./CustomerStatsBar";
+import { Eye, ShieldAlert, ListFilter, UserCheck } from "lucide-react";
 
 export const CustomerListTable: React.FC = () => {
   const [filter, setFilter] = useState<{
@@ -44,6 +45,11 @@ export const CustomerListTable: React.FC = () => {
     page: filter.page,
     limit: filter.limit,
   });
+
+  // Stats: dùng query riêng không có filter để luôn có con số chính xác
+  const { data: allData, isLoading: isStatsLoading } = useAdminCustomers({ page: 1, limit: 1 });
+  const { data: activeData } = useAdminCustomers({ isActive: true, page: 1, limit: 1 });
+  const { data: blockedData } = useAdminCustomers({ isActive: false, page: 1, limit: 1 });
 
   const displayData = response?.data || [];
   const totalItems = response?.meta?.total || 0;
@@ -128,6 +134,12 @@ export const CustomerListTable: React.FC = () => {
 
   return (
     <>
+      <CustomerStatsBar
+        total={allData?.meta?.total || 0}
+        active={activeData?.meta?.total || 0}
+        blocked={blockedData?.meta?.total || 0}
+        isLoading={isStatsLoading}
+      />
       <BaseTableList
         columns={columns}
         data={displayData}
