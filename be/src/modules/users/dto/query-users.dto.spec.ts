@@ -55,7 +55,9 @@ describe('QueryUsersDto', () => {
   });
 
   it('accepts valid provider enum', async () => {
-    const dto = plainToInstance(QueryUsersDto, { provider: AuthProvider.GOOGLE });
+    const dto = plainToInstance(QueryUsersDto, {
+      provider: AuthProvider.GOOGLE,
+    });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
