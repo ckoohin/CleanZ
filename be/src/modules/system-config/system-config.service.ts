@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { SystemConfigEntity } from './entity/system-config.entity';
-import { PeakDayConfigEntity } from './entity/peak-day-config.entity';
+import { PeakDayConfigEntity } from '../pricing/entity/peak-day-config.entity';
 
 @Injectable()
 export class SystemConfigService {
@@ -111,8 +111,15 @@ export class SystemConfigService {
     return scheduleMinutes >= startMinutes || scheduleMinutes < endMinutes;
   }
 
-  private toMinutes(time: string): number {
-    const [hour, minute] = time.split(':').map(Number);
+  private toMinutes(time: string | Date): number {
+    const timeValue =
+      time instanceof Date
+        ? `${time.getHours().toString().padStart(2, '0')}:${time
+            .getMinutes()
+            .toString()
+            .padStart(2, '0')}`
+        : time;
+    const [hour, minute] = timeValue.split(':').map(Number);
     return hour * 60 + minute;
   }
 

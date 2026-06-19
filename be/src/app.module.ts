@@ -21,6 +21,10 @@ import { AdminModule } from './modules/admin/admin.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { ServicesModule } from './modules/service/services.module';
+import { PricingModule } from './modules/pricing/pricing.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
 
 @Module({
   imports: [
@@ -50,6 +54,10 @@ import { NotificationModule } from './modules/notification/notification.module';
     TrackingModule,
     QueueModule,
     NotificationModule,
+    ServicesModule,
+    PricingModule,
+    VoucherModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

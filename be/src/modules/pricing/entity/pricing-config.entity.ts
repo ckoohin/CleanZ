@@ -1,67 +1,71 @@
 import {
+  Entity,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  Entity,
+  OneToOne,
   JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
-import { ServiceEntity } from './service.entity';
+import { ServiceEntity } from '../../service/entity/service.entity';
 
 @Entity('pricing_configs')
+@Unique('uq_pricing_service', ['serviceId'])
 export class PricingConfigEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => ServiceEntity, {
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
-  })
-  @JoinColumn({ name: 'service_id' })
-  service!: ServiceEntity;
+  @Column({ type: 'uuid', name: 'service_id' })
+  serviceId!: string;
 
-  @Column({ name: 'base_price', type: 'numeric', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'base_price' })
   basePrice!: number;
 
   @Column({
-    name: 'peak_price',
     type: 'numeric',
     precision: 12,
     scale: 2,
     nullable: true,
+    name: 'peak_price',
   })
-  peakPrice?: number | null;
+  peakPrice!: number | null;
 
   @Column({
-    name: 'pet_fee',
     type: 'numeric',
     precision: 12,
     scale: 2,
     default: 0,
+    name: 'pet_fee',
   })
   petFee!: number;
 
   @Column({
-    name: 'waiting_fee',
     type: 'numeric',
     precision: 12,
     scale: 2,
     default: 0,
+    name: 'waiting_fee',
   })
   waitingFee!: number;
 
   @Column({
-    name: 'platform_commission_rate',
     type: 'numeric',
     precision: 5,
     scale: 2,
-    default: 20,
+    default: 20.0,
+    name: 'platform_commission_rate',
   })
   platformCommissionRate!: number;
 
-  @Column({ name: 'is_active', type: 'boolean', default: true })
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive!: boolean;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  @OneToOne(() => ServiceEntity, (service) => service.pricingConfig, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'service_id' })
+  service!: ServiceEntity;
 }

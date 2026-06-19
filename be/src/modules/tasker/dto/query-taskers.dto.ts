@@ -23,7 +23,10 @@ export class QueryTaskersDto {
   @IsEnum(DocumentStatus)
   docStatus?: DocumentStatus;
 
-  @ApiPropertyOptional({ example: 'nguyen', description: 'Tìm theo tên hoặc email' })
+  @ApiPropertyOptional({
+    example: 'nguyen',
+    description: 'Tìm theo tên hoặc email',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)

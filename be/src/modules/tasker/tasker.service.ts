@@ -303,10 +303,9 @@ export class TaskerService {
         qb.andWhere('tasker.docStatus = :docStatus', { docStatus });
       }
       if (keyword) {
-        qb.andWhere(
-          '(user.fullName ILIKE :kw OR user.email ILIKE :kw)',
-          { kw: `%${keyword}%` },
-        );
+        qb.andWhere('(user.fullName ILIKE :kw OR user.email ILIKE :kw)', {
+          kw: `%${keyword}%`,
+        });
       }
 
       const [taskers, total] = await qb.getManyAndCount();
@@ -435,7 +434,9 @@ export class TaskerService {
         TaskerStatus.TERMINATED,
       ];
       if (bannedStatuses.includes(tasker.status)) {
-        throw new BadRequestException('Tasker đã bị khóa hoặc chấm dứt hợp đồng');
+        throw new BadRequestException(
+          'Tasker đã bị khóa hoặc chấm dứt hợp đồng',
+        );
       }
 
       tasker.status = TaskerStatus.SUSPENDED;

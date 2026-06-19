@@ -40,6 +40,18 @@ async function bootstrap() {
     .addTag('Users', 'User management endpoints (admin only)')
     .addTag('Customers', 'Customer profile endpoints')
     .addTag('Services', 'Service catalog CRUD endpoints')
+    .addTag(
+      'Booking – Customer Flow',
+      'Customer step 1: quote → step 2: create → step 3: active booking → step 4: detail/tracking. Update and cancel are optional branches.',
+    )
+    .addTag(
+      'Booking – Tasker Flow',
+      'Tasker step 1: posted list → step 2: posted detail → step 3: accept → step 4: assigned detail → step 5: on the way → step 6: check-in → step 7: start → step 8: complete.',
+    )
+    .addTag(
+      'Booking – System/Admin Flow',
+      'System and admin operations supporting the booking lifecycle.',
+    )
     .addTag('Upload', 'Image upload and delete endpoints')
     .addTag('Token', 'Token module endpoints')
     .addBearerAuth(

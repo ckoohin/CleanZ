@@ -16,8 +16,7 @@ import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 
-import { PricingService } from 'src/modules/pricing/pricing.service';
-import { VoucherService } from 'src/modules/voucher/voucher.service';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
@@ -30,7 +29,6 @@ import {
   CancelledBy,
 } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
-import { ServiceEntity } from '../../pricing/entity/service.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import {
   BookingScheduleDraft,
@@ -41,6 +39,8 @@ import {
   BookingPolicyService,
 } from './booking-policy.service';
 import { BookingLocationPolicyService } from './booking-location-policy.service';
+import { ServiceEntity } from 'src/modules/service/entity/service.entity';
+import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -83,7 +83,7 @@ export class CustomerBookingService {
     private readonly bookingScheduleService: BookingScheduleService,
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
-    private readonly voucherService: VoucherService,
+    private readonly voucherService: VouchersService,
     private readonly notificationService: NotificationService,
   ) {}
 
