@@ -385,7 +385,7 @@ export const TaskerDetailModal: React.FC<TaskerDetailModalProps> = ({ taskerId, 
                       </div>
                     ) : penalties && penalties.length > 0 ? (
                       <div className="space-y-3">
-                        {penalties.map((p: TaskerPenalty) => (
+                        {(penalties as TaskerPenalty[]).map((p) => (
                           <div key={p.id} className="rounded-xl border border-border p-4 space-y-2 bg-card">
                             <div className="flex justify-between items-start">
                               <Badge variant="outline" className={cn(
@@ -453,9 +453,12 @@ export const TaskerDetailModal: React.FC<TaskerDetailModalProps> = ({ taskerId, 
         onClose={() => setBanOpen(false)}
         isLoading={banMutation.isPending}
         onConfirm={(reason, type) =>
-          banMutation.mutate({ id: taskerId, reason, type }, {
-            onSuccess: () => { setBanOpen(false); onClose(); },
-          })
+          banMutation.mutate(
+            { id: taskerId, reason, type: type === "PERMANENT" ? "PERMANENT" : "TEMPORARY" },
+            {
+              onSuccess: () => { setBanOpen(false); onClose(); },
+            }
+          )
         }
       />
     </>
