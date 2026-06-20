@@ -12,8 +12,6 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import { BookingEntity } from './booking.entity';
 
-export { CancelledBy };
-
 @Entity('booking_status_logs')
 export class BookingStatusLogEntity {
   @PrimaryGeneratedColumn('uuid')
