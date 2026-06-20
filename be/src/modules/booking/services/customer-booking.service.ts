@@ -24,10 +24,8 @@ import { CancelBookingDto } from '../dto/cancel-booking.dto';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { QuoteBookingDto } from '../dto/quote-booking.dto';
 import { UpdateBookingScheduleAddressDto } from '../dto/update-booking-schedule-address.dto';
-import {
-  BookingStatusLogEntity,
-  CancelledBy,
-} from '../entity/booking-status-log.entity';
+import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingEntity } from '../entity/booking.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import {

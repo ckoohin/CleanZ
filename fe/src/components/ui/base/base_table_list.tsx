@@ -272,9 +272,9 @@ export function BaseTableList<T>({
   // ─────────────────────────────────────────────
   return (
     <div className={cn("space-y-3 w-full", className)}>
-      {/* ── Bulk Action Toolbar ── */}
+      {/* ── Bulk Action Toolbar (nổi, fixed — không đẩy layout) ── */}
       {selectedKeys.size > 0 && (
-        <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-[20px] px-5 py-3.5 shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex w-[calc(100vw-2rem)] max-w-2xl items-center gap-3 bg-card/95 backdrop-blur-md border border-primary/30 rounded-[20px] px-5 py-3.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
           <Badge
             variant="secondary"
             className="bg-primary/10 text-primary border-primary/20 font-semibold text-xs px-2.5 py-1 shrink-0"
@@ -324,11 +324,11 @@ export function BaseTableList<T>({
       <div className="bg-card rounded-[24px] border border-border/40 shadow-sm flex flex-col overflow-hidden">
         {/* ── Header: Search & Filter ── */}
         {(onKeywordChange || filters) && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-5 border-b border-border/40 bg-transparent">
+          <div className="flex flex-col gap-3 border-b border-border/40 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
             {onKeywordChange && (
-              <div className="relative flex-1 max-w-md">
+              <div className="relative w-full sm:max-w-sm sm:flex-1">
                 <Search
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70"
+                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60"
                   aria-hidden="true"
                 />
                 <Input
@@ -336,12 +336,24 @@ export function BaseTableList<T>({
                   value={keyword}
                   onChange={(e) => onKeywordChange(e.target.value)}
                   placeholder={placeholderSearch}
-                  className="pl-10 h-10 bg-muted/40 hover:bg-muted/60 border-transparent rounded-full focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-transparent transition-all text-[13px] shadow-none"
+                  className="h-11 w-full rounded-xl border border-border/50 bg-muted/30 pl-10 pr-9 text-[13px] shadow-none transition-colors hover:bg-muted/50 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
                 />
+                {keyword && (
+                  <button
+                    type="button"
+                    onClick={() => onKeywordChange("")}
+                    aria-label="Xóa tìm kiếm"
+                    className="absolute right-2.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
             )}
             {filters && (
-              <div className="flex items-center gap-2 flex-wrap">{filters}</div>
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:ml-auto">
+                {filters}
+              </div>
             )}
           </div>
         )}

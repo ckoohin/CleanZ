@@ -137,6 +137,16 @@
         scroll-behavior: smooth;
         max-width: 100%;
         overflow-x: hidden;
+        /* Luôn chừa chỗ thanh cuộn dọc → mở Select/Dropdown (Radix khóa scroll)
+           không làm trang đổi bề rộng. */
+        scrollbar-gutter: stable;
+    }
+
+    /* Khi Radix mở overlay (Select/Dropdown/Dialog) nó set body[data-scroll-locked]
+       và tự thêm `margin-right` bù thanh cuộn. Vì đã có scrollbar-gutter: stable
+       ở trên nên không cần bù nữa — hủy margin để KHÔNG bị dịch ngang. */
+    body[data-scroll-locked] {
+        margin-right: 0 !important;
     }
 
     ::selection {
