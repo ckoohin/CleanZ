@@ -4,11 +4,21 @@ import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import { WalletEntity } from './entity/wallet.entity';
 import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
+import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
+import { TaskerDepositTransactionEntity } from './entity/tasker-deposit-transaction.entity';
+import { TaskerDepositService } from './tasker-deposit.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WalletEntity, WalletTransactionEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      WalletEntity,
+      WalletTransactionEntity,
+      WithdrawalRequestEntity,
+      TaskerDepositTransactionEntity,
+    ]),
+  ],
   controllers: [WalletController],
-  providers: [WalletService],
-  exports: [TypeOrmModule, WalletService],
+  providers: [WalletService, TaskerDepositService],
+  exports: [TypeOrmModule, WalletService, TaskerDepositService],
 })
 export class WalletModule {}

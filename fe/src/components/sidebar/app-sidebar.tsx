@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import {
-  Activity,
   Bell,
   CalendarCheck,
   HeadphonesIcon,
@@ -82,6 +81,7 @@ const operationsNav = [
     icon: <Wallet />,
     items: [
       { title: "Lịch sử giao dịch", url: "/admin/finances" },
+      { title: "Yêu cầu rút tiền", url: "/admin/withdrawals" },
     ],
   },
   {

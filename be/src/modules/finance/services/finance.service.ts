@@ -22,8 +22,9 @@ import { RevenueQueryDto } from '../dto/revenue-query.dto';
 import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
 import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
 import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
+import { User } from '../../users/entities/user.entity';
 
-const MAX_WEEKLY_WITHDRAWALS = 2;
+export const MAX_WEEKLY_WITHDRAWALS = 5;
 
 @Injectable()
 export class FinanceService {
@@ -52,7 +53,6 @@ export class FinanceService {
   async reviewWithdrawal(
     id: string,
     dto: ReviewWithdrawalDto,
-    reviewerUserId: string,
   ): Promise<WithdrawalRequestEntity> {
     const withdrawal = await this.findOneWithdrawal(id);
 
@@ -71,7 +71,7 @@ export class FinanceService {
     );
     if (
       dto.status === WithdrawalStatus.APPROVED &&
-      weeklyCount >= MAX_WEEKLY_WITHDRAWALS
+      weeklyCount > MAX_WEEKLY_WITHDRAWALS
     ) {
       throw new BadRequestException(
         `WEEKLY_LIMIT_EXCEEDED: Tasker has already reached ${MAX_WEEKLY_WITHDRAWALS} withdrawals this week`,
@@ -81,12 +81,13 @@ export class FinanceService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
     try {
       if (dto.status === WithdrawalStatus.APPROVED) {
         const wallet = withdrawal.wallet;
+        const amount = Number(withdrawal.amount);
+        const balance = Number(wallet.balance);
 
-        if (wallet.balance < withdrawal.amount) {
+        if (balance < amount) {
           throw new BadRequestException(
             'INSUFFICIENT_BALANCE: Wallet balance is lower than requested withdrawal amount',
           );
@@ -100,7 +101,7 @@ export class FinanceService {
         });
 
         const tx = queryRunner.manager.create(WalletTransactionEntity, {
-          walletId: wallet.id,
+          wallet,
           type: WalletTransactionType.WITHDRAW,
           amount: -withdrawal.amount,
           balanceBefore,
@@ -179,38 +180,48 @@ export class FinanceService {
     dto: ManualAdjustmentDto,
     adminUserId: string,
   ): Promise<WalletTransactionEntity> {
-    const wallet = await this.walletRepo.findOne({
-      where: { id: dto.walletId },
-    });
-    if (!wallet) throw new NotFoundException('WALLET_NOT_FOUND');
-
-    const balanceBefore = Number(wallet.balance);
-    const newBalance = balanceBefore + Number(dto.amount);
-
-    if (newBalance < 0) {
-      throw new BadRequestException(
-        'INSUFFICIENT_BALANCE: Adjustment would result in negative balance',
-      );
-    }
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      await queryRunner.manager.update(WalletEntity, wallet.id, {
-        balance: newBalance,
-      });
+      const [wallet, admin] = await Promise.all([
+        queryRunner.manager.findOne(WalletEntity, {
+          where: { id: dto.walletId },
+          lock: { mode: 'pessimistic_write' },
+        }),
+        queryRunner.manager.findOne(User, {
+          where: { id: adminUserId },
+        }),
+      ]);
+
+      if (!wallet) throw new NotFoundException('WALLET_NOT_FOUND');
+      if (!admin) throw new NotFoundException('ADMIN_USER_NOT_FOUND');
+
+      const balanceBefore = Number(wallet.balance);
+      const newBalance = balanceBefore + Number(dto.amount);
+
+      if (newBalance < 0) {
+        throw new BadRequestException(
+          'INSUFFICIENT_BALANCE: Adjustment would result in negative balance',
+        );
+      }
+
+      wallet.balance = newBalance;
+      await queryRunner.manager.save(WalletEntity, wallet);
+
+      const actorLabel = `${admin.fullName} (${admin.email})`;
+      const description = `${dto.description} | Điều chỉnh bởi Admin: ${actorLabel}`;
 
       const tx = queryRunner.manager.create(WalletTransactionEntity, {
-        walletId: wallet.id,
+        wallet,
         type: dto.type,
         amount: dto.amount,
         balanceBefore,
         balanceAfter: newBalance,
-        referenceId: adminUserId,
+        referenceId: admin.id,
         referenceType: 'ADMIN_ADJUSTMENT',
-        description: dto.description,
+        description,
       });
 
       const saved = await queryRunner.manager.save(WalletTransactionEntity, tx);
@@ -225,7 +236,10 @@ export class FinanceService {
   }
 
   async getWalletById(id: string): Promise<WalletEntity> {
-    const wallet = await this.walletRepo.findOne({ where: { id } });
+    const wallet = await this.walletRepo.findOne({
+      where: { id },
+      relations: ['tasker', 'tasker.user', 'customer', 'customer.user'],
+    });
     if (!wallet) throw new NotFoundException('WALLET_NOT_FOUND');
     return wallet;
   }

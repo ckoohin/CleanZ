@@ -52,7 +52,7 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
       .leftJoinAndSelect('wt.wallet', 'w')
       .orderBy('wt.createdAt', 'DESC');
 
-    if (walletId) qb.andWhere('wt.walletId = :walletId', { walletId });
+    if (walletId) qb.andWhere('w.id = :walletId', { walletId });
     if (type) qb.andWhere('wt.type = :type', { type });
     if (fromDate)
       qb.andWhere('wt.createdAt >= :fromDate', {

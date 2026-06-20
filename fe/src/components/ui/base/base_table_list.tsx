@@ -351,7 +351,12 @@ export function BaseTableList<T>({
               </div>
             )}
             {filters && (
-              <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:ml-auto">
+              <div
+                className={cn(
+                  "flex flex-shrink-0 flex-wrap items-center gap-2",
+                  onKeywordChange ? "sm:ml-auto" : "w-full",
+                )}
+              >
                 {filters}
               </div>
             )}

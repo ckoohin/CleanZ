@@ -114,9 +114,8 @@ export class FinanceController {
   async reviewWithdrawal(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewWithdrawalDto,
-    @CurrentUser() admin: JwtPayload,
   ) {
-    const data = await this.financeService.reviewWithdrawal(id, dto, admin.sub);
+    const data = await this.financeService.reviewWithdrawal(id, dto);
     return successResponse(data, `Withdrawal ${dto.status.toLowerCase()}`);
   }
 }

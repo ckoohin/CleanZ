@@ -351,7 +351,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 8 — Hoàn thành công việc',
     description:
-      'Chỉ booking ở IN_PROGRESS mới được chuyển sang COMPLETED. Với CASH, hệ thống demo mark payment PAID, cộng ví tasker và ghi phí nền tảng. Với thanh toán online, booking phải PAID trước.',
+      'Chỉ booking ở IN_PROGRESS mới được chuyển sang COMPLETED. Với CASH, hệ thống đánh dấu PAID, không cộng ví Tasker và khấu trừ phí nền tảng từ ký quỹ. Với thanh toán online, booking phải PAID trước và Tasker nhận phần thu nhập ròng vào ví.',
   })
   @ApiParam({
     name: 'id',

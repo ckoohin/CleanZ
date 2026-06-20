@@ -28,6 +28,7 @@ import { BookingEntity } from '../entity/booking.entity';
 import { BookingPolicyService } from './booking-policy.service';
 import { ServiceEntity } from 'src/modules/service/entity/service.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
+import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 
 interface TaskerPostedBookingItem {
   id: string;
@@ -191,6 +192,7 @@ export class TaskerBookingService {
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly walletService: WalletService,
+    private readonly taskerDepositService: TaskerDepositService,
     private readonly goongMapService: GoongMapService,
     private readonly trackingGateway: TrackingGateway,
     private readonly notificationService: NotificationService,
@@ -316,7 +318,6 @@ export class TaskerBookingService {
       const result = await this.dataSource.transaction(async (manager) => {
         const tasker = await this.findTaskerProfile(userId);
         this.bookingPolicyService.assertTaskerCanAcceptBooking(tasker);
-        await this.walletService.getOrCreateTaskerWallet(manager, tasker);
 
         const booking = await manager
           .getRepository(BookingEntity)
@@ -335,6 +336,22 @@ export class TaskerBookingService {
         if (booking.status !== BookingStatus.POSTED || booking.tasker) {
           throw new ConflictException(
             'Booking không còn khả dụng hoặc đã có tasker nhận',
+          );
+        }
+
+        if (booking.paymentMethod === PaymentMethod.CASH) {
+          const commissionRate =
+            await this.pricingService.getPlatformCommissionRateByServiceId(
+              manager,
+              booking.serviceId,
+            );
+          const platformFee = Math.round(
+            (toNumber(booking.totalPrice) * commissionRate) / 100,
+          );
+          await this.taskerDepositService.assertCanCoverCashCommission(
+            manager,
+            tasker.id,
+            platformFee,
           );
         }
 
@@ -672,17 +689,29 @@ export class TaskerBookingService {
           );
         const platformFee = Math.round((totalPrice * commissionRate) / 100);
         const taskerEarning = Math.max(totalPrice - platformFee, 0);
-        const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
-          manager,
-          tasker,
-        );
-        await this.walletService.creditWallet(manager, {
-          wallet: taskerWallet,
-          amount: taskerEarning,
-          type: WalletTransactionType.TASKER_EARNING,
-          booking: savedBooking,
-          description: `Thu nhập tasker từ booking ${savedBooking.bookingCode}`,
-        });
+
+        if (savedBooking.paymentMethod === PaymentMethod.CASH) {
+          if (platformFee > 0) {
+            await this.taskerDepositService.deductCashCommission(
+              manager,
+              tasker.id,
+              savedBooking,
+              platformFee,
+            );
+          }
+        } else {
+          const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+            manager,
+            tasker,
+          );
+          await this.walletService.creditWallet(manager, {
+            wallet: taskerWallet,
+            amount: taskerEarning,
+            type: WalletTransactionType.TASKER_EARNING,
+            booking: savedBooking,
+            description: `Thu nhập tasker từ booking ${savedBooking.bookingCode}`,
+          });
+        }
         if (platformFee > 0) {
           await this.walletService.recordPlatformIncome(
             manager,

@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
   Mail,
-  HeartHandshake,
   User,
   LogOut,
   Star,
@@ -17,6 +16,7 @@ import {
   Briefcase,
   Bell,
   Settings,
+  WalletCards,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
@@ -29,13 +29,14 @@ import LogoApp from "@/components/logo/LogoApp";
 const ALL_NAV_ITEMS = [
   { href: "/tasker",               label: "Trang chủ", icon: Home, exact: true },
   { href: "/tasker/jobs",          label: "Nhận đơn",  icon: Briefcase },
+  { href: "/tasker/earnings",      label: "Thu nhập",  icon: WalletCards },
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
 ];
 
 // Bottom nav: 2 bên FAB center
 const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
-const RIGHT_TABS = [ALL_NAV_ITEMS[2], ALL_NAV_ITEMS[3]];
+const RIGHT_TABS = [ALL_NAV_ITEMS[3], ALL_NAV_ITEMS[4]];
 
 interface TaskerSidebarProps {
   className?: string;
@@ -84,7 +85,13 @@ function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
       {/* Online toggle */}
       <div className="px-4 py-3 border-b border-border/30">
         <button
-          onClick={() => { onToggleOnline ? onToggleOnline() : setIsOnline((v) => !v); }}
+          onClick={() => {
+            if (onToggleOnline) {
+              onToggleOnline();
+            } else {
+              setIsOnline((value) => !value);
+            }
+          }}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all",
             isOnline

@@ -13,6 +13,12 @@ import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import { WalletEntity } from './entity/wallet.entity';
+import { PaginatedData } from 'src/common/helpers/response.interface';
+import { WalletListQueryDto } from './dto/wallet-list-query.dto';
+import { CreateWithdrawalRequestDto } from './dto/create-withdrawal-request.dto';
+import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
+import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
+import { MAX_WEEKLY_WITHDRAWALS } from '../finance/services/finance.service';
 
 interface WalletMutationInput {
   wallet: WalletEntity;
@@ -43,6 +49,9 @@ export interface WalletResponse {
   holdBalance: number;
   taskerId?: string | null;
   customerId?: string | null;
+  requiredDeposit?: number;
+  currentDepositBalance?: number;
+  depositTopupDue?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +79,41 @@ export interface WalletTransactionListResponse {
 export class WalletService {
   constructor(private readonly dataSource: DataSource) {}
 
+  async findAllWallets(
+    query: WalletListQueryDto,
+  ): Promise<PaginatedData<WalletEntity>> {
+    const { page = 1, limit = 20, ownerType, search } = query;
+    const skip = (page - 1) * limit;
+    const repository = this.dataSource.getRepository(WalletEntity);
+    const qb = repository
+      .createQueryBuilder('wallet')
+      .leftJoinAndSelect('wallet.tasker', 'tasker')
+      .leftJoinAndSelect('tasker.user', 'taskerUser')
+      .leftJoinAndSelect('wallet.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'customerUser')
+      .orderBy('wallet.updatedAt', 'DESC');
+
+    if (ownerType) {
+      qb.andWhere('wallet.ownerType = :ownerType', { ownerType });
+    }
+
+    if (search?.trim()) {
+      qb.andWhere(
+        `(
+          CAST(wallet.id AS text) ILIKE :search
+          OR taskerUser.fullName ILIKE :search
+          OR taskerUser.email ILIKE :search
+          OR customerUser.fullName ILIKE :search
+          OR customerUser.email ILIKE :search
+        )`,
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   async getMyTaskerWallet(userId: string): Promise<WalletResponse> {
     return asyncHandleOperation(async () => {
       const tasker = await this.findTaskerByUserId(
@@ -83,6 +127,88 @@ export class WalletService {
 
       return this.mapWallet(wallet);
     }, 'Không thể lấy ví tasker');
+  }
+
+  async createTaskerWithdrawalRequest(
+    userId: string,
+    dto: CreateWithdrawalRequestDto,
+  ): Promise<WithdrawalRequestEntity> {
+    return asyncHandleOperation(async () => {
+      return this.dataSource.transaction(async (manager) => {
+        const tasker = await this.findTaskerByUserId(manager, userId);
+        const wallet = await this.getOrCreateTaskerWallet(manager, tasker);
+        const lockedWallet = await this.lockWallet(manager, wallet.id);
+        const withdrawalRepository = manager.getRepository(
+          WithdrawalRequestEntity,
+        );
+
+        const weeklyCount = await withdrawalRepository
+          .createQueryBuilder('withdrawal')
+          .where('withdrawal.taskerId = :taskerId', { taskerId: tasker.id })
+          .andWhere('withdrawal.status IN (:...statuses)', {
+            statuses: [
+              WithdrawalStatus.PENDING,
+              WithdrawalStatus.APPROVED,
+              WithdrawalStatus.PROCESSED,
+            ],
+          })
+          .andWhere(
+            `DATE_TRUNC('week', withdrawal.createdAt) = DATE_TRUNC('week', NOW())`,
+          )
+          .getCount();
+
+        if (weeklyCount >= MAX_WEEKLY_WITHDRAWALS) {
+          throw new BadRequestException(
+            `Bạn chỉ được gửi tối đa ${MAX_WEEKLY_WITHDRAWALS} yêu cầu rút tiền mỗi tuần`,
+          );
+        }
+
+        const pendingResult = await withdrawalRepository
+          .createQueryBuilder('withdrawal')
+          .select('COALESCE(SUM(withdrawal.amount), 0)', 'total')
+          .where('withdrawal.walletId = :walletId', {
+            walletId: lockedWallet.id,
+          })
+          .andWhere('withdrawal.status = :status', {
+            status: WithdrawalStatus.PENDING,
+          })
+          .getRawOne<{ total: string }>();
+
+        const amount = this.normalizeAmount(dto.amount);
+        const pendingAmount = toNumber(pendingResult?.total ?? 0);
+        const availableBalance = toNumber(lockedWallet.balance) - pendingAmount;
+
+        if (amount > availableBalance) {
+          throw new BadRequestException(
+            `Số dư khả dụng không đủ. Số dư có thể rút: ${availableBalance}`,
+          );
+        }
+
+        const bankName = tasker.bankName?.trim();
+        const bankAccount = tasker.bankAccountNumber?.trim();
+
+        if (!bankName || !bankAccount) {
+          throw new BadRequestException(
+            'Vui lòng cập nhật đầy đủ ngân hàng và số tài khoản trước khi rút tiền',
+          );
+        }
+
+        const request = withdrawalRepository.create({
+          taskerId: tasker.id,
+          walletId: lockedWallet.id,
+          wallet: lockedWallet,
+          amount,
+          status: WithdrawalStatus.PENDING,
+          bankName,
+          bankAccount,
+          note: dto.note?.trim() || null,
+          reviewedAt: null,
+          processedAt: null,
+        });
+
+        return withdrawalRepository.save(request);
+      });
+    }, 'Không thể tạo yêu cầu rút tiền');
   }
 
   async getSystemWallet(): Promise<WalletResponse> {
@@ -136,26 +262,14 @@ export class WalletService {
       return existingWallet;
     }
 
-    const initialBalance = toNumber(tasker.currentDepositBalance);
     const wallet = await walletRepository.save(
       walletRepository.create({
         ownerType: WalletOwnerType.TASKER,
         tasker,
-        balance: initialBalance,
+        balance: 0,
         holdBalance: 0,
       }),
     );
-
-    if (initialBalance > 0) {
-      await this.createTransaction(manager, {
-        wallet,
-        type: WalletTransactionType.ADJUSTMENT,
-        amount: initialBalance,
-        balanceBefore: 0,
-        balanceAfter: initialBalance,
-        description: 'Initial demo tasker wallet balance',
-      });
-    }
 
     return wallet;
   }
@@ -348,8 +462,8 @@ export class WalletService {
       balanceBefore: input.balanceBefore,
       balanceAfter: input.balanceAfter,
       booking: input.booking,
-      referenceId: input.referenceId,
-      referenceType: input.referenceType,
+      referenceId: input.referenceId ?? input.booking?.id ?? null,
+      referenceType: input.referenceType ?? (input.booking ? 'BOOKING' : null),
       description: input.description,
     });
 
@@ -410,6 +524,13 @@ export class WalletService {
       holdBalance: toNumber(wallet.holdBalance),
       taskerId: wallet.tasker?.id ?? null,
       customerId: wallet.customer?.id ?? null,
+      requiredDeposit: wallet.tasker
+        ? toNumber(wallet.tasker.depositAmount)
+        : undefined,
+      currentDepositBalance: wallet.tasker
+        ? toNumber(wallet.tasker.currentDepositBalance)
+        : undefined,
+      depositTopupDue: wallet.tasker?.depositTopupDue ?? null,
       createdAt: wallet.createdAt,
       updatedAt: wallet.updatedAt,
     };
