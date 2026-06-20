@@ -17,6 +17,15 @@ export class PolicyController{
      create(@Body() createPolicyDto: CreatePolicyDto) {
     return this.policyService.create(createPolicyDto);
   }
+  @Get('public')
+getPublicPolicies() {
+  return this.policyService.getPublicPolicies();
+}
+
+@Get('public/:slug')
+findPublicBySlug(@Param('slug') slug: string) {
+  return this.policyService.findPublicBySlug(slug);
+}
   @Get()
   findAll(){
     return this.policyService.findAll();
@@ -39,4 +48,5 @@ export class PolicyController{
   remove(@Param('id') id: string) {
     return this.policyService.remove(id);
   }
+  
 }

@@ -63,4 +63,28 @@ async create(createPolicyDto: CreatePolicyDto) {
             message: 'xóa chính sách thành công'
         };
     }
+    async getPublicPolicies(){
+        return this.policyRepository.find({
+            where:{
+                isActive:true,
+            },
+            order:{
+                createdAt:'DESC',
+            },
+        });
+    }
+
+    async findPublicBySlug(slug: string){
+        const policy = await this.policyRepository.findOne({
+            where:{
+                slug,
+                isActive:true,
+            },
+        });
+
+        if(!policy){
+            throw new NotFoundException('Policy not found');
+        }
+        return policy;
+    }
 }
