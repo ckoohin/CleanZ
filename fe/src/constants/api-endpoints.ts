@@ -64,4 +64,19 @@ export const API_ENDPOINTS = {
     SURVEY: (id: string) => `/support-tickets/${id}/survey`,
     ATTACHMENTS: (id: string) => `/support-tickets/${id}/attachments`,
   },
+  ADMIN_SERVICES: {
+    BASE: "/admin/services",
+    DETAIL: (id: string) => `/admin/services/${id}`,
+    BOOKINGS: (id: string) => `/admin/services/${id}/bookings`,
+    TASKERS: (id: string) => `/admin/services/${id}/taskers`,
+  },
+  ADMIN_PRICING: {
+    CONFIGS: "/admin/pricing/configs",
+    CONFIG_DETAIL: (id: string) => `/admin/pricing/configs/${id}`,
+    PEAK_DAYS: "/admin/pricing/peak-days",
+    PEAK_DAY_DETAIL: (id: string) => `/admin/pricing/peak-days/${id}`,
+  },
+  ADMIN_SETTINGS: {
+    BASE: "/admin/settings",
+  },
 };

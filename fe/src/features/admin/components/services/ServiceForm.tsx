@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, ImageIcon, ListChecks, FileText } from "lucide-react";
+import { Loader2, ImageIcon, ListChecks, FileText, CheckCircle2, XCircle } from "lucide-react";
 
 import {
   Form,
@@ -297,13 +297,14 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
               control={form.control}
               name="includedTasks"
               render={({ field }) => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="font-bold text-lg flex items-center text-primary">
+                <FormItem className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
+                  <div className="mb-6 flex flex-col gap-1.5">
+                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-primary">
+                      <CheckCircle2 className="w-6 h-6" />
                       Danh sách công việc BAO GỒM
                     </FormLabel>
-                    <FormDescription>
-                      Các công việc Tasker sẽ thực hiện (hiển thị dưới dạng dấu tích xanh ✅).
+                    <FormDescription className="text-primary/70 text-base">
+                      Các hạng mục công việc mà Tasker bắt buộc phải thực hiện trong gói dịch vụ này.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -318,26 +319,25 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
               )}
             />
 
-            <div className="h-px bg-border w-full my-6"></div>
-
             <FormField
               control={form.control}
               name="excludedTasks"
               render={({ field }) => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="font-bold text-lg flex items-center text-destructive">
+                <FormItem className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
+                  <div className="mb-6 flex flex-col gap-1.5">
+                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-destructive">
+                      <XCircle className="w-6 h-6" />
                       Danh sách công việc KHÔNG BAO GỒM
                     </FormLabel>
-                    <FormDescription>
-                      Các công việc Tasker từ chối thực hiện (hiển thị dưới dạng dấu X đỏ ❌).
+                    <FormDescription className="text-destructive/70 text-base">
+                      Các yêu cầu ngoài phạm vi dịch vụ, Tasker có quyền từ chối thực hiện.
                     </FormDescription>
                   </div>
                   <FormControl>
                     <DynamicListInput
                       value={field.value}
                       onChange={field.onChange}
-                      placeholder="VD: Không giặt thảm, không dọn ngoài trời..."
+                      placeholder="VD: Không giặt thảm, không dọn dẹp ngoài trời..."
                     />
                   </FormControl>
                   <FormMessage />

@@ -52,7 +52,7 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-4">
         <BaseButton
           variant="outline"

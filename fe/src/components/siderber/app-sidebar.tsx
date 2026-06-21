@@ -30,6 +30,7 @@ import {
   TrendingUp,
 } from "lucide-react"
 
+import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/siderber/nav-main"
 import { NavProjects } from "@/components/siderber/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -180,10 +181,11 @@ const adminData = {
     },
     {
       title: "Cấu hình hệ thống",
-      url: "/admin/settings",
+      url: ROUTES.ADMIN.SETTINGS.BASE,
       icon: <Settings2 />,
       items: [
-        { title: "Cài đặt chung", url: "/admin/settings" },
+        { title: "Cài đặt chung", url: ROUTES.ADMIN.SETTINGS.BASE },
+        { title: "Ngày cao điểm", url: ROUTES.ADMIN.SETTINGS.PEAK_DAYS },
         { title: "Phân quyền & Role", url: "/admin/roles" },
         { title: "Nhân viên hệ thống", url: "/admin/staff" },
       ],

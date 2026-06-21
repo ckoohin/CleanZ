@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServiceOverviewTab } from "@/features/admin/components/services/detail/ServiceOverviewTab";
 import { ServiceBookingsTab } from "@/features/admin/components/services/detail/ServiceBookingsTab";
 import { ServiceTaskersTab } from "@/features/admin/components/services/detail/ServiceTaskersTab";
+import { ServicePricingTab } from "@/features/admin/components/services/detail/ServicePricingTab";
+import { DollarSign } from "lucide-react";
 
 export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -40,7 +42,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-4">
         <BaseButton
           variant="outline"
@@ -62,10 +64,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/50 p-1.5 rounded-2xl h-auto">
+          <TabsList className="grid w-full grid-cols-4 mb-8 bg-muted/50 p-1.5 rounded-2xl h-auto">
             <TabsTrigger value="overview" className="rounded-xl py-3 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all">
               <Info className="w-4 h-4 mr-2" />
               Tổng quan
+            </TabsTrigger>
+            <TabsTrigger value="pricing" className="rounded-xl py-3 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all">
+              <DollarSign className="w-4 h-4 mr-2" />
+              Bảng giá
             </TabsTrigger>
             <TabsTrigger value="bookings" className="rounded-xl py-3 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all">
               <ListOrdered className="w-4 h-4 mr-2" />
@@ -79,6 +85,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
 
           <TabsContent value="overview" className="mt-0 animate-in fade-in-50 duration-500">
             <ServiceOverviewTab service={service} />
+          </TabsContent>
+
+          <TabsContent value="pricing" className="mt-0 animate-in fade-in-50 duration-500">
+            <ServicePricingTab service={service} />
           </TabsContent>
 
           <TabsContent value="bookings" className="mt-0 animate-in fade-in-50 duration-500">
