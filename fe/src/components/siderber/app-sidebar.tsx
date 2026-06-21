@@ -99,7 +99,14 @@ const adminData = {
       icon: <Wrench />,
       items: [
         { title: "Danh sách dịch vụ", url: "/admin/services" },
-        { title: "Bảng giá dịch vụ", url: "/admin/pricing" },
+      ],
+    },
+    {
+      title: "Quản lý Bảng giá",
+      url: "/admin/pricing",
+      icon: <Tag />,
+      items: [
+        { title: "Cấu hình giá", url: "/admin/pricing" },
       ],
     },
     {
