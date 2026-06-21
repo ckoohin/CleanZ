@@ -11,6 +11,10 @@ export const dashboardKeys = {
   bookingDetails: (r: DateRange) => ['dashboard', 'booking-details', r] as const,
   financeBreakdown: (r: DateRange) => ['dashboard', 'finance-breakdown', r] as const,
   taskerStats: ['dashboard', 'tasker-stats'] as const,
+  reviews: (r: DateRange) => ['dashboard', 'reviews', r] as const,
+  taskerLevels: ['dashboard', 'tasker-levels'] as const,
+  areaPerformance: (r: DateRange) => ['dashboard', 'area-performance', r] as const,
+  voucherPerformance: ['dashboard', 'voucher-performance'] as const,
 };
 
 export function useAlerts() {
@@ -62,5 +66,33 @@ export function useTaskerStats(limit = 5) {
   return useQuery({
     queryKey: dashboardKeys.taskerStats,
     queryFn: () => dashboardApi.getTaskerStats(limit),
+  });
+}
+
+export function useReviews(dateRange: DateRange) {
+  return useQuery({
+    queryKey: dashboardKeys.reviews(dateRange),
+    queryFn: () => dashboardApi.getReviews(dateRange.fromDate, dateRange.toDate),
+  });
+}
+
+export function useTaskerLevels() {
+  return useQuery({
+    queryKey: dashboardKeys.taskerLevels,
+    queryFn: dashboardApi.getTaskerLevels,
+  });
+}
+
+export function useAreaPerformance(dateRange: DateRange) {
+  return useQuery({
+    queryKey: dashboardKeys.areaPerformance(dateRange),
+    queryFn: () => dashboardApi.getAreaPerformance(dateRange.fromDate, dateRange.toDate),
+  });
+}
+
+export function useVoucherPerformance(limit = 6) {
+  return useQuery({
+    queryKey: dashboardKeys.voucherPerformance,
+    queryFn: () => dashboardApi.getVoucherPerformance(limit),
   });
 }

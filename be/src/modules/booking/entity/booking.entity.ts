@@ -44,6 +44,10 @@ export class BookingEntity {
   @Column({ type: 'text' })
   address!: string;
 
+  // Quận/huyện chuẩn hoá để thống kê theo khu vực (dashboard area-performance).
+  @Column({ name: 'district', type: 'varchar', length: 100, nullable: true })
+  district?: string | null;
+
   @ManyToOne(() => CustomerAddressEntity, {
     nullable: true,
     onDelete: 'SET NULL',
