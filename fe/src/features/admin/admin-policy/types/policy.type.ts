@@ -1,4 +1,4 @@
-export type PolicyRole = 'CUSTOMER' | 'TASKER' | 'ALL';
+export type PolicyRole = "CUSTOMER" | "TASKER" | "ALL";
 
 export interface Policy {
   id: string;
@@ -7,8 +7,8 @@ export interface Policy {
   content: string;
   role: PolicyRole;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreatePolicyPayload {

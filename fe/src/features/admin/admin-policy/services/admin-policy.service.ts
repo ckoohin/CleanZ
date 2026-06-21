@@ -8,11 +8,23 @@ import {
 export const adminPolicyService = {
   async getPolicies(): Promise<Policy[]> {
     const response = await http.get("/policy");
-    return Array.isArray(response.data) ? response.data : response.data?.data ?? [];
+    return Array.isArray(response.data)
+      ? response.data
+      : response.data?.data ?? [];
   },
 
   async getPolicyById(id: string): Promise<Policy> {
     const response = await http.get(`/policy/${id}`);
+
+    console.log("========== POLICY DETAIL RAW RESPONSE ==========");
+    console.log(response);
+    console.log("========== POLICY DETAIL RESPONSE.DATA ==========");
+    console.log(response.data);
+    console.log(
+      "========== POLICY DETAIL RESPONSE.DATA STRING =========="
+    );
+    console.log(JSON.stringify(response.data, null, 2));
+
     return response.data?.data ?? response.data;
   },
 
