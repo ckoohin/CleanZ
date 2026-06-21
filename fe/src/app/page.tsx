@@ -7,7 +7,7 @@ import { User } from "@/features/auth/types/auth.type";
 import TopLoadingBar from "@/components/loadings/TopLoadingBar";
 
 const ROLE_ROUTES: Record<string, string> = {
-  ADMIN: "/admin/home",
+  ADMIN: "/admin",
   WORKER: "/worker/home",
   CUSTOMER: "/customer/home",
 };

@@ -66,3 +66,7 @@ package-lock.json
 test
 test/booking.e2e-spec-ts
 testsprite_tests
+
+# Scripts
+check-db.js
+sync-db.js

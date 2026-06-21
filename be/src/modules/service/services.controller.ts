@@ -87,4 +87,46 @@ export class ServicesController {
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.servicesService.remove(id);
   }
+
+  @Get(':id/bookings')
+  @ApiOperation({ summary: 'Get paginated bookings for a service' })
+  @ApiOkResponse({ description: 'Paginated bookings list' })
+  async getServiceBookings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const result = await this.servicesService.getServiceBookings(
+      id,
+      +page,
+      +limit,
+    );
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  @Get(':id/taskers')
+  @ApiOperation({ summary: 'Get paginated taskers for a service' })
+  @ApiOkResponse({ description: 'Paginated taskers list' })
+  async getServiceTaskers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const result = await this.servicesService.getServiceTaskers(
+      id,
+      +page,
+      +limit,
+    );
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
 }

@@ -15,6 +15,15 @@ export class ServiceEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Column({
+    type: 'varchar',
+    length: 20,
+    unique: true,
+    name: 'service_code',
+    default: () => "'SRV-' || upper(substr(md5(random()::text), 1, 6))",
+  })
+  serviceCode!: string;
+
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
@@ -39,6 +48,31 @@ export class ServiceEntity {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    name: 'thumbnail_url',
+  })
+  thumbnailUrl?: string;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'gallery_urls' })
+  galleryUrls?: string[];
+
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    name: 'short_description',
+  })
+  shortDescription?: string;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'included_tasks' })
+  includedTasks?: string[];
+
+  @Column({ type: 'jsonb', nullable: true, name: 'excluded_tasks' })
+  excludedTasks?: string[];
 
   @OneToOne(() => PricingConfigEntity, (pricing) => pricing.service)
   pricingConfig?: PricingConfigEntity;

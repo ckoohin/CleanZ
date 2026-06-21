@@ -6,6 +6,7 @@ import {
   Min,
   MaxLength,
   IsNotEmpty,
+  IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -41,4 +42,34 @@ export class CreateServiceDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 'https://cdn.example.com/main-image.jpg' })
+  @IsOptional()
+  @IsString()
+  thumbnailUrl?: string;
+
+  @ApiPropertyOptional({ example: ['https://img1.jpg', 'https://img2.jpg'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  galleryUrls?: string[];
+
+  @ApiPropertyOptional({
+    example: 'Dọn dẹp căn hộ tiêu chuẩn, bao gồm phòng khách, phòng ngủ.',
+  })
+  @IsOptional()
+  @IsString()
+  shortDescription?: string;
+
+  @ApiPropertyOptional({ example: ['Quét nhà', 'Lau sàn', 'Đổ rác'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  includedTasks?: string[];
+
+  @ApiPropertyOptional({ example: ['Giặt là', 'Nấu ăn'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedTasks?: string[];
 }
