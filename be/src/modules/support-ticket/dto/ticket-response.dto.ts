@@ -18,9 +18,16 @@ export interface TicketSummary {
   status: SupportTicketStatus;
   source: TicketSource;
   bookingId: string | null;
+  bookingCode: string | null;
   slaBreached: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PartyRef {
+  id: string;
+  fullName: string;
+  role: string;
 }
 
 export interface PublicMessage {
@@ -61,9 +68,28 @@ export function toTicketSummary(t: SupportTicketEntity): TicketSummary {
     status: t.status,
     source: t.source,
     bookingId: t.booking?.id ?? null,
+    bookingCode: t.booking?.bookingCode ?? null,
     slaBreached: t.slaBreached,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+  };
+}
+
+export interface AdminTicketSummary extends TicketSummary {
+  assignedAdmin: PartyRef | null;
+}
+
+/** Summary cho hàng đợi admin (kèm admin phụ trách). KHÔNG dùng cho user. */
+export function toAdminTicketSummary(t: SupportTicketEntity): AdminTicketSummary {
+  return {
+    ...toTicketSummary(t),
+    assignedAdmin: t.assignedAdmin
+      ? {
+          id: t.assignedAdmin.id,
+          fullName: t.assignedAdmin.fullName,
+          role: t.assignedAdmin.role,
+        }
+      : null,
   };
 }
 
@@ -116,6 +142,9 @@ export interface TicketAdminView extends TicketSummary {
   reporterUserId: string | null;
   counterpartyUserId: string | null;
   assignedAdminId: string | null;
+  reporter: PartyRef | null;
+  counterparty: PartyRef | null;
+  assignedAdmin: PartyRef | null;
   firstResponseDueAt: Date | null;
   resolutionDueAt: Date | null;
   firstRespondedAt: Date | null;
@@ -139,6 +168,23 @@ export function toAdminView(
     reporterUserId: t.reporter?.id ?? null,
     counterpartyUserId: t.counterparty?.id ?? null,
     assignedAdminId: t.assignedAdmin?.id ?? null,
+    reporter: t.reporter
+      ? { id: t.reporter.id, fullName: t.reporter.fullName, role: t.reporter.role }
+      : null,
+    counterparty: t.counterparty
+      ? {
+          id: t.counterparty.id,
+          fullName: t.counterparty.fullName,
+          role: t.counterparty.role,
+        }
+      : null,
+    assignedAdmin: t.assignedAdmin
+      ? {
+          id: t.assignedAdmin.id,
+          fullName: t.assignedAdmin.fullName,
+          role: t.assignedAdmin.role,
+        }
+      : null,
     firstResponseDueAt: t.firstResponseDueAt ?? null,
     resolutionDueAt: t.resolutionDueAt ?? null,
     firstRespondedAt: t.firstRespondedAt ?? null,

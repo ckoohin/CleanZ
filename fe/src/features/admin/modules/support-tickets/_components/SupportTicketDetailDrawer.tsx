@@ -72,7 +72,7 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
             ))}
           </div>
         ) : ticket ? (
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-6 space-y-5">
               {/* ── Info grid ── */}
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -103,6 +103,26 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                 </InfoItem>
                 <InfoItem label="Ngày tạo">
                   <span className="text-xs">{fmtDate(ticket.createdAt)}</span>
+                </InfoItem>
+                <InfoItem label="Người báo cáo">
+                  <span className="text-xs">{ticket.reporter?.fullName ?? "—"}</span>
+                </InfoItem>
+                <InfoItem label="Đối tượng liên quan">
+                  <span className="text-xs">{ticket.counterparty?.fullName ?? "—"}</span>
+                </InfoItem>
+                <InfoItem label="Admin phụ trách">
+                  <span className="text-xs">{ticket.assignedAdmin?.fullName ?? "Chưa gán"}</span>
+                </InfoItem>
+                {ticket.bookingCode && (
+                  <InfoItem label="Mã booking">
+                    <span className="text-xs font-medium">{ticket.bookingCode}</span>
+                  </InfoItem>
+                )}
+                <InfoItem label="Hạn phản hồi (SLA)">
+                  <span className="text-xs">{fmtDate(ticket.firstResponseDueAt)}</span>
+                </InfoItem>
+                <InfoItem label="Hạn xử lý (SLA)">
+                  <span className="text-xs">{fmtDate(ticket.resolutionDueAt)}</span>
                 </InfoItem>
                 {ticket.status === "PENDING" && ticket.pendingReason && (
                   <InfoItem label="Lý do tạm chờ">
@@ -137,7 +157,7 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
 
                 {/* Messages */}
                 <TabsContent value="messages" className="space-y-3 mt-4">
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  <div className="space-y-2 pr-1">
                     {ticket.messages.length === 0 ? (
                       <p className="text-xs text-muted-foreground text-center py-4">Chưa có tin nhắn</p>
                     ) : (
@@ -171,9 +191,17 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                 {/* Actions */}
                 <TabsContent value="actions" className="space-y-5 mt-4">
                   <StatusChangePanel ticket={ticket} />
-                  <ReclassifyPanel ticket={ticket} />
-                  <AssignPanel ticket={ticket} />
-                  <ResolutionPanel ticket={ticket} />
+                  {ticket.status === "CLOSED" ? (
+                    <p className="rounded-lg bg-muted/40 border border-border/40 p-3 text-xs text-muted-foreground">
+                      Ticket đã đóng — không thể gán, phân loại lại hay ghi nhận kết luận.
+                    </p>
+                  ) : (
+                    <>
+                      <ReclassifyPanel ticket={ticket} />
+                      <AssignPanel ticket={ticket} />
+                      <ResolutionPanel ticket={ticket} />
+                    </>
+                  )}
                 </TabsContent>
 
                 {/* History */}

@@ -12,6 +12,14 @@ export function useCustomerLookup(keyword: string) {
   });
 }
 
+export function useAdminList() {
+  return useQuery({
+    queryKey: ["admin-lookup", "admins"],
+    queryFn: adminLookupApi.listAdmins,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useBookingLookup(keyword: string) {
   const kw = keyword.trim();
   return useQuery({
