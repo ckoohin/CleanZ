@@ -39,7 +39,6 @@ export class AdminDashboardRepository {
       pendingWithdrawals,
       withdrawalTotal,
     ] = await Promise.all([
-      // Đơn chưa có tasker nhận
       this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('b')

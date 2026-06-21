@@ -12,6 +12,8 @@ import type {
   CreateResolutionDto,
   ReclassifyTicketDto,
   UpdateTicketConfigDto,
+  AdminMessage,
+  Resolution,
 } from "../types/support-ticket.types";
 
 const EP = API_ENDPOINTS.ADMIN_SUPPORT_TICKETS;
@@ -44,13 +46,13 @@ export const supportTicketAdminApi = {
   changeStatus: (id: string, dto: ChangeStatusDto): Promise<TicketAdminDetail> =>
     http.patch<TicketAdminDetail>(EP.STATUS(id), dto).then((r) => r.data),
 
-  // ── Gửi tin nhắn (public / internal note) ────────────────────────────────
-  addMessage: (id: string, dto: CreateAdminMessageDto): Promise<{ id: string }> =>
-    http.post<{ id: string }>(EP.MESSAGES(id), dto).then((r) => r.data),
+  // ── Gửi tin nhắn (public / internal note) — BE trả Message (spec §2.6) ────
+  addMessage: (id: string, dto: CreateAdminMessageDto): Promise<AdminMessage> =>
+    http.post<AdminMessage>(EP.MESSAGES(id), dto).then((r) => r.data),
 
-  // ── Ghi nhận kết luận xử lý ──────────────────────────────────────────────
-  addResolution: (id: string, dto: CreateResolutionDto): Promise<{ id: string }> =>
-    http.post<{ id: string }>(EP.RESOLUTIONS(id), dto).then((r) => r.data),
+  // ── Ghi nhận kết luận xử lý — BE trả Resolution (spec §2.7) ──────────────
+  addResolution: (id: string, dto: CreateResolutionDto): Promise<Resolution> =>
+    http.post<Resolution>(EP.RESOLUTIONS(id), dto).then((r) => r.data),
 
   // ── Phân loại lại ticket ─────────────────────────────────────────────────
   reclassify: (id: string, dto: ReclassifyTicketDto): Promise<TicketAdminDetail> =>
