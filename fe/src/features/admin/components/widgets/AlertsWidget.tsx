@@ -1,11 +1,11 @@
 "use client";
 
 import { ShieldAlert, UserX, Headset, IdCard, Banknote, CheckCircle, AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAlerts } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
-import { toast } from "sonner";
 
 type AlertItem = {
   icon: React.ElementType;
@@ -13,9 +13,11 @@ type AlertItem = {
   count: number;
   hint: string;
   level: "crit" | "warn";
+  href: string;
 };
 
 export function AlertsWidget() {
+  const router = useRouter();
   const { data, isLoading } = useAlerts();
 
   if (isLoading) return <WidgetSkeleton rows={2} />;
@@ -28,6 +30,7 @@ export function AlertsWidget() {
       count: data.openIncidents.count,
       hint: data.openIncidents.overdueCount > 0 ? `${data.openIncidents.overdueCount} case quá hạn` : "Đang mở",
       level: "crit",
+      href: "/admin/incidents",
     },
     {
       icon: UserX,
@@ -35,6 +38,7 @@ export function AlertsWidget() {
       count: data.unassignedBookings.count,
       hint: data.unassignedBookings.urgentCount > 0 ? `${data.unassignedBookings.urgentCount} sắp hết hạn` : "Đơn mới đăng",
       level: "crit",
+      href: "/admin/bookings",
     },
     {
       icon: Headset,
@@ -42,6 +46,7 @@ export function AlertsWidget() {
       count: data.openTickets.count,
       hint: data.openTickets.slaBreachedCount > 0 ? `${data.openTickets.slaBreachedCount} trễ SLA` : "Chờ xử lý",
       level: "warn",
+      href: "/admin/support-tickets",
     },
     {
       icon: IdCard,
@@ -49,6 +54,7 @@ export function AlertsWidget() {
       count: data.pendingKyc.count,
       hint: "Tasker mới đăng ký",
       level: "warn",
+      href: "/admin/taskers/verification",
     },
     {
       icon: Banknote,
@@ -58,15 +64,13 @@ export function AlertsWidget() {
         ? `Tổng ${(data.pendingWithdrawals.totalAmount / 1_000_000).toFixed(1)}M đ`
         : "Chờ phê duyệt",
       level: "warn",
+      href: "/admin/finances",
     },
   ];
 
   const live = items.filter((item) => item.count > 0);
   const totalCount = live.reduce((sum, item) => sum + item.count, 0);
 
-  const handlePing = (label: string) => {
-    toast(`Mở danh sách: ${label}`);
-  };
 
   return (
     <Card className="border border-border bg-card shadow-sm rounded-2xl">
@@ -94,10 +98,18 @@ export function AlertsWidget() {
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {live.map(({ icon: Icon, label, count, hint, level }) => (
+              {live.map(({ icon: Icon, label, count, hint, level, href }) => (
                 <div
                   key={label}
-                  onClick={() => handlePing(label)}
+                  onClick={() => router.push(href)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(href);
+                    }
+                  }}
                   className={cn(
                     "rounded-xl p-3.5 cursor-pointer transition-all hover:-translate-y-0.5 border flex flex-col justify-between min-h-[105px]",
                     level === "crit"

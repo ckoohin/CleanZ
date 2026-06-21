@@ -2,12 +2,10 @@ import type {
   TicketCategory,
   TicketPriority,
   TicketStatus,
-} from "@/features/admin/modules/support-tickets/types/support-ticket.types";
+} from "@/features/support-tickets/shared/ticket.enums";
 
-// Re-export shared types
 export type { TicketCategory, TicketPriority, TicketStatus };
 
-// ─── Response Shapes ─────────────────────────────────────────────────────────
 export interface MyTicketSummary {
   id: string;
   ticketCode: string | null;
@@ -56,7 +54,6 @@ export interface AttachmentUploadResult {
   filename: string;
 }
 
-// ─── Request DTOs ─────────────────────────────────────────────────────────────
 export interface CreateTicketDto {
   bookingId?: string;
   category: TicketCategory;
@@ -82,7 +79,6 @@ export interface SendMessageDto {
 }
 
 export interface SubmitSurveyDto {
-  /** 1–5 */
   rating: number;
   comment?: string;
 }

@@ -28,6 +28,8 @@ export const ROUTES = {
     SCHEDULE: "/tasker/schedule",
     SETTINGS: "/tasker/settings",
     ONBOARDING: "/tasker/onboarding",
+    SUPPORT_TICKETS: "/tasker/support-tickets",
+    SUPPORT_TICKET_DETAIL: (id: string) => `/tasker/support-tickets/${id}`,
   },
   ADMIN: {
     DASHBOARD: "/admin",
