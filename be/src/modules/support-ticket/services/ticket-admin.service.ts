@@ -96,6 +96,7 @@ export class TicketAdminService {
         .createQueryBuilder('t')
         .leftJoinAndSelect('t.booking', 'b')
         .leftJoinAndSelect('t.assignedAdmin', 'aa')
+        .leftJoinAndSelect('t.reporter', 'rp')
         .skip((page - 1) * limit)
         .take(limit);
 

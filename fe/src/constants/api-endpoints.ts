@@ -64,4 +64,31 @@ export const API_ENDPOINTS = {
     SURVEY: (id: string) => `/support-tickets/${id}/survey`,
     ATTACHMENTS: (id: string) => `/support-tickets/${id}/attachments`,
   },
+  // ─── Incident ──────────────────────────────────────────────────────────────
+  INCIDENTS: {
+    BASE: "/incidents",
+    MINE: "/incidents/mine",
+    DETAIL: (id: string) => `/incidents/${id}`,
+    EVIDENCES: "/incidents/evidences", // upload trước khi tạo (không có :id)
+    WITHDRAW: (id: string) => `/incidents/${id}/withdraw`,
+  },
+  TASKER_INCIDENTS: {
+    MINE: "/tasker/incidents/mine",
+    DETAIL: (id: string) => `/tasker/incidents/${id}`,
+    EVIDENCES: "/tasker/incidents/evidences",
+    STATEMENTS: (id: string) => `/tasker/incidents/${id}/statements`,
+  },
+  ADMIN_INCIDENTS: {
+    BASE: "/admin/incidents",
+    CONFIG: "/admin/incidents/config",
+    DETAIL: (id: string) => `/admin/incidents/${id}`,
+    ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
+    VERIFY: (id: string) => `/admin/incidents/${id}/items/verify`,
+    DECIDE: (id: string) => `/admin/incidents/${id}/decide`,
+    APPROVE_COMPENSATION: (id: string) => `/admin/incidents/${id}/approve-compensation`,
+    COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
+    UNLOCK_REPORTER: (id: string) => `/admin/incidents/${id}/unlock-reporter`,
+    FROM_TICKET: (ticketId: string) => `/admin/incidents/from-ticket/${ticketId}`,
+    HOUSEKEEPING: "/admin/incidents/run-housekeeping",
+  },
 };

@@ -77,6 +77,7 @@ export function toTicketSummary(t: SupportTicketEntity): TicketSummary {
 
 export interface AdminTicketSummary extends TicketSummary {
   assignedAdmin: PartyRef | null;
+  reporter: { id: string; fullName: string; phone: string | null } | null;
 }
 
 /** Summary cho hàng đợi admin (kèm admin phụ trách). KHÔNG dùng cho user. */
@@ -88,6 +89,13 @@ export function toAdminTicketSummary(t: SupportTicketEntity): AdminTicketSummary
           id: t.assignedAdmin.id,
           fullName: t.assignedAdmin.fullName,
           role: t.assignedAdmin.role,
+        }
+      : null,
+    reporter: t.reporter
+      ? {
+          id: t.reporter.id,
+          fullName: t.reporter.fullName,
+          phone: t.reporter.phone ?? null,
         }
       : null,
   };

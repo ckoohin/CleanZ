@@ -18,6 +18,8 @@ export const ROUTES = {
     WALLET: "/customer/wallet",
     CATALOG: "/customer/catalog",
     INCIDENT: "/customer/incident",
+    INCIDENT_DETAIL: (id: string) => `/customer/incident/${id}`,
+    INCIDENT_REPORT: "/customer/incident/report",
     NOTIFICATIONS: "/customer/notifications",
     SUPPORT_TICKETS: "/customer/support-tickets",
     SUPPORT_TICKET_DETAIL: (id: string) => `/customer/support-tickets/${id}`,
@@ -30,6 +32,8 @@ export const ROUTES = {
     ONBOARDING: "/tasker/onboarding",
     SUPPORT_TICKETS: "/tasker/support-tickets",
     SUPPORT_TICKET_DETAIL: (id: string) => `/tasker/support-tickets/${id}`,
+    INCIDENTS: "/tasker/incidents",
+    INCIDENT_DETAIL: (id: string) => `/tasker/incidents/${id}`,
   },
   ADMIN: {
     DASHBOARD: "/admin",
