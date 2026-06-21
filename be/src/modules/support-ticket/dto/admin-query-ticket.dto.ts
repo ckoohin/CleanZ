@@ -2,8 +2,10 @@ import { Type, Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
+  IsString,
   IsUUID,
   Max,
   Min,
@@ -59,4 +61,14 @@ export class AdminQueryTicketDto {
   @IsOptional()
   @IsUUID('4')
   bookingId?: string;
+
+  /** Tìm theo mã ticket hoặc tiêu đề (ILIKE). */
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  /** Sắp xếp hàng đợi. */
+  @IsOptional()
+  @IsIn(['priority', 'createdAt', 'dueAt'])
+  sort?: 'priority' | 'createdAt' | 'dueAt';
 }

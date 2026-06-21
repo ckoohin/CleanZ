@@ -75,6 +75,8 @@ export interface TicketSummary {
   slaBreached: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Admin phụ trách (chỉ có ở hàng đợi admin). */
+  assignedAdmin?: PartyRef | null;
 }
 
 export interface TicketPublicView extends TicketSummary {
@@ -165,6 +167,7 @@ export interface AdminTicketQuery {
   assignedAdminId?: string;
   slaBreached?: boolean;
   bookingId?: string;
+  keyword?: string;
   sort?: 'priority' | 'createdAt' | 'dueAt';
 }
 
