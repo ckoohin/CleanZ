@@ -12,6 +12,7 @@ interface TaskerOnboardingState {
     addressCurrent?: string;
   };
   serviceIds: string[];
+  docIdNumber: string;
   bankInfo: {
     bankName?: string;
     bankAccountNumber?: string;
@@ -30,6 +31,7 @@ interface TaskerOnboardingState {
   // Actions
   setPersonalInfo: (info: Partial<TaskerOnboardingState["personalInfo"]>) => void;
   setServiceIds: (ids: string[]) => void;
+  setDocIdNumber: (id: string) => void;
   setBankInfo: (info: Partial<TaskerOnboardingState["bankInfo"]>) => void;
   setCurrentStep: (step: number) => void;
   setMaxStepReached: (step: number) => void;
@@ -46,6 +48,7 @@ export const useTaskerOnboardingStore = create<TaskerOnboardingState>()(
       // Default persisted state
       personalInfo: {},
       serviceIds: [],
+      docIdNumber: "",
       bankInfo: {},
       currentStep: 0,
       maxStepReached: 0,
@@ -61,6 +64,7 @@ export const useTaskerOnboardingStore = create<TaskerOnboardingState>()(
       setPersonalInfo: (info) =>
         set((state) => ({ personalInfo: { ...state.personalInfo, ...info } })),
       setServiceIds: (ids) => set({ serviceIds: ids }),
+      setDocIdNumber: (id) => set({ docIdNumber: id }),
       setBankInfo: (info) =>
         set((state) => ({ bankInfo: { ...state.bankInfo, ...info } })),
       setCurrentStep: (step) => set({ currentStep: step }),
@@ -71,6 +75,7 @@ export const useTaskerOnboardingStore = create<TaskerOnboardingState>()(
         set({
           personalInfo: {},
           serviceIds: [],
+          docIdNumber: "",
           bankInfo: {},
           currentStep: 0,
           maxStepReached: 0,

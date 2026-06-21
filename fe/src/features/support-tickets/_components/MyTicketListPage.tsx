@@ -3,71 +3,24 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import {
-  HeadphonesIcon,
-  Plus,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  ChevronRight,
-  ArrowLeft,
-  Filter,
-  FileText,
-  Flame,
-  ArrowUp,
-  Minus,
-  ShieldAlert,
-} from "lucide-react";
+import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { useMyTicketList, useCreateTicket } from "@/features/support-tickets/hooks/useMyTicket";
 import type {
   MyTicketSummary,
   TicketStatus,
   TicketCategory,
-  TicketPriority,
   CreateTicketDto,
 } from "@/features/support-tickets/types/my-ticket.types";
-
-// ─── Status config ────────────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  OPEN: { label: "Đang mở", color: "text-blue-500", icon: <Clock className="w-3.5 h-3.5" /> },
-  PENDING_CUSTOMER: { label: "Chờ bạn phản hồi", color: "text-amber-500", icon: <Clock className="w-3.5 h-3.5" /> },
-  PENDING_ADMIN: { label: "Đang xử lý", color: "text-orange-500", icon: <Clock className="w-3.5 h-3.5" /> },
-  IN_PROGRESS: { label: "Đang xử lý", color: "text-primary", icon: <Clock className="w-3.5 h-3.5" /> },
-  ESCALATED: { label: "Khẩn cấp", color: "text-red-500", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-  RESOLVED: { label: "Đã giải quyết", color: "text-emerald-500", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  CLOSED: { label: "Đã đóng", color: "text-muted-foreground", icon: <XCircle className="w-3.5 h-3.5" /> },
-  CANCELLED: { label: "Đã huỷ", color: "text-muted-foreground", icon: <XCircle className="w-3.5 h-3.5" /> },
-};
-
-const PRIORITY_CONFIG: Record<string, { label: string; icon: React.ReactNode }> = {
-  LOW: { label: "Thấp", icon: <Minus className="w-3 h-3" /> },
-  MEDIUM: { label: "Trung bình", icon: <ArrowUp className="w-3 h-3" /> },
-  HIGH: { label: "Cao", icon: <Flame className="w-3 h-3 text-orange-500" /> },
-  URGENT: { label: "Khẩn cấp", icon: <ShieldAlert className="w-3 h-3 text-red-500" /> },
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  BOOKING_ISSUE: "Đặt lịch",
-  PAYMENT_ISSUE: "Thanh toán",
-  TASKER_BEHAVIOR: "Hành vi Tasker",
-  SERVICE_QUALITY: "Chất lượng",
-  APP_BUG: "Lỗi app",
-  ACCOUNT_ISSUE: "Tài khoản",
-  OTHER: "Khác",
-};
-
-// ─── Create Ticket Sheet ──────────────────────────────────────────────────────
-const CATEGORY_OPTIONS: { value: TicketCategory; label: string }[] = [
-  { value: "BOOKING_ISSUE", label: "Vấn đề đặt lịch" },
-  { value: "PAYMENT_ISSUE", label: "Vấn đề thanh toán" },
-  { value: "TASKER_BEHAVIOR", label: "Hành vi Tasker" },
-  { value: "SERVICE_QUALITY", label: "Chất lượng dịch vụ" },
-  { value: "APP_BUG", label: "Lỗi ứng dụng" },
-  { value: "ACCOUNT_ISSUE", label: "Vấn đề tài khoản" },
-  { value: "OTHER", label: "Vấn đề khác" },
-];
+import {
+  CATEGORY_OPTIONS,
+  CATEGORY_LABEL,
+  STATUS_LABEL,
+  STATUS_TONE,
+  PRIORITY_LABEL,
+  TONE_BADGE_CLASS,
+} from "@/features/support-tickets/shared/ticket.labels";
+import { NO_BOOKING_CATEGORIES } from "@/features/support-tickets/shared/ticket.enums";
 
 function CreateTicketSheet({
   open,
@@ -84,7 +37,12 @@ function CreateTicketSheet({
     bookingId: string;
   }>({ category: "", subject: "", description: "", bookingId: "" });
 
-  const canSubmit = form.category && form.subject.trim() && form.description.trim();
+  // bookingId bắt buộc trừ category ∈ {ACCOUNT_TECHNICAL, OTHER} (spec §1.1)
+  const bookingOk =
+    !!form.category &&
+    (NO_BOOKING_CATEGORIES.includes(form.category as TicketCategory) || !!form.bookingId.trim());
+  const canSubmit =
+    form.category && form.subject.trim() && form.description.trim() && bookingOk;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -225,9 +183,6 @@ function CreateTicketSheet({
 
 // ─── Ticket Card ──────────────────────────────────────────────────────────────
 function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () => void }) {
-  const status = STATUS_CONFIG[ticket.status] ?? STATUS_CONFIG.OPEN;
-  const priority = PRIORITY_CONFIG[ticket.priority] ?? PRIORITY_CONFIG.MEDIUM;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -245,8 +200,8 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
                 {ticket.ticketCode}
               </span>
             )}
-            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-              {priority.icon} {priority.label}
+            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+              {PRIORITY_LABEL[ticket.priority]}
             </span>
             {ticket.slaBreached && (
               <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
@@ -257,13 +212,15 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
 
           <h3 className="font-semibold text-sm text-foreground line-clamp-1">{ticket.subject}</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {CATEGORY_LABELS[ticket.category] ?? ticket.category}
+            {CATEGORY_LABEL[ticket.category]}
           </p>
         </div>
 
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span className={`text-xs font-bold flex items-center gap-1 ${status.color}`}>
-            {status.icon} {status.label}
+          <span
+            className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${TONE_BADGE_CLASS[STATUS_TONE[ticket.status]]}`}
+          >
+            {STATUS_LABEL[ticket.status]}
           </span>
           <span className="text-[10px] text-muted-foreground">
             {new Date(ticket.updatedAt).toLocaleDateString("vi-VN")}
@@ -281,16 +238,26 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type FilterTab = "ALL" | "OPEN" | "RESOLVED" | "CLOSED";
+type FilterTab = "ALL" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
-export const MyTicketListPage: React.FC = () => {
+interface MyTicketListPageProps {
+  /**
+   * Base path danh sách (string — an toàn khi truyền từ Server Component).
+   * URL chi tiết = `${basePath}/${id}`. Dùng để tái dùng cho cả Customer & Tasker.
+   */
+  basePath?: string;
+}
+
+export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
+  basePath = ROUTES.CUSTOMER.SUPPORT_TICKETS,
+}) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
   const [showCreate, setShowCreate] = useState(false);
 
   const statusFilter: TicketStatus | undefined =
     activeTab === "ALL" ? undefined :
-    activeTab === "OPEN" ? "OPEN" :
+    activeTab === "IN_PROGRESS" ? "IN_PROGRESS" :
     activeTab === "RESOLVED" ? "RESOLVED" : "CLOSED";
 
   const { data, isLoading } = useMyTicketList({
@@ -301,7 +268,7 @@ export const MyTicketListPage: React.FC = () => {
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: "ALL", label: "Tất cả" },
-    { key: "OPEN", label: "Đang mở" },
+    { key: "IN_PROGRESS", label: "Đang xử lý" },
     { key: "RESOLVED", label: "Đã xử lý" },
     { key: "CLOSED", label: "Đã đóng" },
   ];
@@ -383,7 +350,7 @@ export const MyTicketListPage: React.FC = () => {
               >
                 <TicketCard
                   ticket={ticket}
-                  onClick={() => router.push(ROUTES.CUSTOMER.SUPPORT_TICKET_DETAIL(ticket.id))}
+                  onClick={() => router.push(`${basePath}/${ticket.id}`)}
                 />
               </motion.div>
             ))}

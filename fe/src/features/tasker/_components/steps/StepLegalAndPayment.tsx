@@ -21,6 +21,9 @@ export type PaymentValues = z.infer<typeof paymentSchema>;
 interface StepLegalAndPaymentProps {
   initialValues?: Partial<PaymentValues>;
   initialDocuments?: Array<{ id: string; type: string; fileUrl: string }>;
+  initialCriminalRecord?: File[];
+  initialHealthCert?: File[];
+  initialCertificate?: File[];
   onBack: () => void;
   onNext: (data: PaymentValues & { 
     criminalRecord: File[];
@@ -33,13 +36,16 @@ interface StepLegalAndPaymentProps {
 export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({ 
   initialValues, 
   initialDocuments = [],
+  initialCriminalRecord = [],
+  initialHealthCert = [],
+  initialCertificate = [],
   onBack, 
   onNext, 
   isSubmitting 
 }) => {
-  const [criminalRecord, setCriminalRecord] = useState<File[]>([]);
-  const [healthCert, setHealthCert] = useState<File[]>([]);
-  const [certificate, setCertificate] = useState<File[]>([]);
+  const [criminalRecord, setCriminalRecord] = useState<File[]>(initialCriminalRecord);
+  const [healthCert, setHealthCert] = useState<File[]>(initialHealthCert);
+  const [certificate, setCertificate] = useState<File[]>(initialCertificate);
   
   const [existingCriminalRecord, setExistingCriminalRecord] = useState<string[]>([]);
   const [existingHealthCert, setExistingHealthCert] = useState<string[]>([]);
@@ -82,9 +88,11 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
       const newFiles = Array.from(e.target.files);
       if (currentFiles.length + existingCount + newFiles.length > maxFiles) {
         toast.error(`Chỉ được upload tối đa ${maxFiles} ảnh cho ${docName}. Hãy xóa bớt ảnh cũ hoặc ảnh mới để tải lại.`);
+        e.target.value = ''; // Reset input để có thể chọn lại
         return;
       }
       setter(prev => [...prev, ...newFiles]);
+      e.target.value = ''; // Reset input để có thể chọn lại
     }
   };
 
@@ -134,17 +142,39 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
   ) => {
     const totalFiles = files.length + existingUrls.length;
     return (
-      <div className="space-y-4">
-        <h4 className="font-bold flex items-center gap-2 text-sm md:text-base">
-          <FileCheck className={cn("w-5 h-5", iconColor)} /> {title} {isRequired && <span className="text-destructive">*</span>}
-        </h4>
+      <div className="p-4 md:p-5 bg-card border border-border/50 shadow-sm rounded-2xl md:rounded-[1.5rem] transition-all hover:border-primary/30 hover:shadow-md">
+        {/* Title & Desc */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start gap-2.5">
+            <div className={cn("p-1.5 md:p-2 rounded-lg bg-opacity-10 mt-0.5 shrink-0", 
+              iconColor.includes("blue") ? "bg-blue-500/10 text-blue-500" :
+              iconColor.includes("emerald") ? "bg-emerald-500/10 text-emerald-500" :
+              iconColor.includes("orange") ? "bg-orange-500/10 text-orange-500" : "bg-primary/10 text-primary"
+            )}>
+              <FileCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm md:text-base flex items-center gap-1.5">
+                {title} {isRequired && <span className="text-destructive">*</span>}
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+            </div>
+          </div>
+          <div className="bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shrink-0">
+            {totalFiles}/{maxFiles} ảnh
+          </div>
+        </div>
+
+        {/* Upload Dropzone */}
         <div 
           onClick={() => totalFiles < maxFiles && fileRef.current?.click()}
           className={cn(
-            "border-2 border-dashed rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
-            totalFiles < maxFiles ? "border-primary/50 bg-primary/5 hover:bg-primary/10" : "border-muted bg-muted/20 opacity-50 cursor-not-allowed"
+            "border-2 border-dashed rounded-[1rem] p-3 md:p-4 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3 cursor-pointer transition-all duration-300",
+            totalFiles < maxFiles ? "border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary" : "border-muted bg-muted/10 opacity-50 cursor-not-allowed"
           )}
         >
+          <Upload className="w-5 h-5 text-primary" />
+          <span className="text-sm font-semibold text-primary">Nhấn để chọn ảnh tải lên</span>
           <input 
             type="file" 
             ref={fileRef} 
@@ -154,38 +184,36 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
             onChange={(e) => handleFileChange(e, setter, files, existingUrls.length, maxFiles, title)}
             disabled={totalFiles >= maxFiles}
           />
-          <Upload className={cn("w-6 h-6 md:w-8 md:h-8 mb-1 md:mb-2", iconColor)} />
-          <p className="font-bold text-sm md:text-base">Tải lên ({totalFiles}/{maxFiles})</p>
-          <p className="text-[10px] md:text-xs text-muted-foreground mt-1 text-center">{desc}</p>
         </div>
-        
-        <div className="grid grid-cols-1 gap-2">
-          {/* Render ảnh cũ từ server */}
-          {existingUrls.map((url, index) => (
-            <div key={`existing-${index}`} className="flex items-center gap-3 p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-              <img src={url} alt="preview" className="w-12 h-10 object-cover rounded-lg border border-emerald-500/30" />
-              <div className="flex-1 overflow-hidden">
-                <p className="text-xs font-bold truncate text-emerald-600">Đã tải lên ({index + 1})</p>
-              </div>
-              <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeExisting(url); }} className="h-6 w-6 text-destructive">
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
 
-          {/* Render ảnh mới */}
-          {files.map((file, index) => (
-            <div key={`new-${index}`} className="flex items-center gap-3 p-2 rounded-xl bg-background/80 border border-border/50">
-              <img src={URL.createObjectURL(file)} alt="preview" className="w-12 h-10 object-cover rounded-lg" />
-              <div className="flex-1 overflow-hidden">
-                <p className="text-xs font-bold truncate">{file.name}</p>
-              </div>
-              <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeFile(index, setter); }} className="h-6 w-6 text-destructive">
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
+        {/* Previews Row */}
+        {(existingUrls.length > 0 || files.length > 0) && (
+          <div className="mt-3 pt-3 border-t border-border/40 flex flex-wrap gap-2">
+            {existingUrls.map((url, index) => (
+               <div key={`existing-${index}`} className="relative group w-14 h-14 md:w-16 md:h-16 rounded-xl overflow-hidden border border-border shadow-sm">
+                 <img src={url} alt="preview" className="w-full h-full object-cover" />
+                 <div className="absolute inset-x-0 bottom-0 bg-emerald-500/90 text-[8px] text-white text-center py-0.5 font-bold">
+                   Đã tải
+                 </div>
+                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                   <Button type="button" variant="destructive" size="icon" className="w-6 h-6 rounded-full scale-75 md:scale-100" onClick={(e) => { e.stopPropagation(); removeExisting(url); }}>
+                     <X className="w-3 h-3 md:w-4 md:h-4" />
+                   </Button>
+                 </div>
+               </div>
+            ))}
+            {files.map((file, index) => (
+               <div key={`new-${index}`} className="relative group w-14 h-14 md:w-16 md:h-16 rounded-xl overflow-hidden border border-primary/30 shadow-sm">
+                 <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                   <Button type="button" variant="destructive" size="icon" className="w-6 h-6 rounded-full scale-75 md:scale-100" onClick={(e) => { e.stopPropagation(); removeFile(index, setter); }}>
+                     <X className="w-3 h-3 md:w-4 md:h-4" />
+                   </Button>
+                 </div>
+               </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -270,7 +298,7 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
                   existingCriminalRecord,
                   (url) => removeExistingFile(url, 'criminalRecord'),
                   criminalRef, 
-                  3, 
+                  1, 
                   true, 
                   "text-blue-500"
                 )}
@@ -282,7 +310,7 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
                   existingHealthCert,
                   (url) => removeExistingFile(url, 'healthCertificate'),
                   healthRef, 
-                  3, 
+                  1, 
                   false, 
                   "text-emerald-500"
                 )}
@@ -294,7 +322,7 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
                   existingCertificate,
                   (url) => removeExistingFile(url, 'certificate'),
                   certRef, 
-                  10, 
+                  1, 
                   false, 
                   "text-orange-500"
                 )}

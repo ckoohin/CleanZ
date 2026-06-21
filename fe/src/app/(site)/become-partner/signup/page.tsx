@@ -1,5 +1,5 @@
 import React from "react";
-import { PartnerSignupWizard } from "@/features/tasker/_components/PartnerSignupWizard";
+import { TaskerRegistrationWizard } from "@/features/tasker/_components/TaskerRegistrationWizard";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function PartnerSignupPage() {
   return (
     <main className="bg-background">
-      <PartnerSignupWizard />
+      <TaskerRegistrationWizard />
     </main>
   );
 }

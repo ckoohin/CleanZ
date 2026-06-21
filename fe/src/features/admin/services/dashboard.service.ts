@@ -7,6 +7,10 @@ import type {
   BookingDetailsResponse,
   FinanceBreakdownResponse,
   TaskerStatsResponse,
+  ReviewsResponse,
+  TaskerLevelItem,
+  AreaPerfItem,
+  VoucherPerfItem,
   GroupBy,
 } from '../types/dashboard.types';
 
@@ -33,4 +37,16 @@ export const dashboardApi = {
 
   getTaskerStats: (limit = 5): Promise<TaskerStatsResponse> =>
     http.get(`${BASE}/tasker-stats`, { params: { limit } }).then((r) => r.data),
+
+  getReviews: (fromDate: string, toDate: string): Promise<ReviewsResponse> =>
+    http.get(`${BASE}/reviews`, { params: { fromDate, toDate } }).then((r) => r.data),
+
+  getTaskerLevels: (): Promise<TaskerLevelItem[]> =>
+    http.get(`${BASE}/tasker-levels`).then((r) => r.data),
+
+  getAreaPerformance: (fromDate: string, toDate: string): Promise<AreaPerfItem[]> =>
+    http.get(`${BASE}/area-performance`, { params: { fromDate, toDate } }).then((r) => r.data),
+
+  getVoucherPerformance: (limit = 6): Promise<VoucherPerfItem[]> =>
+    http.get(`${BASE}/voucher-performance`, { params: { limit } }).then((r) => r.data),
 };
