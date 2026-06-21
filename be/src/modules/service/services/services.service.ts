@@ -17,9 +17,14 @@ export class ServicesService {
   async create(dto: CreateServiceDto): Promise<ServiceEntity> {
     const entity = this.serviceRepo.create({
       name: dto.name,
-      description: dto.description ?? null,
-      baseDurationHours: dto.baseDurationHours ?? null,
-      coverageArea: dto.coverageArea ?? null,
+      description: dto.description ?? undefined,
+      thumbnailUrl: dto.thumbnailUrl ?? undefined,
+      galleryUrls: dto.galleryUrls ?? undefined,
+      shortDescription: dto.shortDescription ?? undefined,
+      includedTasks: dto.includedTasks ?? undefined,
+      excludedTasks: dto.excludedTasks ?? undefined,
+      baseDurationHours: dto.baseDurationHours ?? undefined,
+      coverageArea: dto.coverageArea ?? undefined,
       isActive: dto.isActive ?? true,
     });
     return this.serviceRepo.save(entity);
@@ -53,6 +58,24 @@ export class ServicesService {
       name: dto.name ?? service.name,
       description:
         dto.description !== undefined ? dto.description : service.description,
+      thumbnailUrl:
+        dto.thumbnailUrl !== undefined
+          ? dto.thumbnailUrl
+          : service.thumbnailUrl,
+      galleryUrls:
+        dto.galleryUrls !== undefined ? dto.galleryUrls : service.galleryUrls,
+      shortDescription:
+        dto.shortDescription !== undefined
+          ? dto.shortDescription
+          : service.shortDescription,
+      includedTasks:
+        dto.includedTasks !== undefined
+          ? dto.includedTasks
+          : service.includedTasks,
+      excludedTasks:
+        dto.excludedTasks !== undefined
+          ? dto.excludedTasks
+          : service.excludedTasks,
       baseDurationHours:
         dto.baseDurationHours !== undefined
           ? dto.baseDurationHours
@@ -76,5 +99,23 @@ export class ServicesService {
       );
     }
     await this.serviceRepo.remove(service);
+  }
+
+  async getServiceBookings(
+    id: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedData<any>> {
+    await this.findOne(id); // Check if service exists
+    return this.serviceRepo.getServiceBookings(id, page, limit);
+  }
+
+  async getServiceTaskers(
+    id: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedData<any>> {
+    await this.findOne(id); // Check if service exists
+    return this.serviceRepo.getServiceTaskers(id, page, limit);
   }
 }
