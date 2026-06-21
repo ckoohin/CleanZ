@@ -1,25 +1,31 @@
 "use client";
 
 import React from "react";
+import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 import {
   LayoutGrid,
   Settings2,
   Download,
   GripVertical,
-  Minus,
-  Plus,
   X,
   RotateCcw,
   Check,
-  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-import { useDashboardStore, PRESETS } from "../stores/dashboard.store";
-import type { WidgetId, PresetKey } from "../types/dashboard.types";
+import {
+  useDashboardStore,
+  DEFAULT_SIZE,
+  MIN_SIZE,
+  GRID_COLS,
+} from "../stores/dashboard.store";
+import { useKpis, useBookingDetails, useVoucherPerformance } from "../hooks/useDashboard";
+import type { WidgetId, GridLayoutItem } from "../types/dashboard.types";
 
 import { DateRangeFilter } from "./DateRangeFilter";
 import { PresetSelect } from "./PresetSelect";
@@ -42,52 +48,66 @@ import { FeedbackWidget } from "./widgets/FeedbackWidget";
 import { VoucherPerfWidget } from "./widgets/VoucherPerfWidget";
 import { AreaPerfWidget } from "./widgets/AreaPerfWidget";
 
-const COL_SPAN_CLASS: Record<number, string> = {
-  2: "col-span-12 lg:col-span-4", // 1/3 width
-  3: "col-span-12 lg:col-span-6", // 1/2 width
-  4: "col-span-12 lg:col-span-8", // 2/3 width
-  6: "col-span-12",               // full width
-};
+// react-grid-layout grid metrics — keep in sync with the store's grid units.
+const ROW_HEIGHT = 60;
+const GRID_MARGIN: [number, number] = [20, 20];
 
-const WIDGET_INFO: Record<WidgetId, { title: string; desc: string; defaultColSpan: 2 | 3 | 4 | 6; group: string }> = {
-  alerts: { title: "Cần xử lý ngay", desc: "Việc tồn đọng cần hành động khẩn cấp", defaultColSpan: 6, group: "Cảnh báo" },
-  kpiRevenue: { title: "KPI · Doanh thu hoa hồng", desc: "Hoa hồng nền tảng (bookings × rate)", defaultColSpan: 2, group: "Tài chính" },
-  kpiGMV: { title: "KPI · GMV", desc: "Tổng giá trị giao dịch (bookings.total_price)", defaultColSpan: 2, group: "Tài chính" },
-  kpiAOV: { title: "KPI · Giá trị đơn TB", desc: "GMV / số đơn hoàn tất", defaultColSpan: 2, group: "Tài chính" },
-  kpiRefund: { title: "KPI · Tiền hoàn", desc: "payments REFUNDED + cancellation refund", defaultColSpan: 2, group: "Tài chính" },
-  kpiOrders: { title: "KPI · Đơn hàng", desc: "Tổng đơn trong kỳ", defaultColSpan: 2, group: "Đơn hàng" },
-  kpiCancel: { title: "KPI · Tỉ lệ huỷ", desc: "(cancelled + expired) / tổng", defaultColSpan: 2, group: "Đơn hàng" },
-  kpiTaskers: { title: "KPI · Tasker online", desc: "taskers ACTIVE đang online", defaultColSpan: 2, group: "Tasker" },
-  kpiNewCust: { title: "KPI · Khách mới", desc: "customers tạo trong kỳ", defaultColSpan: 2, group: "Khách hàng" },
-  kpiRetention: { title: "KPI · Tỉ lệ quay lại", desc: "customers có total_bookings ≥ 2", defaultColSpan: 2, group: "Khách hàng" },
-  kpiNPS: { title: "KPI · NPS", desc: "Net Promoter Score từ reviews", defaultColSpan: 2, group: "Chất lượng" },
-  chart: { title: "Biểu đồ GMV & số đơn", desc: "Xu hướng 7 ngày · bookings theo ngày", defaultColSpan: 4, group: "Đơn hàng" },
-  statuses: { title: "Đơn theo trạng thái", desc: "Ảnh chụp hiện tại · bookings.status", defaultColSpan: 6, group: "Đơn hàng" },
-  recent: { title: "Đơn hàng gần đây", desc: "Bảng đơn mới nhất", defaultColSpan: 3, group: "Đơn hàng" },
-  recurring: { title: "Đơn định kỳ", desc: "bookings.is_recurring = true", defaultColSpan: 3, group: "Đơn hàng" },
-  cancelReasons: { title: "Lý do huỷ đơn", desc: "cancellation_logs theo cancelled_by", defaultColSpan: 3, group: "Đơn hàng" },
-  paymentMix: { title: "Cơ cấu thanh toán", desc: "payments theo method", defaultColSpan: 3, group: "Tài chính" },
-  feeBreakdown: { title: "Phân tích phụ phí", desc: "peak_fee / pet_fee / waiting_fee", defaultColSpan: 3, group: "Tài chính" },
-  taskerLevels: { title: "Phân bố level Tasker", desc: "taskers theo tasker_levels", defaultColSpan: 3, group: "Tasker" },
-  topTaskers: { title: "Top Tasker", desc: "taskers theo rating & số ca", defaultColSpan: 3, group: "Tasker" },
-  docExpiry: { title: "Giấy tờ sắp hết hạn", desc: "tasker_documents.expired_date gần", defaultColSpan: 3, group: "Tasker" },
-  reviews: { title: "Đánh giá", desc: "reviews · điểm & 4 tiêu chí", defaultColSpan: 3, group: "Chất lượng" },
-  feedback: { title: "Feedback mới nhất", desc: "reviews.comment gần đây", defaultColSpan: 3, group: "Chất lượng" },
-  voucherPerf: { title: "Hiệu quả voucher", desc: "vouchers · used_count / usage_limit", defaultColSpan: 3, group: "Marketing" },
-  areaPerf: { title: "Đơn theo khu vực", desc: "bookings theo service_areas", defaultColSpan: 3, group: "Vận hành" },
-  peakHours: { title: "Khung giờ cao điểm", desc: "bookings theo scheduled_start", defaultColSpan: 3, group: "Vận hành" },
-  extras: { title: "Chỉ số phụ", desc: "AOV, khách mới, voucher, ticket…", defaultColSpan: 6, group: "Khác" },
+const GridResponsive = WidthProvider(GridLayout);
+
+const WIDGET_INFO: Record<WidgetId, { title: string; desc: string; group: string }> = {
+  alerts: { title: "Cần xử lý ngay", desc: "Việc tồn đọng cần hành động khẩn cấp", group: "Cảnh báo" },
+  kpiRevenue: { title: "KPI · Doanh thu hoa hồng", desc: "Hoa hồng nền tảng (bookings × rate)", group: "Tài chính" },
+  kpiGMV: { title: "KPI · GMV", desc: "Tổng giá trị giao dịch (bookings.total_price)", group: "Tài chính" },
+  kpiAOV: { title: "KPI · Giá trị đơn TB", desc: "GMV / số đơn hoàn tất", group: "Tài chính" },
+  kpiRefund: { title: "KPI · Tiền hoàn", desc: "payments REFUNDED + cancellation refund", group: "Tài chính" },
+  kpiOrders: { title: "KPI · Đơn hàng", desc: "Tổng đơn trong kỳ", group: "Đơn hàng" },
+  kpiCancel: { title: "KPI · Tỉ lệ huỷ", desc: "(cancelled + expired) / tổng", group: "Đơn hàng" },
+  kpiTaskers: { title: "KPI · Tasker online", desc: "taskers ACTIVE đang online", group: "Tasker" },
+  kpiNewCust: { title: "KPI · Khách mới", desc: "customers tạo trong kỳ", group: "Khách hàng" },
+  kpiRetention: { title: "KPI · Tỉ lệ quay lại", desc: "customers có total_bookings ≥ 2", group: "Khách hàng" },
+  kpiNPS: { title: "KPI · NPS", desc: "Net Promoter Score từ reviews", group: "Chất lượng" },
+  chart: { title: "Biểu đồ GMV & số đơn", desc: "Xu hướng 7 ngày · bookings theo ngày", group: "Đơn hàng" },
+  statuses: { title: "Đơn theo trạng thái", desc: "Ảnh chụp hiện tại · bookings.status", group: "Đơn hàng" },
+  recent: { title: "Đơn hàng gần đây", desc: "Bảng đơn mới nhất", group: "Đơn hàng" },
+  recurring: { title: "Đơn định kỳ", desc: "bookings.is_recurring = true", group: "Đơn hàng" },
+  cancelReasons: { title: "Lý do huỷ đơn", desc: "cancellation_logs theo cancelled_by", group: "Đơn hàng" },
+  paymentMix: { title: "Cơ cấu thanh toán", desc: "payments theo method", group: "Tài chính" },
+  feeBreakdown: { title: "Phân tích phụ phí", desc: "peak_fee / pet_fee / waiting_fee", group: "Tài chính" },
+  taskerLevels: { title: "Phân bố level Tasker", desc: "taskers theo tasker_levels", group: "Tasker" },
+  topTaskers: { title: "Top Tasker", desc: "taskers theo rating & số ca", group: "Tasker" },
+  docExpiry: { title: "Giấy tờ sắp hết hạn", desc: "tasker_documents.expired_date gần", group: "Tasker" },
+  reviews: { title: "Đánh giá", desc: "reviews · điểm & 4 tiêu chí", group: "Chất lượng" },
+  feedback: { title: "Feedback mới nhất", desc: "reviews.comment gần đây", group: "Chất lượng" },
+  voucherPerf: { title: "Hiệu quả voucher", desc: "vouchers · used_count / usage_limit", group: "Marketing" },
+  areaPerf: { title: "Đơn theo khu vực", desc: "bookings theo service_areas", group: "Vận hành" },
+  peakHours: { title: "Khung giờ cao điểm", desc: "bookings theo scheduled_start", group: "Vận hành" },
+  extras: { title: "Chỉ số phụ", desc: "AOV, khách mới, voucher, ticket…", group: "Khác" },
 };
 
 const GROUPS = ["Cảnh báo", "Tài chính", "Đơn hàng", "Tasker", "Khách hàng", "Chất lượng", "Marketing", "Vận hành", "Khác"];
 
+function fmtMoney(v: number): string {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1).replace(".0", "")} tỷ`;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(".0", "")}M đ`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K đ`;
+  return `${v.toLocaleString("vi-VN")} đ`;
+}
+
 function ExtrasWidget() {
-  const m = [
-    ["Giá trị đơn TB", "2,67M đ"],
-    ["Khách mới hôm nay", "18"],
-    ["Voucher đã dùng", "64"],
-    ["Xử lý ticket TB", "3,2h"],
-    ["Đơn định kỳ", "37"],
+  const { dateRange } = useDashboardStore();
+  const { data: kpis } = useKpis(dateRange);
+  const { data: details } = useBookingDetails(dateRange);
+  const { data: vouchers } = useVoucherPerformance();
+
+  const recurringTotal = (details?.recurring ?? []).reduce((s, r) => s + r.count, 0);
+  const voucherUsed = (vouchers ?? []).reduce((s, v) => s + v.used, 0);
+
+  const m: [string, string][] = [
+    ["Giá trị đơn TB", kpis ? fmtMoney(kpis.aov.value) : "—"],
+    ["Khách mới (kỳ)", kpis ? kpis.newCustomers.value.toLocaleString("vi-VN") : "—"],
+    ["Voucher đã dùng", voucherUsed.toLocaleString("vi-VN")],
+    ["Tỉ lệ quay lại", kpis ? `${kpis.returningRate.value}%` : "—"],
+    ["Đơn định kỳ", recurringTotal.toLocaleString("vi-VN")],
   ];
   return (
     <Card className="border border-border bg-card shadow-sm rounded-2xl h-full flex flex-col justify-between">
@@ -144,8 +164,6 @@ const WIDGET_MAP: Record<WidgetId, React.ReactNode> = {
   extras: <ExtrasWidget />,
 };
 
-type WidgetConfig = { id: WidgetId; colSpan: 2 | 3 | 4 | 6 };
-
 export function DashboardClient() {
   const {
     currentPreset,
@@ -153,45 +171,64 @@ export function DashboardClient() {
     isEditMode,
     presets,
     setEditMode,
-    reorderWidgets,
-    resizeWidget,
+    saveLayout,
     hideWidget,
-    applyCustomLayout,
+    setWidgetSelection,
     resetPreset,
   } = useDashboardStore();
 
   const [isCustomizeOpen, setIsCustomizeOpen] = React.useState(false);
-  const [draftLayout, setDraftLayout] = React.useState<WidgetConfig[]>([]);
+  const [draftIds, setDraftIds] = React.useState<WidgetId[]>([]);
 
-  const layout = presets[currentPreset] || { label: "", widgets: [] };
-  const visibleWidgets = layout.widgets;
+  // Avoid SSR/CSR mismatch: react-grid-layout measures width on the client only.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
-  // Track the index of the element being dragged
-  const [draggedIdx, setDraggedIdx] = React.useState<number | null>(null);
+  const layout = presets[currentPreset] || { label: "", layout: [] };
+  const visibleWidgets = layout.layout;
+
+  // Map our stored grid items into react-grid-layout's Layout[] shape.
+  const rglLayout: Layout[] = React.useMemo(
+    () =>
+      visibleWidgets.map((w) => ({
+        i: w.id,
+        x: w.x,
+        y: w.y,
+        w: w.w,
+        h: w.h,
+        minW: MIN_SIZE.w,
+        minH: MIN_SIZE.h,
+      })),
+    [visibleWidgets]
+  );
+
+  const persistLayout = React.useCallback(
+    (next: Layout[]) => {
+      const mapped: GridLayoutItem[] = next.map((l) => ({
+        id: l.i as WidgetId,
+        x: l.x,
+        y: l.y,
+        w: l.w,
+        h: l.h,
+      }));
+      saveLayout(mapped);
+    },
+    [saveLayout]
+  );
 
   const handleOpenCustomize = () => {
-    setDraftLayout([...visibleWidgets]);
+    setDraftIds(visibleWidgets.map((w) => w.id));
     setIsCustomizeOpen(true);
   };
 
   const handleToggleWidgetOption = (id: WidgetId, checked: boolean) => {
-    if (checked) {
-      if (!draftLayout.some((w) => w.id === id)) {
-        setDraftLayout([...draftLayout, { id, colSpan: WIDGET_INFO[id].defaultColSpan }]);
-      }
-    } else {
-      setDraftLayout(draftLayout.filter((w) => w.id !== id));
-    }
-  };
-
-  const handlePickSize = (id: WidgetId, span: 2 | 3 | 4 | 6) => {
-    setDraftLayout(
-      draftLayout.map((w) => (w.id === id ? { ...w, colSpan: span } : w))
+    setDraftIds((prev) =>
+      checked ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((x) => x !== id)
     );
   };
 
   const handleApplyCustomize = () => {
-    applyCustomLayout(draftLayout);
+    setWidgetSelection(draftIds);
     setIsCustomizeOpen(false);
     toast.success(`Đã cập nhật bố cục "${layout.label}"`);
   };
@@ -256,7 +293,7 @@ export function DashboardClient() {
         <div className="flex items-center gap-2 bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs py-3 px-4 rounded-xl shadow-sm animate-in slide-in-from-top-2 duration-300">
           <LayoutGrid className="w-4 h-4 shrink-0" />
           <span>
-            Đang ở chế độ sắp xếp — kéo thả widget để đổi vị trí, dùng nút trên mỗi widget để thay đổi kích cỡ hoặc ẩn. Thay đổi sẽ tự động lưu lại.
+            Đang ở chế độ sắp xếp — kéo thả để đổi vị trí, kéo góc dưới-phải để chỉnh kích cỡ (cả rộng lẫn cao). Thay đổi tự động lưu lại.
           </span>
           <Button
             size="sm"
@@ -270,57 +307,38 @@ export function DashboardClient() {
       )}
 
       {/* Widgets Grid */}
-      <div className="grid grid-cols-12 gap-5">
-        {visibleWidgets.map(({ id, colSpan }, idx) => {
-          const isDraggingThis = draggedIdx === idx;
-          return (
+      {mounted && (
+        <GridResponsive
+          className={cn("dashboard-grid -mx-1", isEditMode && "is-editing")}
+          layout={rglLayout}
+          cols={GRID_COLS}
+          rowHeight={ROW_HEIGHT}
+          margin={GRID_MARGIN}
+          containerPadding={[4, 0]}
+          isDraggable={isEditMode}
+          isResizable={isEditMode}
+          resizeHandles={["se"]}
+          draggableCancel=".widget-no-drag"
+          compactType="vertical"
+          useCSSTransforms
+          onDragStop={persistLayout}
+          onResizeStop={persistLayout}
+        >
+          {visibleWidgets.map(({ id }) => (
             <div
               key={id}
-              draggable={isEditMode}
-              onDragStart={(e) => {
-                setDraggedIdx(idx);
-                e.dataTransfer.setData("text/plain", String(idx));
-              }}
-              onDragEnd={() => {
-                setDraggedIdx(null);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const fromIdx = Number(e.dataTransfer.getData("text/plain"));
-                if (fromIdx !== idx) {
-                  reorderWidgets(fromIdx, idx);
-                }
-              }}
               className={cn(
-                COL_SPAN_CLASS[colSpan] ?? "col-span-12",
-                "relative group transition-all duration-200",
-                isEditMode && "cursor-grab border-dashed border-2 border-muted-foreground/35 rounded-2xl active:cursor-grabbing",
-                isDraggingThis && "opacity-30 scale-[0.98]"
+                "relative group overflow-hidden rounded-2xl transition-shadow",
+                isEditMode &&
+                  "cursor-grab active:cursor-grabbing border-2 border-dashed border-muted-foreground/35"
               )}
             >
               {/* Widget Action Tools */}
               {isEditMode && (
-                <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1 bg-background/90 backdrop-blur border border-border p-1 rounded-lg shadow-sm">
-                  <span className="cursor-grab text-muted-foreground/60 p-1 hover:text-foreground">
+                <div className="widget-no-drag absolute top-2.5 right-2.5 z-20 flex items-center gap-1 bg-background/90 backdrop-blur border border-border p-1 rounded-lg shadow-sm">
+                  <span className="cursor-grab text-muted-foreground/60 p-1">
                     <GripVertical className="w-3.5 h-3.5" />
                   </span>
-                  <button
-                    title="Hẹp hơn"
-                    onClick={() => resizeWidget(id, -1)}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    title="Rộng hơn"
-                    onClick={() => resizeWidget(id, 1)}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
                   <button
                     title="Ẩn"
                     onClick={() => {
@@ -333,11 +351,11 @@ export function DashboardClient() {
                   </button>
                 </div>
               )}
-              {WIDGET_MAP[id]}
+              <div className="h-full w-full overflow-auto">{WIDGET_MAP[id]}</div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </GridResponsive>
+      )}
 
       {/* Customize Layout Modal */}
       {isCustomizeOpen && (
@@ -357,9 +375,11 @@ export function DashboardClient() {
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto space-y-5 flex-1">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Chọn widget muốn hiển thị và độ rộng tương ứng. Bạn cũng có thể kéo thả để sắp xếp vị trí sau khi đóng hộp thoại.{" "}
+                Chọn widget muốn hiển thị. Sau khi đóng hộp thoại, bật chế độ{" "}
+                <strong className="text-foreground">Sắp xếp</strong> để kéo thả vị trí và kéo góc chỉnh
+                kích cỡ.{" "}
                 <strong className="text-foreground">
-                  Đang bật {draftLayout.length} / {Object.keys(WIDGET_INFO).length} widget
+                  Đang bật {draftIds.length} / {Object.keys(WIDGET_INFO).length} widget
                 </strong>
               </p>
 
@@ -381,9 +401,8 @@ export function DashboardClient() {
                       </div>
                       <div className="space-y-2">
                         {groupWidgets.map(([id, info]) => {
-                          const config = draftLayout.find((w) => w.id === id);
-                          const isChecked = !!config;
-                          const currentSpan = config ? config.colSpan : info.defaultColSpan;
+                          const isChecked = draftIds.includes(id as WidgetId);
+                          const size = DEFAULT_SIZE[id as WidgetId];
 
                           return (
                             <div
@@ -407,29 +426,9 @@ export function DashboardClient() {
                                   {info.desc}
                                 </div>
                               </div>
-                              {/* Size Picker */}
-                              <div
-                                className={cn(
-                                  "flex gap-1 shrink-0 transition-opacity",
-                                  !isChecked && "opacity-35 pointer-events-none"
-                                )}
-                              >
-                                {([2, 3, 4, 6] as const).map((s) => {
-                                  const label = { 2: "⅓", 3: "½", 4: "⅔", 6: "Cả hàng" }[s];
-                                  return (
-                                    <button
-                                      key={s}
-                                      onClick={() => handlePickSize(id as WidgetId, s)}
-                                      className={cn(
-                                        "text-[10px] font-bold px-2 py-1 border border-border rounded bg-background text-muted-foreground hover:bg-muted transition-colors",
-                                        isChecked && currentSpan === s && "bg-primary text-primary-foreground border-primary hover:bg-primary/95 shadow-sm"
-                                      )}
-                                    >
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded shrink-0">
+                                {size.w}×{size.h}
+                              </span>
                             </div>
                           );
                         })}

@@ -18,6 +18,9 @@ import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
+import { ReviewEntity } from 'src/modules/review/entity/review.entity';
+import { TaskerLevelEntity } from 'src/modules/tasker/entity/tasker-level.entity';
+import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { GroupBy } from '../dto/date-range-query.dto';
 
 @Injectable()
@@ -244,7 +247,53 @@ export class AdminDashboardRepository {
       })
       .getCount();
 
+    // Hoa hồng nền tảng = Σ(total_price × commission_rate%) trên đơn hoàn tất.
+    // Lấy rate theo dịch vụ (pricing_configs), mặc định 15% nếu chưa cấu hình.
+    const commissionSql = (f: Date, t: Date) =>
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .leftJoin('pricing_configs', 'pc', 'pc.service_id = b.service_id')
+        .select(
+          'COALESCE(SUM(b.total_price * COALESCE(pc.platform_commission_rate, 15) / 100), 0)',
+          'commission',
+        )
+        .where('b.status = :completed', { completed: BookingStatus.COMPLETED })
+        .andWhere('b.createdAt BETWEEN :f AND :t', { f, t })
+        .getRawOne<{ commission: string }>();
+
+    const [commissionCur, commissionPrev, npsRow] = await Promise.all([
+      commissionSql(from, to),
+      commissionSql(prevFrom, prevTo),
+      // NPS từ reviews trong kỳ: promoter (>=4.5) − detractor (<=3).
+      this.dataSource
+        .getRepository(ReviewEntity)
+        .createQueryBuilder('r')
+        .select([
+          'COUNT(*) AS total',
+          'COUNT(*) FILTER (WHERE r.overall_rating >= 4.5) AS promoters',
+          'COUNT(*) FILTER (WHERE r.overall_rating <= 3) AS detractors',
+        ])
+        .where('r.createdAt BETWEEN :from AND :to', { from, to })
+        .getRawOne<{ total: string; promoters: string; detractors: string }>()
+        .catch(() => null),
+    ]);
+
+    const commission = Number(commissionCur?.commission ?? 0);
+    const prevCommission = Number(commissionPrev?.commission ?? 0);
+    const npsTotal = Number(npsRow?.total ?? 0);
+    const promoters = Number(npsRow?.promoters ?? 0);
+    const detractors = Number(npsRow?.detractors ?? 0);
+    const npsValue =
+      npsTotal > 0 ? Math.round(((promoters - detractors) / npsTotal) * 100) : 0;
+
     return {
+      commission: { value: commission, change: calcChange(commission, prevCommission) },
+      nps: {
+        value: npsValue,
+        promoterPct: npsTotal > 0 ? Math.round((promoters / npsTotal) * 100) : 0,
+        detractorPct: npsTotal > 0 ? Math.round((detractors / npsTotal) * 100) : 0,
+      },
       gmv: { value: gmv, change: calcChange(gmv, prevGmv) },
       aov: { value: aov, change: null },
       totalOrders: {
@@ -506,5 +555,128 @@ export class AdminDashboardRepository {
         };
       }),
     };
+  }
+
+  async getReviews(from: Date, to: Date, recentLimit = 5) {
+    const [agg, recent] = await Promise.all([
+      this.dataSource
+        .getRepository(ReviewEntity)
+        .createQueryBuilder('r')
+        .select([
+          'COUNT(*) AS total',
+          'COALESCE(AVG(r.overall_rating), 0) AS avg',
+          'COALESCE(AVG(r.punctuality), 0) AS punctuality',
+          'COALESCE(AVG(r.cleanliness), 0) AS cleanliness',
+          'COALESCE(AVG(r.friendliness), 0) AS friendliness',
+          'COALESCE(AVG(r.satisfaction), 0) AS satisfaction',
+          'COUNT(*) FILTER (WHERE r.overall_rating >= 4.5) AS promoters',
+          'COUNT(*) FILTER (WHERE r.overall_rating <= 3) AS detractors',
+        ])
+        .where('r.createdAt BETWEEN :from AND :to', { from, to })
+        .getRawOne(),
+
+      this.dataSource
+        .getRepository(ReviewEntity)
+        .createQueryBuilder('r')
+        .innerJoin('customers', 'c', 'c.id = r.customer_id')
+        .innerJoin('users', 'u', 'u.id = c.user_id')
+        .select([
+          'u.full_name AS "name"',
+          'r.overall_rating AS "rating"',
+          'r.comment AS "comment"',
+        ])
+        .where('r.createdAt BETWEEN :from AND :to', { from, to })
+        .andWhere('r.comment IS NOT NULL')
+        .orderBy('r.created_at', 'DESC')
+        .limit(recentLimit)
+        .getRawMany(),
+    ]);
+
+    const total = Number(agg?.total ?? 0);
+    const promoters = Number(agg?.promoters ?? 0);
+    const detractors = Number(agg?.detractors ?? 0);
+    const pct = (v: unknown) => Math.round((Number(v) / 5) * 1000) / 10;
+
+    return {
+      avg: Math.round(Number(agg?.avg ?? 0) * 10) / 10,
+      total,
+      criteria: {
+        punctuality: pct(agg?.punctuality),
+        cleanliness: pct(agg?.cleanliness),
+        friendliness: pct(agg?.friendliness),
+        satisfaction: pct(agg?.satisfaction),
+      },
+      nps: total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0,
+      recent: recent.map((r) => ({
+        name: r.name,
+        rating: Number(r.rating),
+        comment: r.comment,
+      })),
+    };
+  }
+
+  async getTaskerLevels() {
+    const rows = await this.dataSource
+      .getRepository(TaskerLevelEntity)
+      .createQueryBuilder('l')
+      .leftJoin(
+        'taskers',
+        't',
+        "t.level_id = l.id AND t.status = :active",
+        { active: TaskerStatus.ACTIVE },
+      )
+      .select([
+        'l.name AS "label"',
+        'l.color AS "color"',
+        'COUNT(t.id) AS "count"',
+      ])
+      .groupBy('l.id')
+      .addGroupBy('l.name')
+      .addGroupBy('l.color')
+      .addGroupBy('l.sort_order')
+      .orderBy('l.sort_order', 'ASC')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      label: r.label,
+      color: r.color,
+      count: Number(r.count),
+    }));
+  }
+
+  async getAreaPerformance(from: Date, to: Date, limit = 6) {
+    const rows = await this.dataSource
+      .getRepository(BookingEntity)
+      .createQueryBuilder('b')
+      .select(['b.district AS "name"', 'COUNT(*) AS "count"'])
+      .where('b.district IS NOT NULL')
+      .andWhere('b.createdAt BETWEEN :from AND :to', { from, to })
+      .groupBy('b.district')
+      .orderBy('"count"', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((r) => ({ name: r.name, count: Number(r.count) }));
+  }
+
+  async getVoucherPerformance(limit = 6) {
+    const rows = await this.dataSource
+      .getRepository(VoucherEntity)
+      .createQueryBuilder('v')
+      .select([
+        'v.code AS "code"',
+        'v.used_count AS "used"',
+        'v.usage_limit AS "limit"',
+      ])
+      .where('v.is_active = true')
+      .orderBy('v.used_count', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((r) => ({
+      code: r.code,
+      used: Number(r.used),
+      limit: r.limit === null ? null : Number(r.limit),
+    }));
   }
 }

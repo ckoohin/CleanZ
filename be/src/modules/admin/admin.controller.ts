@@ -81,6 +81,34 @@ export class AdminController {
     );
   }
 
+  @Get('dashboard/reviews')
+  getReviews(@Query() query: DateRangeQueryDto) {
+    return this.dashboardRepo.getReviews(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
+  }
+
+  @Get('dashboard/tasker-levels')
+  getTaskerLevels() {
+    return this.dashboardRepo.getTaskerLevels();
+  }
+
+  @Get('dashboard/area-performance')
+  getAreaPerformance(@Query() query: DateRangeQueryDto) {
+    return this.dashboardRepo.getAreaPerformance(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
+  }
+
+  @Get('dashboard/voucher-performance')
+  getVoucherPerformance(@Query('limit') limit?: string) {
+    return this.dashboardRepo.getVoucherPerformance(
+      limit ? Math.min(parseInt(limit, 10), 20) : 6,
+    );
+  }
+
   // ─── Customer Management Endpoints ───
 
   @Get('customers')

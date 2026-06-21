@@ -32,12 +32,17 @@ type KpiConfig = {
 
 const KPI_CONFIGS: Record<string, KpiConfig> = {
   kpiRevenue: {
-    label: "Doanh thu hoa hồng (tháng)",
+    label: "Doanh thu hoa hồng (kỳ)",
     icon: Wallet,
-    getValue: (d) => d.gmv.value * 0.2, // margin 20%
+    getValue: (d) => d.commission.value,
     getMeta: (d) => (
       <>
-        <span className="text-emerald-500 font-semibold">▲ 18.4%</span> · GMV {fmt(d.gmv.value, true, false)} · margin 20%
+        {d.commission.change !== null && (
+          <span className={cn("font-semibold mr-1.5", d.commission.change >= 0 ? "text-emerald-500" : "text-red-500")}>
+            {d.commission.change >= 0 ? "▲" : "▼"} {Math.abs(d.commission.change)}%
+          </span>
+        )}
+        · GMV {fmt(d.gmv.value, true, false)}
       </>
     ),
     status: "healthy",
@@ -65,11 +70,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     label: "Giá trị đơn TB",
     icon: Receipt,
     getValue: (d) => d.aov.value,
-    getMeta: (d) => (
-      <>
-        <span className="text-emerald-500 font-semibold">▲ 4%</span> so với kỳ trước
-      </>
-    ),
+    getMeta: () => "GMV / số đơn hoàn tất",
     status: "healthy",
     isMoney: true,
   },
@@ -77,7 +78,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     label: "Tiền hoàn (tháng)",
     icon: Undo2,
     getValue: (d) => d.totalRefund.value,
-    getMeta: (d) => "14 giao dịch · 1.2% GMV",
+    getMeta: () => "Tổng hoàn tiền trong kỳ",
     status: "healthy",
     isMoney: true,
   },
@@ -103,7 +104,12 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     getValue: (d) => d.cancelRate.value,
     getMeta: (d) => (
       <>
-        <span className="text-emerald-500 font-semibold">▼ 0.5%</span> đang cải thiện
+        {d.cancelRate.change !== null && (
+          <span className={cn("font-semibold mr-1.5", d.cancelRate.change <= 0 ? "text-emerald-500" : "text-red-500")}>
+            {d.cancelRate.change <= 0 ? "▼" : "▲"} {Math.abs(d.cancelRate.change)}%
+          </span>
+        )}
+        so với kỳ trước
       </>
     ),
     status: "healthy",
@@ -143,8 +149,8 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
   kpiNPS: {
     label: "NPS",
     icon: Star,
-    getValue: () => "+62",
-    getMeta: () => "72% quảng bá · 10% phản đối",
+    getValue: (d) => (d.nps.value >= 0 ? `+${d.nps.value}` : `${d.nps.value}`),
+    getMeta: (d) => `${d.nps.promoterPct}% quảng bá · ${d.nps.detractorPct}% phản đối`,
     status: "healthy",
   },
 };
