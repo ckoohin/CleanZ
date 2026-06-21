@@ -185,7 +185,6 @@ const adminData = {
       items: [
         { title: "Cài đặt chung", url: "/admin/settings" },
         { title: "Phân quyền & Role", url: "/admin/roles" },
-        { title: "Nhân viên hệ thống", url: "/admin/staff" },
       ],
     },
   ],

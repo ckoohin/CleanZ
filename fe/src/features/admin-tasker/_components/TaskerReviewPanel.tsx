@@ -1,17 +1,23 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  Send,
+  AlertTriangle,
+  Undo2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { TaskerProfile } from "@/features/tasker/types/tasker.type";
 import { serializeAdminNotes } from "./AdminRequestInfoModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export type ItemReviewStatus = "pending" | "ok" | "supplement" | "incorrect";
 
 export interface ReviewItemDef {
   id: string;
@@ -20,6 +26,7 @@ export interface ReviewItemDef {
   icon: string;
   optional?: boolean;
   getHasData: (tasker: TaskerProfile) => boolean;
+  getValue?: (tasker: TaskerProfile) => string | undefined;
   getPreview?: (docs: DocItem[]) => string | undefined;
 }
 
@@ -80,6 +87,7 @@ export const REVIEW_ITEMS: ReviewItemDef[] = [
     category: "Thông tin cá nhân",
     icon: "📞",
     getHasData: (s) => !!s.phone,
+    getValue: (s) => s.phone,
   },
   {
     id: "address",
@@ -87,6 +95,7 @@ export const REVIEW_ITEMS: ReviewItemDef[] = [
     category: "Thông tin cá nhân",
     icon: "📍",
     getHasData: (s) => !!s.addressCurrent,
+    getValue: (s) => s.addressCurrent,
   },
   {
     id: "bankInfo",
@@ -94,6 +103,10 @@ export const REVIEW_ITEMS: ReviewItemDef[] = [
     category: "Thanh toán",
     icon: "🏦",
     getHasData: (s) => !!(s.bankName && s.bankAccountNumber),
+    getValue: (s) =>
+      s.bankName
+        ? `${s.bankName} • ${s.bankAccountNumber ?? "—"} • ${s.bankAccountName ?? "—"}`
+        : undefined,
   },
   {
     id: "experience",
@@ -101,90 +114,83 @@ export const REVIEW_ITEMS: ReviewItemDef[] = [
     category: "Nghề nghiệp",
     icon: "💼",
     getHasData: (s) => !!(s.experience && s.skills),
+    getValue: (s) =>
+      [s.experience, s.skills].filter(Boolean).join(" • ") || undefined,
   },
 ];
 
-// ─── Status button config ────────────────────────────────────────────────────
+// ─── Single review item card ───────────────────────────────────────────────────
 
-const STATUS_BTNS: Array<{ status: ItemReviewStatus; label: string; short: string; cls: string; activeCls: string; icon: React.ElementType }> = [
-  {
-    status: "ok",
-    label: "Đầy đủ",
-    short: "Đủ",
-    icon: CheckCircle2,
-    cls: "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
-    activeCls: "bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/30",
-  },
-  {
-    status: "supplement",
-    label: "Cần bổ sung",
-    short: "Bổ sung",
-    icon: AlertTriangle,
-    cls: "border-yellow-300 text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-950/30",
-    activeCls: "bg-yellow-500 border-yellow-500 text-white shadow-sm shadow-yellow-500/30",
-  },
-  {
-    status: "incorrect",
-    label: "Chưa đúng",
-    short: "Sai",
-    icon: XCircle,
-    cls: "border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30",
-    activeCls: "bg-red-500 border-red-500 text-white shadow-sm shadow-red-500/30",
-  },
-];
-
-// ─── Single review row ────────────────────────────────────────────────────────
-
-function ReviewRow({
+function ReviewItemCard({
   item,
   tasker,
   docs,
-  status,
-  onChange,
+  flagged,
+  comment,
+  onToggleFlag,
+  onComment,
 }: {
   item: ReviewItemDef;
   tasker: TaskerProfile;
   docs: DocItem[];
-  status: ItemReviewStatus;
-  onChange: (id: string, s: ItemReviewStatus) => void;
+  flagged: boolean;
+  comment: string;
+  onToggleFlag: () => void;
+  onComment: (value: string) => void;
 }) {
   const hasData = item.getHasData(tasker);
+  const value = item.getValue?.(tasker);
   const previewUrl = item.getPreview?.(docs);
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={cn(
-      "rounded-xl border transition-colors",
-      status === "ok" && "border-emerald-500/30 bg-emerald-500/5",
-      status === "supplement" && "border-yellow-500/30 bg-yellow-500/5",
-      status === "incorrect" && "border-red-500/30 bg-red-500/5",
-      status === "pending" && "border-border bg-card",
-    )}>
-      <div className="flex items-center gap-3 p-3">
+    <div
+      className={cn(
+        "rounded-xl border transition-colors",
+        flagged ? "border-yellow-500/40 bg-yellow-500/5" : "border-border bg-card"
+      )}
+    >
+      <div className="flex items-start gap-3 p-3">
         {/* Icon */}
         <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-lg shrink-0">
           {item.icon}
         </div>
 
-        {/* Label + data status */}
+        {/* Label + value/data status */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold leading-tight">
             {item.label}
             {item.optional && (
-              <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(tuỳ chọn)</span>
+              <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                (tuỳ chọn)
+              </span>
             )}
           </p>
-          <p className={cn(
-            "text-xs mt-0.5",
-            hasData ? "text-emerald-600"
-              : item.optional ? "text-muted-foreground"
-              : "text-red-500"
-          )}>
-            {hasData ? "Đã nộp" : item.optional ? "— Chưa nộp (không bắt buộc)" : "⚠ Chưa nộp"}
+          {/* Giá trị text (nếu có) */}
+          {value && (
+            <p className="text-xs text-foreground/70 mt-0.5 break-words line-clamp-2">
+              {value}
+            </p>
+          )}
+          <p
+            className={cn(
+              "text-xs mt-0.5",
+              hasData
+                ? "text-emerald-600"
+                : item.optional
+                ? "text-muted-foreground"
+                : "text-red-500"
+            )}
+          >
+            {hasData
+              ? "✓ Đã nộp"
+              : item.optional
+              ? "— Chưa nộp (không bắt buộc)"
+              : "⚠ Chưa nộp"}
           </p>
         </div>
 
-        {/* Preview toggle */}
+        {/* Preview toggle (ảnh giấy tờ) */}
         {previewUrl && (
           <button
             type="button"
@@ -192,45 +198,78 @@ function ReviewRow({
             className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0"
             aria-label="Xem ảnh"
           >
-            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {expanded ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
           </button>
         )}
 
-        {/* Status buttons */}
-        <div className="flex gap-1 shrink-0">
-          {STATUS_BTNS.map((btn) => {
-            const isActive = status === btn.status;
-            return (
-              <button
-                key={btn.status}
-                type="button"
-                onClick={() => onChange(item.id, btn.status)}
-                title={btn.label}
-                aria-label={btn.label}
-                className={cn(
-                  "flex items-center gap-1 px-2 h-7 rounded-lg border text-[11px] font-semibold transition-all",
-                  isActive ? btn.activeCls : btn.cls,
-                )}
-              >
-                <btn.icon className="w-3 h-3 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">{btn.short}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Nút Yêu cầu gửi lại */}
+        <Button
+          type="button"
+          size="sm"
+          variant={flagged ? "default" : "outline"}
+          onClick={onToggleFlag}
+          className={cn(
+            "h-8 rounded-lg text-[11px] font-semibold shrink-0 gap-1.5",
+            flagged
+              ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500"
+              : "border-yellow-300 text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-950/30"
+          )}
+          aria-label={flagged ? "Bỏ yêu cầu gửi lại" : "Yêu cầu gửi lại"}
+        >
+          {flagged ? (
+            <>
+              <Undo2 className="w-3.5 h-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Bỏ</span>
+            </>
+          ) : (
+            <>
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Yêu cầu gửi lại</span>
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Expandable image preview */}
       {expanded && previewUrl && (
         <div className="px-3 pb-3">
-          <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="block">
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
             <img
               src={previewUrl}
               alt={item.label}
               className="w-full max-h-48 object-contain rounded-lg border border-border bg-muted"
             />
-            <p className="text-[10px] text-muted-foreground text-center mt-1">Nhấn để xem ảnh gốc ↗</p>
+            <p className="text-[10px] text-muted-foreground text-center mt-1">
+              Nhấn để xem ảnh gốc ↗
+            </p>
           </a>
+        </div>
+      )}
+
+      {/* Ô comment khi yêu cầu gửi lại */}
+      {flagged && (
+        <div className="px-3 pb-3 space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-yellow-700 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+            Ghi chú cho ứng viên — cần cập nhật gì?
+          </label>
+          <Textarea
+            autoFocus
+            value={comment}
+            onChange={(e) => onComment(e.target.value)}
+            rows={2}
+            placeholder={`VD: ${item.label} bị mờ / chưa đúng, vui lòng cập nhật lại...`}
+            className="rounded-lg resize-none text-sm bg-background"
+          />
         </div>
       )}
     </div>
@@ -238,10 +277,6 @@ function ReviewRow({
 }
 
 // ─── TaskerReviewPanel ─────────────────────────────────────────────────────────
-
-export interface ReviewState {
-  [itemId: string]: ItemReviewStatus;
-}
 
 interface TaskerReviewPanelProps {
   tasker: TaskerProfile;
@@ -262,150 +297,132 @@ export function TaskerReviewPanel({
   isApproving,
   isRequesting,
 }: TaskerReviewPanelProps) {
-  const [reviewState, setReviewState] = useState<ReviewState>({});
+  // id -> comment cho các mục được đánh dấu "yêu cầu gửi lại"
+  const [flagged, setFlagged] = useState<Record<string, string>>({});
 
-  const handleChange = useCallback((id: string, status: ItemReviewStatus) => {
-    setReviewState((prev) => ({ ...prev, [id]: status }));
+  const toggleFlag = useCallback((id: string) => {
+    setFlagged((prev) => {
+      if (id in prev) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: "" };
+    });
   }, []);
 
-  // Progress
-  const total    = REVIEW_ITEMS.length;
-  const reviewed = REVIEW_ITEMS.filter((i) => reviewState[i.id] && reviewState[i.id] !== "pending").length;
-  // Optional items chưa nộp vẫn cho phép đánh OK (admin có thể bỏ qua)
-  const requiredItems = REVIEW_ITEMS.filter((i) => !i.optional);
-  const allOk = reviewed === total && REVIEW_ITEMS.every((i) => {
-    const s = reviewState[i.id];
-    if (i.optional && !i.getHasData(tasker)) return s === "ok" || !s || s === "pending";
-    return s === "ok";
-  });
-  const problemItems = REVIEW_ITEMS.filter(
-    (i) => reviewState[i.id] === "supplement" || reviewState[i.id] === "incorrect"
-  );
-  const canSendRequest = problemItems.length > 0;
-  const pct = Math.round((reviewed / total) * 100);
+  const setComment = useCallback((id: string, value: string) => {
+    setFlagged((prev) => ({ ...prev, [id]: value }));
+  }, []);
+
+  const flaggedIds = Object.keys(flagged);
+  const hasFlags = flaggedIds.length > 0;
 
   // Group by category
   const categories = Array.from(new Set(REVIEW_ITEMS.map((i) => i.category)));
 
   const handleSendRequest = () => {
-    const supplementIds   = problemItems.filter((i) => reviewState[i.id] === "supplement").map((i) => i.id);
-    const incorrectIds    = problemItems.filter((i) => reviewState[i.id] === "incorrect").map((i) => i.id);
-    const allProblemIds   = [...supplementIds, ...incorrectIds];
-    const note = [
-      incorrectIds.length > 0  && `Chưa đúng yêu cầu: ${incorrectIds.map((id) => REVIEW_ITEMS.find((i) => i.id === id)?.label).join(", ")}`,
-      supplementIds.length > 0 && `Cần bổ sung thêm: ${supplementIds.map((id) => REVIEW_ITEMS.find((i) => i.id === id)?.label).join(", ")}`,
-    ].filter(Boolean).join(". ");
+    const note = flaggedIds
+      .map((id) => {
+        const label = REVIEW_ITEMS.find((i) => i.id === id)?.label ?? id;
+        const c = flagged[id]?.trim();
+        return c ? `• ${label}: ${c}` : `• ${label}`;
+      })
+      .join("\n");
 
-    onRequestInfo(serializeAdminNotes(allProblemIds, note));
+    onRequestInfo(serializeAdminNotes(flaggedIds, note));
   };
 
   return (
     <div className="space-y-4">
-      {/* Progress bar */}
-      <div className="rounded-xl border border-border p-4 space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-semibold">Tiến độ xét duyệt</span>
-          <span className="text-muted-foreground">
-            <span className="font-bold text-foreground">{reviewed}</span>/{total} mục
-          </span>
-        </div>
-        <Progress value={pct} className="h-2" />
-        <div className="flex gap-3 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-            {REVIEW_ITEMS.filter((i) => reviewState[i.id] === "ok").length} Đủ
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />
-            {REVIEW_ITEMS.filter((i) => reviewState[i.id] === "supplement").length} Cần bổ sung
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-            {REVIEW_ITEMS.filter((i) => reviewState[i.id] === "incorrect").length} Chưa đúng
-          </span>
-        </div>
+      {/* Intro */}
+      <div className="rounded-xl border border-border bg-muted/30 p-4">
+        <p className="text-sm font-semibold">Toàn bộ thông tin ứng viên gửi lên</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Kiểm tra từng mục. Nếu mục nào chưa đạt, nhấn{" "}
+          <span className="font-semibold text-yellow-700">Yêu cầu gửi lại</span> và ghi
+          rõ cần cập nhật gì. Khi mọi thứ ổn, nhấn{" "}
+          <span className="font-semibold text-primary">Đồng ý phê duyệt</span> ở cuối.
+        </p>
       </div>
 
       {/* Items grouped by category */}
       {categories.map((cat) => (
         <div key={cat} className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">{cat}</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+            {cat}
+          </p>
           {REVIEW_ITEMS.filter((i) => i.category === cat).map((item) => (
-            <ReviewRow
+            <ReviewItemCard
               key={item.id}
               item={item}
               tasker={tasker}
               docs={docs}
-              status={reviewState[item.id] ?? "pending"}
-              onChange={handleChange}
+              flagged={item.id in flagged}
+              comment={flagged[item.id] ?? ""}
+              onToggleFlag={() => toggleFlag(item.id)}
+              onComment={(v) => setComment(item.id, v)}
             />
           ))}
         </div>
       ))}
 
-      {/* CTA */}
+      {/* CTA footer */}
       <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-        {reviewed < total && (
+        {hasFlags ? (
+          <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-4 py-2.5 text-sm text-yellow-700">
+            <p className="font-semibold flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+              {flaggedIds.length} mục cần ứng viên gửi lại
+            </p>
+            <p className="text-xs mt-1">
+              Không thể phê duyệt khi còn mục yêu cầu gửi lại. Hãy gửi yêu cầu để ứng
+              viên cập nhật.
+            </p>
+          </div>
+        ) : (
           <p className="text-xs text-muted-foreground text-center">
-            Xét duyệt đủ {total} mục để mở khoá quyết định cuối
+            Không có mục nào bị đánh dấu — có thể phê duyệt hồ sơ.
           </p>
         )}
 
-        {allOk && (
-          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm text-emerald-700 font-semibold text-center">
-            ✅ Tất cả {total} mục đạt yêu cầu — Sẵn sàng phê duyệt!
-          </div>
+        {/* Gửi yêu cầu gửi lại */}
+        {hasFlags && (
+          <Button
+            className="w-full rounded-xl bg-yellow-500 hover:bg-yellow-600 text-white font-semibold shadow-sm shadow-yellow-500/20"
+            onClick={handleSendRequest}
+            disabled={isRequesting}
+          >
+            <Send className="w-4 h-4 mr-1.5" aria-hidden="true" />
+            {isRequesting
+              ? "Đang gửi..."
+              : `Gửi yêu cầu gửi lại (${flaggedIds.length} mục)`}
+          </Button>
         )}
 
-        {canSendRequest && (
-          <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-4 py-2.5 text-sm text-yellow-700 space-y-1">
-            <p className="font-semibold">⚠ Phát hiện {problemItems.length} mục cần xử lý:</p>
-            <ul className="space-y-0.5">
-              {problemItems.map((item) => (
-                <li key={item.id} className="text-xs flex items-center gap-1.5">
-                  {reviewState[item.id] === "incorrect"
-                    ? <XCircle className="w-3 h-3 text-red-500 shrink-0" aria-hidden="true" />
-                    : <AlertTriangle className="w-3 h-3 text-yellow-600 shrink-0" aria-hidden="true" />}
-                  {item.label} — {reviewState[item.id] === "incorrect" ? "Chưa đúng" : "Cần bổ sung"}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* Đồng ý phê duyệt */}
+        <Button
+          className="w-full rounded-xl font-semibold shadow-md shadow-primary/20"
+          onClick={onApprove}
+          disabled={hasFlags || isApproving}
+          title={
+            hasFlags
+              ? "Bỏ các mục yêu cầu gửi lại trước khi phê duyệt"
+              : undefined
+          }
+        >
+          <CheckCircle2 className="w-4 h-4 mr-1.5" aria-hidden="true" />
+          {isApproving ? "Đang duyệt..." : "Đồng ý phê duyệt"}
+        </Button>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20"
-            onClick={onReject}
-          >
-            <XCircle className="w-4 h-4 mr-1.5" aria-hidden="true" /> Từ chối
-          </Button>
-
-          {canSendRequest && (
-            <Button
-              size="sm"
-              className="flex-1 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-white font-semibold shadow-sm shadow-yellow-500/20"
-              onClick={handleSendRequest}
-              disabled={isRequesting}
-            >
-              <AlertTriangle className="w-4 h-4 mr-1.5" aria-hidden="true" />
-              Gửi yêu cầu ({problemItems.length} mục)
-            </Button>
-          )}
-
-          <Button
-            size="sm"
-            className="flex-1 rounded-xl font-semibold shadow-md shadow-primary/20"
-            onClick={onApprove}
-            disabled={!allOk || isApproving}
-            title={!allOk ? "Xét duyệt đủ tất cả mục và đánh Đầy đủ để phê duyệt" : undefined}
-          >
-            <CheckCircle2 className="w-4 h-4 mr-1.5" aria-hidden="true" />
-            {isApproving ? "Đang duyệt..." : "Phê duyệt tổng"}
-          </Button>
-        </div>
+        {/* Từ chối hồ sơ */}
+        <Button
+          variant="outline"
+          className="w-full rounded-xl text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20"
+          onClick={onReject}
+        >
+          <XCircle className="w-4 h-4 mr-1.5" aria-hidden="true" /> Từ chối hồ sơ
+        </Button>
       </div>
     </div>
   );

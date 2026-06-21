@@ -73,7 +73,10 @@ Hầu hết endpoint trả về object `TaskerProfile` với cấu trúc sau:
   "phone": "0987654321",
   "avatarUrl": "https://res.cloudinary.com/.../avatar.jpg",
   "workingAddress": "12 Nguyễn Trãi, Thanh Xuân, Hà Nội",
+  "addressCurrent": "12 Nguyễn Trãi, Thanh Xuân, Hà Nội",
   "bio": "Tôi có 2 năm kinh nghiệm dọn dẹp căn hộ và nhà phố.",
+  "experience": "3 năm làm dọn dẹp văn phòng và nhà ở.",
+  "skills": "Dọn dẹp, giặt ủi, nấu ăn",
 
   "bankName": "Vietcombank",
   "bankAccountNumber": "1234567890",
@@ -159,6 +162,7 @@ Hầu hết endpoint trả về object `TaskerProfile` với cấu trúc sau:
 - Nếu chưa có hồ sơ → tạo mới, `status = PENDING`
 - Nếu hồ sơ đã bị `REJECTED` → cho nộp lại, reset về `PENDING`
 - Hồ sơ đã `APPROVED` → **không** được nộp lại, trả `409`
+- **Role không đổi ở bước này:** user nộp hồ sơ vẫn giữ role hiện tại (CUSTOMER nếu apply từ tài khoản khách). Role chỉ được nâng lên `TASKER` khi **admin duyệt**. Vì vậy `GET /tasker/profile/me` cho phép cả `CUSTOMER` lẫn `TASKER`.
 
 **Content-Type:** `multipart/form-data`
 
@@ -172,8 +176,10 @@ Hầu hết endpoint trả về object `TaskerProfile` với cấu trúc sau:
 | `docIdNumber` | string | ✅ | Số CCCD/CMND |
 | `docFront` | file (jpg/png, ≤5MB) | ✅ | Ảnh mặt trước giấy tờ |
 | `docBack` | file (jpg/png, ≤5MB) | ✅ | Ảnh mặt sau giấy tờ |
-| `workingAddress` | string | ❌ | Khu vực làm việc |
+| `workingAddress` | string | ❌ | Khu vực làm việc (alias trong response: `addressCurrent`) |
 | `bio` | string | ❌ | Giới thiệu bản thân |
+| `experience` | string | ❌ | Kinh nghiệm làm việc |
+| `skills` | string | ❌ | Kỹ năng (chuỗi tự do hoặc phân tách dấu phẩy) |
 | `docIssuedDate` | string (YYYY-MM-DD) | ❌ | Ngày cấp |
 | `docExpiredDate` | string (YYYY-MM-DD) | ❌ | Ngày hết hạn |
 | `criminalRecord` | file (jpg/png, ≤5MB) | ❌ | Lý lịch tư pháp |
@@ -283,6 +289,7 @@ Không cần body. Sau khi gọi:
 - `status` → `ACTIVE`
 - `document.status` → `APPROVED`
 - `adminNotes` → `null`
+- **User role → `TASKER`** (nâng quyền CUSTOMER → TASKER ngay khi duyệt, atomic trong cùng transaction)
 - Email thông báo được gửi cho tasker
 
 **Response `200`:** `TaskerProfile` (với trạng thái đã cập nhật)
@@ -429,41 +436,6 @@ Sau khi gọi:
 {
   "data": []
 }
-```
-
----
-
-## Deprecated — Chỉ dùng cho trang Verification cũ
-
-> Các endpoint dưới đây chỉ list hồ sơ `PENDING`. Dùng `GET /tasker/admin` thay thế.
-
-### `GET /tasker/admin/profiles/pending`
-
-Trả danh sách tasker có `docStatus = PENDING`.
-
-**Response:**
-```json
-{
-  "total": 5,
-  "items": [ /* mảng TaskerProfile */ ]
-}
-```
-
-### `GET /tasker/admin/profiles/pending/:taskerId`
-
-Chi tiết một hồ sơ PENDING. Trả `404` nếu hồ sơ không ở trạng thái PENDING.
-
-### `PATCH /tasker/admin/profiles/:taskerId/review`
-
-Duyệt hoặc từ chối hồ sơ (chỉ xử lý được `PENDING`).
-
-**Request body:**
-```json
-{ "status": "APPROVED" }
-```
-hoặc
-```json
-{ "status": "REJECTED", "reason": "Lý do từ chối" }
 ```
 
 ---

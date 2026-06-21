@@ -5,7 +5,17 @@ import { CheckCircle, ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-export const StepSuccess: React.FC = () => {
+interface StepSuccessProps {
+  /**
+   * Hiển thị nút "Vào Khu vực đối tác" (/tasker). Mặc định true.
+   * Đặt false cho applicant đang chờ duyệt (vẫn còn role CUSTOMER) vì proxy chặn /tasker.
+   */
+  canEnterPartnerArea?: boolean;
+}
+
+export const StepSuccess: React.FC<StepSuccessProps> = ({
+  canEnterPartnerArea = true,
+}) => {
   return (
     <Card className="border-none shadow-2xl bg-card/50 backdrop-blur-md rounded-[3rem] overflow-hidden text-center">
       <CardContent className="p-16">
@@ -59,11 +69,13 @@ export const StepSuccess: React.FC = () => {
               Về trang chủ
             </Button>
           </Link>
-          <Link href="/tasker">
-            <Button size="lg" className="h-14 px-10 rounded-full text-lg font-bold w-full md:w-auto shadow-lg shadow-primary/20">
-              Vào Khu vực đối tác
-            </Button>
-          </Link>
+          {canEnterPartnerArea && (
+            <Link href="/tasker">
+              <Button size="lg" className="h-14 px-10 rounded-full text-lg font-bold w-full md:w-auto shadow-lg shadow-primary/20">
+                Vào Khu vực đối tác
+              </Button>
+            </Link>
+          )}
         </div>
       </CardContent>
     </Card>

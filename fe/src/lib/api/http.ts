@@ -102,17 +102,22 @@ http.interceptors.response.use(
   async (error: AxiosError<ApiErrorResponse>) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
+      skipErrorToast?: boolean;
     };
 
+    // Một số request coi lỗi (vd 404 "chưa có hồ sơ") là trạng thái hợp lệ và tự
+    // xử lý ở tầng UI — bỏ qua toast lỗi toàn cục cho các request này.
+    const skipToast = originalRequest?.skipErrorToast === true;
+
     if (error.code === "ERR_NETWORK" || !error.response) {
-      handleApiErrorGlobal(error);
+      if (!skipToast) handleApiErrorGlobal(error);
       return Promise.reject(error);
     }
 
     const status = error.response.status;
 
     if (status !== 401 || !originalRequest) {
-      handleApiErrorGlobal(error);
+      if (!skipToast) handleApiErrorGlobal(error);
       return Promise.reject(error);
     }
 
@@ -121,7 +126,7 @@ http.interceptors.response.use(
       originalRequest.url?.includes("/auth/refresh");
 
     if (isAuthEndpoint) {
-      handleApiErrorGlobal(error);
+      if (!skipToast) handleApiErrorGlobal(error);
       return Promise.reject(error);
     }
 

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -20,7 +21,6 @@ import {
 } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import { UserRole } from 'src/common/enums/user-role.enum';
-import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { AppException } from 'src/common/exceptions/app.exception';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -29,7 +29,6 @@ import type { AuthUser } from '../auth/types/AuthRequest';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
-import { ReviewTaskerProfileDto } from './dto/review-tasker-profile.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { TaskerService } from './tasker.service';
 
@@ -183,84 +182,19 @@ export class TaskerController {
   }
 
   @Get('profile/me')
-  @Auth(UserRole.TASKER)
+  @Auth(UserRole.CUSTOMER, UserRole.TASKER)
   @ApiOperation({
-    summary: 'Tasker xem hồ sơ của chính mình',
+    summary: 'Tasker / applicant xem hồ sơ của chính mình',
     description:
-      'FE dùng API này để hiển thị trạng thái hồ sơ hiện tại: PENDING, APPROVED hoặc REJECTED. Nếu hồ sơ bị từ chối, lý do nằm trong document.note.',
+      'FE dùng API này để hiển thị trạng thái hồ sơ hiện tại: PENDING, APPROVED hoặc REJECTED. Applicant đang chờ duyệt vẫn còn role CUSTOMER (chỉ nâng TASKER khi admin duyệt) nên endpoint này cho phép cả CUSTOMER. Nếu hồ sơ bị từ chối, lý do nằm trong document.note.',
   })
   findMyProfile(@CurrentUser() user: AuthUser) {
     return this.taskerService.findMyProfile(user.id);
   }
 
-  @Get('admin/profiles/pending')
-  @AdminOnly()
-  @ApiOperation({
-    summary: 'Admin xem danh sách hồ sơ tasker chờ duyệt',
-    description:
-      'FE admin dùng API này để lấy các hồ sơ có docStatus = PENDING, sắp xếp theo lần cập nhật mới nhất.',
-  })
-  findPendingProfiles() {
-    return this.taskerService.findPendingProfiles();
-  }
-
-  @Get('admin/profiles/pending/:taskerId')
-  @AdminOnly()
-  @ApiOperation({
-    summary: 'Admin xem chi tiết hồ sơ tasker đang chờ duyệt',
-    description:
-      'FE admin dùng API này khi mở chi tiết một hồ sơ trong danh sách chờ duyệt. API chỉ trả hồ sơ có document.status = PENDING.',
-  })
-  @ApiParam({
-    name: 'taskerId',
-    description: 'ID hồ sơ tasker đang chờ duyệt',
-    example: '20000000-0000-0000-0000-000000000001',
-  })
-  findPendingProfileDetail(@Param('taskerId') taskerId: string) {
-    return this.taskerService.findPendingProfileDetail(taskerId);
-  }
-
-  @Patch('admin/profiles/:taskerId/review')
-  @AdminOnly()
-  @ApiOperation({
-    summary: 'Admin duyệt hoặc từ chối hồ sơ tasker',
-    description:
-      'Nếu status = APPROVED, tasker được chuyển sang ACTIVE. Nếu status = REJECTED, bắt buộc gửi reason; hệ thống lưu reason vào taskers.doc_note và tasker có thể nộp hồ sơ lại.',
-  })
-  @ApiParam({
-    name: 'taskerId',
-    description: 'ID hồ sơ tasker cần duyệt',
-    example: '20000000-0000-0000-0000-000000000001',
-  })
-  @ApiBody({
-    type: ReviewTaskerProfileDto,
-    examples: {
-      approve: {
-        summary: 'Duyệt hồ sơ',
-        value: {
-          status: DocumentStatus.APPROVED,
-        },
-      },
-      reject: {
-        summary: 'Từ chối hồ sơ',
-        value: {
-          status: DocumentStatus.REJECTED,
-          reason: 'Ảnh giấy tờ bị mờ, vui lòng upload lại.',
-        },
-      },
-    },
-  })
-  reviewProfile(
-    @CurrentUser() user: AuthUser,
-    @Param('taskerId') taskerId: string,
-    @Body() dto: ReviewTaskerProfileDto,
-  ) {
-    return this.taskerService.reviewProfile(user.id, taskerId, dto);
-  }
-
-  // ─── Admin: new management endpoints ──────────────────────────────────────
-  // NOTE: literal routes (admin/profiles/*) are defined above; parametric
-  // routes (admin/:id/*) are defined here — NestJS resolves by segment count.
+  // ─── Admin: tasker management ─────────────────────────────────────────────
+  // NOTE: literal routes (admin/...) must precede parametric routes (admin/:id)
+  // — NestJS resolves by registration order within the same segment count.
 
   @Get('admin')
   @AdminOnly()
@@ -315,6 +249,18 @@ export class TaskerController {
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
   unbanTasker(@Param('id') id: string) {
     return this.taskerService.unbanTasker(id);
+  }
+
+  @Delete('admin/:id')
+  @AdminOnly()
+  @ApiOperation({
+    summary: 'Admin xóa hồ sơ tasker — buộc ứng viên nộp lại từ đầu',
+    description:
+      'Xóa hẳn hồ sơ tasker (kèm toàn bộ thông tin & ảnh giấy tờ đã nộp) để ứng viên phải đăng ký lại từ đầu. Chỉ áp dụng cho hồ sơ CHƯA được duyệt — hồ sơ đã APPROVED không thể xóa (dùng khóa tài khoản nếu cần).',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  deleteTaskerProfile(@Param('id') id: string) {
+    return this.taskerService.deleteProfile(id);
   }
 
   @Get('admin/:id/penalties')

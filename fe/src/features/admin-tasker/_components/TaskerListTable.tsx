@@ -17,12 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { TaskerStatus } from "@/features/tasker/types/tasker.type";
-import {
-  useAdminTasker,
-  useApproveTasker,
-  useRejectTasker,
-  useRequestMoreInfoTasker,
-} from "../hooks/admin-tasker.hooks";
+import { useAdminTasker } from "../hooks/admin-tasker.hooks";
 import type { AdminTasker, AdminTaskerFilter } from "../types/admin-tasker.types";
 import {
   ACCOUNT_STATUS_LABELS,
@@ -34,8 +29,7 @@ import {
 } from "../constants";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
 import { TaskerDetailDrawer } from "./TaskerDetailDrawer";
-import { AdminReviewModal } from "./AdminReviewModal";
-import { Eye, Maximize2, CheckCircle, Info, XCircle, ListFilter, AlertTriangle } from "lucide-react";
+import { Eye, Maximize2, CheckCircle, ListFilter, AlertTriangle } from "lucide-react";
 
 type AccountStatusFilter = "ALL" | AdminTasker["status"];
 type DocStatusFilter = "ALL" | AdminTaskerDocStatus;
@@ -55,15 +49,6 @@ export const TaskerListTable: React.FC = () => {
   }>({ keyword: "", status: "ALL", docStatus: "ALL", page: 1, limit: 10 });
 
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [reviewModal, setReviewModal] = useState<{
-    isOpen: boolean;
-    taskerId: string;
-    type: "reject" | "request_info";
-  }>({ isOpen: false, taskerId: "", type: "reject" });
-
-  const approveMutation = useApproveTasker();
-  const rejectMutation = useRejectTasker();
-  const requestInfoMutation = useRequestMoreInfoTasker();
 
   const listFilter: AdminTaskerFilter = {
     keyword: filter.keyword || undefined,
@@ -186,24 +171,11 @@ export const TaskerListTable: React.FC = () => {
     },
     {
       type: "approve",
-      label: "Duyệt hồ sơ",
+      label: "Xem & duyệt hồ sơ",
       icon: CheckCircle,
-      onClick: (row) => approveMutation.mutate(row.id),
-      hidden: (row) => !canReview(row),
-    },
-    {
-      label: "Yêu cầu bổ sung",
-      icon: Info,
-      onClick: (row) =>
-        setReviewModal({ isOpen: true, taskerId: row.id, type: "request_info" }),
-      hidden: (row) => !canReview(row),
-    },
-    {
-      label: "Từ chối hồ sơ",
-      icon: XCircle,
-      variant: "destructive",
-      onClick: (row) =>
-        setReviewModal({ isOpen: true, taskerId: row.id, type: "reject" }),
+      // Mọi quyết định (duyệt / yêu cầu bổ sung / từ chối) đều nằm trong màn
+      // review để admin xem giấy tờ trước khi quyết định.
+      onClick: (row) => router.push(`/admin/taskers/verification/${row.id}`),
       hidden: (row) => !canReview(row),
     },
   ];
@@ -302,31 +274,6 @@ export const TaskerListTable: React.FC = () => {
           onClose={() => setDetailId(null)}
         />
       )}
-
-      <AdminReviewModal
-        isOpen={reviewModal.isOpen}
-        onClose={() => setReviewModal((prev) => ({ ...prev, isOpen: false }))}
-        title={reviewModal.type === "reject" ? "Từ chối hồ sơ" : "Yêu cầu bổ sung thông tin"}
-        description={
-          reviewModal.type === "reject"
-            ? "Vui lòng cho biết lý do bạn từ chối hồ sơ này. Tasker sẽ nhận được thông báo này."
-            : "Vui lòng mô tả chi tiết những thông tin hoặc giấy tờ mà tasker cần cập nhật thêm."
-        }
-        isLoading={rejectMutation.isPending || requestInfoMutation.isPending}
-        onConfirm={(notes) => {
-          if (reviewModal.type === "reject") {
-            rejectMutation.mutate(
-              { id: reviewModal.taskerId, notes },
-              { onSuccess: () => setReviewModal((prev) => ({ ...prev, isOpen: false })) }
-            );
-          } else {
-            requestInfoMutation.mutate(
-              { id: reviewModal.taskerId, notes },
-              { onSuccess: () => setReviewModal((prev) => ({ ...prev, isOpen: false })) }
-            );
-          }
-        }}
-      />
     </div>
   );
 };

@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskerApi } from '../services/tasker.service';
 import { toast } from 'sonner';
-import { UpdateTaskerProfileDto } from '../types/tasker.type';
+import { CreateTaskerServiceDto, UpdateTaskerProfileDto } from '../types/tasker.type';
+
+type ApiError = Error & { response?: { data?: { message?: string } } };
 
 export const taskerKeys = {
   all: ['tasker'] as const,
@@ -9,12 +11,13 @@ export const taskerKeys = {
   services: () => [...taskerKeys.all, 'services'] as const,
 };
 
-export function useTaskerProfile() {
+export function useTaskerProfile(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: taskerKeys.profile(),
     queryFn: () => taskerApi.getProfile(),
     staleTime: 5 * 60 * 1000,
     retry: false, // Không retry nếu 404 (chưa có hồ sơ)
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -56,37 +59,45 @@ export function useUpdateTaskerProfile() {
   });
 }
 
-// STUBS TO FIX BUILD ERRORS
+// ── Hooks cho luồng đăng ký granular (PartnerSignupWizard / onboarding Tabs) ──
+// Các component này tự xử lý toast success nên hook chỉ giữ onError fallback.
 export function useApplyTasker() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (userId: string) => {
-      // Stub
-      return { id: "temp-id" };
-    }
+    mutationFn: (userId: string) => taskerApi.applyTasker(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.response?.data?.message ?? "Không thể khởi tạo hồ sơ tasker");
+    },
   });
 }
 
 export function useAddTaskerService() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: {
-      id: string;
-      data: {
-        serviceId: string;
-        locationTypes: string[];
-        shopAddress?: string;
-      };
-    }) => {
-      // Stub
-      return true;
-    }
+    mutationFn: ({ id, data }: { id: string; data: CreateTaskerServiceDto }) =>
+      taskerApi.addTaskerService(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.response?.data?.message ?? "Không thể thêm dịch vụ");
+    },
   });
 }
 
 export function useUpdateTaskerDocuments() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { id: string, formData: FormData }) => {
-      // Stub
-      return true;
-    }
+    mutationFn: ({ id, formData }: { id: string; formData: FormData }) =>
+      taskerApi.updateTaskerDocuments(id, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.response?.data?.message ?? "Lỗi khi cập nhật tài liệu");
+    },
   });
 }

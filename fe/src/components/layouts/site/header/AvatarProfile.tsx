@@ -21,8 +21,9 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useLogout, useProfile } from "@/features/auth/hooks/auth.hooks";
+import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
+import { TaskerStatus } from "@/features/tasker/types/tasker.type";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 
@@ -34,10 +35,35 @@ const MENU_ITEMS = [
   { icon: Settings, label: "Cài đặt", href: "/customer/settings" },
 ];
 
+type PartnerMenuItem = { href: string; label: string };
+
+function getPartnerMenuItem(
+  role: string | undefined,
+  approvalStatus: TaskerStatus | undefined,
+): PartnerMenuItem {
+  if (role === "TASKER" || role === "ADMIN") {
+    return { href: "/tasker", label: "Khu vực Đối tác (Tasker)" };
+  }
+  switch (approvalStatus) {
+    case TaskerStatus.NEED_INFO:
+      return { href: "/become-partner/signup", label: "Bổ sung hồ sơ đối tác" };
+    case TaskerStatus.REJECTED:
+      return { href: "/become-partner/signup", label: "Nộp lại hồ sơ đối tác" };
+    case TaskerStatus.PENDING:
+      return { href: "/become-partner/signup", label: "Hồ sơ đang chờ duyệt" };
+    default:
+      return { href: "/become-partner", label: "Trở thành đối tác dọn dẹp ngay" };
+  }
+}
+
 export const AvatarProfile: React.FC = () => {
   const { data: profile, isLoading } = useProfile();
 
   const logout = useLogout()
+
+  // Chỉ truy vấn hồ sơ tasker cho CUSTOMER để biết nút cần hiện "Bổ sung / Nộp lại".
+  const isCustomer = profile?.role === "CUSTOMER";
+  const { data: taskerProfile } = useTaskerProfile({ enabled: isCustomer });
 
   if (isLoading) return <>
     <Skeleton className="w-8 h-8 rounded-full" />
@@ -45,7 +71,12 @@ export const AvatarProfile: React.FC = () => {
   </>
 
   if (!profile) return <></>
-  
+
+  const partnerItem = getPartnerMenuItem(
+    profile.role,
+    taskerProfile?.approvalStatus,
+  );
+
   return (
     <>
       <DropdownMenu>
@@ -102,23 +133,14 @@ export const AvatarProfile: React.FC = () => {
 
           <DropdownMenuSeparator />
 
-          {/* Dành cho Đối tác / Thợ */}
+          {/* Dành cho Đối tác / Thợ — nhãn & đích đến thay đổi theo trạng thái hồ sơ */}
           <div className="p-1.5">
-            {profile.role === 'TASKER' || profile.role === 'ADMIN' ? (
-              <DropdownMenuItem asChild className="rounded-xl px-3 py-2.5 cursor-pointer text-primary focus:bg-primary/10">
-                <Link href="/tasker" className="flex items-center gap-3 text-sm font-bold">
-                  <BriefcaseBusiness className="w-4 h-4 shrink-0" />
-                  Khu vực Đối tác (Tasker)
-                </Link>
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem asChild className="rounded-xl px-3 py-2.5 cursor-pointer text-primary focus:bg-primary/10">
-                <Link href="/become-partner" className="flex items-center gap-3 text-sm font-bold">
-                  <BriefcaseBusiness className="w-4 h-4 shrink-0" />
-                  Trở thành đối tác dọn dẹp ngay
-                </Link>
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem asChild className="rounded-xl px-3 py-2.5 cursor-pointer text-primary focus:bg-primary/10">
+              <Link href={partnerItem.href} className="flex items-center gap-3 text-sm font-bold">
+                <BriefcaseBusiness className="w-4 h-4 shrink-0" />
+                {partnerItem.label}
+              </Link>
+            </DropdownMenuItem>
           </div>
 
           <DropdownMenuSeparator />
