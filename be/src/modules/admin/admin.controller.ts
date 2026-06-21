@@ -11,6 +11,7 @@ import {
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
+import { AdminBookingRepository } from './repositories/admin-booking.repository';
 import { UsersService } from 'src/modules/users/users.service';
 import {
   DateRangeQueryDto,
@@ -18,6 +19,7 @@ import {
   BookingDetailsQueryDto,
 } from './dto/date-range-query.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
+import { BookingSearchQueryDto } from './dto/booking-search-query.dto';
 
 @AdminOnly()
 @Controller('admin')
@@ -25,6 +27,7 @@ export class AdminController {
   constructor(
     private readonly dashboardRepo: AdminDashboardRepository,
     private readonly customerRepo: AdminCustomerRepository,
+    private readonly bookingRepo: AdminBookingRepository,
     private readonly usersService: UsersService,
   ) {}
 
@@ -107,6 +110,13 @@ export class AdminController {
     return this.dashboardRepo.getVoucherPerformance(
       limit ? Math.min(parseInt(limit, 10), 20) : 6,
     );
+  }
+
+  // ─── Booking Search (autocomplete) ───
+
+  @Get('bookings')
+  searchBookings(@Query() query: BookingSearchQueryDto) {
+    return this.bookingRepo.searchBookings(query);
   }
 
   // ─── Customer Management Endpoints ───

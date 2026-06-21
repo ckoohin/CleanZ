@@ -5,15 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Clock,
   CheckCircle2,
-  AlertTriangle,
-  XCircle,
   Send,
   Lock,
   Star,
-  ImageIcon,
-  ChevronRight,
   Paperclip,
   MessageSquare,
   FileText,
@@ -24,19 +19,17 @@ import {
   useSubmitSurvey,
   useUploadTicketAttachment,
 } from "@/features/support-tickets/hooks/useMyTicket";
-import type { TicketStatus, SubmitSurveyDto } from "@/features/support-tickets/types/my-ticket.types";
+import type { SubmitSurveyDto } from "@/features/support-tickets/types/my-ticket.types";
+import {
+  STATUS_LABEL,
+  STATUS_TONE,
+  TONE_BADGE_CLASS,
+  CATEGORY_LABEL,
+  PRIORITY_LABEL,
+} from "@/features/support-tickets/shared/ticket.labels";
+import { isMessagingLocked, canSubmitSurvey } from "@/features/support-tickets/shared/ticket.machine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  OPEN: { label: "Đang mở", color: "text-blue-600", bg: "bg-blue-50", icon: <Clock className="w-3.5 h-3.5" /> },
-  PENDING_CUSTOMER: { label: "Chờ bạn phản hồi", color: "text-amber-600", bg: "bg-amber-50", icon: <Clock className="w-3.5 h-3.5" /> },
-  PENDING_ADMIN: { label: "Đang xử lý", color: "text-orange-600", bg: "bg-orange-50", icon: <Clock className="w-3.5 h-3.5" /> },
-  IN_PROGRESS: { label: "Đang xử lý", color: "text-primary", bg: "bg-primary/10", icon: <Clock className="w-3.5 h-3.5" /> },
-  ESCALATED: { label: "Khẩn cấp", color: "text-red-600", bg: "bg-red-50", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-  RESOLVED: { label: "Đã giải quyết", color: "text-emerald-600", bg: "bg-emerald-50", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  CLOSED: { label: "Đã đóng", color: "text-slate-500", bg: "bg-slate-100", icon: <XCircle className="w-3.5 h-3.5" /> },
-  CANCELLED: { label: "Đã huỷ", color: "text-slate-500", bg: "bg-slate-100", icon: <XCircle className="w-3.5 h-3.5" /> },
-};
 
 function fmtDate(d: string | null | undefined) {
   if (!d) return "";
@@ -124,8 +117,10 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({ ticketId })
     e.target.value = "";
   };
 
-  const status = ticket ? (STATUS_CONFIG[ticket.status] ?? STATUS_CONFIG.OPEN) : null;
-  const isResolved = ticket?.status === "RESOLVED" || ticket?.status === "CLOSED";
+  // Gate nghiệp vụ (mirror BE): chỉ khóa gửi tin khi CLOSED (spec §1.4 → 409);
+  // CSAT mở khi RESOLVED/CLOSED (spec §1.6).
+  const messagingLocked = ticket ? isMessagingLocked(ticket.status) : false;
+  const surveyOpen = ticket ? canSubmitSurvey(ticket.status) : false;
 
   if (isLoading) {
     return (
@@ -171,11 +166,11 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({ ticketId })
             <p className="text-[10px] font-bold text-primary">{ticket.ticketCode ?? "TICKET"}</p>
             <h1 className="font-bold text-sm text-foreground line-clamp-1">{ticket.subject}</h1>
           </div>
-          {status && (
-            <span className={`text-xs font-bold flex items-center gap-1 px-2 py-1 rounded-lg ${status.color} ${status.bg}`}>
-              {status.icon} {status.label}
-            </span>
-          )}
+          <span
+            className={`text-xs font-bold flex items-center gap-1 px-2 py-1 rounded-lg border ${TONE_BADGE_CLASS[STATUS_TONE[ticket.status]]}`}
+          >
+            {STATUS_LABEL[ticket.status]}
+          </span>
         </div>
 
         {/* Tabs */}
@@ -242,8 +237,8 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({ ticketId })
                 ))
               )}
 
-              {/* CSAT Survey if resolved */}
-              {isResolved && (
+              {/* CSAT: mở khi ticket đã RESOLVED/CLOSED */}
+              {surveyOpen && (
                 <div className="mt-4">
                   <CSATSurvey ticketId={ticketId} />
                 </div>
@@ -259,8 +254,8 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({ ticketId })
             >
               {[
                 { label: "Mã ticket", value: ticket.ticketCode ?? "—" },
-                { label: "Loại", value: ticket.category },
-                { label: "Độ ưu tiên", value: ticket.priority },
+                { label: "Loại", value: CATEGORY_LABEL[ticket.category] },
+                { label: "Độ ưu tiên", value: PRIORITY_LABEL[ticket.priority] },
                 { label: "Nguồn", value: ticket.source },
                 {
                   label: "SLA",
@@ -279,8 +274,17 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({ ticketId })
         </AnimatePresence>
       </div>
 
-      {/* Input Bar — chỉ hiện khi ticket chưa closed */}
-      {!isResolved && activeTab === "messages" && (
+      {/* Thông báo khi ticket đã đóng — không cho gửi tin (spec §1.4) */}
+      {messagingLocked && activeTab === "messages" && (
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 pb-8 z-30">
+          <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="w-3.5 h-3.5" /> Ticket đã đóng — không thể gửi tin nhắn mới.
+          </p>
+        </div>
+      )}
+
+      {/* Input Bar — chỉ hiện khi ticket chưa đóng */}
+      {!messagingLocked && activeTab === "messages" && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 pb-8 z-30">
           <div className="flex items-end gap-2">
             {/* Upload button */}

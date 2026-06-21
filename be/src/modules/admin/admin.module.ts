@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminController } from './admin.controller';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
+import { AdminBookingRepository } from './repositories/admin-booking.repository';
 import { UsersModule } from 'src/modules/users/users.module';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
@@ -30,6 +31,10 @@ import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
     UsersModule,
   ],
   controllers: [AdminController],
-  providers: [AdminDashboardRepository, AdminCustomerRepository],
+  providers: [
+    AdminDashboardRepository,
+    AdminCustomerRepository,
+    AdminBookingRepository,
+  ],
 })
 export class AdminModule {}
