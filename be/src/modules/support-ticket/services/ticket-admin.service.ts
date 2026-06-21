@@ -26,7 +26,7 @@ import {
   PaginatedTickets,
   TicketAdminView,
   toAdminView,
-  toTicketSummary,
+  toAdminTicketSummary,
 } from '../dto/ticket-response.dto';
 import { CreateAdminMessageDto } from '../dto/create-message.dto';
 import { TicketService } from './ticket.service';
@@ -95,7 +95,7 @@ export class TicketAdminService {
       const qb = this.ticketRepo
         .createQueryBuilder('t')
         .leftJoinAndSelect('t.booking', 'b')
-        .orderBy('t.createdAt', 'DESC')
+        .leftJoinAndSelect('t.assignedAdmin', 'aa')
         .skip((page - 1) * limit)
         .take(limit);
 
@@ -115,10 +115,26 @@ export class TicketAdminService {
         qb.andWhere('t.booking_id = :bid', { bid: query.bookingId });
       if (query.slaBreached !== undefined)
         qb.andWhere('t.sla_breached = :sb', { sb: query.slaBreached });
+      if (query.keyword)
+        qb.andWhere('(t.ticket_code ILIKE :kw OR t.subject ILIKE :kw)', {
+          kw: `%${query.keyword}%`,
+        });
+
+      // Sắp xếp: priority (URGENT→LOW), dueAt (gần hạn trước), mặc định createdAt DESC
+      if (query.sort === 'priority') {
+        qb.orderBy(
+          `CASE t.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END`,
+          'ASC',
+        ).addOrderBy('t.createdAt', 'DESC');
+      } else if (query.sort === 'dueAt') {
+        qb.orderBy('t.resolution_due_at', 'ASC', 'NULLS LAST');
+      } else {
+        qb.orderBy('t.createdAt', 'DESC');
+      }
 
       const [rows, total] = await qb.getManyAndCount();
       return {
-        data: rows.map(toTicketSummary),
+        data: rows.map(toAdminTicketSummary),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }, 'Lỗi khi lấy hàng đợi ticket');

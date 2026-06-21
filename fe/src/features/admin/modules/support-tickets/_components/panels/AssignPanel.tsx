@@ -2,17 +2,25 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserCheck } from "lucide-react";
 import { useAssignTicket } from "../../hooks/useSupportTicket";
+import { useAdminList } from "../../hooks/useAdminLookup";
 import type { TicketAdminDetail } from "../../types/support-ticket.types";
 
 /**
  * Gán/đổi admin xử lý (PATCH /assign — body `{ assignedAdminId }`).
- * Bỏ trống + "Tự nhận" ⇒ BE gán cho admin đang thao tác.
+ * Chọn admin từ danh sách (GET /users?role=ADMIN) hoặc "Tự nhận" (body rỗng → BE gán admin đang thao tác).
  */
 export function AssignPanel({ ticket }: { ticket: TicketAdminDetail }) {
   const assign = useAssignTicket(ticket.id);
+  const { data: admins, isLoading } = useAdminList();
   const [adminId, setAdminId] = useState("");
 
   const submit = (assignedAdminId?: string) =>
@@ -32,19 +40,30 @@ export function AssignPanel({ ticket }: { ticket: TicketAdminDetail }) {
       </p>
 
       <div className="flex gap-2">
-        <Input
-          value={adminId}
-          onChange={(e) => setAdminId(e.target.value)}
-          placeholder="Admin ID (UUID)..."
-          className="h-9 rounded-lg text-sm"
-          aria-label="Admin ID cần gán"
-        />
+        <Select value={adminId} onValueChange={setAdminId} disabled={isLoading}>
+          <SelectTrigger className="h-9 rounded-lg text-sm flex-1" aria-label="Chọn admin">
+            <SelectValue placeholder={isLoading ? "Đang tải admin..." : "Chọn admin..."} />
+          </SelectTrigger>
+          <SelectContent>
+            {(admins ?? []).length === 0 && (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                {isLoading ? "Đang tải..." : "Không có admin"}
+              </div>
+            )}
+            {(admins ?? []).map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {a.fullName}
+                {a.email ? ` · ${a.email}` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           size="sm"
           variant="outline"
           className="rounded-lg shrink-0"
-          onClick={() => submit(adminId.trim() || undefined)}
-          disabled={!adminId.trim() || assign.isPending}
+          onClick={() => submit(adminId)}
+          disabled={!adminId || assign.isPending}
         >
           Gán
         </Button>
