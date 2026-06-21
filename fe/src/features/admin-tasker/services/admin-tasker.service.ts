@@ -53,6 +53,9 @@ export const adminTaskerApi = {
   requestMoreInfo: (id: string, notes: string): Promise<AdminTasker> =>
     http.patch(`${BASE}/${id}/request-info`, { notes }).then((res) => res.data),
 
+  deleteTaskerProfile: (id: string): Promise<{ id: string; deleted: boolean }> =>
+    http.delete(`${BASE}/${id}`).then((res) => res.data),
+
   banTasker: (id: string, reason: string, type: BanType): Promise<AdminTasker> =>
     http.post(`${BASE}/${id}/ban`, { reason, type }).then((res) => res.data),
 

@@ -22,8 +22,6 @@ interface StepReviewProps {
     addressResident?: string;
     addressCurrent?: string;
   };
-  serviceIds: string[];
-  availableServices: Array<{ id: string; name: string; category?: string }>;
   bankInfo: {
     bankName?: string;
     bankAccountNumber?: string;
@@ -45,8 +43,6 @@ interface StepReviewProps {
 
 export const StepReview: React.FC<StepReviewProps> = ({
   personalInfo,
-  serviceIds,
-  availableServices = [],
   bankInfo,
   files,
   existingDocs = [],
@@ -55,11 +51,6 @@ export const StepReview: React.FC<StepReviewProps> = ({
   isSubmitting,
   submitProgress
 }) => {
-  // Map dịch vụ đã chọn
-  const selectedServices = serviceIds.map(id => {
-    return availableServices.find(s => String(s.id) === String(id));
-  }).filter(Boolean);
-
   // Nhóm file để đếm tổng số lượng
   const countFiles = (type: string, newFiles: File[]) => {
     const existingCount = existingDocs.filter(d => d.type === type).length;
@@ -136,9 +127,9 @@ export const StepReview: React.FC<StepReviewProps> = ({
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           
-          {/* CỘT 1: THÔNG TIN CÁ NHÂN & DỊCH VỤ */}
+          {/* CỘT 1: THÔNG TIN CÁ NHÂN */}
           <div className="space-y-6">
-            
+
             {/* THÔNG TIN CÁ NHÂN */}
             <div className="bg-slate-50/50 dark:bg-slate-900/50 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 dark:border-white/5 space-y-3 md:space-y-4">
               <h3 className="text-base md:text-lg font-black font-serif flex items-center gap-2 text-primary">
@@ -184,28 +175,6 @@ export const StepReview: React.FC<StepReviewProps> = ({
                     {personalInfo.experience || "Chưa nhập"}
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* DỊCH VỤ HOẠT ĐỘNG */}
-            <div className="bg-slate-50/50 dark:bg-slate-900/50 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 dark:border-white/5 space-y-3 md:space-y-4">
-              <h3 className="text-base md:text-lg font-black font-serif flex items-center gap-2 text-primary">
-                <Briefcase className="w-5 h-5" /> Dịch vụ đã đăng ký ({selectedServices.length})
-              </h3>
-              
-              <div className="flex flex-wrap gap-2">
-                {selectedServices.map((service, idx) => (
-                  <div 
-                    key={idx} 
-                    className="bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1 text-[10px] md:text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {service?.name}
-                  </div>
-                ))}
-                {selectedServices.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic">Chưa chọn dịch vụ nào</p>
-                )}
               </div>
             </div>
 

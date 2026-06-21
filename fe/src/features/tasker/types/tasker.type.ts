@@ -42,6 +42,20 @@ export interface TaskerProfile {
   // Admin info
   lastChangedByAdminName?: string;
   lastChangedByAdminId?: string;
+  // Document URLs from the previous submission (dùng để hiện lại ảnh khi nộp lại)
+  document?: {
+    type?: string | null;
+    idNumber?: string | null;
+    frontUrl?: string | null;
+    backUrl?: string | null;
+    criminalRecordUrl?: string | null;
+    healthCertificateUrl?: string | null;
+    certificateUrl?: string | null;
+    issuedDate?: string | null;
+    expiredDate?: string | null;
+    status?: string;
+    note?: string | null;
+  };
   // Timestamps
   createdAt?: string;
   updatedAt?: string;

@@ -1,404 +1,1147 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { StepHeader } from "./steps/StepHeader";
-import { StepPersonalInfo } from "./steps/StepPersonalInfo";
-import { StepServiceSelection } from "./steps/StepServiceSelection";
-import { StepIdentityVerification } from "./steps/StepIdentityVerification";
-import { StepLegalAndPayment } from "./steps/StepLegalAndPayment";
-import { StepReview } from "./steps/StepReview";
-import { StepSuccess } from "./steps/StepSuccess";
-import { TaskerStatus } from "../types/tasker.type";
 import {
-  useTaskerProfile,
-  useSubmitTaskerProfile,
-  useAvailableServices,
-} from "../hooks/tasker.hooks";
-import { useTaskerOnboardingStore } from "../stores/useTaskerOnboardingStore";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Coins, Clock, GraduationCap, Sparkles } from "lucide-react";
+  User,
+  ShieldCheck,
+  FileText,
+  ClipboardCheck,
+  CheckCircle2,
+  Upload,
+  X,
+  Camera,
+  Plus,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Phone,
+  MapPin,
+  CreditCard,
+  Building2,
+  Briefcase,
+  Image as ImageIcon,
+  PartyPopper,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { TaskerStatus } from "../types/tasker.type";
+import { useTaskerProfile, useSubmitTaskerProfile } from "../hooks/tasker.hooks";
+
+/* ------------------------------------------------------------------ */
+/*  Design tokens — Operations / Slate                                 */
+/* ------------------------------------------------------------------ */
+/* Map vào hệ màu (CSS variables) của web để ăn theo theme sáng/tối + primary cam */
+const C = {
+  bg: "color-mix(in oklab, var(--foreground) 4%, var(--background))",
+  panel: "var(--card)",
+  panelAlt: "color-mix(in oklab, var(--foreground) 5%, var(--card))",
+  border: "var(--border)",
+  borderSoft: "color-mix(in oklab, var(--border) 70%, transparent)",
+  text: "var(--foreground)",
+  textMute: "color-mix(in oklab, var(--foreground) 62%, transparent)",
+  textFaint: "color-mix(in oklab, var(--foreground) 42%, transparent)",
+  accent: "var(--primary)",
+  onAccent: "var(--primary-foreground)",
+  accentDim: "color-mix(in oklab, var(--primary) 28%, transparent)",
+  accentSoft: "color-mix(in oklab, var(--primary) 12%, transparent)",
+  warn: "#B45309",
+  warnSoft: "rgba(245, 158, 11, 0.12)",
+  danger: "#DC2626",
+  inputBg: "color-mix(in oklab, var(--foreground) 3%, var(--background))",
+};
 
 const STEPS = [
-  { title: "Cá nhân", description: "Thông tin liên hệ" },
-  { title: "Dịch vụ", description: "Lĩnh vực hoạt động" },
-  { title: "Xác minh", description: "Định danh điện tử" },
-  { title: "Pháp lý", description: "Hồ sơ & Thanh toán" },
-  { title: "Xác nhận", description: "Kiểm tra & Gửi" },
-  { title: "Hoàn tất", description: "Đợi xét duyệt" },
-];
+  { key: "personal", label: "Cá nhân", icon: User },
+  { key: "verify", label: "Xác minh", icon: ShieldCheck },
+  { key: "legal", label: "Pháp lý", icon: FileText },
+  { key: "review", label: "Xác nhận", icon: ClipboardCheck },
+  { key: "done", label: "Hoàn tất", icon: CheckCircle2 },
+] as const;
 
-export interface ProgressStep {
+/* Mỗi ô ảnh có thể là: File (ảnh mới chọn), string (URL ảnh đã nộp trước đó), hoặc null */
+type Slot = File | string | null;
+const hasSlot = (s: Slot) =>
+  s instanceof File || (typeof s === "string" && s.length > 0);
+
+type IconType = React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+
+/* ------------------------------------------------------------------ */
+/*  Primitives                                                         */
+/* ------------------------------------------------------------------ */
+function Field({
+  label,
+  required,
+  children,
+  hint,
+  error,
+}: {
   label: string;
-  status: "idle" | "loading" | "success" | "error";
+  required?: boolean;
+  children: React.ReactNode;
+  hint?: string;
+  error?: string;
+}) {
+  return (
+    <label style={{ display: "block", marginBottom: 18 }}>
+      <span
+        style={{
+          display: "block",
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: C.textMute,
+          marginBottom: 7,
+          letterSpacing: 0.2,
+        }}
+      >
+        {label}
+        {required && <span style={{ color: C.accent, marginLeft: 4 }}>*</span>}
+      </span>
+      {children}
+      {error ? (
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.danger, marginTop: 6 }}>
+          <AlertTriangle size={12} /> {error}
+        </span>
+      ) : hint ? (
+        <span style={{ display: "block", fontSize: 11.5, color: C.textFaint, marginTop: 6 }}>{hint}</span>
+      ) : null}
+    </label>
+  );
 }
 
+function TextInput({
+  icon: Icon,
+  error,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { icon?: IconType; error?: boolean }) {
+  const [focus, setFocus] = useState(false);
+  const borderColor = focus ? C.accent : error ? C.danger : C.border;
+  return (
+    <div style={{ position: "relative" }}>
+      {Icon && (
+        <Icon
+          size={16}
+          style={{
+            position: "absolute",
+            left: 13,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: focus ? C.accent : error ? C.danger : C.textFaint,
+            transition: "color .15s",
+          }}
+        />
+      )}
+      <input
+        {...props}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          background: C.inputBg,
+          border: `1px solid ${borderColor}`,
+          borderRadius: 9,
+          padding: Icon ? "11px 13px 11px 38px" : "11px 13px",
+          color: C.text,
+          fontSize: 14,
+          outline: "none",
+          transition: "border-color .15s",
+        }}
+      />
+    </div>
+  );
+}
+
+function UploadBox({
+  label,
+  value,
+  onChange,
+  aspect = "4/2.5",
+  hint,
+  error,
+}: {
+  label: string;
+  value: Slot;
+  onChange: (v: Slot) => void;
+  aspect?: string;
+  hint?: string;
+  error?: string;
+}) {
+  const id = "up-" + label.replace(/\s/g, "");
+  const isExisting = typeof value === "string";
+  const preview = useMemo(
+    () => (value instanceof File ? URL.createObjectURL(value) : isExisting ? (value as string) : null),
+    [value, isExisting],
+  );
+  useEffect(() => {
+    return () => {
+      if (value instanceof File && preview) URL.revokeObjectURL(preview);
+    };
+  }, [value, preview]);
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <span
+        style={{
+          display: "block",
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: C.textMute,
+          marginBottom: 7,
+        }}
+      >
+        {label}
+      </span>
+      <input
+        id={id}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onChange(f);
+          e.target.value = "";
+        }}
+      />
+      <label
+        htmlFor={id}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          aspectRatio: aspect,
+          background: preview ? "transparent" : C.inputBg,
+          border: `1.5px dashed ${preview ? C.accent : error ? C.danger : C.border}`,
+          borderRadius: 11,
+          cursor: "pointer",
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        {preview ? (
+          <>
+            <img src={preview} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            {isExisting && (
+              <span
+                style={{
+                  position: "absolute",
+                  left: 8,
+                  bottom: 8,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: C.accent,
+                  background: "rgba(15,20,25,0.85)",
+                  border: `1px solid ${C.accentDim}`,
+                  borderRadius: 6,
+                  padding: "3px 7px",
+                }}
+              >
+                Đã nộp trước đó
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onChange(null);
+              }}
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                width: 26,
+                height: 26,
+                borderRadius: 7,
+                background: "rgba(15,20,25,0.85)",
+                border: `1px solid ${C.border}`,
+                color: C.text,
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <X size={14} />
+            </button>
+          </>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: C.accentSoft,
+                display: "grid",
+                placeItems: "center",
+                marginBottom: 9,
+              }}
+            >
+              <Upload size={17} style={{ color: C.accent }} />
+            </div>
+            <span style={{ fontSize: 12.5, color: C.textMute, fontWeight: 500 }}>Tải ảnh lên</span>
+            {hint && <span style={{ fontSize: 11, color: C.textFaint, marginTop: 3 }}>{hint}</span>}
+          </>
+        )}
+      </label>
+      {error && (
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.danger, marginTop: 6 }}>
+          <AlertTriangle size={12} /> {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, children, sub }: { icon: IconType; children: React.ReactNode; sub?: string }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        <Icon size={17} style={{ color: C.accent }} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: -0.1 }}>
+          {children}
+        </h3>
+      </div>
+      {sub && <p style={{ margin: "6px 0 0 26px", fontSize: 12.5, color: C.textFaint }}>{sub}</p>}
+    </div>
+  );
+}
+
+function Stepper({ current, onJump }: { current: number; onJump: (i: number) => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+      {STEPS.map((s, i) => {
+        const Icon = s.icon;
+        const done = i < current;
+        const active = i === current;
+        const canBack = i < current; // chỉ cho bấm lùi về bước đã hoàn thành
+        return (
+          <React.Fragment key={s.key}>
+            <div
+              onClick={() => canBack && onJump(i)}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                flexShrink: 0,
+                cursor: canBack ? "pointer" : "default",
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  display: "grid",
+                  placeItems: "center",
+                  background: active ? C.accent : done ? C.accentDim : C.panelAlt,
+                  border: `1px solid ${active || done ? C.accent : C.border}`,
+                  color: active ? C.onAccent : done ? C.accent : C.textFaint,
+                  transition: "all .2s",
+                }}
+              >
+                {done ? <CheckCircle2 size={19} /> : <Icon size={18} />}
+              </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: active ? 700 : 500,
+                  color: active ? C.text : done ? C.textMute : C.textFaint,
+                }}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                style={{
+                  flex: 1,
+                  height: 2,
+                  margin: "0 6px 26px",
+                  borderRadius: 2,
+                  background: i < current ? C.accent : C.border,
+                  transition: "background .25s",
+                }}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReviewGroup({
+  title,
+  rows = [],
+  images = [],
+  onEdit,
+}: {
+  title: string;
+  rows?: [string, string][];
+  images?: [string, Slot][];
+  onEdit: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: C.panelAlt,
+        border: `1px solid ${C.borderSoft}`,
+        borderRadius: 12,
+        padding: 18,
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.text }}>{title}</span>
+        <button
+          type="button"
+          onClick={onEdit}
+          style={{ background: "transparent", border: "none", color: C.accent, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+        >
+          Chỉnh sửa
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {rows.map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 13 }}>
+            <span style={{ color: C.textFaint, flexShrink: 0 }}>{k}</span>
+            <span style={{ color: v ? C.text : C.danger, fontWeight: 500, textAlign: "right" }}>
+              {v || "Chưa nhập"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {images.length > 0 && (
+        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+          {images.map(([label, src]) => {
+            const url = src instanceof File ? URL.createObjectURL(src) : typeof src === "string" ? src : null;
+            return (
+              <div key={label} style={{ width: 78 }}>
+                <div
+                  style={{
+                    width: 78,
+                    height: 56,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    background: C.inputBg,
+                    border: `1px solid ${C.border}`,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  {url ? (
+                    <img src={url} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <ImageIcon size={18} style={{ color: C.textFaint }} />
+                  )}
+                </div>
+                <span style={{ fontSize: 11, color: C.textFaint, display: "block", textAlign: "center", marginTop: 5 }}>
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main wizard — gắn vào logic thật (status / nộp lại / submit BE)     */
+/* ------------------------------------------------------------------ */
 export const TaskerRegistrationWizard: React.FC = () => {
   const router = useRouter();
+  const { data: user } = useAuth();
   const { data: profile, isLoading: isProfileLoading } = useTaskerProfile();
-  const { data: services } = useAvailableServices();
-
   const submitMutation = useSubmitTaskerProfile();
 
-  const {
-    personalInfo,
-    serviceIds,
-    docIdNumber,
-    bankInfo,
-    currentStep,
-    maxStepReached,
-    citizenCard,
-    idWithSelfie,
-    criminalRecord,
-    healthCertificate,
-    certificate,
-    setPersonalInfo,
-    setServiceIds,
-    setDocIdNumber,
-    setBankInfo,
-    setCurrentStep,
-    setMaxStepReached,
-    setFiles,
-    resetStore,
-  } = useTaskerOnboardingStore();
+  const [step, setStep] = useState(0);
+  const [seeded, setSeeded] = useState(false);
+  const [agree, setAgree] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [isSubmittingAll, setIsSubmittingAll] = useState(false);
-  const [submitProgress, setSubmitProgress] = useState<ProgressStep[]>([
-    { label: "Nộp hồ sơ & tải lên giấy tờ", status: "idle" },
-  ]);
+  const clearErr = (k: string) =>
+    setErrors((e) => {
+      if (!(k in e)) return e;
+      const n = { ...e };
+      delete n[k];
+      return n;
+    });
 
-  // Redirect về /tasker nếu hồ sơ đang PENDING hoặc đã APPROVED
+  const [form, setForm] = useState({
+    fullName: "",
+    phone: "",
+    cccdAddress: "",
+    currentAddress: "",
+    cccdNumber: "",
+    bankName: "",
+    bankAccount: "",
+    bankHolder: "",
+  });
+  const set = (k: keyof typeof form, v: string) => {
+    setForm((p) => ({ ...p, [k]: v }));
+    clearErr(k);
+  };
+  // Đổi ảnh thì xóa luôn lỗi của ô đó
+  const onSlot = (key: string, setter: (v: Slot) => void) => (v: Slot) => {
+    setter(v);
+    clearErr(key);
+  };
+
+  const [experiences, setExperiences] = useState([{ company: "", role: "", years: "" }]);
+
+  const [cccdFront, setCccdFront] = useState<Slot>(null);
+  const [cccdBack, setCccdBack] = useState<Slot>(null);
+  const [selfie, setSelfie] = useState<Slot>(null);
+  const [docHealth, setDocHealth] = useState<Slot>(null);
+  const [docJudicial, setDocJudicial] = useState<Slot>(null);
+  const [docCert, setDocCert] = useState<Slot>(null);
+
+  const needsResubmit =
+    profile?.approvalStatus === TaskerStatus.NEED_INFO ||
+    profile?.approvalStatus === TaskerStatus.REJECTED;
+  const reviewNote = profile?.adminNotes || profile?.document?.note || "";
+
+  /* Điều hướng theo trạng thái hồ sơ */
   useEffect(() => {
-    if (isProfileLoading || !profile) return;
-    if (
-      profile.approvalStatus === TaskerStatus.PENDING ||
-      profile.approvalStatus === TaskerStatus.APPROVED
-    ) {
+    if (isProfileLoading) return;
+    if (profile?.approvalStatus === TaskerStatus.APPROVED) {
       router.replace("/tasker");
+    } else if (profile?.approvalStatus === TaskerStatus.PENDING) {
+      setStep(4);
     }
   }, [profile, isProfileLoading, router]);
 
-  // Đồng bộ dữ liệu cũ từ server vào Zustand nếu chưa có local
+  /* Nạp dữ liệu cũ (khi nộp lại) — chạy 1 lần khi hồ sơ đã tải xong */
   useEffect(() => {
-    if (isProfileLoading || !profile) return;
-    if (Object.keys(personalInfo).length === 0 && profile.phone) {
-      setPersonalInfo({
-        bio: profile.bio || "",
-        experience: (profile as { experience?: string }).experience || "",
-        phone: profile.phone || "",
-        skills: (profile as { skills?: string }).skills || "",
-        addressResident: (profile as { addressResident?: string }).addressResident || "",
-        addressCurrent: (profile as { addressCurrent?: string }).addressCurrent || "",
-      });
-    }
-    if (Object.keys(bankInfo).length === 0 && profile.bankName) {
-      setBankInfo({
-        bankName: profile.bankName || "",
-        bankAccountNumber: profile.bankAccountNumber || "",
-        bankAccountName: profile.bankAccountName || "",
-      });
-    }
-  }, [profile, isProfileLoading]);
+    if (isProfileLoading || seeded) return;
+    setForm((prev) => ({
+      ...prev,
+      fullName: prev.fullName || user?.fullName || "",
+      phone: prev.phone || profile?.phone || "",
+      cccdAddress: prev.cccdAddress || profile?.addressResident || "",
+      currentAddress: prev.currentAddress || profile?.addressCurrent || "",
+      cccdNumber: prev.cccdNumber || profile?.document?.idNumber || "",
+      bankName: prev.bankName || profile?.bankName || "",
+      bankAccount: prev.bankAccount || profile?.bankAccountNumber || "",
+      bankHolder: prev.bankHolder || profile?.bankAccountName || "",
+    }));
+    const doc = profile?.document;
+    if (doc?.frontUrl) setCccdFront(doc.frontUrl);
+    if (doc?.backUrl) setCccdBack(doc.backUrl);
+    if (profile?.avatarUrl) setSelfie(profile.avatarUrl);
+    if (doc?.healthCertificateUrl) setDocHealth(doc.healthCertificateUrl);
+    if (doc?.criminalRecordUrl) setDocJudicial(doc.criminalRecordUrl);
+    if (doc?.certificateUrl) setDocCert(doc.certificateUrl);
+    setSeeded(true);
+  }, [profile, user, isProfileLoading, seeded]);
 
-  // Handlers chuyển step (chỉ lưu local, không gọi API)
-  const handleNext = (stepData: unknown) => {
-    if (currentStep === 0) {
-      setPersonalInfo(stepData as typeof personalInfo);
-      goToStep(1);
-    } else if (currentStep === 1) {
-      setServiceIds(stepData as string[]);
-      goToStep(2);
-    } else if (currentStep === 2) {
-      const data = stepData as { citizenCard: File[]; idWithSelfie: File[]; docIdNumber: string };
-      setDocIdNumber(data.docIdNumber);
-      setFiles("citizenCard", data.citizenCard || []);
-      setFiles("idWithSelfie", data.idWithSelfie || []);
-      goToStep(3);
-    } else if (currentStep === 3) {
-      const data = stepData as {
-        bankName: string;
-        bankAccountNumber: string;
-        bankAccountName: string;
-        criminalRecord: File[];
-        healthCertificate: File[];
-        certificate: File[];
-      };
-      setBankInfo({
-        bankName: data.bankName,
-        bankAccountNumber: data.bankAccountNumber,
-        bankAccountName: data.bankAccountName,
-      });
-      setFiles("criminalRecord", data.criminalRecord || []);
-      setFiles("healthCertificate", data.healthCertificate || []);
-      setFiles("certificate", data.certificate || []);
-      goToStep(4);
+  /* Validation từng bước — trả về map field → thông báo lỗi */
+  const validateStepErrors = (s: number): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (s === 0) {
+      if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ và tên";
+      if (!/^0\d{9,10}$/.test(form.phone.trim()))
+        e.phone = "Số điện thoại không hợp lệ (bắt đầu bằng 0, 10–11 số)";
+      if (!form.cccdAddress.trim()) e.cccdAddress = "Vui lòng nhập địa chỉ theo CCCD";
+      if (!form.currentAddress.trim()) e.currentAddress = "Vui lòng nhập chỗ ở hiện tại";
     }
+    if (s === 1) {
+      if (!/^\d{12}$/.test(form.cccdNumber.trim())) e.cccdNumber = "Số CCCD phải gồm đúng 12 chữ số";
+      if (!hasSlot(cccdFront)) e.cccdFront = "Thiếu ảnh CCCD mặt trước";
+      if (!hasSlot(cccdBack)) e.cccdBack = "Thiếu ảnh CCCD mặt sau";
+      if (!hasSlot(selfie)) e.selfie = "Thiếu ảnh selfie cầm CCCD";
+    }
+    if (s === 2) {
+      if (!form.bankName.trim()) e.bankName = "Vui lòng nhập tên ngân hàng";
+      if (!form.bankAccount.trim()) e.bankAccount = "Vui lòng nhập số tài khoản";
+      if (!form.bankHolder.trim()) e.bankHolder = "Vui lòng nhập tên chủ tài khoản";
+      if (!hasSlot(docJudicial)) e.docJudicial = "Thiếu Lý lịch tư pháp / xác nhận hạnh kiểm";
+    }
+    return e;
   };
 
-  const goToStep = (step: number) => {
-    setCurrentStep(step);
-    setMaxStepReached(step);
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) setCurrentStep(currentStep - 1);
-  };
-
-  /**
-   * FINAL SUBMIT — Gom tất cả data thành 1 FormData và gọi POST /tasker/profile
-   * BE nhận: phone, bio, workingAddress, docType, docIdNumber, bankName, bankAccountNumber,
-   *          bankAccountName, + files: avatar, docFront, docBack, criminalRecord, healthCertificate, certificate
-   */
-  const handleSubmitAll = async () => {
-    if (!personalInfo.phone) {
-      toast.error("Thiếu thông tin: Số điện thoại");
+  const handleSubmit = async () => {
+    for (let s = 0; s <= 2; s++) {
+      const e = validateStepErrors(s);
+      if (Object.keys(e).length) {
+        setErrors(e);
+        setStep(s);
+        toast.error("Vui lòng kiểm tra lại các thông tin được tô đỏ.");
+        return;
+      }
+    }
+    if (!agree) {
+      toast.error("Vui lòng xác nhận cam kết thông tin chính xác");
       return;
     }
-    if (citizenCard.length < 2 && !profile?.hasCitizenCardImage) {
-      toast.error("Vui lòng tải lên đủ ảnh CCCD (mặt trước và sau)");
-      return;
-    }
-    if (idWithSelfie.length < 1 && !profile?.hasIdWithSelfieImage) {
-      toast.error("Vui lòng tải lên ảnh selfie cầm CCCD (avatar)");
-      return;
-    }
-
-    setIsSubmittingAll(true);
-    setSubmitProgress([{ label: "Nộp hồ sơ & tải lên giấy tờ", status: "loading" }]);
 
     try {
-      const formData = new FormData();
+      const fd = new FormData();
+      fd.append("phone", form.phone.trim());
 
-      // ── Thông tin văn bản ────────────────────────────────────────
-      formData.append("phone", personalInfo.phone ?? "");
-      if (personalInfo.bio) formData.append("bio", personalInfo.bio);
-      if (personalInfo.addressCurrent) formData.append("workingAddress", personalInfo.addressCurrent);
+      const expText = experiences
+        .filter((e) => e.company || e.role || e.years)
+        .map((e) => `${e.role || "—"} @ ${e.company || "—"}${e.years ? ` (${e.years} năm)` : ""}`)
+        .join("; ");
+      if (expText) fd.append("experience", expText);
+      if (form.currentAddress) fd.append("workingAddress", form.currentAddress.trim());
 
-      // docType & docIdNumber — BE bắt buộc
-      formData.append("docType", "CITIZEN_ID");
-      formData.append("docIdNumber", docIdNumber);
+      fd.append("docType", "CITIZEN_ID");
+      fd.append("docIdNumber", form.cccdNumber.trim());
 
-      if (bankInfo.bankName) formData.append("bankName", bankInfo.bankName);
-      if (bankInfo.bankAccountNumber) formData.append("bankAccountNumber", bankInfo.bankAccountNumber);
-      if (bankInfo.bankAccountName) formData.append("bankAccountName", bankInfo.bankAccountName);
+      if (form.bankName) fd.append("bankName", form.bankName.trim());
+      if (form.bankAccount) fd.append("bankAccountNumber", form.bankAccount.trim());
+      if (form.bankHolder) fd.append("bankAccountName", form.bankHolder.trim());
 
-      // ── Files ────────────────────────────────────────────────────
-      // avatar = ảnh selfie cầm CCCD (mặt người)
-      if (idWithSelfie.length > 0) {
-        formData.append("avatar", idWithSelfie[0]);
-      }
-      // docFront + docBack = 2 ảnh CCCD
-      if (citizenCard.length >= 1) formData.append("docFront", citizenCard[0]);
-      if (citizenCard.length >= 2) formData.append("docBack", citizenCard[1]);
-      if (criminalRecord.length > 0) formData.append("criminalRecord", criminalRecord[0]);
-      if (healthCertificate.length > 0) formData.append("healthCertificate", healthCertificate[0]);
-      if (certificate.length > 0) formData.append("certificate", certificate[0]);
+      // Ảnh: chỉ gửi file mới. Ô là URL cũ (string) → bỏ qua, BE giữ ảnh đã có.
+      if (selfie instanceof File) fd.append("avatar", selfie);
+      if (cccdFront instanceof File) fd.append("docFront", cccdFront);
+      if (cccdBack instanceof File) fd.append("docBack", cccdBack);
+      if (docJudicial instanceof File) fd.append("criminalRecord", docJudicial);
+      if (docHealth instanceof File) fd.append("healthCertificate", docHealth);
+      if (docCert instanceof File) fd.append("certificate", docCert);
 
-      await submitMutation.mutateAsync(formData);
-
-      setSubmitProgress([{ label: "Nộp hồ sơ & tải lên giấy tờ", status: "success" }]);
-      resetStore();
-      setCurrentStep(5); // Bước thành công
+      await submitMutation.mutateAsync(fd);
+      setStep(4);
     } catch {
-      setSubmitProgress([{ label: "Nộp hồ sơ & tải lên giấy tờ", status: "error" }]);
       toast.error("Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và thử lại!");
-    } finally {
-      setIsSubmittingAll(false);
     }
   };
 
-  const isLoading = isProfileLoading || currentStep === null;
-  const isRedirecting =
-    !isProfileLoading &&
-    (profile?.approvalStatus === TaskerStatus.PENDING ||
-      profile?.approvalStatus === TaskerStatus.APPROVED);
+  const next = () => {
+    if (step < 3) {
+      const e = validateStepErrors(step);
+      if (Object.keys(e).length) {
+        setErrors(e);
+        toast.error("Vui lòng kiểm tra lại các thông tin được tô đỏ.");
+        return;
+      }
+      setErrors({});
+      setStep(step + 1);
+    } else if (step === 3) {
+      void handleSubmit();
+    }
+  };
+  const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  if (isRedirecting) {
+  /* ── Trạng thái loading / redirect ── */
+  if (!isProfileLoading && profile?.approvalStatus === TaskerStatus.APPROVED) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div style={{ minHeight: "100vh", background: C.bg, display: "grid", placeItems: "center" }}>
+        <Loader2 size={32} style={{ color: C.accent }} className="animate-spin" />
+      </div>
+    );
+  }
+  if (isProfileLoading) {
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, display: "grid", placeItems: "center" }}>
+        <Loader2 size={32} style={{ color: C.accent }} className="animate-spin" />
       </div>
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-20 space-y-4 max-w-5xl">
-        <Skeleton className="h-10 w-64 mb-10 mx-auto" />
-        <Skeleton className="h-4 w-96 mx-auto" />
-        <Skeleton className="h-[500px] w-full rounded-[3rem] mt-10" />
-      </div>
-    );
-  }
+  const submitting = submitMutation.isPending;
 
   return (
-    <div className="min-h-screen w-full px-0 py-4 md:py-16 md:px-8 lg:px-16 flex items-center justify-center bg-slate-50/50 dark:bg-transparent">
-      <div className="w-full max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.bg,
+        color: C.text,
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        padding: "32px 20px 60px",
+      }}
+    >
+      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 9,
+                background: C.accent,
+                display: "grid",
+                placeItems: "center",
+                color: C.onAccent,
+                fontWeight: 800,
+                fontSize: 15,
+              }}
+            >
+              C
+            </div>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: C.textMute,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+              }}
+            >
+              CleanZ Tasker
+            </span>
+          </div>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>
+            {needsResubmit ? "Bổ sung & gửi lại hồ sơ" : "Xác minh hồ sơ (KYC)"}
+          </h1>
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: C.textFaint }}>
+            {needsResubmit
+              ? "Cập nhật đúng phần được yêu cầu rồi gửi lại — ảnh đã nộp trước đó vẫn được giữ nguyên."
+              : "Hoàn tất 4 bước để bắt đầu nhận việc. Hồ sơ sẽ được duyệt trong 24–48 giờ."}
+          </p>
+        </div>
 
-          {/* CỘT TRÁI: GIỚI THIỆU (PC Only) */}
-          <div className="hidden lg:flex lg:col-span-5 flex-col space-y-8 sticky top-16">
-            <div className="relative overflow-hidden rounded-[2.5rem] p-10 min-h-[420px] flex flex-col justify-end text-white bg-slate-900 shadow-2xl group border border-white/10">
+        {/* Banner yêu cầu của admin */}
+        {needsResubmit && step < 4 && (
+          <div
+            style={{
+              background: C.warnSoft,
+              border: `1px solid ${C.warn}55`,
+              borderRadius: 14,
+              padding: 18,
+              marginBottom: 22,
+              display: "flex",
+              gap: 13,
+              alignItems: "flex-start",
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 11,
+                background: C.warnSoft,
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <AlertTriangle size={20} style={{ color: C.warn }} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.warn, marginBottom: 4 }}>
+                {profile?.approvalStatus === TaskerStatus.REJECTED
+                  ? "Hồ sơ chưa được duyệt"
+                  : "Quản trị viên yêu cầu bổ sung hồ sơ"}
+              </div>
               <div
-                className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:scale-105 transition-transform duration-700 ease-out"
-                style={{ backgroundImage: `url('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1000&q=80')` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-              <div className="relative z-10 space-y-4">
-                <span className="bg-primary/20 backdrop-blur-md text-primary font-bold text-xs px-3 py-1 rounded-full uppercase tracking-wider border border-primary/30 inline-block">
-                  Cổng Đối Tác CleanZ
-                </span>
-                <h2 className="text-3xl font-black font-serif leading-tight">
-                  Tự chủ cuộc sống, tối đa hóa thu nhập cùng CleanZ.
-                </h2>
-                <p className="text-slate-200 text-sm leading-relaxed">
-                  Trở thành đối tác dọn dẹp chuyên nghiệp chuẩn 5 sao để nhận lịch làm việc ổn định, thu nhập cao và tự quyết định thời gian của riêng bạn.
-                </p>
+                style={{
+                  background: C.inputBg,
+                  border: `1px solid ${C.borderSoft}`,
+                  borderRadius: 9,
+                  padding: "10px 12px",
+                  fontSize: 13,
+                  color: C.text,
+                  lineHeight: 1.55,
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {reviewNote || "Vui lòng kiểm tra lại toàn bộ giấy tờ và thông tin đã nộp."}
               </div>
+              <p style={{ margin: "8px 0 0", fontSize: 12, color: C.textFaint }}>
+                Ảnh cũ được giữ trong các ô bên dưới — chỉ thay phần cần sửa rồi gửi lại.
+              </p>
             </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-[2rem] p-6 shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition-all duration-300">
-                <Coins className="w-8 h-8 text-primary mb-2 block" />
-                <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-wider">Thu nhập hấp dẫn</h4>
-                <p className="text-lg font-black mt-1 text-slate-800 dark:text-white">15 - 20 Triệu/tháng</p>
-              </div>
-              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-[2rem] p-6 shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition-all duration-300">
-                <Clock className="w-8 h-8 text-primary mb-2 block" />
-                <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-wider">Thời gian tự do</h4>
-                <p className="text-lg font-black mt-1 text-slate-800 dark:text-white">Tự chọn ca làm</p>
-              </div>
-              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-[2rem] p-6 shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition-all duration-300 col-span-2 flex items-center gap-4">
-                <GraduationCap className="w-10 h-10 text-primary shrink-0" />
-                <div>
-                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-wider">Đào tạo chuẩn 5 sao</h4>
-                  <p className="text-base font-bold mt-0.5 text-slate-800 dark:text-white">Miễn phí 100% tài liệu & thực hành nghiệp vụ</p>
-                </div>
-              </div>
-            </div>
+        {/* Stepper */}
+        {step < 4 && (
+          <div
+            style={{
+              background: C.panel,
+              border: `1px solid ${C.borderSoft}`,
+              borderRadius: 16,
+              padding: "22px 24px 18px",
+              marginBottom: 22,
+            }}
+          >
+            <Stepper current={step} onJump={setStep} />
+          </div>
+        )}
 
-            <div className="bg-white/45 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-[2.5rem] p-8 shadow-xl">
-              <h3 className="text-lg font-black font-serif mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
-                <Sparkles className="w-5 h-5 text-primary shrink-0" /> Sự khác biệt vượt trội
-              </h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-12 items-center text-[10px] pb-2 border-b border-black/10 dark:border-white/10 text-muted-foreground font-bold uppercase tracking-wider">
-                  <div className="col-span-4">Quyền lợi</div>
-                  <div className="col-span-4 text-primary">CleanZ Partner</div>
-                  <div className="col-span-4 text-right">Lao động tự do</div>
+        {/* Card */}
+        <div
+          style={{
+            background: C.panel,
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 16,
+            padding: "30px 30px 28px",
+          }}
+        >
+          {/* ---------- STEP 0: CÁ NHÂN ---------- */}
+          {step === 0 && (
+            <div>
+              <SectionTitle icon={User} sub="Thông tin định danh và liên hệ cơ bản">
+                Thông tin cá nhân
+              </SectionTitle>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                <Field label="Họ và tên" required error={errors.fullName}>
+                  <TextInput icon={User} placeholder="Nguyễn Văn A" value={form.fullName} error={!!errors.fullName} onChange={(e) => set("fullName", e.target.value)} />
+                </Field>
+                <Field label="Số điện thoại" required error={errors.phone}>
+                  <TextInput icon={Phone} placeholder="0901234567" value={form.phone} error={!!errors.phone} onChange={(e) => set("phone", e.target.value)} />
+                </Field>
+              </div>
+
+              <Field label="Địa chỉ theo CCCD" required error={errors.cccdAddress}>
+                <TextInput
+                  icon={MapPin}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
+                  value={form.cccdAddress}
+                  error={!!errors.cccdAddress}
+                  onChange={(e) => set("cccdAddress", e.target.value)}
+                />
+              </Field>
+
+              <Field
+                label="Chỗ ở hiện tại"
+                required
+                error={errors.currentAddress}
+                hint="Dùng để phân công việc gần khu vực bạn sinh sống"
+              >
+                <TextInput icon={MapPin} placeholder="Địa chỉ nơi bạn đang ở" value={form.currentAddress} error={!!errors.currentAddress} onChange={(e) => set("currentAddress", e.target.value)} />
+              </Field>
+
+              {/* Kinh nghiệm */}
+              <div style={{ marginTop: 8, paddingTop: 22, borderTop: `1px solid ${C.borderSoft}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <Briefcase size={16} style={{ color: C.accent }} />
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>Kinh nghiệm làm việc</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExperiences((p) => [...p, { company: "", role: "", years: "" }])}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: C.accentSoft,
+                      border: `1px solid ${C.accentDim}`,
+                      color: C.accent,
+                      borderRadius: 8,
+                      padding: "7px 12px",
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus size={14} /> Thêm
+                  </button>
                 </div>
-                {[
-                  ["Khách hàng", "Đơn đều mỗi ngày", "Tự tìm kiếm vất vả"],
-                  ["Mức thu nhập", "80K - 120K / giờ", "Bấp bênh không ổn định"],
-                  ["An toàn", "Hỗ trợ & Bảo hiểm", "Chịu rủi ro một mình"],
-                ].map(([label, good, bad], i) => (
-                  <div key={i} className="grid grid-cols-12 items-center py-1">
-                    <div className="col-span-4 font-bold text-xs text-slate-700 dark:text-slate-300">{label}</div>
-                    <div className="col-span-4 text-primary font-bold text-xs">{good}</div>
-                    <div className="col-span-4 text-right text-xs text-muted-foreground">{bad}</div>
+
+                {experiences.map((exp, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: C.panelAlt,
+                      border: `1px solid ${C.borderSoft}`,
+                      borderRadius: 11,
+                      padding: 16,
+                      marginBottom: 12,
+                      position: "relative",
+                    }}
+                  >
+                    {experiences.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setExperiences((p) => p.filter((_, i) => i !== idx))}
+                        style={{ position: "absolute", top: 12, right: 12, background: "transparent", border: "none", color: C.textFaint, cursor: "pointer", padding: 4 }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                    <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.7fr", gap: 12 }}>
+                      {([
+                        ["Nơi làm việc", "company", "Công ty / hộ gia đình"],
+                        ["Vị trí / công việc", "role", "Giúp việc, dọn dẹp…"],
+                        ["Số năm", "years", "2"],
+                      ] as const).map(([lbl, key, ph]) => (
+                        <div key={key}>
+                          <span style={{ fontSize: 11.5, color: C.textMute, fontWeight: 600, display: "block", marginBottom: 6 }}>{lbl}</span>
+                          <TextInput
+                            placeholder={ph}
+                            value={exp[key]}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setExperiences((p) => p.map((x, i) => (i === idx ? { ...x, [key]: v } : x)));
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          )}
 
-          {/* CỘT PHẢI: FORM WIZARD */}
-          <div className="col-span-12 lg:col-span-7 flex flex-col space-y-8">
-            <div className="lg:hidden text-center mb-6">
-              <span className="bg-primary/20 backdrop-blur-md text-primary font-bold text-xs px-3 py-1 rounded-full uppercase tracking-wider border border-primary/30 inline-block mb-3">
-                Cổng Đối Tác
+          {/* ---------- STEP 1: XÁC MINH ---------- */}
+          {step === 1 && (
+            <div>
+              <SectionTitle icon={ShieldCheck} sub="Cung cấp giấy tờ tùy thân để xác thực danh tính">
+                Xác minh danh tính
+              </SectionTitle>
+
+              <Field label="Số CCCD" required error={errors.cccdNumber}>
+                <TextInput
+                  icon={CreditCard}
+                  placeholder="12 chữ số trên căn cước"
+                  maxLength={12}
+                  value={form.cccdNumber}
+                  error={!!errors.cccdNumber}
+                  onChange={(e) => set("cccdNumber", e.target.value.replace(/\D/g, "").slice(0, 12))}
+                />
+              </Field>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 6 }}>
+                <UploadBox label="Ảnh CCCD mặt trước" value={cccdFront} onChange={onSlot("cccdFront", setCccdFront)} hint="Rõ nét, không lóa sáng" error={errors.cccdFront} />
+                <UploadBox label="Ảnh CCCD mặt sau" value={cccdBack} onChange={onSlot("cccdBack", setCccdBack)} hint="Hiển thị đầy đủ thông tin" error={errors.cccdBack} />
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <UploadBox label="Ảnh selfie cầm CCCD" value={selfie} onChange={onSlot("selfie", setSelfie)} aspect="4/2" hint="Khuôn mặt và giấy tờ cùng khung hình" error={errors.selfie} />
+              </div>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                  background: C.accentSoft,
+                  border: `1px solid ${C.accentDim}`,
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                }}
+              >
+                <Camera size={16} style={{ color: C.accent, marginTop: 1, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, color: C.textMute, lineHeight: 1.5 }}>
+                  Ảnh selfie phải thấy rõ khuôn mặt và mặt trước CCCD trên cùng một bức ảnh. Tránh đeo khẩu trang hoặc kính râm.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ---------- STEP 2: PHÁP LÝ ---------- */}
+          {step === 2 && (
+            <div>
+              <SectionTitle icon={FileText} sub="Thông tin thanh toán và giấy tờ pháp lý">
+                Pháp lý & thanh toán
+              </SectionTitle>
+
+              <div style={{ background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 12, padding: 18, marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                  <Building2 size={15} style={{ color: C.accent }} />
+                  <span style={{ fontSize: 13.5, fontWeight: 700 }}>Tài khoản ngân hàng nhận thu nhập</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
+                  <Field label="Ngân hàng" required error={errors.bankName}>
+                    <TextInput placeholder="Vietcombank, Techcombank…" value={form.bankName} error={!!errors.bankName} onChange={(e) => set("bankName", e.target.value)} />
+                  </Field>
+                  <Field label="Số tài khoản" required error={errors.bankAccount}>
+                    <TextInput icon={CreditCard} placeholder="0123456789" value={form.bankAccount} error={!!errors.bankAccount} onChange={(e) => set("bankAccount", e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Chủ tài khoản" required error={errors.bankHolder} hint="Phải trùng với họ tên trên CCCD">
+                  <TextInput icon={User} placeholder="NGUYEN VAN A" value={form.bankHolder} error={!!errors.bankHolder} onChange={(e) => set("bankHolder", e.target.value.toUpperCase())} />
+                </Field>
+              </div>
+
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.textMute, display: "block", marginBottom: 14 }}>
+                Giấy tờ pháp lý
               </span>
-              <h1 className="text-3xl font-black font-serif mb-2 text-slate-800 dark:text-white">
-                Trở thành đối tác CleanZ
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Gia nhập đội ngũ đối tác dọn dẹp chuẩn 5 sao và tối ưu hóa thu nhập ngay hôm nay.
-              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                <UploadBox label="Lý lịch tư pháp *" value={docJudicial} onChange={onSlot("docJudicial", setDocJudicial)} aspect="3/4" error={errors.docJudicial} />
+                <UploadBox label="Giấy khám sức khỏe" value={docHealth} onChange={setDocHealth} aspect="3/4" />
+                <UploadBox label="Chứng chỉ (nếu có)" value={docCert} onChange={setDocCert} aspect="3/4" />
+              </div>
             </div>
+          )}
 
-            {currentStep < 5 && (
-              <StepHeader
-                currentStep={currentStep}
-                steps={STEPS}
-                onStepClick={setCurrentStep}
-                maxStepReached={maxStepReached}
+          {/* ---------- STEP 3: XÁC NHẬN ---------- */}
+          {step === 3 && (
+            <div>
+              <SectionTitle icon={ClipboardCheck} sub="Kiểm tra lại toàn bộ thông tin trước khi gửi duyệt">
+                Xác nhận thông tin
+              </SectionTitle>
+
+              <ReviewGroup
+                title="Cá nhân"
+                onEdit={() => setStep(0)}
+                rows={[
+                  ["Họ và tên", form.fullName],
+                  ["Số điện thoại", form.phone],
+                  ["Địa chỉ CCCD", form.cccdAddress],
+                  ["Chỗ ở hiện tại", form.currentAddress],
+                  [
+                    "Kinh nghiệm",
+                    experiences
+                      .filter((e) => e.company || e.role)
+                      .map((e) => `${e.role || "—"} @ ${e.company || "—"} (${e.years || "?"} năm)`)
+                      .join("; ") || "Chưa nhập",
+                  ],
+                ]}
               />
-            )}
 
-            <div className="relative">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {currentStep === 0 && (
-                    <StepPersonalInfo
-                      initialValues={personalInfo}
-                      onNext={handleNext}
-                      isSubmitting={false}
-                    />
-                  )}
-                  {currentStep === 1 && (
-                    <StepServiceSelection
-                      initialSelectedIds={serviceIds}
-                      onBack={handleBack}
-                      onNext={handleNext}
-                      isSubmitting={false}
-                    />
-                  )}
-                  {currentStep === 2 && (
-                    <StepIdentityVerification 
-                      initialDocuments={[]}
-                      initialDocIdNumber={docIdNumber}
-                      initialCitizenCardFiles={citizenCard}
-                      initialSelfieFiles={idWithSelfie}
-                      onBack={handleBack} 
-                      onNext={handleNext} 
-                    />
-                  )}
-                  {currentStep === 3 && (
-                    <StepLegalAndPayment
-                      initialValues={bankInfo}
-                      initialDocuments={[]}
-                      initialCriminalRecord={criminalRecord}
-                      initialHealthCert={healthCertificate}
-                      initialCertificate={certificate}
-                      onBack={handleBack}
-                      onNext={handleNext}
-                      isSubmitting={false}
-                    />
-                  )}
-                  {currentStep === 4 && (
-                    <StepReview
-                      personalInfo={personalInfo}
-                      serviceIds={serviceIds}
-                      availableServices={services?.data || []}
-                      bankInfo={bankInfo}
-                      files={{
-                        citizenCard,
-                        idWithSelfie,
-                        criminalRecord,
-                        healthCertificate,
-                        certificate,
-                      }}
-                      existingDocs={[]}
-                      onBack={handleBack}
-                      onSubmit={handleSubmitAll}
-                      isSubmitting={isSubmittingAll}
-                      submitProgress={submitProgress}
-                    />
-                  )}
-                  {currentStep === 5 && <StepSuccess />}
-                </motion.div>
-              </AnimatePresence>
+              <ReviewGroup
+                title="Xác minh"
+                onEdit={() => setStep(1)}
+                rows={[["Số CCCD", form.cccdNumber]]}
+                images={[
+                  ["CCCD trước", cccdFront],
+                  ["CCCD sau", cccdBack],
+                  ["Selfie", selfie],
+                ]}
+              />
+
+              <ReviewGroup
+                title="Pháp lý & thanh toán"
+                onEdit={() => setStep(2)}
+                rows={[
+                  ["Ngân hàng", form.bankName],
+                  ["Số tài khoản", form.bankAccount],
+                  ["Chủ tài khoản", form.bankHolder],
+                ]}
+                images={[
+                  ["Tư pháp", docJudicial],
+                  ["Sức khỏe", docHealth],
+                  ["Chứng chỉ", docCert],
+                ]}
+              />
+
+              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 8, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={agree}
+                  onChange={(e) => setAgree(e.target.checked)}
+                  style={{ marginTop: 3, accentColor: C.accent }}
+                />
+                <span style={{ fontSize: 12.5, color: C.textMute, lineHeight: 1.5 }}>
+                  Tôi cam kết thông tin và giấy tờ cung cấp là chính xác, đồng ý để CleanZ xác minh và xử lý theo điều khoản dịch vụ.
+                </span>
+              </label>
             </div>
-          </div>
+          )}
 
+          {/* ---------- STEP 4: HOÀN TẤT ---------- */}
+          {step === 4 && (
+            <div style={{ textAlign: "center", padding: "20px 0 14px" }}>
+              <div
+                style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: 22,
+                  background: C.accentSoft,
+                  border: `1px solid ${C.accentDim}`,
+                  display: "grid",
+                  placeItems: "center",
+                  margin: "0 auto 22px",
+                }}
+              >
+                <PartyPopper size={34} style={{ color: C.accent }} />
+              </div>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Đã gửi hồ sơ thành công</h2>
+              <p style={{ margin: "12px auto 0", maxWidth: 420, fontSize: 14, color: C.textFaint, lineHeight: 1.6 }}>
+                Hồ sơ của bạn đang chờ duyệt. Đội ngũ CleanZ sẽ xem xét trong 24–48 giờ và gửi kết quả qua số điện thoại{" "}
+                <span style={{ color: C.text, fontWeight: 600 }}>{profile?.phone || form.phone || "đã đăng ký"}</span>.
+              </p>
+
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 26, flexWrap: "wrap" }}>
+                {[
+                  ["Mã hồ sơ", profile?.id ? `#${profile.id.slice(0, 8).toUpperCase()}` : "Đang cấp"],
+                  ["Trạng thái", "Chờ duyệt"],
+                  ["Dự kiến", "24–48 giờ"],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 11, padding: "14px 20px", minWidth: 130 }}>
+                    <div style={{ fontSize: 11.5, color: C.textFaint, marginBottom: 5 }}>{k}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ---------- NAV ---------- */}
+          {step < 4 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: 30,
+                paddingTop: 22,
+                borderTop: `1px solid ${C.borderSoft}`,
+              }}
+            >
+              <button
+                type="button"
+                onClick={back}
+                disabled={step === 0 || submitting}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "transparent",
+                  border: `1px solid ${C.border}`,
+                  color: step === 0 ? C.textFaint : C.text,
+                  borderRadius: 10,
+                  padding: "11px 18px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: step === 0 ? "not-allowed" : "pointer",
+                  opacity: step === 0 ? 0.5 : 1,
+                }}
+              >
+                <ChevronLeft size={16} /> Quay lại
+              </button>
+
+              <span style={{ fontSize: 12.5, color: C.textFaint }}>Bước {step + 1} / 4</span>
+
+              <button
+                type="button"
+                onClick={next}
+                disabled={submitting}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: C.accent,
+                  border: "none",
+                  color: C.onAccent,
+                  borderRadius: 10,
+                  padding: "11px 22px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: submitting ? "wait" : "pointer",
+                  opacity: submitting ? 0.7 : 1,
+                }}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Đang gửi…
+                  </>
+                ) : (
+                  <>
+                    {step === 3 ? "Gửi duyệt" : "Tiếp tục"}
+                    <ChevronRight size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

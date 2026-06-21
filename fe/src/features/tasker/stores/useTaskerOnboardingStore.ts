@@ -11,7 +11,6 @@ interface TaskerOnboardingState {
     addressResident?: string;
     addressCurrent?: string;
   };
-  serviceIds: string[];
   docIdNumber: string;
   bankInfo: {
     bankName?: string;
@@ -20,6 +19,8 @@ interface TaskerOnboardingState {
   };
   currentStep: number;
   maxStepReached: number;
+  // User sở hữu dữ liệu đang lưu — để reset khi đổi tài khoản trên cùng trình duyệt
+  ownerUserId: string | null;
 
   // Transient state (not persisted)
   citizenCard: File[];
@@ -30,7 +31,6 @@ interface TaskerOnboardingState {
 
   // Actions
   setPersonalInfo: (info: Partial<TaskerOnboardingState["personalInfo"]>) => void;
-  setServiceIds: (ids: string[]) => void;
   setDocIdNumber: (id: string) => void;
   setBankInfo: (info: Partial<TaskerOnboardingState["bankInfo"]>) => void;
   setCurrentStep: (step: number) => void;
@@ -40,30 +40,45 @@ interface TaskerOnboardingState {
     files: File[]
   ) => void;
   resetStore: () => void;
+  /** Reset toàn bộ nếu user đang đăng nhập khác với chủ dữ liệu đã lưu */
+  syncOwner: (userId: string | null) => void;
 }
+
+const EMPTY_STATE: Pick<
+  TaskerOnboardingState,
+  | "personalInfo"
+  | "docIdNumber"
+  | "bankInfo"
+  | "currentStep"
+  | "maxStepReached"
+  | "citizenCard"
+  | "idWithSelfie"
+  | "criminalRecord"
+  | "healthCertificate"
+  | "certificate"
+> = {
+  personalInfo: {},
+  docIdNumber: "",
+  bankInfo: {},
+  currentStep: 0,
+  maxStepReached: 0,
+  citizenCard: [],
+  idWithSelfie: [],
+  criminalRecord: [],
+  healthCertificate: [],
+  certificate: [],
+};
 
 export const useTaskerOnboardingStore = create<TaskerOnboardingState>()(
   persist(
     (set) => ({
-      // Default persisted state
-      personalInfo: {},
-      serviceIds: [],
-      docIdNumber: "",
-      bankInfo: {},
-      currentStep: 0,
-      maxStepReached: 0,
-
-      // Default transient state
-      citizenCard: [],
-      idWithSelfie: [],
-      criminalRecord: [],
-      healthCertificate: [],
-      certificate: [],
+      // Default state
+      ...EMPTY_STATE,
+      ownerUserId: null,
 
       // Actions
       setPersonalInfo: (info) =>
         set((state) => ({ personalInfo: { ...state.personalInfo, ...info } })),
-      setServiceIds: (ids) => set({ serviceIds: ids }),
       setDocIdNumber: (id) => set({ docIdNumber: id }),
       setBankInfo: (info) =>
         set((state) => ({ bankInfo: { ...state.bankInfo, ...info } })),
@@ -71,30 +86,23 @@ export const useTaskerOnboardingStore = create<TaskerOnboardingState>()(
       setMaxStepReached: (step) =>
         set((state) => ({ maxStepReached: Math.max(state.maxStepReached, step) })),
       setFiles: (type, files) => set({ [type]: files }),
-      resetStore: () =>
-        set({
-          personalInfo: {},
-          serviceIds: [],
-          docIdNumber: "",
-          bankInfo: {},
-          currentStep: 0,
-          maxStepReached: 0,
-          citizenCard: [],
-          idWithSelfie: [],
-          criminalRecord: [],
-          healthCertificate: [],
-          certificate: [],
-        }),
+      resetStore: () => set({ ...EMPTY_STATE }),
+      syncOwner: (userId) =>
+        set((state) =>
+          state.ownerUserId === userId
+            ? {}
+            : { ...EMPTY_STATE, ownerUserId: userId },
+        ),
     }),
     {
       name: "tasker-onboarding-storage",
       // Chỉ persist các field text/metadata, loại trừ các File object không serialize được
       partialize: (state) => ({
         personalInfo: state.personalInfo,
-        serviceIds: state.serviceIds,
         bankInfo: state.bankInfo,
         currentStep: state.currentStep,
         maxStepReached: state.maxStepReached,
+        ownerUserId: state.ownerUserId,
       }),
     }
   )

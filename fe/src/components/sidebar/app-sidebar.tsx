@@ -7,7 +7,6 @@ import {
   HeadphonesIcon,
   LayoutDashboard,
   Settings2,
-  ShieldCheck,
   Users,
   UserCog,
   Wallet,
@@ -107,11 +106,6 @@ const systemSettings = [
     name: "Cài đặt hệ thống",
     url: "/admin/settings",
     icon: <Settings2 />,
-  },
-  {
-    name: "Nhân viên hệ thống",
-    url: "/admin/staff",
-    icon: <ShieldCheck />,
   },
 ]
 

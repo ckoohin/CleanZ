@@ -28,6 +28,12 @@ export class TaskerEntity {
   @Column({ name: 'bio', type: 'text', nullable: true })
   bio?: string | null;
 
+  @Column({ name: 'experience', type: 'text', nullable: true })
+  experience?: string | null;
+
+  @Column({ name: 'skills', type: 'text', nullable: true })
+  skills?: string | null;
+
   @Column({
     type: 'enum',
     enum: TaskerStatus,

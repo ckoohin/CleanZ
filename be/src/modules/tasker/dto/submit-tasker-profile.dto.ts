@@ -36,6 +36,30 @@ export class SubmitTaskerProfileDto {
   )
   bio?: string;
 
+  @ApiPropertyOptional({
+    example: '3 năm làm dọn dẹp văn phòng và nhà ở.',
+    description: 'Kinh nghiệm làm việc của tasker',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  experience?: string;
+
+  @ApiPropertyOptional({
+    example: 'Dọn dẹp, giặt ủi, nấu ăn',
+    description: 'Kỹ năng của tasker (chuỗi tự do hoặc phân tách bởi dấu phẩy)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  skills?: string;
+
   @ApiProperty({
     example: '09876543210',
     description:

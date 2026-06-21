@@ -91,6 +91,20 @@ export function useRequestMoreInfoTasker() {
   });
 }
 
+export function useDeleteTaskerProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminTaskerApi.deleteTaskerProfile(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminTaskerKeys.all });
+      toast.success("Đã xóa hồ sơ. Ứng viên sẽ cần nộp lại từ đầu.");
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Lỗi khi xóa hồ sơ"));
+    },
+  });
+}
+
 export function useBanTasker() {
   const queryClient = useQueryClient();
   return useMutation({

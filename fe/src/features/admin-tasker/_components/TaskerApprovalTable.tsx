@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BaseTableList,
   type Column,
@@ -17,13 +18,9 @@ import {
 import {
   useAdminTasker,
   useApproveTasker,
-  useRejectTasker,
-  useRequestMoreInfoTasker,
 } from "../hooks/admin-tasker.hooks";
 import { TaskerStatus } from "@/features/tasker/types/tasker.type";
 import type { AdminTasker, AdminTaskerFilter } from "../types/admin-tasker.types";
-import { TaskerDetailModal } from "./TaskerDetailModal";
-import { AdminReviewModal } from "./AdminReviewModal";
 import { Eye, CheckCircle, Info, XCircle, Trash2, Clock, ListFilter } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,16 +53,12 @@ export const TaskerApprovalTable: React.FC = () => {
   });
 
   const approveMutation = useApproveTasker();
-  const rejectMutation = useRejectTasker();
-  const requestInfoMutation = useRequestMoreInfoTasker();
+  const router = useRouter();
 
   const [, setSelectedTaskers] = useState<AdminTasker[]>([]);
-  const [selectedTaskerId, setSelectedTaskerId] = useState<string | null>(null);
-  const [reviewModal, setReviewModal] = useState<{
-    isOpen: boolean;
-    taskerId: string;
-    type: "reject" | "request_info";
-  }>({ isOpen: false, taskerId: "", type: "reject" });
+
+  const goToDetail = (id: string) =>
+    router.push(`/admin/taskers/verification/${id}`);
 
   const displayData = response?.data ?? [];
   const totalItems = response?.total ?? 0;
@@ -76,11 +69,21 @@ export const TaskerApprovalTable: React.FC = () => {
       title: "Ứng viên",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
-            {row.fullName?.[0]?.toUpperCase() || "U"}
+          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+            {row.avatarUrl ? (
+              <img
+                src={row.avatarUrl}
+                alt={row.fullName}
+                className="w-full h-full rounded-xl object-cover"
+              />
+            ) : (
+              row.fullName?.[0]?.toUpperCase() || "U"
+            )}
           </div>
           <div>
-            <p className="font-semibold text-sm">{row.fullName || "Chưa cập nhật"}</p>
+            <p className="font-bold text-sm text-foreground/90">
+              {row.fullName || "Chưa cập nhật"}
+            </p>
             <p className="text-xs text-muted-foreground">{row.phone || "N/A"}</p>
           </div>
         </div>
@@ -101,7 +104,7 @@ export const TaskerApprovalTable: React.FC = () => {
       title: "Ngày đăng ký",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold">
+        <span className="text-xs font-semibold text-muted-foreground">
           {row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "N/A"}
         </span>
       ),
@@ -144,32 +147,18 @@ export const TaskerApprovalTable: React.FC = () => {
 
   const rowActions: RowAction<AdminTasker>[] = [
     {
+      type: "approve",
+      label: "Xem & duyệt hồ sơ",
+      icon: CheckCircle,
+      onClick: (row) => goToDetail(row.id),
+      hidden: (row) => !canReview(row),
+    },
+    {
       type: "view",
       label: "Xem chi tiết",
       icon: Eye,
-      onClick: (row) => setSelectedTaskerId(row.id),
-    },
-    {
-      type: "approve",
-      label: "Duyệt hồ sơ",
-      icon: CheckCircle,
-      onClick: (row) => approveMutation.mutate(row.id),
-      hidden: (row) => !canReview(row),
-    },
-    {
-      label: "Yêu cầu bổ sung",
-      icon: Info,
-      onClick: (row) =>
-        setReviewModal({ isOpen: true, taskerId: row.id, type: "request_info" }),
-      hidden: (row) => !canReview(row),
-    },
-    {
-      label: "Từ chối",
-      icon: XCircle,
-      variant: "destructive",
-      onClick: (row) =>
-        setReviewModal({ isOpen: true, taskerId: row.id, type: "reject" }),
-      hidden: (row) => !canReview(row),
+      onClick: (row) => goToDetail(row.id),
+      hidden: (row) => canReview(row),
     },
   ];
 
@@ -199,7 +188,16 @@ export const TaskerApprovalTable: React.FC = () => {
   ];
 
   return (
-    <>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold tracking-tight">Xác minh hồ sơ nhân viên</h1>
+          <p className="text-xs text-muted-foreground">
+            Kiểm tra, lọc theo trạng thái và phê duyệt các yêu cầu trở thành đối tác.
+          </p>
+        </div>
+      </div>
+
       <BaseTableList
         columns={columns}
         data={displayData}
@@ -226,7 +224,7 @@ export const TaskerApprovalTable: React.FC = () => {
               setFilter((prev) => ({ ...prev, status: val as DocFilter, page: 1 }))
             }
           >
-            <SelectTrigger className="h-11 min-w-[160px] rounded-xl border-border/60 bg-background text-sm font-medium focus:ring-primary/20">
+            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-border/40 bg-background text-sm font-medium shadow-none">
               <SelectValue placeholder="Lọc trạng thái" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
@@ -259,39 +257,6 @@ export const TaskerApprovalTable: React.FC = () => {
           </Select>
         }
       />
-
-      {selectedTaskerId && (
-        <TaskerDetailModal
-          taskerId={selectedTaskerId}
-          isOpen={!!selectedTaskerId}
-          onClose={() => setSelectedTaskerId(null)}
-        />
-      )}
-
-      <AdminReviewModal
-        isOpen={reviewModal.isOpen}
-        onClose={() => setReviewModal((prev) => ({ ...prev, isOpen: false }))}
-        title={reviewModal.type === "reject" ? "Từ chối hồ sơ" : "Yêu cầu bổ sung thông tin"}
-        description={
-          reviewModal.type === "reject"
-            ? "Vui lòng cho biết lý do bạn từ chối hồ sơ này. Nhân viên sẽ nhận được thông báo này."
-            : "Vui lòng mô tả chi tiết những thông tin hoặc giấy tờ mà nhân viên cần cập nhật thêm."
-        }
-        isLoading={rejectMutation.isPending || requestInfoMutation.isPending}
-        onConfirm={(notes) => {
-          if (reviewModal.type === "reject") {
-            rejectMutation.mutate(
-              { id: reviewModal.taskerId, notes },
-              { onSuccess: () => setReviewModal((prev) => ({ ...prev, isOpen: false })) }
-            );
-          } else {
-            requestInfoMutation.mutate(
-              { id: reviewModal.taskerId, notes },
-              { onSuccess: () => setReviewModal((prev) => ({ ...prev, isOpen: false })) }
-            );
-          }
-        }}
-      />
-    </>
+    </div>
   );
 };
