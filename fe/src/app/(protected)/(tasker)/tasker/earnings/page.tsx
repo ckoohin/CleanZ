@@ -28,10 +28,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateTaskerWithdrawal,
+  useTaskerDepositTransactions,
   useTaskerWallet,
   useTaskerWalletTransactions,
 } from "@/features/tasker/hooks/useTaskerWallet";
 import type {
+  TaskerDepositTransaction,
   TaskerWalletTransaction,
   TaskerWithdrawalRequest,
 } from "@/features/tasker/types/tasker-wallet.types";
@@ -65,13 +67,17 @@ export default function TaskerEarningsPage() {
   const { data: wallet, isLoading: walletLoading } = useTaskerWallet();
   const { data: transactions, isLoading: transactionsLoading } =
     useTaskerWalletTransactions();
+  const { data: depositTransactions, isLoading: depositTransactionsLoading } =
+    useTaskerDepositTransactions();
 
   const totalIncome = useMemo(
     () =>
       transactions?.items
         .filter((transaction) => transaction.type === "TASKER_EARNING")
-        .reduce((total, transaction) => total + Number(transaction.amount), 0) ??
-      0,
+        .reduce(
+          (total, transaction) => total + Number(transaction.amount),
+          0,
+        ) ?? 0,
     [transactions],
   );
 
@@ -165,7 +171,9 @@ export default function TaskerEarningsPage() {
               </div>
               <div className="mt-2 flex justify-between text-xs text-muted-foreground">
                 <span>Mức yêu cầu</span>
-                <span>{formatCurrency(Number(wallet?.requiredDeposit ?? 0))}</span>
+                <span>
+                  {formatCurrency(Number(wallet?.requiredDeposit ?? 0))}
+                </span>
               </div>
             </>
           )}
@@ -180,9 +188,7 @@ export default function TaskerEarningsPage() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-bold">Yêu cầu đang chờ duyệt</p>
-              <Badge className="bg-amber-500/10 text-amber-700">
-                PENDING
-              </Badge>
+              <Badge className="bg-amber-500/10 text-amber-700">PENDING</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {formatCurrency(Number(recentRequest.amount))} ·{" "}
@@ -217,10 +223,7 @@ export default function TaskerEarningsPage() {
             ))
           ) : transactions?.items.length ? (
             transactions.items.map((transaction) => (
-              <TransactionRow
-                key={transaction.id}
-                transaction={transaction}
-              />
+              <TransactionRow key={transaction.id} transaction={transaction} />
             ))
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 text-center">
@@ -229,6 +232,43 @@ export default function TaskerEarningsPage() {
               <p className="text-sm text-muted-foreground">
                 Thu nhập từ các booking online sẽ xuất hiện tại đây.
               </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <ShieldCheck className="size-5 text-amber-600" />
+              Lịch sử ký quỹ
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Bao gồm phần phí nền tảng được khấu trừ khi ví thu nhập không đủ.
+            </p>
+          </div>
+          <Badge variant="outline" className="rounded-full">
+            {depositTransactions?.length ?? 0} giao dịch
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          {depositTransactionsLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-20 rounded-2xl" />
+            ))
+          ) : depositTransactions?.length ? (
+            depositTransactions.map((transaction) => (
+              <DepositTransactionRow
+                key={transaction.id}
+                transaction={transaction}
+              />
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center">
+              <ShieldCheck className="mx-auto size-8 text-muted-foreground/50" />
+              <p className="mt-3 font-bold">Ký quỹ chưa có biến động</p>
             </div>
           )}
         </div>
@@ -245,6 +285,60 @@ export default function TaskerEarningsPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function DepositTransactionRow({
+  transaction,
+}: {
+  transaction: TaskerDepositTransaction;
+}) {
+  const isCredit =
+    Number(transaction.balanceAfter) >= Number(transaction.balanceBefore);
+  const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
+  const label =
+    transaction.type === "CASH_COMMISSION_DEDUCT"
+      ? "Phí nền tảng từ ký quỹ"
+      : transaction.type === "TERMINATION_REFUND"
+        ? "Hoàn ký quỹ khi nghỉ việc"
+        : transaction.type === "TOP_UP"
+          ? "Nạp bổ sung ký quỹ"
+          : "Khấu trừ ký quỹ";
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-card p-4">
+      <div
+        className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${
+          isCredit
+            ? "bg-emerald-500/10 text-emerald-600"
+            : "bg-amber-500/10 text-amber-600"
+        }`}
+      >
+        <Icon className="size-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold">{label}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {transaction.description || "Biến động số dư ký quỹ"}
+        </p>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {new Date(transaction.createdAt).toLocaleString("vi-VN")}
+        </p>
+      </div>
+      <div className="text-right">
+        <p
+          className={`font-black ${
+            isCredit ? "text-emerald-600" : "text-amber-600"
+          }`}
+        >
+          {isCredit ? "+" : "-"}
+          {formatCurrency(Math.abs(Number(transaction.amount)))}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          Cọc còn {formatCurrency(Number(transaction.balanceAfter))}
+        </p>
+      </div>
     </div>
   );
 }
@@ -384,8 +478,8 @@ function WithdrawalDialog({
           </div>
 
           <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm text-foreground/80">
-            Thông tin ngân hàng được lấy tự động từ hồ sơ. Nếu cần thay đổi,
-            hãy cập nhật hồ sơ Tasker trước khi gửi yêu cầu.
+            Thông tin ngân hàng được lấy tự động từ hồ sơ. Nếu cần thay đổi, hãy
+            cập nhật hồ sơ Tasker trước khi gửi yêu cầu.
           </div>
 
           <div className="space-y-2">

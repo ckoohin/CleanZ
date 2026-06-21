@@ -59,6 +59,8 @@ export interface WalletTransaction {
     ownerType: WalletOwnerType;
     balance: number | string;
     holdBalance: number | string;
+    tasker?: WalletOwnerProfile | null;
+    customer?: WalletOwnerProfile | null;
   };
   type: WalletTransactionType;
   amount: number | string;

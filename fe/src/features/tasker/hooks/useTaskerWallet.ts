@@ -8,6 +8,8 @@ export const taskerWalletKeys = {
   all: ["tasker-wallet"] as const,
   detail: () => [...taskerWalletKeys.all, "detail"] as const,
   transactions: () => [...taskerWalletKeys.all, "transactions"] as const,
+  depositTransactions: () =>
+    [...taskerWalletKeys.all, "deposit-transactions"] as const,
 };
 
 export function useTaskerWallet() {
@@ -21,6 +23,13 @@ export function useTaskerWalletTransactions() {
   return useQuery({
     queryKey: taskerWalletKeys.transactions(),
     queryFn: taskerWalletApi.getTransactions,
+  });
+}
+
+export function useTaskerDepositTransactions() {
+  return useQuery({
+    queryKey: taskerWalletKeys.depositTransactions(),
+    queryFn: taskerWalletApi.getDepositTransactions,
   });
 }
 

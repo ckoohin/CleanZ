@@ -43,6 +43,24 @@ export interface TaskerWalletTransactionList {
   items: TaskerWalletTransaction[];
 }
 
+export interface TaskerDepositTransaction {
+  id: string;
+  type:
+    | "CASH_COMMISSION_DEDUCT"
+    | "INCIDENT_COMPENSATION_DEDUCT"
+    | "TOP_UP"
+    | "TERMINATION_REFUND";
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  description?: string | null;
+  createdAt: string;
+  booking?: {
+    id: string;
+    bookingCode?: string;
+  } | null;
+}
+
 export interface CreateTaskerWithdrawalPayload {
   amount: number;
   note?: string;

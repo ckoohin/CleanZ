@@ -45,8 +45,7 @@ const formatCurrency = (value: number | string | undefined) =>
     maximumFractionDigits: 0,
   }).format(Number(value ?? 0));
 
-const shortId = (value: string) =>
-  `${value.slice(0, 8)}…${value.slice(-4)}`;
+const shortId = (value: string) => `${value.slice(0, 8)}…${value.slice(-4)}`;
 
 const STATUS_OPTIONS: Array<{
   value: StatusFilter;
@@ -97,10 +96,10 @@ export function WithdrawalManagement() {
       render: (row) => (
         <div>
           <p className="text-sm font-bold text-foreground">
-            Tasker #{row.taskerId.slice(0, 8)}
+            {row.tasker?.user?.fullName || "-"}
           </p>
-          <p className="font-mono text-[11px] text-muted-foreground">
-            {shortId(row.taskerId)}
+          <p className="text-[11px] text-muted-foreground">
+            {row.tasker?.user?.email || shortId(row.taskerId)}
           </p>
         </div>
       ),
@@ -183,9 +182,7 @@ export function WithdrawalManagement() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">
-          Yêu cầu rút tiền
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight">Yêu cầu rút tiền</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Kiểm tra số dư, thông tin ngân hàng và xét duyệt yêu cầu của Tasker.
         </p>
@@ -229,9 +226,7 @@ export function WithdrawalManagement() {
         totalItems={data?.total ?? 0}
         page={filter.page}
         limit={filter.limit}
-        onPageChange={(page) =>
-          setFilter((current) => ({ ...current, page }))
-        }
+        onPageChange={(page) => setFilter((current) => ({ ...current, page }))}
         onLimitChange={(limit) =>
           setFilter((current) => ({ ...current, limit, page: 1 }))
         }

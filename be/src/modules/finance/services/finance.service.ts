@@ -44,7 +44,7 @@ export class FinanceService {
   async findOneWithdrawal(id: string): Promise<WithdrawalRequestEntity> {
     const wr = await this.withdrawalRepo.findOne({
       where: { id },
-      relations: ['wallet'],
+      relations: ['wallet', 'tasker', 'tasker.user'],
     });
     if (!wr) throw new NotFoundException('WITHDRAWAL_NOT_FOUND');
     return wr;

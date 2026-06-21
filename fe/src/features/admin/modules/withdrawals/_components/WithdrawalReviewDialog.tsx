@@ -52,9 +52,6 @@ const formatCurrency = (value: number | string | undefined) =>
 const formatDate = (value: string | null | undefined) =>
   value ? new Date(value).toLocaleString("vi-VN") : "—";
 
-const shortId = (value: string | undefined) =>
-  value ? `${value.slice(0, 8)}…${value.slice(-4)}` : "—";
-
 const BANK_CODE_ALIASES: Record<string, string> = {
   VIETCOMBANK: "VCB",
   VCB: "VCB",
@@ -97,12 +94,10 @@ const buildVietQrUrl = ({
   bankName,
   bankAccount,
   amount,
-  withdrawalId,
 }: {
   bankName: string;
   bankAccount: string;
   amount: number | string;
-  withdrawalId: string;
 }) => {
   const bankCode = normalizeBankCode(bankName);
   const account = bankAccount.replace(/\s/g, "");
@@ -190,9 +185,8 @@ export function WithdrawalReviewDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               <InfoCard
                 icon={UserRound}
-                label="Mã Tasker"
-                value={shortId(withdrawal.taskerId)}
-                onCopy={() => copy(withdrawal.taskerId)}
+                label="Tasker"
+                value={withdrawal.tasker?.user?.fullName || "-"}
               />
               <InfoCard
                 icon={WalletCards}
@@ -362,7 +356,6 @@ function TransferQr({
     bankName,
     bankAccount,
     amount,
-    withdrawalId,
   });
 
   return (
@@ -373,9 +366,6 @@ function TransferQr({
         </div>
         <div>
           <p className="text-sm font-bold">Quét QR để chuyển khoản</p>
-          <p className="text-xs text-muted-foreground">
-            QR đã điền sẵn tài khoản, số tiền và nội dung.
-          </p>
         </div>
       </div>
 

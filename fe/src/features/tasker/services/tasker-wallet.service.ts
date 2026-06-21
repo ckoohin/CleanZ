@@ -1,6 +1,7 @@
 import http from "@/lib/api/http";
 import type {
   CreateTaskerWithdrawalPayload,
+  TaskerDepositTransaction,
   TaskerWallet,
   TaskerWalletTransactionList,
   TaskerWithdrawalRequest,
@@ -15,6 +16,11 @@ export const taskerWalletApi = {
   getTransactions: (): Promise<TaskerWalletTransactionList> =>
     http
       .get<TaskerWalletTransactionList>(`${BASE}/transactions`)
+      .then((response) => response.data),
+
+  getDepositTransactions: (): Promise<TaskerDepositTransaction[]> =>
+    http
+      .get<TaskerDepositTransaction[]>(`${BASE}/deposit/transactions`)
       .then((response) => response.data),
 
   createWithdrawal: (

@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { WithdrawalStatus } from '../../../common/enums/with-drawal-status.enum';
 import { WalletEntity } from '../../wallet/entity/wallet.entity';
+import { TaskerEntity } from '../../tasker/entity/tasker.entity';
 
 @Entity('tasker_withdrawal_requests')
 export class WithdrawalRequestEntity {
@@ -18,6 +19,13 @@ export class WithdrawalRequestEntity {
   @Index('idx_tasker_withdrawal_tasker_id')
   @Column({ type: 'uuid', name: 'tasker_id' })
   taskerId!: string;
+
+  @ManyToOne(() => TaskerEntity, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({ name: 'tasker_id' })
+  tasker!: TaskerEntity;
 
   @Index('idx_tasker_withdrawal_wallet_id')
   @Column({ type: 'uuid', name: 'wallet_id' })

@@ -50,6 +50,11 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
 
     const qb = this.createQueryBuilder('wt')
       .leftJoinAndSelect('wt.wallet', 'w')
+      .leftJoinAndSelect('wt.booking', 'booking')
+      .leftJoinAndSelect('w.tasker', 'tasker')
+      .leftJoinAndSelect('tasker.user', 'taskerUser')
+      .leftJoinAndSelect('w.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'customerUser')
       .orderBy('wt.createdAt', 'DESC');
 
     if (walletId) qb.andWhere('w.id = :walletId', { walletId });
@@ -115,6 +120,8 @@ export class WithdrawalRequestRepository extends Repository<WithdrawalRequestEnt
 
     const qb = this.createQueryBuilder('wr')
       .leftJoinAndSelect('wr.wallet', 'w')
+      .leftJoinAndSelect('wr.tasker', 'tasker')
+      .leftJoinAndSelect('tasker.user', 'taskerUser')
       .orderBy('wr.createdAt', 'DESC');
 
     if (status) qb.andWhere('wr.status = :status', { status });

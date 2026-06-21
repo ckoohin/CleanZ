@@ -5,10 +5,10 @@ import {
   ArrowUpRight,
   CalendarClock,
   FileText,
-  Fingerprint,
   Link2,
   ReceiptText,
   type LucideIcon,
+  UserRound,
   WalletCards,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -72,6 +72,8 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
   const balanceAfter = Number(transaction.balanceAfter);
   const isCredit = balanceAfter >= balanceBefore;
   const AmountIcon = isCredit ? ArrowDownLeft : ArrowUpRight;
+  const walletOwner = getWalletOwner(transaction);
+  const reference = getReferenceInfo(transaction);
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
@@ -81,8 +83,8 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
             <ReceiptText className="size-5 text-primary" />
             Chi tiết giao dịch
           </SheetTitle>
-          <SheetDescription className="break-all font-mono text-xs">
-            {transaction.id}
+          <SheetDescription>
+            {TRANSACTION_LABELS[transaction.type]} · {walletOwner.name}
           </SheetDescription>
         </SheetHeader>
 
@@ -134,37 +136,14 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
                 }
               />
               <DetailRow
-                icon={Fingerprint}
-                label="Reference ID"
-                value={transaction.referenceId ?? "Không có"}
-                mono
-              />
-              <DetailRow
-                icon={Fingerprint}
-                label="Wallet ID"
-                value={transaction.wallet?.id ?? "Không có"}
-                mono
-              />
-              <DetailRow
-                icon={WalletCards}
-                label="Chủ ví"
-                value={
-                  transaction.wallet?.ownerType
-                    ? OWNER_LABELS[transaction.wallet.ownerType]
-                    : "Không xác định"
-                }
-              />
-              <DetailRow
                 icon={ReceiptText}
-                label="Booking"
-                value={
-                  transaction.booking
-                    ? transaction.booking.bookingCode || transaction.booking.id
-                    : "Không có"
-                }
-                mono={Boolean(
-                  transaction.booking && !transaction.booking.bookingCode,
-                )}
+                label={reference.label}
+                value={reference.value}
+              />
+              <DetailRow
+                icon={UserRound}
+                label="Ví thực hiện"
+                value={walletOwner.detail}
               />
             </section>
 
@@ -186,6 +165,75 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
       </SheetContent>
     </Sheet>
   );
+}
+
+function getWalletOwner(transaction: WalletTransaction): {
+  name: string;
+  detail: string;
+} {
+  const wallet = transaction.wallet;
+  if (!wallet) {
+    return { name: "Không xác định", detail: "Không xác định được ví" };
+  }
+
+  if (wallet.ownerType === "SYSTEM") {
+    return { name: "Ví hệ thống", detail: "Ví hệ thống CleanZ" };
+  }
+
+  const profile =
+    wallet.ownerType === "TASKER" ? wallet.tasker : wallet.customer;
+  const ownerType = OWNER_LABELS[wallet.ownerType];
+  const fullName = profile?.user?.fullName;
+  const email = profile?.user?.email;
+
+  if (!fullName) {
+    return { name: ownerType, detail: ownerType };
+  }
+
+  return {
+    name: fullName,
+    detail: email
+      ? `${ownerType}: ${fullName} · ${email}`
+      : `${ownerType}: ${fullName}`,
+  };
+}
+
+function getReferenceInfo(transaction: WalletTransaction): {
+  label: string;
+  value: string;
+} {
+  switch (transaction.referenceType) {
+    case "BOOKING":
+      return {
+        label: "Booking liên quan",
+        value:
+          transaction.booking?.bookingCode ?? "Booking phát sinh giao dịch này",
+      };
+    case "WITHDRAWAL_REQUEST":
+      return {
+        label: "Yêu cầu liên quan",
+        value: transaction.description || "Yêu cầu rút tiền",
+      };
+    case "ADMIN_ADJUSTMENT": {
+      const actor = transaction.description?.match(
+        /Điều chỉnh bởi Admin:\s*(.+)$/,
+      )?.[1];
+      return {
+        label: "Người điều chỉnh",
+        value: actor || "Admin hệ thống",
+      };
+    }
+    case "TASKER_TERMINATION":
+      return {
+        label: "Nghiệp vụ liên quan",
+        value: "Hoàn ký quỹ khi Tasker nghỉ việc",
+      };
+    default:
+      return {
+        label: "Đối tượng liên quan",
+        value: transaction.description || "Giao dịch nội bộ hệ thống",
+      };
+  }
 }
 
 function InfoCard({

@@ -24,6 +24,15 @@ export interface WithdrawalRequest {
   processedAt: string | null;
   createdAt: string;
   wallet?: WithdrawalWallet;
+  tasker?: {
+    id: string;
+    user?: {
+      id: string;
+      fullName: string;
+      email: string;
+      phone?: string | null;
+    };
+  };
 }
 
 export interface WithdrawalListQuery {
