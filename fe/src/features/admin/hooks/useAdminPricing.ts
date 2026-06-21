@@ -8,9 +8,11 @@ import {
   UpdatePeakDayConfigDto,
 } from '../services/admin-pricing.service';
 
+import { AxiosError } from 'axios';
+
 export const ADMIN_PRICING_KEYS = {
   allConfigs: ['admin-pricing-configs'] as const,
-  configs: (params: any) => ['admin-pricing-configs', params] as const,
+  configs: (params?: { page?: number; limit?: number; serviceId?: string }) => ['admin-pricing-configs', params] as const,
   configDetail: (id: string) => ['admin-pricing-config', id] as const,
   
   allPeakDays: ['admin-peak-days'] as const,
@@ -44,8 +46,9 @@ export function useCreatePricingConfig() {
       toast.success('Đã tạo bảng giá thành công!');
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allConfigs });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo bảng giá');
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 }
@@ -61,8 +64,9 @@ export function useUpdatePricingConfig() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allConfigs });
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.configDetail(variables.id) });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bảng giá');
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 }
@@ -76,8 +80,9 @@ export function useDeletePricingConfig() {
       toast.success('Xóa bảng giá thành công!');
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allConfigs });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa bảng giá');
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 }
@@ -108,8 +113,9 @@ export function useCreatePeakDay() {
       toast.success('Thêm ngày cao điểm thành công!');
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allPeakDays });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi thêm ngày cao điểm');
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 }
@@ -125,8 +131,9 @@ export function useUpdatePeakDay() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allPeakDays });
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.peakDayDetail(variables.id) });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật ngày cao điểm');
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 }
@@ -140,8 +147,9 @@ export function useDeletePeakDay() {
       toast.success('Xóa ngày cao điểm thành công!');
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allPeakDays });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa ngày cao điểm');
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message: string }>;
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 }
