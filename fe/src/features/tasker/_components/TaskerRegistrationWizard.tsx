@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { StepHeader } from "./steps/StepHeader";
@@ -10,18 +10,11 @@ import { StepIdentityVerification } from "./steps/StepIdentityVerification";
 import { StepLegalAndPayment } from "./steps/StepLegalAndPayment";
 import { StepReview } from "./steps/StepReview";
 import { StepSuccess } from "./steps/StepSuccess";
-import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { TaskerStatus } from "../types/tasker.type";
-import { parseAdminNotes } from "@/features/admin-tasker/_components/AdminRequestInfoModal";
 import {
   useTaskerProfile,
-  useApplyTasker,
-  useUpdateTaskerProfile,
-  useAddTaskerService,
-  useUpdateTaskerDocuments,
+  useSubmitTaskerProfile,
   useAvailableServices,
-  useMyTaskerServices,
-  useMyDocuments,
 } from "../hooks/tasker.hooks";
 import { useTaskerOnboardingStore } from "../stores/useTaskerOnboardingStore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,63 +35,17 @@ export interface ProgressStep {
   status: "idle" | "loading" | "success" | "error";
 }
 
-/**
- * Tính toán step cần resume dựa trên data server.
- */
-function computeResumeStep(
-  profile: { 
-    phone?: string; 
-    bio?: string;
-    hasCitizenCardImage?: boolean;
-    hasIdWithSelfieImage?: boolean;
-    hasCriminalRecordImage?: boolean;
-    hasHealthCertificateImage?: boolean;
-    bankName?: string;
-    approvalStatus?: string;
-    adminNotes?: string;
-  } | undefined | null,
-  hasRegisteredServices: boolean,
-): number {
-  if (!profile) return 0;
-
-  if (profile.approvalStatus === TaskerStatus.NEED_INFO && profile.adminNotes) {
-    const parsed = parseAdminNotes(profile.adminNotes);
-    if (parsed && parsed.itemLabels.length > 0) {
-      if (parsed.itemLabels.includes("Ảnh CCCD") || parsed.itemLabels.includes("Selfie + CCCD") || parsed.itemLabels.includes("CCCD / CMND")) return 2;
-      if (parsed.itemLabels.includes("Lý lịch tư pháp") || parsed.itemLabels.includes("Giấy khám sức khỏe")) return 3;
-      if (parsed.itemLabels.includes("Thông tin cá nhân")) return 0;
-      if (parsed.itemLabels.includes("Dịch vụ")) return 1;
-    }
-  }
-
-  if (!profile.phone || !profile.bio) return 0;
-  if (!hasRegisteredServices) return 1;
-  if (!profile.hasCitizenCardImage || !profile.hasIdWithSelfieImage) return 2;
-  if (!profile.hasCriminalRecordImage || !profile.hasHealthCertificateImage || !profile.bankName) {
-    return 3;
-  }
-
-  // Đã có đầy đủ thông tin cơ bản -> Cho phép đến bước Xác nhận (Review)
-  return 4;
-}
-
 export const TaskerRegistrationWizard: React.FC = () => {
   const router = useRouter();
-  const { data: user, isLoading: isUserLoading } = useAuth();
   const { data: profile, isLoading: isProfileLoading } = useTaskerProfile();
   const { data: services } = useAvailableServices();
-  const { data: myServices, isLoading: isServicesLoading } = useMyTaskerServices(profile?.id);
-  const { data: myDocsData, isLoading: isDocsLoading } = useMyDocuments(profile?.id);
 
-  const applyMutation = useApplyTasker();
-  const updateProfileMutation = useUpdateTaskerProfile();
-  const addServiceMutation = useAddTaskerService();
-  const updateDocsMutation = useUpdateTaskerDocuments();
+  const submitMutation = useSubmitTaskerProfile();
 
-  // Zustand Store
   const {
     personalInfo,
     serviceIds,
+    docIdNumber,
     bankInfo,
     currentStep,
     maxStepReached,
@@ -109,6 +56,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
     certificate,
     setPersonalInfo,
     setServiceIds,
+    setDocIdNumber,
     setBankInfo,
     setCurrentStep,
     setMaxStepReached,
@@ -116,16 +64,12 @@ export const TaskerRegistrationWizard: React.FC = () => {
     resetStore,
   } = useTaskerOnboardingStore();
 
-  // Loading tổng hợp khi nộp toàn bộ thông tin ở cuối
   const [isSubmittingAll, setIsSubmittingAll] = useState(false);
   const [submitProgress, setSubmitProgress] = useState<ProgressStep[]>([
-    { label: "Khởi tạo tài khoản đối tác", status: "idle" },
-    { label: "Cập nhật thông tin cá nhân & ngân hàng", status: "idle" },
-    { label: "Đăng ký lĩnh vực hoạt động", status: "idle" },
-    { label: "Tải lên tài liệu pháp lý xác minh", status: "idle" },
+    { label: "Nộp hồ sơ & tải lên giấy tờ", status: "idle" },
   ]);
 
-  // Redirect về /tasker nếu hồ sơ đang chờ hoặc đã được duyệt
+  // Redirect về /tasker nếu hồ sơ đang PENDING hoặc đã APPROVED
   useEffect(() => {
     if (isProfileLoading || !profile) return;
     if (
@@ -136,45 +80,19 @@ export const TaskerRegistrationWizard: React.FC = () => {
     }
   }, [profile, isProfileLoading, router]);
 
-  // Tính toán resume step từ server data để khởi tạo maxStepReached
-  const resumeStep = useMemo(() => {
-    if (isProfileLoading) return null;
-    if (!profile) return 0;
-    if (isServicesLoading) return null;
-    const hasServices = Array.isArray(myServices) && myServices.length > 0;
-    return computeResumeStep(profile, hasServices);
-  }, [profile, myServices, isProfileLoading, isServicesLoading]);
-
-  // Thiết lập step bắt đầu hoặc nạp lại step cũ khi vào trang lần đầu
-  useEffect(() => {
-    if (resumeStep !== null) {
-      // Ưu tiên nạp step hiện tại trong Zustand (nếu có lưu từ LocalStorage), 
-      // nhưng giới hạn bởi resumeStep từ server để đảm bảo không nhảy cóc trái phép
-      if (currentStep === 0 && resumeStep > 0) {
-        setCurrentStep(resumeStep);
-        setMaxStepReached(resumeStep);
-      } else {
-        setMaxStepReached(resumeStep);
-      }
-    }
-  }, [resumeStep]);
-
-  // ĐỒNG BỘ DỮ LIỆU CŨ TỪ SERVER VÀO ZUSTAND
+  // Đồng bộ dữ liệu cũ từ server vào Zustand nếu chưa có local
   useEffect(() => {
     if (isProfileLoading || !profile) return;
-    
-    // Chỉ nạp dữ liệu từ server nếu Zustand store cục bộ chưa có dữ liệu (tránh ghi đè dữ liệu mới đang gõ)
     if (Object.keys(personalInfo).length === 0 && profile.phone) {
       setPersonalInfo({
         bio: profile.bio || "",
-        experience: profile.experience || "",
+        experience: (profile as { experience?: string }).experience || "",
         phone: profile.phone || "",
-        skills: profile.skills || "",
-        addressResident: profile.addressResident || "",
-        addressCurrent: profile.addressCurrent || "",
+        skills: (profile as { skills?: string }).skills || "",
+        addressResident: (profile as { addressResident?: string }).addressResident || "",
+        addressCurrent: (profile as { addressCurrent?: string }).addressCurrent || "",
       });
     }
-
     if (Object.keys(bankInfo).length === 0 && profile.bankName) {
       setBankInfo({
         bankName: profile.bankName || "",
@@ -184,190 +102,118 @@ export const TaskerRegistrationWizard: React.FC = () => {
     }
   }, [profile, isProfileLoading]);
 
-  useEffect(() => {
-    if (isServicesLoading || !myServices) return;
-
-    if (serviceIds.length === 0 && myServices.length > 0) {
-      setServiceIds(myServices.map(s => s.serviceId));
-    }
-  }, [myServices, isServicesLoading]);
-
-  // Xử lý chuyển step linh hoạt (Chỉ lưu vào Zustand, hoàn toàn không gọi API)
-  const handleNext = (stepData: any) => {
-    if (currentStep === null) return;
-
+  // Handlers chuyển step (chỉ lưu local, không gọi API)
+  const handleNext = (stepData: unknown) => {
     if (currentStep === 0) {
-      // Step 0: Cá nhân
-      setPersonalInfo(stepData);
-      const nextStep = 1;
-      setCurrentStep(nextStep);
-      setMaxStepReached(nextStep);
+      setPersonalInfo(stepData as typeof personalInfo);
+      goToStep(1);
     } else if (currentStep === 1) {
-      // Step 1: Dịch vụ (dạng mảng ID)
-      setServiceIds(stepData);
-      const nextStep = 2;
-      setCurrentStep(nextStep);
-      setMaxStepReached(nextStep);
+      setServiceIds(stepData as string[]);
+      goToStep(2);
     } else if (currentStep === 2) {
-      // Step 2: Xác minh (CCCD & Selfie files)
-      setFiles("citizenCard", stepData.citizenCard || []);
-      setFiles("idWithSelfie", stepData.idWithSelfie || []);
-      const nextStep = 3;
-      setCurrentStep(nextStep);
-      setMaxStepReached(nextStep);
+      const data = stepData as { citizenCard: File[]; idWithSelfie: File[]; docIdNumber: string };
+      setDocIdNumber(data.docIdNumber);
+      setFiles("citizenCard", data.citizenCard || []);
+      setFiles("idWithSelfie", data.idWithSelfie || []);
+      goToStep(3);
     } else if (currentStep === 3) {
-      // Step 3: Pháp lý & Thanh toán
+      const data = stepData as {
+        bankName: string;
+        bankAccountNumber: string;
+        bankAccountName: string;
+        criminalRecord: File[];
+        healthCertificate: File[];
+        certificate: File[];
+      };
       setBankInfo({
-        bankName: stepData.bankName,
-        bankAccountNumber: stepData.bankAccountNumber,
-        bankAccountName: stepData.bankAccountName,
+        bankName: data.bankName,
+        bankAccountNumber: data.bankAccountNumber,
+        bankAccountName: data.bankAccountName,
       });
-      setFiles("criminalRecord", stepData.criminalRecord || []);
-      setFiles("healthCertificate", stepData.healthCertificate || []);
-      setFiles("certificate", stepData.certificate || []);
-      
-      const nextStep = 4; // Sang Step 4 (Review)
-      setCurrentStep(nextStep);
-      setMaxStepReached(nextStep);
+      setFiles("criminalRecord", data.criminalRecord || []);
+      setFiles("healthCertificate", data.healthCertificate || []);
+      setFiles("certificate", data.certificate || []);
+      goToStep(4);
     }
+  };
+
+  const goToStep = (step: number) => {
+    setCurrentStep(step);
+    setMaxStepReached(step);
   };
 
   const handleBack = () => {
-    if (currentStep !== null && currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
 
-  // NỘP TOÀN BỘ HỒ SƠ TUẦN TỰ LÊN SERVER (FINAL SUBMIT PROGRESS)
+  /**
+   * FINAL SUBMIT — Gom tất cả data thành 1 FormData và gọi POST /tasker/profile
+   * BE nhận: phone, bio, workingAddress, docType, docIdNumber, bankName, bankAccountNumber,
+   *          bankAccountName, + files: avatar, docFront, docBack, criminalRecord, healthCertificate, certificate
+   */
   const handleSubmitAll = async () => {
-    if (!user?.id) {
-      toast.error("Phiên đăng nhập không hợp lệ!");
+    if (!personalInfo.phone) {
+      toast.error("Thiếu thông tin: Số điện thoại");
+      return;
+    }
+    if (citizenCard.length < 2 && !profile?.hasCitizenCardImage) {
+      toast.error("Vui lòng tải lên đủ ảnh CCCD (mặt trước và sau)");
+      return;
+    }
+    if (idWithSelfie.length < 1 && !profile?.hasIdWithSelfieImage) {
+      toast.error("Vui lòng tải lên ảnh selfie cầm CCCD (avatar)");
       return;
     }
 
     setIsSubmittingAll(true);
-    let currentProfileId = profile?.id;
-
-    // Reset trạng thái tiến trình
-    setSubmitProgress([
-      { label: "Khởi tạo tài khoản đối tác", status: "idle" },
-      { label: "Cập nhật thông tin cá nhân & ngân hàng", status: "idle" },
-      { label: "Đăng ký lĩnh vực hoạt động", status: "idle" },
-      { label: "Tải lên tài liệu pháp lý xác minh", status: "idle" },
-    ]);
+    setSubmitProgress([{ label: "Nộp hồ sơ & tải lên giấy tờ", status: "loading" }]);
 
     try {
-      // BƯỚC 1: Khởi tạo tài khoản
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 0 ? { ...s, status: "loading" } : s));
-      if (!currentProfileId) {
-        const newProfile = await applyMutation.mutateAsync(user.id);
-        currentProfileId = newProfile.id;
-      }
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 0 ? { ...s, status: "success" } : s));
+      const formData = new FormData();
 
-      // BƯỚC 2: Cập nhật profile & Bank
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 1 ? { ...s, status: "loading" } : s));
-      await updateProfileMutation.mutateAsync({
-        id: currentProfileId,
-        data: {
-          bio: personalInfo.bio,
-          experience: personalInfo.experience,
-          phone: personalInfo.phone,
-          skills: personalInfo.skills,
-          addressResident: personalInfo.addressResident,
-          addressCurrent: personalInfo.addressCurrent,
-          bankName: bankInfo.bankName,
-          bankAccountNumber: bankInfo.bankAccountNumber,
-          bankAccountName: bankInfo.bankAccountName,
-        }
-      });
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 1 ? { ...s, status: "success" } : s));
+      // ── Thông tin văn bản ────────────────────────────────────────
+      formData.append("phone", personalInfo.phone ?? "");
+      if (personalInfo.bio) formData.append("bio", personalInfo.bio);
+      if (personalInfo.addressCurrent) formData.append("workingAddress", personalInfo.addressCurrent);
 
-      // BƯỚC 3: Đăng ký dịch vụ (Chỉ đăng ký những dịch vụ mới chưa có trên server)
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 2 ? { ...s, status: "loading" } : s));
-      if (services?.data) {
-        const servicesToAdd = serviceIds.filter(
-          id => !myServices?.some(ms => String(ms.serviceId) === String(id))
-        );
+      // docType & docIdNumber — BE bắt buộc
+      formData.append("docType", "CITIZEN_ID");
+      formData.append("docIdNumber", docIdNumber);
 
-        const promises = servicesToAdd.map((serviceId: string) => {
-          const service = services.data.find((s: any) => String(s.id) === String(serviceId));
-          if (service) {
-            return addServiceMutation.mutateAsync({
-              id: currentProfileId!,
-              data: {
-                serviceId,
-                locationTypes: service.supportedLocationTypes || ["home"],
-                shopAddress: service.supportedLocationTypes?.includes("at_shop") ? "Địa chỉ mặc định" : undefined
-              }
-            });
-          }
-          return Promise.resolve();
-        });
-        await Promise.all(promises);
-      }
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 2 ? { ...s, status: "success" } : s));
+      if (bankInfo.bankName) formData.append("bankName", bankInfo.bankName);
+      if (bankInfo.bankAccountNumber) formData.append("bankAccountNumber", bankInfo.bankAccountNumber);
+      if (bankInfo.bankAccountName) formData.append("bankAccountName", bankInfo.bankAccountName);
 
-      // BƯỚC 4: Tải tài liệu định danh & pháp lý lên Cloudinary (Chỉ gọi API nếu thực sự chọn thêm file mới)
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 3 ? { ...s, status: "loading" } : s));
-      const payload = new FormData();
-      let hasNewFiles = false;
+      // ── Files ────────────────────────────────────────────────────
+      // avatar = ảnh selfie cầm CCCD (mặt người)
+      if (idWithSelfie.length > 0) {
+        formData.append("avatar", idWithSelfie[0]);
+      }
+      // docFront + docBack = 2 ảnh CCCD
+      if (citizenCard.length >= 1) formData.append("docFront", citizenCard[0]);
+      if (citizenCard.length >= 2) formData.append("docBack", citizenCard[1]);
+      if (criminalRecord.length > 0) formData.append("criminalRecord", criminalRecord[0]);
+      if (healthCertificate.length > 0) formData.append("healthCertificate", healthCertificate[0]);
+      if (certificate.length > 0) formData.append("certificate", certificate[0]);
 
-      if (citizenCard && citizenCard.length > 0) {
-        citizenCard.forEach((file: File) => payload.append("citizenCard", file));
-        hasNewFiles = true;
-      }
-      if (idWithSelfie && idWithSelfie.length > 0) {
-        idWithSelfie.forEach((file: File) => payload.append("idWithSelfie", file));
-        hasNewFiles = true;
-      }
-      if (criminalRecord && criminalRecord.length > 0) {
-        criminalRecord.forEach((file: File) => payload.append("criminalRecord", file));
-        hasNewFiles = true;
-      }
-      if (healthCertificate && healthCertificate.length > 0) {
-        healthCertificate.forEach((file: File) => payload.append("healthCertificate", file));
-        hasNewFiles = true;
-      }
-      if (certificate && certificate.length > 0) {
-        certificate.forEach((file: File) => payload.append("certificate", file));
-        hasNewFiles = true;
-      }
+      await submitMutation.mutateAsync(formData);
 
-      if (hasNewFiles) {
-        await updateDocsMutation.mutateAsync({ id: currentProfileId, formData: payload });
-      }
-      setSubmitProgress(prev => prev.map((s, idx) => idx === 3 ? { ...s, status: "success" } : s));
-
-      // HOÀN TẤT
-      toast.success("Nộp hồ sơ đối tác thành công!");
-      resetStore(); // Xóa sạch LocalStorage/Zustand sau khi gửi thành công
-      setCurrentStep(5); // Chuyển sang Step Success (Màn hình 5)
-    } catch (error) {
-      console.error("Lỗi khi nộp hồ sơ:", error);
-      const activeIdx = submitProgress.findIndex(s => s.status === "loading");
-      if (activeIdx !== -1) {
-        setSubmitProgress(prev => prev.map((s, idx) => idx === activeIdx ? { ...s, status: "error" } : s));
-      }
-      toast.error("Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và nộp lại!");
+      setSubmitProgress([{ label: "Nộp hồ sơ & tải lên giấy tờ", status: "success" }]);
+      resetStore();
+      setCurrentStep(5); // Bước thành công
+    } catch {
+      setSubmitProgress([{ label: "Nộp hồ sơ & tải lên giấy tờ", status: "error" }]);
+      toast.error("Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và thử lại!");
     } finally {
       setIsSubmittingAll(false);
     }
   };
 
-  const isLoading =
-    isUserLoading ||
-    isProfileLoading ||
-    (!!profile?.id && isServicesLoading) ||
-    (!!profile?.id && isDocsLoading) ||
-    currentStep === null;
-
+  const isLoading = isProfileLoading || currentStep === null;
   const isRedirecting =
     !isProfileLoading &&
-    (
-      profile?.approvalStatus === TaskerStatus.PENDING ||
-      profile?.approvalStatus === TaskerStatus.APPROVED
-    );
+    (profile?.approvalStatus === TaskerStatus.PENDING ||
+      profile?.approvalStatus === TaskerStatus.APPROVED);
 
   if (isRedirecting) {
     return (
@@ -391,16 +237,15 @@ export const TaskerRegistrationWizard: React.FC = () => {
     <div className="min-h-screen w-full px-0 py-4 md:py-16 md:px-8 lg:px-16 flex items-center justify-center bg-slate-50/50 dark:bg-transparent">
       <div className="w-full max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          
-          {/* CỘT TRÁI: GIỚI THIỆU & TRUYỀN CẢM HỨNG (PC Only - KHÔNG DÙNG EMOJI) */}
+
+          {/* CỘT TRÁI: GIỚI THIỆU (PC Only) */}
           <div className="hidden lg:flex lg:col-span-5 flex-col space-y-8 sticky top-16">
             <div className="relative overflow-hidden rounded-[2.5rem] p-10 min-h-[420px] flex flex-col justify-end text-white bg-slate-900 shadow-2xl group border border-white/10">
-              <div 
-                className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:scale-105 transition-transform duration-700 ease-out" 
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:scale-105 transition-transform duration-700 ease-out"
                 style={{ backgroundImage: `url('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1000&q=80')` }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-              
               <div className="relative z-10 space-y-4">
                 <span className="bg-primary/20 backdrop-blur-md text-primary font-bold text-xs px-3 py-1 rounded-full uppercase tracking-wider border border-primary/30 inline-block">
                   Cổng Đối Tác CleanZ
@@ -414,7 +259,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
               </div>
             </div>
 
-            {/* Thống số nổi bật (Glassmorphism Cards với Lucide Icons) */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-[2rem] p-6 shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition-all duration-300">
                 <Coins className="w-8 h-8 text-primary mb-2 block" />
@@ -435,7 +279,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
               </div>
             </div>
 
-            {/* Bảng so sánh quyền lợi với Lucide Sparkles */}
             <div className="bg-white/45 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-[2.5rem] p-8 shadow-xl">
               <h3 className="text-lg font-black font-serif mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
                 <Sparkles className="w-5 h-5 text-primary shrink-0" /> Sự khác biệt vượt trội
@@ -446,21 +289,17 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   <div className="col-span-4 text-primary">CleanZ Partner</div>
                   <div className="col-span-4 text-right">Lao động tự do</div>
                 </div>
-                <div className="grid grid-cols-12 items-center py-1">
-                  <div className="col-span-4 font-bold text-xs text-slate-700 dark:text-slate-300">Khách hàng</div>
-                  <div className="col-span-4 text-primary font-bold text-xs">Đơn đều mỗi ngày</div>
-                  <div className="col-span-4 text-right text-xs text-muted-foreground">Tự tìm kiếm vất vả</div>
-                </div>
-                <div className="grid grid-cols-12 items-center py-1">
-                  <div className="col-span-4 font-bold text-xs text-slate-700 dark:text-slate-300">Mức thu nhập</div>
-                  <div className="col-span-4 text-primary font-bold text-xs">80K - 120K / giờ</div>
-                  <div className="col-span-4 text-right text-xs text-muted-foreground">Bấp bênh không ổn định</div>
-                </div>
-                <div className="grid grid-cols-12 items-center py-1">
-                  <div className="col-span-4 font-bold text-xs text-slate-700 dark:text-slate-300">An toàn</div>
-                  <div className="col-span-4 text-primary font-bold text-xs">Hỗ trợ & Bảo hiểm</div>
-                  <div className="col-span-4 text-right text-xs text-muted-foreground">Chịu rủi ro một mình</div>
-                </div>
+                {[
+                  ["Khách hàng", "Đơn đều mỗi ngày", "Tự tìm kiếm vất vả"],
+                  ["Mức thu nhập", "80K - 120K / giờ", "Bấp bênh không ổn định"],
+                  ["An toàn", "Hỗ trợ & Bảo hiểm", "Chịu rủi ro một mình"],
+                ].map(([label, good, bad], i) => (
+                  <div key={i} className="grid grid-cols-12 items-center py-1">
+                    <div className="col-span-4 font-bold text-xs text-slate-700 dark:text-slate-300">{label}</div>
+                    <div className="col-span-4 text-primary font-bold text-xs">{good}</div>
+                    <div className="col-span-4 text-right text-xs text-muted-foreground">{bad}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -479,11 +318,10 @@ export const TaskerRegistrationWizard: React.FC = () => {
               </p>
             </div>
 
-            {/* Stepper Header chuyên nghiệp, hỗ trợ click di chuyển linh hoạt giữa các bước đã mở khóa */}
             {currentStep < 5 && (
-              <StepHeader 
-                currentStep={currentStep} 
-                steps={STEPS} 
+              <StepHeader
+                currentStep={currentStep}
+                steps={STEPS}
                 onStepClick={setCurrentStep}
                 maxStepReached={maxStepReached}
               />
@@ -502,7 +340,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                     <StepPersonalInfo
                       initialValues={personalInfo}
                       onNext={handleNext}
-                      isSubmitting={false} // Lưu local nên chạy ngay tức thì không cần quay loading
+                      isSubmitting={false}
                     />
                   )}
                   {currentStep === 1 && (
@@ -514,17 +352,22 @@ export const TaskerRegistrationWizard: React.FC = () => {
                     />
                   )}
                   {currentStep === 2 && (
-                    <StepIdentityVerification
-                      initialDocuments={myDocsData?.documents || []}
-                      onBack={handleBack}
-                      onNext={handleNext}
-                      isSubmitting={false}
+                    <StepIdentityVerification 
+                      initialDocuments={[]}
+                      initialDocIdNumber={docIdNumber}
+                      initialCitizenCardFiles={citizenCard}
+                      initialSelfieFiles={idWithSelfie}
+                      onBack={handleBack} 
+                      onNext={handleNext} 
                     />
                   )}
                   {currentStep === 3 && (
                     <StepLegalAndPayment
                       initialValues={bankInfo}
-                      initialDocuments={myDocsData?.documents || []}
+                      initialDocuments={[]}
+                      initialCriminalRecord={criminalRecord}
+                      initialHealthCert={healthCertificate}
+                      initialCertificate={certificate}
                       onBack={handleBack}
                       onNext={handleNext}
                       isSubmitting={false}
@@ -541,9 +384,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
                         idWithSelfie,
                         criminalRecord,
                         healthCertificate,
-                        certificate
+                        certificate,
                       }}
-                      existingDocs={myDocsData?.documents || []}
+                      existingDocs={[]}
                       onBack={handleBack}
                       onSubmit={handleSubmitAll}
                       isSubmitting={isSubmittingAll}
