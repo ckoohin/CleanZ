@@ -17,14 +17,14 @@ interface MobileSidebarProps {
   city: string;
   navLinks: NavLink[];
   profile?: Profile | null;
-  logout: UseMutationResult<unknown, Error, void, unknown>;
+  logout: UseMutationResult<void, unknown, void, unknown>;
   isMounted: boolean;
 }
 
 export const MobileSidebar: React.FC<MobileSidebarProps> = ({
   mobileOpen,
   setMobileOpen,
-  city,
+  city, 
   navLinks,
   profile,
   logout,

@@ -1,15 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
+import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
-import { IncidentEntity, IncidentStatus } from 'src/modules/incident/entity/incident.entity';
-import { SupportTicketEntity, SupportTicketStatus } from 'src/modules/support-ticket/entity/support-ticket.entity';
-import { WithdrawalEntity, WithdrawalStatus } from 'src/modules/withdrawal/entity/withdrawal.entity';
+import { IncidentEntity } from 'src/modules/incident/entity/incident.entity';
+import { IncidentStatus } from 'src/common/enums/incident-status.enum';
+import {
+  SupportTicketEntity,
+  SupportTicketStatus,
+} from 'src/modules/support-ticket/entity/support-ticket.entity';
+import {
+  WithdrawalEntity,
+  WithdrawalStatus,
+} from 'src/modules/withdrawal/entity/withdrawal.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
+import { ReviewEntity } from 'src/modules/review/entity/review.entity';
+import { TaskerLevelEntity } from 'src/modules/tasker/entity/tasker-level.entity';
+import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { GroupBy } from '../dto/date-range-query.dto';
 
 @Injectable()
@@ -17,95 +28,105 @@ export class AdminDashboardRepository {
   constructor(private readonly dataSource: DataSource) {}
 
   async getAlerts() {
-    const [unassigned, urgentUnassigned, pendingKyc, openIncidents, overdueIncidents, openTickets, slaBreached, pendingWithdrawals, withdrawalTotal] =
-      await Promise.all([
-        // Đơn chưa có tasker nhận
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .where('b.status = :status', { status: BookingStatus.POSTED })
-          .andWhere('b.tasker IS NULL')
-          .getCount(),
+    const [
+      unassigned,
+      urgentUnassigned,
+      pendingKyc,
+      openIncidents,
+      overdueIncidents,
+      openTickets,
+      slaBreached,
+      pendingWithdrawals,
+      withdrawalTotal,
+    ] = await Promise.all([
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.status = :status', { status: BookingStatus.POSTED })
+        .andWhere('b.tasker IS NULL')
+        .getCount(),
 
-        // Đơn chưa có tasker nhận sắp hết hạn (scheduled_start trong 2h)
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .where('b.status = :status', { status: BookingStatus.POSTED })
-          .andWhere('b.tasker IS NULL')
-          .andWhere('b.scheduledStart <= :deadline', {
-            deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
-          })
-          .getCount(),
+      // Đơn chưa có tasker nhận sắp hết hạn (scheduled_start trong 2h)
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.status = :status', { status: BookingStatus.POSTED })
+        .andWhere('b.tasker IS NULL')
+        .andWhere('b.scheduled_start <= :deadline', {
+          deadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        })
+        .getCount(),
 
-        // Tasker chờ duyệt KYC
-        this.dataSource
-          .getRepository(TaskerEntity)
-          .createQueryBuilder('t')
-          .where('t.docStatus = :status', { status: DocumentStatus.PENDING })
-          .getCount(),
+      // Tasker chờ duyệt KYC
+      this.dataSource
+        .getRepository(TaskerEntity)
+        .createQueryBuilder('t')
+        .where('t.docStatus = :status', { status: DocumentStatus.PENDING })
+        .getCount(),
 
-        // Sự cố đang mở
-        this.dataSource
-          .getRepository(IncidentEntity)
-          .createQueryBuilder('i')
-          .where('i.status != :status', { status: IncidentStatus.RESOLVED })
-          .getCount()
-          .catch(() => 0),
+      // Sự cố đang mở (chưa đóng)
+      this.dataSource
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('i')
+        .where('i.status != :status', { status: IncidentStatus.CLOSED })
+        .getCount()
+        .catch(() => 0),
 
-        // Sự cố quá hạn
-        this.dataSource
-          .getRepository(IncidentEntity)
-          .createQueryBuilder('i')
-          .where('i.status != :status', { status: IncidentStatus.RESOLVED })
-          .andWhere('i.overdueAt IS NOT NULL')
-          .andWhere('i.overdueAt < :now', { now: new Date() })
-          .getCount()
-          .catch(() => 0),
+      // Sự cố quá hạn (quá hạn ra quyết định mà chưa đóng)
+      this.dataSource
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('i')
+        .where('i.status != :status', { status: IncidentStatus.CLOSED })
+        .andWhere('i.decisionDueAt IS NOT NULL')
+        .andWhere('i.decisionDueAt < :now', { now: new Date() })
+        .getCount()
+        .catch(() => 0),
 
-        // Ticket đang mở
-        this.dataSource
-          .getRepository(SupportTicketEntity)
-          .createQueryBuilder('t')
-          .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
-          .getCount()
-          .catch(() => 0),
+      // Ticket đang mở
+      this.dataSource
+        .getRepository(SupportTicketEntity)
+        .createQueryBuilder('t')
+        .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
+        .getCount()
+        .catch(() => 0),
 
-        // Ticket vi phạm SLA
-        this.dataSource
-          .getRepository(SupportTicketEntity)
-          .createQueryBuilder('t')
-          .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
-          .andWhere('t.overdueAt IS NOT NULL')
-          .andWhere('t.overdueAt < :now', { now: new Date() })
-          .getCount()
-          .catch(() => 0),
+      // Ticket vi phạm SLA
+      this.dataSource
+        .getRepository(SupportTicketEntity)
+        .createQueryBuilder('t')
+        .where('t.status != :status', { status: SupportTicketStatus.CLOSED })
+        .andWhere('t.slaBreached = :breached', { breached: true })
+        .getCount()
+        .catch(() => 0),
 
-        // Yêu cầu rút tiền chờ duyệt
-        this.dataSource
-          .getRepository(WithdrawalEntity)
-          .createQueryBuilder('w')
-          .where('w.status = :status', { status: WithdrawalStatus.PENDING })
-          .getCount()
-          .catch(() => 0),
+      // Yêu cầu rút tiền chờ duyệt
+      this.dataSource
+        .getRepository(WithdrawalEntity)
+        .createQueryBuilder('w')
+        .where('w.status = :status', { status: WithdrawalStatus.PENDING })
+        .getCount()
+        .catch(() => 0),
 
-        // Tổng tiền rút đang chờ
-        this.dataSource
-          .getRepository(WithdrawalEntity)
-          .createQueryBuilder('w')
-          .select('COALESCE(SUM(w.amount), 0)', 'total')
-          .where('w.status = :status', { status: WithdrawalStatus.PENDING })
-          .getRawOne()
-          .then((r) => Number(r?.total ?? 0))
-          .catch(() => 0),
-      ]);
+      // Tổng tiền rút đang chờ
+      this.dataSource
+        .getRepository(WithdrawalEntity)
+        .createQueryBuilder('w')
+        .select('COALESCE(SUM(w.amount), 0)', 'total')
+        .where('w.status = :status', { status: WithdrawalStatus.PENDING })
+        .getRawOne()
+        .then((r) => Number(r?.total ?? 0))
+        .catch(() => 0),
+    ]);
 
     return {
       unassignedBookings: { count: unassigned, urgentCount: urgentUnassigned },
       pendingKyc: { count: pendingKyc },
       openIncidents: { count: openIncidents, overdueCount: overdueIncidents },
       openTickets: { count: openTickets, slaBreachedCount: slaBreached },
-      pendingWithdrawals: { count: pendingWithdrawals, totalAmount: withdrawalTotal },
+      pendingWithdrawals: {
+        count: pendingWithdrawals,
+        totalAmount: withdrawalTotal,
+      },
     };
   }
 
@@ -117,67 +138,84 @@ export class AdminDashboardRepository {
     const calcChange = (cur: number, prev: number) =>
       prev === 0 ? null : Math.round(((cur - prev) / prev) * 1000) / 10;
 
-    const [cur, prev, activeTaskers, onlineTaskers, totalCustomers, returningCustomers] =
-      await Promise.all([
-        // Kỳ hiện tại
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .select([
-            'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
-            'COUNT(*) AS total_orders',
-            'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
-            'COALESCE(SUM(CASE WHEN b.paymentStatus = :refunded THEN b.totalPrice ELSE 0 END), 0) AS total_refund',
-          ])
-          .where('b.createdAt BETWEEN :from AND :to', { from, to })
-          .setParameter('completed', BookingStatus.COMPLETED)
-          .setParameter('cancelled', [BookingStatus.CANCELLED, BookingStatus.EXPIRED])
-          .setParameter('refunded', 'REFUNDED')
-          .getRawOne(),
+    const [
+      cur,
+      prev,
+      activeTaskers,
+      onlineTaskers,
+      totalCustomers,
+      returningCustomers,
+    ] = await Promise.all([
+      // Kỳ hiện tại
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .select([
+          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.total_price ELSE 0 END), 0) AS gmv',
+          'COUNT(*) AS total_orders',
+          'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
+          'COALESCE(SUM(CASE WHEN b.payment_status = :refunded THEN b.total_price ELSE 0 END), 0) AS total_refund',
+        ])
+        .where('b.createdAt BETWEEN :from AND :to', { from, to })
+        .setParameter('completed', BookingStatus.COMPLETED)
+        .setParameter('cancelled', [
+          BookingStatus.CANCELLED,
+          BookingStatus.EXPIRED,
+        ])
+        .setParameter('refunded', 'REFUNDED')
+        .getRawOne(),
 
-        // Kỳ trước để tính % thay đổi
-        this.dataSource
-          .getRepository(BookingEntity)
-          .createQueryBuilder('b')
-          .select([
-            'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.totalPrice ELSE 0 END), 0) AS gmv',
-            'COUNT(*) AS total_orders',
-            'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
-          ])
-          .where('b.createdAt BETWEEN :from AND :to', { from: prevFrom, to: prevTo })
-          .setParameter('completed', BookingStatus.COMPLETED)
-          .setParameter('cancelled', [BookingStatus.CANCELLED, BookingStatus.EXPIRED])
-          .getRawOne(),
+      // Kỳ trước để tính % thay đổi
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .select([
+          'COALESCE(SUM(CASE WHEN b.status = :completed THEN b.total_price ELSE 0 END), 0) AS gmv',
+          'COUNT(*) AS total_orders',
+          'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
+        ])
+        .where('b.createdAt BETWEEN :from AND :to', {
+          from: prevFrom,
+          to: prevTo,
+        })
+        .setParameter('completed', BookingStatus.COMPLETED)
+        .setParameter('cancelled', [
+          BookingStatus.CANCELLED,
+          BookingStatus.EXPIRED,
+        ])
+        .getRawOne(),
 
-        // Tasker active (snapshot, không filter ngày)
-        this.dataSource
-          .getRepository(TaskerEntity)
-          .createQueryBuilder('t')
-          .where('t.status = :status', { status: TaskerStatus.ACTIVE })
-          .getCount(),
+      // Tasker active (snapshot, không filter ngày)
+      this.dataSource
+        .getRepository(TaskerEntity)
+        .createQueryBuilder('t')
+        .where('t.status = :status', { status: TaskerStatus.ACTIVE })
+        .getCount(),
 
-        // Tasker online
-        this.dataSource
-          .getRepository(TaskerEntity)
-          .createQueryBuilder('t')
-          .where('t.status = :status', { status: TaskerStatus.ACTIVE })
-          .andWhere('t.presenceStatus = :presence', { presence: TASKER_PRESENCE_STATUS.ONLINE })
-          .getCount(),
+      // Tasker online
+      this.dataSource
+        .getRepository(TaskerEntity)
+        .createQueryBuilder('t')
+        .where('t.status = :status', { status: TaskerStatus.ACTIVE })
+        .andWhere('t.presenceStatus = :presence', {
+          presence: TASKER_PRESENCE_STATUS.ONLINE,
+        })
+        .getCount(),
 
-        // Khách hàng mới trong kỳ
-        this.dataSource
-          .getRepository(CustomerEntity)
-          .createQueryBuilder('c')
-          .where('c.createdAt BETWEEN :from AND :to', { from, to })
-          .getCount(),
+      // Khách hàng mới trong kỳ
+      this.dataSource
+        .getRepository(CustomerEntity)
+        .createQueryBuilder('c')
+        .where('c.createdAt BETWEEN :from AND :to', { from, to })
+        .getCount(),
 
-        // Khách quay lại (đặt >= 2 lần)
-        this.dataSource
-          .getRepository(CustomerEntity)
-          .createQueryBuilder('c')
-          .where('c.totalBookings >= 2')
-          .getCount(),
-      ]);
+      // Khách quay lại (đặt >= 2 lần)
+      this.dataSource
+        .getRepository(CustomerEntity)
+        .createQueryBuilder('c')
+        .where('c.totalBookings >= 2')
+        .getCount(),
+    ]);
 
     const gmv = Number(cur.gmv);
     const prevGmv = Number(prev.gmv);
@@ -185,8 +223,12 @@ export class AdminDashboardRepository {
     const prevOrders = Number(prev.total_orders);
     const cancelledOrders = Number(cur.cancelled_orders);
     const prevCancelled = Number(prev.cancelled_orders);
-    const cancelRate = totalOrders > 0 ? Math.round((cancelledOrders / totalOrders) * 1000) / 10 : 0;
-    const prevCancelRate = prevOrders > 0 ? Math.round((prevCancelled / prevOrders) * 1000) / 10 : 0;
+    const cancelRate =
+      totalOrders > 0
+        ? Math.round((cancelledOrders / totalOrders) * 1000) / 10
+        : 0;
+    const prevCancelRate =
+      prevOrders > 0 ? Math.round((prevCancelled / prevOrders) * 1000) / 10 : 0;
     const completedOrders = await this.dataSource
       .getRepository(BookingEntity)
       .createQueryBuilder('b')
@@ -198,16 +240,79 @@ export class AdminDashboardRepository {
     const prevNewCustomers = await this.dataSource
       .getRepository(CustomerEntity)
       .createQueryBuilder('c')
-      .where('c.createdAt BETWEEN :from AND :to', { from: prevFrom, to: prevTo })
+      .where('c.createdAt BETWEEN :from AND :to', {
+        from: prevFrom,
+        to: prevTo,
+      })
       .getCount();
 
+    // Hoa hồng nền tảng = Σ(total_price × commission_rate%) trên đơn hoàn tất.
+    // Lấy rate theo dịch vụ (pricing_configs), mặc định 15% nếu chưa cấu hình.
+    const commissionSql = (f: Date, t: Date) =>
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .leftJoin('pricing_configs', 'pc', 'pc.service_id = b.service_id')
+        .select(
+          'COALESCE(SUM(b.total_price * COALESCE(pc.platform_commission_rate, 15) / 100), 0)',
+          'commission',
+        )
+        .where('b.status = :completed', { completed: BookingStatus.COMPLETED })
+        .andWhere('b.createdAt BETWEEN :f AND :t', { f, t })
+        .getRawOne<{ commission: string }>();
+
+    const [commissionCur, commissionPrev, npsRow] = await Promise.all([
+      commissionSql(from, to),
+      commissionSql(prevFrom, prevTo),
+      // NPS từ reviews trong kỳ: promoter (>=4.5) − detractor (<=3).
+      this.dataSource
+        .getRepository(ReviewEntity)
+        .createQueryBuilder('r')
+        .select([
+          'COUNT(*) AS total',
+          'COUNT(*) FILTER (WHERE r.overall_rating >= 4.5) AS promoters',
+          'COUNT(*) FILTER (WHERE r.overall_rating <= 3) AS detractors',
+        ])
+        .where('r.createdAt BETWEEN :from AND :to', { from, to })
+        .getRawOne<{ total: string; promoters: string; detractors: string }>()
+        .catch(() => null),
+    ]);
+
+    const commission = Number(commissionCur?.commission ?? 0);
+    const prevCommission = Number(commissionPrev?.commission ?? 0);
+    const npsTotal = Number(npsRow?.total ?? 0);
+    const promoters = Number(npsRow?.promoters ?? 0);
+    const detractors = Number(npsRow?.detractors ?? 0);
+    const npsValue =
+      npsTotal > 0 ? Math.round(((promoters - detractors) / npsTotal) * 100) : 0;
+
     return {
+      commission: { value: commission, change: calcChange(commission, prevCommission) },
+      nps: {
+        value: npsValue,
+        promoterPct: npsTotal > 0 ? Math.round((promoters / npsTotal) * 100) : 0,
+        detractorPct: npsTotal > 0 ? Math.round((detractors / npsTotal) * 100) : 0,
+      },
       gmv: { value: gmv, change: calcChange(gmv, prevGmv) },
       aov: { value: aov, change: null },
-      totalOrders: { value: totalOrders, change: calcChange(totalOrders, prevOrders) },
-      cancelRate: { value: cancelRate, change: calcChange(cancelRate, prevCancelRate) },
-      newCustomers: { value: totalCustomers, change: calcChange(totalCustomers, prevNewCustomers) },
-      returningRate: { value: totalCustomers > 0 ? Math.round((returningCustomers / totalCustomers) * 1000) / 10 : 0 },
+      totalOrders: {
+        value: totalOrders,
+        change: calcChange(totalOrders, prevOrders),
+      },
+      cancelRate: {
+        value: cancelRate,
+        change: calcChange(cancelRate, prevCancelRate),
+      },
+      newCustomers: {
+        value: totalCustomers,
+        change: calcChange(totalCustomers, prevNewCustomers),
+      },
+      returningRate: {
+        value:
+          totalCustomers > 0
+            ? Math.round((returningCustomers / totalCustomers) * 1000) / 10
+            : 0,
+      },
       totalRefund: { value: Number(cur.total_refund), change: null },
       activeTaskers: { total: activeTaskers, online: onlineTaskers },
     };
@@ -225,20 +330,22 @@ export class AdminDashboardRepository {
       .getRepository(BookingEntity)
       .createQueryBuilder('b')
       .select([
-        `DATE_TRUNC('${trunc}', b.scheduledStart) AS period`,
-        'COALESCE(SUM(b.totalPrice), 0) AS gmv',
+        `DATE_TRUNC('${trunc}', b.scheduled_start) AS period`,
+        'COALESCE(SUM(b.total_price), 0) AS gmv',
         'COUNT(*) AS orders',
       ])
-      .where('b.scheduledStart BETWEEN :from AND :to', { from, to })
-      .groupBy(`DATE_TRUNC('${trunc}', b.scheduledStart)`)
-      .orderBy(`DATE_TRUNC('${trunc}', b.scheduledStart)`, 'ASC')
+      .where('b.scheduled_start BETWEEN :from AND :to', { from, to })
+      .groupBy(`DATE_TRUNC('${trunc}', b.scheduled_start)`)
+      .orderBy(`DATE_TRUNC('${trunc}', b.scheduled_start)`, 'ASC')
       .getRawMany();
 
     return rows.map((r) => ({
       label: new Date(r.period).toLocaleDateString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
-        ...(groupBy === GroupBy.MONTH ? { month: 'short', day: undefined } : {}),
+        ...(groupBy === GroupBy.MONTH
+          ? { month: 'short', day: undefined }
+          : {}),
       }),
       gmv: Number(r.gmv),
       orders: Number(r.orders),
@@ -272,11 +379,11 @@ export class AdminDashboardRepository {
         .leftJoin('b.customer', 'c')
         .leftJoin('c.user', 'u')
         .select([
-          'b.bookingCode AS "bookingCode"',
-          'u.fullName AS "customerName"',
-          'b.totalPrice AS "totalPrice"',
+          'b.booking_code AS "bookingCode"',
+          'u.full_name AS "customerName"',
+          'b.total_price AS "totalPrice"',
           'b.status AS status',
-          'b.scheduledStart AS "scheduledStart"',
+          'b.scheduled_start AS "scheduledStart"',
         ])
         .where('b.createdAt BETWEEN :from AND :to', { from, to })
         .orderBy('b.createdAt', 'DESC')
@@ -296,14 +403,15 @@ export class AdminDashboardRepository {
 
       // Lý do huỷ đơn
       this.dataSource
-        .getRepository(BookingEntity)
-        .createQueryBuilder('b')
-        .select(['b.cancelledBy AS "cancelledBy"', 'COUNT(*) AS count'])
-        .where('b.status IN (:...statuses)', {
+        .getRepository(BookingStatusLogEntity)
+        .createQueryBuilder('log')
+        .innerJoin('log.booking', 'b')
+        .select(['log.cancelled_by AS "cancelledBy"', 'COUNT(*) AS count'])
+        .where('log.new_status IN (:...statuses)', {
           statuses: [BookingStatus.CANCELLED, BookingStatus.EXPIRED],
         })
-        .andWhere('b.createdAt BETWEEN :from AND :to', { from, to })
-        .groupBy('b.cancelledBy')
+        .andWhere('log.created_at BETWEEN :from AND :to', { from, to })
+        .groupBy('log.cancelled_by')
         .orderBy('count', 'DESC')
         .getRawMany(),
 
@@ -312,10 +420,10 @@ export class AdminDashboardRepository {
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
         .select([
-          `FLOOR(EXTRACT(HOUR FROM b.scheduledStart) / 3) * 3 AS hour_block`,
+          `FLOOR(EXTRACT(HOUR FROM b.scheduled_start) / 3) * 3 AS hour_block`,
           'COUNT(*) AS count',
         ])
-        .where('b.scheduledStart BETWEEN :from AND :to', { from, to })
+        .where('b.scheduled_start BETWEEN :from AND :to', { from, to })
         .groupBy('hour_block')
         .orderBy('hour_block', 'ASC')
         .getRawMany(),
@@ -332,9 +440,18 @@ export class AdminDashboardRepository {
         status: r.status,
         scheduledStart: r.scheduledStart,
       })),
-      recurring: recurring.map((r) => ({ rule: r.rule ?? 'Không xác định', count: Number(r.count) })),
-      cancelReasons: cancelReasons.map((r) => ({ cancelledBy: r.cancelledBy ?? 'SYSTEM', count: Number(r.count) })),
-      peakHours: peakHours.map((r) => ({ hour: hourLabel(Number(r.hour_block)), count: Number(r.count) })),
+      recurring: recurring.map((r) => ({
+        rule: r.rule ?? 'Không xác định',
+        count: Number(r.count),
+      })),
+      cancelReasons: cancelReasons.map((r) => ({
+        cancelledBy: r.cancelledBy ?? 'SYSTEM',
+        count: Number(r.count),
+      })),
+      peakHours: peakHours.map((r) => ({
+        hour: hourLabel(Number(r.hour_block)),
+        count: Number(r.count),
+      })),
     };
   }
 
@@ -367,7 +484,10 @@ export class AdminDashboardRepository {
       paymentMix: paymentRows.map((r) => ({
         method: r.method,
         count: Number(r.count),
-        percent: totalOrders > 0 ? Math.round((Number(r.count) / totalOrders) * 1000) / 10 : 0,
+        percent:
+          totalOrders > 0
+            ? Math.round((Number(r.count) / totalOrders) * 1000) / 10
+            : 0,
       })),
       feeBreakdown: {
         peakFee: Number(feeRow?.peak_fee ?? 0),
@@ -407,7 +527,9 @@ export class AdminDashboardRepository {
           't.docExpiredDate AS "docExpiredDate"',
         ])
         .where('t.docExpiredDate IS NOT NULL')
-        .andWhere('t.docExpiredDate <= :deadline', { deadline: thirtyDaysLater })
+        .andWhere('t.docExpiredDate <= :deadline', {
+          deadline: thirtyDaysLater,
+        })
         .andWhere('t.docExpiredDate >= :now', { now: new Date() })
         .orderBy('t.docExpiredDate', 'ASC')
         .getRawMany(),
@@ -421,10 +543,139 @@ export class AdminDashboardRepository {
       })),
       docExpiring: docExpiring.map((t) => {
         const daysLeft = Math.ceil(
-          (new Date(t.docExpiredDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+          (new Date(t.docExpiredDate).getTime() - Date.now()) /
+            (1000 * 60 * 60 * 24),
         );
-        return { fullName: t.fullName, docType: t.docType, docExpiredDate: t.docExpiredDate, daysLeft };
+        return {
+          fullName: t.fullName,
+          docType: t.docType,
+          docExpiredDate: t.docExpiredDate,
+          daysLeft,
+        };
       }),
     };
+  }
+
+  async getReviews(from: Date, to: Date, recentLimit = 5) {
+    const [agg, recent] = await Promise.all([
+      this.dataSource
+        .getRepository(ReviewEntity)
+        .createQueryBuilder('r')
+        .select([
+          'COUNT(*) AS total',
+          'COALESCE(AVG(r.overall_rating), 0) AS avg',
+          'COALESCE(AVG(r.punctuality), 0) AS punctuality',
+          'COALESCE(AVG(r.cleanliness), 0) AS cleanliness',
+          'COALESCE(AVG(r.friendliness), 0) AS friendliness',
+          'COALESCE(AVG(r.satisfaction), 0) AS satisfaction',
+          'COUNT(*) FILTER (WHERE r.overall_rating >= 4.5) AS promoters',
+          'COUNT(*) FILTER (WHERE r.overall_rating <= 3) AS detractors',
+        ])
+        .where('r.createdAt BETWEEN :from AND :to', { from, to })
+        .getRawOne(),
+
+      this.dataSource
+        .getRepository(ReviewEntity)
+        .createQueryBuilder('r')
+        .innerJoin('customers', 'c', 'c.id = r.customer_id')
+        .innerJoin('users', 'u', 'u.id = c.user_id')
+        .select([
+          'u.full_name AS "name"',
+          'r.overall_rating AS "rating"',
+          'r.comment AS "comment"',
+        ])
+        .where('r.createdAt BETWEEN :from AND :to', { from, to })
+        .andWhere('r.comment IS NOT NULL')
+        .orderBy('r.created_at', 'DESC')
+        .limit(recentLimit)
+        .getRawMany(),
+    ]);
+
+    const total = Number(agg?.total ?? 0);
+    const promoters = Number(agg?.promoters ?? 0);
+    const detractors = Number(agg?.detractors ?? 0);
+    const pct = (v: unknown) => Math.round((Number(v) / 5) * 1000) / 10;
+
+    return {
+      avg: Math.round(Number(agg?.avg ?? 0) * 10) / 10,
+      total,
+      criteria: {
+        punctuality: pct(agg?.punctuality),
+        cleanliness: pct(agg?.cleanliness),
+        friendliness: pct(agg?.friendliness),
+        satisfaction: pct(agg?.satisfaction),
+      },
+      nps: total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0,
+      recent: recent.map((r) => ({
+        name: r.name,
+        rating: Number(r.rating),
+        comment: r.comment,
+      })),
+    };
+  }
+
+  async getTaskerLevels() {
+    const rows = await this.dataSource
+      .getRepository(TaskerLevelEntity)
+      .createQueryBuilder('l')
+      .leftJoin(
+        'taskers',
+        't',
+        "t.level_id = l.id AND t.status = :active",
+        { active: TaskerStatus.ACTIVE },
+      )
+      .select([
+        'l.name AS "label"',
+        'l.color AS "color"',
+        'COUNT(t.id) AS "count"',
+      ])
+      .groupBy('l.id')
+      .addGroupBy('l.name')
+      .addGroupBy('l.color')
+      .addGroupBy('l.sort_order')
+      .orderBy('l.sort_order', 'ASC')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      label: r.label,
+      color: r.color,
+      count: Number(r.count),
+    }));
+  }
+
+  async getAreaPerformance(from: Date, to: Date, limit = 6) {
+    const rows = await this.dataSource
+      .getRepository(BookingEntity)
+      .createQueryBuilder('b')
+      .select(['b.district AS "name"', 'COUNT(*) AS "count"'])
+      .where('b.district IS NOT NULL')
+      .andWhere('b.createdAt BETWEEN :from AND :to', { from, to })
+      .groupBy('b.district')
+      .orderBy('"count"', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((r) => ({ name: r.name, count: Number(r.count) }));
+  }
+
+  async getVoucherPerformance(limit = 6) {
+    const rows = await this.dataSource
+      .getRepository(VoucherEntity)
+      .createQueryBuilder('v')
+      .select([
+        'v.code AS "code"',
+        'v.used_count AS "used"',
+        'v.usage_limit AS "limit"',
+      ])
+      .where('v.is_active = true')
+      .orderBy('v.used_count', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((r) => ({
+      code: r.code,
+      used: Number(r.used),
+      limit: r.limit === null ? null : Number(r.limit),
+    }));
   }
 }

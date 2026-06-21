@@ -1,5 +1,11 @@
 /.agents
 /docs
+/fe/docs
 /node_modules
 /.next
 /.skills
+.env
+.env.local
+.env.local
+.env.production
+.env.development

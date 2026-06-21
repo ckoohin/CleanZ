@@ -1,0 +1,78 @@
+import { Injectable } from '@nestjs/common';
+import { DataSource, Repository } from 'typeorm';
+import { VoucherEntity } from './entity/voucher.entity';
+import { CustomerVoucherEntity } from './entity/customer-voucher.entity';
+import { VoucherListQueryDto } from './dto/list-query-voucher.dto';
+import { PaginatedData } from '../../common/helpers/response.interface';
+
+@Injectable()
+export class VoucherRepository extends Repository<VoucherEntity> {
+  constructor(private readonly dataSource: DataSource) {
+    super(VoucherEntity, dataSource.createEntityManager());
+  }
+
+  async findWithPagination(
+    query: VoucherListQueryDto,
+  ): Promise<PaginatedData<VoucherEntity>> {
+    const { page = 1, limit = 20, search, type, isActive } = query;
+    const skip = (page - 1) * limit;
+
+    const qb = this.createQueryBuilder('v')
+      .leftJoinAndSelect('v.service', 'svc')
+      .orderBy('v.createdAt', 'DESC');
+
+    if (search) {
+      qb.andWhere('(v.code ILIKE :search OR v.name ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+    if (type) {
+      qb.andWhere('v.type = :type', { type });
+    }
+    if (isActive !== undefined) {
+      qb.andWhere('v.isActive = :isActive', { isActive: isActive === 'true' });
+    }
+
+    const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async existsByCode(code: string, excludeId?: string): Promise<boolean> {
+    const qb = this.createQueryBuilder('v').where('v.code = :code', { code });
+    if (excludeId) qb.andWhere('v.id != :excludeId', { excludeId });
+    return (await qb.getCount()) > 0;
+  }
+}
+
+@Injectable()
+export class CustomerVoucherRepository extends Repository<CustomerVoucherEntity> {
+  constructor(private readonly dataSource: DataSource) {
+    super(CustomerVoucherEntity, dataSource.createEntityManager());
+  }
+
+  async findIssuedCustomerIds(
+    voucherId: string,
+    customerIds: string[],
+  ): Promise<string[]> {
+    const rows = await this.createQueryBuilder('cv')
+      .select('cv.customerId', 'customerId')
+      .where('cv.voucherId = :voucherId', { voucherId })
+      .andWhere('cv.customerId IN (:...customerIds)', { customerIds })
+      .getRawMany<{ customerId: string }>();
+    return rows.map((r) => r.customerId);
+  }
+
+  async getVoucherUsageStats(
+    voucherId: string,
+  ): Promise<{ total: number; used: number }> {
+    const result = await this.createQueryBuilder('cv')
+      .select('COUNT(*)', 'total')
+      .addSelect('SUM(CASE WHEN cv.isUsed THEN 1 ELSE 0 END)', 'used')
+      .where('cv.voucherId = :voucherId', { voucherId })
+      .getRawOne<{ total: string; used: string }>();
+    return {
+      total: parseInt(result?.total ?? '0', 10),
+      used: parseInt(result?.used ?? '0', 10),
+    };
+  }
+}

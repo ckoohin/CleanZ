@@ -137,6 +137,16 @@
         scroll-behavior: smooth;
         max-width: 100%;
         overflow-x: hidden;
+        /* Luôn chừa chỗ thanh cuộn dọc → mở Select/Dropdown (Radix khóa scroll)
+           không làm trang đổi bề rộng. */
+        scrollbar-gutter: stable;
+    }
+
+    /* Khi Radix mở overlay (Select/Dropdown/Dialog) nó set body[data-scroll-locked]
+       và tự thêm `margin-right` bù thanh cuộn. Vì đã có scrollbar-gutter: stable
+       ở trên nên không cần bù nữa — hủy margin để KHÔNG bị dịch ngang. */
+    body[data-scroll-locked] {
+        margin-right: 0 !important;
     }
 
     ::selection {
@@ -153,4 +163,47 @@
         display: none;
     }
 
+}
+
+/* --- react-grid-layout (admin dashboard) theme overrides --- */
+.dashboard-grid {
+    position: relative;
+    transition: height 200ms ease;
+}
+
+/* Drop target preview while dragging/resizing */
+.dashboard-grid .react-grid-placeholder {
+    background: var(--primary) !important;
+    opacity: 0.12;
+    border-radius: 1rem;
+    transition-duration: 120ms;
+}
+
+/* The corner resize affordance — only meaningful in edit mode */
+.dashboard-grid .react-resizable-handle {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.dashboard-grid.is-editing .react-resizable-handle {
+    opacity: 0.55;
+}
+
+.dashboard-grid .react-grid-item:hover .react-resizable-handle {
+    opacity: 1;
+}
+
+/* Recolor the default handle arrow to follow the theme */
+.dashboard-grid .react-resizable-handle::after {
+    border-right-color: var(--muted-foreground);
+    border-bottom-color: var(--muted-foreground);
+}
+
+/* Smooth position/size transitions when not actively dragging */
+.dashboard-grid .react-grid-item.cssTransforms {
+    transition-property: transform, width, height;
+}
+
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+    transition: none;
 }

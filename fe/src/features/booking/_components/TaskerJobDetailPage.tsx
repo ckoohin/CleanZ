@@ -1,0 +1,445 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  MapPin,
+  Clock,
+  Calendar,
+  DollarSign,
+  Phone,
+  User,
+  Navigation,
+  CheckCircle2,
+  PlayCircle,
+  Flag,
+  Package,
+  PawPrint,
+  Zap,
+  AlertTriangle,
+  Route,
+} from "lucide-react";
+import {
+  usePostedBookingDetail,
+  useAssignedBookingDetail,
+  useAcceptBooking,
+  useMarkOnTheWay,
+  useMarkCheckedIn,
+  useMarkStart,
+  useMarkComplete,
+} from "@/features/booking/hooks/useTaskerBooking";
+import type {
+  BookingStatus,
+  TaskerAssignedBookingDetail,
+  TaskerPostedBookingDetail,
+} from "@/features/booking/types/booking.types";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtCurrency(n: number) {
+  return n.toLocaleString("vi-VN") + "đ";
+}
+
+const STATUS_CONFIG: Record<
+  BookingStatus,
+  { label: string; color: string; bg: string }
+> = {
+  POSTED: { label: "Chờ nhận", color: "text-blue-600", bg: "bg-blue-50" },
+  CONFIRMED: { label: "Đã xác nhận", color: "text-indigo-600", bg: "bg-indigo-50" },
+  TASKER_ON_THE_WAY: { label: "Đang di chuyển", color: "text-amber-600", bg: "bg-amber-50" },
+  CHECKED_IN: { label: "Đã đến nơi", color: "text-orange-600", bg: "bg-orange-50" },
+  IN_PROGRESS: { label: "Đang làm việc", color: "text-primary", bg: "bg-primary/10" },
+  COMPLETED: { label: "Hoàn thành", color: "text-emerald-600", bg: "bg-emerald-50" },
+  CANCELLED: { label: "Đã hủy", color: "text-slate-500", bg: "bg-slate-100" },
+  EXPIRED: { label: "Hết hạn", color: "text-slate-500", bg: "bg-slate-100" },
+};
+
+// ─── Action Button ─────────────────────────────────────────────────────────────
+function ActionButton({
+  label,
+  icon: Icon,
+  onClick,
+  isPending,
+  color = "primary",
+}: {
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+  isPending: boolean;
+  color?: "primary" | "emerald" | "amber";
+}) {
+  const colorMap = {
+    primary: "bg-primary shadow-primary/25 hover:bg-orange-600",
+    emerald: "bg-emerald-500 shadow-emerald-500/25 hover:bg-emerald-600",
+    amber: "bg-amber-500 shadow-amber-500/25 hover:bg-amber-600",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={isPending}
+      className={`w-full py-4 text-white font-bold text-sm rounded-2xl shadow-lg ${colorMap[color]} active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
+    >
+      {isPending ? (
+        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      ) : (
+        <>
+          <Icon className="w-4 h-4" />
+          {label}
+        </>
+      )}
+    </button>
+  );
+}
+
+// ─── Posted Detail View ───────────────────────────────────────────────────────
+function PostedDetailView({
+  data,
+  bookingId,
+  onAccepted,
+}: {
+  data: TaskerPostedBookingDetail;
+  bookingId: string;
+  onAccepted: () => void;
+}) {
+  const accept = useAcceptBooking();
+
+  const handleAccept = () => {
+    accept.mutate(bookingId, {
+      onSuccess: () => onAccepted(),
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Distance */}
+      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center gap-3">
+        <div className="w-10 h-10 bg-primary/15 rounded-xl flex items-center justify-center">
+          <Route className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Khoảng cách từ bạn</p>
+          <p className="text-xl font-black text-primary">{data.distance.kilometers.toFixed(1)} km</p>
+        </div>
+      </div>
+
+      {/* Service info */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3">
+        <h3 className="font-bold text-foreground text-sm">Dịch vụ</h3>
+        <p className="text-base font-semibold">{data.service.name}</p>
+        {data.service.description && (
+          <p className="text-sm text-muted-foreground">{data.service.description}</p>
+        )}
+      </div>
+
+      {/* Schedule */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
+        <h3 className="font-bold text-foreground text-sm mb-2">Lịch làm việc</h3>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="w-4 h-4" />
+          <span>
+            {data.schedule.scheduledStartDate} · {data.schedule.scheduledStartTime}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="w-4 h-4" />
+          <span>Thời lượng: {data.schedule.durationHours} giờ</span>
+        </div>
+      </div>
+
+      {/* Price breakdown */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
+        <h3 className="font-bold text-foreground text-sm mb-2">Giá đơn hàng</h3>
+        {[
+          { label: "Giá cơ bản", value: data.price.basePrice },
+          { label: "Phí cao điểm", value: data.price.peakFee },
+          { label: "Phí thú cưng", value: data.price.petFee },
+          { label: "Giảm giá", value: -data.price.discountAmount },
+        ]
+          .filter((r) => r.value !== 0)
+          .map((r) => (
+            <div key={r.label} className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{r.label}</span>
+              <span className={r.value < 0 ? "text-emerald-600 font-medium" : ""}>
+                {r.value < 0 ? "-" : ""}
+                {fmtCurrency(Math.abs(r.value))}
+              </span>
+            </div>
+          ))}
+        <div className="flex justify-between pt-2 border-t border-border/40">
+          <span className="font-bold text-sm">Bạn nhận được (ước tính)</span>
+          <span className="font-black text-primary">{fmtCurrency(data.price.totalPrice)}</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground">* Sau khi trừ phí nền tảng</p>
+      </div>
+
+      {/* Accept button */}
+      <ActionButton
+        label="Nhận đơn ngay 🎯"
+        icon={CheckCircle2}
+        onClick={handleAccept}
+        isPending={accept.isPending}
+        color="primary"
+      />
+    </div>
+  );
+}
+
+// ─── Assigned Detail View ─────────────────────────────────────────────────────
+function AssignedDetailView({
+  data,
+  bookingId,
+}: {
+  data: TaskerAssignedBookingDetail;
+  bookingId: string;
+}) {
+  const markOnWay = useMarkOnTheWay(bookingId);
+  const markCheckedIn = useMarkCheckedIn(bookingId);
+  const markStart = useMarkStart(bookingId);
+  const markComplete = useMarkComplete(bookingId);
+
+  const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.CONFIRMED;
+  const canContact = data.canContactCustomer;
+
+  return (
+    <div className="space-y-4">
+      {/* Status badge */}
+      <div className={`flex items-center gap-2 px-4 py-3 rounded-2xl ${statusCfg.bg}`}>
+        <div className={`w-2 h-2 rounded-full ${statusCfg.color.replace("text-", "bg-")} ${data.status === "IN_PROGRESS" ? "animate-pulse" : ""}`} />
+        <span className={`text-sm font-bold ${statusCfg.color}`}>{statusCfg.label}</span>
+      </div>
+
+      {/* Customer info (chỉ hiện khi canContactCustomer) */}
+      {canContact && data.customer && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+          <h3 className="font-bold text-sm text-emerald-800 mb-3">Thông tin khách hàng</h3>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm text-foreground">{data.customer.fullName ?? "—"}</p>
+              {data.customer.phone && (
+                <a
+                  href={`tel:${data.customer.phone}`}
+                  className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5"
+                >
+                  <Phone className="w-3 h-3" /> {data.customer.phone}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Address (full khi canContactCustomer) */}
+      {canContact && data.address ? (
+        <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-1">
+          <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-primary" /> Địa chỉ làm việc
+          </h3>
+          <p className="text-sm text-foreground font-medium">{data.address.fullAddress}</p>
+          {data.address.wardDetail && (
+            <p className="text-xs text-muted-foreground">{data.address.wardDetail}</p>
+          )}
+          {data.address.hasPet && (
+            <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-1">
+              <PawPrint className="w-2.5 h-2.5" /> Nhà có thú cưng
+            </span>
+          )}
+        </div>
+      ) : !canContact ? (
+        <div className="bg-muted/50 border border-border/30 rounded-2xl p-4 text-center">
+          <MapPin className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground font-medium">Địa chỉ đầy đủ sẽ hiển thị</p>
+          <p className="text-xs text-muted-foreground mt-0.5">khi bạn bắt đầu di chuyển tới</p>
+        </div>
+      ) : null}
+
+      {/* Service + Schedule */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
+        <p className="font-bold text-sm text-foreground">{data.service.name}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Calendar className="w-3.5 h-3.5" />
+          <span>{data.schedule.scheduledStartDate} · {data.schedule.scheduledStartTime}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Clock className="w-3.5 h-3.5" />
+          <span>{data.schedule.durationHours} giờ</span>
+        </div>
+        {data.note && (
+          <div className="mt-2 bg-muted/50 rounded-xl p-3">
+            <p className="text-xs text-muted-foreground">💬 Ghi chú: {data.note}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Price */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-bold">Tổng giá trị đơn</span>
+          <span className="text-lg font-black text-primary">{fmtCurrency(data.price.totalPrice)}</span>
+        </div>
+        {data.payment && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Thanh toán: {data.payment.method === "CASH" ? "Tiền mặt" : "Ví"} · {data.payment.status}
+          </p>
+        )}
+      </div>
+
+      {/* Action buttons based on status */}
+      {data.status === "CONFIRMED" && (
+        <ActionButton
+          label="Bắt đầu di chuyển tới"
+          icon={Navigation}
+          onClick={() => markOnWay.mutate()}
+          isPending={markOnWay.isPending}
+          color="amber"
+        />
+      )}
+      {data.status === "TASKER_ON_THE_WAY" && (
+        <ActionButton
+          label="Check-in — Tôi đã đến nơi"
+          icon={MapPin}
+          onClick={() => markCheckedIn.mutate()}
+          isPending={markCheckedIn.isPending}
+          color="amber"
+        />
+      )}
+      {data.status === "CHECKED_IN" && (
+        <ActionButton
+          label="Bắt đầu làm việc"
+          icon={PlayCircle}
+          onClick={() => markStart.mutate()}
+          isPending={markStart.isPending}
+          color="primary"
+        />
+      )}
+      {data.status === "IN_PROGRESS" && (
+        <ActionButton
+          label="Hoàn thành công việc ✅"
+          icon={Flag}
+          onClick={() => markComplete.mutate()}
+          isPending={markComplete.isPending}
+          color="emerald"
+        />
+      )}
+      {(data.status === "COMPLETED" || data.status === "CANCELLED") && (
+        <div className="bg-muted/50 rounded-2xl p-4 text-center">
+          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+          <p className="text-sm font-bold text-foreground">
+            {data.status === "COMPLETED" ? "Đã hoàn thành" : "Đã bị hủy"}
+          </p>
+          {data.status === "COMPLETED" && (
+            <p className="text-xs text-muted-foreground mt-0.5">Thu nhập đã được ghi vào ví</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }> = ({
+  bookingId,
+  mode,
+}) => {
+  const router = useRouter();
+  const isPostedMode = mode === "posted";
+
+  // Geolocation (optional — chỉ gửi nếu user cho phép)
+  const [location, setLocation] = useState<{
+    currentLatitude?: number;
+    currentLongitude?: number;
+  }>({});
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          setLocation({
+            currentLatitude: pos.coords.latitude,
+            currentLongitude: pos.coords.longitude,
+          }),
+        () => {}, // ignore error nếu user từ chối
+        { timeout: 5000 }
+      );
+    }
+  }, []);
+
+  const postedQuery = usePostedBookingDetail(
+    bookingId,
+    isPostedMode ? location : undefined
+  );
+  const assignedQuery = useAssignedBookingDetail(
+    bookingId,
+    isPostedMode ? undefined : location
+  );
+
+  const isLoading = isPostedMode ? postedQuery.isLoading : assignedQuery.isLoading;
+  const activeStatus = isPostedMode ? null : assignedQuery.data?.status;
+
+  return (
+    <div className="min-h-screen bg-background pb-28">
+      {/* Header */}
+      <div className="bg-card px-4 pt-12 pb-4 shadow-sm sticky top-0 z-20">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-sm text-foreground">
+              {isPostedMode ? "Chi tiết đơn chờ nhận" : "Đơn hàng của tôi"}
+            </h1>
+            {activeStatus && (
+              <p className="text-xs text-muted-foreground">
+                {STATUS_CONFIG[activeStatus]?.label ?? activeStatus}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 py-4">
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse" />
+            ))}
+          </div>
+        ) : isPostedMode ? (
+          postedQuery.data ? (
+            <PostedDetailView
+              data={postedQuery.data}
+              bookingId={bookingId}
+              onAccepted={() => router.replace(`/tasker/jobs/${bookingId}`)}
+            />
+          ) : (
+            <div className="text-center py-16 text-muted-foreground">
+              <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-amber-400" />
+              <p className="text-sm font-semibold">Đơn không còn khả dụng</p>
+              <p className="text-xs mt-1">Có thể đã được nhận bởi tasker khác</p>
+              <button
+                onClick={() => router.back()}
+                className="mt-4 text-primary text-sm font-semibold"
+              >
+                ← Quay lại danh sách
+              </button>
+            </div>
+          )
+        ) : assignedQuery.data ? (
+          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} />
+        ) : (
+          <div className="text-center py-16 text-muted-foreground text-sm">
+            Không tìm thấy đơn hàng
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

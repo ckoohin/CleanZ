@@ -13,11 +13,20 @@ import { AuthFacebookModule } from './modules/auth-facebook/auth-facebook.module
 import { TaskerModule } from './modules/tasker/tasker.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 import { IncidentModule } from './modules/incident/incident.module';
 import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
 import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PolicyModule } from './modules/policy/policy.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { ServicesModule } from './modules/service/services.module';
+import { PricingModule } from './modules/pricing/pricing.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -38,11 +47,19 @@ import { PolicyModule } from './modules/policy/policy.module';
     TaskerModule,
     CustomerModule,
     BookingModule,
+    WalletModule,
     IncidentModule,
     SupportTicketModule,
     WithdrawalModule,
     AdminModule,
     PolicyModule,
+    TrackingModule,
+    QueueModule,
+    NotificationModule,
+    ServicesModule,
+    PricingModule,
+    VoucherModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

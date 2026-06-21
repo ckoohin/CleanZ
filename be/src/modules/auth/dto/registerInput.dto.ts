@@ -9,7 +9,7 @@ import {
   IsOptional,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class RegisterDto {
@@ -51,6 +51,20 @@ export class RegisterDto {
     typeof value === 'string' ? value.toLowerCase().trim() : value,
   )
   fullName!: string;
+
+  @ApiPropertyOptional({
+    example: '09876543210',
+    description: 'Số điện thoại người dùng',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^0\d{9,10}$/, {
+    message: 'phone phải bắt đầu bằng 0 và có 10-11 chữ số',
+  })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  phone?: string;
 
   @ApiProperty({
     example: 'CUSTOMER',

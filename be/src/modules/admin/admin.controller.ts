@@ -1,10 +1,25 @@
-import { Controller, Get, Patch, Param, Query, Body, NotFoundException, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Query,
+  Body,
+  NotFoundException,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
+import { AdminBookingRepository } from './repositories/admin-booking.repository';
 import { UsersService } from 'src/modules/users/users.service';
-import { DateRangeQueryDto, RevenueChartQueryDto, BookingDetailsQueryDto } from './dto/date-range-query.dto';
+import {
+  DateRangeQueryDto,
+  RevenueChartQueryDto,
+  BookingDetailsQueryDto,
+} from './dto/date-range-query.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
+import { BookingSearchQueryDto } from './dto/booking-search-query.dto';
 
 @AdminOnly()
 @Controller('admin')
@@ -12,6 +27,7 @@ export class AdminController {
   constructor(
     private readonly dashboardRepo: AdminDashboardRepository,
     private readonly customerRepo: AdminCustomerRepository,
+    private readonly bookingRepo: AdminBookingRepository,
     private readonly usersService: UsersService,
   ) {}
 
@@ -24,12 +40,19 @@ export class AdminController {
 
   @Get('dashboard/kpis')
   getKpis(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getKpis(new Date(query.fromDate), new Date(query.toDate));
+    return this.dashboardRepo.getKpis(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
   }
 
   @Get('dashboard/gmv-chart')
   getGmvChart(@Query() query: RevenueChartQueryDto) {
-    return this.dashboardRepo.getGmvChart(new Date(query.fromDate), new Date(query.toDate), query.groupBy);
+    return this.dashboardRepo.getGmvChart(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+      query.groupBy,
+    );
   }
 
   @Get('dashboard/booking-status-snapshot')
@@ -38,9 +61,7 @@ export class AdminController {
   }
 
   @Get('dashboard/booking-details')
-  getBookingDetails(
-    @Query() query: BookingDetailsQueryDto,
-  ) {
+  getBookingDetails(@Query() query: BookingDetailsQueryDto) {
     return this.dashboardRepo.getBookingDetails(
       new Date(query.fromDate),
       new Date(query.toDate),
@@ -50,12 +71,52 @@ export class AdminController {
 
   @Get('dashboard/finance-breakdown')
   getFinanceBreakdown(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getFinanceBreakdown(new Date(query.fromDate), new Date(query.toDate));
+    return this.dashboardRepo.getFinanceBreakdown(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
   }
 
   @Get('dashboard/tasker-stats')
   getTaskerStats(@Query('limit') limit?: string) {
-    return this.dashboardRepo.getTaskerStats(limit ? Math.min(parseInt(limit, 10), 20) : 5);
+    return this.dashboardRepo.getTaskerStats(
+      limit ? Math.min(parseInt(limit, 10), 20) : 5,
+    );
+  }
+
+  @Get('dashboard/reviews')
+  getReviews(@Query() query: DateRangeQueryDto) {
+    return this.dashboardRepo.getReviews(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
+  }
+
+  @Get('dashboard/tasker-levels')
+  getTaskerLevels() {
+    return this.dashboardRepo.getTaskerLevels();
+  }
+
+  @Get('dashboard/area-performance')
+  getAreaPerformance(@Query() query: DateRangeQueryDto) {
+    return this.dashboardRepo.getAreaPerformance(
+      new Date(query.fromDate),
+      new Date(query.toDate),
+    );
+  }
+
+  @Get('dashboard/voucher-performance')
+  getVoucherPerformance(@Query('limit') limit?: string) {
+    return this.dashboardRepo.getVoucherPerformance(
+      limit ? Math.min(parseInt(limit, 10), 20) : 6,
+    );
+  }
+
+  // ─── Booking Search (autocomplete) ───
+
+  @Get('bookings')
+  searchBookings(@Query() query: BookingSearchQueryDto) {
+    return this.bookingRepo.searchBookings(query);
   }
 
   // ─── Customer Management Endpoints ───
@@ -97,7 +158,13 @@ export class AdminController {
     if (!detail) {
       throw new NotFoundException(`Không tìm thấy khách hàng với id ${id}`);
     }
-    const user = await this.usersService.toggleUserActiveStatus(detail.userId, isActive);
-    return { message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', isActive: user.isActive };
+    const user = await this.usersService.toggleUserActiveStatus(
+      detail.userId,
+      isActive,
+    );
+    return {
+      message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản',
+      isActive: user.isActive,
+    };
   }
 }

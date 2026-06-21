@@ -25,6 +25,9 @@ import { TokenType } from 'src/common/enums/token-type.enum';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { AuthTokenService } from './auth-token.service';
+import { UserRole } from 'src/common/enums/user-role.enum';
+import { CustomerService } from '../customer/customer.service';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -35,11 +38,19 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly mailService: MailService,
     private readonly authTokenService: AuthTokenService,
+    private readonly customerService: CustomerService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async register(dto: RegisterDto): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
       const user = await this.usersService.create(dto);
+      if (user.role === UserRole.CUSTOMER) {
+        await this.customerService.createProfileIfNotExists(
+          this.dataSource.manager,
+          user,
+        );
+      }
 
       const hash = this.jwtService.sign(
         {
@@ -179,7 +190,10 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
-      console.log(otp);
+      // [DEV] Log OTP để đăng nhập khi không có email thật. Gỡ trước khi lên production.
+      console.log(
+        `\n========== OTP đăng nhập (${user.email}): ${otp} ==========\n`,
+      );
 
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',

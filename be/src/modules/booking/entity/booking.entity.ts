@@ -8,9 +8,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
-import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -44,6 +44,10 @@ export class BookingEntity {
   @Column({ type: 'text' })
   address!: string;
 
+  // Quận/huyện chuẩn hoá để thống kê theo khu vực (dashboard area-performance).
+  @Column({ name: 'district', type: 'varchar', length: 100, nullable: true })
+  district?: string | null;
+
   @ManyToOne(() => CustomerAddressEntity, {
     nullable: true,
     onDelete: 'SET NULL',
@@ -55,11 +59,23 @@ export class BookingEntity {
   @Column({ type: 'text', nullable: true })
   note?: string | null;
 
-  @Column({ name: 'scheduled_start', type: 'timestamp' })
-  scheduledStart!: Date;
+  @Column({ name: 'scheduled_start', type: 'timestamp', nullable: true })
+  scheduledStart?: Date | null;
 
-  @Column({ name: 'scheduled_end', type: 'timestamp' })
-  scheduledEnd!: Date;
+  @Column({ name: 'scheduled_end', type: 'timestamp', nullable: true })
+  scheduledEnd?: Date | null;
+
+  @Column({ name: 'scheduled_start_date', type: 'date', nullable: true })
+  scheduledStartDate?: string | null;
+
+  @Column({ name: 'scheduled_start_time', type: 'time', nullable: true })
+  scheduledStartTime?: string | null;
+
+  @Column({ name: 'scheduled_end_date', type: 'date', nullable: true })
+  scheduledEndDate?: string | null;
+
+  @Column({ name: 'scheduled_end_time', type: 'time', nullable: true })
+  scheduledEndTime?: string | null;
 
   @Column({
     name: 'duration_hours',
@@ -170,15 +186,6 @@ export class BookingEntity {
   })
   recurringRule?: string | null;
 
-  @Column({ name: 'checked_in_at', type: 'timestamp', nullable: true })
-  checkedInAt?: Date | null;
-
-  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
-  completedAt?: Date | null;
-
-  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
-  cancelledAt?: Date | null;
-
   @Column({
     name: 'cancelled_by',
     type: 'enum',
@@ -187,6 +194,18 @@ export class BookingEntity {
     nullable: true,
   })
   cancelledBy?: CancelledBy | null;
+
+  @Column({ name: 'cancelled_by_user_id', type: 'uuid', nullable: true })
+  cancelledByUserId?: string | null;
+
+  @Column({ name: 'checked_in_at', type: 'timestamp', nullable: true })
+  checkedInAt?: Date | null;
+
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
+  completedAt?: Date | null;
+
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  cancelledAt?: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

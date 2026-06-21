@@ -15,6 +15,7 @@ export const authApi = {
   login: (credentials: LoginCredentials): Promise<LoginResponse> => {
     return http.post<LoginResponse>('/auth/login', credentials).then((res) => res.data);
   },
+
   register: (credentials: RegisterCredentials): Promise<RegisterResponse> => {
     return http.post<RegisterResponse>('/auth/register', credentials).then((res) => res.data);
   },
@@ -30,12 +31,13 @@ export const authApi = {
   verifyEmail: (credentials: VerifyEmailCredentials): Promise<VerifyEmailResponse> => {
     return http.post('/auth/verify-email', credentials).then((res) => res.data);
   },
+
   resendVerificationEmail: (credentials: ResendVerificationEmailCredentials): Promise<ResendVerificationEmailResponse> => {
     return http.post('/auth/resend-verification-email', credentials).then((res) => res.data);
   },
 
   verifyOtp: (credentials: VerifyOtpCredentials): Promise<VerifyOtpResponse> => {
-    return http.post('/auth/verify-login-otp', credentials).then((res) => res.data);
+    return http.post<VerifyOtpResponse>('/auth/verify-login-otp', credentials).then((res) => res.data);
   },
 
   forgotPassword: (credentials: ForgotPasswordCredentials): Promise<ForgotPasswordResponse> => {
@@ -44,5 +46,5 @@ export const authApi = {
 
   resetPassword: (credentials: ResetPasswordCredentials): Promise<ResetPasswordResponse> => {
     return http.post('/auth/reset-password', credentials).then((res) => res.data);
-  }
+  },
 };

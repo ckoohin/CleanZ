@@ -17,46 +17,22 @@ interface TLogoAppProps {
 }
 
 const SIZE_MAP = {
-  sm: { mark: 24, font: 15 },
-  md: { mark: 34, font: 22 },
-  lg: { mark: 44, font: 28 },
+  sm: { mark: 28, font: 18 },
+  md: { mark: 40, font: 26 },
+  lg: { mark: 52, font: 34 },
 };
 
 /* Mascot Logo (SVG Vector) */
 function LogoMark({ size, className }: { size: number; className?: string }) {
   return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 100 100" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
-      className={cn("shrink-0 text-primary drop-shadow-sm", className)}
-    >
-      {/* Antennas */}
-      <path d="M50 32 L35 18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path d="M50 32 L65 18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <circle cx="33" cy="14" r="6" fill="currentColor" />
-      <circle cx="67" cy="14" r="6" fill="currentColor" />
-      
-      {/* Ears */}
-      <rect x="14" y="46" width="8" height="22" rx="4" fill="currentColor" />
-      <rect x="78" y="46" width="8" height="22" rx="4" fill="currentColor" />
-      
-      {/* Helmet Outline */}
-      <rect x="22" y="32" width="56" height="46" rx="23" stroke="currentColor" strokeWidth="5" fill="transparent" />
-      
-      {/* Eyes (Happy arcs) */}
-      <path d="M38 52 Q 42 46 46 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-      <path d="M54 52 Q 58 46 62 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-      
-      {/* Cheeks */}
-      <circle cx="34" cy="62" r="4" fill="#FF7EB3" />
-      <circle cx="66" cy="62" r="4" fill="#FF7EB3" />
-      
-      {/* Mouth */}
-      <path d="M44 60 Q 50 70 56 60" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-    </svg>
+    <Image 
+      src="/mascot.svg"
+      alt="CleanZ Mascot"
+      width={size}
+      height={size}
+      className={cn("shrink-0 drop-shadow-sm", className)}
+      priority
+    />
   );
 }
 

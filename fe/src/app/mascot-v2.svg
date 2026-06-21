@@ -1,0 +1,47 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shadow / Depth under the mascot -->
+  <ellipse cx="50" cy="95" rx="35" ry="5" fill="#000000" opacity="0.1" />
+
+  <!-- Magic Sparkles -->
+  <path d="M12 28 Q 18 28 18 22 Q 18 28 24 28 Q 18 28 18 34 Q 18 28 12 28 Z" fill="#FFC107" />
+  <path d="M78 15 Q 84 15 84 9 Q 84 15 90 15 Q 84 15 84 21 Q 84 15 78 15 Z" fill="#FFC107" />
+
+  <!-- Curved Antenna for a friendly vibe -->
+  <path d="M50 25 C 50 12 65 15 68 6" stroke="#fd7e14" stroke-width="6" stroke-linecap="round" />
+  <circle cx="68" cy="6" r="6" fill="#fd7e14" />
+  <circle cx="69" cy="4.5" r="2" fill="white" opacity="0.8" />
+
+  <!-- Ears (Headphones / Bot ears) with darker orange for depth -->
+  <rect x="5" y="45" width="16" height="26" rx="8" fill="#e0690b" />
+  <rect x="79" y="45" width="16" height="26" rx="8" fill="#e0690b" />
+
+  <!-- Main Head (Solid Orange Shell) -->
+  <rect x="15" y="25" width="70" height="65" rx="30" fill="#fd7e14" />
+  
+  <!-- Face plate (White/Screen) -->
+  <rect x="22" y="32" width="56" height="51" rx="20" fill="white" />
+
+  <!-- Inner shadow / highlight on face plate (Subtle depth) -->
+  <path d="M22 52 L22 42 C 22 31 31 22 42 22 L58 22 C 69 22 78 31 78 42 L78 52 C 55 58 45 40 22 52 Z" fill="#f8fafc" opacity="0.5" />
+
+  <!-- Eyes (Big, expressive, cute dark blue/black) -->
+  <circle cx="36" cy="52" r="8" fill="#1e293b" />
+  <!-- Catchlights (Reflection for the soul) -->
+  <circle cx="38" cy="49" r="3" fill="white" />
+  <circle cx="34" cy="54" r="1.5" fill="white" />
+
+  <circle cx="64" cy="52" r="8" fill="#1e293b" />
+  <!-- Catchlights (Reflection for the soul) -->
+  <circle cx="66" cy="49" r="3" fill="white" />
+  <circle cx="62" cy="54" r="1.5" fill="white" />
+
+  <!-- Cute Blushing Cheeks -->
+  <ellipse cx="30" cy="63" rx="6" ry="3.5" fill="#ffb3c6" opacity="0.8" />
+  <ellipse cx="70" cy="63" rx="6" ry="3.5" fill="#ffb3c6" opacity="0.8" />
+
+  <!-- Happy Cat-like Mouth -->
+  <path d="M45 61 Q 47.5 66 50 62 Q 52.5 66 55 61" stroke="#1e293b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Tiny open mouth/tongue -->
+  <path d="M47 63.5 Q 50 70 53 63.5 Z" fill="#ff4d6d" />
+</svg>

@@ -5,12 +5,17 @@ import { User } from '../users/entities/user.entity';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 import { Tokens } from '../auth/types/AuthResponse';
 import { CreateOAuthUserDto } from '../users/dto/create-oauth-user.dto';
+import { CustomerService } from '../customer/customer.service';
+import { DataSource } from 'typeorm';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 @Injectable()
 export class AuthFacebookService {
   constructor(
     private readonly usersService: UsersService,
     private readonly authTokenService: AuthTokenService,
+    private readonly customerService: CustomerService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async handleFacebookLogin(facebookUser: CreateOAuthUserDto): Promise<{
@@ -30,6 +35,12 @@ export class AuthFacebookService {
         avatar: facebookUser.avatar,
       };
       user = await this.usersService.createOAuthUser(dto);
+      if (user.role === UserRole.CUSTOMER) {
+        await this.customerService.createProfileIfNotExists(
+          this.dataSource.manager,
+          user,
+        );
+      }
     } else {
       if (!user.provider) {
         await this.usersService.updateProvider(

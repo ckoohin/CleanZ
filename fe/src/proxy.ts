@@ -78,17 +78,17 @@ export async function proxy(req: NextRequest) {
   if (activeToken) {
     const role = getUserRole(activeToken);
     
-    // if (pathname.startsWith("/admin") && role !== "ADMIN") {
-    //   return redirectToLogin(req, pathname, searchParams);
-    // }
+    if (pathname.startsWith("/admin") && role !== "ADMIN") {
+      return redirectToLogin(req, pathname, searchParams);
+    }
     
-    // if (pathname.startsWith("/tasker") && role !== "TASKER" && role !== "ADMIN") {
-    //   return redirectToLogin(req, pathname, searchParams);
-    // }
+    if (pathname.startsWith("/tasker") && role !== "TASKER" && role !== "ADMIN") {
+      return redirectToLogin(req, pathname, searchParams);
+    }
     
-    // if (pathname.startsWith("/customer") && role !== "CUSTOMER" && role !== "ADMIN") {
-    //   return redirectToLogin(req, pathname, searchParams);
-    // }
+    if (pathname.startsWith("/customer") && role !== "CUSTOMER" && role !== "ADMIN") {
+      return redirectToLogin(req, pathname, searchParams);
+    }
     
     return NextResponse.next();
   }
@@ -114,9 +114,9 @@ function redirectToLogin(req: NextRequest, pathname: string, searchParams: URLSe
 
 export const config = {
   matcher: [
-    // "/admin/:path*",
-    // "/tasker/:path*",
-    // "/customer/:path*"
+    "/admin/:path*",
+    "/tasker/:path*",
+    "/customer/:path*"
   ],
 };
   

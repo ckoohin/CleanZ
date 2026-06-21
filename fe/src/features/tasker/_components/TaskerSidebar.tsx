@@ -8,14 +8,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
   Mail,
-  HeartHandshake,
   User,
   LogOut,
   Star,
   Wifi,
   WifiOff,
-  Bot,
+  Briefcase,
   Bell,
+  Settings,
+  WalletCards,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
@@ -27,14 +28,15 @@ import LogoApp from "@/components/logo/LogoApp";
 
 const ALL_NAV_ITEMS = [
   { href: "/tasker",               label: "Trang chủ", icon: Home, exact: true },
+  { href: "/tasker/jobs",          label: "Nhận đơn",  icon: Briefcase },
+  { href: "/tasker/earnings",      label: "Thu nhập",  icon: WalletCards },
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
-  { href: "/tasker/benefits",      label: "Phúc lợi",  icon: HeartHandshake },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
 ];
 
 // Bottom nav: 2 bên FAB center
 const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
-const RIGHT_TABS = [ALL_NAV_ITEMS[2], ALL_NAV_ITEMS[3]];
+const RIGHT_TABS = [ALL_NAV_ITEMS[3], ALL_NAV_ITEMS[4]];
 
 interface TaskerSidebarProps {
   className?: string;
@@ -83,7 +85,13 @@ function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
       {/* Online toggle */}
       <div className="px-4 py-3 border-b border-border/30">
         <button
-          onClick={() => { onToggleOnline ? onToggleOnline() : setIsOnline((v) => !v); }}
+          onClick={() => {
+            if (onToggleOnline) {
+              onToggleOnline();
+            } else {
+              setIsOnline((value) => !value);
+            }
+          }}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all",
             isOnline
@@ -152,6 +160,13 @@ function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
             <p className="text-sm font-semibold truncate">{tasker?.fullName ?? "Đối tác"}</p>
             <p className="text-xs text-muted-foreground truncate">{tasker?.phone ?? "Chưa cập nhật SĐT"}</p>
           </div>
+          <Link
+            href="/tasker/settings"
+            className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 hover:border-primary/30 transition-all shrink-0"
+            aria-label="Cài đặt"
+          >
+            <Settings className="w-4 h-4" aria-hidden="true" />
+          </Link>
           <button
             className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-all shrink-0"
             onClick={() => logout.mutate()}
@@ -194,6 +209,9 @@ function MobileTopBar() {
           </span>
         </div>
         
+        <Link href="/tasker/settings" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
+          <Settings className="w-4 h-4" />
+        </Link>
         <Link href="/tasker/notifications" className="relative w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
           <Bell className="w-4 h-4" />
           <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card"></span>
@@ -260,31 +278,14 @@ function BottomTab({ href, label, icon: Icon, exact }: {
 // ─── Mobile Bottom Nav — bTaskee style ────────────────────────────────────────
 
 const CleanZBotIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Antennas */}
-    <path d="M50 32 L35 18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-    <path d="M50 32 L65 18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-    <circle cx="33" cy="14" r="6" fill="currentColor" />
-    <circle cx="67" cy="14" r="6" fill="currentColor" />
-    
-    {/* Ears */}
-    <rect x="14" y="46" width="8" height="22" rx="4" fill="currentColor" />
-    <rect x="78" y="46" width="8" height="22" rx="4" fill="currentColor" />
-    
-    {/* Helmet Outline */}
-    <rect x="22" y="32" width="56" height="46" rx="23" stroke="currentColor" strokeWidth="5" fill="white" />
-    
-    {/* Eyes (Happy arcs) */}
-    <path d="M38 52 Q 42 46 46 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-    <path d="M54 52 Q 58 46 62 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-    
-    {/* Cheeks */}
-    <circle cx="34" cy="62" r="4" fill="#FF7EB3" />
-    <circle cx="66" cy="62" r="4" fill="#FF7EB3" />
-    
-    {/* Mouth */}
-    <path d="M44 60 Q 50 70 56 60" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-  </svg>
+  <div className={cn("relative shrink-0", className)}>
+    <Image 
+      src="/mascot.svg" 
+      alt="CleanZ Bot" 
+      fill 
+      className="object-contain"
+    />
+  </div>
 );
 
 function MobileBottomNav({
@@ -367,15 +368,13 @@ function MobileBottomNav({
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400, damping: 20 }}
           className={cn(
-            "relative w-[60px] h-[60px] rounded-full flex flex-col items-center justify-center gap-[2px]",
-            "border-[3.5px] border-background",
-            "bg-white shadow-[0_8px_20px_rgba(0,0,0,0.1)] text-primary", 
-            "transition-colors duration-300"
+            "relative w-[76px] h-[76px] flex flex-col items-center justify-center",
+            "transition-transform duration-300 drop-shadow-lg"
           )}
           aria-label="Chat AI Trợ lý"
         >
           {/* Custom SVG Icon kế thừa text-primary (màu cam) để đồng bộ CleanZ */}
-          <CleanZBotIcon className="w-[38px] h-[38px] text-primary" />
+          <CleanZBotIcon className="w-full h-full" />
         </motion.button>
       </div>
     </div>

@@ -270,7 +270,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
                 <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-slate-200/50 dark:border-white/5">
                   <span className="font-medium">3. Lý lịch tư pháp / Hạnh kiểm:</span>
                   <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-[10px] md:text-xs">
-                    {countFiles('criminalRecord', files.criminalRecord)} ảnh
+                    {countFiles('criminalRecord', files.criminalRecord)} / 1 ảnh
                   </span>
                 </div>
 
@@ -278,7 +278,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
                 <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-slate-200/50 dark:border-white/5">
                   <span className="font-medium">4. Giấy khám sức khỏe:</span>
                   <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-[10px] md:text-xs">
-                    {countFiles('healthCertificate', files.healthCertificate)} ảnh
+                    {countFiles('healthCertificate', files.healthCertificate)} / 1 ảnh
                   </span>
                 </div>
 
@@ -286,7 +286,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
                 <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-slate-200/50 dark:border-white/5">
                   <span className="font-medium">5. Chứng chỉ nghề nghiệp (nếu có):</span>
                   <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-[10px] md:text-xs">
-                    {countFiles('certificate', files.certificate)} ảnh
+                    {countFiles('certificate', files.certificate)} / 1 ảnh
                   </span>
                 </div>
 

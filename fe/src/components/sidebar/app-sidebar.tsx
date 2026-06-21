@@ -2,15 +2,15 @@
 
 import * as React from "react"
 import {
-  BarChart3,
+  Bell,
   CalendarCheck,
-  CreditCard,
-  FileText,
+  HeadphonesIcon,
   LayoutDashboard,
   Settings2,
   ShieldCheck,
-  Star,
   Users,
+  UserCog,
+  Wallet,
   Wrench,
 } from "lucide-react"
 
@@ -28,9 +28,13 @@ import {
 
 const overviewNav = [
   {
-    title: "Bảng điều khiển",
+    title: "Dashboard",
     url: "/admin",
     icon: <LayoutDashboard />,
+    items: [
+      { title: "Bảng điều khiển", url: "/admin" },
+      { title: "Hoạt động hệ thống", url: "/admin/activity" },
+    ],
   },
 ]
 
@@ -41,8 +45,6 @@ const managementNav = [
     icon: <Wrench />,
     items: [
       { title: "Danh sách dịch vụ", url: "/admin/services" },
-      { title: "Danh mục", url: "/admin/categories" },
-      { title: "Bảng giá", url: "/admin/pricing" },
     ],
   },
   {
@@ -50,21 +52,16 @@ const managementNav = [
     url: "/admin/bookings",
     icon: <CalendarCheck />,
     items: [
-      { title: "Đơn đặt lịch mới", url: "/admin/bookings" },
-      { title: "Đang thực hiện", url: "/admin/bookings/active" },
-      { title: "Lịch sử đơn hàng", url: "/admin/bookings/history" },
-      { title: "Khiếu nại & Hoàn tiền", url: "/admin/refunds" },
+      { title: "Tất cả đơn hàng", url: "/admin/bookings" },
+      { title: "Sự cố & Khiếu nại", url: "/admin/incidents" },
     ],
   },
   {
-    title: "Quản lý Nhân sự",
-    url: "/admin/tasker",
-    icon: <ShieldCheck />,
+    title: "Quản lý Tasker",
+    url: "/admin/taskers",
+    icon: <UserCog />,
     items: [
-      { title: "Danh sách đối tác", url: "/admin/tasker" },
-      { title: "Xác minh hồ sơ", url: "/admin/tasker/verification" },
-      { title: "Lịch làm việc", url: "/admin/tasker/schedule" },
-      { title: "Bảng lương & Thu nhập", url: "/admin/tasker/payroll" },
+      { title: "Danh sách Tasker", url: "/admin/taskers" },
     ],
   },
   {
@@ -73,40 +70,34 @@ const managementNav = [
     icon: <Users />,
     items: [
       { title: "Danh sách khách hàng", url: "/admin/customers" },
-      { title: "Phân hạng Loyalty", url: "/admin/customers/loyalty" },
-      { title: "Gói Subscription", url: "/admin/customers/plans" },
     ],
   },
 ]
 
 const operationsNav = [
   {
-    title: "Tài chính & Hóa đơn",
-    url: "/admin/finance",
-    icon: <CreditCard />,
+    title: "Tài chính",
+    url: "/admin/finances",
+    icon: <Wallet />,
     items: [
-      { title: "Giao dịch", url: "/admin/finance/transactions" },
-      { title: "Quản lý hóa đơn", url: "/admin/finance/invoices" },
+      { title: "Lịch sử giao dịch", url: "/admin/finances" },
+      { title: "Yêu cầu rút tiền", url: "/admin/withdrawals" },
     ],
   },
   {
-    title: "Đánh giá & Phản hồi",
-    url: "/admin/reviews",
-    icon: <Star />,
-  },
-  {
-    title: "Báo cáo & Phân tích",
-    url: "/admin/analytics",
-    icon: <BarChart3 />,
-  },
-  {
-    title: "Cấu hình nội dung",
-    url: "/admin/content",
-    icon: <FileText />,
+    title: "Hỗ trợ khách hàng",
+    url: "/admin/support-tickets",
+    icon: <HeadphonesIcon />,
     items: [
-      { title: "Banner quảng cáo", url: "/admin/content/banners" },
-      { title: "FAQs & Trang tĩnh", url: "/admin/content/faqs" },
-      { title: "Cài đặt thông báo", url: "/admin/content/notifications" },
+      { title: "Hàng đợi ticket", url: "/admin/support-tickets" },
+    ],
+  },
+  {
+    title: "Thông báo",
+    url: "/admin/notifications",
+    icon: <Bell />,
+    items: [
+      { title: "Broadcast & Lịch sử", url: "/admin/notifications" },
     ],
   },
 ]
@@ -118,8 +109,8 @@ const systemSettings = [
     icon: <Settings2 />,
   },
   {
-    name: "Phân quyền & Role",
-    url: "/admin/roles",
+    name: "Nhân viên hệ thống",
+    url: "/admin/staff",
     icon: <ShieldCheck />,
   },
 ]

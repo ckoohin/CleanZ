@@ -10,9 +10,9 @@ export default function CustomerGroupLayout({
 }) {
     return (
         <>
-            {/* <RoleGuard allowedRoles={['CUSTOMER']}> */}
+            <RoleGuard allowedRoles={['CUSTOMER', 'TASKER']}>
                 {children}
-            {/* </RoleGuard> */}
+            </RoleGuard>
         </>
     );
 }

@@ -9,6 +9,10 @@ export type AllConfigType = {
 
   FRONTEND_URL: string;
 
+  REDIS_HOST: string;
+  REDIS_PORT: number;
+  REDIS_PASSWORD?: string;
+
   MAIL_HOST: string;
   MAIL_PORT: number;
   MAIL_USER: string;
@@ -33,4 +37,6 @@ export type AllConfigType = {
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;
   CLOUDINARY_API_SECRET: string;
+
+  GOONG_MAPS_API_KEY?: string;
 };
