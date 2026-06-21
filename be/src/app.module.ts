@@ -18,6 +18,7 @@ import { IncidentModule } from './modules/incident/incident.module';
 import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
 import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { PolicyModule } from './modules/policy/policy.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { NotificationModule } from './modules/notification/notification.module';
@@ -51,6 +52,7 @@ import { VoucherModule } from './modules/voucher/voucher.module';
     SupportTicketModule,
     WithdrawalModule,
     AdminModule,
+    PolicyModule,
     TrackingModule,
     QueueModule,
     NotificationModule,

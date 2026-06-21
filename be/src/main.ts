@@ -13,10 +13,31 @@ async function bootstrap() {
   const port = Number(process.env.PORT) || 3000;
 
   app.setGlobalPrefix('api/v1');
+
+  // ===== CORS =====
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:3020',
+    'http://127.0.0.1:3020',
+    'http://172.22.64.1:3020',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3020',
+    origin: (origin, callback) => {
+      // Cho phép Postman / server-to-server request (không có origin)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Not allowed by CORS: ${origin}`), false);
+    },
     credentials: true,
   });
+
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalPipes(new ValidationPipe(validationOptions));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
@@ -54,6 +75,7 @@ async function bootstrap() {
     )
     .addTag('Upload', 'Image upload and delete endpoints')
     .addTag('Token', 'Token module endpoints')
+    .addTag('Policy', 'Policy management endpoints')
     .addBearerAuth(
       {
         type: 'http',
@@ -84,10 +106,21 @@ async function bootstrap() {
       'refresh-token-cookie',
     )
     .build();
+
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument, {
     useGlobalPrefix: true,
   });
+
   await app.listen(port);
+
+  console.log('================================');
+  console.log('PORT ENV:', process.env.PORT);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+  console.log('ALLOWED ORIGINS:', allowedOrigins);
+  console.log('RUNNING ON: http://localhost:' + port);
+  console.log('SWAGGER: http://localhost:' + port + '/api/v1/docs');
+  console.log('================================');
 }
+
 void bootstrap();
