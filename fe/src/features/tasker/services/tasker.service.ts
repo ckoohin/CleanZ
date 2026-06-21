@@ -2,7 +2,7 @@ import http from '@/lib/api/http';
 import { TaskerProfile, UpdateTaskerProfileDto } from '../types/tasker.type';
 
 export interface ServiceListResponse {
-  data: Array<{ id: string; name: string; category?: string }>;
+  data: Array<{ id: string; name: string; category?: string; supportedLocationTypes?: string[] }>;
 }
 
 export const taskerApi = {
