@@ -1,0 +1,52 @@
+"use client";
+
+import React from "react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BaseButton } from "@/components/ui/base/base_button";
+import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
+import { useCreateAdminService } from "@/features/admin/hooks/useAdminServices";
+import { CreateAdminServiceDto } from "@/features/admin/services/admin-services.service";
+
+export default function CreateServicePage() {
+  const router = useRouter();
+  const createMutation = useCreateAdminService();
+
+  const handleSubmit = (values: CreateAdminServiceDto) => {
+    createMutation.mutate(values, {
+      onSuccess: () => {
+        router.push("/admin/services");
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-4">
+        <BaseButton
+          variant="outline"
+          size="icon"
+          onClick={() => router.push("/admin/services")}
+          className="rounded-full h-10 w-10 shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </BaseButton>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Thêm dịch vụ mới
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Nhập các thông tin cơ bản để tạo mới dịch vụ vào hệ thống.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
+        <ServiceForm 
+          onSubmit={handleSubmit} 
+          isSubmitting={createMutation.isPending} 
+        />
+      </div>
+    </div>
+  );
+}
