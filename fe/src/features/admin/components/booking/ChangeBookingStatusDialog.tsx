@@ -52,8 +52,9 @@ export function ChangeBookingStatusDialog({ bookingId, currentStatus, open, onOp
         toast.success("Cập nhật trạng thái thành công");
         onOpenChange(false);
       },
-      onError: (err: any) => {
-        toast.error(err?.response?.data?.message || "Lỗi khi cập nhật trạng thái");
+      onError: (err: unknown) => {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error?.response?.data?.message || "Lỗi khi cập nhật trạng thái");
       }
     });
   };

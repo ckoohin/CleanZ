@@ -59,8 +59,9 @@ export function AssignTaskerDialog({ bookingId, open, onOpenChange, currentTaske
         toast.success("Gán Tasker thành công");
         onOpenChange(false);
       },
-      onError: (err: any) => {
-        toast.error(err?.response?.data?.message || "Lỗi khi gán Tasker");
+      onError: (err: unknown) => {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error?.response?.data?.message || "Lỗi khi gán Tasker");
       }
     });
   };
@@ -98,7 +99,7 @@ export function AssignTaskerDialog({ bookingId, open, onOpenChange, currentTaske
                 Không tìm thấy Tasker phù hợp
               </div>
             ) : (
-              taskers.map((t: any) => (
+              taskers.map((t: { id: string; fullName: string; phone?: string; phoneNumber?: string }) => (
                 <div
                   key={t.id}
                   className={`flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors ${

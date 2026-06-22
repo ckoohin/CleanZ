@@ -94,8 +94,9 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
         form.reset();
         onOpenChange(false);
       },
-      onError: (err: any) => {
-        toast.error(err?.response?.data?.message || "Có lỗi xảy ra khi tạo booking");
+      onError: (err: unknown) => {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi tạo booking");
       }
     });
   };
@@ -136,7 +137,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                           )}
                         >
                           {field.value
-                            ? customers.find((c: any) => c.id === field.value)?.fullName || "Đã chọn khách hàng"
+                            ? customers.find((c: { id: string; fullName: string }) => c.id === field.value)?.fullName || "Đã chọn khách hàng"
                             : "Tìm kiếm tên hoặc SĐT..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -154,7 +155,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                             {isLoadingCustomers ? <Loader2 className="w-4 h-4 animate-spin mx-auto my-2" /> : "Không tìm thấy khách hàng."}
                           </CommandEmpty>
                           <CommandGroup>
-                            {customers.map((c: any) => (
+                            {customers.map((c: { id: string; fullName: string; phone: string | null }) => (
                               <CommandItem
                                 key={c.id}
                                 value={c.id}
@@ -197,7 +198,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {addresses.map((a: any) => (
+                        {addresses.map((a: { id: string; fullAddress: string; isDefault: boolean }) => (
                           <SelectItem key={a.id} value={a.id}>
                             {a.fullAddress} {a.isDefault && "(Mặc định)"}
                           </SelectItem>
@@ -224,7 +225,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {services.map((s: any) => (
+                      {services.map((s: { id: string; name: string }) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.name}
                         </SelectItem>
