@@ -1,16 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
-import { getAdminBookings, getAdminBookingDetail } from '../api/booking.api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminBookingService } from '../services/admin-booking.service';
+import { AssignTaskerDto, ChangeBookingStatusDto, CreateAdminBookingDto } from '../types/booking.types';
 
 export const useAdminBookings = (params: { page?: number; limit?: number; keyword?: string; status?: string }) => {
   const queryInfo = useQuery({
     queryKey: ['/admin/bookings', params],
-    queryFn: () => getAdminBookings(params),
+    queryFn: () => adminBookingService.getAdminBookings(params),
   });
 
   return {
-    data: queryInfo.data?.items || [],
-    total: queryInfo.data?.total || 0,
-    totalPages: queryInfo.data?.totalPages || 0,
+    data: queryInfo.data?.data || [], // Sửa từ items sang data cho khớp BE
+    total: queryInfo.data?.meta?.total || 0, // Sửa thành meta.total cho khớp BE
+    totalPages: queryInfo.data?.meta?.totalPages || 0, // Sửa thành meta.totalPages cho khớp BE
     isLoading: queryInfo.isLoading,
     error: queryInfo.error,
     mutate: queryInfo.refetch,
@@ -20,7 +21,7 @@ export const useAdminBookings = (params: { page?: number; limit?: number; keywor
 export const useAdminBookingDetail = (id: string | null) => {
   const queryInfo = useQuery({
     queryKey: ['/admin/bookings', id],
-    queryFn: () => getAdminBookingDetail(id as string),
+    queryFn: () => adminBookingService.getAdminBookingDetail(id as string),
     enabled: !!id,
   });
 
@@ -35,17 +36,14 @@ export const useAdminBookingDetail = (id: string | null) => {
 export const useActiveTaskers = () => {
   return useQuery({
     queryKey: ['/admin/bookings/taskers/active'],
-    queryFn: () => import('../api/booking.api').then(m => m.getActiveTaskers()),
+    queryFn: () => adminBookingService.getActiveTaskers(),
   });
 };
-
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AssignTaskerDto, ChangeBookingStatusDto, CreateAdminBookingDto } from '../types/booking.types';
 
 export const useCreateAdminBooking = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateAdminBookingDto) => import('../api/booking.api').then(api => api.createAdminBooking(payload)),
+    mutationFn: (payload: CreateAdminBookingDto) => adminBookingService.createAdminBooking(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['/admin/bookings'] });
     }
@@ -55,7 +53,7 @@ export const useCreateAdminBooking = () => {
 export const useCancelAdminBooking = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string, reason?: string }) => import('../api/booking.api').then(api => api.cancelBooking(id, reason)),
+    mutationFn: ({ id, reason }: { id: string, reason?: string }) => adminBookingService.cancelBooking(id, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['/admin/bookings'] });
     }
@@ -66,7 +64,7 @@ export const useAssignTaskerToBooking = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: AssignTaskerDto }) => 
-      import('../api/booking.api').then(api => api.assignTaskerToBooking(id, payload)),
+      adminBookingService.assignTaskerToBooking(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['/admin/bookings'] });
     }
@@ -77,7 +75,7 @@ export const useChangeBookingStatus = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ChangeBookingStatusDto }) => 
-      import('../api/booking.api').then(api => api.changeBookingStatus(id, payload)),
+      adminBookingService.changeBookingStatus(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['/admin/bookings'] });
     }
@@ -87,7 +85,7 @@ export const useChangeBookingStatus = () => {
 export const useAvailableTaskers = (bookingId: string | null, params?: { keyword?: string; page?: number; limit?: number }) => {
   return useQuery({
     queryKey: ['/admin/bookings', bookingId, 'available-taskers', params],
-    queryFn: () => import('../api/booking.api').then(api => api.getAvailableTaskers(bookingId!, params)),
+    queryFn: () => adminBookingService.getAvailableTaskers(bookingId!, params),
     enabled: !!bookingId,
   });
 };

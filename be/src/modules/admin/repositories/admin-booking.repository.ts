@@ -160,10 +160,11 @@ export class AdminBookingRepository {
         );
       }
 
-      await this.bookingPolicyService.assertCustomerCanCreateBooking(
-        manager,
-        customer.id,
-      );
+      // Admin is allowed to bypass the "1 active booking per customer" policy
+      // await this.bookingPolicyService.assertCustomerCanCreateBooking(
+      //   manager,
+      //   customer.id,
+      // );
 
       const addressRepository = manager.getRepository(CustomerAddressEntity);
       const addressRef = dto.addressId

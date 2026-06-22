@@ -10,33 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, MapPin, User, Banknote, ShieldCheck, FileText, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  useCancelAdminBooking,
-} from "../../hooks/useAdminBookings";
+import { useCancelAdminBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 import { useState } from "react";
-import { AssignTaskerDialog } from "./AssignTaskerDialog";
-import { ChangeBookingStatusDialog } from "./ChangeBookingStatusDialog";
-
-export interface AdminBookingDetail {
-  id: string;
-  bookingCode?: string;
-  status?: string;
-  totalPrice?: number;
-  paymentMethod?: string;
-  paymentStatus?: string;
-  scheduledStart?: string;
-  durationHours?: number;
-  address?: string;
-  note?: string;
-  customer?: {
-    fullName?: string;
-    phoneNumber?: string;
-  };
-  tasker?: {
-    fullName?: string;
-    phoneNumber?: string;
-  };
-}
+import { AssignTaskerDialog } from "@/features/admin/modules/booking/_components/AssignTaskerDialog";
+import { ChangeBookingStatusDialog } from "@/features/admin/modules/booking/_components/ChangeBookingStatusDialog";
+import { AdminBookingDetail } from "@/features/admin/modules/booking/types/booking.types";
 
 interface AdminBookingDetailModalProps {
   open: boolean;
@@ -175,14 +153,14 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
               </div>
               <div>
                 <span className="text-xs text-slate-500 block mb-1">Số điện thoại</span>
-                <span className="font-semibold">{booking.customer?.phoneNumber || 'N/A'}</span>
+                <span className="font-semibold">{booking.customer?.phone || 'N/A'}</span>
               </div>
               <div className="md:col-span-2">
                 <span className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> Địa chỉ làm việc
                 </span>
                 <span className="font-medium text-sm block bg-white dark:bg-slate-800 p-3 rounded border">
-                  {booking.address}
+                  {booking.address?.fullAddress || 'N/A'}
                 </span>
               </div>
               {booking.note && (
@@ -211,7 +189,7 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
                 </div>
                 <div>
                   <span className="text-xs text-slate-500 block mb-1">Số điện thoại</span>
-                  <span className="font-semibold">{booking.tasker.phoneNumber}</span>
+                  <span className="font-semibold">{booking.tasker.phone}</span>
                 </div>
               </div>
             ) : (
@@ -225,19 +203,19 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
             <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
               <CheckCircle2 className="w-5 h-5 text-indigo-500" /> Hành Động Xử Lý
             </h3>
-            
+
             <div className="flex flex-col md:flex-row gap-4 items-center">
               {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
                 <>
-                  <Button 
-                    onClick={() => setIsAssignOpen(true)} 
+                  <Button
+                    onClick={() => setIsAssignOpen(true)}
                     className="bg-indigo-600 hover:bg-indigo-700 w-full md:w-auto"
                   >
                     <User className="w-4 h-4 mr-2" /> Gán / Đổi Tasker
                   </Button>
-                  
-                  <Button 
-                    onClick={() => setIsChangeStatusOpen(true)} 
+
+                  <Button
+                    onClick={() => setIsChangeStatusOpen(true)}
                     variant="outline"
                     className="w-full md:w-auto"
                   >
@@ -245,8 +223,8 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
                   </Button>
 
                   <div className="flex-1 md:flex-none flex justify-end ml-auto">
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       onClick={handleCancel}
                       disabled={cancelMutation.isPending}
                       className="w-full md:w-auto"
@@ -265,12 +243,13 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
       </DialogContent>
 
       {/* Nested Dialogs for Actions */}
-      <AssignTaskerDialog 
+      <AssignTaskerDialog
         bookingId={booking.id}
         open={isAssignOpen}
         onOpenChange={setIsAssignOpen}
+        currentTaskerId={booking.tasker?.id}
       />
-      <ChangeBookingStatusDialog 
+      <ChangeBookingStatusDialog
         bookingId={booking.id}
         currentStatus={booking.status}
         open={isChangeStatusOpen}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   Search,
   ChevronLeft,
@@ -47,6 +48,28 @@ import {
 import { Badge } from "../badge";
 import BaseEmptyState from "./base_empty_state";
 import { cn } from "../utils";
+
+// ─────────────────────────────────────────────
+//  Animations Variants
+// ─────────────────────────────────────────────
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { type: "spring" as const, stiffness: 100, damping: 15 } 
+  }
+};
 
 // ─────────────────────────────────────────────
 //  Types
@@ -328,7 +351,7 @@ export function BaseTableList<T>({
             {onKeywordChange && (
               <div className="relative w-full sm:max-w-sm sm:flex-1">
                 <Search
-                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60"
+                  className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60"
                   aria-hidden="true"
                 />
                 <Input
@@ -336,16 +359,16 @@ export function BaseTableList<T>({
                   value={keyword}
                   onChange={(e) => onKeywordChange(e.target.value)}
                   placeholder={placeholderSearch}
-                  className="h-11 w-full rounded-xl border border-border/50 bg-muted/30 pl-10 pr-9 text-[13px] shadow-none transition-colors hover:bg-muted/50 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
+                  className="h-8.5 w-full rounded-lg border border-border/50 bg-muted/30 pl-8.5 pr-8 text-[11px] font-medium shadow-none transition-colors hover:bg-muted/50 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
                 />
                 {keyword && (
                   <button
                     type="button"
                     onClick={() => onKeywordChange("")}
                     aria-label="Xóa tìm kiếm"
-                    className="absolute right-2.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+                    className="absolute right-2 top-1/2 flex size-5.5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
                   >
-                    <X className="size-3.5" />
+                    <X className="size-3" />
                   </button>
                 )}
               </div>
@@ -413,7 +436,12 @@ export function BaseTableList<T>({
               </TableRow>
             </TableHeader>
 
-            <TableBody>
+            <motion.tbody
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="[&_tr:last-child]:border-0"
+            >
               {isLoading ? (
                 // Skeleton rows
                 [...Array(limit)].map((_, rowIndex) => (
@@ -454,10 +482,11 @@ export function BaseTableList<T>({
                   const isSelected = selectedKeys.has(key);
 
                   return (
-                    <TableRow
+                    <motion.tr
                       key={key}
+                      variants={itemVariants}
                       className={cn(
-                        "border-b border-border/30 transition-colors duration-150",
+                        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors duration-150",
                         isSelected
                           ? "bg-primary/5 hover:bg-primary/8"
                           : "hover:bg-muted/30",
@@ -498,122 +527,124 @@ export function BaseTableList<T>({
 
                       {/* Row Actions */}
                       {hasActions && (
-                        <TableCell className="py-3 pr-4">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* Inline actions */}
-                            {inlineActions.map((action, actionIdx) => {
-                              if (action.hidden?.(row)) return null;
-                              const Icon =
-                                action.icon ??
-                                (action.type
-                                  ? ACTION_ICON_MAP[action.type]
-                                  : undefined);
-                              const variant =
-                                action.variant ??
-                                (action.type
-                                  ? ACTION_VARIANT_MAP[action.type]
-                                  : "default");
-                              const isDisabled = action.disabled?.(row);
+                        <TableCell className="py-2.5 pr-4">
+                          <div className="flex justify-end">
+                            <div className="inline-flex items-center gap-0.5 bg-muted/40 border border-border/40 rounded-lg p-0.5 shadow-sm">
+                              {/* Inline actions */}
+                              {inlineActions.map((action, actionIdx) => {
+                                if (action.hidden?.(row)) return null;
+                                const Icon =
+                                  action.icon ??
+                                  (action.type
+                                    ? ACTION_ICON_MAP[action.type]
+                                    : undefined);
+                                const variant =
+                                  action.variant ??
+                                  (action.type
+                                    ? ACTION_VARIANT_MAP[action.type]
+                                    : "default");
+                                const isDisabled = action.disabled?.(row);
 
-                              return (
-                                <Button
-                                  key={actionIdx}
-                                  variant="ghost"
-                                  size="icon"
-                                  disabled={isDisabled}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    action.onClick(row);
-                                  }}
-                                  title={action.label}
-                                  aria-label={action.label}
-                                  className={cn(
-                                    "h-8 w-8 rounded-full transition-all",
-                                    variant === "destructive" &&
-                                      "text-destructive/80 hover:text-destructive hover:bg-destructive/10",
-                                    variant === "warning" &&
-                                      "text-amber-600/80 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20",
-                                    variant === "default" &&
-                                      "text-muted-foreground/80 hover:text-foreground hover:bg-muted/60",
-                                  )}
-                                >
-                                  {Icon ? (
-                                    <Icon className="h-4 w-4" />
-                                  ) : (
-                                    <span className="text-xs">
-                                      {action.label.charAt(0)}
-                                    </span>
-                                  )}
-                                </Button>
-                              );
-                            })}
-
-                            {/* Dropdown for remaining actions */}
-                            {dropdownActions.length > 0 && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                                return (
                                   <Button
+                                    key={actionIdx}
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 rounded-full text-muted-foreground/80 hover:text-foreground hover:bg-muted/60"
-                                    aria-label="Thêm hành động"
-                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={isDisabled}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      action.onClick(row);
+                                    }}
+                                    title={action.label}
+                                    aria-label={action.label}
+                                    className={cn(
+                                      "h-6.5 w-6.5 rounded-md transition-all shadow-none",
+                                      variant === "destructive" &&
+                                        "text-destructive/80 hover:text-destructive hover:bg-destructive/15",
+                                      variant === "warning" &&
+                                        "text-amber-600/80 hover:text-amber-600 hover:bg-amber-500/10",
+                                      variant === "default" &&
+                                        "text-muted-foreground hover:text-foreground hover:bg-muted",
+                                    )}
                                   >
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    {Icon ? (
+                                      <Icon className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <span className="text-[10px] font-bold">
+                                        {action.label.charAt(0)}
+                                      </span>
+                                    )}
                                   </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="w-48 rounded-xl border-border/50 shadow-lg"
-                                >
-                                  <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                    Hành động khác
-                                  </DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                  {dropdownActions.map((action, actionIdx) => {
-                                    if (action.hidden?.(row)) return null;
-                                    const Icon =
-                                      action.icon ??
-                                      (action.type
-                                        ? ACTION_ICON_MAP[action.type]
-                                        : undefined);
-                                    const variant =
-                                      action.variant ??
-                                      (action.type
-                                        ? ACTION_VARIANT_MAP[action.type]
-                                        : "default");
-                                    const isDisabled = action.disabled?.(row);
+                                );
+                              })}
 
-                                    return (
-                                      <DropdownMenuItem
-                                        key={actionIdx}
-                                        disabled={isDisabled}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          action.onClick(row);
-                                        }}
-                                        className={cn(
-                                          "text-sm font-medium gap-2 cursor-pointer rounded-lg mx-1 focus:outline-none",
-                                          variant === "destructive" &&
-                                            "text-destructive focus:bg-destructive/10 focus:text-destructive",
-                                          variant === "warning" &&
-                                            "text-amber-600 focus:bg-amber-50 focus:text-amber-700 dark:focus:bg-amber-900/20",
-                                        )}
-                                      >
-                                        {Icon && (
-                                          <Icon className="h-4 w-4 shrink-0" />
-                                        )}
-                                        {action.label}
-                                      </DropdownMenuItem>
-                                    );
-                                  })}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+                              {/* Dropdown for remaining actions */}
+                              {dropdownActions.length > 0 && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6.5 w-6.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-none"
+                                      aria-label="Thêm hành động"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <MoreHorizontal className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="w-44 rounded-xl border-border/50 shadow-lg"
+                                  >
+                                    <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                      Hành động khác
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {dropdownActions.map((action, actionIdx) => {
+                                      if (action.hidden?.(row)) return null;
+                                      const Icon =
+                                        action.icon ??
+                                        (action.type
+                                          ? ACTION_ICON_MAP[action.type]
+                                          : undefined);
+                                      const variant =
+                                        action.variant ??
+                                        (action.type
+                                          ? ACTION_VARIANT_MAP[action.type]
+                                          : "default");
+                                      const isDisabled = action.disabled?.(row);
+
+                                      return (
+                                        <DropdownMenuItem
+                                          key={actionIdx}
+                                          disabled={isDisabled}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            action.onClick(row);
+                                          }}
+                                          className={cn(
+                                            "text-xs font-medium gap-2 cursor-pointer rounded-lg mx-1 focus:outline-none py-1.5",
+                                            variant === "destructive" &&
+                                              "text-destructive focus:bg-destructive/10 focus:text-destructive",
+                                            variant === "warning" &&
+                                              "text-amber-600 focus:bg-amber-50 focus:text-amber-700 dark:focus:bg-amber-900/20",
+                                          )}
+                                        >
+                                          {Icon && (
+                                            <Icon className="h-3.5 w-3.5 shrink-0" />
+                                          )}
+                                          {action.label}
+                                        </DropdownMenuItem>
+                                      );
+                                    })}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                       )}
-                    </TableRow>
+                    </motion.tr>
                   );
                 })
               ) : (
@@ -637,25 +668,21 @@ export function BaseTableList<T>({
                   </TableCell>
                 </TableRow>
               )}
-            </TableBody>
+            </motion.tbody>
           </Table>
         </div>
 
         {/* ── Pagination Footer ── */}
         {!isLoading && totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-border/40 bg-transparent text-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-border/40 bg-transparent text-sm">
             {/* Total count */}
-            <p className="text-muted-foreground/80 font-medium text-[13px] text-center sm:text-left">
-              Hiển thị{" "}
-              <span className="font-semibold text-foreground">{startItem}</span>{" "}
-              - <span className="font-semibold text-foreground">{endItem}</span>{" "}
-              trên{" "}
-              <span className="font-semibold text-foreground">
-                {totalItems}
-              </span>{" "}
-              bản ghi
+            <p className="text-muted-foreground/90 font-medium text-[11px] text-center sm:text-left flex items-center justify-center sm:justify-start gap-1.5">
+              <span className="inline-block w-1 h-1 rounded-full bg-[#FFA000] shrink-0" />
+              <span>
+                Hiển thị <span className="font-bold text-[#FFA000]">{startItem}–{endItem}</span> trong <span className="font-bold text-[#FFA000]">{totalItems}</span> bản ghi
+              </span>
               {selectedKeys.size > 0 && (
-                <span className="ml-2 text-primary font-semibold">
+                <span className="ml-1 text-primary font-bold">
                   ({selectedKeys.size} đã chọn)
                 </span>
               )}
@@ -664,15 +691,15 @@ export function BaseTableList<T>({
             <div className="flex flex-col sm:flex-row items-center gap-3">
               {/* Limit selector */}
               {onLimitChange && (
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-muted-foreground font-medium">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">
                     Hiển thị
                   </span>
                   <Select
                     value={String(limit)}
                     onValueChange={(val) => onLimitChange(Number(val))}
                   >
-                    <SelectTrigger className="w-[70px] h-8 rounded-full border-border/40 bg-transparent hover:bg-muted/50 text-[13px] font-medium focus:ring-0 focus:ring-offset-0 shadow-none transition-all">
+                    <SelectTrigger className="!w-auto !h-6 rounded-md border-border/40 bg-transparent hover:bg-muted/50 !text-[10px] font-bold focus:ring-0 focus:ring-offset-0 shadow-none transition-all !py-0 !px-1.5 !gap-1 !inline-flex !justify-start !items-center [&_svg]:!size-2.5 [&_svg]:opacity-60 shrink-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="rounded-lg">
@@ -680,7 +707,7 @@ export function BaseTableList<T>({
                         <SelectItem
                           key={size}
                           value={String(size)}
-                          className="text-xs font-medium"
+                          className="text-[11px] font-medium py-1"
                         >
                           {size}
                         </SelectItem>
@@ -692,23 +719,23 @@ export function BaseTableList<T>({
 
               {/* Page navigation */}
               {onPageChange && totalPages > 1 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => onPageChange(page - 1)}
                     disabled={page === 1}
-                    className="h-8 w-8 rounded-full border-transparent hover:bg-muted/60 text-muted-foreground disabled:opacity-40 transition-all shadow-none"
+                    className="h-6 w-6 rounded-md border-transparent hover:bg-muted/60 text-muted-foreground disabled:opacity-40 transition-all shadow-none"
                     aria-label="Trang trước"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-3 w-3" />
                   </Button>
 
                   {getPageNumbers().map((num, index) =>
                     num === "..." ? (
                       <span
                         key={`ellipsis-${index}`}
-                        className="px-2 text-muted-foreground text-xs select-none"
+                        className="px-1 text-muted-foreground text-[9px] select-none"
                       >
                         ...
                       </span>
@@ -718,7 +745,7 @@ export function BaseTableList<T>({
                         variant={num === page ? "default" : "outline"}
                         onClick={() => onPageChange(Number(num))}
                         className={cn(
-                          "h-8 w-8 text-[13px] rounded-full font-medium transition-all shadow-none",
+                          "h-6 w-6 text-[10px] rounded-md font-bold transition-all shadow-none",
                           num === page
                             ? "bg-primary hover:bg-primary/90 text-primary-foreground"
                             : "border-transparent hover:bg-muted/60 text-muted-foreground hover:text-foreground",
@@ -734,10 +761,10 @@ export function BaseTableList<T>({
                     size="icon"
                     onClick={() => onPageChange(page + 1)}
                     disabled={page === totalPages}
-                    className="h-8 w-8 rounded-full border-transparent hover:bg-muted/60 text-muted-foreground disabled:opacity-40 transition-all shadow-none"
+                    className="h-6 w-6 rounded-md border-transparent hover:bg-muted/60 text-muted-foreground disabled:opacity-40 transition-all shadow-none"
                     aria-label="Trang sau"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3 w-3" />
                   </Button>
                 </div>
               )}

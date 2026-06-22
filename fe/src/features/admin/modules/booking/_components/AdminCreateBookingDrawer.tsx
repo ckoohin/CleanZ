@@ -33,9 +33,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 
-import { useCreateAdminBooking } from "../../hooks/useAdminBookings";
-import { useAdminCustomers, useAdminCustomerDetail } from "../../hooks/useAdminCustomers";
-import { useAdminServices } from "../../hooks/useAdminServices";
+import { useCreateAdminBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
+import { useAdminCustomers, useAdminCustomerDetail } from "@/features/admin/modules/customer/hooks/useAdminCustomer";
+import { useAdminServices } from "@/features/admin/hooks/useAdminServices";
 
 const createBookingSchema = z.object({
   customerId: z.string().min(1, "Vui lòng chọn khách hàng"),
@@ -78,7 +78,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
   });
 
   const selectedCustomerId = form.watch("customerId");
-  const { data: customerDetail, isLoading: isLoadingDetail } = useAdminCustomerDetail(selectedCustomerId || null);
+  const { data: customerDetail, isLoading: isLoadingDetail } = useAdminCustomerDetail(selectedCustomerId || "");
 
   const createMutation = useCreateAdminBooking();
 
@@ -107,8 +107,8 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader className="mb-6">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6">
+        <SheetHeader className="mb-6 p-0">
           <SheetTitle>Tạo Đơn Hộ Khách Hàng</SheetTitle>
           <SheetDescription>
             Điền thông tin để tạo booking thủ công. Giá tiền sẽ được tự động tính theo cấu hình hiện hành.

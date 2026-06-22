@@ -109,6 +109,26 @@ export const API_ENDPOINTS = {
     BOOKINGS: (id: string) => `/admin/services/${id}/bookings`,
     TASKERS: (id: string) => `/admin/services/${id}/taskers`,
   },
+  ADMIN_BOOKINGS: {
+    BASE: "/admin/bookings",
+    DETAIL: (id: string) => `/admin/bookings/${id}`,
+    AVAILABLE_TASKERS: (id: string) => `/admin/bookings/${id}/available-taskers`,
+    ASSIGN_TASKER: (id: string) => `/admin/bookings/${id}/tasker`,
+    STATUS: (id: string) => `/admin/bookings/${id}/status`,
+    CANCEL: (id: string) => `/admin/bookings/${id}/cancel`,
+    EXPIRE_OVERDUE: "/admin/bookings/expire-overdue",
+    ACTIVE_TASKERS: "/admin/bookings/taskers/active",
+  },
+  ADMIN_CUSTOMERS: {
+    BASE: "/admin/customers",
+    DETAIL: (id: string) => `/admin/customers/${id}`,
+    BOOKINGS: (id: string) => `/admin/customers/${id}/bookings`,
+    STATUS: (id: string) => `/admin/customers/${id}/status`,
+  },
+  ADMIN_POLICIES: {
+    BASE: "/policy",
+    DETAIL: (id: string) => `/policy/${id}`,
+  },
   ADMIN_PRICING: {
     CONFIGS: "/admin/pricing/configs",
     CONFIG_DETAIL: (id: string) => `/admin/pricing/configs/${id}`,

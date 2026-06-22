@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   useAdminCustomerDetail,
   useAdminCustomerBookings,
-} from "../hooks/useAdminCustomer";
-import { CustomerStatusToggle } from "./CustomerStatusToggle";
+} from "@/features/admin/modules/customer/hooks/useAdminCustomer";
+import { CustomerStatusToggle } from "@/features/admin/modules/customer/_components/CustomerStatusToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

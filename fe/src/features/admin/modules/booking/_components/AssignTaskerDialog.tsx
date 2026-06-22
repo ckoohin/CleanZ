@@ -13,8 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useAvailableTaskers, useAssignTaskerToBooking } from "../../hooks/useAdminBookings";
-
+import { useAvailableTaskers, useAssignTaskerToBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 
 interface AssignTaskerDialogProps {
   bookingId: string;

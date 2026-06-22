@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useChangeBookingStatus } from "../../hooks/useAdminBookings";
+import { useChangeBookingStatus } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 
 interface ChangeBookingStatusDialogProps {
   bookingId: string;
@@ -61,7 +61,9 @@ export function ChangeBookingStatusDialog({ bookingId, currentStatus, open, onOp
 
   const availableStatuses = [
     { value: "POSTED", label: "Đang Tìm Thợ (POSTED)" },
-    { value: "ACCEPTED", label: "Đã Nhận Đơn (ACCEPTED)" },
+    { value: "CONFIRMED", label: "Đã Nhận Đơn (CONFIRMED)" },
+    { value: "TASKER_ON_THE_WAY", label: "Đang Di Chuyển (TASKER_ON_THE_WAY)" },
+    { value: "CHECKED_IN", label: "Đã Đến Nơi (CHECKED_IN)" },
     { value: "IN_PROGRESS", label: "Đang Thực Hiện (IN_PROGRESS)" },
     { value: "COMPLETED", label: "Hoàn Thành (COMPLETED)" },
     { value: "CANCELLED", label: "Đã Hủy (CANCELLED)" },
@@ -71,7 +73,7 @@ export function ChangeBookingStatusDialog({ bookingId, currentStatus, open, onOp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Cập Nhật Trạng Thái</DialogTitle>
+          <DialogTitle>Cập Nhật Trạng Thế</DialogTitle>
           <DialogDescription>
             Admin có quyền ép trạng thái của đơn hàng trong trường hợp cần thiết. Bắt buộc nhập lý do thay đổi.
           </DialogDescription>
