@@ -1,9 +1,11 @@
 import { CustomerBookingDetailPage } from "@/features/booking/_components/CustomerBookingDetailPage";
 
-export default function CustomerBookingDetailRoute({
+export default async function CustomerBookingDetailRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <CustomerBookingDetailPage bookingId={params.id} />;
+  const { id } = await params;
+
+  return <CustomerBookingDetailPage bookingId={id} />;
 }

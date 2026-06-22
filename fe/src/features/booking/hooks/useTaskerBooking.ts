@@ -29,12 +29,17 @@ export function usePostedBookingList() {
 /** 05. Chi tiết đơn posted + khoảng cách */
 export function usePostedBookingDetail(
   id: string,
-  location?: { currentLatitude?: number; currentLongitude?: number }
+  location?: { currentLatitude?: number; currentLongitude?: number },
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...TASKER_KEYS.postedDetail(id), location],
     queryFn: () => taskerBookingApi.findPostedDetail(id, location),
-    enabled: !!id,
+    enabled:
+      enabled &&
+      !!id &&
+      Number.isFinite(location?.currentLatitude) &&
+      Number.isFinite(location?.currentLongitude),
   });
 }
 
@@ -54,12 +59,13 @@ export function useAcceptBooking() {
 /** 07. Chi tiết đơn đã nhận */
 export function useAssignedBookingDetail(
   id: string,
-  location?: { currentLatitude?: number; currentLongitude?: number }
+  location?: { currentLatitude?: number; currentLongitude?: number },
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...TASKER_KEYS.assigned(id), location],
     queryFn: () => taskerBookingApi.findAssigned(id, location),
-    enabled: !!id,
+    enabled: enabled && !!id,
     refetchInterval: 10_000,
   });
 }

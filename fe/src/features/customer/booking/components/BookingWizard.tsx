@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import axios from "axios";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ServiceOption {
@@ -779,16 +780,20 @@ export const BookingWizard = ({
 
     // Step 3 (Thanh toán) → Gọi quote API → Step 4 (Xác nhận)
     if (step === 3) {
-      const result = await quoteQuery.mutateAsync({
-        serviceId: form.serviceId || undefined,
-        addressId: form.addressId || undefined,
-        scheduledDate: form.scheduledDate,
-        scheduledTime: form.scheduledTime,
-        note: form.note || undefined,
-        voucherCode: form.voucherCode || undefined,
-      });
-      setQuote(result);
-      setStep(4);
+      try {
+        const result = await quoteQuery.mutateAsync({
+          serviceId: form.serviceId || undefined,
+          addressId: form.addressId || undefined,
+          scheduledDate: form.scheduledDate,
+          scheduledTime: form.scheduledTime,
+          note: form.note || undefined,
+          voucherCode: form.voucherCode || undefined,
+        });
+        setQuote(result);
+        setStep(4);
+      } catch {
+  
+      }
       return;
     }
 
@@ -803,9 +808,25 @@ export const BookingWizard = ({
         paymentMethod: form.paymentMethod,
         voucherCode: form.voucherCode || undefined,
       };
-      const result = await createMutation.mutateAsync(dto);
-      if (result.id) setCreatedId(result.id as string);
-      setStep(5);
+      try {
+        const result = await createMutation.mutateAsync(dto);
+        if (result.id) setCreatedId(result.id as string);
+        setStep(5);
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 409) {
+          const responseMessage = error.response.data?.message;
+          const bookingId =
+            typeof responseMessage === "object" &&
+            responseMessage !== null &&
+            "bookingId" in responseMessage
+              ? String(responseMessage.bookingId)
+              : null;
+
+          if (bookingId) {
+            router.push(`/customer/booking/${bookingId}`);
+          }
+        }
+      }
       return;
     }
 
@@ -985,7 +1006,7 @@ export const BookingWizard = ({
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {step === 4 ? "Xác nhận & Đặt lịch 🎯" : "Tiếp tục"}
+                  {step === 4 ? "Xác nhận & Đặt lịch" : "Tiếp tục"}
                   {step < 4 && <ChevronRight className="w-5 h-5" />}
                 </>
               )}

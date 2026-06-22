@@ -1,23 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   MapPin,
   Clock,
   Calendar,
-  DollarSign,
   Phone,
   User,
   Navigation,
   CheckCircle2,
   PlayCircle,
   Flag,
-  Package,
   PawPrint,
-  Zap,
   AlertTriangle,
   Route,
 } from "lucide-react";
@@ -345,6 +341,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
   bookingId,
   mode,
 }) => {
+  const MAX_LOCATION_ACCURACY_METERS = 500;
   const router = useRouter();
   const isPostedMode = mode === "posted";
 
@@ -353,31 +350,82 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
     currentLatitude?: number;
     currentLongitude?: number;
   }>({});
+  const [locationResolved, setLocationResolved] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const requestCurrentLocation = () => {
+    setLocationResolved(false);
+    setLocationError(null);
+    setLocation({});
+
+    if (!navigator.geolocation) {
+      setLocationError("Trình duyệt không hỗ trợ định vị.");
+      setLocationResolved(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (position.coords.accuracy > MAX_LOCATION_ACCURACY_METERS) {
+          setLocationError(
+            `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
+          );
+          setLocationResolved(true);
+          return;
+        }
+
+        setLocation({
+          currentLatitude: position.coords.latitude,
+          currentLongitude: position.coords.longitude,
+        });
+        setLocationResolved(true);
+      },
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? "Bạn chưa cấp quyền truy cập vị trí cho trình duyệt."
+            : "Không thể xác định vị trí chính xác. Vui lòng thử lại.";
+        setLocationError(message);
+        setLocationResolved(true);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10_000,
+      },
+    );
+  };
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          setLocation({
-            currentLatitude: pos.coords.latitude,
-            currentLongitude: pos.coords.longitude,
-          }),
-        () => {}, // ignore error nếu user từ chối
-        { timeout: 5000 }
-      );
-    }
+    const timer = window.setTimeout(requestCurrentLocation, 0);
+
+    // Chỉ lấy vị trí khi mở booking hoặc khi người dùng chủ động thử lại.
+    return () => window.clearTimeout(timer);
   }, []);
 
   const postedQuery = usePostedBookingDetail(
     bookingId,
-    isPostedMode ? location : undefined
+    location,
+    isPostedMode,
   );
   const assignedQuery = useAssignedBookingDetail(
     bookingId,
-    isPostedMode ? undefined : location
+    location,
+    !isPostedMode,
   );
 
-  const isLoading = isPostedMode ? postedQuery.isLoading : assignedQuery.isLoading;
+  const isWaitingForLocation =
+    isPostedMode &&
+    (!Number.isFinite(location.currentLatitude) ||
+      !Number.isFinite(location.currentLongitude));
+  const isLoading =
+    isWaitingForLocation ||
+    (isPostedMode ? postedQuery.isLoading : assignedQuery.isLoading);
+  const isLocationUnavailable =
+    isPostedMode &&
+    locationResolved &&
+    (!Number.isFinite(location.currentLatitude) ||
+      !Number.isFinite(location.currentLongitude));
   const activeStatus = isPostedMode ? null : assignedQuery.data?.status;
 
   return (
@@ -406,7 +454,25 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
 
       {/* Content */}
       <div className="px-4 py-4">
-        {isLoading ? (
+        {isLocationUnavailable ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <MapPin className="w-10 h-10 mx-auto mb-2 text-amber-400" />
+            <p className="text-sm font-semibold">
+              Cần quyền truy cập vị trí
+            </p>
+            <p className="text-xs mt-1">
+              {locationError ??
+                "Hãy cho phép trình duyệt dùng vị trí để tính khoảng cách tới đơn."}
+            </p>
+            <button
+              type="button"
+              onClick={requestCurrentLocation}
+              className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white"
+            >
+              Thử lấy lại vị trí
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse" />

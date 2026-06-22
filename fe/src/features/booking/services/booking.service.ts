@@ -18,11 +18,19 @@ import type {
 export const customerBookingApi = {
   /** 01. Xem báo giá trước khi tạo */
   quote: (dto: QuoteBookingDto): Promise<BookingQuoteResponse> =>
-    http.post(API_ENDPOINTS.BOOKING.QUOTE, dto).then((r) => r.data.data ?? r.data),
+    http
+      .post(API_ENDPOINTS.BOOKING.QUOTE, dto, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 02. Tạo booking */
   create: (dto: CreateBookingDto): Promise<CustomerBookingDetail> =>
-    http.post(API_ENDPOINTS.BOOKING.CREATE, dto).then((r) => r.data.data ?? r.data),
+    http
+      .post(API_ENDPOINTS.BOOKING.CREATE, dto, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 03. Xem chi tiết booking */
   findDetail: (id: string): Promise<CustomerBookingDetail> =>

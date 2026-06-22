@@ -13,6 +13,21 @@ const QUERY_KEYS = {
   detail: (id: string) => ["booking", id],
 };
 
+function getBookingErrorMessage(error: unknown, fallback: string): string {
+  const responseMessage = (
+    error as {
+      response?: {
+        data?: {
+          message?: string | { message?: string };
+        };
+      };
+    }
+  )?.response?.data?.message;
+
+  if (typeof responseMessage === "string") return responseMessage;
+  return responseMessage?.message ?? fallback;
+}
+
 // ─── Customer Hooks ───────────────────────────────────────────────────────────
 
 /** Xem báo giá (gọi thủ công khi user submit form) */
@@ -20,10 +35,7 @@ export function useBookingQuote() {
   return useMutation({
     mutationFn: (dto: QuoteBookingDto) => customerBookingApi.quote(dto),
     onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Không thể lấy báo giá";
-      toast.error(message);
+      toast.error(getBookingErrorMessage(err, "Không thể lấy báo giá"));
     },
   });
 }
@@ -38,10 +50,7 @@ export function useCreateBooking() {
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
     },
     onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Không thể tạo booking";
-      toast.error(message);
+      toast.error(getBookingErrorMessage(err, "Không thể tạo booking"));
     },
   });
 }
