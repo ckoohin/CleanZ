@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Query,
@@ -20,9 +21,17 @@ import {
 } from './dto/date-range-query.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
 import { BookingSearchQueryDto } from './dto/booking-search-query.dto';
+import { AvailableTaskersQueryDto } from './dto/available-taskers-query.dto';
+import { AssignTaskerDto } from './dto/assign-tasker.dto';
+import { ChangeBookingStatusDto } from './dto/change-booking-status.dto';
+import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from 'src/modules/auth/decorators/current-user.decorator';
 
 @AdminOnly()
 @Controller('admin')
+@ApiTags('Admin – Booking Management')
+@ApiBearerAuth('access-token')
 export class AdminController {
   constructor(
     private readonly dashboardRepo: AdminDashboardRepository,
@@ -115,8 +124,75 @@ export class AdminController {
   // ─── Booking Search (autocomplete) ───
 
   @Get('bookings')
+  @ApiOperation({
+    summary: 'Admin xem danh sách booking',
+    description:
+      'Hỗ trợ phân trang và lọc theo trạng thái booking, trạng thái thanh toán, customer, tasker, dịch vụ, khoảng ngày tạo; keyword tìm theo mã booking hoặc thông tin customer/tasker.',
+  })
   searchBookings(@Query() query: BookingSearchQueryDto) {
     return this.bookingRepo.searchBookings(query);
+  }
+
+  @Post('bookings')
+  @ApiOperation({
+    summary: 'Admin tạo booking thủ công',
+    description:
+      'Tạo booking hộ customer theo bảng giá hiện hành; có thể chỉ định Tasker ngay khi tạo.',
+  })
+  createBooking(
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: CreateAdminBookingDto,
+  ) {
+    return this.bookingRepo.createBooking(adminUserId, dto);
+  }
+
+  @Get('bookings/:id')
+  @ApiOperation({
+    summary: 'Admin xem chi tiết booking',
+    description:
+      'Trả toàn bộ thông tin booking, timeline vận hành và thông tin thanh toán/quyết toán.',
+  })
+  getBookingDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.bookingRepo.getBookingDetail(id);
+  }
+
+  @Get('bookings/:id/available-taskers')
+  @ApiOperation({
+    summary: 'Admin xem Tasker khả dụng cho booking',
+    description:
+      'Loại Tasker chưa hoạt động, chưa duyệt hồ sơ, bị khóa, trùng lịch hoặc không đủ khả năng chi trả phí nền tảng của booking tiền mặt.',
+  })
+  getAvailableTaskers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AvailableTaskersQueryDto,
+  ) {
+    return this.bookingRepo.getAvailableTaskers(id, query);
+  }
+
+  @Patch('bookings/:id/tasker')
+  @ApiOperation({
+    summary: 'Admin gán hoặc thay Tasker thủ công',
+  })
+  assignTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: AssignTaskerDto,
+  ) {
+    return this.bookingRepo.assignTasker(id, adminUserId, dto);
+  }
+
+  @Patch('bookings/:id/status')
+  @ApiOperation({
+    summary: 'Admin can thiệp trạng thái booking',
+    description:
+      'Hỗ trợ chuyển bước vận hành kế tiếp, hủy, hoàn thành và khôi phục booking. Mọi thay đổi đều được audit.',
+  })
+  changeBookingStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: ChangeBookingStatusDto,
+  ) {
+    return this.bookingRepo.changeBookingStatus(id, adminUserId, dto);
   }
 
   // ─── Customer Management Endpoints ───
