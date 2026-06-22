@@ -40,6 +40,10 @@ export const customerBookingApi = {
   updateSchedule: (id: string, dto: UpdateBookingScheduleDto): Promise<CustomerBookingDetail> =>
     http.patch(API_ENDPOINTS.BOOKING.UPDATE_SCHEDULE(id), dto).then((r) => r.data.data ?? r.data),
 
+  /** 03B. Thanh toán ảo cho VNPAY */
+  mockPay: (id: string): Promise<{ success: boolean; message: string }> =>
+    http.post(API_ENDPOINTS.BOOKING.MOCK_PAY(id)).then((r) => r.data),
+
   /** 03C. Hủy booking */
   cancel: (id: string, dto: CancelBookingDto): Promise<{ message: string }> =>
     http.patch(API_ENDPOINTS.BOOKING.CANCEL(id), dto).then((r) => r.data),

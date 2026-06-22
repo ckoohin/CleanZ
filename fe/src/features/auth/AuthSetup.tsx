@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { setOnUnauthenticated } from '@/lib/api/http';
 import { queryKeys } from '@/features/auth/queries/auth.query';
 
-const PROTECTED_PREFIXES = ['/admin', '/tasker'];
+const PROTECTED_PREFIXES = ['/admin', '/tasker', '/customer'];
 
 /**
 * Đăng ký trình xử lý lỗi 401 toàn cục.

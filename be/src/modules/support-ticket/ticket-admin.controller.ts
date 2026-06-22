@@ -14,7 +14,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/jpg'];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -101,7 +106,9 @@ export class TicketAdminController {
   }
 
   @Post(':id/attachments')
-  @ApiOperation({ summary: 'Admin upload ảnh đính kèm (lấy attachmentId để gắn vào reply)' })
+  @ApiOperation({
+    summary: 'Admin upload ảnh đính kèm (lấy attachmentId để gắn vào reply)',
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   uploadAttachment(

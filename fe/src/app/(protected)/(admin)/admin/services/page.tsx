@@ -28,6 +28,7 @@ import {
   useUpdateAdminService,
 } from "@/features/admin/hooks/useAdminServices";
 import { AdminServiceEntity } from "@/features/admin/services/admin-services.service";
+import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 
 // Custom useDebounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -48,6 +49,7 @@ export default function AdminServicesPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
 
   // State for Delete
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -58,7 +60,10 @@ export default function AdminServicesPage() {
     limit,
     search: debouncedSearchTerm || undefined,
     isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+    categoryId: categoryFilter === "all" ? undefined : categoryFilter,
   });
+
+  const { data: categories } = useAdminCategories();
 
   const deleteMutation = useDeleteAdminService();
   const updateMutation = useUpdateAdminService();
@@ -213,16 +218,32 @@ export default function AdminServicesPage() {
         onKeywordChange={setSearchTerm}
         placeholderSearch="Tìm kiếm theo tên dịch vụ..."
         filters={
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] h-11 rounded-xl bg-background border-border/50">
-              <SelectValue placeholder="Trạng thái" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="active">Đang hoạt động</SelectItem>
-              <SelectItem value="inactive">Đã tắt</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px] h-11 rounded-xl bg-background border-border/50">
+                <SelectValue placeholder="Danh mục" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">Tất cả danh mục</SelectItem>
+                {categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px] h-11 rounded-xl bg-background border-border/50">
+                <SelectValue placeholder="Trạng thái" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="active">Đang hoạt động</SelectItem>
+                <SelectItem value="inactive">Đã tắt</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         }
         rowActions={rowActions}
         isLoading={isLoading}

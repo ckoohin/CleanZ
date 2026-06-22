@@ -129,6 +129,21 @@ export class WalletService {
     }, 'Không thể lấy ví tasker');
   }
 
+  async getMyCustomerWallet(userId: string): Promise<WalletResponse> {
+    return asyncHandleOperation(async () => {
+      const customer = await this.findCustomerByUserId(
+        this.dataSource.manager,
+        userId,
+      );
+      const wallet = await this.getOrCreateCustomerWallet(
+        this.dataSource.manager,
+        customer,
+      );
+
+      return this.mapWallet(wallet);
+    }, 'Không thể lấy ví customer');
+  }
+
   async createTaskerWithdrawalRequest(
     userId: string,
     dto: CreateWithdrawalRequestDto,
@@ -236,6 +251,23 @@ export class WalletService {
 
       return this.getTransactionsByWalletId(wallet.id);
     }, 'Không thể lấy lịch sử ví tasker');
+  }
+
+  async getMyCustomerTransactions(
+    userId: string,
+  ): Promise<WalletTransactionListResponse> {
+    return asyncHandleOperation(async () => {
+      const customer = await this.findCustomerByUserId(
+        this.dataSource.manager,
+        userId,
+      );
+      const wallet = await this.getOrCreateCustomerWallet(
+        this.dataSource.manager,
+        customer,
+      );
+
+      return this.getTransactionsByWalletId(wallet.id);
+    }, 'Không thể lấy lịch sử ví customer');
   }
 
   async getSystemTransactions(): Promise<WalletTransactionListResponse> {
@@ -505,6 +537,22 @@ export class WalletService {
     }
 
     return tasker;
+  }
+
+  private async findCustomerByUserId(
+    manager: EntityManager,
+    userId: string,
+  ): Promise<CustomerEntity> {
+    const customer = await manager.getRepository(CustomerEntity).findOne({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Không tìm thấy hồ sơ customer');
+    }
+
+    return customer;
   }
 
   private normalizeAmount(amount: number): number {

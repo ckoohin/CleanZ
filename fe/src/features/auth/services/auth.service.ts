@@ -47,4 +47,17 @@ export const authApi = {
   resetPassword: (credentials: ResetPasswordCredentials): Promise<ResetPasswordResponse> => {
     return http.post('/auth/reset-password', credentials).then((res) => res.data);
   },
+
+  updateProfile: (data: { fullName?: string; phone?: string; avatar?: File }): Promise<{ message: string; data: Profile }> => {
+    const formData = new FormData();
+    if (data.fullName) formData.append('fullName', data.fullName);
+    if (data.phone) formData.append('phone', data.phone);
+    if (data.avatar) formData.append('avatar', data.avatar);
+
+    return http.patch<{ message: string; data: Profile }>('/customer/profile/me', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }).then((res) => res.data);
+  },
 };

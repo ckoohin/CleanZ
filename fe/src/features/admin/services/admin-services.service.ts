@@ -1,5 +1,6 @@
 import http from '@/lib/api/http';
-
+import { API_ENDPOINTS } from '@/constants/api-endpoints';
+import type { ServiceOptionEntity } from './admin-options.service';
 export interface PaginatedData<T> {
   items: T[];
   total: number;
@@ -18,6 +19,7 @@ export interface AdminServiceEntity {
   id: string;
   serviceCode: string;
   name: string;
+  categoryId?: string;
   description?: string;
   thumbnailUrl?: string | null;
   galleryUrls?: string[] | null;
@@ -26,7 +28,15 @@ export interface AdminServiceEntity {
   excludedTasks?: string[] | null;
   baseDurationHours?: number | null;
   coverageArea?: string | null;
+  options?: ServiceOptionEntity[];
   isActive: boolean;
+  pricingConfig?: {
+    id: string;
+    basePrice: number | string;
+    peakPrice?: number | string | null;
+    petFee?: number | string;
+    waitingFee?: number | string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,10 +46,12 @@ export interface GetAdminServicesQuery {
   limit?: number;
   search?: string;
   isActive?: boolean;
+  categoryId?: string;
 }
 
 export interface CreateAdminServiceDto {
   name: string;
+  categoryId: string;
   description?: string;
   thumbnailUrl?: string;
   galleryUrls?: string[];
@@ -83,42 +95,42 @@ export interface AdminServiceTasker {
 export const adminServicesApi = {
   // Get paginated services
   getServices: async (params?: GetAdminServicesQuery) => {
-    const { data } = await http.get<ApiResponse<PaginatedData<AdminServiceEntity>>>('/admin/services', { params });
+    const { data } = await http.get<ApiResponse<PaginatedData<AdminServiceEntity>>>(API_ENDPOINTS.ADMIN_SERVICES.BASE, { params });
     return data.data; // Return PaginatedData directly
   },
 
   // Get single service
   getServiceById: async (id: string) => {
-    const { data } = await http.get<ApiResponse<AdminServiceEntity>>(`/admin/services/${id}`);
+    const { data } = await http.get<ApiResponse<AdminServiceEntity>>(API_ENDPOINTS.ADMIN_SERVICES.DETAIL(id));
     return data.data;
   },
 
   // Create service
   createService: async (payload: CreateAdminServiceDto) => {
-    const { data } = await http.post<ApiResponse<AdminServiceEntity>>('/admin/services', payload);
+    const { data } = await http.post<ApiResponse<AdminServiceEntity>>(API_ENDPOINTS.ADMIN_SERVICES.BASE, payload);
     return data.data;
   },
 
   // Update service
   updateService: async ({ id, payload }: { id: string; payload: UpdateAdminServiceDto }) => {
-    const { data } = await http.patch<ApiResponse<AdminServiceEntity>>(`/admin/services/${id}`, payload);
+    const { data } = await http.patch<ApiResponse<AdminServiceEntity>>(API_ENDPOINTS.ADMIN_SERVICES.DETAIL(id), payload);
     return data.data;
   },
 
   // Delete service
   deleteService: async (id: string) => {
-    await http.delete(`/admin/services/${id}`);
+    await http.delete(API_ENDPOINTS.ADMIN_SERVICES.DETAIL(id));
   },
 
   // Get service bookings
   getServiceBookings: async (id: string, params?: { page?: number; limit?: number }) => {
-    const { data } = await http.get<ApiResponse<PaginatedData<AdminServiceBooking>>>(`/admin/services/${id}/bookings`, { params });
+    const { data } = await http.get<ApiResponse<PaginatedData<AdminServiceBooking>>>(API_ENDPOINTS.ADMIN_SERVICES.BOOKINGS(id), { params });
     return data.data;
   },
 
   // Get service taskers
   getServiceTaskers: async (id: string, params?: { page?: number; limit?: number }) => {
-    const { data } = await http.get<ApiResponse<PaginatedData<AdminServiceTasker>>>(`/admin/services/${id}/taskers`, { params });
+    const { data } = await http.get<ApiResponse<PaginatedData<AdminServiceTasker>>>(API_ENDPOINTS.ADMIN_SERVICES.TASKERS(id), { params });
     return data.data;
   },
 };

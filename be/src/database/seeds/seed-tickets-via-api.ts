@@ -14,11 +14,36 @@ import { AppModule } from '../../app.module';
 import { TicketAdminService } from '../../modules/support-ticket/services/ticket-admin.service';
 
 const TICKETS = [
-  { subject: 'Vỡ mặt kính bàn trà phòng khách', priority: 'HIGH', description: 'Khi di chuyển bàn trà để lau sàn, nhân viên làm rơi khiến mặt kính cường lực vỡ nhiều mảnh. Bàn mới mua ~3 tháng, đề nghị hỗ trợ chi phí thay mặt kính.' },
-  { subject: 'Trầy xước sàn gỗ do kéo thiết bị', priority: 'MEDIUM', description: 'Phòng ngủ xuất hiện vệt xước dài ~40cm trên sàn gỗ, nghi do kéo máy hút bụi/thùng nước không nhấc lên. Có ảnh hiện trạng.' },
-  { subject: 'Nứt bồn rửa mặt khi vệ sinh nhà tắm', priority: 'HIGH', description: 'Sau ca dọn, lavabo nứt một đường ở mép, có thể do va đập vật cứng khi cọ rửa, rỉ nước nhẹ. Cần kiểm tra và đền bù.' },
-  { subject: 'Đổ vỡ chậu cây cảnh ban công', priority: 'LOW', description: 'Chậu sứ cây kim tiền trên ban công bị xô ngã vỡ khi lau dọn ngoài trời, cây gãy thân. Mong hỗ trợ chi phí chậu và cây.' },
-  { subject: 'Rách bề mặt ghế sofa da khi lau', priority: 'MEDIUM', description: 'Mặt ngồi sofa da bị rách/xước một mảng do dùng khăn/hoá chất không phù hợp. Vết hư rõ, ảnh hưởng thẩm mỹ, đề nghị bồi thường.' },
+  {
+    subject: 'Vỡ mặt kính bàn trà phòng khách',
+    priority: 'HIGH',
+    description:
+      'Khi di chuyển bàn trà để lau sàn, nhân viên làm rơi khiến mặt kính cường lực vỡ nhiều mảnh. Bàn mới mua ~3 tháng, đề nghị hỗ trợ chi phí thay mặt kính.',
+  },
+  {
+    subject: 'Trầy xước sàn gỗ do kéo thiết bị',
+    priority: 'MEDIUM',
+    description:
+      'Phòng ngủ xuất hiện vệt xước dài ~40cm trên sàn gỗ, nghi do kéo máy hút bụi/thùng nước không nhấc lên. Có ảnh hiện trạng.',
+  },
+  {
+    subject: 'Nứt bồn rửa mặt khi vệ sinh nhà tắm',
+    priority: 'HIGH',
+    description:
+      'Sau ca dọn, lavabo nứt một đường ở mép, có thể do va đập vật cứng khi cọ rửa, rỉ nước nhẹ. Cần kiểm tra và đền bù.',
+  },
+  {
+    subject: 'Đổ vỡ chậu cây cảnh ban công',
+    priority: 'LOW',
+    description:
+      'Chậu sứ cây kim tiền trên ban công bị xô ngã vỡ khi lau dọn ngoài trời, cây gãy thân. Mong hỗ trợ chi phí chậu và cây.',
+  },
+  {
+    subject: 'Rách bề mặt ghế sofa da khi lau',
+    priority: 'MEDIUM',
+    description:
+      'Mặt ngồi sofa da bị rách/xước một mảng do dùng khăn/hoá chất không phù hợp. Vết hư rõ, ảnh hưởng thẩm mỹ, đề nghị bồi thường.',
+  },
 ];
 
 async function main() {
@@ -62,7 +87,9 @@ async function main() {
       console.log(`  ✓ ${res.ticketCode ?? '(no code)'} — ${t.subject}`);
       created++;
     }
-    console.log(`✅ Đã tạo ${created} ticket PROPERTY_DAMAGE qua service (đủ SLA/log).`);
+    console.log(
+      `✅ Đã tạo ${created} ticket PROPERTY_DAMAGE qua service (đủ SLA/log).`,
+    );
   } finally {
     await app.close();
   }

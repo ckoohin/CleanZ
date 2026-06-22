@@ -8,7 +8,10 @@ import {
   OneToMany,
   OneToOne,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { CategoryEntity } from './category.entity';
 
 @Entity('services')
 export class ServiceEntity {
@@ -79,4 +82,12 @@ export class ServiceEntity {
 
   @OneToMany(() => VoucherEntity, (v) => v.service)
   vouchers!: VoucherEntity[];
+
+  @ManyToOne(() => CategoryEntity, (category) => category.services, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({ name: 'category_id' })
+  category?: CategoryEntity | null;
 }

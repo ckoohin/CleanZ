@@ -58,8 +58,14 @@ export class AddPoliciesAndDepositTxn1782050000000 implements MigrationInterface
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "policies"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "public"."policies_role_enum"`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "tasker_deposit_transactions"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "public"."tasker_deposit_transaction_type"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."policies_role_enum"`,
+    );
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "tasker_deposit_transactions"`,
+    );
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."tasker_deposit_transaction_type"`,
+    );
   }
 }

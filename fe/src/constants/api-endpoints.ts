@@ -29,6 +29,10 @@ export const API_ENDPOINTS = {
     BASE: "/services",
     CATEGORIES: "/services/categories",
   },
+  PUBLIC: {
+    CATEGORIES: "/public/categories",
+    SERVICES: "/public/services",
+  },
   BOOKING: {
     // Customer APIs
     QUOTE: "/booking/quote",
@@ -36,6 +40,7 @@ export const API_ENDPOINTS = {
     MY_ACTIVE: "/booking/my-booking",
     MY_LIST: "/booking/my-bookings",
     DETAIL: (id: string) => `/booking/${id}`,
+    MOCK_PAY: (id: string) => `/booking/${id}/mock-pay`,
     CANCEL: (id: string) => `/booking/customer/${id}/cancel`,
     UPDATE_SCHEDULE: (id: string) => `/booking/${id}/schedule-address`,
     // Tasker APIs
@@ -97,5 +102,20 @@ export const API_ENDPOINTS = {
     UNLOCK_REPORTER: (id: string) => `/admin/incidents/${id}/unlock-reporter`,
     FROM_TICKET: (ticketId: string) => `/admin/incidents/from-ticket/${ticketId}`,
     HOUSEKEEPING: "/admin/incidents/run-housekeeping",
+  },
+  ADMIN_SERVICES: {
+    BASE: "/admin/services",
+    DETAIL: (id: string) => `/admin/services/${id}`,
+    BOOKINGS: (id: string) => `/admin/services/${id}/bookings`,
+    TASKERS: (id: string) => `/admin/services/${id}/taskers`,
+  },
+  ADMIN_PRICING: {
+    CONFIGS: "/admin/pricing/configs",
+    CONFIG_DETAIL: (id: string) => `/admin/pricing/configs/${id}`,
+    PEAK_DAYS: "/admin/pricing/peak-days",
+    PEAK_DAY_DETAIL: (id: string) => `/admin/pricing/peak-days/${id}`,
+  },
+  ADMIN_SETTINGS: {
+    BASE: "/admin/settings",
   },
 };

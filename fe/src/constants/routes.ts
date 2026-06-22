@@ -42,5 +42,9 @@ export const ROUTES = {
     SERVICES: "/admin/services",
     BOOKINGS: "/admin/bookings",
     REPORTS: "/admin/reports",
+    SETTINGS: {
+      BASE: "/admin/settings",
+      PEAK_DAYS: "/admin/settings/peak-days",
+    },
   },
 } as const;

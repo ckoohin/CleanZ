@@ -24,6 +24,7 @@ function fmtCurrency(n: number) {
 }
 
 const STATUS_MAP: Record<BookingStatus, { label: string; color: string; dotColor: string }> = {
+  PENDING_PAYMENT:   { label: "Chờ thanh toán",    color: "text-orange-600",  dotColor: "bg-orange-500 animate-pulse" },
   POSTED:            { label: "Đang tìm Tasker",     color: "text-blue-600",    dotColor: "bg-blue-500 animate-pulse" },
   CONFIRMED:         { label: "Đã xác nhận",          color: "text-indigo-600",  dotColor: "bg-indigo-500" },
   TASKER_ON_THE_WAY: { label: "Tasker đang đến",      color: "text-amber-600",   dotColor: "bg-amber-500 animate-pulse" },

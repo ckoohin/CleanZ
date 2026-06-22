@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
 import { useAdminServiceDetail, useUpdateAdminService } from "@/features/admin/hooks/useAdminServices";
+import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 import { UpdateAdminServiceDto } from "@/features/admin/services/admin-services.service";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 
@@ -15,6 +16,7 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
 
   const { data: response, isLoading, isError } = useAdminServiceDetail(id);
   const updateMutation = useUpdateAdminService();
+  const { data: categories } = useAdminCategories();
 
   const service = response;
 
@@ -52,7 +54,7 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-4">
         <BaseButton
           variant="outline"
@@ -77,6 +79,7 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
           initialValues={service}
           onSubmit={handleSubmit} 
           isSubmitting={updateMutation.isPending} 
+          categories={categories || []}
           isEditMode
         />
       </div>

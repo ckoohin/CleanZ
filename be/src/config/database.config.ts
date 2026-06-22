@@ -16,7 +16,7 @@ export const getDatabaseConfig = (
     database: configService.get('DB_DATABASE', { infer: true }),
 
     autoLoadEntities: true,
-    synchronize: false,
+    synchronize: false, // Tạm tắt để bypass lỗi TypeORM
     logging: isDev,
     // ssl: { rejectUnauthorized: false },
   };

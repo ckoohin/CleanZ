@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, ImageIcon, ListChecks, FileText } from "lucide-react";
+import { Loader2, ImageIcon, ListChecks, FileText, CheckCircle2, XCircle } from "lucide-react";
 
 import {
   Form,
@@ -18,13 +18,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminServiceEntity, CreateAdminServiceDto } from "../../services/admin-services.service";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
 import { DynamicListInput } from "@/components/ui/dynamic-list-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "Vui lòng nhập tên dịch vụ").max(255, "Tên quá dài"),
@@ -37,6 +37,7 @@ const serviceSchema = z.object({
   baseDurationHours: z.string().optional(),
   coverageArea: z.string().optional(),
   isActive: z.boolean(),
+  categoryId: z.string().min(1, "Vui lòng chọn danh mục"),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -46,9 +47,10 @@ interface ServiceFormProps {
   onSubmit: (values: CreateAdminServiceDto) => void;
   isSubmitting?: boolean;
   isEditMode?: boolean;
+  categories?: { id: string; name: string }[];
 }
 
-export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode }: ServiceFormProps) {
+export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode, categories = [] }: ServiceFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -63,6 +65,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
       baseDurationHours: initialValues?.baseDurationHours ? String(initialValues.baseDurationHours) : "",
       coverageArea: initialValues?.coverageArea || "",
       isActive: initialValues?.isActive ?? true,
+      categoryId: initialValues?.categoryId || "",
     },
   });
 
@@ -89,6 +92,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
       baseDurationHours: parsedDuration,
       coverageArea: values.coverageArea || undefined,
       isActive: values.isActive,
+      categoryId: values.categoryId,
     };
     onSubmit(payload);
   };
@@ -123,6 +127,31 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
                     <FormControl>
                       <Input placeholder="Nhập tên dịch vụ (VD: Dọn dẹp nhà cơ bản)" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <FormItem className="col-span-1 md:col-span-2">
+                    <FormLabel className="font-bold">Danh mục <span className="text-destructive">*</span></FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn danh mục cho dịch vụ" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -297,13 +326,14 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
               control={form.control}
               name="includedTasks"
               render={({ field }) => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="font-bold text-lg flex items-center text-primary">
+                <FormItem className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
+                  <div className="mb-6 flex flex-col gap-1.5">
+                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-primary">
+                      <CheckCircle2 className="w-6 h-6" />
                       Danh sách công việc BAO GỒM
                     </FormLabel>
-                    <FormDescription>
-                      Các công việc Tasker sẽ thực hiện (hiển thị dưới dạng dấu tích xanh ✅).
+                    <FormDescription className="text-primary/70 text-base">
+                      Các hạng mục công việc mà Tasker bắt buộc phải thực hiện trong gói dịch vụ này.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -318,26 +348,25 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
               )}
             />
 
-            <div className="h-px bg-border w-full my-6"></div>
-
             <FormField
               control={form.control}
               name="excludedTasks"
               render={({ field }) => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="font-bold text-lg flex items-center text-destructive">
+                <FormItem className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
+                  <div className="mb-6 flex flex-col gap-1.5">
+                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-destructive">
+                      <XCircle className="w-6 h-6" />
                       Danh sách công việc KHÔNG BAO GỒM
                     </FormLabel>
-                    <FormDescription>
-                      Các công việc Tasker từ chối thực hiện (hiển thị dưới dạng dấu X đỏ ❌).
+                    <FormDescription className="text-destructive/70 text-base">
+                      Các yêu cầu ngoài phạm vi dịch vụ, Tasker có quyền từ chối thực hiện.
                     </FormDescription>
                   </div>
                   <FormControl>
                     <DynamicListInput
                       value={field.value}
                       onChange={field.onChange}
-                      placeholder="VD: Không giặt thảm, không dọn ngoài trời..."
+                      placeholder="VD: Không giặt thảm, không dọn dẹp ngoài trời..."
                     />
                   </FormControl>
                   <FormMessage />

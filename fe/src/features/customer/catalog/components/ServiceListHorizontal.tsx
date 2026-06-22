@@ -14,6 +14,7 @@ interface ServiceItem {
   basePrice: number;
   ratingAvg: number;
   durationHours: number;
+  coverageArea?: string;
 }
 
 interface ServiceListHorizontalProps {

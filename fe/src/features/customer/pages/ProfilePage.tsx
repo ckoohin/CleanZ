@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useProfile } from "@/features/auth/hooks/auth.hooks";
 import type { UserRole, Profile } from "@/features/auth/types/user.type";
 import { CustomerAddressDialog } from "@/features/customer/profile/components/CustomerAddressDialog";
+import { EditProfileDialog } from "@/features/customer/profile/components/EditProfileDialog";
 import {
   useCustomerAddresses,
   useSetDefaultCustomerAddress,
@@ -84,6 +85,7 @@ export default function ProfilePage() {
   const { data: profile, isLoading, isError } = useProfile();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("info");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   if (isError) {
     return (
@@ -154,7 +156,7 @@ export default function ProfilePage() {
                       </span>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2 rounded-xl shrink-0">
+                  <Button onClick={() => setIsEditDialogOpen(true)} variant="outline" size="sm" className="gap-2 rounded-xl shrink-0">
                     <Edit3 className="w-3.5 h-3.5" />Chỉnh sửa
                   </Button>
                 </div>
@@ -245,7 +247,7 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0 w-full">
             <AnimatePresence mode="wait">
               <motion.div key={activeTab} variants={tabAnim} initial="hidden" animate="show" exit="exit">
-                {activeTab === "info"     && <TabInfo    profile={profile} phoneDisplay={phoneDisplay} />}
+                {activeTab === "info"     && <TabInfo    profile={profile} phoneDisplay={phoneDisplay} onEdit={() => setIsEditDialogOpen(true)} />}
                 {activeTab === "address"  && <TabAddress />}
                 {activeTab === "orders"   && <TabOrders />}
                 {activeTab === "security" && <TabSecurity profile={profile} />}
@@ -256,17 +258,18 @@ export default function ProfilePage() {
 
         </div>
       </div>
+      <EditProfileDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} profile={profile} />
     </div>
   );
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-function TabInfo({ profile, phoneDisplay }: { profile: Profile; phoneDisplay: string }) {
+function TabInfo({ profile, phoneDisplay, onEdit }: { profile: Profile; phoneDisplay: string; onEdit: () => void }) {
   return (
     <div className="space-y-3">
       <TabCard title="Thông tin cá nhân" icon={User}
-        action={<Button variant="outline" size="sm" className="gap-1.5 rounded-xl h-8 text-xs"><Edit3 className="w-3 h-3"/>Sửa</Button>}
+        action={<Button onClick={onEdit} variant="outline" size="sm" className="gap-1.5 rounded-xl h-8 text-xs"><Edit3 className="w-3 h-3"/>Sửa</Button>}
       >
         <div className="divide-y divide-border">
           <InfoRow icon={User}  label="Họ và tên"      value={profile.fullName} />

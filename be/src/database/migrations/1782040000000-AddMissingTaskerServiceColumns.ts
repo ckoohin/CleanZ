@@ -6,9 +6,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *  - services: service_code, thumbnail_url, gallery_urls, short_description,
  *    included_tasks, excluded_tasks
  */
-export class AddMissingTaskerServiceColumns1782040000000
-  implements MigrationInterface
-{
+export class AddMissingTaskerServiceColumns1782040000000 implements MigrationInterface {
   name = 'AddMissingTaskerServiceColumns1782040000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -40,13 +38,29 @@ export class AddMissingTaskerServiceColumns1782040000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN IF EXISTS "excluded_tasks"`);
-    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN IF EXISTS "included_tasks"`);
-    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN IF EXISTS "short_description"`);
-    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN IF EXISTS "gallery_urls"`);
-    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN IF EXISTS "thumbnail_url"`);
-    await queryRunner.query(`ALTER TABLE "services" DROP CONSTRAINT IF EXISTS "uq_services_service_code"`);
-    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN IF EXISTS "service_code"`);
-    await queryRunner.query(`ALTER TABLE "taskers" DROP COLUMN IF EXISTS "skills"`);
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP COLUMN IF EXISTS "excluded_tasks"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP COLUMN IF EXISTS "included_tasks"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP COLUMN IF EXISTS "short_description"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP COLUMN IF EXISTS "gallery_urls"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP COLUMN IF EXISTS "thumbnail_url"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP CONSTRAINT IF EXISTS "uq_services_service_code"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "services" DROP COLUMN IF EXISTS "service_code"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "taskers" DROP COLUMN IF EXISTS "skills"`,
+    );
   }
 }

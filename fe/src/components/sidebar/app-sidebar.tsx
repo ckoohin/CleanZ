@@ -11,6 +11,7 @@ import {
   UserCog,
   Wallet,
   Wrench,
+  ShieldCheck,
 } from "lucide-react"
 
 import { NavMain } from "@/components/sidebar/nav-main"
@@ -43,6 +44,7 @@ const managementNav = [
     url: "/admin/services",
     icon: <Wrench />,
     items: [
+      { title: "Danh mục", url: "/admin/categories" },
       { title: "Danh sách dịch vụ", url: "/admin/services" },
     ],
   },
@@ -101,11 +103,20 @@ const operationsNav = [
   },
 ]
 
-const systemSettings = [
+const systemNav = [
   {
-    name: "Cài đặt hệ thống",
+    title: "Cài đặt hệ thống",
     url: "/admin/settings",
     icon: <Settings2 />,
+    items: [
+      { title: "Cài đặt chung", url: "/admin/settings" },
+      { title: "Ngày cao điểm", url: "/admin/settings/peak-days" },
+    ],
+  },
+  {
+    title: "Nhân viên hệ thống",
+    url: "/admin/staff",
+    icon: <ShieldCheck />,
   },
 ]
 
@@ -119,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={overviewNav} label="Tổng quan" />
         <NavMain items={managementNav} label="Quản lý" />
         <NavMain items={operationsNav} label="Vận hành" />
-        <NavProjects projects={systemSettings} label="Hệ thống" />
+        <NavMain items={systemNav} label="Hệ thống" />
       </SidebarContent>
       <SidebarFooter className="border-t border-border/40 p-3">
         <NavUser />

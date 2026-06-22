@@ -70,4 +70,48 @@ export class UpsertCustomerAddressDto {
   @IsOptional()
   @IsBoolean()
   hasPet?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Nguyễn Văn A',
+    description: 'Tên người liên hệ tại địa chỉ này',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  contactName?: string | null;
+
+  @ApiPropertyOptional({
+    example: '0987654321',
+    description: 'Số điện thoại người liên hệ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  contactPhone?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Tòa A, Tầng 5, Phòng 501',
+    description: 'Tòa nhà, số tầng, số phòng',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  buildingFloor?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Cổng số 2',
+    description: 'Cổng vào khu nhà',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  gate?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Đến nơi gọi điện trước 5 phút',
+    description: 'Ghi chú thêm cho tài xế/tasker',
+  })
+  @IsOptional()
+  @IsString()
+  driverNote?: string | null;
 }

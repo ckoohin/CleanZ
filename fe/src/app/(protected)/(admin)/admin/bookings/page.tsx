@@ -1,77 +1,75 @@
 "use client"
 
 import * as React from "react"
-import { CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, XCircle, RefreshCw } from "lucide-react"
 
 import { BaseTableList, Column, RowAction } from "@/components/ui/base/base_table_list"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
-export type BookingData = {
+import { useAdminBookings } from "@/features/admin/hooks/useAdminBookings"
+import { getAdminBookingDetail, triggerExpireOverdue } from "@/features/admin/api/booking.api"
+import { AdminBookingDetailModal, AdminBookingDetail } from "@/features/admin/components/booking/AdminBookingDetailModal"
+
+export type AdminBookingItem = {
   id: string
-  code: string
-  customerName: string
-  serviceName: string
-  status: "POSTED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  totalPrice: number
+  bookingCode: string
+  customer?: {
+    fullName: string
+    phoneNumber: string
+  }
+  tasker?: {
+    fullName: string
+    phoneNumber: string
+  }
   scheduledStart: string
+  totalPrice: number
+  status: string
 }
 
-const mockData: BookingData[] = [
-  {
-    id: "1",
-    code: "BK-12045",
-    customerName: "Lê Minh Tâm",
-    serviceName: "Dọn nhà chuyên sâu",
-    status: "POSTED",
-    totalPrice: 450000,
-    scheduledStart: "2024-03-25T08:00:00Z",
-  },
-  {
-    id: "2",
-    code: "BK-12046",
-    customerName: "Nguyễn Hoàng",
-    serviceName: "Vệ sinh máy lạnh",
-    status: "IN_PROGRESS",
-    totalPrice: 200000,
-    scheduledStart: "2024-03-24T09:00:00Z",
-  },
-  {
-    id: "3",
-    code: "BK-12047",
-    customerName: "Trần Thị C",
-    serviceName: "Dọn dẹp nhà cửa",
-    status: "COMPLETED",
-    totalPrice: 150000,
-    scheduledStart: "2024-03-23T14:00:00Z",
-  },
-  {
-    id: "4",
-    code: "BK-12048",
-    customerName: "Phạm D",
-    serviceName: "Tổng vệ sinh",
-    status: "CANCELLED",
-    totalPrice: 1500000,
-    scheduledStart: "2024-03-26T08:00:00Z",
-  },
-]
-
 export default function AdminBookingsPage() {
-  const [data] = React.useState<BookingData[]>(mockData)
   const [keyword, setKeyword] = React.useState("")
+  const [page, setPage] = React.useState(1)
+  const limit = 10
 
-  const filteredData = React.useMemo(() => {
-    if (!keyword) return data;
-    return data.filter(item => item.code.toLowerCase().includes(keyword.toLowerCase()));
-  }, [data, keyword]);
+  const { data, total, isLoading, mutate } = useAdminBookings({
+    page,
+    limit,
+    keyword,
+  })
 
-  const columns: Column<BookingData>[] = [
+  const [selectedBooking, setSelectedBooking] = React.useState<AdminBookingDetail | null>(null)
+  const [isModalOpen, setIsModalOpen] = React.useState(false)
+
+  const handleViewDetail = async (id: string) => {
+    try {
+      const detail = await getAdminBookingDetail(id)
+      setSelectedBooking(detail)
+      setIsModalOpen(true)
+    } catch (error) {
+      toast.error("Không thể tải chi tiết đơn hàng")
+    }
+  }
+
+  const handleExpireOverdue = async () => {
+    try {
+      const res = await triggerExpireOverdue()
+      toast.success(`Đã cập nhật ${res.expiredCount} đơn hàng quá hạn`)
+      mutate()
+    } catch (error) {
+      toast.error("Lỗi khi kiểm tra đơn quá hạn")
+    }
+  }
+
+  const columns: Column<AdminBookingItem>[] = [
     {
-      key: "code",
+      key: "bookingCode",
       title: "Mã Đơn",
       render: (row) => (
         <span className="font-mono text-xs uppercase tracking-wider text-primary font-bold">
-          {row.code}
+          {row.bookingCode}
         </span>
       ),
     },
@@ -79,20 +77,33 @@ export default function AdminBookingsPage() {
       key: "customerName",
       title: "Khách hàng",
       render: (row) => (
-        <span className="font-semibold">{row.customerName}</span>
+        <div className="flex flex-col">
+          <span className="font-semibold">{row.customer?.fullName || 'N/A'}</span>
+          <span className="text-[10px] text-muted-foreground">{row.customer?.phoneNumber}</span>
+        </div>
       ),
     },
     {
-      key: "serviceName",
-      title: "Dịch vụ",
+      key: "taskerName",
+      title: "Tasker",
       render: (row) => (
-        <span className="text-muted-foreground">{row.serviceName}</span>
+        <div className="flex flex-col">
+          {row.tasker ? (
+            <>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{row.tasker.fullName}</span>
+              <span className="text-[10px] text-muted-foreground">{row.tasker.phoneNumber}</span>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">Chưa nhận</span>
+          )}
+        </div>
       ),
     },
     {
       key: "scheduledStart",
       title: "Lịch hẹn",
       render: (row) => {
+        if (!row.scheduledStart) return <span className="text-muted-foreground">N/A</span>
         const date = new Date(row.scheduledStart)
         return (
           <div className="flex flex-col">
@@ -133,23 +144,23 @@ export default function AdminBookingsPage() {
     },
   ]
 
-  const rowActions: RowAction<BookingData>[] = [
+  const rowActions: RowAction<AdminBookingItem>[] = [
     {
       type: "view",
       label: "Xem chi tiết",
-      onClick: (row) => console.log("View", row.id),
+      onClick: (row) => handleViewDetail(row.id),
     },
     {
       label: "Gán Tasker",
       icon: CheckCircle2,
-      onClick: (row) => console.log("Assign", row.id),
+      onClick: (row) => handleViewDetail(row.id),
       hidden: (row) => row.status !== "POSTED",
       variant: "default",
     },
     {
       label: "Hủy đơn hộ",
       icon: XCircle,
-      onClick: (row) => console.log("Cancel", row.id),
+      onClick: (row) => handleViewDetail(row.id),
       hidden: (row) => row.status === "CANCELLED" || row.status === "COMPLETED",
       variant: "destructive",
     },
@@ -166,17 +177,27 @@ export default function AdminBookingsPage() {
             Theo dõi và can thiệp vào các Booking trên hệ thống.
           </p>
         </div>
+        <Button onClick={handleExpireOverdue} variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2">
+          <RefreshCw className="w-4 h-4" /> Kiểm tra đơn quá hạn
+        </Button>
       </div>
 
       <BaseTableList
         columns={columns}
-        data={filteredData}
+        data={data}
         rowKey="id"
         keyword={keyword}
         onKeywordChange={setKeyword}
-        placeholderSearch="Tìm kiếm mã đơn (VD: BK-12045)..."
+        placeholderSearch="Tìm kiếm mã đơn hoặc tên KH..."
         rowActions={rowActions}
-        totalItems={filteredData.length}
+        totalItems={total}
+        isLoading={isLoading}
+      />
+
+      <AdminBookingDetailModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        booking={selectedBooking}
       />
     </div>
   )

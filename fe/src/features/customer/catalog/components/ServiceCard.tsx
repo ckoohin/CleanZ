@@ -12,6 +12,7 @@ interface ServiceCardProps {
   basePrice: number;
   ratingAvg: number;
   durationHours: number;
+  coverageArea?: string;
   onSelect: (id: string) => void;
 }
 
@@ -23,6 +24,7 @@ export const ServiceCard = ({
   basePrice,
   ratingAvg,
   durationHours,
+  coverageArea,
   onSelect,
 }: ServiceCardProps) => {
   return (
@@ -57,7 +59,7 @@ export const ServiceCard = ({
           </div>
           <div className="flex items-center gap-1.5">
             <MapPin className="w-4 h-4 text-muted-foreground/80" />
-            <span>Tại nhà</span>
+            <span className="truncate max-w-[150px]">{coverageArea || "Tại nhà"}</span>
           </div>
         </div>
         
