@@ -35,7 +35,8 @@ export function useBookingQuote() {
   return useMutation({
     mutationFn: (dto: QuoteBookingDto) => customerBookingApi.quote(dto),
     onError: (err: unknown) => {
-      toast.error(getBookingErrorMessage(err, "Không thể lấy báo giá"));
+      const msgError = err as { response?: { data?: { errors?: { message?: string } } } };
+      toast.error(getBookingErrorMessage(err, msgError?.response?.data?.errors?.message ?? "Không thể xem báo giá"));
     },
   });
 }
