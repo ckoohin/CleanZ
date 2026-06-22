@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminServiceEntity, CreateAdminServiceDto } from "../../services/admin-services.service";
+import { PricingConfigEntity } from "../../services/admin-pricing.service";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
 import { DynamicListInput } from "@/components/ui/dynamic-list-input";
@@ -53,7 +54,7 @@ interface ServiceFormProps {
   isSubmitting?: boolean;
   isEditMode?: boolean;
   categories?: { id: string; name: string }[];
-  pricingConfigs?: any[]; // using any[] to quickly accept PricingConfigEntity without import cycle issues
+  pricingConfigs?: PricingConfigEntity[];
 }
 
 export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode, categories = [], pricingConfigs = [] }: ServiceFormProps) {
