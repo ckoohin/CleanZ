@@ -7,7 +7,7 @@ import {
   User, Mail, Phone, MapPin, Bell, Lock,
   ClipboardList, ChevronRight, CheckCircle2,
   Clock, Star, ShieldCheck, Camera, Home,
-  Wrench, BellRing, BellOff, Edit3, Plus,
+  BellRing, BellOff, Edit3, Plus,
   LogOut, Settings, CreditCard, HeadphonesIcon,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useProfile } from "@/features/auth/hooks/auth.hooks";
 import type { UserRole, Profile } from "@/features/auth/types/user.type";
 import { CustomerAddressDialog } from "@/features/customer/profile/components/CustomerAddressDialog";
+import { CustomerProfileDialog } from "@/features/customer/profile/components/CustomerProfileDialog";
 import {
   useCustomerAddresses,
   useSetDefaultCustomerAddress,
@@ -84,6 +85,7 @@ export default function ProfilePage() {
   const { data: profile, isLoading, isError } = useProfile();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("info");
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   if (isError) {
     return (
@@ -126,12 +128,20 @@ export default function ProfilePage() {
               {/* Avatar */}
               <div className="relative shrink-0 self-start sm:self-end">
                 <Avatar className="w-24 h-24 border-4 border-card shadow-lg">
-                  <AvatarImage src={profile.avatar ?? undefined} alt={profile.fullName} />
+                  <AvatarImage
+                    src={profile.avatar ?? profile.avatarUrl ?? undefined}
+                    alt={profile.fullName}
+                  />
                   <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
                     {avatarInitials}
                   </AvatarFallback>
                 </Avatar>
-                <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary border-2 border-card flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors">
+                <button
+                  type="button"
+                  aria-label="Chỉnh sửa ảnh đại diện"
+                  onClick={() => setIsEditProfileOpen(true)}
+                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary border-2 border-card flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
+                >
                   <Camera className="w-3.5 h-3.5 text-white" />
                 </button>
               </div>
@@ -154,7 +164,12 @@ export default function ProfilePage() {
                       </span>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2 rounded-xl shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-xl shrink-0"
+                    onClick={() => setIsEditProfileOpen(true)}
+                  >
                     <Edit3 className="w-3.5 h-3.5" />Chỉnh sửa
                   </Button>
                 </div>
@@ -245,7 +260,13 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0 w-full">
             <AnimatePresence mode="wait">
               <motion.div key={activeTab} variants={tabAnim} initial="hidden" animate="show" exit="exit">
-                {activeTab === "info"     && <TabInfo    profile={profile} phoneDisplay={phoneDisplay} />}
+                {activeTab === "info"     && (
+                  <TabInfo
+                    profile={profile}
+                    phoneDisplay={phoneDisplay}
+                    onEdit={() => setIsEditProfileOpen(true)}
+                  />
+                )}
                 {activeTab === "address"  && <TabAddress />}
                 {activeTab === "orders"   && <TabOrders />}
                 {activeTab === "security" && <TabSecurity profile={profile} />}
@@ -256,17 +277,43 @@ export default function ProfilePage() {
 
         </div>
       </div>
+
+      {isEditProfileOpen && (
+        <CustomerProfileDialog
+          open={isEditProfileOpen}
+          onOpenChange={setIsEditProfileOpen}
+          profile={profile}
+        />
+      )}
     </div>
   );
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-function TabInfo({ profile, phoneDisplay }: { profile: Profile; phoneDisplay: string }) {
+function TabInfo({
+  profile,
+  phoneDisplay,
+  onEdit,
+}: {
+  profile: Profile;
+  phoneDisplay: string;
+  onEdit: () => void;
+}) {
   return (
     <div className="space-y-3">
       <TabCard title="Thông tin cá nhân" icon={User}
-        action={<Button variant="outline" size="sm" className="gap-1.5 rounded-xl h-8 text-xs"><Edit3 className="w-3 h-3"/>Sửa</Button>}
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 rounded-xl h-8 text-xs"
+            onClick={onEdit}
+          >
+            <Edit3 className="w-3 h-3"/>
+            Sửa
+          </Button>
+        }
       >
         <div className="divide-y divide-border">
           <InfoRow icon={User}  label="Họ và tên"      value={profile.fullName} />
