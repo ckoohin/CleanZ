@@ -438,6 +438,14 @@ export class BookingController {
     return this.customerBookingService.findMyActiveBooking(userId);
   }
 
+  @Get('/my-bookings')
+  @Auth(UserRole.CUSTOMER)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({ summary: 'Danh sách booking của customer (cho select tạo ticket)' })
+  findMyBookings(@CurrentUser('id') userId: string) {
+    return this.customerBookingService.findMyBookings(userId);
+  }
+
   @Get(':id')
   @Auth(UserRole.CUSTOMER)
   @ApiTags('Booking – Customer Flow')

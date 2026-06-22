@@ -3,9 +3,11 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft } from "lucide-react";
+import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
-import { useMyTicketList, useCreateTicket } from "@/features/support-tickets/hooks/useMyTicket";
+import { useMyTicketList, useCreateTicket, useMyBookings } from "@/features/support-tickets/hooks/useMyTicket";
+import { myTicketApi } from "@/features/support-tickets/services/my-ticket.service";
+import { toast } from "sonner";
 import type {
   MyTicketSummary,
   TicketStatus,
@@ -30,6 +32,9 @@ function CreateTicketSheet({
   onClose: () => void;
 }) {
   const createTicket = useCreateTicket();
+  const { data: bookings, isLoading: bookingsLoading } = useMyBookings(open);
+  const [images, setImages] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<{
     category: TicketCategory | "";
     subject: string;
@@ -37,29 +42,46 @@ function CreateTicketSheet({
     bookingId: string;
   }>({ category: "", subject: "", description: "", bookingId: "" });
 
+  const addImages = (files: FileList | null) => {
+    if (!files) return;
+    const picked = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    setImages((prev) => [...prev, ...picked].slice(0, 5));
+  };
+  const removeImage = (idx: number) => setImages((prev) => prev.filter((_, i) => i !== idx));
+
   // bookingId bắt buộc trừ category ∈ {ACCOUNT_TECHNICAL, OTHER} (spec §1.1)
-  const bookingOk =
-    !!form.category &&
-    (NO_BOOKING_CATEGORIES.includes(form.category as TicketCategory) || !!form.bookingId.trim());
+  const requiresBooking =
+    !!form.category && !NO_BOOKING_CATEGORIES.includes(form.category as TicketCategory);
+  const bookingOk = !!form.category && (!requiresBooking || !!form.bookingId.trim());
   const canSubmit =
     form.category && form.subject.trim() && form.description.trim() && bookingOk;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
-    createTicket.mutate(
-      {
-        category: form.category as TicketCategory,
-        subject: form.subject.trim(),
-        description: form.description.trim(),
-        bookingId: form.bookingId.trim() || undefined,
-      } as CreateTicketDto,
-      {
-        onSuccess: () => {
-          onClose();
-          setForm({ category: "", subject: "", description: "", bookingId: "" });
-        },
+    // 1) Tạo ticket → 2) upload ảnh vào ticket vừa tạo (BE chỉ có /:id/attachments)
+    const created = await createTicket.mutateAsync({
+      category: form.category as TicketCategory,
+      subject: form.subject.trim(),
+      description: form.description.trim(),
+      bookingId: form.bookingId.trim() || undefined,
+    } as CreateTicketDto);
+
+    if (images.length > 0 && created?.id) {
+      setUploading(true);
+      try {
+        for (const file of images) {
+          await myTicketApi.uploadAttachment(created.id, file);
+        }
+      } catch {
+        toast.error("Tạo ticket thành công nhưng có ảnh tải lên thất bại");
+      } finally {
+        setUploading(false);
       }
-    );
+    }
+
+    onClose();
+    setForm({ category: "", subject: "", description: "", bookingId: "" });
+    setImages([]);
   };
 
   return (
@@ -101,7 +123,15 @@ function CreateTicketSheet({
                     {CATEGORY_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
-                        onClick={() => setForm((p) => ({ ...p, category: opt.value }))}
+                        onClick={() =>
+                          setForm((p) => ({
+                            ...p,
+                            category: opt.value,
+                            bookingId: NO_BOOKING_CATEGORIES.includes(opt.value)
+                              ? ""
+                              : p.bookingId,
+                          }))
+                        }
                         className={`py-2.5 px-3 rounded-xl text-sm font-medium text-left border transition-all ${
                           form.category === opt.value
                             ? "border-primary bg-primary/10 text-primary"
@@ -143,27 +173,80 @@ function CreateTicketSheet({
                   />
                 </div>
 
-                {/* Booking ID (optional) */}
+                {/* Đơn liên quan — chỉ hiện khi loại vấn đề cần gắn đơn */}
+                {requiresBooking && (
+                  <div>
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                      Đơn liên quan *
+                    </label>
+                    <select
+                      value={form.bookingId}
+                      onChange={(e) => setForm((p) => ({ ...p, bookingId: e.target.value }))}
+                      disabled={bookingsLoading}
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+                    >
+                      <option value="">
+                        {bookingsLoading ? "Đang tải đơn..." : "-- Chọn đơn liên quan --"}
+                      </option>
+                      {(bookings ?? []).map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.bookingCode}
+                          {b.serviceName ? ` · ${b.serviceName}` : ""}
+                          {` · ${b.status}`}
+                        </option>
+                      ))}
+                    </select>
+                    {!bookingsLoading && (bookings?.length ?? 0) === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Bạn chưa có đơn nào để chọn.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Hình ảnh đính kèm (tuỳ chọn) */}
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                    Mã đơn hàng liên quan (tuỳ chọn)
+                    Hình ảnh đính kèm (tối đa 5)
                   </label>
-                  <input
-                    type="text"
-                    placeholder="VD: BKG-12345..."
-                    value={form.bookingId}
-                    onChange={(e) => setForm((p) => ({ ...p, bookingId: e.target.value }))}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    {images.map((file, idx) => (
+                      <div key={idx} className="relative size-16 overflow-hidden rounded-xl border border-border/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={URL.createObjectURL(file)} alt="đính kèm" className="size-full object-cover" />
+                        <button
+                          type="button"
+                          aria-label="Xoá ảnh"
+                          onClick={() => removeImage(idx)}
+                          className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-black/60 text-white"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {images.length < 5 && (
+                      <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary">
+                        <ImagePlus className="size-4" />
+                        <span className="text-[10px]">Thêm</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/jpg"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => addImages(e.target.files)}
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 {/* Submit */}
                 <button
                   onClick={handleSubmit}
-                  disabled={!canSubmit || createTicket.isPending}
+                  disabled={!canSubmit || createTicket.isPending || uploading}
                   className="w-full py-4 bg-primary text-white font-bold rounded-2xl text-sm shadow-lg shadow-primary/30 hover:bg-orange-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {createTicket.isPending ? (
+                  {createTicket.isPending || uploading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>

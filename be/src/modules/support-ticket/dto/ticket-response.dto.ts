@@ -1,4 +1,5 @@
 import { SupportTicketEntity } from '../entity/support-ticket.entity';
+import { TicketAttachmentEntity } from '../entity/ticket-attachment.entity';
 import { TicketMessageEntity } from '../entity/ticket-message.entity';
 import { TicketStatusLogEntity } from '../entity/ticket-status-log.entity';
 import { TicketResolutionEntity } from '../entity/ticket-resolution.entity';
@@ -124,8 +125,13 @@ export function toPublicView(
   };
 }
 
+export interface AttachmentView {
+  id: string;
+  url: string;
+}
 export interface AdminMessage extends PublicMessage {
   isInternal: boolean;
+  attachments: AttachmentView[];
 }
 export interface StatusLogView {
   id: string;
@@ -163,6 +169,8 @@ export interface TicketAdminView extends TicketSummary {
   messages: AdminMessage[];
   statusLogs: StatusLogView[];
   resolutions: ResolutionView[];
+  /** Ảnh đính kèm ở cấp ticket (không thuộc message nào). */
+  attachments: AttachmentView[];
 }
 
 export function toAdminView(
@@ -170,7 +178,20 @@ export function toAdminView(
   messages: TicketMessageEntity[] = [],
   statusLogs: TicketStatusLogEntity[] = [],
   resolutions: TicketResolutionEntity[] = [],
+  attachments: TicketAttachmentEntity[] = [],
 ): TicketAdminView {
+  const byMessage = new Map<string, AttachmentView[]>();
+  const ticketLevel: AttachmentView[] = [];
+  for (const a of attachments) {
+    const view = { id: a.id, url: a.url };
+    if (a.message?.id) {
+      const arr = byMessage.get(a.message.id) ?? [];
+      arr.push(view);
+      byMessage.set(a.message.id, arr);
+    } else {
+      ticketLevel.push(view);
+    }
+  }
   return {
     ...toTicketSummary(t),
     description: t.description ?? null,
@@ -210,7 +231,9 @@ export function toAdminView(
       body: m.body,
       isInternal: m.isInternal,
       createdAt: m.createdAt,
+      attachments: byMessage.get(m.id) ?? [],
     })),
+    attachments: ticketLevel,
     statusLogs: statusLogs.map((l) => ({
       id: l.id,
       oldStatus: l.oldStatus ?? null,

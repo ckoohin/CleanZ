@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -8,8 +9,15 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/jpg'];
+const MAX_SIZE = 5 * 1024 * 1024;
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -90,6 +98,25 @@ export class TicketAdminController {
     @Body() dto: ChangeStatusDto,
   ) {
     return this.adminService.changeStatus(id, dto, adminId);
+  }
+
+  @Post(':id/attachments')
+  @ApiOperation({ summary: 'Admin upload ảnh đính kèm (lấy attachmentId để gắn vào reply)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadAttachment(
+    @CurrentUser('id') adminId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Thiếu file ảnh');
+    if (!ALLOWED_MIME.includes(file.mimetype)) {
+      throw new BadRequestException('Chỉ chấp nhận ảnh JPEG/PNG');
+    }
+    if (file.size > MAX_SIZE) {
+      throw new BadRequestException('Ảnh vượt quá 5MB');
+    }
+    return this.adminService.uploadAttachment(id, adminId, file);
   }
 
   @Post(':id/messages')

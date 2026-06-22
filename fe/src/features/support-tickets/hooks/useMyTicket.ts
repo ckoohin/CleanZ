@@ -17,6 +17,16 @@ export const myTicketKeys = {
   detail: (id: string) => ["my-tickets", "detail", id] as const,
 };
 
+// ─── Booking options (cho select khi tạo ticket) ──────────────────────────────
+export function useMyBookings(enabled = true) {
+  return useQuery({
+    queryKey: ["my-bookings", "for-ticket"],
+    queryFn: () => myTicketApi.listMyBookings(),
+    enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
 // ─── List ─────────────────────────────────────────────────────────────────────
 export function useMyTicketList(params?: MyTicketQueryParams) {
   return useQuery({
