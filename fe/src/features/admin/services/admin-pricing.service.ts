@@ -9,6 +9,7 @@ export interface PricingConfigEntity {
   peakPrice: number | null;
   petFee: number;
   waitingFee: number;
+  priceUnit: string;
   platformCommissionRate: number;
   isActive: boolean;
   createdAt: string;
@@ -32,6 +33,7 @@ export interface CreatePricingConfigDto {
   peakPrice?: number | null;
   petFee?: number;
   waitingFee?: number;
+  priceUnit?: string;
   platformCommissionRate?: number;
   isActive?: boolean;
 }

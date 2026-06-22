@@ -7,11 +7,17 @@ import {
   MaxLength,
   IsNotEmpty,
   IsArray,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class CreateServiceDto {
+  @ApiPropertyOptional({ example: '6224bfaf-ed46-4770-88c0-ff1a645cc279' })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
   @ApiProperty({ example: 'Dọn dẹp nhà 2 giờ' })
   @IsString()
   @IsNotEmpty()

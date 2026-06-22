@@ -80,7 +80,9 @@ export interface AdminTicketSummary extends TicketSummary {
 }
 
 /** Summary cho hàng đợi admin (kèm admin phụ trách). KHÔNG dùng cho user. */
-export function toAdminTicketSummary(t: SupportTicketEntity): AdminTicketSummary {
+export function toAdminTicketSummary(
+  t: SupportTicketEntity,
+): AdminTicketSummary {
   return {
     ...toTicketSummary(t),
     assignedAdmin: t.assignedAdmin
@@ -169,7 +171,11 @@ export function toAdminView(
     counterpartyUserId: t.counterparty?.id ?? null,
     assignedAdminId: t.assignedAdmin?.id ?? null,
     reporter: t.reporter
-      ? { id: t.reporter.id, fullName: t.reporter.fullName, role: t.reporter.role }
+      ? {
+          id: t.reporter.id,
+          fullName: t.reporter.fullName,
+          role: t.reporter.role,
+        }
       : null,
     counterparty: t.counterparty
       ? {

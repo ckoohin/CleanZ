@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ServiceRepository } from '../service.repository';
 import { ServiceEntity } from '../entity/service.entity';
+import { CategoryEntity } from '../entity/category.entity';
 import { PaginatedData } from '../../../common/helpers/response.interface';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { ServiceListQueryDto } from '../dto/list-query-service.dto';
@@ -26,6 +27,7 @@ export class ServicesService {
       baseDurationHours: dto.baseDurationHours ?? undefined,
       coverageArea: dto.coverageArea ?? undefined,
       isActive: dto.isActive ?? true,
+      category: dto.categoryId ? ({ id: dto.categoryId } as CategoryEntity) : undefined,
     });
     return this.serviceRepo.save(entity);
   }
@@ -37,7 +39,10 @@ export class ServicesService {
   }
 
   async findOne(id: string): Promise<ServiceEntity> {
-    const service = await this.serviceRepo.findOne({ where: { id } });
+    const service = await this.serviceRepo.findOne({ 
+      where: { id },
+      relations: ['pricingConfig', 'category'],
+    });
     if (!service) throw new NotFoundException('SERVICE_NOT_FOUND');
     return service;
   }
@@ -85,10 +90,17 @@ export class ServicesService {
           ? dto.coverageArea
           : service.coverageArea,
       isActive: dto.isActive !== undefined ? dto.isActive : service.isActive,
+      category:
+        dto.categoryId !== undefined
+          ? dto.categoryId
+            ? ({ id: dto.categoryId } as CategoryEntity)
+            : null
+          : service.category,
     });
 
     return this.serviceRepo.save(service);
   }
+
 
   async remove(id: string): Promise<void> {
     const service = await this.findOne(id);

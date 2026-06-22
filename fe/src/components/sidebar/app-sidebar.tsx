@@ -44,6 +44,7 @@ const managementNav = [
     url: "/admin/services",
     icon: <Wrench />,
     items: [
+      { title: "Danh mục", url: "/admin/categories" },
       { title: "Danh sách dịch vụ", url: "/admin/services" },
     ],
   },

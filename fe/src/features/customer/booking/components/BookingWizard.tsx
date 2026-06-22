@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -13,12 +13,20 @@ import {
   Loader2,
   Navigation,
   Calendar,
+  Plus,
+  Home,
+  Briefcase,
+  Star,
+  Trash2,
+  X,
+  AlertCircle
 } from "lucide-react";
 import http from "@/lib/api/http";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
 import { useBookingQuote, useCreateBooking } from "@/features/booking/hooks/useCustomerBooking";
+import { useMyAddresses, useCreateAddress } from "@/features/customer/hooks/useCustomerAddress";
 import type {
   BookingQuoteResponse,
   CreateBookingDto,
@@ -41,6 +49,7 @@ interface WizardState {
   serviceId: string;
   serviceName: string;
   // Địa chỉ
+  addressId: string;
   selectedAddress: string;   // địa chỉ hiển thị
   selectedLat: number | null;
   selectedLng: number | null;
@@ -56,6 +65,7 @@ interface WizardState {
 const INIT_STATE: WizardState = {
   serviceId: "",
   serviceName: "",
+  addressId: "",
   selectedAddress: "",
   selectedLat: null,
   selectedLng: null,
@@ -155,7 +165,7 @@ function StepService({
   );
 }
 
-// Step 1: Chọn địa chỉ bằng GoongMap
+// Step 1: Chọn địa chỉ từ danh sách và tích hợp bản đồ thêm mới
 function StepAddress({
   form,
   onChange,
@@ -163,78 +173,290 @@ function StepAddress({
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
 }) {
+  const { data: addresses, isLoading } = useMyAddresses();
+  const createAddressMutation = useCreateAddress();
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // Form state cho địa chỉ mới
+  const [newLabel, setNewLabel] = useState<"Nhà" | "Công ty" | "Khác">("Nhà");
+  const [newAddress, setNewAddress] = useState("");
+  const [newLat, setNewLat] = useState<number | null>(null);
+  const [newLng, setNewLng] = useState<number | null>(null);
+  const [hasPet, setHasPet] = useState(false);
+  const [error, setError] = useState("");
+
+  // Tự động chọn địa chỉ mặc định khi tải xong danh sách
+  useEffect(() => {
+    if (addresses && addresses.length > 0 && !form.addressId) {
+      const defAddr = addresses.find((a) => a.isDefault) || addresses[0];
+      onChange({
+        addressId: defAddr.id,
+        selectedAddress: defAddr.fullAddress,
+        selectedLat: defAddr.latitude,
+        selectedLng: defAddr.longitude,
+      });
+    }
+  }, [addresses, form.addressId, onChange]);
+
   const handleMapSelect = (lat: number, lng: number, address: string) => {
-    onChange({ selectedLat: lat, selectedLng: lng, selectedAddress: address });
+    setNewLat(lat);
+    setNewLng(lng);
+    setNewAddress(address);
+    setError("");
   };
 
   const handleAutoSelect = (placeId: string, description: string) => {
-    // Gọi Goong Geocode để lấy lat/lng từ place_id
     const apiKey = process.env.NEXT_PUBLIC_GOONG_API_KEY ?? "";
     fetch(`https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${apiKey}`)
       .then((r) => r.json())
       .then((data) => {
         const loc = data?.result?.geometry?.location;
         if (loc) {
-          onChange({
-            selectedAddress: description,
-            selectedLat: loc.lat,
-            selectedLng: loc.lng,
-          });
+          setNewAddress(description);
+          setNewLat(loc.lat);
+          setNewLng(loc.lng);
+          setError("");
         } else {
-          onChange({ selectedAddress: description });
+          setNewAddress(description);
         }
       })
-      .catch(() => onChange({ selectedAddress: description }));
+      .catch(() => setNewAddress(description));
   };
+
+  const handleSaveAddress = async () => {
+    if (!newAddress.trim()) {
+      setError("Vui lòng nhập hoặc chọn địa chỉ chi tiết");
+      return;
+    }
+    setError("");
+
+    try {
+      const saved = await createAddressMutation.mutateAsync({
+        label: newLabel,
+        fullAddress: newAddress,
+        latitude: newLat,
+        longitude: newLng,
+        hasPet,
+        isDefault: addresses && addresses.length === 0, // mặc định nếu là địa chỉ đầu tiên
+      });
+
+      if (saved && saved.id) {
+        // Tự động chọn địa chỉ mới tạo
+        onChange({
+          addressId: saved.id,
+          selectedAddress: saved.fullAddress,
+          selectedLat: saved.latitude,
+          selectedLng: saved.longitude,
+        });
+        // Reset form
+        setNewAddress("");
+        setNewLat(null);
+        setNewLng(null);
+        setHasPet(false);
+        setShowAddForm(false);
+      }
+    } catch {
+      // Đã được xử lý bởi hook error toast
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-sm text-muted-foreground">Đang tải danh sách địa chỉ...</p>
+      </div>
+    );
+  }
+
+  if (showAddForm) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-base font-bold text-foreground">Thêm địa chỉ làm việc mới</h2>
+          <button
+            onClick={() => {
+              setShowAddForm(false);
+              setError("");
+            }}
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <X className="w-4 h-4" /> Quay lại danh sách
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <GoongAutocomplete
+            onSelect={handleAutoSelect}
+            placeholder="Tìm kiếm địa chỉ làm việc..."
+            className="mb-3 z-30"
+          />
+        </div>
+
+        {/* GoongMap */}
+        <div className="rounded-2xl overflow-hidden border border-border/50 shadow-sm relative h-48">
+          <GoongMap
+            initialLat={newLat ?? 21.028511}
+            initialLng={newLng ?? 105.804817}
+            onLocationSelect={handleMapSelect}
+          />
+        </div>
+
+        {/* Form Fields */}
+        <div className="bg-card p-4 rounded-2xl border border-border/50 space-y-4 text-sm">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase">Lưu địa chỉ thành</label>
+            <div className="flex gap-2">
+              {(["Nhà", "Công ty", "Khác"] as const).map((lbl) => {
+                const active = newLabel === lbl;
+                return (
+                  <button
+                    key={lbl}
+                    type="button"
+                    onClick={() => setNewLabel(lbl)}
+                    className={`px-4 py-2 border rounded-xl text-xs font-bold transition-all ${
+                      active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {lbl === "Nhà" ? "🏠 Nhà" : lbl === "Công ty" ? "💼 Công ty" : "📍 Khác"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase">Địa chỉ đã chọn</label>
+            <textarea
+              readOnly
+              value={newAddress}
+              placeholder="Vui lòng ghim vị trí hoặc tìm kiếm ở trên..."
+              rows={2}
+              className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none resize-none"
+            />
+            {error && <p className="text-xs text-destructive mt-1 font-medium">{error}</p>}
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="hasPet"
+              checked={hasPet}
+              onChange={(e) => setHasPet(e.target.checked)}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+            />
+            <label htmlFor="hasPet" className="text-xs font-semibold text-foreground/80 cursor-pointer select-none">
+              🐾 Nhà có vật nuôi (Chó, mèo...) - Có phụ phí nhẹ
+            </label>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => {
+              setShowAddForm(false);
+              setError("");
+            }}
+            className="flex-1 py-3 bg-muted text-muted-foreground text-xs font-bold rounded-xl hover:bg-muted/80 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleSaveAddress}
+            disabled={createAddressMutation.isPending}
+            className="flex-[2] py-3 bg-primary text-white text-xs font-bold rounded-xl hover:bg-orange-600 shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-1"
+          >
+            {createAddressMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>Lưu & Chọn địa chỉ này</>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const list = addresses || [];
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-bold text-foreground mb-1">Vị trí làm việc</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Tìm kiếm hoặc kéo bản đồ để đặt ghim chính xác vị trí nhà bạn
-        </p>
-        <GoongAutocomplete
-          onSelect={handleAutoSelect}
-          placeholder="Tìm địa chỉ..."
-          className="mb-3 z-30"
-        />
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-base font-bold text-foreground">Vị trí làm việc</h2>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+        >
+          <Plus className="w-3.5 h-3.5" /> Thêm địa chỉ mới
+        </button>
       </div>
 
-      {/* GoongMap */}
-      <div className="rounded-2xl overflow-hidden border border-border/50 shadow-sm">
-        <GoongMap
-          initialLat={form.selectedLat ?? 21.028511}
-          initialLng={form.selectedLng ?? 105.804817}
-          onLocationSelect={handleMapSelect}
-        />
-      </div>
-
-      {/* Địa chỉ đã chọn */}
-      {form.selectedAddress && (
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-start gap-2">
-          <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-semibold text-primary mb-0.5">Vị trí đã chọn</p>
-            <p className="text-sm text-foreground">{form.selectedAddress}</p>
-          </div>
+      {list.length === 0 ? (
+        <div className="text-center py-10 bg-card border border-dashed border-border/60 rounded-2xl p-6">
+          <MapPin className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-sm font-bold text-foreground">Chưa có địa chỉ nào được lưu</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">
+            Vui lòng thêm địa chỉ làm việc để hệ thống hỗ trợ tốt nhất.
+          </p>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="bg-primary text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md hover:bg-orange-600"
+          >
+            Thêm địa chỉ ngay
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 pb-1">
+          {list.map((addr) => {
+            const isSelected = form.addressId === addr.id;
+            return (
+              <button
+                key={addr.id}
+                onClick={() =>
+                  onChange({
+                    addressId: addr.id,
+                    selectedAddress: addr.fullAddress,
+                    selectedLat: addr.latitude,
+                    selectedLng: addr.longitude,
+                  })
+                }
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-start gap-3 relative ${
+                  isSelected
+                    ? "border-primary bg-primary/5"
+                    : "border-border/50 bg-card hover:border-primary/30"
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-0.5">
+                  {addr.label === "Nhà" ? "🏠" : addr.label === "Công ty" ? "💼" : "📍"}
+                </div>
+                <div className="flex-1 min-w-0 pr-6">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-foreground uppercase">{addr.label || "Địa chỉ"}</span>
+                    {addr.isDefault && (
+                      <span className="bg-yellow-100 text-yellow-800 text-[9px] font-black px-1.5 py-0.5 rounded">
+                        MẶC ĐỊNH
+                      </span>
+                    )}
+                    {addr.hasPet && (
+                      <span className="bg-orange-100 text-orange-700 text-[9px] font-semibold px-1.5 py-0.5 rounded">
+                        🐾 Vật nuôi
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed truncate-2-lines">
+                    {addr.fullAddress}
+                  </p>
+                </div>
+                {isSelected && (
+                  <CheckCircle2 className="w-5 h-5 text-primary shrink-0 absolute right-3 top-4" />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
-
-      {/* Nút dùng địa chỉ mặc định */}
-      <button
-        onClick={() =>
-          onChange({ selectedAddress: "__DEFAULT__", selectedLat: null, selectedLng: null })
-        }
-        className={`w-full flex items-center gap-2 px-4 py-3 border-2 rounded-xl text-sm font-medium transition-all ${
-          form.selectedAddress === "__DEFAULT__"
-            ? "border-primary bg-primary/5 text-primary"
-            : "border-border/50 text-muted-foreground hover:border-primary/30"
-        }`}
-      >
-        <Navigation className="w-4 h-4" />
-        Dùng địa chỉ mặc định trong hồ sơ
-      </button>
     </div>
   );
 }
@@ -496,7 +718,7 @@ export const BookingWizard = ({ serviceId: initialServiceId }: { serviceId?: str
 
   const canProceed = (): boolean => {
     if (step === 0) return !!form.serviceId;
-    if (step === 1) return !!form.selectedAddress; // phải chọn địa chỉ hoặc default
+    if (step === 1) return !!form.addressId; // phải chọn địa chỉ thực tế từ danh sách
     if (step === 2) return !!form.scheduledDate && !!form.scheduledTime;
     if (step === 3) return true; // payment always ok
     if (step === 4) return !!quote; // cần có quote
@@ -508,6 +730,7 @@ export const BookingWizard = ({ serviceId: initialServiceId }: { serviceId?: str
     if (step === 3) {
       const result = await quoteQuery.mutateAsync({
         serviceId: form.serviceId || undefined,
+        addressId: form.addressId || undefined,
         scheduledDate: form.scheduledDate,
         scheduledTime: form.scheduledTime,
         note: form.note || undefined,
@@ -522,6 +745,7 @@ export const BookingWizard = ({ serviceId: initialServiceId }: { serviceId?: str
     if (step === 4) {
       const dto: CreateBookingDto = {
         serviceId: form.serviceId || undefined,
+        addressId: form.addressId || undefined,
         scheduledDate: form.scheduledDate,
         scheduledTime: form.scheduledTime,
         note: form.note || undefined,

@@ -18,13 +18,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminServiceEntity, CreateAdminServiceDto } from "../../services/admin-services.service";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
 import { DynamicListInput } from "@/components/ui/dynamic-list-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "Vui lòng nhập tên dịch vụ").max(255, "Tên quá dài"),
@@ -37,6 +37,7 @@ const serviceSchema = z.object({
   baseDurationHours: z.string().optional(),
   coverageArea: z.string().optional(),
   isActive: z.boolean(),
+  categoryId: z.string().min(1, "Vui lòng chọn danh mục"),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -46,9 +47,10 @@ interface ServiceFormProps {
   onSubmit: (values: CreateAdminServiceDto) => void;
   isSubmitting?: boolean;
   isEditMode?: boolean;
+  categories?: { id: string; name: string }[];
 }
 
-export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode }: ServiceFormProps) {
+export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode, categories = [] }: ServiceFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -63,6 +65,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
       baseDurationHours: initialValues?.baseDurationHours ? String(initialValues.baseDurationHours) : "",
       coverageArea: initialValues?.coverageArea || "",
       isActive: initialValues?.isActive ?? true,
+      categoryId: initialValues?.categoryId || "",
     },
   });
 
@@ -89,6 +92,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
       baseDurationHours: parsedDuration,
       coverageArea: values.coverageArea || undefined,
       isActive: values.isActive,
+      categoryId: values.categoryId,
     };
     onSubmit(payload);
   };
@@ -123,6 +127,31 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode 
                     <FormControl>
                       <Input placeholder="Nhập tên dịch vụ (VD: Dọn dẹp nhà cơ bản)" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <FormItem className="col-span-1 md:col-span-2">
+                    <FormLabel className="font-bold">Danh mục <span className="text-destructive">*</span></FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn danh mục cho dịch vụ" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

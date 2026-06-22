@@ -37,12 +37,12 @@ import { Auth } from '../auth/decorators/auth.decorator';
 @ApiTags('Admin – Services')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Auth(UserRole.ADMIN)
 @Controller('admin/services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Post()
+  @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new service' })
   @ApiCreatedResponse({ description: 'Service created' })
   async create(@Body() dto: CreateServiceDto) {
@@ -51,6 +51,7 @@ export class ServicesController {
   }
 
   @Get()
+  @Auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.TASKER)
   @ApiOperation({ summary: 'List all services with pagination & filtering' })
   @ApiOkResponse({ description: 'Paginated service list' })
   async findAll(@Query() query: ServiceListQueryDto) {
@@ -64,6 +65,7 @@ export class ServicesController {
   }
 
   @Get(':id')
+  @Auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.TASKER)
   @ApiOperation({ summary: 'Get service by ID' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     const data = await this.servicesService.findOne(id);
@@ -71,6 +73,7 @@ export class ServicesController {
   }
 
   @Patch(':id')
+  @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update a service' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -81,6 +84,7 @@ export class ServicesController {
   }
 
   @Delete(':id')
+  @Auth(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a service' })
   @ApiNoContentResponse({ description: 'Service deleted' })
@@ -89,6 +93,7 @@ export class ServicesController {
   }
 
   @Get(':id/bookings')
+  @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get paginated bookings for a service' })
   @ApiOkResponse({ description: 'Paginated bookings list' })
   async getServiceBookings(
@@ -110,6 +115,7 @@ export class ServicesController {
   }
 
   @Get(':id/taskers')
+  @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get paginated taskers for a service' })
   @ApiOkResponse({ description: 'Paginated taskers list' })
   async getServiceTaskers(

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Param,
   Query,
   Body,
@@ -9,6 +10,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
+import { CurrentUser } from 'src/modules/auth/decorators/current-user.decorator';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
 import { AdminBookingRepository } from './repositories/admin-booking.repository';
@@ -20,6 +22,7 @@ import {
 } from './dto/date-range-query.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
 import { BookingSearchQueryDto } from './dto/booking-search-query.dto';
+
 
 @AdminOnly()
 @Controller('admin')
@@ -118,6 +121,43 @@ export class AdminController {
   searchBookings(@Query() query: BookingSearchQueryDto) {
     return this.bookingRepo.searchBookings(query);
   }
+
+  @Get('bookings/taskers/active')
+  getActiveTaskers() {
+    return this.bookingRepo.getActiveTaskers();
+  }
+
+  @Get('bookings/:id')
+  async getBookingDetail(@Param('id', ParseUUIDPipe) id: string) {
+    const detail = await this.bookingRepo.getBookingDetail(id);
+    if (!detail) {
+      throw new NotFoundException(`Không tìm thấy booking với id ${id}`);
+    }
+    return detail;
+  }
+
+  @Patch('bookings/:id/cancel')
+  async cancelBooking(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.bookingRepo.cancelBookingByAdmin(id, adminUserId);
+  }
+
+  @Patch('bookings/:id/assign')
+  async assignTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('taskerId') taskerId: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.bookingRepo.assignTaskerToBooking(id, taskerId, adminUserId);
+  }
+
+  @Post('bookings/expire-overdue')
+  expireOverdueBookings() {
+    return this.bookingRepo.expireOverdueBookings();
+  }
+
 
   // ─── Customer Management Endpoints ───
 

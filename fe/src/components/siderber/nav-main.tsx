@@ -52,15 +52,22 @@ export function NavMain({
             className="group/collapsible"
           >
             <SidebarMenuItem>
-              <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title} isActive={isGroupActive} className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary">
-                  {item.icon}
-                  <span className="font-medium">{item.title}</span>
-                  {item.items && item.items.length > 0 && (
-                     <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  )}
+              {item.items && item.items.length > 0 ? (
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip={item.title} isActive={isGroupActive} className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary">
+                    {item.icon}
+                    <span className="font-medium">{item.title}</span>
+                    <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+              ) : (
+                <SidebarMenuButton tooltip={item.title} isActive={isGroupActive} className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary" asChild>
+                  <Link href={item.url}>
+                    {item.icon}
+                    <span className="font-medium">{item.title}</span>
+                  </Link>
                 </SidebarMenuButton>
-              </CollapsibleTrigger>
+              )}
               {item.items && item.items.length > 0 && (
                 <CollapsibleContent>
                   <SidebarMenuSub>

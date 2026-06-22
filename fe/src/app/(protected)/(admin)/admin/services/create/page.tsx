@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
 import { useCreateAdminService } from "@/features/admin/hooks/useAdminServices";
+import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 import { CreateAdminServiceDto } from "@/features/admin/services/admin-services.service";
 
 export default function CreateServicePage() {
   const router = useRouter();
   const createMutation = useCreateAdminService();
+  const { data: categories } = useAdminCategories();
 
   const handleSubmit = (values: CreateAdminServiceDto) => {
     createMutation.mutate(values, {
@@ -44,7 +46,8 @@ export default function CreateServicePage() {
       <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
         <ServiceForm 
           onSubmit={handleSubmit} 
-          isSubmitting={createMutation.isPending} 
+          isSubmitting={createMutation.isPending}
+          categories={categories || []}
         />
       </div>
     </div>

@@ -88,17 +88,13 @@ const adminData = {
       title: "Quản lý Đơn hàng",
       url: "/admin/bookings",
       icon: <CalendarCheck />,
-      items: [
-        { title: "Tất cả đơn hàng", url: "/admin/bookings" },
-        { title: "Đang thực hiện", url: "/admin/bookings/active" },
-        { title: "Sự cố & Khiếu nại", url: "/admin/incidents" },
-      ],
     },
     {
       title: "Quản lý Dịch vụ",
       url: "/admin/services",
       icon: <Wrench />,
       items: [
+        { title: "Danh mục", url: "/admin/categories" },
         { title: "Danh sách dịch vụ", url: "/admin/services" },
         { title: "Bảng giá dịch vụ", url: "/admin/pricing" },
       ],

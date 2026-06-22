@@ -13,10 +13,13 @@ export class ServiceRepository extends Repository<ServiceEntity> {
   async findWithPagination(
     query: ServiceListQueryDto,
   ): Promise<PaginatedData<ServiceEntity>> {
-    const { page = 1, limit = 20, search, isActive } = query;
+    const { page = 1, limit = 20, search, isActive, categoryId } = query;
     const skip = (page - 1) * limit;
 
-    const qb = this.createQueryBuilder('svc').orderBy('svc.createdAt', 'DESC');
+    const qb = this.createQueryBuilder('svc')
+      .leftJoinAndSelect('svc.pricingConfig', 'pricing')
+      .leftJoinAndSelect('svc.category', 'category')
+      .orderBy('svc.createdAt', 'DESC');
 
     if (search) {
       qb.andWhere('(svc.name ILIKE :search OR svc.description ILIKE :search)', {
@@ -30,10 +33,17 @@ export class ServiceRepository extends Repository<ServiceEntity> {
       });
     }
 
+    if (categoryId) {
+      qb.andWhere('svc.category_id = :categoryId', {
+        categoryId,
+      });
+    }
+
     const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
 
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
+
 
   async hasActiveBookings(serviceId: string): Promise<boolean> {
     const result = await this.dataSource.query<[{ count: string }]>(

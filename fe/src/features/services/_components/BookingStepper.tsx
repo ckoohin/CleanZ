@@ -9,6 +9,7 @@ import { StepSelectService } from "./StepSelectService";
 import { StepCustomerInfo } from "./StepCustomerInfo";
 import { StepConfirmation } from "./StepConfirmation";
 import { createBooking, BookingPayload } from "@/lib/api/booking";
+import { useRouter } from "next/navigation";
 
 interface BookingStepperProps {
   open: boolean;
@@ -27,8 +28,14 @@ export const BookingStepper: React.FC<BookingStepperProps> = ({ open, onOpenChan
   });
 
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleNext = (data?: Partial<BookingPayload>) => {
+    if (step === 0 && service) {
+      onOpenChange(false);
+      router.push(`/booking/${service.id}`);
+      return;
+    }
     if (data) {
       setBookingData((prev) => ({ ...prev, ...data }));
     }

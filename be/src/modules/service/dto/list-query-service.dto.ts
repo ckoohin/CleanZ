@@ -22,4 +22,10 @@ export class ServiceListQueryDto {
   @IsOptional()
   @IsString()
   isActive?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }
+

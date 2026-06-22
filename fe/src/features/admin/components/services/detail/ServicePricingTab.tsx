@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, DollarSign, Save } from "lucide-react";
+import { ServiceOptionsBuilder } from "./ServiceOptionsBuilder";
 import { BaseButton } from "@/components/ui/base/base_button";
 import {
   Form,
@@ -32,6 +33,7 @@ const pricingSchema = z.object({
   peakPrice: z.number().nullable().optional(),
   petFee: z.number().min(0, "Không được nhỏ hơn 0"),
   waitingFee: z.number().min(0, "Không được nhỏ hơn 0"),
+  priceUnit: z.string().optional(),
   platformCommissionRate: z.number().min(0).max(100, "Không được vượt quá 100%"),
   isActive: z.boolean(),
 });
@@ -55,6 +57,7 @@ export function ServicePricingTab({ service }: ServicePricingTabProps) {
       peakPrice: null,
       petFee: 0,
       waitingFee: 0,
+      priceUnit: "giờ",
       platformCommissionRate: 20,
       isActive: true,
     },
@@ -67,6 +70,7 @@ export function ServicePricingTab({ service }: ServicePricingTabProps) {
         peakPrice: config.peakPrice ?? null,
         petFee: config.petFee || 0,
         waitingFee: config.waitingFee || 0,
+        priceUnit: config.priceUnit || "giờ",
         platformCommissionRate: config.platformCommissionRate || 20,
         isActive: config.isActive ?? true,
       });
@@ -76,6 +80,7 @@ export function ServicePricingTab({ service }: ServicePricingTabProps) {
         peakPrice: null,
         petFee: 0,
         waitingFee: 0,
+        priceUnit: "giờ",
         platformCommissionRate: 20,
         isActive: true,
       });
@@ -91,6 +96,7 @@ export function ServicePricingTab({ service }: ServicePricingTabProps) {
           peakPrice: values.peakPrice ?? null,
           petFee: values.petFee,
           waitingFee: values.waitingFee,
+          priceUnit: values.priceUnit,
           platformCommissionRate: values.platformCommissionRate,
           isActive: values.isActive,
         },
@@ -228,6 +234,24 @@ export function ServicePricingTab({ service }: ServicePricingTabProps) {
 
             <FormField
               control={form.control}
+              name="priceUnit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Đơn vị tính giá</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="VD: giờ, phòng, m2..." 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormDescription>Đơn vị cơ bản để tính tiền (mặc định: giờ).</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="platformCommissionRate"
               render={({ field }) => (
                 <FormItem>
@@ -285,6 +309,11 @@ export function ServicePricingTab({ service }: ServicePricingTabProps) {
           </div>
         </form>
       </Form>
+
+      {/* OPTIONS BUILDER */}
+      <div className="mt-12 pt-8 border-t border-border/50">
+        <ServiceOptionsBuilder service={service} />
+      </div>
     </div>
   );
 }

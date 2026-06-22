@@ -135,6 +135,11 @@ export interface TaskerAssignedBookingDetailResponse {
     latitude?: number | null;
     longitude?: number | null;
     hasPet: boolean;
+    contactName?: string | null;
+    contactPhone?: string | null;
+    buildingFloor?: string | null;
+    gate?: string | null;
+    driverNote?: string | null;
   };
   schedule: {
     scheduledStartDate?: string | null;
@@ -920,6 +925,11 @@ export class TaskerBookingService {
         latitude: booking.addressRef?.latitude ?? null,
         longitude: booking.addressRef?.longitude ?? null,
         hasPet: booking.addressRef?.hasPet ?? false,
+        contactName: booking.addressRef?.contactName ?? null,
+        contactPhone: booking.addressRef?.contactPhone ?? null,
+        buildingFloor: booking.addressRef?.buildingFloor ?? null,
+        gate: booking.addressRef?.gate ?? null,
+        driverNote: booking.addressRef?.driverNote ?? null,
       },
       payment: {
         method: booking.paymentMethod,

@@ -34,6 +34,11 @@ export interface CustomerAddressResponse {
   longitude?: number | null;
   isDefault: boolean;
   hasPet: boolean;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  buildingFloor?: string | null;
+  gate?: string | null;
+  driverNote?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -143,6 +148,11 @@ export class CustomerService {
           longitude: dto.longitude ?? null,
           isDefault: shouldSetDefault,
           hasPet: dto.hasPet ?? false,
+          contactName: dto.contactName?.trim() || null,
+          contactPhone: dto.contactPhone?.trim() || null,
+          buildingFloor: dto.buildingFloor?.trim() || null,
+          gate: dto.gate?.trim() || null,
+          driverNote: dto.driverNote?.trim() || null,
         });
 
         return this.mapAddress(await addressRepository.save(address));
@@ -193,6 +203,21 @@ export class CustomerService {
         }
         if (dto.hasPet !== undefined) {
           address.hasPet = dto.hasPet;
+        }
+        if (dto.contactName !== undefined) {
+          address.contactName = dto.contactName?.trim() || null;
+        }
+        if (dto.contactPhone !== undefined) {
+          address.contactPhone = dto.contactPhone?.trim() || null;
+        }
+        if (dto.buildingFloor !== undefined) {
+          address.buildingFloor = dto.buildingFloor?.trim() || null;
+        }
+        if (dto.gate !== undefined) {
+          address.gate = dto.gate?.trim() || null;
+        }
+        if (dto.driverNote !== undefined) {
+          address.driverNote = dto.driverNote?.trim() || null;
         }
 
         return this.mapAddress(await addressRepository.save(address));
@@ -286,6 +311,11 @@ export class CustomerService {
       longitude: address.longitude ?? null,
       isDefault: address.isDefault,
       hasPet: address.hasPet,
+      contactName: address.contactName ?? null,
+      contactPhone: address.contactPhone ?? null,
+      buildingFloor: address.buildingFloor ?? null,
+      gate: address.gate ?? null,
+      driverNote: address.driverNote ?? null,
       createdAt: address.createdAt,
       updatedAt: address.updatedAt,
     };

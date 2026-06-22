@@ -1,5 +1,6 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 export type BookingStatus =
+  | "PENDING_PAYMENT"
   | "POSTED"
   | "CONFIRMED"
   | "TASKER_ON_THE_WAY"
@@ -77,8 +78,12 @@ export interface StatusLog {
 export interface CreateBookingDto {
   serviceId?: string;
   addressId?: string;
-  scheduledDate: string;    // YYYY-MM-DD
-  scheduledTime: string;    // HH:mm
+  address?: string;
+  provinceCode?: string;
+  scheduledStart?: string;
+  scheduledDate?: string;    // YYYY-MM-DD
+  scheduledTime?: string;    // HH:mm
+  durationHours?: number;
   note?: string;
   paymentMethod?: PaymentMethod;
   voucherCode?: string;
@@ -87,8 +92,11 @@ export interface CreateBookingDto {
 export interface QuoteBookingDto {
   serviceId?: string;
   addressId?: string;
+  address?: string;
+  provinceCode?: string;
   scheduledDate: string;
   scheduledTime: string;
+  durationHours?: number;
   note?: string;
   voucherCode?: string;
 }
@@ -199,6 +207,11 @@ export interface TaskerAssignedBookingDetail {
     latitude?: number | null;
     longitude?: number | null;
     hasPet: boolean;
+    contactName?: string | null;
+    contactPhone?: string | null;
+    buildingFloor?: string | null;
+    gate?: string | null;
+    driverNote?: string | null;
   };
   schedule: BookingSchedule;
   price: {
@@ -222,3 +235,16 @@ export interface TaskerAssignedBookingDetail {
   checkedInAt?: string | null;
   completedAt?: string | null;
 }
+
+
+export type BookingFormState = {
+  serviceId: string;
+  addressId?: string;
+  address: string;
+  provinceCode: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  note: string;
+  paymentMethod: PaymentMethod;
+  voucherCode: string;
+};

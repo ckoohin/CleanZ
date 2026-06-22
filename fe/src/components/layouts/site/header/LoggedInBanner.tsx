@@ -14,6 +14,12 @@ export const LoggedInBanner = () => {
 
   useEffect(() => {
     if (profile) {
+      // Kiểm tra xem user này đã tắt banner trước đó chưa
+      const isClosed = localStorage.getItem(`closed-welcome-banner-${profile.id}`);
+      if (isClosed === "true") {
+        return;
+      }
+
       // Delay slightly so it pops up naturally after page load
       const timer = setTimeout(() => setIsVisible(true), 1500);
       return () => clearTimeout(timer);
@@ -26,6 +32,11 @@ export const LoggedInBanner = () => {
   let dashboardRoute = "/customer";
   if (profile.role === "TASKER") dashboardRoute = "/tasker";
   if (profile.role === "ADMIN") dashboardRoute = "/admin";
+
+  const handleClose = () => {
+    setIsVisible(false);
+    localStorage.setItem(`closed-welcome-banner-${profile.id}`, "true");
+  };
 
   return (
     <AnimatePresence>
@@ -42,7 +53,7 @@ export const LoggedInBanner = () => {
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[40px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2" />
             
             <button 
-              onClick={() => setIsVisible(false)}
+              onClick={handleClose}
               className="absolute top-3 right-3 p-1.5 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-full transition-colors z-10"
               aria-label="Đóng"
             >
@@ -63,7 +74,7 @@ export const LoggedInBanner = () => {
             </div>
 
             <div className="w-full sm:w-auto z-10 mt-2 sm:mt-0">
-              <Button asChild size="sm" className="w-full sm:w-auto rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 transition-all px-4 h-10">
+              <Button asChild onClick={handleClose} size="sm" className="w-full sm:w-auto rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 transition-all px-4 h-10">
                 <Link href={dashboardRoute}>
                   Vào ngay <ArrowRight className="w-4 h-4 ml-1.5" />
                 </Link>

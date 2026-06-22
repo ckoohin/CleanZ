@@ -1,5 +1,6 @@
 import http from '@/lib/api/http';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
+import type { ServiceOptionEntity } from './admin-options.service';
 export interface PaginatedData<T> {
   items: T[];
   total: number;
@@ -18,6 +19,7 @@ export interface AdminServiceEntity {
   id: string;
   serviceCode: string;
   name: string;
+  categoryId?: string;
   description?: string;
   thumbnailUrl?: string | null;
   galleryUrls?: string[] | null;
@@ -26,7 +28,15 @@ export interface AdminServiceEntity {
   excludedTasks?: string[] | null;
   baseDurationHours?: number | null;
   coverageArea?: string | null;
+  options?: ServiceOptionEntity[];
   isActive: boolean;
+  pricingConfig?: {
+    id: string;
+    basePrice: number | string;
+    peakPrice?: number | string | null;
+    petFee?: number | string;
+    waitingFee?: number | string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,10 +46,12 @@ export interface GetAdminServicesQuery {
   limit?: number;
   search?: string;
   isActive?: boolean;
+  categoryId?: string;
 }
 
 export interface CreateAdminServiceDto {
   name: string;
+  categoryId: string;
   description?: string;
   thumbnailUrl?: string;
   galleryUrls?: string[];

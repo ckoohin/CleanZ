@@ -42,6 +42,36 @@ export class CustomerAddressEntity {
   @Column({ name: 'has_pet', type: 'boolean', default: false })
   hasPet!: boolean;
 
+  @Column({
+    name: 'contact_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  contactName?: string | null;
+
+  @Column({
+    name: 'contact_phone',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  contactPhone?: string | null;
+
+  @Column({
+    name: 'building_floor',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  buildingFloor?: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  gate?: string | null;
+
+  @Column({ name: 'driver_note', type: 'text', nullable: true })
+  driverNote?: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

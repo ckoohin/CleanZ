@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SwipeToAccept } from "@/features/tasker/_components/SwipeToAccept";
 import {
   ArrowLeft,
   MapPin,
@@ -45,6 +46,7 @@ const STATUS_CONFIG: Record<
   BookingStatus,
   { label: string; color: string; bg: string }
 > = {
+  PENDING_PAYMENT: { label: "Chờ thanh toán", color: "text-rose-600", bg: "bg-rose-50" },
   POSTED: { label: "Chờ nhận", color: "text-blue-600", bg: "bg-blue-50" },
   CONFIRMED: { label: "Đã xác nhận", color: "text-indigo-600", bg: "bg-indigo-50" },
   TASKER_ON_THE_WAY: { label: "Đang di chuyển", color: "text-amber-600", bg: "bg-amber-50" },
@@ -105,10 +107,13 @@ function PostedDetailView({
 }) {
   const accept = useAcceptBooking();
 
-  const handleAccept = () => {
-    accept.mutate(bookingId, {
-      onSuccess: () => onAccepted(),
-    });
+  const handleAccept = async () => {
+    try {
+      await accept.mutateAsync(bookingId);
+      onAccepted();
+    } catch (err) {
+      throw err;
+    }
   };
 
   return (
@@ -175,12 +180,11 @@ function PostedDetailView({
       </div>
 
       {/* Accept button */}
-      <ActionButton
-        label="Nhận đơn ngay 🎯"
-        icon={CheckCircle2}
-        onClick={handleAccept}
-        isPending={accept.isPending}
-        color="primary"
+      <SwipeToAccept
+        label="Vuốt để nhận đơn"
+        successLabel="Đã nhận đơn!"
+        onConfirm={handleAccept}
+        isLoading={accept.isPending}
       />
     </div>
   );
@@ -219,13 +223,15 @@ function AssignedDetailView({
               <User className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm text-foreground">{data.customer.fullName ?? "—"}</p>
-              {data.customer.phone && (
+              <p className="font-semibold text-sm text-foreground">
+                {data.address?.contactName || data.customer.fullName || "—"}
+              </p>
+              {(data.address?.contactPhone || data.customer.phone) && (
                 <a
-                  href={`tel:${data.customer.phone}`}
+                  href={`tel:${data.address?.contactPhone || data.customer.phone}`}
                   className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5"
                 >
-                  <Phone className="w-3 h-3" /> {data.customer.phone}
+                  <Phone className="w-3 h-3" /> {data.address?.contactPhone || data.customer.phone}
                 </a>
               )}
             </div>
@@ -235,19 +241,54 @@ function AssignedDetailView({
 
       {/* Address (full khi canContactCustomer) */}
       {canContact && data.address ? (
-        <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-1">
-          <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-primary" /> Địa chỉ làm việc
-          </h3>
-          <p className="text-sm text-foreground font-medium">{data.address.fullAddress}</p>
-          {data.address.wardDetail && (
-            <p className="text-xs text-muted-foreground">{data.address.wardDetail}</p>
-          )}
-          {data.address.hasPet && (
-            <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-1">
-              <PawPrint className="w-2.5 h-2.5" /> Nhà có thú cưng
-            </span>
-          )}
+        <div className="bg-card rounded-2xl border border-border/50 p-4">
+          <div className="flex justify-between items-start gap-2">
+            <div className="space-y-1">
+              <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-primary" /> Địa chỉ làm việc
+              </h3>
+              <p className="text-sm text-foreground font-medium">{data.address.fullAddress}</p>
+              {data.address.wardDetail && (
+                <p className="text-xs text-muted-foreground">{data.address.wardDetail}</p>
+              )}
+              {(data.address.buildingFloor || data.address.gate) && (
+                <div className="flex items-center gap-2 mt-1">
+                  {data.address.buildingFloor && (
+                    <span className="text-xs bg-muted px-2 py-1 rounded-md text-foreground">
+                      <span className="font-semibold">Tòa/Tầng:</span> {data.address.buildingFloor}
+                    </span>
+                  )}
+                  {data.address.gate && (
+                    <span className="text-xs bg-muted px-2 py-1 rounded-md text-foreground">
+                      <span className="font-semibold">Cổng:</span> {data.address.gate}
+                    </span>
+                  )}
+                </div>
+              )}
+              {data.address.driverNote && (
+                <div className="text-xs bg-orange-50 text-orange-700 px-3 py-2 rounded-lg mt-2 border border-orange-100">
+                  <span className="font-bold block mb-0.5">Lưu ý cho tài xế:</span>
+                  {data.address.driverNote}
+                </div>
+              )}
+              {data.address.hasPet && (
+                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-2">
+                  <PawPrint className="w-2.5 h-2.5" /> Nhà có thú cưng
+                </span>
+              )}
+            </div>
+            {(data.status === "CONFIRMED" || data.status === "TASKER_ON_THE_WAY") && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(data.address.fullAddress)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/20 transition-colors shrink-0"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                Chỉ đường
+              </a>
+            )}
+          </div>
         </div>
       ) : !canContact ? (
         <div className="bg-muted/50 border border-border/30 rounded-2xl p-4 text-center">
@@ -341,40 +382,54 @@ function AssignedDetailView({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }> = ({
+export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
-  mode,
 }) => {
   const router = useRouter();
-  const isPostedMode = mode === "posted";
+  const searchParams = useSearchParams();
+  const isPostedMode = searchParams.get("mode") === "posted";
 
   // Geolocation (optional — chỉ gửi nếu user cho phép)
   const [location, setLocation] = useState<{
     currentLatitude?: number;
     currentLongitude?: number;
   }>({});
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          setLocation({
-            currentLatitude: pos.coords.latitude,
-            currentLongitude: pos.coords.longitude,
-          }),
-        () => {}, // ignore error nếu user từ chối
-        { timeout: 5000 }
-      );
+    if (!navigator.geolocation) {
+      Promise.resolve().then(() => setLocationError("Trình duyệt không hỗ trợ GPS"));
+      return;
     }
+    
+    // Sử dụng watchPosition để cập nhật GPS liên tục khi đang di chuyển
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setLocation({
+          currentLatitude: pos.coords.latitude,
+          currentLongitude: pos.coords.longitude,
+        });
+        setLocationError(null);
+      },
+      (err) => {
+        console.warn("GPS Error:", err);
+        setLocationError("Vui lòng bật định vị để ứng dụng có thể tính toán khoảng cách.");
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   const postedQuery = usePostedBookingDetail(
     bookingId,
-    isPostedMode ? location : undefined
+    isPostedMode ? location : undefined,
+    { enabled: isPostedMode }
   );
   const assignedQuery = useAssignedBookingDetail(
     bookingId,
-    isPostedMode ? undefined : location
+    isPostedMode ? undefined : location,
+    { enabled: !isPostedMode }
   );
 
   const isLoading = isPostedMode ? postedQuery.isLoading : assignedQuery.isLoading;
@@ -387,7 +442,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0"
+            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 hover:bg-muted/80 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -402,6 +457,13 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
             )}
           </div>
         </div>
+        
+        {locationError && (
+          <div className="mt-3 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] px-3 py-2 rounded-lg flex gap-2 items-start">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
+            <p className="leading-tight">{locationError}</p>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -413,7 +475,34 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
             ))}
           </div>
         ) : isPostedMode ? (
-          postedQuery.data ? (
+          postedQuery.isError ? (
+            // Check if error is 404 (Not Found / Picked)
+            (postedQuery.error as any)?.response?.status === 404 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-amber-400" />
+                <p className="text-sm font-semibold">Đơn không còn khả dụng</p>
+                <p className="text-xs mt-1">Có thể đã được nhận bởi tasker khác</p>
+                <button
+                  onClick={() => router.back()}
+                  className="mt-4 text-primary text-sm font-semibold"
+                >
+                  ← Quay lại danh sách
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-red-400" />
+                <p className="text-sm font-semibold text-red-600">Lỗi tải dữ liệu</p>
+                <p className="text-xs mt-1">Không thể kết nối đến máy chủ hoặc lỗi mạng.</p>
+                <button
+                  onClick={() => postedQuery.refetch()}
+                  className="mt-4 text-primary text-sm font-semibold"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )
+          ) : postedQuery.data ? (
             <PostedDetailView
               data={postedQuery.data}
               bookingId={bookingId}
@@ -432,11 +521,29 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
               </button>
             </div>
           )
+        ) : assignedQuery.isError ? (
+          (assignedQuery.error as any)?.response?.status === 404 ? (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              Không tìm thấy đơn hàng
+            </div>
+          ) : (
+             <div className="text-center py-16 text-muted-foreground">
+              <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-red-400" />
+              <p className="text-sm font-semibold text-red-600">Lỗi tải dữ liệu</p>
+              <p className="text-xs mt-1">Không thể tải thông tin đơn hàng này.</p>
+              <button
+                onClick={() => assignedQuery.refetch()}
+                className="mt-4 text-primary text-sm font-semibold"
+              >
+                Thử lại
+              </button>
+            </div>
+          )
         ) : assignedQuery.data ? (
           <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} />
         ) : (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            Không tìm thấy đơn hàng
+            Đang tải...
           </div>
         )}
       </div>

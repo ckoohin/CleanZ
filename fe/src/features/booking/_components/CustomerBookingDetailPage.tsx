@@ -23,6 +23,7 @@ import {
   useBookingDetail,
   useCancelBooking,
   useUpdateBookingSchedule,
+  useMockPay,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
@@ -49,6 +50,12 @@ const STATUS_CONFIG: Record<
   BookingStatus,
   { label: string; color: string; bg: string; icon: React.ReactNode }
 > = {
+  PENDING_PAYMENT: {
+    label: "Chờ thanh toán",
+    color: "text-orange-600",
+    bg: "bg-orange-50",
+    icon: <Clock className="w-4 h-4" />,
+  },
   POSTED: {
     label: "Đang tìm Tasker",
     color: "text-blue-600",
@@ -443,13 +450,15 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 }) => {
   const router = useRouter();
   const { data: booking, isLoading } = useBookingDetail(bookingId);
+  const payMutation = useMockPay(bookingId);
+
   const [showCancel, setShowCancel] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
   // Chỉ POSTED mới được sửa lịch + hủy. CONFIRMED chỉ được hủy.
   const canEdit = booking?.status === "POSTED";
   const canCancel =
-    booking?.status === "POSTED" || booking?.status === "CONFIRMED";
+    booking?.status === "POSTED" || booking?.status === "CONFIRMED" || booking?.status === "PENDING_PAYMENT";
   const statusCfg = booking ? STATUS_CONFIG[booking.status] : null;
 
   if (isLoading) {
@@ -490,7 +499,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       <div className="bg-card px-4 pt-12 pb-4 shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push("/customer/history")}
             className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -514,6 +523,18 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Banner Đặt lịch thành công */}
+        {(booking.status === "POSTED" || booking.status === "PENDING_PAYMENT") && (
+          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm shrink-0">🎉</span>
+              <h3 className="font-extrabold text-sm text-foreground">Đặt lịch thành công!</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Yêu cầu đặt lịch của bạn đã được ghi nhận. Hệ thống đang tìm kiếm chuyên gia dọn dẹp phù hợp nhất cho bạn. Bạn có thể theo dõi tiến trình đơn hàng trực tiếp tại trang này.
+            </p>
+          </div>
+        )}
         {/* Tasker card */}
         {booking.tasker ? (
           <div className="bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-3">
@@ -643,15 +664,45 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           </div>
         )}
 
+        {/* Điều hướng nhanh cho người dùng thao tác các flow khác */}
+        <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3 shadow-sm">
+          <h3 className="font-bold text-xs text-foreground flex items-center gap-1.5 uppercase tracking-wider text-primary">
+            🎯 Thao tác khác
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => router.push("/customer/home")}
+              className="py-3 bg-muted hover:bg-muted/80 text-foreground font-bold text-xs rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>Về Trang chủ</span>
+            </button>
+            <button
+              onClick={() => router.push("/customer/history")}
+              className="py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>Danh sách đơn hàng</span>
+            </button>
+          </div>
+        </div>
+
         {/* Status timeline */}
         <StatusTimeline logs={booking.statusLogs} />
       </div>
 
-      {/* Footer action — POSTED: 2 nút | CONFIRMED: chỉ hủy */}
+      {/* Footer action — POSTED: 2 nút | PENDING_PAYMENT: Nút thanh toán & hủy | CONFIRMED: chỉ hủy */}
       {canCancel && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 pb-8 z-30">
           <div className="flex gap-3 max-w-md mx-auto">
-            {canEdit && (
+            {booking.status === "PENDING_PAYMENT" && (
+              <button
+                onClick={() => payMutation.mutate()}
+                disabled={payMutation.isPending}
+                className="flex-[2] py-3.5 bg-primary text-white font-bold text-sm rounded-2xl flex justify-center items-center gap-2 hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50"
+              >
+                {payMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Thanh toán ngay"}
+              </button>
+            )}
+            {canEdit && booking.status !== "PENDING_PAYMENT" && (
               <button
                 onClick={() => setShowEdit(true)}
                 className="flex-1 py-3.5 border border-primary text-primary font-bold text-sm rounded-2xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5"
@@ -662,10 +713,10 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
             <button
               onClick={() => setShowCancel(true)}
               className={`${
-                canEdit ? "flex-1" : "w-full"
+                (canEdit || booking.status === "PENDING_PAYMENT") ? "flex-1" : "w-full"
               } py-3.5 border border-red-300 text-red-600 font-bold text-sm rounded-2xl hover:bg-red-50 transition-colors`}
             >
-              Hủy đơn hàng
+              Hủy đơn
             </button>
           </div>
         </div>
