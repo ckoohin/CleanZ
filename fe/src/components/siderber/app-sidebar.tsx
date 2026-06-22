@@ -6,32 +6,20 @@ import {
   Wrench,
   CalendarCheck,
   Users,
-  CreditCard,
-  FileText,
   BarChart3,
   Settings2,
-  ShieldCheck,
-  Star,
   Sparkles,
   Ticket,
   Wallet,
-  ArrowDownToLine,
   HeadphonesIcon,
-  MapPin,
   Bell,
   Tag,
-  Activity,
-  ClipboardList,
   UserCog,
   Truck,
-  AlertTriangle,
-  PackageCheck,
-  PiggyBank,
-  TrendingUp,
+  FileText,
 } from "lucide-react"
 
 import { NavMain } from "@/components/siderber/nav-main"
-import { NavProjects } from "@/components/siderber/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
 import { SidebarBrand } from "@/components/sidebar/team-switcher"
 import {
@@ -42,7 +30,9 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// ─── Dữ liệu quản trị CleanZ ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Dữ liệu sidebar quản trị CleanZ
+// ─────────────────────────────────────────────────────────────────────────────
 const adminData = {
   user: {
     name: "Admin Root",
@@ -50,15 +40,8 @@ const adminData = {
     avatar: "https://i.pravatar.cc/150?u=admin",
     fullName: "Ngô Đức Admin",
   },
-  teams: [
-    {
-      name: "CleanZ",
-      logo: <Sparkles className="text-primary fill-primary/20" />,
-      plan: "Quản trị hệ thống",
-    },
-  ],
 
-  // ── NHÓM 1: Tổng quan ─────────────────────────────────────────────────────
+  // ── NHÓM 1: Tổng quan ────────────────────────────────────────────────────
   overview: [
     {
       title: "Dashboard",
@@ -97,17 +80,13 @@ const adminData = {
       title: "Quản lý Dịch vụ",
       url: "/admin/services",
       icon: <Wrench />,
-      items: [
-        { title: "Danh sách dịch vụ", url: "/admin/services" },
-      ],
+      items: [{ title: "Danh sách dịch vụ", url: "/admin/services" }],
     },
     {
       title: "Quản lý Bảng giá",
       url: "/admin/pricing",
       icon: <Tag />,
-      items: [
-        { title: "Cấu hình giá", url: "/admin/pricing" },
-      ],
+      items: [{ title: "Cấu hình giá", url: "/admin/pricing" }],
     },
     {
       title: "Khách hàng",
@@ -120,7 +99,7 @@ const adminData = {
     },
   ],
 
-  // ── NHÓM 3: Nhân sự & Vận hành ──────────────────────────────────────────
+  // ── NHÓM 3: Nhân sự & Vận hành ───────────────────────────────────────────
   operations: [
     {
       title: "Quản lý Tasker",
@@ -146,9 +125,7 @@ const adminData = {
       title: "Thông báo",
       url: "/admin/notifications",
       icon: <Bell />,
-      items: [
-        { title: "Broadcast & Lịch sử", url: "/admin/notifications" },
-      ],
+      items: [{ title: "Broadcast & Lịch sử", url: "/admin/notifications" }],
     },
   ],
 
@@ -175,15 +152,13 @@ const adminData = {
     },
   ],
 
-  // ── NHÓM 5: Hỗ trợ & Hệ thống ───────────────────────────────────────────
+  // ── NHÓM 5: Hỗ trợ & Hệ thống ────────────────────────────────────────────
   support: [
     {
       title: "Hỗ trợ khách hàng",
       url: "/admin/support-tickets",
       icon: <HeadphonesIcon />,
-      items: [
-        { title: "Hàng đợi ticket", url: "/admin/support-tickets" },
-      ],
+      items: [{ title: "Hàng đợi ticket", url: "/admin/support-tickets" }],
     },
     {
       title: "Cấu hình hệ thống",
@@ -192,19 +167,34 @@ const adminData = {
       items: [
         { title: "Cài đặt chung", url: "/admin/settings" },
         { title: "Phân quyền & Role", url: "/admin/roles" },
+        { title: "Nhân viên hệ thống", url: "/admin/staff" },
+      ],
+    },
+    {
+      title: "Quản lý chính sách",
+      url: "/admin/policies",
+      icon: <FileText />,
+      items: [
+        { title: "Danh sách chính sách", url: "/admin/policies" },
+        { title: "Tạo chính sách mới", url: "/admin/policies/create" },
       ],
     },
   ],
 }
 
-type User = { name: string; email: string; avatar: string }
-
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/40" {...props}>
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-border/40"
+      {...props}
+    >
       <SidebarHeader className="h-16 border-b border-border/40 justify-center">
         <SidebarBrand />
       </SidebarHeader>
+
       <SidebarContent className="py-2 scrollbar-hide bg-sidebar transition-colors duration-300">
         <NavMain items={adminData.overview} label="Tổng quan" />
         <NavMain items={adminData.core} label="Nghiệp vụ chính" />
@@ -212,9 +202,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={adminData.finance} label="Tài chính" />
         <NavMain items={adminData.support} label="Hỗ trợ & Hệ thống" />
       </SidebarContent>
+
       <SidebarFooter className="border-t border-border/40 p-4">
         <NavUser user={adminData.user} />
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   )

@@ -7,6 +7,7 @@ export const getDatabaseConfig = (
 ): TypeOrmModuleOptions => {
   const isDev =
     configService.get('NODE_ENV', { infer: true }) === 'development';
+
   return {
     type: 'postgres',
     host: configService.get('DB_HOST', { infer: true }),
@@ -17,7 +18,6 @@ export const getDatabaseConfig = (
 
     autoLoadEntities: true,
     synchronize: false,
-    logging: isDev,
-    // ssl: { rejectUnauthorized: false },
+    logging: true,
   };
 };
