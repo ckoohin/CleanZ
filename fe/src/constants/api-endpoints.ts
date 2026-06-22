@@ -16,6 +16,11 @@ export const API_ENDPOINTS = {
     BASE: "/users",
     PROFILE: "/users/profile",
   },
+  CUSTOMER: {
+    ADDRESSES: "/customer/addresses",
+    ADDRESS: (id: string) => `/customer/addresses/${id}`,
+    DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
+  },
   TASKERS: {
     BASE: "/taskers",
     VERIFY: "/taskers/verify",

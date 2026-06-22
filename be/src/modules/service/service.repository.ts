@@ -3,6 +3,7 @@ import { DataSource, Repository } from 'typeorm';
 import { ServiceEntity } from './entity/service.entity';
 import { ServiceListQueryDto } from './dto/list-query-service.dto';
 import { PaginatedData } from './../../common/helpers/response.interface';
+import { PublicServiceListQueryDto } from './dto/public-service-list-query.dto';
 
 @Injectable()
 export class ServiceRepository extends Repository<ServiceEntity> {
@@ -35,6 +36,46 @@ export class ServiceRepository extends Repository<ServiceEntity> {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  async findAvailableForBooking(
+    query: PublicServiceListQueryDto,
+  ): Promise<PaginatedData<ServiceEntity>> {
+    const { page, limit, search } = query;
+    const skip = (page - 1) * limit;
+
+    const qb = this.createQueryBuilder('service')
+      .innerJoinAndSelect(
+        'service.pricingConfig',
+        'pricing',
+        'pricing.isActive = true',
+      )
+      .where('service.isActive = true')
+      .andWhere('service.baseDurationHours IS NOT NULL')
+      .andWhere('service.baseDurationHours > 0')
+      .orderBy('service.name', 'ASC');
+
+    if (search?.trim()) {
+      qb.andWhere(
+        `(
+          service.name ILIKE :search
+          OR service.serviceCode ILIKE :search
+          OR service.description ILIKE :search
+          OR service.shortDescription ILIKE :search
+        )`,
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async hasActiveBookings(serviceId: string): Promise<boolean> {
     const result = await this.dataSource.query<[{ count: string }]>(
       `SELECT COUNT(*)::int AS count
@@ -46,7 +87,11 @@ export class ServiceRepository extends Repository<ServiceEntity> {
     return parseInt(result[0].count, 10) > 0;
   }
 
-  async getServiceBookings(serviceId: string, page: number, limit: number): Promise<PaginatedData<any>> {
+  async getServiceBookings(
+    serviceId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedData<any>> {
     const skip = (page - 1) * limit;
 
     const query = `
@@ -80,7 +125,11 @@ export class ServiceRepository extends Repository<ServiceEntity> {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async getServiceTaskers(serviceId: string, page: number, limit: number): Promise<PaginatedData<any>> {
+  async getServiceTaskers(
+    serviceId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedData<any>> {
     const skip = (page - 1) * limit;
 
     // Fetch taskers who have completed bookings for this service

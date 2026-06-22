@@ -9,6 +9,12 @@ import { PaginatedData } from '../../../common/helpers/response.interface';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { ServiceListQueryDto } from '../dto/list-query-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
+import { PublicServiceListQueryDto } from '../dto/public-service-list-query.dto';
+import {
+  PublicServiceListResponseDto,
+  PublicServiceResponseDto,
+} from '../dto/public-service-response.dto';
+import { toNumber } from 'src/common/helpers/number.helper';
 
 @Injectable()
 export class ServicesService {
@@ -34,6 +40,22 @@ export class ServicesService {
     query: ServiceListQueryDto,
   ): Promise<PaginatedData<ServiceEntity>> {
     return this.serviceRepo.findWithPagination(query);
+  }
+
+  async findAvailableServices(
+    query: PublicServiceListQueryDto,
+  ): Promise<PublicServiceListResponseDto> {
+    const result = await this.serviceRepo.findAvailableForBooking(query);
+
+    return {
+      data: result.items.map((service) => this.mapPublicService(service)),
+      meta: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    };
   }
 
   async findOne(id: string): Promise<ServiceEntity> {
@@ -117,5 +139,27 @@ export class ServicesService {
   ): Promise<PaginatedData<any>> {
     await this.findOne(id); // Check if service exists
     return this.serviceRepo.getServiceTaskers(id, page, limit);
+  }
+
+  private mapPublicService(service: ServiceEntity): PublicServiceResponseDto {
+    const pricing = service.pricingConfig;
+
+    return {
+      id: service.id,
+      serviceCode: service.serviceCode,
+      name: service.name,
+      description: service.description ?? null,
+      shortDescription: service.shortDescription ?? null,
+      baseDurationHours: toNumber(service.baseDurationHours),
+      thumbnailUrl: service.thumbnailUrl ?? null,
+      galleryUrls: service.galleryUrls ?? [],
+      includedTasks: service.includedTasks ?? [],
+      excludedTasks: service.excludedTasks ?? [],
+      pricing: {
+        basePrice: toNumber(pricing?.basePrice),
+        petFee: toNumber(pricing?.petFee),
+        waitingFee: toNumber(pricing?.waitingFee),
+      },
+    };
   }
 }

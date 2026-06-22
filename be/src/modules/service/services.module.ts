@@ -4,10 +4,11 @@ import { ServiceEntity } from './entity/service.entity';
 import { ServiceRepository } from './service.repository';
 import { ServicesService } from './services/services.service';
 import { ServicesController } from './services.controller';
+import { PublicServicesController } from './public-services.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ServiceEntity])],
-  controllers: [ServicesController],
+  controllers: [ServicesController, PublicServicesController],
   providers: [ServicesService, ServiceRepository],
   exports: [ServicesService, ServiceRepository],
 })

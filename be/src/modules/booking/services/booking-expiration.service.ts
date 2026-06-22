@@ -29,7 +29,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     configService: ConfigService,
   ) {
     this.intervalMs = Number(
-      configService.get<string>('BOOKING_EXPIRATION_INTERVAL_MS') ?? 60_000,
+      configService.get<string>('BOOKING_EXPIRATION_INTERVAL_MS') ?? 300_000,
     );
     this.batchSize = Number(
       configService.get<string>('BOOKING_EXPIRATION_BATCH_SIZE') ?? 100,

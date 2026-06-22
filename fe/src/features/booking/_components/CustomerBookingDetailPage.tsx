@@ -26,6 +26,7 @@ import {
 } from "@/features/booking/hooks/useCustomerBooking";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
+import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import type {
   BookingStatus,
   StatusLog,
@@ -239,9 +240,8 @@ function EditScheduleSheet({
   };
 
   const handleAutoSelect = (placeId: string, description: string) => {
-    const apiKey = process.env.NEXT_PUBLIC_GOONG_API_KEY ?? "";
     fetch(
-      `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${apiKey}`
+      `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${GOONG_API_KEY}`
     )
       .then((r) => r.json())
       .then((data) => {

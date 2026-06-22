@@ -6,7 +6,7 @@ import {
   User, Mail, Phone, MapPin, Bell, Lock,
   ClipboardList, ChevronRight, CheckCircle2,
   Clock, Star, ShieldCheck, Camera, Home,
-  Wrench, BellRing, BellOff, Edit3, Plus,
+  BellRing, BellOff, Edit3, Plus,
   LogOut, Settings, CreditCard,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +18,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/features/auth/hooks/auth.hooks";
 import type { UserRole, Profile } from "@/features/auth/types/user.type";
+import { CustomerAddressDialog } from "@/features/customer/profile/components/CustomerAddressDialog";
+import {
+  useCustomerAddresses,
+  useSetDefaultCustomerAddress,
+} from "@/features/customer/profile/hooks/useCustomerAddresses";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -39,11 +44,6 @@ const TABS = [
   { id: "orders",   label: "Lịch sử",   icon: ClipboardList },
   { id: "security", label: "Bảo mật",   icon: Lock },
   { id: "notify",   label: "Thông báo", icon: Bell },
-];
-
-const ADDRESSES = [
-  { id: 1, label: "Nhà", icon: Home, address: "123 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM", isDefault: true },
-  { id: 2, label: "Văn phòng", icon: Wrench, address: "45 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM", isDefault: false },
 ];
 
 const ORDER_HISTORY = [
@@ -276,33 +276,129 @@ function TabInfo({ profile, phoneDisplay }: { profile: Profile; phoneDisplay: st
 }
 
 function TabAddress() {
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const { data: addresses = [], isLoading, isError } = useCustomerAddresses();
+  const setDefaultAddress = useSetDefaultCustomerAddress();
+
   return (
-    <TabCard title="Địa chỉ đã lưu" icon={MapPin}
-      action={<Button size="sm" className="gap-1.5 rounded-xl h-8 text-xs bg-primary text-white hover:bg-primary/90"><Plus className="w-3 h-3"/>Thêm</Button>}
-    >
-      <div className="space-y-3">
-        {ADDRESSES.map((addr) => (
-          <div key={addr.id} className={cn(
-            "flex items-start gap-3 p-4 rounded-xl border transition-colors group cursor-pointer",
-            addr.isDefault ? "border-primary/30 bg-primary/5" : "border-border hover:border-primary/20 hover:bg-muted/30"
-          )}>
-            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
-              addr.isDefault ? "bg-primary/15" : "bg-muted"
-            )}>
-              <addr.icon className={cn("w-4 h-4", addr.isDefault ? "text-primary" : "text-muted-foreground")} />
+    <>
+      <TabCard
+        title="Địa chỉ đã lưu"
+        icon={MapPin}
+        action={
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 rounded-xl bg-primary text-xs text-white hover:bg-primary/90"
+            onClick={() => setIsAddOpen(true)}
+          >
+            <Plus className="w-3 h-3" />
+            Thêm
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          {isLoading &&
+            Array.from({ length: 2 }).map((_, index) => (
+              <Skeleton key={index} className="h-[78px] rounded-xl" />
+            ))}
+
+          {isError && (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Không thể tải danh sách địa chỉ. Vui lòng thử lại.
+            </p>
+          )}
+
+          {!isLoading && !isError && addresses.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+              <MapPin className="mx-auto mb-3 size-8 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-foreground">
+                Bạn chưa lưu địa chỉ nào
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Thêm địa chỉ để đặt dịch vụ nhanh hơn.
+              </p>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-foreground">{addr.label}</span>
-                {addr.isDefault && <Badge className="bg-primary/10 text-primary border-0 text-[10px] font-bold px-1.5 py-0">Mặc định</Badge>}
+          )}
+
+          {addresses.map((address) => (
+            <div
+              key={address.id}
+              className={cn(
+                "group flex items-start gap-3 rounded-xl border p-4 transition-colors",
+                address.isDefault
+                  ? "border-primary/30 bg-primary/5"
+                  : "border-border hover:border-primary/20 hover:bg-muted/30",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                  address.isDefault ? "bg-primary/15" : "bg-muted",
+                )}
+              >
+                {address.label?.toLowerCase().includes("nhà") ? (
+                  <Home
+                    className={cn(
+                      "w-4 h-4",
+                      address.isDefault
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                ) : (
+                  <MapPin
+                    className={cn(
+                      "w-4 h-4",
+                      address.isDefault
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                )}
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{addr.address}</p>
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground">
+                    {address.label || "Địa chỉ"}
+                  </span>
+                  {address.isDefault && (
+                    <Badge className="border-0 bg-primary/10 px-1.5 py-0 text-[10px] font-bold text-primary">
+                      Mặc định
+                    </Badge>
+                  )}
+                  {address.hasPet && (
+                    <Badge
+                      variant="outline"
+                      className="px-1.5 py-0 text-[10px]"
+                    >
+                      Có thú cưng
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {address.fullAddress}
+                </p>
+                {!address.isDefault && (
+                  <button
+                    className="mt-2 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
+                    disabled={setDefaultAddress.isPending}
+                    onClick={() => setDefaultAddress.mutate(address.id)}
+                  >
+                    Đặt làm mặc định
+                  </button>
+                )}
+              </div>
+              <ChevronRight className="mt-0.5 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        ))}
-      </div>
-    </TabCard>
+          ))}
+        </div>
+      </TabCard>
+
+      <CustomerAddressDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+      />
+    </>
   );
 }
 

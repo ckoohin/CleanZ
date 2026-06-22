@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Search, MapPin } from "lucide-react";
-
-const GOONG_API_KEY = process.env.NEXT_PUBLIC_GOONG_API_KEY || "";
+import { GOONG_API_KEY } from "@/lib/maps/goong-config";
+import { isHanoiAddress } from "@/lib/maps/hanoi-address";
 
 interface Place {
   place_id: string;
@@ -21,12 +21,14 @@ export const GoongAutocomplete = ({ onSelect, placeholder = "Tìm kiếm địa 
   const [results, setResults] = useState<Place[]>([]);
   const [isFocused, setIsFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!query || query.length < 3) {
       setResults([]);
+      setErrorMessage("");
       return;
     }
 
@@ -35,21 +37,48 @@ export const GoongAutocomplete = ({ onSelect, placeholder = "Tìm kiếm địa 
     }
 
     timerRef.current = setTimeout(async () => {
+      if (!GOONG_API_KEY) {
+        setResults([]);
+        setErrorMessage("Chưa cấu hình API key Goong.");
+        return;
+      }
+
       setIsLoading(true);
+      setErrorMessage("");
       try {
-        const res = await fetch(`https://rsapi.goong.io/Place/AutoComplete?api_key=${GOONG_API_KEY}&input=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        if (data && data.predictions) {
-          setResults(data.predictions);
+        const hanoiQuery = isHanoiAddress(query) ? query : `${query}, Hà Nội`;
+        const res = await fetch(`https://rsapi.goong.io/Place/AutoComplete?api_key=${GOONG_API_KEY}&input=${encodeURIComponent(hanoiQuery)}`);
+        const data = (await res.json()) as {
+          predictions?: Place[];
+          error?: string;
+          message?: string;
+        };
+
+        if (!res.ok) {
+          throw new Error(data.error || data.message || `Goong API trả về lỗi ${res.status}`);
+        }
+
+        if (Array.isArray(data.predictions)) {
+          setResults(
+            data.predictions.filter((place) =>
+              isHanoiAddress(place.description),
+            ),
+          );
         } else {
           setResults([]);
         }
       } catch (error) {
         console.error("Autocomplete error", error);
+        setResults([]);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Không thể kết nối dịch vụ tìm kiếm địa chỉ.",
+        );
       } finally {
         setIsLoading(false);
       }
-    }, 500);
+    }, 1_500);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -81,7 +110,12 @@ export const GoongAutocomplete = ({ onSelect, placeholder = "Tìm kiếm địa 
       {isFocused && (query.length >= 3 || isLoading) && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-xl shadow-lg border border-border/50 overflow-hidden z-50">
           {isLoading && <div className="p-4 text-center text-sm text-muted-foreground">Đang tìm kiếm...</div>}
-          {!isLoading && results.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">Không tìm thấy kết quả phù hợp</div>}
+          {!isLoading && errorMessage && (
+            <div className="p-4 text-center text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+          {!isLoading && !errorMessage && results.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">Không tìm thấy kết quả phù hợp</div>}
           
           <ul className="max-h-60 overflow-y-auto">
             {results.map((place) => (
