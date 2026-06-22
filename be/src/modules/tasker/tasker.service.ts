@@ -177,7 +177,7 @@ export class TaskerService {
 
   // ─── Tasker self-service ───────────────────────────────────────────────────
 
-  async findMyProfile(userId: string): Promise<TaskerProfileResponse> {
+  async findMyProfile(userId: string): Promise<TaskerProfileResponse | null> {
     return asyncHandleOperation(async () => {
       const tasker = await this.taskerRepository.findOne({
         where: { user: { id: userId } },
@@ -185,7 +185,7 @@ export class TaskerService {
       });
 
       if (!tasker) {
-        throw new NotFoundException('Bạn chưa có hồ sơ tasker');
+        return null;
       }
 
       return this.mapProfile(tasker);

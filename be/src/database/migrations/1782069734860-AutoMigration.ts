@@ -10,9 +10,7 @@ export class AutoMigration1782069734860 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "pricing_configs" DROP COLUMN "price_unit"`,
     );
-    await queryRunner.query(
-      `ALTER TABLE "services" DROP COLUMN "category_id"`,
-    );
+    await queryRunner.query(`ALTER TABLE "services" DROP COLUMN "category_id"`);
     await queryRunner.query(`ALTER TABLE "taskers" ADD "experience" text`);
     await queryRunner.query(`ALTER TABLE "taskers" ADD "skills" text`);
 

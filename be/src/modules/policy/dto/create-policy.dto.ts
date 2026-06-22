@@ -14,8 +14,8 @@ export class CreatePolicyDto {
   title!: string;
 
   @IsString()
-@MaxLength(255)
-slug!: string;
+  @MaxLength(255)
+  slug!: string;
 
   @IsString()
   content!: string;
