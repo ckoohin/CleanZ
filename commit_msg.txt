@@ -1,9 +1,0 @@
-afeat(admin): tích hợp cấu hình bảng giá vào luồng tạo/chỉnh sửa dịch vụ
-
-- [BE] Thêm trường pricing_config_id vào ServiceEntity để liên kết Dịch vụ với Cấu hình giá.
-- [BE] Thêm trường name vào PricingConfigEntity để định danh và phân biệt các cấu hình giá.
-- [BE] Cập nhật logic tính giá (PricingService) sử dụng cấu hình giá gắn trực tiếp với dịch vụ.
-- [BE] Dọn dẹp code thừa, fix lỗi ESLint unused variables.
-- [FE] Tích hợp dropdown chọn Bảng giá vào ServiceForm, bổ sung UI preview hiển thị chi tiết phí (giá cơ bản, phụ phí, chiết khấu) khi user chọn bảng giá.
-- [FE] Bổ sung tính năng 'Thêm nhanh' bảng giá qua side-sheet (PricingConfigSheet) ngay trong lúc tạo dịch vụ giúp giữ nguyên context.
-- [FE] Cải thiện UI SheetContent (thêm padding) và fix lỗi React Hooks (tách NumberInput khỏi hàm render).
