@@ -28,10 +28,12 @@ export interface AdminServiceEntity {
   excludedTasks?: string[] | null;
   baseDurationHours?: number | null;
   coverageArea?: string | null;
+  pricingConfigId?: string | null;
   options?: ServiceOptionEntity[];
   isActive: boolean;
   pricingConfig?: {
     id: string;
+    name: string;
     basePrice: number | string;
     peakPrice?: number | string | null;
     petFee?: number | string;
@@ -61,6 +63,7 @@ export interface CreateAdminServiceDto {
   baseDurationHours?: number;
   coverageArea?: string;
   isActive?: boolean;
+  pricingConfigId?: string;
 }
 
 export type UpdateAdminServiceDto = Partial<CreateAdminServiceDto>;

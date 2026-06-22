@@ -25,6 +25,10 @@ import { AdminServiceEntity, CreateAdminServiceDto } from "../../services/admin-
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
 import { DynamicListInput } from "@/components/ui/dynamic-list-input";
+import { Plus } from "lucide-react";
+import { PricingConfigSheet } from "../pricing/PricingConfigSheet";
+import { useCreatePricingConfig } from "../../hooks/useAdminPricing";
+import type { PricingConfigFormValues } from "../pricing/PricingConfigDialog";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "Vui lòng nhập tên dịch vụ").max(255, "Tên quá dài"),
@@ -38,6 +42,7 @@ const serviceSchema = z.object({
   coverageArea: z.string().optional(),
   isActive: z.boolean(),
   categoryId: z.string().min(1, "Vui lòng chọn danh mục"),
+  pricingConfigId: z.string().optional(),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -48,10 +53,13 @@ interface ServiceFormProps {
   isSubmitting?: boolean;
   isEditMode?: boolean;
   categories?: { id: string; name: string }[];
+  pricingConfigs?: any[]; // using any[] to quickly accept PricingConfigEntity without import cycle issues
 }
 
-export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode, categories = [] }: ServiceFormProps) {
+export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode, categories = [], pricingConfigs = [] }: ServiceFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  const [isPricingSheetOpen, setIsPricingSheetOpen] = useState(false);
+  const createPricingMutation = useCreatePricingConfig();
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
@@ -66,6 +74,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
       coverageArea: initialValues?.coverageArea || "",
       isActive: initialValues?.isActive ?? true,
       categoryId: initialValues?.categoryId || "",
+      pricingConfigId: initialValues?.pricingConfigId || "",
     },
   });
 
@@ -93,13 +102,33 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
       coverageArea: values.coverageArea || undefined,
       isActive: values.isActive,
       categoryId: values.categoryId,
+      pricingConfigId: values.pricingConfigId === "none" ? undefined : values.pricingConfigId || undefined,
     };
     onSubmit(payload);
   };
 
+  const handleCreatePricing = async (data: PricingConfigFormValues) => {
+    try {
+      const newConfig = await createPricingMutation.mutateAsync({
+        name: data.name,
+        basePrice: Number(data.basePrice),
+        peakPrice: data.peakPrice !== "" ? Number(data.peakPrice) : undefined,
+        petFee: Number(data.petFee),
+        waitingFee: Number(data.waitingFee),
+        platformCommissionRate: Number(data.platformCommissionRate),
+        isActive: data.isActive,
+      });
+      form.setValue("pricingConfigId", newConfig.id);
+      setIsPricingSheetOpen(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
             <TabsTrigger value="basic" className="rounded-lg py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -152,6 +181,82 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pricingConfigId"
+                render={({ field }) => (
+                  <FormItem className="col-span-1 md:col-span-2">
+                    <FormLabel className="font-bold">Bảng giá</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Select onValueChange={field.onChange} value={field.value || "none"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Chọn bảng giá cho dịch vụ (tuỳ chọn)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">-- Không chọn --</SelectItem>
+                            {pricingConfigs?.map((config) => (
+                              <SelectItem key={config.id} value={config.id}>
+                                {config.name} {config.basePrice != null ? `(${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(config.basePrice)})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <BaseButton
+                        type="button"
+                        variant="outline"
+                        className="px-3"
+                        onClick={() => setIsPricingSheetOpen(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Thêm nhanh
+                      </BaseButton>
+                    </div>
+                    {field.value && field.value !== "none" && pricingConfigs?.find(c => c.id === field.value) && (
+                      <div className="mt-3 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
+                        <div className="text-sm font-semibold text-primary">Chi tiết bảng giá đã chọn:</div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          {(() => {
+                            const selectedConfig = pricingConfigs.find(c => c.id === field.value);
+                            return (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Giá cơ bản:</span>
+                                  <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.basePrice || 0)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Giá cao điểm:</span>
+                                  <span className="font-medium">{selectedConfig.peakPrice ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.peakPrice) : "---"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Phí thú cưng:</span>
+                                  <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.petFee || 0)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Phí chờ (15p):</span>
+                                  <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.waitingFee || 0)}</span>
+                                </div>
+                                <div className="flex justify-between col-span-2 border-t border-primary/10 pt-2 mt-1">
+                                  <span className="text-muted-foreground">Chiết khấu nền tảng:</span>
+                                  <span className="font-medium text-destructive">{selectedConfig.platformCommissionRate || 0}%</span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                    <FormDescription>
+                      Thiết lập bảng giá cho dịch vụ.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -389,5 +494,13 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
         </div>
       </form>
     </Form>
+
+    <PricingConfigSheet 
+      open={isPricingSheetOpen} 
+      onOpenChange={setIsPricingSheetOpen} 
+      onSubmit={handleCreatePricing} 
+      isSubmitting={createPricingMutation.isPending} 
+    />
+    </>
   );
 }

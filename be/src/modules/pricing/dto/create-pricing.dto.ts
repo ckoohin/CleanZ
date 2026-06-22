@@ -3,6 +3,7 @@ import {
   IsNumber,
   IsOptional,
   IsBoolean,
+  IsString,
   Min,
   Max,
 } from 'class-validator';
@@ -10,9 +11,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class CreatePricingConfigDto {
-  @ApiProperty({ example: 'uuid-of-service' })
-  @IsUUID()
-  serviceId!: string;
+  @ApiProperty({ example: 'Bảng giá dọn dẹp cơ bản' })
+  @IsString()
+  name!: string;
 
   @ApiProperty({ example: 180000 })
   @IsNumber({ maxDecimalPlaces: 2 })

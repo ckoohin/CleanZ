@@ -14,15 +14,14 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
   async findWithPagination(
     query: PricingListQueryDto,
   ): Promise<PaginatedData<PricingConfigEntity>> {
-    const { page = 1, limit = 20, serviceId, isActive } = query;
+    const { page = 1, limit = 20, name, isActive } = query;
     const skip = (page - 1) * limit;
 
     const qb = this.createQueryBuilder('pc')
-      .leftJoinAndSelect('pc.service', 'svc')
       .orderBy('pc.createdAt', 'DESC');
 
-    if (serviceId) {
-      qb.andWhere('pc.serviceId = :serviceId', { serviceId });
+    if (name) {
+      qb.andWhere('pc.name ILIKE :name', { name: `%${name}%` });
     }
     if (isActive !== undefined) {
       qb.andWhere('pc.isActive = :isActive', { isActive: isActive === 'true' });
@@ -32,21 +31,7 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findDuplicate(
-    serviceId: string,
-    excludeId?: string,
-  ): Promise<PricingConfigEntity | null> {
-    const qb = this.createQueryBuilder('pc').where(
-      'pc.serviceId = :serviceId',
-      { serviceId },
-    );
 
-    if (excludeId) {
-      qb.andWhere('pc.id != :excludeId', { excludeId });
-    }
-
-    return qb.getOne();
-  }
 }
 
 @Injectable()

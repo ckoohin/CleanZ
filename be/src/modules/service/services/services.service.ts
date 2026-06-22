@@ -36,6 +36,9 @@ export class ServicesService {
       category: dto.categoryId
         ? ({ id: dto.categoryId } as CategoryEntity)
         : undefined,
+      pricingConfig: dto.pricingConfigId
+        ? ({ id: dto.pricingConfigId } as any)
+        : undefined,
     });
     return this.serviceRepo.save(entity);
   }
@@ -120,6 +123,12 @@ export class ServicesService {
             ? ({ id: dto.categoryId } as CategoryEntity)
             : null
           : service.category,
+      pricingConfig:
+        dto.pricingConfigId !== undefined
+          ? dto.pricingConfigId
+            ? ({ id: dto.pricingConfigId } as any)
+            : null
+          : service.pricingConfig,
     });
 
     return this.serviceRepo.save(service);

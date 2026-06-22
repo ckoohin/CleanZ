@@ -12,7 +12,7 @@ import { AxiosError } from 'axios';
 
 export const ADMIN_PRICING_KEYS = {
   allConfigs: ['admin-pricing-configs'] as const,
-  configs: (params?: { page?: number; limit?: number; serviceId?: string }) => ['admin-pricing-configs', params] as const,
+  configs: (params?: { page?: number; limit?: number; name?: string }) => ['admin-pricing-configs', params] as const,
   configDetail: (id: string) => ['admin-pricing-config', id] as const,
   
   allPeakDays: ['admin-peak-days'] as const,
@@ -22,7 +22,7 @@ export const ADMIN_PRICING_KEYS = {
 
 // --- Pricing Config Hooks ---
 
-export function usePricingConfigs(params?: { page?: number; limit?: number; serviceId?: string }) {
+export function usePricingConfigs(params?: { page?: number; limit?: number; name?: string }) {
   return useQuery({
     queryKey: ADMIN_PRICING_KEYS.configs(params),
     queryFn: () => adminPricingApi.getPricingConfigs(params),

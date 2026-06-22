@@ -2,35 +2,23 @@
 
 import * as React from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, DollarSign } from "lucide-react";
-import type { PricingConfig } from "@/features/admin/types/pricing.types";
+import type { PricingConfigFormValues } from "./PricingConfigDialog";
 
-export interface PricingConfigFormValues {
-  name: string;
-  basePrice: string;
-  peakPrice: string;
-  petFee: string;
-  waitingFee: string;
-  platformCommissionRate: string;
-  isActive: boolean;
-}
-
-interface PricingConfigDialogProps {
+interface PricingConfigSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode: "create" | "edit";
-  initialData?: PricingConfig | null;
   onSubmit: (data: PricingConfigFormValues) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -78,14 +66,12 @@ const NumberInput = ({
   </div>
 );
 
-export function PricingConfigDialog({
+export function PricingConfigSheet({
   open,
   onOpenChange,
-  mode,
-  initialData,
   onSubmit,
   isSubmitting,
-}: PricingConfigDialogProps) {
+}: PricingConfigSheetProps) {
   const [form, setForm] = React.useState<PricingConfigFormValues>({
     name: "",
     basePrice: "0",
@@ -99,18 +85,7 @@ export function PricingConfigDialog({
   const [errors, setErrors] = React.useState<Partial<Record<keyof PricingConfigFormValues, string>>>({});
 
   React.useEffect(() => {
-    if (!open) return;
-    if (mode === "edit" && initialData) {
-      setForm({
-        name: initialData.name ?? "",
-        basePrice: String(initialData.basePrice),
-        peakPrice: initialData.peakPrice != null ? String(initialData.peakPrice) : "",
-        petFee: String(initialData.petFee),
-        waitingFee: String(initialData.waitingFee),
-        platformCommissionRate: String(initialData.platformCommissionRate),
-        isActive: initialData.isActive,
-      });
-    } else {
+    if (open) {
       setForm({
         name: "",
         basePrice: "0",
@@ -120,13 +95,13 @@ export function PricingConfigDialog({
         platformCommissionRate: "20",
         isActive: true,
       });
+      setErrors({});
     }
-    setErrors({});
-  }, [open, mode, initialData]);
+  }, [open]);
 
   const validate = (): boolean => {
     const errs: Partial<Record<keyof PricingConfigFormValues, string>> = {};
-    if (mode === "create" && !form.name.trim()) {
+    if (!form.name.trim()) {
       errs.name = "Tên bảng giá không được để trống";
     }
     if (form.basePrice === "" || isNaN(Number(form.basePrice)) || Number(form.basePrice) < 0) {
@@ -157,25 +132,21 @@ export function PricingConfigDialog({
     setForm((s) => ({ ...s, [field]: value }));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl border-border/50 shadow-2xl bg-card">
-        <DialogHeader className="pb-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto p-6 sm:p-8">
+        <SheetHeader className="pb-6 border-b border-border/50 mb-6 text-left">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <DollarSign className="w-4 h-4 text-primary" />
             </div>
-            <DialogTitle className="text-lg font-bold">
-              {mode === "create" ? "Tạo cấu hình giá" : "Chỉnh sửa cấu hình giá"}
-            </DialogTitle>
+            <SheetTitle className="text-lg font-bold">Thêm bảng giá nhanh</SheetTitle>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
-            {mode === "create"
-              ? "Thiết lập một bảng giá mới."
-              : `Đang chỉnh sửa bảng giá: ${initialData?.name}`}
-          </DialogDescription>
-        </DialogHeader>
+          <SheetDescription className="text-xs text-muted-foreground">
+            Thiết lập một cấu hình giá mới để áp dụng ngay cho dịch vụ này.
+          </SheetDescription>
+        </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Tên Bảng Giá
@@ -218,7 +189,7 @@ export function PricingConfigDialog({
           <div className="flex items-center justify-between rounded-xl bg-muted/30 border border-border/40 px-4 py-3">
             <div>
               <Label
-                htmlFor="config-active"
+                htmlFor="sheet-config-active"
                 className="text-sm font-semibold cursor-pointer"
               >
                 Kích hoạt
@@ -228,34 +199,34 @@ export function PricingConfigDialog({
               </p>
             </div>
             <Switch
-              id="config-active"
+              id="sheet-config-active"
               checked={form.isActive}
               onCheckedChange={(v) => set("isActive", v)}
               className="data-[state=checked]:bg-primary"
             />
           </div>
 
-          <DialogFooter className="pt-2 gap-2">
+          <SheetFooter className="pt-6 border-t border-border/50 sm:justify-end gap-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="rounded-xl font-semibold h-10"
+              className="rounded-xl font-semibold h-11"
             >
               Huỷ
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold h-10 px-6 gap-2 shadow-sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold h-11 px-6 gap-2 shadow-sm"
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {mode === "create" ? "Tạo mới" : "Lưu thay đổi"}
+              Lưu bảng giá
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

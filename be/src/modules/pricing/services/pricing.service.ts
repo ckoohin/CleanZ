@@ -66,20 +66,8 @@ export class PricingService {
   async createPricingConfig(
     dto: CreatePricingConfigDto,
   ): Promise<PricingConfigEntity> {
-    const service = await this.serviceRepo.findOne({
-      where: { id: dto.serviceId },
-    });
-    if (!service) throw new NotFoundException('SERVICE_NOT_FOUND');
-
-    const duplicate = await this.pricingRepo.findDuplicate(dto.serviceId);
-    if (duplicate) {
-      throw new ConflictException(
-        'PRICING_CONFIG_EXISTS: A pricing config for this service already exists.',
-      );
-    }
-
     const entity = this.pricingRepo.create({
-      serviceId: dto.serviceId,
+      name: dto.name,
       basePrice: dto.basePrice,
       peakPrice: dto.peakPrice ?? null,
       petFee: dto.petFee ?? 0,
@@ -100,7 +88,6 @@ export class PricingService {
   async findOnePricingConfig(id: string): Promise<PricingConfigEntity> {
     const config = await this.pricingRepo.findOne({
       where: { id },
-      relations: ['service'],
     });
     if (!config) throw new NotFoundException('PRICING_CONFIG_NOT_FOUND');
     return config;
@@ -112,24 +99,8 @@ export class PricingService {
   ): Promise<PricingConfigEntity> {
     const config = await this.findOnePricingConfig(id);
 
-    const newServiceId = dto.serviceId ?? config.serviceId;
-
-    if (dto.serviceId) {
-      const service = await this.serviceRepo.findOne({
-        where: { id: dto.serviceId },
-      });
-      if (!service) {
-        throw new NotFoundException('SERVICE_NOT_FOUND');
-      }
-
-      const duplicate = await this.pricingRepo.findDuplicate(newServiceId, id);
-      if (duplicate) {
-        throw new ConflictException('PRICING_CONFIG_EXISTS');
-      }
-    }
-
     Object.assign(config, {
-      serviceId: newServiceId,
+      name: dto.name ?? config.name,
       basePrice: dto.basePrice ?? config.basePrice,
       peakPrice: dto.peakPrice !== undefined ? dto.peakPrice : config.peakPrice,
       petFee: dto.petFee ?? config.petFee,
@@ -250,7 +221,6 @@ export class PricingService {
     input: CalculateBookingPriceInput,
   ): Promise<BookingPriceResult> {
     const serviceRepository = manager.getRepository(ServiceEntity);
-    const pricingRepository = manager.getRepository(PricingConfigEntity);
 
     const service = await this.findBookingService(
       serviceRepository,
@@ -269,16 +239,10 @@ export class PricingService {
       );
     }
 
-    const pricing = await pricingRepository
-      .createQueryBuilder('pricing')
-      .innerJoin('pricing.service', 'service')
-      .where('service.id = :serviceId', { serviceId: service.id })
-      .andWhere('pricing.is_active = true')
-      .orderBy('pricing.created_at', 'DESC')
-      .getOne();
-    if (!pricing) {
+    const pricing = service.pricingConfig;
+    if (!pricing || !pricing.isActive) {
       throw new NotFoundException(
-        `Không tìm thấy cấu hình giá cho dịch vụ ${service.name}`,
+        `Không tìm thấy cấu hình giá cho dịch vụ ${service.name} hoặc cấu hình đã bị vô hiệu hóa`,
       );
     }
 
@@ -368,20 +332,15 @@ export class PricingService {
     manager: EntityManager,
     serviceId: string,
   ): Promise<number> {
-    const pricing = await manager
-      .getRepository(PricingConfigEntity)
-      .createQueryBuilder('pricing')
-      .innerJoin('pricing.service', 'service')
-      .where('service.id = :serviceId', { serviceId })
-      .andWhere('pricing.is_active = true')
-      .orderBy('pricing.created_at', 'DESC')
-      .getOne();
+    const service = await manager
+      .getRepository(ServiceEntity)
+      .findOne({ where: { id: serviceId }, relations: ['pricingConfig'] });
 
-    if (!pricing) {
+    if (!service || !service.pricingConfig || !service.pricingConfig.isActive) {
       throw new NotFoundException('Không tìm thấy cấu hình hoa hồng dịch vụ');
     }
 
-    return toNumber(pricing.platformCommissionRate);
+    return toNumber(service.pricingConfig.platformCommissionRate);
   }
 
   private findBookingService(
@@ -392,6 +351,7 @@ export class PricingService {
     if (serviceId) {
       return serviceRepository.findOne({
         where: { id: serviceId, isActive: true },
+        relations: ['pricingConfig'],
       });
     }
     if (durationHours === undefined) {
@@ -400,6 +360,7 @@ export class PricingService {
 
     return serviceRepository
       .createQueryBuilder('service')
+      .leftJoinAndSelect('service.pricingConfig', 'pricingConfig')
       .where('service.is_active = true')
       .andWhere('service.base_duration_hours = :durationHours::numeric', {
         durationHours,

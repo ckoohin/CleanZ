@@ -5,6 +5,7 @@ import {
   Min,
   Max,
   IsBooleanString,
+  IsString,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -27,8 +28,8 @@ export class PricingListQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
-  serviceId?: string;
+  @IsString()
+  name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

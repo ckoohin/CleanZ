@@ -4,7 +4,7 @@ import { PaginatedData, ApiResponse } from './admin-services.service';
 
 export interface PricingConfigEntity {
   id: string;
-  serviceId: string;
+  name: string;
   basePrice: number;
   peakPrice: number | null;
   petFee: number;
@@ -28,7 +28,7 @@ export interface PeakDayConfigEntity {
 }
 
 export interface CreatePricingConfigDto {
-  serviceId: string;
+  name: string;
   basePrice: number;
   peakPrice?: number | null;
   petFee?: number;
@@ -38,7 +38,7 @@ export interface CreatePricingConfigDto {
   isActive?: boolean;
 }
 
-export type UpdatePricingConfigDto = Partial<Omit<CreatePricingConfigDto, 'serviceId'>>;
+export type UpdatePricingConfigDto = Partial<CreatePricingConfigDto>;
 
 export interface CreatePeakDayConfigDto {
   name: string;
@@ -54,7 +54,7 @@ export type UpdatePeakDayConfigDto = Partial<CreatePeakDayConfigDto>;
 
 export const adminPricingApi = {
   // --- Pricing Config ---
-  getPricingConfigs: async (params?: { page?: number; limit?: number; serviceId?: string }) => {
+  getPricingConfigs: async (params?: { page?: number; limit?: number; name?: string }) => {
     const { data } = await http.get<ApiResponse<PaginatedData<PricingConfigEntity>>>(
       API_ENDPOINTS.ADMIN_PRICING.CONFIGS,
       { params }

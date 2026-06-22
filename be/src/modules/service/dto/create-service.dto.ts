@@ -78,4 +78,9 @@ export class CreateServiceDto {
   @IsArray()
   @IsString({ each: true })
   excludedTasks?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  pricingConfigId?: string;
 }

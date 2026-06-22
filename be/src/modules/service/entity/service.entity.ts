@@ -6,7 +6,6 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
-  OneToOne,
   Index,
   ManyToOne,
   JoinColumn,
@@ -77,8 +76,15 @@ export class ServiceEntity {
   @Column({ type: 'jsonb', nullable: true, name: 'excluded_tasks' })
   excludedTasks?: string[];
 
-  @OneToOne(() => PricingConfigEntity, (pricing) => pricing.service)
-  pricingConfig?: PricingConfigEntity;
+  @Column({ type: 'uuid', name: 'pricing_config_id', nullable: true })
+  pricingConfigId?: string | null;
+
+  @ManyToOne(() => PricingConfigEntity, (pricing) => pricing.services, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'pricing_config_id' })
+  pricingConfig?: PricingConfigEntity | null;
 
   @OneToMany(() => VoucherEntity, (v) => v.service)
   vouchers!: VoucherEntity[];

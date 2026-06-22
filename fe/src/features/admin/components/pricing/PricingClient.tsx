@@ -168,8 +168,7 @@ export default function AdminPricingPage() {
     const kw = configKeyword.toLowerCase();
     return configs.filter(
       (c) =>
-        c.serviceName?.toLowerCase().includes(kw) ||
-        c.serviceId.toLowerCase().includes(kw),
+        c.name.toLowerCase().includes(kw),
     );
   }, [configs, configKeyword]);
 
@@ -183,7 +182,7 @@ export default function AdminPricingPage() {
     setIsSubmittingConfig(true);
     try {
       await pricingApi.createConfig({
-        serviceId: data.serviceId,
+        name: data.name,
         basePrice: Number(data.basePrice),
         peakPrice: data.peakPrice !== "" ? Number(data.peakPrice) : undefined,
         petFee: Number(data.petFee),
@@ -204,6 +203,7 @@ export default function AdminPricingPage() {
     setIsSubmittingConfig(true);
     try {
       await pricingApi.updateConfig(configDialog.data.id, {
+        name: data.name,
         basePrice: Number(data.basePrice),
         peakPrice: data.peakPrice !== "" ? Number(data.peakPrice) : null,
         petFee: Number(data.petFee),
@@ -220,7 +220,7 @@ export default function AdminPricingPage() {
   };
 
   const handleDeleteConfig = async (row: PricingConfig) => {
-    if (!confirm(`Xoá cấu hình giá cho dịch vụ "${row.serviceName ?? row.serviceId}"?`))
+    if (!confirm(`Xoá cấu hình giá "${row.name}"?`))
       return;
     try {
       await pricingApi.deleteConfig(row.id);
@@ -303,15 +303,12 @@ export default function AdminPricingPage() {
 
   const configColumns: Column<PricingConfig>[] = [
     {
-      key: "serviceName",
-      title: "Dịch vụ",
+      key: "name",
+      title: "Tên Bảng Giá",
       render: (row) => (
         <div className="min-w-0">
           <p className="font-semibold text-foreground truncate max-w-[180px]">
-            {row.serviceName ?? "—"}
-          </p>
-          <p className="font-mono text-[10px] text-muted-foreground truncate max-w-[180px] mt-0.5">
-            {row.serviceId}
+            {row.name}
           </p>
         </div>
       ),

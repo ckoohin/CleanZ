@@ -7,12 +7,14 @@ import { BaseButton } from "@/components/ui/base/base_button";
 import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
 import { useCreateAdminService } from "@/features/admin/hooks/useAdminServices";
 import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
+import { usePricingConfigs } from "@/features/admin/hooks/useAdminPricing";
 import { CreateAdminServiceDto } from "@/features/admin/services/admin-services.service";
 
 export default function CreateServicePage() {
   const router = useRouter();
   const createMutation = useCreateAdminService();
   const { data: categories } = useAdminCategories();
+  const { data: pricingData } = usePricingConfigs({ limit: 100 }); // fetch enough configs
 
   const handleSubmit = (values: CreateAdminServiceDto) => {
     createMutation.mutate(values, {
@@ -48,6 +50,7 @@ export default function CreateServicePage() {
           onSubmit={handleSubmit} 
           isSubmitting={createMutation.isPending}
           categories={categories || []}
+          pricingConfigs={pricingData?.items || []}
         />
       </div>
     </div>
