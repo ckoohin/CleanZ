@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, Variants, AnimatePresence } from "motion/react";
 import {
   User, Mail, Phone, MapPin, Bell, Lock,
   ClipboardList, ChevronRight, CheckCircle2,
   Clock, Star, ShieldCheck, Camera, Home,
-  BellRing, BellOff, Edit3, Plus,
-  LogOut, Settings, CreditCard,
+  Wrench, BellRing, BellOff, Edit3, Plus,
+  LogOut, Settings, CreditCard, HeadphonesIcon,
 } from "lucide-react";
+import { ROUTES } from "@/constants/routes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -80,6 +82,7 @@ const tabAnim: Variants = {
 
 export default function ProfilePage() {
   const { data: profile, isLoading, isError } = useProfile();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("info");
 
   if (isError) {
@@ -201,6 +204,13 @@ export default function ProfilePage() {
                 </button>
               );
             })}
+            <Separator />
+            <button
+              onClick={() => router.push(ROUTES.CUSTOMER.SUPPORT_TICKETS)}
+              className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors text-left border-l-2 border-transparent"
+            >
+              <HeadphonesIcon className="w-4 h-4 shrink-0" />Trung tâm hỗ trợ
+            </button>
             <Separator />
             <button className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors">
               <LogOut className="w-4 h-4 shrink-0" />Đăng xuất

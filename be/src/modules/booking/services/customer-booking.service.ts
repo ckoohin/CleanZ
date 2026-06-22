@@ -354,6 +354,35 @@ export class CustomerBookingService {
     }, 'Không thể lấy booking đang hoạt động');
   }
 
+  /** Danh sách booking của customer (cho select khi tạo ticket hỗ trợ). */
+  async findMyBookings(userId: string): Promise<
+    {
+      id: string;
+      bookingCode: string;
+      status: string;
+      scheduledStart: Date | null;
+      serviceName: string | null;
+    }[]
+  > {
+    return asyncHandleOperation(async () => {
+      return this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .innerJoin('b.customer', 'c')
+        .innerJoin('c.user', 'u')
+        .leftJoin('services', 's', 's.id = b.service_id')
+        .select('b.id', 'id')
+        .addSelect('b.booking_code', 'bookingCode')
+        .addSelect('b.status', 'status')
+        .addSelect('b.scheduled_start', 'scheduledStart')
+        .addSelect('s.name', 'serviceName')
+        .where('u.id = :userId', { userId })
+        .orderBy('b.created_at', 'DESC')
+        .limit(50)
+        .getRawMany();
+    }, 'Không thể lấy danh sách booking');
+  }
+
   async updateScheduleAndAddress(
     userId: string,
     bookingId: string,

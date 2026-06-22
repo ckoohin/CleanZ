@@ -16,6 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIncidentConfig, useUpdateIncidentConfig } from "../hooks/useAdminIncident";
 import { INCIDENT_CONFIG_META } from "@/features/incident/shared/incident.labels";
+import { SevereCriteriaEditor } from "./config/SevereCriteriaEditor";
+import { SlaMatrixEditor } from "./config/SlaMatrixEditor";
+
+const STRUCTURED_KEYS = new Set(["INCIDENT_SEVERE_CRITERIA", "INCIDENT_SLA_MATRIX"]);
 
 /**
  * Cấu hình incident — editor key→value (BE trả Record<string,string|null>).
@@ -25,6 +29,7 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
   const { data, isLoading } = useIncidentConfig();
   const update = useUpdateIncidentConfig();
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [advanced, setAdvanced] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (data && open) {
@@ -70,18 +75,37 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
             ) : (
               keys.map((k) => {
                 const meta = INCIDENT_CONFIG_META[k];
+                const structured = STRUCTURED_KEYS.has(k);
+                const setVal = (v: string) => setDraft((p) => ({ ...p, [k]: v }));
                 return (
                   <div key={k} className="space-y-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <Label className="text-xs font-semibold">{meta?.label ?? k}</Label>
-                      {meta?.unit && (
-                        <span className="text-[10px] font-medium text-muted-foreground">{meta.unit}</span>
+                      {structured ? (
+                        <button
+                          type="button"
+                          onClick={() => setAdvanced((p) => ({ ...p, [k]: !p[k] }))}
+                          className="text-[10px] font-medium text-primary hover:underline"
+                        >
+                          {advanced[k] ? "Dạng biểu mẫu" : "JSON nâng cao"}
+                        </button>
+                      ) : (
+                        meta?.unit && (
+                          <span className="text-[10px] font-medium text-muted-foreground">{meta.unit}</span>
+                        )
                       )}
                     </div>
-                    {meta?.type === "json" ? (
+
+                    {structured && !advanced[k] ? (
+                      k === "INCIDENT_SEVERE_CRITERIA" ? (
+                        <SevereCriteriaEditor value={draft[k] ?? ""} onChange={setVal} />
+                      ) : (
+                        <SlaMatrixEditor value={draft[k] ?? ""} onChange={setVal} />
+                      )
+                    ) : meta?.type === "json" ? (
                       <Textarea
                         value={draft[k] ?? ""}
-                        onChange={(e) => setDraft((p) => ({ ...p, [k]: e.target.value }))}
+                        onChange={(e) => setVal(e.target.value)}
                         rows={3}
                         className="resize-none rounded-lg font-mono text-xs"
                       />
@@ -89,11 +113,12 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
                       <Input
                         type={meta?.type === "number" ? "number" : "text"}
                         value={draft[k] ?? ""}
-                        onChange={(e) => setDraft((p) => ({ ...p, [k]: e.target.value }))}
+                        onChange={(e) => setVal(e.target.value)}
                         className="h-9 rounded-lg text-sm"
                       />
                     )}
-                    {meta?.hint && (
+
+                    {meta?.hint && !structured && (
                       <p className="text-[11px] text-muted-foreground">{meta.hint}</p>
                     )}
                   </div>

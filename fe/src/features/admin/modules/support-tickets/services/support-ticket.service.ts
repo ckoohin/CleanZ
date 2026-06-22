@@ -46,6 +46,17 @@ export const supportTicketAdminApi = {
   changeStatus: (id: string, dto: ChangeStatusDto): Promise<TicketAdminDetail> =>
     http.patch<TicketAdminDetail>(EP.STATUS(id), dto).then((r) => r.data),
 
+  // ── Upload ảnh (admin) → trả {id,url} để gắn vào reply ───────────────────
+  uploadAttachment: (id: string, file: File): Promise<{ id: string; url: string }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return http
+      .post<{ id: string; url: string }>(EP.ATTACHMENTS(id), fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
+
   // ── Gửi tin nhắn (public / internal note) — BE trả Message (spec §2.6) ────
   addMessage: (id: string, dto: CreateAdminMessageDto): Promise<AdminMessage> =>
     http.post<AdminMessage>(EP.MESSAGES(id), dto).then((r) => r.data),

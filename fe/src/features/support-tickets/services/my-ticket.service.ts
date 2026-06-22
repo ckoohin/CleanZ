@@ -12,7 +12,19 @@ import type {
 
 const EP = API_ENDPOINTS.SUPPORT_TICKETS;
 
+export interface MyBookingOption {
+  id: string;
+  bookingCode: string;
+  status: string;
+  scheduledStart: string | null;
+  serviceName: string | null;
+}
+
 export const myTicketApi = {
+  /** Booking của khách (cho select khi tạo ticket). */
+  listMyBookings: (): Promise<MyBookingOption[]> =>
+    http.get<MyBookingOption[]>(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data),
+
   /** Tạo ticket khiếu nại từ đơn của tôi */
   create: (dto: CreateTicketDto): Promise<MyTicketDetail> =>
     http.post<MyTicketDetail>(EP.BASE, dto).then((r) => r.data),

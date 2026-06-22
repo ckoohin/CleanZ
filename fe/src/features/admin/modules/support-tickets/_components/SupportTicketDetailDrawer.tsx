@@ -138,6 +138,22 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                 </div>
               )}
 
+              {ticket.attachments?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                    Ảnh đính kèm ({ticket.attachments.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {ticket.attachments.map((a) => (
+                      <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.url} alt="bằng chứng" className="size-16 rounded-lg border border-border/40 object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── Tabs ── */}
               <Tabs defaultValue="messages">
                 <TabsList className="w-full rounded-xl bg-muted/50">
@@ -181,6 +197,16 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                             </span>
                           </div>
                           <p className="text-foreground/80">{m.body}</p>
+                          {m.attachments?.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {m.attachments.map((a) => (
+                                <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={a.url} alt="đính kèm" className="size-14 rounded-lg border border-border/40 object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))
                     )}

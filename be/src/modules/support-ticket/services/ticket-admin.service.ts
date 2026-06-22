@@ -16,6 +16,8 @@ import { SupportTicketEntity } from '../entity/support-ticket.entity';
 import { TicketMessageEntity } from '../entity/ticket-message.entity';
 import { TicketStatusLogEntity } from '../entity/ticket-status-log.entity';
 import { TicketResolutionEntity } from '../entity/ticket-resolution.entity';
+import { TicketAttachmentEntity } from '../entity/ticket-attachment.entity';
+import { UploadService } from 'src/modules/upload/upload.service';
 import { AdminQueryTicketDto } from '../dto/admin-query-ticket.dto';
 import { ChangeStatusDto } from '../dto/change-status.dto';
 import { AssignTicketDto } from '../dto/assign-ticket.dto';
@@ -62,9 +64,12 @@ export class TicketAdminService {
     private readonly resolutionRepo: Repository<TicketResolutionEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(TicketAttachmentEntity)
+    private readonly attachmentRepo: Repository<TicketAttachmentEntity>,
     private readonly ticketService: TicketService,
     private readonly sla: TicketSlaService,
     private readonly notification: NotificationService,
+    private readonly uploadService: UploadService,
   ) {}
 
   private notify(
@@ -144,7 +149,7 @@ export class TicketAdminService {
   async findOne(id: string): Promise<TicketAdminView> {
     return asyncHandleOperation(async () => {
       const ticket = await this.loadOrFail(id);
-      const [messages, logs, resolutions] = await Promise.all([
+      const [messages, logs, resolutions, attachments] = await Promise.all([
         this.messageRepo.find({
           where: { ticket: { id } },
           relations: ['sender'],
@@ -160,8 +165,13 @@ export class TicketAdminService {
           relations: ['proposedBy'],
           order: { createdAt: 'ASC' },
         }),
+        this.attachmentRepo.find({
+          where: { ticket: { id } },
+          relations: ['message'],
+          order: { createdAt: 'ASC' },
+        }),
       ]);
-      return toAdminView(ticket, messages, logs, resolutions);
+      return toAdminView(ticket, messages, logs, resolutions, attachments);
     }, 'Lỗi khi lấy chi tiết ticket');
   }
 
@@ -364,6 +374,16 @@ export class TicketAdminService {
         }),
       );
 
+      // Gắn ảnh đã upload trước (đang ở cấp ticket, message_id NULL) vào message này
+      if (dto.attachmentIds?.length) {
+        await this.attachmentRepo
+          .createQueryBuilder()
+          .update()
+          .set({ message: { id: msg.id }, ticket: { id } })
+          .whereInIds(dto.attachmentIds)
+          .execute();
+      }
+
       if (!isInternal) {
         if (!ticket.firstRespondedAt) {
           ticket.firstRespondedAt = new Date();
@@ -378,14 +398,40 @@ export class TicketAdminService {
         );
       }
 
+      const atts = dto.attachmentIds?.length
+        ? await this.attachmentRepo.find({ where: { message: { id: msg.id } } })
+        : [];
+
       return {
         id: msg.id,
         senderUserId: actingAdminId,
         body: msg.body,
         isInternal: msg.isInternal,
         createdAt: msg.createdAt,
+        attachments: atts.map((a) => ({ id: a.id, url: a.url })),
       };
     }, 'Lỗi khi gửi tin nhắn');
+  }
+
+  /** Upload 1 ảnh (cấp ticket) — admin lấy attachmentId để gắn vào reply hoặc lưu kèm hồ sơ. */
+  async uploadAttachment(
+    id: string,
+    actingAdminId: string,
+    file: Express.Multer.File,
+  ): Promise<{ id: string; url: string }> {
+    return asyncHandleOperation(async () => {
+      await this.loadOrFail(id);
+      const uploaded = await this.uploadService.uploadImage(file);
+      const att = await this.attachmentRepo.save(
+        this.attachmentRepo.create({
+          ticket: { id },
+          url: uploaded.url,
+          publicId: uploaded.public_id,
+          uploadedBy: { id: actingAdminId },
+        }),
+      );
+      return { id: att.id, url: att.url };
+    }, 'Lỗi khi tải ảnh đính kèm');
   }
 
   private async loadOrFail(id: string): Promise<SupportTicketEntity> {
