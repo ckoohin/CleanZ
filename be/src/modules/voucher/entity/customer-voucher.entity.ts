@@ -1,40 +1,38 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
+  Entity,
   JoinColumn,
-  Unique,
-  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { VoucherEntity } from './voucher.entity';
+import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 
 @Entity('customer_vouchers')
-@Unique('uq_customer_voucher', ['customerId', 'voucherId'])
 export class CustomerVoucherEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid', name: 'customer_id' })
-  customerId?: string;
+  @Column({ name: 'customer_id', type: 'uuid' })
+  customerId!: string;
 
-  @Index('idx_customer_vouchers_voucher_id')
-  @Column({ type: 'uuid', name: 'voucher_id' })
-  voucherId?: string;
+  @Column({ name: 'voucher_id', type: 'uuid' })
+  voucherId!: string;
 
-  @Column({ type: 'boolean', default: false, name: 'is_used' })
-  isUsed!: boolean;
-
-  @Column({ type: 'timestamp', nullable: true, name: 'used_at' })
-  usedAt!: Date | null;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt!: Date;
+  @ManyToOne(() => CustomerEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'customer_id' })
+  customer!: CustomerEntity;
 
   @ManyToOne(() => VoucherEntity, (v) => v.customerVouchers, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'voucher_id' })
   voucher!: VoucherEntity;
+
+  @Column({ name: 'is_used', type: 'boolean', default: false })
+  isUsed!: boolean;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }

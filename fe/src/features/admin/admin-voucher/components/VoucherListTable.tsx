@@ -24,7 +24,7 @@ function formatDate(dateString?: string | null) {
 
 function formatCurrency(value?: number | null) {
   if (value == null) return "--";
-  return new Intl.NumberFormat("vi-VN").format(value) + "đ";
+  return new Intl.NumberFormat("vi-VN").format(Number(value)) + "đ";
 }
 
 function VoucherStatusBadge({ voucher }: { voucher: Voucher }) {
@@ -64,6 +64,130 @@ function VoucherStatusBadge({ voucher }: { voucher: Voucher }) {
   );
 }
 
+type VoucherApiResponse =
+  | Voucher[]
+  | {
+      data?: Voucher[] | { items?: Voucher[]; total?: number; page?: number; limit?: number; totalPages?: number };
+      items?: Voucher[];
+      total?: number;
+      page?: number;
+      limit?: number;
+      totalPages?: number;
+      meta?: {
+        total?: number;
+        page?: number;
+        limit?: number;
+        totalPages?: number;
+      };
+      pagination?: {
+        total?: number;
+        page?: number;
+        limit?: number;
+        totalPages?: number;
+      };
+    }
+  | undefined;
+
+function normalizeVoucherResponse(raw: VoucherApiResponse) {
+  // TH1: API trả thẳng mảng
+  if (Array.isArray(raw)) {
+    return {
+      vouchers: raw,
+      total: raw.length,
+      page: 1,
+      limit: raw.length || 10,
+      totalPages: 1,
+    };
+  }
+
+  if (!raw || typeof raw !== "object") {
+    return {
+      vouchers: [] as Voucher[],
+      total: 0,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+    };
+  }
+
+  // TH2: API trả { data: [...] }
+  if (Array.isArray(raw.data)) {
+    const pagination = raw.pagination ?? raw.meta ?? {};
+    const total = raw.total ?? pagination.total ?? raw.data.length ?? 0;
+    const page = raw.page ?? pagination.page ?? 1;
+    const limit = raw.limit ?? pagination.limit ?? 10;
+    const totalPages =
+      raw.totalPages ??
+      pagination.totalPages ??
+      Math.max(1, Math.ceil(total / limit));
+
+    return {
+      vouchers: raw.data,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  // TH3: API trả { data: { items: [...] } }
+  if (
+    raw.data &&
+    typeof raw.data === "object" &&
+    Array.isArray((raw.data as any).items)
+  ) {
+    const inner = raw.data as {
+      items?: Voucher[];
+      total?: number;
+      page?: number;
+      limit?: number;
+      totalPages?: number;
+    };
+
+    const total = inner.total ?? 0;
+    const page = inner.page ?? 1;
+    const limit = inner.limit ?? 10;
+    const totalPages =
+      inner.totalPages ?? Math.max(1, Math.ceil(total / limit));
+
+    return {
+      vouchers: inner.items ?? [],
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  // TH4: API trả { items: [...] }
+  if (Array.isArray(raw.items)) {
+    const pagination = raw.pagination ?? raw.meta ?? {};
+    const total = raw.total ?? pagination.total ?? raw.items.length ?? 0;
+    const page = raw.page ?? pagination.page ?? 1;
+    const limit = raw.limit ?? pagination.limit ?? 10;
+    const totalPages =
+      raw.totalPages ??
+      pagination.totalPages ??
+      Math.max(1, Math.ceil(total / limit));
+
+    return {
+      vouchers: raw.items,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  return {
+    vouchers: [] as Voucher[],
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  };
+}
+
 export function VoucherListTable() {
   const [query, setQuery] = useState<VoucherListQuery>({
     page: 1,
@@ -78,10 +202,14 @@ export function VoucherListTable() {
 
   const { data, isLoading, isError } = useAdminVouchers(query);
 
-  const vouchers = useMemo(() => data?.data ?? [], [data]);
-  const total = data?.total ?? 0;
-  const currentPage = data?.page ?? 1;
-  const totalPages = data?.totalPages ?? 1;
+  const normalized = useMemo(() => {
+    return normalizeVoucherResponse(data as VoucherApiResponse);
+  }, [data]);
+
+  const vouchers = normalized.vouchers;
+  const total = normalized.total;
+  const currentPage = normalized.page;
+  const totalPages = normalized.totalPages;
 
   const handleSearch = () => {
     setQuery((prev) => ({
