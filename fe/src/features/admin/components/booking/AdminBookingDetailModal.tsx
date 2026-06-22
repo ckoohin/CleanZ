@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   useCancelAdminBooking,
-  useAssignTaskerToBooking,
-  useActiveTaskers,
 } from "../../hooks/useAdminBookings";
 import { useState } from "react";
+import { AssignTaskerDialog } from "./AssignTaskerDialog";
+import { ChangeBookingStatusDialog } from "./ChangeBookingStatusDialog";
 
 export interface AdminBookingDetail {
   id: string;
@@ -50,16 +50,15 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
   booking,
 }) => {
   const cancelMutation = useCancelAdminBooking();
-  const assignMutation = useAssignTaskerToBooking();
-  const taskersQuery = useActiveTaskers();
 
-  const [selectedTasker, setSelectedTasker] = useState<string>('');
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
 
   if (!booking) return null;
 
   const handleCancel = () => {
     if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
-    cancelMutation.mutate(booking.id, {
+    cancelMutation.mutate({ id: booking.id, reason: "Hủy đơn qua Admin Portal" }, {
       onSuccess: () => {
         toast.success("Hủy đơn thành công");
         onOpenChange(false);
@@ -67,23 +66,6 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
       onError: (err: unknown) => {
         const error = err as { response?: { data?: { message?: string } } };
         toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi hủy đơn");
-      }
-    });
-  };
-
-  const handleAssign = () => {
-    if (!selectedTasker) {
-      toast.error("Vui lòng chọn một Tasker");
-      return;
-    }
-    assignMutation.mutate({ id: booking.id, taskerId: selectedTasker }, {
-      onSuccess: () => {
-        toast.success("Gán thợ thành công");
-        onOpenChange(false);
-      },
-      onError: (err: unknown) => {
-        const error = err as { response?: { data?: { message?: string } } };
-        toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi gán thợ");
       }
     });
   };
@@ -244,43 +226,35 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
               <CheckCircle2 className="w-5 h-5 text-indigo-500" /> Hành Động Xử Lý
             </h3>
             
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              {booking.status === 'POSTED' && (
-                <div className="flex-1 space-y-2">
-                  <label className="text-xs font-semibold text-slate-500 block">Gán thợ thủ công</label>
-                  <div className="flex items-center gap-2">
-                    <select 
-                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={selectedTasker}
-                      onChange={(e) => setSelectedTasker(e.target.value)}
-                    >
-                      <option value="">-- Chọn Tasker --</option>
-                      {taskersQuery.data?.map((t: { id: string; fullName: string; phoneNumber: string }) => (
-                        <option key={t.id} value={t.id}>{t.fullName} - {t.phoneNumber}</option>
-                      ))}
-                    </select>
-                    <Button 
-                      onClick={handleAssign} 
-                      disabled={!selectedTasker || assignMutation.isPending}
-                      className="bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      Gán Thợ
-                    </Button>
-                  </div>
-                </div>
-              )}
-
+            <div className="flex flex-col md:flex-row gap-4 items-center">
               {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
-                <div className="flex-1 md:flex-none flex justify-end">
+                <>
                   <Button 
-                    variant="destructive" 
-                    onClick={handleCancel}
-                    disabled={cancelMutation.isPending}
+                    onClick={() => setIsAssignOpen(true)} 
+                    className="bg-indigo-600 hover:bg-indigo-700 w-full md:w-auto"
+                  >
+                    <User className="w-4 h-4 mr-2" /> Gán / Đổi Tasker
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => setIsChangeStatusOpen(true)} 
+                    variant="outline"
                     className="w-full md:w-auto"
                   >
-                    <XCircle className="w-4 h-4 mr-2" /> Hủy Đơn Gấp
+                    Cập nhật trạng thái
                   </Button>
-                </div>
+
+                  <div className="flex-1 md:flex-none flex justify-end ml-auto">
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleCancel}
+                      disabled={cancelMutation.isPending}
+                      className="w-full md:w-auto"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" /> Hủy Đơn Gấp
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
             {booking.status === 'COMPLETED' || booking.status === 'CANCELLED' ? (
@@ -289,6 +263,19 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
           </div>
         </div>
       </DialogContent>
+
+      {/* Nested Dialogs for Actions */}
+      <AssignTaskerDialog 
+        bookingId={booking.id}
+        open={isAssignOpen}
+        onOpenChange={setIsAssignOpen}
+      />
+      <ChangeBookingStatusDialog 
+        bookingId={booking.id}
+        currentStatus={booking.status}
+        open={isChangeStatusOpen}
+        onOpenChange={setIsChangeStatusOpen}
+      />
     </Dialog>
   );
 };

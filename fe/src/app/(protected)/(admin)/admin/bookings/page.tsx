@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { useAdminBookings } from "@/features/admin/hooks/useAdminBookings"
 import { getAdminBookingDetail, triggerExpireOverdue } from "@/features/admin/api/booking.api"
 import { AdminBookingDetailModal, AdminBookingDetail } from "@/features/admin/components/booking/AdminBookingDetailModal"
+import { AdminCreateBookingDrawer } from "@/features/admin/components/booking/AdminCreateBookingDrawer"
 
 export type AdminBookingItem = {
   id: string
@@ -42,6 +43,7 @@ export default function AdminBookingsPage() {
 
   const [selectedBooking, setSelectedBooking] = React.useState<AdminBookingDetail | null>(null)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = React.useState(false)
 
   const handleViewDetail = async (id: string) => {
     try {
@@ -177,9 +179,14 @@ export default function AdminBookingsPage() {
             Theo dõi và can thiệp vào các Booking trên hệ thống.
           </p>
         </div>
-        <Button onClick={handleExpireOverdue} variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2">
-          <RefreshCw className="w-4 h-4" /> Kiểm tra đơn quá hạn
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleExpireOverdue} variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Kiểm tra đơn quá hạn
+          </Button>
+          <Button onClick={() => setIsCreateDrawerOpen(true)} className="bg-primary hover:bg-primary/90">
+            Tạo đơn hộ
+          </Button>
+        </div>
       </div>
 
       <BaseTableList
@@ -198,6 +205,11 @@ export default function AdminBookingsPage() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         booking={selectedBooking}
+      />
+
+      <AdminCreateBookingDrawer
+        open={isCreateDrawerOpen}
+        onOpenChange={setIsCreateDrawerOpen}
       />
     </div>
   )
