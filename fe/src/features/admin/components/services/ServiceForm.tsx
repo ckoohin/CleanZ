@@ -227,6 +227,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           {(() => {
                             const selectedConfig = pricingConfigs.find(c => c.id === field.value);
+                            if (!selectedConfig) return null;
                             return (
                               <>
                                 <div className="flex justify-between">
