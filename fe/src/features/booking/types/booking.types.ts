@@ -1,6 +1,5 @@
-// ─── Enums ────────────────────────────────────────────────────────────────────
+﻿// ─── Enums ────────────────────────────────────────────────────────────────────
 export type BookingStatus =
-  | "PENDING_PAYMENT"
   | "POSTED"
   | "CONFIRMED"
   | "TASKER_ON_THE_WAY"
@@ -77,15 +76,9 @@ export interface StatusLog {
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
 export interface CreateBookingDto {
   serviceId?: string;
-  packageId?: string;
-  subServiceIds?: string[];
   addressId?: string;
-  address?: string;
-  provinceCode?: string;
-  scheduledStart?: string;
-  scheduledDate?: string;    // YYYY-MM-DD
-  scheduledTime?: string;    // HH:mm
-  durationHours?: number;
+  scheduledDate: string;    // YYYY-MM-DD
+  scheduledTime: string;    // HH:mm
   note?: string;
   paymentMethod?: PaymentMethod;
   voucherCode?: string;
@@ -93,14 +86,9 @@ export interface CreateBookingDto {
 
 export interface QuoteBookingDto {
   serviceId?: string;
-  packageId?: string;
-  subServiceIds?: string[];
   addressId?: string;
-  address?: string;
-  provinceCode?: string;
   scheduledDate: string;
   scheduledTime: string;
-  durationHours?: number;
   note?: string;
   voucherCode?: string;
 }
@@ -119,9 +107,7 @@ export interface UpdateBookingScheduleDto {
 
 // ─── Customer Responses ───────────────────────────────────────────────────────
 export interface BookingQuoteResponse {
-  package?: { id: string; name: string };
-  service?: BookingService;
-  subServices?: { id: string; name: string; durationHours?: number }[];
+  service: BookingService;
   address: BookingAddress;
   schedule: BookingSchedule;
   price: BookingPrice;
@@ -213,11 +199,6 @@ export interface TaskerAssignedBookingDetail {
     latitude?: number | null;
     longitude?: number | null;
     hasPet: boolean;
-    contactName?: string | null;
-    contactPhone?: string | null;
-    buildingFloor?: string | null;
-    gate?: string | null;
-    driverNote?: string | null;
   };
   schedule: BookingSchedule;
   price: {
@@ -241,16 +222,3 @@ export interface TaskerAssignedBookingDetail {
   checkedInAt?: string | null;
   completedAt?: string | null;
 }
-
-
-export type BookingFormState = {
-  serviceId: string;
-  addressId?: string;
-  address: string;
-  provinceCode: string;
-  scheduledDate: string;
-  scheduledTime: string;
-  note: string;
-  paymentMethod: PaymentMethod;
-  voucherCode: string;
-};

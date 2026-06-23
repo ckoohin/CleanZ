@@ -1,47 +1,58 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { slideInVariants } from "@/constants/motion";
+import { slideInVariants, staggerContainerVariants } from "@/constants/motion";
 import { ServiceListHorizontal } from "./ServiceListHorizontal";
-import { Search, MapPin, Bell, Loader2, Sparkles } from "lucide-react";
+import { Search, MapPin, Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { usePublicServices } from "@/features/services/hooks/usePublicServices";
-import { ServiceDetailModal } from "@/features/services/_components/ServiceDetailModal";
-import { PublicService } from "@/features/services/types/public-service.type";
+
+// Mock data
+const mockServices = [
+  {
+    id: "srv-1",
+    name: "Dọn dẹp nhà cửa",
+    description: "Làm sạch toàn bộ phòng khách, phòng ngủ, bếp và toilet.",
+    imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop",
+    basePrice: 200000,
+    ratingAvg: 4.8,
+    durationHours: 2,
+  },
+  {
+    id: "srv-2",
+    name: "Vệ sinh máy lạnh",
+    description: "Rửa lưới lọc, xịt rửa dàn lạnh, dàn nóng, bơm ga (nếu thiếu).",
+    imageUrl: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=600&auto=format&fit=crop",
+    basePrice: 150000,
+    ratingAvg: 4.9,
+    durationHours: 1,
+  },
+  {
+    id: "srv-3",
+    name: "Tổng vệ sinh sau xây dựng",
+    description: "Tẩy sơn, lau kính, hút bụi sâu toàn bộ ngóc ngách nhà mới.",
+    imageUrl: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&auto=format&fit=crop",
+    basePrice: 800000,
+    ratingAvg: 4.7,
+    durationHours: 6,
+  },
+  {
+    id: "srv-4",
+    name: "Giặt sofa & rèm cửa",
+    description: "Hút bụi sâu, giặt bằng hơi nước nóng diệt khuẩn.",
+    imageUrl: "https://images.unsplash.com/photo-1527772482340-fd8fbcc4bb7e?q=80&w=600&auto=format&fit=crop",
+    basePrice: 350000,
+    ratingAvg: 4.6,
+    durationHours: 2,
+  }
+];
 
 export const CatalogPage = () => {
   const router = useRouter();
-  const [selectedService, setSelectedService] = useState<PublicService | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const { data, isLoading } = usePublicServices({
-    page: 1,
-    limit: 100,
-  });
-
-  const packages = data?.data ?? [];
 
   const handleSelectService = (id: string) => {
-    const pkg = packages.find((item) => item.id === id);
-    if (pkg) {
-      setSelectedService(pkg);
-      setIsModalOpen(true);
-    }
+    // Navigate to booking wizard
+    router.push(`/customer/booking?serviceId=${id}`);
   };
-
-  const services = packages.map((item) => ({
-    id: item.id,
-    name: item.name,
-    description: item.policyDescription || "Dịch vụ vệ sinh CleanZ chất lượng cao.",
-    imageUrl: item.iconUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop",
-    basePrice: item.subServices && item.subServices.length > 0
-      ? Math.min(...item.subServices.map((s) => s.pricing?.basePrice || 0))
-      : 200000,
-    ratingAvg: 4.9,
-    durationHours: item.maxHours || 8,
-    coverageArea: item.coverageAreas?.map((a) => a.name).join(", ") || "",
-  }));
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -87,42 +98,18 @@ export const CatalogPage = () => {
 
       {/* Content */}
       <div className="mt-4">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground font-medium animate-pulse">Đang tải danh sách dịch vụ...</p>
-          </div>
-        ) : services.length === 0 ? (
-          <div className="text-center py-20 px-4">
-            <Sparkles className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <h3 className="font-bold text-base text-foreground">Chưa có dịch vụ nào hoạt động</h3>
-            <p className="text-sm text-muted-foreground mt-1">Vui lòng quay lại sau hoặc liên hệ quản trị viên.</p>
-          </div>
-        ) : (
-          <>
-            <ServiceListHorizontal 
-              title="Dịch vụ nổi bật" 
-              services={services} 
-              onSelectService={handleSelectService} 
-            />
-            
-            {services.length > 2 && (
-              <ServiceListHorizontal 
-                title="Dịch vụ nâng cao" 
-                services={services.slice(2)} 
-                onSelectService={handleSelectService} 
-              />
-            )}
-          </>
-        )}
+        <ServiceListHorizontal 
+          title="Dịch vụ nổi bật" 
+          services={mockServices} 
+          onSelectService={handleSelectService} 
+        />
+        
+        <ServiceListHorizontal 
+          title="Dọn dẹp chuyên sâu" 
+          services={mockServices.slice(2, 4)} 
+          onSelectService={handleSelectService} 
+        />
       </div>
-
-      {/* Detail Modal */}
-      <ServiceDetailModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        service={selectedService} 
-      />
     </div>
   );
 };

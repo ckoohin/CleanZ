@@ -1,39 +1,37 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Sparkles, Wind, Home, Shirt, Bug, Armchair, Briefcase, Clock, MapPin, ChevronRight, Search, ArrowRight, Activity
+  Sparkles,
+  Wind,
+  Home,
+  Shirt,
+  Bug,
+  Armchair,
+  Briefcase,
+  Clock,
+  MapPin,
+  ChevronRight,
+  Search,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Container from '@/components/Container';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useQuery } from '@tanstack/react-query';
-import { adminServicesApi } from '@/features/admin/modules/service/services/admin-services.service';
 
-// Mock Categories for beautiful frontend design (Backend doesn't manage categories directly in DB)
-const mockCategories = [
-  { id: "cat-1", name: "Dọn nhà", slug: "don-nha", iconUrl: null },
-  { id: "cat-2", name: "Giặt là", slug: "giat-la", iconUrl: null },
-  { id: "cat-3", name: "Sửa chữa", slug: "sua-chua", iconUrl: null },
-  { id: "cat-4", name: "Khử khuẩn", slug: "khu-khuan", iconUrl: null },
-  { id: "cat-5", name: "Vệ sinh đệm", slug: "ve-sinh-dem", iconUrl: null },
-  { id: "cat-6", name: "Vệ sinh sofa", slug: "ve-sinh-sofa", iconUrl: null },
-  { id: "cat-7", name: "Trông trẻ", slug: "trong-tre", iconUrl: null },
-];
-
-// Predefined palette for categories
-const CATEGORY_PALETTE = [
-  { color: "text-emerald-600", bg: "bg-emerald-500/10", icon: Sparkles },
-  { color: "text-cyan-600", bg: "bg-cyan-500/10", icon: Wind },
-  { color: "text-indigo-600", bg: "bg-indigo-500/10", icon: Home },
-  { color: "text-blue-600", bg: "bg-blue-500/10", icon: Shirt },
-  { color: "text-red-600", bg: "bg-red-500/10", icon: Bug },
-  { color: "text-amber-600", bg: "bg-amber-500/10", icon: Armchair },
-  { color: "text-foreground/90", bg: "bg-muted/10", icon: Briefcase },
+// Modern tinted palette for services (Apple-style pastel/tinted backgrounds)
+const MAIN_SERVICES = [
+  { id: 'cleaning', label: "Dọn dẹp", icon: Sparkles, color: "text-emerald-600", bg: "bg-emerald-500/10" },
+  { id: 'ac-cleaning', label: "Máy lạnh", icon: Wind, color: "text-cyan-600", bg: "bg-cyan-500/10" },
+  { id: 'deep-cleaning', label: "Tổng vệ sinh", icon: Home, color: "text-indigo-600", bg: "bg-indigo-500/10" },
+  { id: 'laundry', label: "Giặt là", icon: Shirt, color: "text-blue-600", bg: "bg-blue-500/10" },
+  { id: 'pest-control', label: "Diệt côn trùng", icon: Bug, color: "text-red-600", bg: "bg-red-500/10" },
+  { id: 'sofa-cleaning', label: "Sofa/Nệm", icon: Armchair, color: "text-amber-600", bg: "bg-amber-500/10" },
+  { id: 'office-cleaning', label: "Tạp vụ", icon: Briefcase, color: "text-foreground/90", bg: "bg-muted/10" },
+  { id: 'more', label: "Tất cả", icon: ChevronRight, color: "text-gray-500", bg: "bg-gray-500/10" },
 ];
 
 const PROMOS = [
@@ -51,16 +49,6 @@ const ONGOING_SERVICE = {
 };
 
 export default function AppleStyleHomePage() {
-  const categories = mockCategories;
-  const isCategoriesLoading = false;
-
-  const { data, isLoading: isServicesLoading } = useQuery({
-    queryKey: ["services", "customer-active-list-home"],
-    queryFn: () => adminServicesApi.getServices({ isActive: true, limit: 10 }),
-  });
-  
-  const services = data?.items || [];
-
   return (
     <div className="bg-background min-h-screen pb-safe font-sans selection:bg-primary/20">
       
@@ -124,56 +112,21 @@ export default function AppleStyleHomePage() {
         {/* 3. Main Services Grid - Apple Control Center Style */}
         <section className="w-full max-w-5xl mx-auto">
           <div className="grid grid-cols-4 lg:grid-cols-8 gap-y-6 gap-x-3 md:gap-x-6">
-            {isCategoriesLoading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-3">
-                  <Skeleton className="w-[4.25rem] h-[4.25rem] md:w-20 md:h-20 rounded-[1.5rem] md:rounded-[1.75rem]" />
-                  <Skeleton className="w-16 h-3" />
-                </div>
-              ))
-            ) : (
-              categories?.map((cat, index) => {
-                const palette = CATEGORY_PALETTE[index % CATEGORY_PALETTE.length];
-                const Icon = palette.icon;
-                
-                return (
-                  <Link key={cat.id} href="/customer/catalog" className="group flex flex-col items-center gap-3">
-                    <motion.div 
-                      whileTap={{ scale: 0.92 }}
-                      className={cn(
-                        "w-[4.25rem] h-[4.25rem] md:w-20 md:h-20 bg-card rounded-[1.5rem] md:rounded-[1.75rem] flex items-center justify-center border border-border/30 shadow-sm transition-all group-hover:shadow-md"
-                      )}
-                    >
-                      <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-colors", palette.bg, palette.color)}>
-                        {cat.iconUrl ? (
-                          <img src={cat.iconUrl} alt={cat.name} className="w-6 h-6 object-contain" />
-                        ) : (
-                          <Icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={2.5} />
-                        )}
-                      </div>
-                    </motion.div>
-                    <span className="text-[11px] md:text-xs font-semibold text-center leading-tight text-foreground/80 group-hover:text-foreground transition-colors line-clamp-2 px-1">
-                      {cat.name}
-                    </span>
-                  </Link>
-                );
-              })
-            )}
-            
-            {/* View All Button */}
-            <Link href="/customer/catalog" className="group flex flex-col items-center gap-3">
-               <motion.div 
-                 whileTap={{ scale: 0.92 }}
-                 className="w-[4.25rem] h-[4.25rem] md:w-20 md:h-20 bg-card rounded-[1.5rem] md:rounded-[1.75rem] flex items-center justify-center border border-border/30 shadow-sm transition-all group-hover:shadow-md"
-               >
-                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-colors bg-gray-500/10 text-gray-500">
-                    <ChevronRight className="w-5 h-5 md:w-6 md:h-6" strokeWidth={2.5} />
-                 </div>
-               </motion.div>
-               <span className="text-[11px] md:text-xs font-semibold text-center leading-tight text-foreground/80 group-hover:text-foreground transition-colors line-clamp-2 px-1">
-                 Tất cả
-               </span>
-            </Link>
+            {MAIN_SERVICES.map((srv) => (
+              <Link key={srv.id} href={`/services/${srv.id}`} className="group flex flex-col items-center gap-3">
+                <motion.div 
+                  whileTap={{ scale: 0.92 }}
+                  className={cn(
+                    "w-[4.25rem] h-[4.25rem] md:w-20 md:h-20 bg-card rounded-[1.5rem] md:rounded-[1.75rem] flex items-center justify-center border border-border/30 shadow-sm transition-all group-hover:shadow-md"
+                  )}
+                >
+                  <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-colors", srv.bg, srv.color)}>
+                    <srv.icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={2.5} />
+                  </div>
+                </motion.div>
+                <span className="text-[11px] md:text-xs font-semibold text-center leading-tight text-foreground/80 group-hover:text-foreground transition-colors">{srv.label}</span>
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -212,59 +165,6 @@ export default function AppleStyleHomePage() {
                    </div>
                 </motion.div>
              ))}
-          </div>
-        </section>
-
-        {/* Popular Services Section */}
-        <section className="w-full max-w-7xl mx-auto mt-10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight">Dịch vụ phổ biến</h2>
-              <p className="text-sm text-muted-foreground mt-1">Các dịch vụ được đặt nhiều nhất</p>
-            </div>
-            <Link href="/customer/catalog" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">Xem tất cả</Link>
-          </div>
-          
-          <div className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 pb-6 -mx-4 px-4 md:mx-0 md:px-0">
-             {isServicesLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="min-w-[80vw] md:min-w-[280px] h-[160px] rounded-[1.5rem] snap-center shrink-0" />
-                ))
-             ) : (
-                services?.map((srv) => (
-                  <motion.div 
-                    whileTap={{ scale: 0.98 }}
-                    key={srv.id} 
-                    className="min-w-[80vw] md:min-w-[280px] bg-card border border-border/40 rounded-[1.5rem] p-5 flex flex-col justify-between snap-center group cursor-pointer shadow-sm hover:shadow-md transition-all shrink-0"
-                  >
-                     <div className="flex items-start gap-4 mb-4">
-                       <div className="w-14 h-14 rounded-2xl bg-muted overflow-hidden shrink-0">
-                         {srv.thumbnailUrl ? (
-                           <img src={srv.thumbnailUrl} className="w-full h-full object-cover" alt={srv.name} />
-                         ) : (
-                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                             <Sparkles className="w-6 h-6" />
-                           </div>
-                         )}
-                       </div>
-                       <div>
-                         <h3 className="font-bold text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">{srv.name}</h3>
-                         {srv.durationHours && (
-                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
-                             <Clock className="w-3.5 h-3.5" />
-                             {srv.durationHours} giờ
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                     <Link href={`/booking/${srv.id}`}>
-                       <Button variant="secondary" className="w-full rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all font-semibold h-10 text-sm">
-                          Đặt ngay
-                       </Button>
-                     </Link>
-                  </motion.div>
-                ))
-             )}
           </div>
         </section>
 

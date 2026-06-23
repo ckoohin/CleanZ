@@ -1,48 +1,25 @@
-export interface PublicServicePricing {
+﻿export interface PublicServicePricing {
   basePrice: number;
   petFee: number;
   waitingFee: number;
 }
 
-export interface PublicSubService {
+export interface PublicService {
   id: string;
-  subServiceCode: string;
+  serviceCode: string;
   name: string;
   description: string | null;
   shortDescription: string | null;
-  durationHours: number;
+  baseDurationHours: number;
   thumbnailUrl: string | null;
   galleryUrls: string[];
   includedTasks: string[];
   excludedTasks: string[];
-  pricingType: string;
   pricing: PublicServicePricing;
 }
 
-export interface PublicCoverageArea {
-  id: string;
-  name: string;
-}
-
-export interface PublicPackage {
-  id: string;
-  packageCode: string;
-  name: string;
-  iconUrl: string | null;
-  maxHours: number;
-  termsAndConditions: string | null;
-  policyDescription: string | null;
-  nightSurcharge: number;
-  petSurcharge: number;
-  waitingSurcharge: number;
-  toolFee: number;
-  peakRatePercent: number;
-  coverageAreas: PublicCoverageArea[];
-  subServices: PublicSubService[];
-}
-
 export interface PublicServiceListResponse {
-  data: PublicPackage[];
+  data: PublicService[];
   meta: {
     total: number;
     page: number;
@@ -50,6 +27,3 @@ export interface PublicServiceListResponse {
     totalPages: number;
   };
 }
-
-// Giữ lại alias để tương thích ngược nếu cần
-export type PublicService = PublicPackage;
