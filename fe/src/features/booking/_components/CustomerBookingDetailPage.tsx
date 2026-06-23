@@ -32,6 +32,8 @@ import type {
   StatusLog,
   UpdateBookingScheduleDto,
 } from "@/features/booking/types/booking.types";
+import { useCustomerBookingTracking } from "@/features/booking/hooks/useBookingTracking";
+import { BookingTrackingMap } from "./BookingTrackingMap";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -443,6 +445,12 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 }) => {
   const router = useRouter();
   const { data: booking, isLoading } = useBookingDetail(bookingId);
+  const trackingEnabled = booking?.status === "TASKER_ON_THE_WAY";
+  const {
+    tracking,
+    isConnected: isTrackingConnected,
+    error: trackingError,
+  } = useCustomerBookingTracking(bookingId, trackingEnabled);
   const [showCancel, setShowCancel] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -558,6 +566,19 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               </p>
             </div>
           </div>
+        )}
+
+        {booking.status === "TASKER_ON_THE_WAY" && (
+          <BookingTrackingMap
+            tracking={tracking}
+            isConnected={isTrackingConnected}
+            error={trackingError}
+            fallbackDestination={{
+              latitude: booking.address.latitude,
+              longitude: booking.address.longitude,
+              address: booking.address.fullAddress,
+            }}
+          />
         )}
 
         {/* Schedule — nút Sửa khi POSTED */}

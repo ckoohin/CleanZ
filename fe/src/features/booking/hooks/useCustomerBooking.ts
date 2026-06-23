@@ -62,6 +62,7 @@ export function useBookingDetail(id: string) {
     queryKey: QUERY_KEYS.detail(id),
     queryFn: () => customerBookingApi.findDetail(id),
     enabled: !!id,
+    refetchInterval: 10_000,
   });
 }
 

@@ -1,12 +1,14 @@
 import { io, Socket } from 'socket.io-client';
+import { getBackendOrigin } from "@/lib/api/base-url";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:5000';
+const SOCKET_URL = getBackendOrigin();
+const TRACKING_SOCKET_URL = `${SOCKET_URL.replace(/\/$/, '')}/tracking`;
 
 let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    socket = io(TRACKING_SOCKET_URL, {
       withCredentials: true,
       autoConnect: false,
       transports: ['websocket', 'polling'],

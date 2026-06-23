@@ -1,7 +1,9 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { authApi } from '@/features/auth/services/auth.service';
 import { toast } from "sonner";
-const baseURL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+import { getApiBaseUrl } from "@/lib/api/base-url";
+
+const baseURL = getApiBaseUrl();
 
 const http = axios.create({
   baseURL,

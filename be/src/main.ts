@@ -20,6 +20,7 @@ async function bootstrap() {
     'http://localhost:3020',
     'http://127.0.0.1:3020',
     'http://172.22.64.1:3020',
+    'http://192.168.1.21:3020',
   ].filter(Boolean) as string[];
 
   app.enableCors({

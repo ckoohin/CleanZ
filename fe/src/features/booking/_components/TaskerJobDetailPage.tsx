@@ -16,6 +16,7 @@ import {
   PawPrint,
   AlertTriangle,
   Route,
+  Loader2,
 } from "lucide-react";
 import {
   usePostedBookingDetail,
@@ -31,6 +32,8 @@ import type {
   TaskerAssignedBookingDetail,
   TaskerPostedBookingDetail,
 } from "@/features/booking/types/booking.types";
+import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTracking";
+import { BookingTrackingMap } from "./BookingTrackingMap";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -50,6 +53,15 @@ const STATUS_CONFIG: Record<
   CANCELLED: { label: "Đã hủy", color: "text-slate-500", bg: "bg-slate-100" },
   EXPIRED: { label: "Hết hạn", color: "text-slate-500", bg: "bg-slate-100" },
 };
+
+type LocationErrorKind =
+  | "permission-denied"
+  | "location-disabled"
+  | "timeout"
+  | "inaccurate"
+  | "insecure-context"
+  | "unsupported"
+  | null;
 
 // ─── Action Button ─────────────────────────────────────────────────────────────
 function ActionButton({
@@ -194,6 +206,16 @@ function AssignedDetailView({
   const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
+  const {
+    tracking,
+    isConnected: isTrackingConnected,
+    error: trackingError,
+    lastUpdatedAt,
+    locationAccuracy,
+  } = useTaskerLocationTracking(
+    bookingId,
+    data.status === "TASKER_ON_THE_WAY",
+  );
 
   const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.CONFIRMED;
   const canContact = data.canContactCustomer;
@@ -295,13 +317,71 @@ function AssignedDetailView({
         />
       )}
       {data.status === "TASKER_ON_THE_WAY" && (
-        <ActionButton
-          label="Check-in — Tôi đã đến nơi"
-          icon={MapPin}
-          onClick={() => markCheckedIn.mutate()}
-          isPending={markCheckedIn.isPending}
-          color="amber"
-        />
+        <>
+          <BookingTrackingMap
+            viewer="tasker"
+            tracking={tracking}
+            isConnected={
+              isTrackingConnected &&
+              !trackingError &&
+              locationAccuracy !== null &&
+              locationAccuracy <= 100
+            }
+            error={trackingError}
+            fallbackDestination={{
+              latitude: data.address?.latitude,
+              longitude: data.address?.longitude,
+              address: data.address?.fullAddress,
+            }}
+          />
+          <div
+            className={`rounded-2xl border p-4 ${
+              trackingError
+                ? "border-red-200 bg-red-50"
+                : "border-blue-200 bg-blue-50"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Navigation
+                className={`h-4 w-4 ${
+                  trackingError ? "text-red-500" : "text-blue-600"
+                }`}
+              />
+              <p
+                className={`text-sm font-bold ${
+                  trackingError ? "text-red-700" : "text-blue-700"
+                }`}
+              >
+                {trackingError
+                  ? "Chưa thể chia sẻ vị trí"
+                  : isTrackingConnected
+                    ? "Đang chia sẻ vị trí với khách hàng"
+                    : "Đang kết nối định vị..."}
+              </p>
+            </div>
+            <p
+              className={`mt-1 text-xs ${
+                trackingError ? "text-red-600" : "text-blue-600"
+              }`}
+            >
+              {trackingError ??
+                (lastUpdatedAt
+                  ? `Cập nhật gần nhất lúc ${new Date(lastUpdatedAt).toLocaleTimeString("vi-VN")}${
+                      locationAccuracy !== null
+                        ? ` · Sai số ±${locationAccuracy} m`
+                        : ""
+                    }`
+                  : "Giữ GPS và kết nối mạng trong lúc di chuyển.")}
+            </p>
+          </div>
+          <ActionButton
+            label="Check-in — Tôi đã đến nơi"
+            icon={MapPin}
+            onClick={() => markCheckedIn.mutate()}
+            isPending={markCheckedIn.isPending}
+            color="amber"
+          />
+        </>
       )}
       {data.status === "CHECKED_IN" && (
         <ActionButton
@@ -352,15 +432,32 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
   }>({});
   const [locationResolved, setLocationResolved] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationErrorKind, setLocationErrorKind] =
+    useState<LocationErrorKind>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
   const requestCurrentLocation = () => {
     setLocationResolved(false);
     setLocationError(null);
+    setLocationErrorKind(null);
     setLocation({});
+    setIsRequestingLocation(true);
+
+    if (!window.isSecureContext) {
+      setLocationError(
+        "Trình duyệt chỉ cho phép yêu cầu GPS qua HTTPS. Hãy mở ứng dụng bằng HTTPS rồi thử lại.",
+      );
+      setLocationErrorKind("insecure-context");
+      setLocationResolved(true);
+      setIsRequestingLocation(false);
+      return;
+    }
 
     if (!navigator.geolocation) {
       setLocationError("Trình duyệt không hỗ trợ định vị.");
+      setLocationErrorKind("unsupported");
       setLocationResolved(true);
+      setIsRequestingLocation(false);
       return;
     }
 
@@ -370,7 +467,9 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
           setLocationError(
             `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
           );
+          setLocationErrorKind("inaccurate");
           setLocationResolved(true);
+          setIsRequestingLocation(false);
           return;
         }
 
@@ -379,19 +478,32 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
           currentLongitude: position.coords.longitude,
         });
         setLocationResolved(true);
+        setIsRequestingLocation(false);
       },
       (error) => {
-        const message =
-          error.code === error.PERMISSION_DENIED
-            ? "Bạn chưa cấp quyền truy cập vị trí cho trình duyệt."
-            : "Không thể xác định vị trí chính xác. Vui lòng thử lại.";
+        let message =
+          "Không thể xác định vị trí. Hãy bật GPS rồi thử lại.";
+        let errorKind: LocationErrorKind = "location-disabled";
+
+        if (error.code === error.PERMISSION_DENIED) {
+          message =
+            "Quyền vị trí đang bị chặn. Hãy mở cài đặt trang của trình duyệt, chọn Vị trí → Cho phép rồi thử lại.";
+          errorKind = "permission-denied";
+        } else if (error.code === error.TIMEOUT) {
+          message =
+            "Chưa nhận được tín hiệu GPS. Hãy bật Vị trí chính xác, ra nơi thoáng và thử lại.";
+          errorKind = "timeout";
+        }
+
         setLocationError(message);
+        setLocationErrorKind(errorKind);
         setLocationResolved(true);
+        setIsRequestingLocation(false);
       },
       {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 10_000,
+        timeout: 15_000,
       },
     );
   };
@@ -464,12 +576,27 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
               {locationError ??
                 "Hãy cho phép trình duyệt dùng vị trí để tính khoảng cách tới đơn."}
             </p>
+            {locationErrorKind === "permission-denied" && (
+              <p className="mx-auto mt-2 max-w-sm text-[11px] text-muted-foreground">
+                Android: biểu tượng ổ khóa cạnh địa chỉ → Quyền → Vị trí.
+                iPhone: Cài đặt → Safari/Chrome → Vị trí → Khi dùng ứng dụng.
+              </p>
+            )}
             <button
               type="button"
               onClick={requestCurrentLocation}
-              className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white"
+              disabled={isRequestingLocation}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Thử lấy lại vị trí
+              {isRequestingLocation && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              )}
+              {isRequestingLocation
+                ? "Đang yêu cầu vị trí..."
+                : locationErrorKind === "permission-denied" ||
+                    locationErrorKind === "location-disabled"
+                  ? "Bật định vị và thử lại"
+                  : "Thử lấy lại vị trí"}
             </button>
           </div>
         ) : isLoading ? (

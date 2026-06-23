@@ -1,32 +1,34 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";
-
-function isTokenExpired(token: string): boolean {
+function decodeTokenPayload(token: string): Record<string, unknown> | null {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 < Date.now();
-  } catch {
-    return true;
-  }
-}
+    const encodedPayload = token.split(".")[1];
+    if (!encodedPayload) return null;
 
-function getUserRole(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.role; // e.g. "CUSTOMER", "TASKER", "ADMIN"
+    const normalized = encodedPayload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=");
+
+    return JSON.parse(atob(normalized)) as Record<string, unknown>;
   } catch {
     return null;
   }
 }
 
-function parseCookieValue(setCookieHeader: string, name: string): string | null {
-  if (!setCookieHeader.startsWith(`${name}=`)) return null;
-  return setCookieHeader.split(";")[0].split("=").slice(1).join("=");
+function isTokenExpired(token: string): boolean {
+  const payload = decodeTokenPayload(token);
+  const expiresAt = Number(payload?.exp);
+  return !Number.isFinite(expiresAt) || expiresAt * 1000 <= Date.now();
 }
 
-export async function proxy(req: NextRequest) {
+function getUserRole(token: string): string | null {
+  const payload = decodeTokenPayload(token);
+  return typeof payload?.role === "string" ? payload.role : null;
+}
+
+export function proxy(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const accessToken = req.cookies.get("access_token")?.value;
   const refreshTokenCookie = req.cookies.get("refresh_token")?.value;
@@ -35,65 +37,32 @@ export async function proxy(req: NextRequest) {
     return redirectToLogin(req, pathname, searchParams);
   }
 
-  let activeToken = accessToken;
-
-  // 1. Kiểm tra Token Expired và Refresh nếu cần
-  if (!activeToken || isTokenExpired(activeToken)) {
-    if (refreshTokenCookie) {
-      try {
-        const refreshRes = await fetch(`${baseURL}/auth/refresh`, {
-          method: "POST",
-          headers: {
-            Cookie: `refreshToken=${refreshTokenCookie}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (refreshRes.ok) {
-          const response = NextResponse.next();
-          const setCookies = refreshRes.headers.getSetCookie();
-
-          for (const sc of setCookies) {
-            response.headers.append("Set-Cookie", sc);
-            const atVal = parseCookieValue(sc, "access_token");
-            if (atVal) {
-              req.cookies.set("access_token", atVal);
-              activeToken = atVal; // Cập nhật activeToken để check role phía dưới
-            }
-            const rtVal = parseCookieValue(sc, "refresh_token");
-            if (rtVal) req.cookies.set("refresh_token", rtVal);
-          }
-        } else {
-          return redirectToLogin(req, pathname, searchParams);
-        }
-      } catch {
-        return redirectToLogin(req, pathname, searchParams);
-      }
-    } else {
-      return redirectToLogin(req, pathname, searchParams);
-    }
+  // Chỉ Axios interceptor được phép xoay refresh token. Nếu proxy cũng refresh,
+  // nhiều request điều hướng song song có thể cùng dùng một token cũ và tự làm
+  // mất hiệu lực lẫn nhau. Khi access token hết hạn nhưng còn refresh token,
+  // cho request đi tiếp để RoleGuard gọi /auth/me và interceptor refresh một lần.
+  if (!accessToken || isTokenExpired(accessToken)) {
+    return refreshTokenCookie
+      ? NextResponse.next()
+      : redirectToLogin(req, pathname, searchParams);
   }
 
-  // 2. Kiểm tra quyền truy cập (Role-based access control)
-  if (activeToken) {
-    const role = getUserRole(activeToken);
+  // Kiểm tra nhanh role khi access token còn hạn. BE vẫn là lớp phân quyền chính.
+  const role = getUserRole(accessToken);
     
-    if (pathname.startsWith("/admin") && role !== "ADMIN") {
-      return redirectToLogin(req, pathname, searchParams);
-    }
+  if (pathname.startsWith("/admin") && role !== "ADMIN") {
+    return redirectToLogin(req, pathname, searchParams);
+  }
     
-    if (pathname.startsWith("/tasker") && role !== "TASKER" && role !== "ADMIN") {
-      return redirectToLogin(req, pathname, searchParams);
-    }
+  if (pathname.startsWith("/tasker") && role !== "TASKER" && role !== "ADMIN") {
+    return redirectToLogin(req, pathname, searchParams);
+  }
     
-    if (pathname.startsWith("/customer") && role !== "CUSTOMER" && role !== "ADMIN") {
-      return redirectToLogin(req, pathname, searchParams);
-    }
-    
-    return NextResponse.next();
+  if (pathname.startsWith("/customer") && role !== "CUSTOMER" && role !== "ADMIN") {
+    return redirectToLogin(req, pathname, searchParams);
   }
 
-  return redirectToLogin(req, pathname, searchParams);
+  return NextResponse.next();
 }
 
 function redirectToLogin(req: NextRequest, pathname: string, searchParams: URLSearchParams) {

@@ -27,6 +27,8 @@ export interface TaskerLocationUpdatedPayload {
     latitude: number;
     longitude: number;
     updatedAt: string;
+    accuracy?: number | null;
+    capturedAt?: string | null;
   };
   destination: {
     latitude: number;
@@ -143,6 +145,7 @@ export class TrackingService {
     }
 
     const updatedAt = new Date().toISOString();
+    const accuracy = Number(dto.accuracy);
     const route = await this.goongMapService.calculateDrivingRoute({
       originLatitude: latitude,
       originLongitude: longitude,
@@ -162,6 +165,8 @@ export class TrackingService {
         latitude,
         longitude,
         updatedAt,
+        accuracy: Number.isFinite(accuracy) ? accuracy : null,
+        capturedAt: dto.capturedAt ?? null,
       },
       destination: {
         latitude: destinationLatitude,

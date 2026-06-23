@@ -18,7 +18,6 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerDescription,
 } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { useLogin, getErrorMessage } from "@/features/auth/hooks/auth.hooks";
@@ -26,6 +25,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { getApiBaseUrl } from "@/lib/api/base-url";
 
 const loginSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -101,11 +101,24 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
   }, [searchParams]);
 
   // Login form
-  const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const desktopLoginForm = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+  const mobileLoginForm = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
   const login = useLogin("/tasker");
 
   // Register form
-  const registerForm = useForm<RegisterValues>({ resolver: zodResolver(registerSchema) });
+  const desktopRegisterForm = useForm<RegisterValues>({
+    resolver: zodResolver(registerSchema),
+  });
+  const mobileRegisterForm = useForm<RegisterValues>({
+    resolver: zodResolver(registerSchema),
+  });
+  const apiBaseUrl = getApiBaseUrl();
 
   const handleLogin = (values: LoginValues) => {
     login.mutate({ email: values.email, password: values.password, role: "TASKER" });
@@ -134,7 +147,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
 
   const handleSocialClick = (platform: "google" | "apple") => {
     if (platform === "google") {
-      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google?state=tasker`;
+      window.location.href = `${apiBaseUrl}/auth/google?state=tasker`;
     } else {
       toast.info("Đăng nhập bằng Apple ID đang được tích hợp và sẽ sớm ra mắt!");
     }
@@ -144,6 +157,12 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
 
   // Hàm helper render Form Auth (Email/Password) dùng chung cho cả PC và Mobile Panel trượt
   const renderAuthForm = (isMobile: boolean) => {
+    const loginForm = isMobile ? mobileLoginForm : desktopLoginForm;
+    const registerForm = isMobile
+      ? mobileRegisterForm
+      : desktopRegisterForm;
+    const fieldSuffix = isMobile ? "mobile" : "desktop";
+
     return (
       <div className="w-full space-y-4">
         {/* TAB SWITCH (ĐĂNG NHẬP / ĐĂNG KÝ) - PREMIUM PILL */}
@@ -188,7 +207,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
             >
               <div className="space-y-2">
                 <Label 
-                  htmlFor="tasker-email" 
+                  htmlFor={`tasker-email-${fieldSuffix}`}
                   className="text-sm font-medium flex items-center gap-1 text-foreground/80 transition-colors"
                 >
                   Email của bạn
@@ -196,7 +215,8 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="tasker-email"
+                    id={`tasker-email-${fieldSuffix}`}
+                    autoComplete="email"
                     type="email"
                     placeholder="partner@cleanz.vn"
                     className="h-12 pl-10 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
@@ -211,7 +231,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label 
-                    htmlFor="tasker-password" 
+                    htmlFor={`tasker-password-${fieldSuffix}`}
                     className="text-sm font-medium flex items-center gap-1 text-foreground/80 transition-colors"
                   >
                     Mật khẩu
@@ -221,7 +241,8 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                 <div className="relative group">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="tasker-password"
+                    id={`tasker-password-${fieldSuffix}`}
+                    autoComplete="current-password"
                     type={showPw ? "text" : "password"}
                     placeholder="••••••••••"
                     className="h-12 pl-10 pr-12 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
@@ -266,7 +287,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
             >
               <div className="space-y-1.5">
                 <Label 
-                  htmlFor="reg-fullname" 
+                  htmlFor={`reg-fullname-${fieldSuffix}`}
                   className="text-sm font-medium text-foreground/80 transition-colors"
                 >
                   Họ và tên của bạn
@@ -274,7 +295,8 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                 <div className="relative">
                   <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="reg-fullname"
+                    id={`reg-fullname-${fieldSuffix}`}
+                    autoComplete="name"
                     placeholder="Nguyễn Văn A"
                     className="h-11 pl-10 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
                     {...registerForm.register("fullName")}
@@ -287,7 +309,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
 
               <div className="space-y-1.5">
                 <Label 
-                  htmlFor="reg-phone" 
+                  htmlFor={`reg-phone-${fieldSuffix}`}
                   className="text-sm font-medium text-foreground/80 transition-colors"
                 >
                   Số điện thoại
@@ -295,7 +317,10 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="reg-phone"
+                    id={`reg-phone-${fieldSuffix}`}
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
                     placeholder="0912345678"
                     className="h-11 pl-10 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
                     {...registerForm.register("phone")}
@@ -308,7 +333,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
 
               <div className="space-y-1.5">
                 <Label 
-                  htmlFor="reg-email" 
+                  htmlFor={`reg-email-${fieldSuffix}`}
                   className="text-sm font-medium text-foreground/80 transition-colors"
                 >
                   Email nhận thông báo
@@ -316,8 +341,9 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="reg-email"
+                    id={`reg-email-${fieldSuffix}`}
                     type="email"
+                    autoComplete="email"
                     placeholder="partner@cleanz.vn"
                     className="h-11 pl-10 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
                     {...registerForm.register("email")}
@@ -331,7 +357,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label 
-                    htmlFor="reg-password" 
+                    htmlFor={`reg-password-${fieldSuffix}`}
                     className="text-sm font-medium text-foreground/80 transition-colors"
                   >
                     Mật khẩu
@@ -339,8 +365,9 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="reg-password"
+                      id={`reg-password-${fieldSuffix}`}
                       type={showPw ? "text" : "password"}
+                      autoComplete="new-password"
                       placeholder="••••••••"
                       className="h-11 pl-10 pr-10 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
                       {...registerForm.register("password")}
@@ -360,7 +387,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
 
                 <div className="space-y-1.5">
                   <Label 
-                    htmlFor="reg-confirm" 
+                    htmlFor={`reg-confirm-${fieldSuffix}`}
                     className="text-sm font-medium text-foreground/80 transition-colors"
                   >
                     Xác nhận MK
@@ -368,8 +395,9 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="reg-confirm"
+                      id={`reg-confirm-${fieldSuffix}`}
                       type={showConfirm ? "text" : "password"}
+                      autoComplete="new-password"
                       placeholder="••••••••"
                       className="h-11 pl-10 pr-10 rounded-xl bg-card border-border focus-visible:ring-primary text-foreground placeholder:text-muted-foreground transition-all"
                       {...registerForm.register("confirmPassword")}
@@ -581,7 +609,13 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
       {/* ========================================================================= */}
       {/* 🔮 PANEL BOTTOM SHEET GLASSMORPHISM TRƯỢT MỞ FORM CHO MOBILE */}
       {/* ========================================================================= */}
-      <Drawer open={showEmailFormMobile} onOpenChange={setShowEmailFormMobile}>
+      <Drawer
+        open={showEmailFormMobile}
+        onOpenChange={setShowEmailFormMobile}
+        fixed
+        handleOnly
+        repositionInputs={false}
+      >
         <DrawerContent className="bg-background border-t border-border lg:hidden max-h-[95vh] outline-none rounded-t-[4rem] sm:max-w-[540px] md:max-w-[640px] sm:mx-auto sm:border-x sm:rounded-t-[3rem]">
           <div className="px-6 pb-12 pt-2 flex flex-col overflow-y-auto w-full">
             {/* Header của Panel Bottom Sheet */}
@@ -702,4 +736,3 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
     </div>
   );
 }
-
