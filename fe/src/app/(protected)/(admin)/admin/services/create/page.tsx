@@ -4,11 +4,11 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
-import { useCreateAdminService } from "@/features/admin/hooks/useAdminServices";
+import { ServiceForm } from "@/features/admin/modules/service/_components/ServiceForm";
+import { useCreateAdminService } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 import { usePricingConfigs } from "@/features/admin/hooks/useAdminPricing";
-import { CreateAdminServiceDto } from "@/features/admin/services/admin-services.service";
+import { CreateAdminServiceDto } from "@/features/admin/modules/service/services/admin-services.service";
 
 export default function CreateServicePage() {
   const router = useRouter();

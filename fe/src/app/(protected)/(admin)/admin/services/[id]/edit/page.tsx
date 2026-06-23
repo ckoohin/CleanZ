@@ -4,11 +4,11 @@ import React, { use } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
-import { useAdminServiceDetail, useUpdateAdminService } from "@/features/admin/hooks/useAdminServices";
+import { ServiceForm } from "@/features/admin/modules/service/_components/ServiceForm";
+import { useAdminServiceDetail, useUpdateAdminService } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 import { usePricingConfigs } from "@/features/admin/hooks/useAdminPricing";
-import { UpdateAdminServiceDto } from "@/features/admin/services/admin-services.service";
+import { UpdateAdminServiceDto } from "@/features/admin/modules/service/services/admin-services.service";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 
 export default function EditServicePage({ params }: { params: Promise<{ id: string }> }) {

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useServiceTaskers } from "@/features/admin/hooks/useAdminServices";
+import { useServiceTaskers } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { Loader2, Search, Star } from "lucide-react";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 import { Input } from "@/components/ui/input";

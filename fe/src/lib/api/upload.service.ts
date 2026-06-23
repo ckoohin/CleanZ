@@ -1,5 +1,5 @@
 import http from '@/lib/api/http';
-import { ApiResponse } from '@/features/admin/services/admin-services.service';
+import { ApiResponse } from '@/features/admin/modules/service/services/admin-services.service';
 
 export const uploadApi = {
   uploadImage: async (file: File): Promise<string> => {

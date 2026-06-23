@@ -4,13 +4,13 @@ import React, { use } from "react";
 import { ArrowLeft, Loader2, Info, ListOrdered, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { useAdminServiceDetail } from "@/features/admin/hooks/useAdminServices";
+import { useAdminServiceDetail } from "@/features/admin/modules/service/hooks/useAdminServices";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ServiceOverviewTab } from "@/features/admin/components/services/detail/ServiceOverviewTab";
-import { ServiceBookingsTab } from "@/features/admin/components/services/detail/ServiceBookingsTab";
-import { ServiceTaskersTab } from "@/features/admin/components/services/detail/ServiceTaskersTab";
-import { ServicePricingTab } from "@/features/admin/components/services/detail/ServicePricingTab";
+import { ServiceOverviewTab } from "@/features/admin/modules/service/_components/detail/ServiceOverviewTab";
+import { ServiceBookingsTab } from "@/features/admin/modules/service/_components/detail/ServiceBookingsTab";
+import { ServiceTaskersTab } from "@/features/admin/modules/service/_components/detail/ServiceTaskersTab";
+import { ServicePricingTab } from "@/features/admin/modules/service/_components/detail/ServicePricingTab";
 import { DollarSign } from "lucide-react";
 
 export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {

@@ -1,6 +1,6 @@
 import http from '@/lib/api/http';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
-import type { ServiceOptionEntity } from './admin-options.service';
+import type { ServiceOptionEntity } from '@/features/admin/services/admin-options.service';
 export interface PaginatedData<T> {
   items: T[];
   total: number;

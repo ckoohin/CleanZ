@@ -1,6 +1,6 @@
 import http from '@/lib/api/http';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
-import { PaginatedData, ApiResponse } from './admin-services.service';
+import { PaginatedData, ApiResponse } from '@/features/admin/modules/service/services/admin-services.service';
 
 export interface PricingConfigEntity {
   id: string;

@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
-import { adminServicesApi } from '@/features/admin/services/admin-services.service';
+import { adminServicesApi } from '@/features/admin/modules/service/services/admin-services.service';
 
 // Mock Categories for beautiful frontend design (Backend doesn't manage categories directly in DB)
 const mockCategories = [

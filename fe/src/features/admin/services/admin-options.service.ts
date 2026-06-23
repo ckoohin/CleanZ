@@ -1,5 +1,5 @@
 import http from '@/lib/api/http';
-import { ApiResponse } from './admin-services.service';
+import { ApiResponse } from '@/features/admin/modules/service/services/admin-services.service';
 
 export enum PriceType {
   FIXED_ADD = 'FIXED_ADD',

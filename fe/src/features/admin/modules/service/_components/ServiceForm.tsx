@@ -21,15 +21,15 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AdminServiceEntity, CreateAdminServiceDto } from "../../services/admin-services.service";
-import { PricingConfigEntity } from "../../services/admin-pricing.service";
+import { AdminServiceEntity, CreateAdminServiceDto } from "../services/admin-services.service";
+import { PricingConfigEntity } from "@/features/admin/services/admin-pricing.service";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
 import { DynamicListInput } from "@/components/ui/dynamic-list-input";
 import { Plus } from "lucide-react";
-import { PricingConfigSheet } from "../pricing/PricingConfigSheet";
-import { useCreatePricingConfig } from "../../hooks/useAdminPricing";
-import type { PricingConfigFormValues } from "../pricing/PricingConfigDialog";
+import { PricingConfigSheet } from "@/features/admin/components/pricing/PricingConfigSheet";
+import { useCreatePricingConfig } from "@/features/admin/hooks/useAdminPricing";
+import type { PricingConfigFormValues } from "@/features/admin/components/pricing/PricingConfigDialog";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "Vui lòng nhập tên dịch vụ").max(255, "Tên quá dài"),

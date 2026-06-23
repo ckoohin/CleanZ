@@ -9,7 +9,6 @@ import { BaseTableList, Column, RowAction } from "@/components/ui/base/base_tabl
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
 import {
   AlertDialog,
@@ -21,13 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { FilterGroup } from "@/components/ui/filter-group";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import {
   useAdminServices,
   useDeleteAdminService,
   useUpdateAdminService,
-} from "@/features/admin/hooks/useAdminServices";
-import { AdminServiceEntity } from "@/features/admin/services/admin-services.service";
+} from "@/features/admin/modules/service/hooks/useAdminServices";
+import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 
 // Custom useDebounce hook
@@ -64,6 +65,27 @@ export default function AdminServicesPage() {
   });
 
   const { data: categories } = useAdminCategories();
+
+  const categoryOptions = React.useMemo(() => {
+    const opts = [{ value: "all", label: "Tất cả danh mục" }];
+    if (categories) {
+      categories.forEach((cat) => {
+        opts.push({ value: cat.id, label: cat.name });
+      });
+    }
+    return opts;
+  }, [categories]);
+
+  const statusOptions = [
+    { value: "all", label: "Tất cả trạng thái" },
+    { value: "active", label: "Đang hoạt động" },
+    { value: "inactive", label: "Đã tắt" },
+  ];
+
+  const handleClearAll = () => {
+    setCategoryFilter("all");
+    setStatusFilter("all");
+  };
 
   const deleteMutation = useDeleteAdminService();
   const updateMutation = useUpdateAdminService();
@@ -218,32 +240,23 @@ export default function AdminServicesPage() {
         onKeywordChange={setSearchTerm}
         placeholderSearch="Tìm kiếm theo tên dịch vụ..."
         filters={
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px] h-11 rounded-xl bg-background border-border/50">
-                <SelectValue placeholder="Danh mục" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">Tất cả danh mục</SelectItem>
-                {categories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px] h-11 rounded-xl bg-background border-border/50">
-                <SelectValue placeholder="Trạng thái" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="active">Đang hoạt động</SelectItem>
-                <SelectItem value="inactive">Đã tắt</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <FilterGroup
+            showClearBtn={categoryFilter !== "all" || statusFilter !== "all"}
+            onClearAll={handleClearAll}
+          >
+            <SearchableSelect
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+              options={categoryOptions}
+              placeholder="Chọn danh mục"
+            />
+            <SearchableSelect
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+              options={statusOptions}
+              placeholder="Chọn trạng thái"
+            />
+          </FilterGroup>
         }
         rowActions={rowActions}
         isLoading={isLoading}
@@ -251,7 +264,7 @@ export default function AdminServicesPage() {
 
       {/* Xóa Modal */}
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
-        <AlertDialogContent className="rounded-[2rem]">
+        <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold">Xác nhận xóa dịch vụ</AlertDialogTitle>
             <AlertDialogDescription className="text-base">

@@ -1,7 +1,7 @@
 import React from "react";
 import { DollarSign, AlertCircle, Sparkles } from "lucide-react";
 import { ServiceOptionsBuilder } from "./ServiceOptionsBuilder";
-import { AdminServiceEntity } from "@/features/admin/services/admin-services.service";
+import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 
 interface ServicePricingTabProps {

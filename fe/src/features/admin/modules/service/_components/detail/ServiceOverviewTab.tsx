@@ -1,5 +1,5 @@
 import React from "react";
-import { AdminServiceEntity } from "@/features/admin/services/admin-services.service";
+import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { CheckCircle2, XCircle, Clock, MapPin, Check, X, Image as ImageIcon } from "lucide-react";
 import Image from "next/image";
 

@@ -6,7 +6,7 @@ import { BaseButton } from "@/components/ui/base/base_button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { AdminServiceEntity } from "@/features/admin/services/admin-services.service";
+import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { ServiceOptionEntity, ServiceOptionChoiceEntity, PriceType } from "@/features/admin/services/admin-options.service";
 import {
   useCreateServiceOption,
@@ -171,7 +171,7 @@ export function ServiceOptionsBuilder({ service }: Props) {
                   {/* List Choices */}
                   {option.choices && option.choices.length > 0 && (
                     <div className="space-y-3 mt-4">
-                      {option.choices.map((choice) => (
+                      {option.choices.map((choice: ServiceOptionChoiceEntity) => (
                         <div key={choice.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/10">
                           <div className="flex flex-col">
                             <span className="font-bold">{choice.name}</span>

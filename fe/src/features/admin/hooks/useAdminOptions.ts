@@ -8,7 +8,7 @@ import {
   CreateServiceOptionChoiceDto,
   UpdateServiceOptionChoiceDto,
 } from '../services/admin-options.service';
-import { ADMIN_SERVICES_KEYS } from './useAdminServices';
+import { ADMIN_SERVICES_KEYS } from '@/features/admin/modules/service/hooks/useAdminServices';
 
 export function useCreateServiceOption() {
   const queryClient = useQueryClient();

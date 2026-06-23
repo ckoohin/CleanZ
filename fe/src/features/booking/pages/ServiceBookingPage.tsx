@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Container from "@/components/Container";
 import { useQuery } from '@tanstack/react-query';
-import { adminServicesApi } from '@/features/admin/services/admin-services.service';
+import { adminServicesApi } from '@/features/admin/modules/service/services/admin-services.service';
 import { useAuth } from '@/features/auth/hooks/auth.hooks';
 import { BookingWizard } from '../components/wizard/BookingWizard';
 

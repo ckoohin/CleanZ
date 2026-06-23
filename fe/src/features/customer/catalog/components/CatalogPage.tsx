@@ -7,7 +7,7 @@ import { ServiceListHorizontal } from "./ServiceListHorizontal";
 import { Search, MapPin, Bell, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { adminServicesApi } from "@/features/admin/services/admin-services.service";
+import { adminServicesApi } from "@/features/admin/modules/service/services/admin-services.service";
 import { ServiceDetailModal } from "@/features/services/_components/ServiceDetailModal";
 import { PublicService } from "@/features/public/hooks/usePublicData";
 

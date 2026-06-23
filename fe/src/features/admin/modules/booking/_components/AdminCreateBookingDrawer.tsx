@@ -35,7 +35,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { useCreateAdminBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 import { useAdminCustomers, useAdminCustomerDetail } from "@/features/admin/modules/customer/hooks/useAdminCustomer";
-import { useAdminServices } from "@/features/admin/hooks/useAdminServices";
+import { useAdminServices } from "@/features/admin/modules/service/hooks/useAdminServices";
 
 const createBookingSchema = z.object({
   customerId: z.string().min(1, "Vui lòng chọn khách hàng"),
