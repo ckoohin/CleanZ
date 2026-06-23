@@ -186,6 +186,7 @@ export class TrackingGateway
     payload: TaskerArrivedPayload,
   ): Promise<{ room: string; roomMemberCount: number; stoppedTimers: number }> {
     const stoppedTimers = this.stopTaskerTrackingForBooking(bookingId);
+    this.trackingService.clearBookingRouteCache(bookingId);
     const emitResult = await this.emitToBookingRoom(
       bookingId,
       'tasker:arrived',
@@ -213,6 +214,7 @@ export class TrackingGateway
     bookingId: string,
     payload: BookingCompletedPayload,
   ): Promise<{ room: string; roomMemberCount: number }> {
+    this.trackingService.clearBookingRouteCache(bookingId);
     const emitResult = await this.emitToBookingRoom(
       bookingId,
       'booking:completed',

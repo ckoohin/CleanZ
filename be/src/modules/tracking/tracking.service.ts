@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Server } from 'socket.io';
@@ -47,8 +48,28 @@ export interface TrackingEmitResult {
   roomMemberCount: number;
 }
 
+interface RouteCacheEntry {
+  route: GoongRouteSummary;
+  originLatitude: number;
+  originLongitude: number;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  calculatedAt: number;
+  lastAccessedAt: number;
+}
+
 @Injectable()
 export class TrackingService {
+  private readonly logger = new Logger(TrackingService.name);
+  private readonly routeRefreshIntervalMs = 90_000;
+  private readonly routeRefreshDistanceMeters = 50;
+  private readonly routeCacheTtlMs = 6 * 60 * 60 * 1000;
+  private readonly routeCache = new Map<string, RouteCacheEntry>();
+  private readonly pendingRouteRequests = new Map<
+    string,
+    Promise<GoongRouteSummary>
+  >();
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly goongMapService: GoongMapService,
@@ -146,7 +167,8 @@ export class TrackingService {
 
     const updatedAt = new Date().toISOString();
     const accuracy = Number(dto.accuracy);
-    const route = await this.goongMapService.calculateDrivingRoute({
+    const route = await this.getDrivingRoute({
+      bookingId: booking.id,
       originLatitude: latitude,
       originLongitude: longitude,
       destinationLatitude,
@@ -179,5 +201,122 @@ export class TrackingService {
       longitude,
       updatedAt,
     };
+  }
+
+  clearBookingRouteCache(bookingId: string): void {
+    this.routeCache.delete(bookingId);
+    this.pendingRouteRequests.delete(bookingId);
+  }
+
+  private async getDrivingRoute(input: {
+    bookingId: string;
+    originLatitude: number;
+    originLongitude: number;
+    destinationLatitude: number;
+    destinationLongitude: number;
+  }): Promise<GoongRouteSummary> {
+    const now = Date.now();
+    this.removeExpiredRouteCacheEntries(now);
+
+    const cached = this.routeCache.get(input.bookingId);
+    if (cached && this.hasSameDestination(cached, input)) {
+      cached.lastAccessedAt = now;
+
+      const elapsedMs = now - cached.calculatedAt;
+      const movedMeters = this.calculateDistanceMeters(
+        cached.originLatitude,
+        cached.originLongitude,
+        input.originLatitude,
+        input.originLongitude,
+      );
+
+      if (
+        elapsedMs < this.routeRefreshIntervalMs ||
+        movedMeters < this.routeRefreshDistanceMeters
+      ) {
+        return cached.route;
+      }
+    }
+
+    const pendingRequest = this.pendingRouteRequests.get(input.bookingId);
+    if (pendingRequest) {
+      return pendingRequest;
+    }
+
+    const routeRequest = this.goongMapService
+      .calculateDrivingRoute({
+        originLatitude: input.originLatitude,
+        originLongitude: input.originLongitude,
+        destinationLatitude: input.destinationLatitude,
+        destinationLongitude: input.destinationLongitude,
+      })
+      .then((route) => {
+        this.routeCache.set(input.bookingId, {
+          route,
+          originLatitude: input.originLatitude,
+          originLongitude: input.originLongitude,
+          destinationLatitude: input.destinationLatitude,
+          destinationLongitude: input.destinationLongitude,
+          calculatedAt: Date.now(),
+          lastAccessedAt: Date.now(),
+        });
+
+        return route;
+      })
+      .finally(() => {
+        this.pendingRouteRequests.delete(input.bookingId);
+      });
+
+    this.pendingRouteRequests.set(input.bookingId, routeRequest);
+    this.logger.debug(`Refreshing Goong route for booking:${input.bookingId}`);
+
+    return routeRequest;
+  }
+
+  private hasSameDestination(
+    cached: RouteCacheEntry,
+    input: {
+      destinationLatitude: number;
+      destinationLongitude: number;
+    },
+  ): boolean {
+    return (
+      cached.destinationLatitude === input.destinationLatitude &&
+      cached.destinationLongitude === input.destinationLongitude
+    );
+  }
+
+  private removeExpiredRouteCacheEntries(now: number): void {
+    for (const [bookingId, entry] of this.routeCache) {
+      if (now - entry.lastAccessedAt > this.routeCacheTtlMs) {
+        this.routeCache.delete(bookingId);
+      }
+    }
+  }
+
+  private calculateDistanceMeters(
+    fromLatitude: number,
+    fromLongitude: number,
+    toLatitude: number,
+    toLongitude: number,
+  ): number {
+    const earthRadiusMeters = 6_371_000;
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const latitudeDelta = toRadians(toLatitude - fromLatitude);
+    const longitudeDelta = toRadians(toLongitude - fromLongitude);
+    const fromLatitudeRadians = toRadians(fromLatitude);
+    const toLatitudeRadians = toRadians(toLatitude);
+
+    const haversine =
+      Math.sin(latitudeDelta / 2) ** 2 +
+      Math.cos(fromLatitudeRadians) *
+        Math.cos(toLatitudeRadians) *
+        Math.sin(longitudeDelta / 2) ** 2;
+
+    return (
+      2 *
+      earthRadiusMeters *
+      Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+    );
   }
 }

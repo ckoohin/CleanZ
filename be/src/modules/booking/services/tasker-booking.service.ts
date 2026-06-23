@@ -175,6 +175,16 @@ interface TaskerLocationInput {
   currentLongitude?: number;
 }
 
+interface DistanceCacheEntry {
+  distance: TaskerAssignedBookingDetailResponse['distance'];
+  originLatitude: number;
+  originLongitude: number;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  calculatedAt: number;
+  lastAccessedAt: number;
+}
+
 const CUSTOMER_CONTACT_VISIBLE_STATUSES = [
   BookingStatus.TASKER_ON_THE_WAY,
   BookingStatus.CHECKED_IN,
@@ -185,6 +195,14 @@ const CUSTOMER_CONTACT_VISIBLE_STATUSES = [
 @Injectable()
 export class TaskerBookingService {
   private readonly logger = new Logger(TaskerBookingService.name);
+  private readonly distanceRefreshIntervalMs = 90_000;
+  private readonly distanceRefreshMeters = 50;
+  private readonly distanceCacheTtlMs = 6 * 60 * 60 * 1000;
+  private readonly distanceCache = new Map<string, DistanceCacheEntry>();
+  private readonly pendingDistanceRequests = new Map<
+    string,
+    Promise<TaskerAssignedBookingDetailResponse['distance']>
+  >();
 
   constructor(
     private readonly dataSource: DataSource,
@@ -282,6 +300,7 @@ export class TaskerBookingService {
       const distance = await this.calculateDistanceFromTaskerLocation(
         booking,
         location,
+        `posted:${booking.id}:${userId}`,
       );
       if (!distance) {
         throw new NotFoundException('Booking thiếu tọa độ địa chỉ');
@@ -433,6 +452,7 @@ export class TaskerBookingService {
       const distance = await this.calculateDistanceFromTaskerLocation(
         booking,
         location,
+        `assigned:${booking.id}:${tasker.id}`,
       );
       return this.mapAssignedBookingDetail(booking, service, distance);
     }, 'Không thể lấy chi tiết booking của tasker');
@@ -938,6 +958,7 @@ export class TaskerBookingService {
   private async calculateDistanceFromTaskerLocation(
     booking: BookingEntity,
     location?: TaskerLocationInput,
+    cacheKey = booking.id,
   ): Promise<TaskerAssignedBookingDetailResponse['distance']> {
     const currentLatitude = location?.currentLatitude;
     const currentLongitude = location?.currentLongitude;
@@ -961,15 +982,101 @@ export class TaskerBookingService {
     }
     const addressLatitude = booking.addressRef.latitude;
     const addressLongitude = booking.addressRef.longitude;
+    const destinationLatitude = Number(addressLatitude);
+    const destinationLongitude = Number(addressLongitude);
+    const now = Date.now();
+    this.removeExpiredDistanceCacheEntries(now);
 
-    const route = await this.goongMapService.calculateDrivingRoute({
-      originLatitude: currentLatitude,
-      originLongitude: currentLongitude,
-      destinationLatitude: Number(addressLatitude),
-      destinationLongitude: Number(addressLongitude),
-    });
+    const cached = this.distanceCache.get(cacheKey);
+    if (
+      cached &&
+      cached.destinationLatitude === destinationLatitude &&
+      cached.destinationLongitude === destinationLongitude
+    ) {
+      cached.lastAccessedAt = now;
 
-    return route.distance;
+      const elapsedMs = now - cached.calculatedAt;
+      const movedMeters = this.calculateDistanceMeters(
+        cached.originLatitude,
+        cached.originLongitude,
+        currentLatitude,
+        currentLongitude,
+      );
+
+      if (
+        elapsedMs < this.distanceRefreshIntervalMs ||
+        movedMeters < this.distanceRefreshMeters
+      ) {
+        return cached.distance;
+      }
+    }
+
+    const pendingRequest = this.pendingDistanceRequests.get(cacheKey);
+    if (pendingRequest) {
+      return pendingRequest;
+    }
+
+    const routeRequest = this.goongMapService
+      .calculateDrivingRoute({
+        originLatitude: currentLatitude,
+        originLongitude: currentLongitude,
+        destinationLatitude,
+        destinationLongitude,
+      })
+      .then((route) => {
+        this.distanceCache.set(cacheKey, {
+          distance: route.distance,
+          originLatitude: currentLatitude,
+          originLongitude: currentLongitude,
+          destinationLatitude,
+          destinationLongitude,
+          calculatedAt: Date.now(),
+          lastAccessedAt: Date.now(),
+        });
+
+        return route.distance;
+      })
+      .finally(() => {
+        this.pendingDistanceRequests.delete(cacheKey);
+      });
+
+    this.pendingDistanceRequests.set(cacheKey, routeRequest);
+    this.logger.debug(`Refreshing Goong distance for ${cacheKey}`);
+
+    return routeRequest;
+  }
+
+  private removeExpiredDistanceCacheEntries(now: number): void {
+    for (const [cacheKey, entry] of this.distanceCache) {
+      if (now - entry.lastAccessedAt > this.distanceCacheTtlMs) {
+        this.distanceCache.delete(cacheKey);
+      }
+    }
+  }
+
+  private calculateDistanceMeters(
+    fromLatitude: number,
+    fromLongitude: number,
+    toLatitude: number,
+    toLongitude: number,
+  ): number {
+    const earthRadiusMeters = 6_371_000;
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const latitudeDelta = toRadians(toLatitude - fromLatitude);
+    const longitudeDelta = toRadians(toLongitude - fromLongitude);
+    const fromLatitudeRadians = toRadians(fromLatitude);
+    const toLatitudeRadians = toRadians(toLatitude);
+    const haversine =
+      Math.sin(latitudeDelta / 2) ** 2 +
+      Math.cos(fromLatitudeRadians) *
+        Math.cos(toLatitudeRadians) *
+        Math.sin(longitudeDelta / 2) ** 2;
+
+    return (
+      2 *
+      earthRadiusMeters *
+      Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+    );
   }
 
   private async findServiceByBooking(booking: BookingEntity): Promise<{
