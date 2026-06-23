@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
     PROFILE: "/users/profile",
   },
   CUSTOMER: {
+    PROFILE: "/customer/profile/me",
     ADDRESSES: "/customer/addresses",
     ADDRESS: (id: string) => `/customer/addresses/${id}`,
     DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
