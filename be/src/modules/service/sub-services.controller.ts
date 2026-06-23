@@ -20,8 +20,7 @@ import {
   ApiCreatedResponse,
   ApiNoContentResponse,
 } from '@nestjs/swagger';
-import { ServicesService } from './services/services.service';
-
+import { SubServicesService } from './services/sub-services.service';
 import { UserRole } from '../../common/enums/user-role.enum';
 import {
   successResponse,
@@ -29,33 +28,33 @@ import {
 } from '../../common/helpers/response.helper';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { ServiceListQueryDto } from './dto/list-query-service.dto';
-import { CreateServiceDto } from './dto/create-service.dto';
-import { UpdateServiceDto } from './dto/update-service.dto';
+import { SubServiceListQueryDto } from './dto/list-query-sub-service.dto';
+import { CreateSubServiceDto } from './dto/create-sub-service.dto';
+import { UpdateSubServiceDto } from './dto/update-sub-service.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 
-@ApiTags('Admin – Services')
+@ApiTags('Admin – Sub Services')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('admin/services')
-export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {}
+@Controller('admin/sub-services')
+export class SubServicesController {
+  constructor(private readonly subServicesService: SubServicesService) {}
 
   @Post()
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Create a new service' })
-  @ApiCreatedResponse({ description: 'Service created' })
-  async create(@Body() dto: CreateServiceDto) {
-    const data = await this.servicesService.create(dto);
-    return successResponse(data, 'Service created successfully');
+  @ApiOperation({ summary: 'Create a new sub-service' })
+  @ApiCreatedResponse({ description: 'Sub-service created' })
+  async create(@Body() dto: CreateSubServiceDto) {
+    const data = await this.subServicesService.create(dto);
+    return successResponse(data, 'Sub-service created successfully');
   }
 
   @Get()
   @Auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.TASKER)
-  @ApiOperation({ summary: 'List all services with pagination & filtering' })
-  @ApiOkResponse({ description: 'Paginated service list' })
-  async findAll(@Query() query: ServiceListQueryDto) {
-    const result = await this.servicesService.findAll(query);
+  @ApiOperation({ summary: 'List all sub-services with pagination & filtering' })
+  @ApiOkResponse({ description: 'Paginated sub-service list' })
+  async findAll(@Query() query: SubServiceListQueryDto) {
+    const result = await this.subServicesService.findAll(query);
     return paginatedResponse(
       result.items,
       result.total,
@@ -66,42 +65,42 @@ export class ServicesController {
 
   @Get(':id')
   @Auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.TASKER)
-  @ApiOperation({ summary: 'Get service by ID' })
+  @ApiOperation({ summary: 'Get sub-service by ID' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const data = await this.servicesService.findOne(id);
+    const data = await this.subServicesService.findOne(id);
     return successResponse(data);
   }
 
   @Patch(':id')
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update a service' })
+  @ApiOperation({ summary: 'Update a sub-service' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateServiceDto,
+    @Body() dto: UpdateSubServiceDto,
   ) {
-    const data = await this.servicesService.update(id, dto);
-    return successResponse(data, 'Service updated successfully');
+    const data = await this.subServicesService.update(id, dto);
+    return successResponse(data, 'Sub-service updated successfully');
   }
 
   @Delete(':id')
   @Auth(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a service' })
-  @ApiNoContentResponse({ description: 'Service deleted' })
+  @ApiOperation({ summary: 'Delete a sub-service' })
+  @ApiNoContentResponse({ description: 'Sub-service deleted' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
-    await this.servicesService.remove(id);
+    await this.subServicesService.remove(id);
   }
 
   @Get(':id/bookings')
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get paginated bookings for a service' })
+  @ApiOperation({ summary: 'Get paginated bookings for a sub-service' })
   @ApiOkResponse({ description: 'Paginated bookings list' })
   async getServiceBookings(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ) {
-    const result = await this.servicesService.getServiceBookings(
+    const result = await this.subServicesService.getServiceBookings(
       id,
       +page,
       +limit,
@@ -116,14 +115,14 @@ export class ServicesController {
 
   @Get(':id/taskers')
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get paginated taskers for a service' })
+  @ApiOperation({ summary: 'Get paginated taskers for a sub-service' })
   @ApiOkResponse({ description: 'Paginated taskers list' })
   async getServiceTaskers(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ) {
-    const result = await this.servicesService.getServiceTaskers(
+    const result = await this.subServicesService.getServiceTaskers(
       id,
       +page,
       +limit,

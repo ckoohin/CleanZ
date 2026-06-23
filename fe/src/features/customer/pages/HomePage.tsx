@@ -249,10 +249,10 @@ export default function AppleStyleHomePage() {
                        </div>
                        <div>
                          <h3 className="font-bold text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">{srv.name}</h3>
-                         {srv.baseDurationHours && (
+                         {srv.durationHours && (
                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
                              <Clock className="w-3.5 h-3.5" />
-                             {srv.baseDurationHours} giờ
+                             {srv.durationHours} giờ
                            </div>
                          )}
                        </div>

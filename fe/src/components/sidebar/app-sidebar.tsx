@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 
+import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -29,10 +30,10 @@ import {
 const overviewNav = [
   {
     title: "Dashboard",
-    url: "/admin",
+    url: ROUTES.ADMIN.DASHBOARD,
     icon: <LayoutDashboard />,
     items: [
-      { title: "Bảng điều khiển", url: "/admin" },
+      { title: "Bảng điều khiển", url: ROUTES.ADMIN.DASHBOARD },
       { title: "Hoạt động hệ thống", url: "/admin/activity" },
     ],
   },
@@ -41,11 +42,11 @@ const overviewNav = [
 const managementNav = [
   {
     title: "Quản lý Dịch vụ",
-    url: "/admin/services",
+    url: ROUTES.ADMIN.SERVICES,
     icon: <Wrench />,
     items: [
-      { title: "Danh mục", url: "/admin/categories" },
-      { title: "Danh sách dịch vụ", url: "/admin/services" },
+      { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICE_PACKAGES },
+      { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES },
     ],
   },
   {

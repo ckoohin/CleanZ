@@ -12,12 +12,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-export class CreateServiceDto {
-  @ApiPropertyOptional({ example: '6224bfaf-ed46-4770-88c0-ff1a645cc279' })
-  @IsOptional()
-  @IsUUID()
-  categoryId?: string;
-
+export class CreateSubServiceDto {
   @ApiProperty({ example: 'Dọn dẹp nhà 2 giờ' })
   @IsString()
   @IsNotEmpty()
@@ -34,7 +29,7 @@ export class CreateServiceDto {
   @IsNumber({ maxDecimalPlaces: 1 })
   @Min(0.5)
   @Type(() => Number)
-  baseDurationHours?: number;
+  durationHours?: number;
 
   @ApiPropertyOptional({
     example:
@@ -78,6 +73,16 @@ export class CreateServiceDto {
   @IsArray()
   @IsString({ each: true })
   excludedTasks?: string[];
+
+  @ApiPropertyOptional({ example: 'Điều khoản riêng...' })
+  @IsOptional()
+  @IsString()
+  termsAndConditions?: string;
+
+  @ApiPropertyOptional({ example: 'FIXED' })
+  @IsOptional()
+  @IsString()
+  pricingType?: string; // 'FIXED', 'UNIT'
 
   @ApiPropertyOptional()
   @IsOptional()

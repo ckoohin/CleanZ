@@ -77,6 +77,8 @@ export interface StatusLog {
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
 export interface CreateBookingDto {
   serviceId?: string;
+  packageId?: string;
+  subServiceIds?: string[];
   addressId?: string;
   address?: string;
   provinceCode?: string;
@@ -91,6 +93,8 @@ export interface CreateBookingDto {
 
 export interface QuoteBookingDto {
   serviceId?: string;
+  packageId?: string;
+  subServiceIds?: string[];
   addressId?: string;
   address?: string;
   provinceCode?: string;
@@ -115,7 +119,9 @@ export interface UpdateBookingScheduleDto {
 
 // ─── Customer Responses ───────────────────────────────────────────────────────
 export interface BookingQuoteResponse {
-  service: BookingService;
+  package?: { id: string; name: string };
+  service?: BookingService;
+  subServices?: { id: string; name: string; durationHours?: number }[];
   address: BookingAddress;
   schedule: BookingSchedule;
   price: BookingPrice;

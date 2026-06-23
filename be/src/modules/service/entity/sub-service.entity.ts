@@ -10,10 +10,10 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { CategoryEntity } from './category.entity';
+import { PackageSubServiceEntity } from './package-sub-service.entity';
 
-@Entity('services')
-export class ServiceEntity {
+@Entity('sub_services')
+export class SubServiceEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -21,10 +21,10 @@ export class ServiceEntity {
     type: 'varchar',
     length: 20,
     unique: true,
-    name: 'service_code',
+    name: 'sub_service_code',
     default: () => "'SRV-' || upper(substr(md5(random()::text), 1, 6))",
   })
-  serviceCode!: string;
+  subServiceCode!: string;
 
   @Column({ type: 'varchar', length: 255 })
   name!: string;
@@ -37,19 +37,17 @@ export class ServiceEntity {
     precision: 4,
     scale: 1,
     nullable: true,
-    name: 'base_duration_hours',
+    name: 'duration_hours',
+    default: 1.0,
   })
-  baseDurationHours!: number | null;
+  durationHours!: number | null;
 
   @Column({ type: 'text', nullable: true, name: 'coverage_area' })
   coverageArea!: string | null;
 
-  @Index('idx_services_is_active')
+  @Index('idx_sub_services_is_active')
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive!: boolean;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt!: Date;
 
   @Column({
     type: 'varchar',
@@ -76,6 +74,17 @@ export class ServiceEntity {
   @Column({ type: 'jsonb', nullable: true, name: 'excluded_tasks' })
   excludedTasks?: string[];
 
+  @Column({ type: 'text', nullable: true, name: 'terms_and_conditions' })
+  termsAndConditions?: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'FIXED',
+    name: 'pricing_type',
+  })
+  pricingType!: string; // 'FIXED', 'UNIT'
+
   @Column({ type: 'uuid', name: 'pricing_config_id', nullable: true })
   pricingConfigId?: string | null;
 
@@ -89,11 +98,9 @@ export class ServiceEntity {
   @OneToMany(() => VoucherEntity, (v) => v.service)
   vouchers!: VoucherEntity[];
 
-  @ManyToOne(() => CategoryEntity, (category) => category.services, {
-    nullable: true,
-    onDelete: 'SET NULL',
-    onUpdate: 'CASCADE',
-  })
-  @JoinColumn({ name: 'category_id' })
-  category?: CategoryEntity | null;
+  @OneToMany(() => PackageSubServiceEntity, (pss) => pss.subService)
+  packageSubServices!: PackageSubServiceEntity[];
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }

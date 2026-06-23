@@ -5,15 +5,14 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { ServiceForm } from "@/features/admin/modules/service/_components/ServiceForm";
-import { useCreateAdminService } from "@/features/admin/modules/service/hooks/useAdminServices";
-import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
+import { useCreateAdminService, useAdminPackages } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { usePricingConfigs } from "@/features/admin/hooks/useAdminPricing";
 import { CreateAdminServiceDto } from "@/features/admin/modules/service/services/admin-services.service";
 
 export default function CreateServicePage() {
   const router = useRouter();
   const createMutation = useCreateAdminService();
-  const { data: categories } = useAdminCategories();
+  const { data: categories } = useAdminPackages();
   const { data: pricingData } = usePricingConfigs({ limit: 100 }); // fetch enough configs
 
   const handleSubmit = (values: CreateAdminServiceDto) => {

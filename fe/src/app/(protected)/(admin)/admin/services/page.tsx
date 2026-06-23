@@ -27,9 +27,9 @@ import {
   useAdminServices,
   useDeleteAdminService,
   useUpdateAdminService,
+  useAdminPackages,
 } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
-import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
 
 // Custom useDebounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -61,13 +61,13 @@ export default function AdminServicesPage() {
     limit,
     search: debouncedSearchTerm || undefined,
     isActive: statusFilter === "all" ? undefined : statusFilter === "active",
-    categoryId: categoryFilter === "all" ? undefined : categoryFilter,
+    packageId: categoryFilter === "all" ? undefined : categoryFilter,
   });
 
-  const { data: categories } = useAdminCategories();
+  const { data: categories } = useAdminPackages();
 
   const categoryOptions = React.useMemo(() => {
-    const opts = [{ value: "all", label: "Tất cả danh mục" }];
+    const opts = [{ value: "all", label: "Tất cả gói dịch vụ" }];
     if (categories) {
       categories.forEach((cat) => {
         opts.push({ value: cat.id, label: cat.name });
@@ -129,7 +129,7 @@ export default function AdminServicesPage() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span className="font-bold text-base block text-foreground/90">{row.name}</span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">{row.serviceCode}</span>
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">{row.subServiceCode}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {row.description && (
@@ -148,11 +148,11 @@ export default function AdminServicesPage() {
       ),
     },
     {
-      key: "baseDurationHours",
+      key: "durationHours",
       title: "Thời lượng",
       render: (row) => (
         <span className="font-medium text-slate-700 dark:text-slate-300">
-          {row.baseDurationHours ? `${row.baseDurationHours} giờ` : "N/A"}
+          {row.durationHours ? `${row.durationHours} giờ` : "N/A"}
         </span>
       ),
     },
@@ -248,7 +248,7 @@ export default function AdminServicesPage() {
               value={categoryFilter}
               onValueChange={setCategoryFilter}
               options={categoryOptions}
-              placeholder="Chọn danh mục"
+              placeholder="Chọn gói dịch vụ"
             />
             <SearchableSelect
               value={statusFilter}

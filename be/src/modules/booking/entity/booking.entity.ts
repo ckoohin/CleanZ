@@ -4,6 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -14,6 +15,8 @@ import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
+import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
+import { BookingSubServiceEntity } from './booking-sub-service.entity';
 
 @Entity('bookings')
 export class BookingEntity {
@@ -38,8 +41,18 @@ export class BookingEntity {
   @JoinColumn({ name: 'tasker_id' })
   tasker?: TaskerEntity | null;
 
-  @Column({ name: 'service_id', type: 'uuid' })
-  serviceId!: string;
+  @Column({ name: 'package_id', type: 'uuid' })
+  packageId!: string;
+
+  @ManyToOne(() => ServicePackageEntity, {
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({ name: 'package_id' })
+  package!: ServicePackageEntity;
+
+  @OneToMany(() => BookingSubServiceEntity, (bss) => bss.booking)
+  bookingSubServices!: BookingSubServiceEntity[];
 
   @Column({ type: 'text' })
   address!: string;

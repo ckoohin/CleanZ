@@ -39,10 +39,10 @@ const serviceSchema = z.object({
   galleryUrls: z.array(z.string()).optional(),
   includedTasks: z.array(z.string()).optional(),
   excludedTasks: z.array(z.string()).optional(),
-  baseDurationHours: z.string().optional(),
+  durationHours: z.string().optional(),
   coverageArea: z.string().optional(),
   isActive: z.boolean(),
-  categoryId: z.string().min(1, "Vui lòng chọn danh mục"),
+  categoryId: z.string().optional(),
   pricingConfigId: z.string().optional(),
 });
 
@@ -71,10 +71,10 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
       galleryUrls: initialValues?.galleryUrls || [],
       includedTasks: initialValues?.includedTasks || [],
       excludedTasks: initialValues?.excludedTasks || [],
-      baseDurationHours: initialValues?.baseDurationHours ? String(initialValues.baseDurationHours) : "",
+      durationHours: initialValues?.durationHours ? String(initialValues.durationHours) : "",
       coverageArea: initialValues?.coverageArea || "",
       isActive: initialValues?.isActive ?? true,
-      categoryId: initialValues?.categoryId || "",
+      categoryId: "",
       pricingConfigId: initialValues?.pricingConfigId || "",
     },
   });
@@ -82,10 +82,10 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
   const handleSubmit = (values: ServiceFormValues) => {
     // Validate number on submit manually
     let parsedDuration: number | undefined = undefined;
-    if (values.baseDurationHours && values.baseDurationHours.trim() !== "") {
-      const num = Number(values.baseDurationHours);
+    if (values.durationHours && values.durationHours.trim() !== "") {
+      const num = Number(values.durationHours);
       if (isNaN(num) || num < 0.5) {
-        form.setError("baseDurationHours", { type: "manual", message: "Thời lượng tối thiểu 0.5 giờ" });
+        form.setError("durationHours", { type: "manual", message: "Thời lượng tối thiểu 0.5 giờ" });
         return;
       }
       parsedDuration = num;
@@ -99,10 +99,9 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
       galleryUrls: values.galleryUrls?.length ? values.galleryUrls : undefined,
       includedTasks: values.includedTasks?.length ? values.includedTasks : undefined,
       excludedTasks: values.excludedTasks?.length ? values.excludedTasks : undefined,
-      baseDurationHours: parsedDuration,
+      durationHours: parsedDuration,
       coverageArea: values.coverageArea || undefined,
       isActive: values.isActive,
-      categoryId: values.categoryId,
       pricingConfigId: values.pricingConfigId === "none" ? undefined : values.pricingConfigId || undefined,
     };
     onSubmit(payload);
@@ -298,7 +297,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
 
               <FormField
                 control={form.control}
-                name="baseDurationHours"
+                name="durationHours"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="font-bold">Thời lượng cơ bản</FormLabel>

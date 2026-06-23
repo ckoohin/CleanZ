@@ -54,7 +54,7 @@ export function ServiceOverviewTab({ service }: ServiceOverviewTabProps) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Thời lượng cơ bản</p>
-                <p className="font-bold text-foreground">{service.baseDurationHours ? `${service.baseDurationHours} giờ` : "Chưa cấu hình"}</p>
+                <p className="font-bold text-foreground">{service.durationHours ? `${service.durationHours} giờ` : "Chưa cấu hình"}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card shadow-sm">

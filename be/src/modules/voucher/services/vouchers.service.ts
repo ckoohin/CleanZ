@@ -97,7 +97,7 @@ export class VouchersService {
   async findValidForBooking(
     manager: EntityManager,
     voucherCode: string,
-    serviceId: string,
+    subServiceIds: string[],
     subtotal: number,
   ): Promise<VoucherEntity> {
     const now = new Date();
@@ -133,8 +133,8 @@ export class VouchersService {
       throw new BadRequestException('Voucher đã hết lượt sử dụng');
     }
 
-    if (voucher.service && voucher.service.id !== serviceId) {
-      throw new BadRequestException('Voucher không áp dụng cho dịch vụ này');
+    if (voucher.service && !subServiceIds.includes(voucher.service.id)) {
+      throw new BadRequestException('Voucher không áp dụng cho các dịch vụ con đã chọn');
     }
 
     if (subtotal < toNumber(voucher.minOrderAmount)) {

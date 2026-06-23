@@ -57,7 +57,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             Chi tiết dịch vụ
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Mã dịch vụ: <span className="font-mono font-bold text-primary">{service.serviceCode}</span>
+            Mã dịch vụ: <span className="font-mono font-bold text-primary">{service.subServiceCode}</span>
           </p>
         </div>
       </div>

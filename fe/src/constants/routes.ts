@@ -40,6 +40,7 @@ export const ROUTES = {
     CUSTOMERS: "/admin/customers",
     TASKERS: "/admin/taskers",
     SERVICES: "/admin/services",
+    SERVICE_PACKAGES: "/admin/service-packages",
     BOOKINGS: "/admin/bookings",
     REPORTS: "/admin/reports",
     SETTINGS: {

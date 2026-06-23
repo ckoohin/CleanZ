@@ -91,11 +91,11 @@ const adminData = {
     },
     {
       title: "Quản lý Dịch vụ",
-      url: "/admin/services",
+      url: ROUTES.ADMIN.SERVICES,
       icon: <Wrench />,
       items: [
-        { title: "Danh mục", url: "/admin/categories" },
-        { title: "Danh sách dịch vụ", url: "/admin/services" },
+        { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICE_PACKAGES },
+        { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES },
       ],
     },
     {

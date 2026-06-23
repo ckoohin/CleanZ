@@ -23,7 +23,7 @@ const findServiceBySlug = (services: any[], slug: string) => {
   const s = slug.toLowerCase();
   
   // 1. Tìm chính xác theo id (nếu slug truyền vào thực chất là UUID) hoặc serviceCode
-  const exact = services.find(item => item.id === slug || item.serviceCode === slug);
+  const exact = services.find(item => item.id === slug || item.subServiceCode === slug);
   if (exact) return exact;
   
   // 2. Tìm theo từ khóa trong name

@@ -5,8 +5,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { ServiceForm } from "@/features/admin/modules/service/_components/ServiceForm";
-import { useAdminServiceDetail, useUpdateAdminService } from "@/features/admin/modules/service/hooks/useAdminServices";
-import { useAdminCategories } from "@/features/admin/hooks/useAdminCategories";
+import { useAdminServiceDetail, useUpdateAdminService, useAdminPackages } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { usePricingConfigs } from "@/features/admin/hooks/useAdminPricing";
 import { UpdateAdminServiceDto } from "@/features/admin/modules/service/services/admin-services.service";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
@@ -17,7 +16,7 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
 
   const { data: response, isLoading, isError } = useAdminServiceDetail(id);
   const updateMutation = useUpdateAdminService();
-  const { data: categories } = useAdminCategories();
+  const { data: categories } = useAdminPackages();
   const { data: pricingData } = usePricingConfigs({ limit: 100 });
 
   const service = response;

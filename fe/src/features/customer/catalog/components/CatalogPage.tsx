@@ -6,52 +6,42 @@ import { slideInVariants } from "@/constants/motion";
 import { ServiceListHorizontal } from "./ServiceListHorizontal";
 import { Search, MapPin, Bell, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { adminServicesApi } from "@/features/admin/modules/service/services/admin-services.service";
+import { usePublicServices } from "@/features/services/hooks/usePublicServices";
 import { ServiceDetailModal } from "@/features/services/_components/ServiceDetailModal";
-import { PublicService } from "@/features/public/hooks/usePublicData";
+import { PublicService } from "@/features/services/types/public-service.type";
 
 export const CatalogPage = () => {
   const router = useRouter();
   const [selectedService, setSelectedService] = useState<PublicService | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["services", "customer-active-list"],
-    queryFn: () => adminServicesApi.getServices({ isActive: true, limit: 100 }),
+  const { data, isLoading } = usePublicServices({
+    page: 1,
+    limit: 100,
   });
 
+  const packages = data?.data ?? [];
+
   const handleSelectService = (id: string) => {
-    const originalItem = data?.items?.find((item) => item.id === id);
-    if (originalItem) {
-      const mappedPublicService: PublicService = {
-        id: originalItem.id,
-        name: originalItem.name,
-        categoryId: originalItem.categoryId || "",
-        description: originalItem.description || "",
-        thumbnailUrl: originalItem.thumbnailUrl || undefined,
-        galleryUrls: originalItem.galleryUrls || undefined,
-        shortDescription: originalItem.shortDescription || undefined,
-        includedTasks: originalItem.includedTasks || undefined,
-        excludedTasks: originalItem.excludedTasks || undefined,
-        baseDurationHours: originalItem.baseDurationHours || undefined,
-        basePrice: originalItem.pricingConfig ? Number(originalItem.pricingConfig.basePrice) : undefined,
-      };
-      setSelectedService(mappedPublicService);
+    const pkg = packages.find((item) => item.id === id);
+    if (pkg) {
+      setSelectedService(pkg);
       setIsModalOpen(true);
     }
   };
 
-  const services = data?.items?.map((item) => ({
+  const services = packages.map((item) => ({
     id: item.id,
     name: item.name,
-    description: item.shortDescription || item.description || "Dịch vụ vệ sinh CleanZ chất lượng cao.",
-    imageUrl: item.thumbnailUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop",
-    basePrice: item.pricingConfig ? Number(item.pricingConfig.basePrice) : 200000,
+    description: item.policyDescription || "Dịch vụ vệ sinh CleanZ chất lượng cao.",
+    imageUrl: item.iconUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600&auto=format&fit=crop",
+    basePrice: item.subServices && item.subServices.length > 0
+      ? Math.min(...item.subServices.map((s) => s.pricing?.basePrice || 0))
+      : 200000,
     ratingAvg: 4.9,
-    durationHours: item.baseDurationHours || 2,
-    coverageArea: item.coverageArea || "",
-  })) || [];
+    durationHours: item.maxHours || 8,
+    coverageArea: item.coverageAreas?.map((a) => a.name).join(", ") || "",
+  }));
 
   return (
     <div className="min-h-screen bg-background pb-20">

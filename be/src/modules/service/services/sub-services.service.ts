@@ -4,12 +4,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { ServiceRepository } from '../service.repository';
-import { ServiceEntity } from '../entity/service.entity';
-import { CategoryEntity } from '../entity/category.entity';
+import { SubServiceEntity } from '../entity/sub-service.entity';
 import { PaginatedData } from '../../../common/helpers/response.interface';
-import { CreateServiceDto } from '../dto/create-service.dto';
-import { ServiceListQueryDto } from '../dto/list-query-service.dto';
-import { UpdateServiceDto } from '../dto/update-service.dto';
+import { CreateSubServiceDto } from '../dto/create-sub-service.dto';
+import { SubServiceListQueryDto } from '../dto/list-query-sub-service.dto';
+import { UpdateSubServiceDto } from '../dto/update-sub-service.dto';
 import { PublicServiceListQueryDto } from '../dto/public-service-list-query.dto';
 import {
   PublicServiceListResponseDto,
@@ -18,10 +17,10 @@ import {
 import { toNumber } from 'src/common/helpers/number.helper';
 
 @Injectable()
-export class ServicesService {
+export class SubServicesService {
   constructor(private readonly serviceRepo: ServiceRepository) {}
 
-  async create(dto: CreateServiceDto): Promise<ServiceEntity> {
+  async create(dto: CreateSubServiceDto): Promise<SubServiceEntity> {
     const entity = this.serviceRepo.create({
       name: dto.name,
       description: dto.description ?? undefined,
@@ -30,12 +29,11 @@ export class ServicesService {
       shortDescription: dto.shortDescription ?? undefined,
       includedTasks: dto.includedTasks ?? undefined,
       excludedTasks: dto.excludedTasks ?? undefined,
-      baseDurationHours: dto.baseDurationHours ?? undefined,
+      durationHours: dto.durationHours ?? undefined,
       coverageArea: dto.coverageArea ?? undefined,
       isActive: dto.isActive ?? true,
-      category: dto.categoryId
-        ? ({ id: dto.categoryId } as CategoryEntity)
-        : undefined,
+      pricingType: dto.pricingType ?? 'FIXED',
+      termsAndConditions: dto.termsAndConditions ?? undefined,
       pricingConfig: dto.pricingConfigId
         ? ({ id: dto.pricingConfigId } as any)
         : undefined,
@@ -44,8 +42,8 @@ export class ServicesService {
   }
 
   async findAll(
-    query: ServiceListQueryDto,
-  ): Promise<PaginatedData<ServiceEntity>> {
+    query: SubServiceListQueryDto,
+  ): Promise<PaginatedData<SubServiceEntity>> {
     return this.serviceRepo.findWithPagination(query);
   }
 
@@ -65,16 +63,16 @@ export class ServicesService {
     };
   }
 
-  async findOne(id: string): Promise<ServiceEntity> {
+  async findOne(id: string): Promise<SubServiceEntity> {
     const service = await this.serviceRepo.findOne({
       where: { id },
-      relations: ['pricingConfig', 'category'],
+      relations: ['pricingConfig'],
     });
     if (!service) throw new NotFoundException('SERVICE_NOT_FOUND');
     return service;
   }
 
-  async update(id: string, dto: UpdateServiceDto): Promise<ServiceEntity> {
+  async update(id: string, dto: UpdateSubServiceDto): Promise<SubServiceEntity> {
     const service = await this.findOne(id);
 
     if (dto.isActive === false && service.isActive) {
@@ -108,21 +106,20 @@ export class ServicesService {
         dto.excludedTasks !== undefined
           ? dto.excludedTasks
           : service.excludedTasks,
-      baseDurationHours:
-        dto.baseDurationHours !== undefined
-          ? dto.baseDurationHours
-          : service.baseDurationHours,
+      durationHours:
+        dto.durationHours !== undefined
+          ? dto.durationHours
+          : service.durationHours,
       coverageArea:
         dto.coverageArea !== undefined
           ? dto.coverageArea
           : service.coverageArea,
       isActive: dto.isActive !== undefined ? dto.isActive : service.isActive,
-      category:
-        dto.categoryId !== undefined
-          ? dto.categoryId
-            ? ({ id: dto.categoryId } as CategoryEntity)
-            : null
-          : service.category,
+      pricingType: dto.pricingType ?? service.pricingType,
+      termsAndConditions:
+        dto.termsAndConditions !== undefined
+          ? dto.termsAndConditions
+          : service.termsAndConditions,
       pricingConfig:
         dto.pricingConfigId !== undefined
           ? dto.pricingConfigId
@@ -163,20 +160,21 @@ export class ServicesService {
     return this.serviceRepo.getServiceTaskers(id, page, limit);
   }
 
-  private mapPublicService(service: ServiceEntity): PublicServiceResponseDto {
+  private mapPublicService(service: SubServiceEntity): PublicServiceResponseDto {
     const pricing = service.pricingConfig;
 
     return {
       id: service.id,
-      serviceCode: service.serviceCode,
+      subServiceCode: service.subServiceCode,
       name: service.name,
       description: service.description ?? null,
       shortDescription: service.shortDescription ?? null,
-      baseDurationHours: toNumber(service.baseDurationHours),
+      durationHours: toNumber(service.durationHours),
       thumbnailUrl: service.thumbnailUrl ?? null,
       galleryUrls: service.galleryUrls ?? [],
       includedTasks: service.includedTasks ?? [],
       excludedTasks: service.excludedTasks ?? [],
+      pricingType: service.pricingType,
       pricing: {
         basePrice: toNumber(pricing?.basePrice),
         petFee: toNumber(pricing?.petFee),

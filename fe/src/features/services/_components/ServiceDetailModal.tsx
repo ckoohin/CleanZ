@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { PublicService } from "@/features/public/hooks/usePublicData";
+import { PublicService } from "@/features/services/types/public-service.type";
 import { X, CheckCircle2, XCircle, Clock, Banknote, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -17,9 +17,17 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, 
 
   if (!isOpen || !service) return null;
 
+  const firstSubService = service.subServices?.[0];
+  const galleryUrls = service.subServices?.flatMap((s) => s.galleryUrls || []) || [];
+  const includedTasks = service.subServices?.flatMap((s) => s.includedTasks || []) || [];
+  const excludedTasks = service.subServices?.flatMap((s) => s.excludedTasks || []) || [];
+  const description = service.policyDescription || firstSubService?.description || "Dịch vụ chuyên nghiệp từ CleanZ mang đến không gian sống hoàn hảo cho bạn.";
+  const shortDescription = firstSubService?.shortDescription || "";
+  const thumbnailUrl = service.iconUrl || firstSubService?.thumbnailUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6954?w=1600&q=80";
+
   const images = [
-    service.thumbnailUrl || "https://images.unsplash.com/photo-1581578731548-c64695cc6954?w=1600&q=80",
-    ...(service.galleryUrls || [])
+    thumbnailUrl,
+    ...galleryUrls
   ];
 
   const handleNextImage = () => {
@@ -112,26 +120,28 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, 
               <div className="flex flex-wrap gap-4 mb-6">
                 <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-xl text-sm font-semibold">
                   <Banknote className="w-4 h-4" />
-                  {service.basePrice?.toLocaleString() || "Liên hệ"}đ
+                  {service.subServices && service.subServices.length > 0 
+                    ? "Từ " + Math.min(...service.subServices.map(s => s.pricing?.basePrice || 0)).toLocaleString() 
+                    : "Liên hệ"}đ
                 </div>
                 <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-xl text-sm font-semibold text-muted-foreground">
                   <Clock className="w-4 h-4" />
-                  {service.baseDurationHours ? `${service.baseDurationHours} giờ` : "Tùy chọn"}
+                  {service.maxHours ? `Tối đa ${service.maxHours} giờ` : "Tùy chọn"}
                 </div>
               </div>
 
               <div className="prose prose-sm dark:prose-invert mb-8 text-muted-foreground leading-relaxed">
-                <p>{service.shortDescription || service.description || "Dịch vụ chuyên nghiệp từ CleanZ mang đến không gian sống hoàn hảo cho bạn."}</p>
+                <p>{shortDescription || description}</p>
               </div>
 
               {/* Included Tasks */}
-              {service.includedTasks && service.includedTasks.length > 0 && (
+              {includedTasks.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-3 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Công việc bao gồm
                   </h3>
                   <ul className="space-y-2.5">
-                    {service.includedTasks.map((task, idx) => (
+                    {includedTasks.map((task: string, idx: number) => (
                       <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                         {task}
@@ -142,13 +152,13 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, 
               )}
 
               {/* Excluded Tasks */}
-              {service.excludedTasks && service.excludedTasks.length > 0 && (
+              {excludedTasks.length > 0 && (
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-3 flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-destructive" /> Không bao gồm
                   </h3>
                   <ul className="space-y-2.5">
-                    {service.excludedTasks.map((task, idx) => (
+                    {excludedTasks.map((task: string, idx: number) => (
                       <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-destructive mt-1.5 shrink-0" />
                         {task}

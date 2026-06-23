@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingStatusLogEntity } from './entity/booking-status-log.entity';
 import { BookingEntity } from './entity/booking.entity';
+import { BookingSubServiceEntity } from './entity/booking-sub-service.entity';
 import { BookingController } from './booking.controller';
 import { CustomerBookingService } from './services/customer-booking.service';
 import { TaskerBookingService } from './services/tasker-booking.service';
@@ -27,6 +28,7 @@ import { NotificationModule } from '../notification/notification.module';
       BookingStatusLogEntity,
       CustomerAddressEntity,
       CustomerEntity,
+      BookingSubServiceEntity,
     ]),
     PaymentModule,
     PricingModule,

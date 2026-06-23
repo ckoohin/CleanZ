@@ -35,11 +35,9 @@ import Container from "@/components/Container";
 import ServiceCard from "../_components/ServiceCard";
 import { ServiceDetailModal } from "../_components/ServiceDetailModal";
 import { ServiceItem } from "@/features/services/types/service.type";
-import { 
-  usePublicCategories, 
-  usePublicServices, 
-  PublicService 
-} from "@/features/public/hooks/usePublicData";
+import { usePublicCategories } from "@/features/public/hooks/usePublicData";
+import { usePublicServices } from "@/features/services/hooks/usePublicServices";
+import { PublicService, PublicSubService } from "@/features/services/types/public-service.type";
 import { 
   containerVariants, 
   headingVariants 
@@ -131,7 +129,8 @@ export const CategoryDetailPage = () => {
   const currentCategoryData = categories?.find(c => c.slug === slug);
   const categoryId = currentCategoryData?.id;
 
-  const { data: services, isLoading: isLoadingServices } = usePublicServices(categoryId);
+  const { data: publicServicesResponse, isLoading: isLoadingServices } = usePublicServices();
+  const services = publicServicesResponse?.data ?? [];
 
   // Booking modal state
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -158,11 +157,14 @@ export const CategoryDetailPage = () => {
   const [sortBy, setBy] = useState("popular");
 
   const filteredServices = useMemo(() => {
-    if (!services) return [];
-    return services.filter(s => 
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (s.shortDescription && s.shortDescription.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    return services.filter((s: PublicService) => {
+      const firstSub = s.subServices?.[0];
+      const shortDesc = firstSub?.shortDescription || s.policyDescription || "";
+      return (
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        shortDesc.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
   }, [searchQuery, services]);
 
   return (
@@ -346,19 +348,22 @@ export const CategoryDetailPage = () => {
                 Đang tải danh sách dịch vụ...
               </div>
             ) : filteredServices.length > 0 ? (
-              filteredServices.map((srv, idx) => {
+              filteredServices.map((srv: PublicService, idx: number) => {
+                const firstSub = srv.subServices?.[0];
                 const mappedService: ServiceItem = {
                   id: srv.id,
                   title: srv.name,
-                  desc: srv.shortDescription || srv.description || "",
-                  image: srv.thumbnailUrl || category.image,
+                  desc: firstSub?.shortDescription || srv.policyDescription || "",
+                  image: srv.iconUrl || firstSub?.thumbnailUrl || category.image,
                   tag: idx === 0 ? "Phổ biến" : "Mới",
                   rating: "5.0",
                   reviews: "10+",
-                  price: srv.basePrice?.toLocaleString() + "đ" || "Liên hệ",
+                  price: srv.subServices && srv.subServices.length > 0
+                    ? "Từ " + Math.min(...srv.subServices.map((s: PublicSubService) => s.pricing?.basePrice || 0)).toLocaleString() + "đ"
+                    : "Liên hệ",
                   unit: "/ lần",
-                  duration: srv.baseDurationHours ? `${srv.baseDurationHours} giờ` : "Tùy chọn",
-                  categoryId: srv.categoryId
+                  duration: srv.maxHours ? `Tối đa ${srv.maxHours} giờ` : "Tùy chọn",
+                  categoryId: srv.id
                 };
                 return (
                   <ServiceCard 

@@ -16,6 +16,7 @@ import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { generateOrderCode } from 'src/common/helpers/generate-code';
+import { toNumber } from 'src/common/helpers/number.helper';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { BookingLocationPolicyService } from 'src/modules/booking/services/booking-location-policy.service';
@@ -28,7 +29,9 @@ import { NotificationService } from 'src/modules/notification/notification.servi
 import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { ServiceEntity } from 'src/modules/service/entity/service.entity';
+import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
+import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
+import { BookingSubServiceEntity } from 'src/modules/booking/entity/booking-sub-service.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
@@ -191,7 +194,8 @@ export class AdminBookingRepository {
       );
       const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
       const price = await this.pricingService.calculateBookingPrice(manager, {
-        serviceId: dto.serviceId,
+        packageId: dto.packageId,
+        subServiceIds: dto.subServiceIds,
         durationHours: dto.durationHours,
         scheduledStart: scheduleStart.scheduledStart,
         scheduledStartTime: scheduleStart.scheduledStartTime,
@@ -211,7 +215,7 @@ export class AdminBookingRepository {
           bookingCode,
           customer,
           tasker: null,
-          serviceId: price.service.id,
+          packageId: price.package.id,
           address: addressRef.fullAddress,
           addressRef,
           note: dto.note?.trim() || null,
@@ -237,6 +241,18 @@ export class AdminBookingRepository {
           recurringRule: null,
         }),
       );
+
+      const bookingSubServiceRepository = manager.getRepository(BookingSubServiceEntity);
+      const bookingSubServices = price.subServices.map((sub) => {
+        return bookingSubServiceRepository.create({
+          booking,
+          subServiceId: sub.id,
+          price: sub.pricingConfig?.basePrice || 0,
+          durationHours: sub.durationHours || 0,
+          quantity: 1,
+        });
+      });
+      await bookingSubServiceRepository.save(bookingSubServices);
 
       await this.paymentService.createPendingPayment(
         manager,
@@ -319,7 +335,8 @@ export class AdminBookingRepository {
         taskerUserId: assignedTasker?.user.id,
         createLogId: createLog.id,
         assignmentLogId,
-        service: price.service,
+        package: price.package,
+        subServices: price.subServices,
         voucher: price.voucher ?? null,
       };
     });
@@ -358,10 +375,19 @@ export class AdminBookingRepository {
       customerId: result.booking.customer.id,
       taskerId: result.booking.tasker?.id ?? null,
       service: {
-        id: result.service.id,
-        code: result.service.serviceCode,
-        name: result.service.name,
+        id: result.package.id,
+        code: result.package.packageCode,
+        name: result.package.name,
       },
+      package: {
+        id: result.package.id,
+        code: result.package.packageCode,
+        name: result.package.name,
+      },
+      subServices: result.subServices.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+      })),
       address: result.booking.address,
       schedule: {
         scheduledStartDate: result.booking.scheduledStartDate,
@@ -607,7 +633,7 @@ export class AdminBookingRepository {
       .innerJoin('customer.user', 'customerUser')
       .leftJoin('booking.tasker', 'tasker')
       .leftJoin('tasker.user', 'taskerUser')
-      .leftJoin(ServiceEntity, 'service', 'service.id = booking.serviceId');
+      .leftJoin(ServicePackageEntity, 'package', 'package.id = booking.packageId');
 
     const normalizedKeyword = keyword?.trim();
     if (normalizedKeyword) {
@@ -780,6 +806,9 @@ export class AdminBookingRepository {
       .leftJoinAndSelect('booking.tasker', 'tasker')
       .leftJoinAndSelect('tasker.user', 'taskerUser')
       .leftJoinAndSelect('booking.addressRef', 'addressRef')
+      .leftJoinAndSelect('booking.package', 'package')
+      .leftJoinAndSelect('booking.bookingSubServices', 'bookingSubServices')
+      .leftJoinAndSelect('bookingSubServices.subService', 'subService')
       .where('booking.id = :bookingId', { bookingId })
       .getOne();
 
@@ -787,11 +816,8 @@ export class AdminBookingRepository {
       throw new NotFoundException(`Không tìm thấy booking với id ${bookingId}`);
     }
 
-    const [service, payment, timeline, voucher, settledPlatformFee] =
+    const [payment, timeline, voucher, settledPlatformFee] =
       await Promise.all([
-        this.dataSource.getRepository(ServiceEntity).findOne({
-          where: { id: booking.serviceId },
-        }),
         this.dataSource.getRepository(PaymentEntity).findOne({
           where: { booking: { id: booking.id } },
           order: { createdAt: 'DESC' },
@@ -816,11 +842,20 @@ export class AdminBookingRepository {
         : null;
     if (settledPlatformFee === null) {
       try {
-        commissionRate =
-          await this.pricingService.getPlatformCommissionRateByServiceId(
-            this.dataSource.manager,
-            booking.serviceId,
-          );
+        let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
+        if (!subServiceId) {
+          const bss = await this.dataSource.getRepository(BookingSubServiceEntity).findOne({
+            where: { bookingId: booking.id }
+          });
+          subServiceId = bss?.subServiceId || '';
+        }
+        if (subServiceId) {
+          commissionRate =
+            await this.pricingService.getPlatformCommissionRateByServiceId(
+              this.dataSource.manager,
+              subServiceId,
+            );
+        }
       } catch (error) {
         if (!(error instanceof NotFoundException)) {
           throw error;
@@ -862,19 +897,33 @@ export class AdminBookingRepository {
             ratingAvg: Number(booking.tasker.ratingAvg),
           }
         : null,
-      service: service
+      service: booking.package
         ? {
-            id: service.id,
-            code: service.serviceCode,
-            name: service.name,
-            description: service.description ?? null,
+            id: booking.package.id,
+            code: booking.package.packageCode,
+            name: booking.package.name,
+            description: booking.package.policyDescription ?? null,
           }
         : {
-            id: booking.serviceId,
+            id: booking.packageId,
             code: null,
-            name: 'Dịch vụ đã ngừng hoạt động',
+            name: 'Gói dịch vụ đã ngừng hoạt động',
             description: null,
           },
+      package: booking.package
+        ? {
+            id: booking.package.id,
+            code: booking.package.packageCode,
+            name: booking.package.name,
+            description: booking.package.policyDescription ?? null,
+          }
+        : null,
+      subServices: (booking.bookingSubServices || []).map((bss) => ({
+        id: bss.subServiceId,
+        name: bss.subService?.name || 'Dịch vụ con',
+        price: toNumber(bss.price),
+        durationHours: toNumber(bss.durationHours),
+      })),
       address: {
         id: booking.addressRef?.id ?? null,
         label: booking.addressRef?.label ?? null,
@@ -1496,10 +1545,20 @@ export class AdminBookingRepository {
     }
 
     const totalPrice = Number(booking.totalPrice);
+    let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
+    if (!subServiceId) {
+      const bss = await manager.getRepository(BookingSubServiceEntity).findOne({
+        where: { bookingId: booking.id }
+      });
+      subServiceId = bss?.subServiceId || '';
+    }
+    if (!subServiceId) {
+      throw new ConflictException('Booking không chứa dịch vụ con nào để tính hoa hồng');
+    }
     const commissionRate =
       await this.pricingService.getPlatformCommissionRateByServiceId(
         manager,
-        booking.serviceId,
+        subServiceId,
       );
     const platformFee = Math.round((totalPrice * commissionRate) / 100);
     const taskerIncome = Math.max(totalPrice - platformFee, 0);
@@ -1697,10 +1756,20 @@ export class AdminBookingRepository {
     manager: EntityManager,
     booking: BookingEntity,
   ): Promise<number> {
+    let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
+    if (!subServiceId) {
+      const bss = await manager.getRepository(BookingSubServiceEntity).findOne({
+        where: { bookingId: booking.id }
+      });
+      subServiceId = bss?.subServiceId || '';
+    }
+    if (!subServiceId) {
+      throw new ConflictException('Booking không chứa dịch vụ con nào để tính hoa hồng');
+    }
     const commissionRate =
       await this.pricingService.getPlatformCommissionRateByServiceId(
         manager,
-        booking.serviceId,
+        subServiceId,
       );
     return Math.round((Number(booking.totalPrice) * commissionRate) / 100);
   }

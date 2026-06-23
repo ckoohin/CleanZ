@@ -104,10 +104,15 @@ export const API_ENDPOINTS = {
     HOUSEKEEPING: "/admin/incidents/run-housekeeping",
   },
   ADMIN_SERVICES: {
-    BASE: "/admin/services",
-    DETAIL: (id: string) => `/admin/services/${id}`,
-    BOOKINGS: (id: string) => `/admin/services/${id}/bookings`,
-    TASKERS: (id: string) => `/admin/services/${id}/taskers`,
+    BASE: "/admin/sub-services",
+    DETAIL: (id: string) => `/admin/sub-services/${id}`,
+    BOOKINGS: (id: string) => `/admin/sub-services/${id}/bookings`,
+    TASKERS: (id: string) => `/admin/sub-services/${id}/taskers`,
+  },
+  ADMIN_SERVICE_PACKAGES: {
+    BASE: "/admin/service-packages",
+    DETAIL: (id: string) => `/admin/service-packages/${id}`,
+    ANALYTICS: (id: string) => `/admin/service-packages/${id}/analytics`,
   },
   ADMIN_BOOKINGS: {
     BASE: "/admin/bookings",

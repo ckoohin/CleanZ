@@ -37,12 +37,15 @@ import {
   BookingPolicyService,
 } from './booking-policy.service';
 import { BookingLocationPolicyService } from './booking-location-policy.service';
-import { ServiceEntity } from 'src/modules/service/entity/service.entity';
+import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
+import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
+import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
-  service: ServiceEntity;
+  package: ServicePackageEntity;
+  subServices: SubServiceEntity[];
   addressRef: CustomerAddressEntity | null;
   bookingAddress: string;
   scheduledStart: Date;
@@ -99,10 +102,14 @@ export class CustomerBookingService {
       );
 
       return {
-        service: {
-          id: context.service.id,
-          name: context.service.name,
+        package: {
+          id: context.package.id,
+          name: context.package.name,
         },
+        subServices: context.subServices.map((sub) => ({
+          id: sub.id,
+          name: sub.name,
+        })),
         address: {
           id: context.addressRef?.id ?? null,
           fullAddress: context.bookingAddress,
@@ -162,7 +169,7 @@ export class CustomerBookingService {
           bookingCode,
           customer: context.customer,
           tasker: null,
-          serviceId: context.service.id,
+          packageId: context.package.id,
           address: context.bookingAddress,
           addressRef: context.addressRef,
           note: dto.note,
@@ -186,6 +193,20 @@ export class CustomerBookingService {
           recurringRule: null,
         });
         const savedBooking = await bookingRepository.save(booking);
+
+        const bookingSubServiceRepository = manager.getRepository(
+          BookingSubServiceEntity,
+        );
+        const bookingSubServices = context.subServices.map((sub) => {
+          return bookingSubServiceRepository.create({
+            booking: savedBooking,
+            subServiceId: sub.id,
+            price: sub.pricingConfig?.basePrice || 0,
+            durationHours: sub.durationHours || 0,
+            quantity: 1,
+          });
+        });
+        await bookingSubServiceRepository.save(bookingSubServices);
 
         await this.paymentService.createPendingPayment(
           manager,
@@ -228,6 +249,9 @@ export class CustomerBookingService {
         .leftJoinAndSelect('booking.addressRef', 'addressRef')
         .leftJoinAndSelect('booking.tasker', 'tasker')
         .leftJoinAndSelect('tasker.user', 'taskerUser')
+        .leftJoinAndSelect('booking.package', 'package')
+        .leftJoinAndSelect('booking.bookingSubServices', 'bookingSubServices')
+        .leftJoinAndSelect('bookingSubServices.subService', 'subService')
         .where('booking.id = :bookingId', { bookingId })
         .andWhere('customerUser.id = :userId', { userId })
         .getOne();
@@ -238,11 +262,7 @@ export class CustomerBookingService {
         );
       }
 
-      const [service, payment, statusLogs, voucher] = await Promise.all([
-        this.pricingService.getServiceSummaryById(
-          this.dataSource.manager,
-          booking.serviceId,
-        ),
+      const [payment, statusLogs, voucher] = await Promise.all([
         this.paymentService.findLatestByBookingId(
           this.dataSource.manager,
           booking.id,
@@ -259,11 +279,30 @@ export class CustomerBookingService {
           : Promise.resolve(null),
       ]);
 
+      const servicePackage = booking.package as
+        | ServicePackageEntity
+        | undefined;
+      const packageSummary = {
+        id: servicePackage?.id,
+        name: servicePackage?.name,
+      };
+
+      const subServicesSummary = (booking.bookingSubServices || []).map(
+        (bss) => ({
+          id: bss.subServiceId,
+          name: bss.subService?.name || 'Dịch vụ con',
+          price: toNumber(bss.price),
+          durationHours: toNumber(bss.durationHours),
+        }),
+      );
+
       return {
         id: booking.id,
         bookingCode: booking.bookingCode,
         status: booking.status,
-        service,
+        service: packageSummary, // alias để tương thích ngược
+        package: packageSummary,
+        subServices: subServicesSummary,
         address: {
           id: booking.addressRef?.id ?? null,
           label: booking.addressRef?.label ?? null,
@@ -370,7 +409,7 @@ export class CustomerBookingService {
         .createQueryBuilder('b')
         .innerJoin('b.customer', 'c')
         .innerJoin('c.user', 'u')
-        .leftJoin('services', 's', 's.id = b.service_id')
+        .leftJoin('service_packages', 's', 's.id = b.package_id')
         .select('b.id', 'id')
         .addSelect('b.booking_code', 'bookingCode')
         .addSelect('b.status', 'status')
@@ -397,6 +436,7 @@ export class CustomerBookingService {
           .leftJoinAndSelect('customer.user', 'customerUser')
           .leftJoinAndSelect('booking.addressRef', 'addressRef')
           .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('booking.bookingSubServices', 'bookingSubServices')
           .setLock('pessimistic_write', undefined, ['booking'])
           .where('booking.id = :bookingId', { bookingId })
           .andWhere('customerUser.id = :userId', { userId })
@@ -611,7 +651,8 @@ export class CustomerBookingService {
     );
 
     const price = await this.pricingService.calculateBookingPrice(manager, {
-      serviceId: dto.serviceId,
+      packageId: dto.packageId,
+      subServiceIds: dto.subServiceIds,
       durationHours: dto.durationHours,
       scheduledStart: scheduleStart.scheduledStart,
       scheduledStartTime: scheduleStart.scheduledStartTime,
@@ -625,7 +666,8 @@ export class CustomerBookingService {
 
     return {
       customer,
-      service: price.service,
+      package: price.package,
+      subServices: price.subServices,
       addressRef,
       bookingAddress,
       scheduledStart: schedule.scheduledStart,
@@ -673,10 +715,19 @@ export class CustomerBookingService {
       bookingCode: booking.bookingCode,
       status: booking.status,
       service: {
-        id: context.service.id,
-        name: context.service.name,
-        description: context.service.description ?? null,
+        id: context.package.id,
+        name: context.package.name,
+        description: context.package.policyDescription ?? null,
       },
+      package: {
+        id: context.package.id,
+        name: context.package.name,
+        description: context.package.policyDescription ?? null,
+      },
+      subServices: context.subServices.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+      })),
       address: {
         id: context.addressRef?.id ?? null,
         label: context.addressRef?.label ?? null,

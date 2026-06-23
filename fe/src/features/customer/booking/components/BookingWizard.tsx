@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -27,6 +27,7 @@ import type {
   PaymentMethod,
 } from "@/features/booking/types/booking.types";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
+import { PublicPackage, PublicSubService } from "@/features/services/types/public-service.type";
 import {
   useCreateCustomerAddress,
   useCustomerAddresses,
@@ -55,7 +56,8 @@ interface ServiceOption {
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface WizardState {
-  serviceId: string;
+  packageId: string;
+  subServiceIds: string[];
   // Địa chỉ
   addressId: string;
   selectedAddress: string; // địa chỉ hiển thị
@@ -71,7 +73,8 @@ interface WizardState {
 }
 
 const INIT_STATE: WizardState = {
-  serviceId: "",
+  packageId: "",
+  subServiceIds: [],
   addressId: "",
   selectedAddress: "",
   selectedLat: null,
@@ -151,20 +154,14 @@ function isPastDate(date: string): boolean {
 function StepService({
   form,
   onChange,
+  packages,
+  isLoading,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
+  packages: PublicPackage[];
+  isLoading: boolean;
 }) {
-  const { data, isLoading } = usePublicServices();
-  const services: ServiceOption[] =
-    data?.data.map((service) => ({
-      id: service.id,
-      name: service.name,
-      description: service.shortDescription || service.description,
-      baseDurationHours: service.baseDurationHours,
-      basePrice: service.pricing.basePrice,
-    })) ?? [];
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -174,47 +171,145 @@ function StepService({
     );
   }
 
+  const selectedPackage = packages.find((p) => p.id === form.packageId);
+
+  const handlePackageSelect = (pkgId: string) => {
+    const pkg = packages.find((p) => p.id === pkgId);
+    if (!pkg) return;
+    
+    // Mặc định chọn dịch vụ con đầu tiên hoạt động của gói
+    const defaultSubIds = pkg.subServices && pkg.subServices.length > 0 
+      ? [pkg.subServices[0].id] 
+      : [];
+      
+    onChange({
+      packageId: pkgId,
+      subServiceIds: defaultSubIds,
+    });
+  };
+
+  const handleSubServiceToggle = (subId: string) => {
+    if (!selectedPackage) return;
+    
+    let newSubServiceIds = [...form.subServiceIds];
+    if (newSubServiceIds.includes(subId)) {
+      if (newSubServiceIds.length > 1) {
+        newSubServiceIds = newSubServiceIds.filter((id) => id !== subId);
+      } else {
+        toast.warning("Bạn phải chọn ít nhất 1 dịch vụ con");
+      }
+    } else {
+      newSubServiceIds.push(subId);
+    }
+    
+    onChange({ subServiceIds: newSubServiceIds });
+  };
+
+  const totalDuration = selectedPackage
+    ? selectedPackage.subServices
+        .filter((sub) => form.subServiceIds.includes(sub.id))
+        .reduce((sum, sub) => sum + (sub.durationHours || 0), 0)
+    : 0;
+
+  const isOverMaxHours = selectedPackage && selectedPackage.maxHours > 0 && totalDuration > selectedPackage.maxHours;
+
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-bold text-foreground">Chọn dịch vụ</h2>
-      {services.map((svc) => {
-        const selected = form.serviceId === svc.id;
-        return (
-          <button
-            key={svc.id}
-            onClick={() =>
-              onChange({ serviceId: svc.id })
-            }
-            className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
-              selected
-                ? "border-primary bg-primary/5"
-                : "border-border/50 bg-card hover:border-primary/40"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <p className="font-bold text-sm text-foreground">{svc.name}</p>
-                {svc.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                    {svc.description}
-                  </p>
-                )}
-                {svc.baseDurationHours && (
-                  <p className="text-xs text-primary mt-1 flex items-center gap-0.5">
-                    <Clock className="w-3 h-3" /> {svc.baseDurationHours}h
-                  </p>
-                )}
-                <p className="mt-2 text-sm font-black text-primary">
-                  {fmtCurrency(svc.basePrice)}
-                </p>
-              </div>
-              {selected && (
-                <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-foreground mb-1">Chọn gói dịch vụ</h2>
+        <p className="text-xs text-muted-foreground">Khách hàng tích chọn các dịch vụ con bên trong gói khi đặt đơn</p>
+      </div>
+      <div className="space-y-3">
+        {packages.map((pkg) => {
+          const isSelected = form.packageId === pkg.id;
+          return (
+            <div
+              key={pkg.id}
+              className={`rounded-2xl border-2 transition-all overflow-hidden ${
+                isSelected
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border/50 bg-card hover:border-primary/30"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => handlePackageSelect(pkg.id)}
+                className="w-full text-left p-4 flex items-start justify-between gap-3"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm md:text-base text-foreground">{pkg.name}</span>
+                    {pkg.maxHours > 0 && (
+                      <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-semibold">
+                        Tối đa {pkg.maxHours}h
+                      </span>
+                    )}
+                  </div>
+                  {pkg.policyDescription && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {pkg.policyDescription}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {isSelected && (
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                  )}
+                </div>
+              </button>
+
+              {isSelected && pkg.subServices && pkg.subServices.length > 0 && (
+                <div className="px-4 pb-4 pt-1 border-t border-primary/10 bg-background/50 space-y-2">
+                  <p className="text-xs font-bold text-foreground/80 mb-2">Tích chọn các dịch vụ con:</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {pkg.subServices.map((sub) => {
+                      const isSubSelected = form.subServiceIds.includes(sub.id);
+                      return (
+                        <button
+                          type="button"
+                          key={sub.id}
+                          onClick={() => handleSubServiceToggle(sub.id)}
+                          className={`flex items-start text-left p-3 rounded-xl border transition-all ${
+                            isSubSelected
+                              ? "border-primary bg-primary/5 text-primary font-semibold"
+                              : "border-border/60 bg-card text-muted-foreground hover:border-primary/20"
+                          }`}
+                        >
+                          <div className="flex items-center h-5 mr-2">
+                            <input
+                              type="checkbox"
+                              checked={isSubSelected}
+                              onChange={() => {}}
+                              className="rounded border-border text-primary focus:ring-primary size-4 accent-orange-500"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-foreground truncate">{sub.name}</p>
+                            <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{sub.shortDescription || sub.description}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-semibold text-primary">{fmtCurrency(sub.pricing?.basePrice || 0)}</span>
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                <Clock className="size-3" /> {sub.durationHours}h
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-border/20">
+                    <span className="text-muted-foreground">Tổng thời lượng làm việc dự kiến:</span>
+                    <span className={`font-bold ${isOverMaxHours ? "text-destructive" : "text-primary"}`}>
+                      {totalDuration} giờ {isOverMaxHours ? `(Vượt quá tối đa ${pkg.maxHours}h của gói)` : ""}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
-          </button>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -655,20 +750,35 @@ function StepConfirm({
   return (
     <div className="space-y-4">
       {/* Service + Schedule summary */}
-      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
+      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3">
         <h3 className="font-bold text-sm mb-1">Tóm tắt đơn</h3>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Dịch vụ</span>
-          <span className="font-semibold">{quote.service.name}</span>
+          <span className="text-muted-foreground">Gói dịch vụ</span>
+          <span className="font-semibold">{quote.package?.name || quote.service?.name}</span>
         </div>
+        
+        <div className="flex flex-col gap-1.5 py-1">
+          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Chi tiết dịch vụ con</span>
+          <div className="bg-muted/40 p-2.5 rounded-xl space-y-1.5">
+            {quote.subServices?.map((sub) => (
+              <div key={sub.id} className="flex justify-between text-xs">
+                <span className="text-foreground/90 font-medium">{sub.name}</span>
+                <span className="text-muted-foreground font-semibold">{sub.durationHours ? `${sub.durationHours}h` : ""}</span>
+              </div>
+            )) ?? (
+              <span className="text-xs text-muted-foreground">Không có chi tiết dịch vụ con</span>
+            )}
+          </div>
+        </div>
+
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Thời gian</span>
-          <span className="font-semibold">
+          <span className="text-muted-foreground">Thời gian bắt đầu</span>
+          <span className="font-semibold text-primary">
             {form.scheduledDate} · {form.scheduledTime}
           </span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Thời lượng</span>
+          <span className="text-muted-foreground">Tổng thời lượng</span>
           <span className="font-semibold">{quote.schedule.durationHours}h</span>
         </div>
         <div className="flex justify-between text-sm">
@@ -678,7 +788,7 @@ function StepConfirm({
           </span>
         </div>
         {quote.address.hasPet && (
-          <p className="text-xs text-amber-600">🐾 Có tính phí thú cưng</p>
+          <p className="text-xs text-amber-600">🐾 Đã bao gồm phụ phí thú cưng</p>
         )}
       </div>
 
@@ -742,10 +852,35 @@ export const BookingWizard = ({
   const [step, setStep] = useState<Step>(initialServiceId ? 1 : 0);
   const [form, setForm] = useState<WizardState>({
     ...INIT_STATE,
-    serviceId: initialServiceId ?? "",
+    packageId: initialServiceId ?? "",
+    subServiceIds: [],
   });
   const [quote, setQuote] = useState<BookingQuoteResponse | null>(null);
   const [createdId, setCreatedId] = useState<string>("");
+
+  const { data: publicServicesData, isLoading: isServicesLoading } = usePublicServices();
+  const packages: PublicPackage[] = publicServicesData?.data ?? [];
+
+  useEffect(() => {
+    if (initialServiceId && packages.length > 0 && form.subServiceIds.length === 0) {
+      const pkg = packages.find(p => p.id === initialServiceId);
+      if (pkg && pkg.subServices && pkg.subServices.length > 0) {
+        const timer = setTimeout(() => {
+          setForm(prev => {
+            if (prev.subServiceIds.length === 0) {
+              return {
+                ...prev,
+                packageId: initialServiceId,
+                subServiceIds: [pkg.subServices[0].id]
+              };
+            }
+            return prev;
+          });
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [initialServiceId, packages, form.subServiceIds.length]);
 
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
@@ -754,7 +889,17 @@ export const BookingWizard = ({
     setForm((prev) => ({ ...prev, ...partial }));
 
   const canProceed = (): boolean => {
-    if (step === 0) return !!form.serviceId;
+    if (step === 0) {
+      if (!form.packageId || form.subServiceIds.length === 0) return false;
+      const pkg = packages.find((p) => p.id === form.packageId);
+      if (pkg && pkg.maxHours > 0) {
+        const totalDuration = pkg.subServices
+          .filter((sub) => form.subServiceIds.includes(sub.id))
+          .reduce((sum, sub) => sum + (sub.durationHours || 0), 0);
+        if (totalDuration > pkg.maxHours) return false;
+      }
+      return true;
+    }
     if (step === 1) return !!form.addressId;
     if (step === 2)
       return (
@@ -782,7 +927,8 @@ export const BookingWizard = ({
     if (step === 3) {
       try {
         const result = await quoteQuery.mutateAsync({
-          serviceId: form.serviceId || undefined,
+          packageId: form.packageId || undefined,
+          subServiceIds: form.subServiceIds,
           addressId: form.addressId || undefined,
           scheduledDate: form.scheduledDate,
           scheduledTime: form.scheduledTime,
@@ -800,7 +946,8 @@ export const BookingWizard = ({
     // Step 4 (Xác nhận) → Submit booking → Step 5 (Thành công)
     if (step === 4) {
       const dto: CreateBookingDto = {
-        serviceId: form.serviceId || undefined,
+        packageId: form.packageId || undefined,
+        subServiceIds: form.subServiceIds,
         addressId: form.addressId || undefined,
         scheduledDate: form.scheduledDate,
         scheduledTime: form.scheduledTime,
@@ -906,7 +1053,7 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepService form={form} onChange={update} />
+              <StepService form={form} onChange={update} packages={packages} isLoading={isServicesLoading} />
             </motion.div>
           )}
           {step === 1 && (
