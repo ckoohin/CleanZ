@@ -34,8 +34,10 @@ export class ServiceRepository extends Repository<SubServiceEntity> {
     }
 
     if (packageId) {
-      qb.innerJoin('svc.packageSubServices', 'pss')
-        .andWhere('pss.packageId = :packageId', { packageId });
+      qb.innerJoin('svc.packageSubServices', 'pss').andWhere(
+        'pss.packageId = :packageId',
+        { packageId },
+      );
     }
 
     const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
@@ -166,11 +168,7 @@ export class ServiceRepository extends Repository<SubServiceEntity> {
     `;
 
     const [items, [{ count }]] = await Promise.all([
-      this.dataSource.query<any[]>(query, [
-        subServiceId,
-        limit,
-        skip,
-      ]),
+      this.dataSource.query<any[]>(query, [subServiceId, limit, skip]),
       this.dataSource.query<{ count: string }[]>(countQuery, [subServiceId]),
     ]);
 

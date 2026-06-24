@@ -81,7 +81,7 @@ export class CreateServicePackageDto {
   @Min(0)
   toolFee?: number;
 
-  @ApiPropertyOptional({ example: 15.00 })
+  @ApiPropertyOptional({ example: 15.0 })
   @IsOptional()
   @IsNumber()
   @Min(0)

@@ -112,7 +112,7 @@ export class VouchersService {
       .getOne();
 
     if (!voucher) {
-      throw new NotFoundException(
+      throw new BadRequestException(
         'Voucher không tồn tại hoặc đã ngừng hoạt động',
       );
     }
@@ -134,7 +134,9 @@ export class VouchersService {
     }
 
     if (voucher.service && !subServiceIds.includes(voucher.service.id)) {
-      throw new BadRequestException('Voucher không áp dụng cho các dịch vụ con đã chọn');
+      throw new BadRequestException(
+        'Voucher không áp dụng cho các dịch vụ con đã chọn',
+      );
     }
 
     if (subtotal < toNumber(voucher.minOrderAmount)) {
