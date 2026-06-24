@@ -8,6 +8,21 @@ import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { TicketPriority } from 'src/common/enums/ticket-priority.enum';
 import { TicketSource } from 'src/common/enums/ticket-source.enum';
 import { TicketPendingReason } from 'src/common/enums/ticket-pending-reason.enum';
+import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
+import { UserEntity } from 'src/modules/users/entities/user.entity';
+
+/** Vai trò người gửi message (suy từ user.role; null sender = hệ thống). */
+export type MessageSenderRole = 'CUSTOMER' | 'TASKER' | 'ADMIN' | 'SYSTEM';
+
+export function senderRoleOf(sender?: UserEntity | null): MessageSenderRole {
+  if (!sender) return 'SYSTEM';
+  return sender.role as MessageSenderRole;
+}
+
+export interface AttachmentView {
+  id: string;
+  url: string;
+}
 
 export interface TicketSummary {
   id: string;
@@ -23,6 +38,8 @@ export interface TicketSummary {
   slaBreached: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** Số tin nhắn chưa đọc của người xem (badge ngoài ticket). */
+  unreadCount?: number;
 }
 
 export interface PartyRef {
@@ -34,7 +51,9 @@ export interface PartyRef {
 export interface PublicMessage {
   id: string;
   senderUserId: string | null;
+  senderRole: MessageSenderRole;
   body: string;
+  attachments: AttachmentView[];
   createdAt: Date;
 }
 
@@ -104,34 +123,49 @@ export function toAdminTicketSummary(
   };
 }
 
+function groupAttachmentsByMessage(
+  attachments: TicketAttachmentEntity[],
+): Map<string, AttachmentView[]> {
+  const byMessage = new Map<string, AttachmentView[]>();
+  for (const a of attachments) {
+    if (!a.message?.id) continue;
+    const arr = byMessage.get(a.message.id) ?? [];
+    arr.push({ id: a.id, url: a.url });
+    byMessage.set(a.message.id, arr);
+  }
+  return byMessage;
+}
+
 export function toPublicView(
   t: SupportTicketEntity,
   messages: TicketMessageEntity[] = [],
+  attachments: TicketAttachmentEntity[] = [],
 ): TicketPublicView {
+  const byMessage = groupAttachmentsByMessage(attachments);
   return {
     ...toTicketSummary(t),
     description: t.description ?? null,
     firstRespondedAt: t.firstRespondedAt ?? null,
     resolvedAt: t.resolvedAt ?? null,
     closedAt: t.closedAt ?? null,
+    // Phòng vệ: KHÔNG bao giờ lộ internal note cho user (service đã lọc theo
+    // audience của luồng, đây là lớp chặn thứ hai — AD7/BR-8).
     messages: messages
-      .filter((m) => !m.isInternal)
+      .filter((m) => m.audience !== TicketMessageAudience.INTERNAL)
       .map((m) => ({
         id: m.id,
         senderUserId: m.sender?.id ?? null,
+        senderRole: senderRoleOf(m.sender),
         body: m.body,
+        attachments: byMessage.get(m.id) ?? [],
         createdAt: m.createdAt,
       })),
   };
 }
 
-export interface AttachmentView {
-  id: string;
-  url: string;
-}
 export interface AdminMessage extends PublicMessage {
   isInternal: boolean;
-  attachments: AttachmentView[];
+  audience: TicketMessageAudience;
 }
 export interface StatusLogView {
   id: string;
@@ -180,18 +214,10 @@ export function toAdminView(
   resolutions: TicketResolutionEntity[] = [],
   attachments: TicketAttachmentEntity[] = [],
 ): TicketAdminView {
-  const byMessage = new Map<string, AttachmentView[]>();
-  const ticketLevel: AttachmentView[] = [];
-  for (const a of attachments) {
-    const view = { id: a.id, url: a.url };
-    if (a.message?.id) {
-      const arr = byMessage.get(a.message.id) ?? [];
-      arr.push(view);
-      byMessage.set(a.message.id, arr);
-    } else {
-      ticketLevel.push(view);
-    }
-  }
+  const byMessage = groupAttachmentsByMessage(attachments);
+  const ticketLevel: AttachmentView[] = attachments
+    .filter((a) => !a.message?.id)
+    .map((a) => ({ id: a.id, url: a.url }));
   return {
     ...toTicketSummary(t),
     description: t.description ?? null,
@@ -228,8 +254,10 @@ export function toAdminView(
     messages: messages.map((m) => ({
       id: m.id,
       senderUserId: m.sender?.id ?? null,
+      senderRole: senderRoleOf(m.sender),
       body: m.body,
       isInternal: m.isInternal,
+      audience: m.audience,
       createdAt: m.createdAt,
       attachments: byMessage.get(m.id) ?? [],
     })),

@@ -33,6 +33,11 @@ import { NOTIFICATION_QUEUE } from './notification.constants';
     NotificationGateway,
     WsJwtGuard,
   ],
-  exports: [NotificationService, TypeOrmModule],
+  exports: [
+    NotificationService,
+    TypeOrmModule,
+    NotificationGateway,
+    WsJwtGuard,
+  ],
 })
 export class NotificationModule {}

@@ -22,6 +22,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 -- Drop old objects
 -- =========================================================
 DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS ticket_thread_reads CASCADE;
 DROP TABLE IF EXISTS ticket_surveys CASCADE;
 DROP TABLE IF EXISTS ticket_resolutions CASCADE;
 DROP TABLE IF EXISTS ticket_status_logs CASCADE;
@@ -559,6 +560,8 @@ DO $$ BEGIN
     CREATE TYPE ticket_source AS ENUM ('CUSTOMER_APP','TASKER_APP','ADMIN'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='ticket_pending_reason') THEN
     CREATE TYPE ticket_pending_reason AS ENUM ('WAIT_CUSTOMER','WAIT_TASKER','WAIT_INTERNAL'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='ticket_message_audience') THEN
+    CREATE TYPE ticket_message_audience AS ENUM ('REPORTER','COUNTERPARTY','INTERNAL'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='resolution_type') THEN
     CREATE TYPE resolution_type AS ENUM ('EXPLANATION','RECLEAN','VOUCHER','REFUND','COMPENSATION','TASKER_PENALTY'); END IF;
 END $$;
@@ -603,9 +606,23 @@ CREATE TABLE ticket_messages (
   sender_user_id UUID REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
   body TEXT NOT NULL,
   is_internal BOOLEAN NOT NULL DEFAULT FALSE,
+  audience ticket_message_audience NOT NULL DEFAULT 'REPORTER',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_tm_ticket ON ticket_messages(ticket_id, created_at);
+
+-- Read-receipt per-thread (mốc đã đọc theo từng luồng audience)
+CREATE TABLE ticket_thread_reads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  audience ticket_message_audience NOT NULL,
+  last_read_message_id UUID REFERENCES ticket_messages(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_ttr_ticket_user_audience UNIQUE (ticket_id, user_id, audience)
+);
+CREATE INDEX idx_ttr_ticket ON ticket_thread_reads(ticket_id);
 
 CREATE TABLE ticket_attachments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -9,6 +9,7 @@ import {
   Index,
   ManyToOne,
   JoinColumn,
+  BeforeInsert,
 } from 'typeorm';
 import { PackageSubServiceEntity } from './package-sub-service.entity';
 
@@ -17,14 +18,23 @@ export class SubServiceEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  // Không dùng DB default kiểu hàm SQL: nó gây drift giả vĩnh viễn với
+  // schema:check (xem [[cleanz-be-migrations]]). Sinh code ở tầng app thay thế.
   @Column({
     type: 'varchar',
     length: 20,
     unique: true,
     name: 'sub_service_code',
-    default: () => "'SRV-' || upper(substr(md5(random()::text), 1, 6))",
   })
   subServiceCode!: string;
+
+  @BeforeInsert()
+  generateSubServiceCode(): void {
+    if (!this.subServiceCode) {
+      const suffix = Math.random().toString(16).slice(2, 8).toUpperCase();
+      this.subServiceCode = `SRV-${suffix}`;
+    }
+  }
 
   @Column({ type: 'varchar', length: 255 })
   name!: string;

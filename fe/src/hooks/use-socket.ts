@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { Socket } from 'socket.io-client';
 import {
-  connectSocket,
-  disconnectSocket,
+  acquireSocket,
+  releaseSocket,
   getSocket,
   connectTrackingSocket,
   disconnectTrackingSocket,
@@ -17,12 +17,10 @@ export function useSocket(autoConnect = true): Socket {
   const socket = useMemo(() => getSocket(), []);
 
   useEffect(() => {
-    if (autoConnect) {
-      connectSocket();
-    }
-
+    if (!autoConnect) return;
+    acquireSocket();
     return () => {
-      disconnectSocket();
+      releaseSocket();
     };
   }, [autoConnect]);
 

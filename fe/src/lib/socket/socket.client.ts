@@ -28,6 +28,33 @@ export function disconnectSocket(): void {
   }
 }
 
+// ─── Quản lý vòng đời theo ref-count ──────────────────────────────────────────
+// Nhiều nơi (chat, đổi tab luồng admin, notification) có thể cùng dùng 1 socket.
+// Chỉ ngắt khi consumer cuối rời đi, kèm grace period để remount nhanh (đổi tab)
+// không gây churn connect/disconnect.
+let refCount = 0;
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+const IDLE_GRACE_MS = 5000;
+
+export function acquireSocket(): Socket {
+  refCount += 1;
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  return connectSocket();
+}
+
+export function releaseSocket(): void {
+  refCount = Math.max(0, refCount - 1);
+  if (refCount > 0) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    idleTimer = null;
+    if (refCount === 0) disconnectSocket();
+  }, IDLE_GRACE_MS);
+}
+
 export function getTrackingSocket(): Socket {
   if (!trackingSocket) {
     trackingSocket = io(`${SOCKET_URL}/tracking`, {

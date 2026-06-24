@@ -14,10 +14,11 @@ import {
   Wifi,
   WifiOff,
   Briefcase,
-  Bell,
   Settings,
   WalletCards,
+  LifeBuoy,
 } from "lucide-react";
+import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
 import { useLogout } from "@/features/auth/hooks/auth.hooks";
@@ -33,9 +34,10 @@ const ALL_NAV_ITEMS = [
   { href: "/tasker/earnings",      label: "Thu nhập",  icon: WalletCards },
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
+  { href: "/tasker/support-tickets", label: "Hỗ trợ",  icon: LifeBuoy },
 ];
 
-// Bottom nav: 2 bên FAB center
+// Bottom nav: 2 bên FAB center (giữ index 0,1,3,4 — không gồm "Thu nhập"/"Hỗ trợ")
 const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
 const RIGHT_TABS = [ALL_NAV_ITEMS[3], ALL_NAV_ITEMS[4]];
 
@@ -204,13 +206,13 @@ function MobileTopBar() {
           </span>
         </div>
         
+        <Link href="/tasker/support-tickets" aria-label="Hỗ trợ" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
+          <LifeBuoy className="w-4 h-4" />
+        </Link>
         <Link href="/tasker/settings" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
           <Settings className="w-4 h-4" />
         </Link>
-        <Link href="/tasker/notifications" className="relative w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card"></span>
-        </Link>
+        <NotificationBell href="/tasker/notifications" className="w-8 h-8 shrink-0" />
 
         <Avatar className="w-9 h-9 border-2 border-background shadow-sm ring-1 ring-border shrink-0">
           <AvatarImage src={tasker?.avatarUrl ?? undefined} />

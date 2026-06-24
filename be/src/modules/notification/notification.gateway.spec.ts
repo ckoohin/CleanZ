@@ -4,7 +4,7 @@ import { WsJwtGuard } from './guards/ws-jwt.guard';
 
 describe('NotificationGateway (TC-U-GW)', () => {
   let gateway: NotificationGateway;
-  let wsJwt: { verifyFromHandshake: jest.Mock };
+  let wsJwt: { verifyPayloadFromHandshake: jest.Mock };
 
   const makeClient = (): any => ({
     id: 'sid1',
@@ -13,20 +13,34 @@ describe('NotificationGateway (TC-U-GW)', () => {
   });
 
   beforeEach(() => {
-    wsJwt = { verifyFromHandshake: jest.fn() };
+    wsJwt = { verifyPayloadFromHandshake: jest.fn() };
     gateway = new NotificationGateway(wsJwt as unknown as WsJwtGuard);
   });
 
   it('cookie hợp lệ → join room user:<id>, không disconnect', async () => {
-    wsJwt.verifyFromHandshake.mockReturnValue('u1');
+    wsJwt.verifyPayloadFromHandshake.mockReturnValue({
+      userId: 'u1',
+      role: 'CUSTOMER',
+    });
     const client = makeClient();
     await gateway.handleConnection(client);
     expect(client.join).toHaveBeenCalledWith('user:u1');
     expect(client.disconnect).not.toHaveBeenCalled();
   });
 
+  it('admin → join thêm room admins', async () => {
+    wsJwt.verifyPayloadFromHandshake.mockReturnValue({
+      userId: 'a1',
+      role: 'ADMIN',
+    });
+    const client = makeClient();
+    await gateway.handleConnection(client);
+    expect(client.join).toHaveBeenCalledWith('user:a1');
+    expect(client.join).toHaveBeenCalledWith('role:admins');
+  });
+
   it('không/invalid cookie → disconnect, không join', async () => {
-    wsJwt.verifyFromHandshake.mockReturnValue(null);
+    wsJwt.verifyPayloadFromHandshake.mockReturnValue(null);
     const client = makeClient();
     await gateway.handleConnection(client);
     expect(client.disconnect).toHaveBeenCalledWith(true);

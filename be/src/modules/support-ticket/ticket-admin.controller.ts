@@ -33,6 +33,7 @@ import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { ReclassifyTicketDto } from './dto/reclassify-ticket.dto';
 import { CreateTicketAdminDto } from './dto/create-ticket-admin.dto';
 import { CreateAdminMessageDto } from './dto/create-message.dto';
+import { MarkReadAdminDto } from './dto/mark-read.dto';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { TicketResolutionService } from './services/ticket-resolution.service';
 import { UpdateTicketConfigDto } from './dto/update-config.dto';
@@ -75,8 +76,17 @@ export class TicketAdminController {
 
   @Get()
   @ApiOperation({ summary: 'Hàng đợi ticket (filter/sort/phân trang)' })
-  list(@Query() query: AdminQueryTicketDto) {
-    return this.adminService.list(query);
+  list(
+    @CurrentUser('id') adminId: string,
+    @Query() query: AdminQueryTicketDto,
+  ) {
+    return this.adminService.list(query, adminId);
+  }
+
+  @Get('unread-total')
+  @ApiOperation({ summary: 'Tổng số tin chưa đọc (badge) — admin' })
+  unreadTotal(@CurrentUser('id') adminId: string) {
+    return this.adminService.unreadTotal(adminId);
   }
 
   @Get(':id')
@@ -134,6 +144,18 @@ export class TicketAdminController {
     @Body() dto: CreateAdminMessageDto,
   ) {
     return this.adminService.addMessage(id, dto, adminId);
+  }
+
+  @Post(':id/read')
+  @ApiOperation({
+    summary: 'Đánh dấu đã đọc 1 luồng (REPORTER/COUNTERPARTY/INTERNAL)',
+  })
+  markRead(
+    @CurrentUser('id') adminId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: MarkReadAdminDto,
+  ) {
+    return this.adminService.markThreadRead(id, dto, adminId);
   }
 
   @Post(':id/resolutions')
