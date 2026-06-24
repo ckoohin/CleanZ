@@ -70,3 +70,4 @@ testsprite_tests
 # Scripts
 check-db.js
 sync-db.js
+fake-migrations.js
