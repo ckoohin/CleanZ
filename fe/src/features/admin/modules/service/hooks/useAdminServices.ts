@@ -7,6 +7,7 @@ import {
   UpdateAdminServiceDto,
   CreateAdminPackageDto,
   UpdateAdminPackageDto,
+  SubServiceLinkItem,
 } from '../services/admin-services.service';
 import { toast } from 'sonner';
 
@@ -175,5 +176,30 @@ export const useAdminPackageAnalytics = (id: string) => {
     queryKey: ADMIN_PACKAGES_KEYS.analytics(id),
     queryFn: () => adminServicesApi.getPackageAnalytics(id),
     enabled: !!id,
+  });
+};
+
+export const useAddSubServicesToPackage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ packageId, subServices }: { packageId: string; subServices: SubServiceLinkItem[] }) =>
+      adminServicesApi.addSubServicesToPackage(packageId, subServices),
+    onSuccess: (_, variables) => {
+      toast.success('Liên kết dịch vụ con thành công!');
+      queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.detail(variables.packageId) });
+    },
+    onError: () => toast.error('Liên kết thất bại!'),
+  });
+};
+
+export const useRemoveSubServiceFromPackage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ packageId, subServiceId }: { packageId: string; subServiceId: string }) =>
+      adminServicesApi.removeSubServiceFromPackage(packageId, subServiceId),
+    onSuccess: (_, variables) => {
+      toast.success('Đã gỡ dịch vụ con!');
+      queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.detail(variables.packageId) });
+    },
   });
 };
