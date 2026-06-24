@@ -51,7 +51,9 @@ export class SubServicesController {
 
   @Get()
   @Auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.TASKER)
-  @ApiOperation({ summary: 'List all sub-services with pagination & filtering' })
+  @ApiOperation({
+    summary: 'List all sub-services with pagination & filtering',
+  })
   @ApiOkResponse({ description: 'Paginated sub-service list' })
   async findAll(@Query() query: SubServiceListQueryDto) {
     const result = await this.subServicesService.findAll(query);

@@ -17,8 +17,7 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
     const { page = 1, limit = 20, name, isActive } = query;
     const skip = (page - 1) * limit;
 
-    const qb = this.createQueryBuilder('pc')
-      .orderBy('pc.createdAt', 'DESC');
+    const qb = this.createQueryBuilder('pc').orderBy('pc.createdAt', 'DESC');
 
     if (name) {
       qb.andWhere('pc.name ILIKE :name', { name: `%${name}%` });
@@ -30,8 +29,6 @@ export class PricingConfigRepository extends Repository<PricingConfigEntity> {
     const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
-
-
 }
 
 @Injectable()

@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:5000';
 
 let socket: Socket | null = null;
+let trackingSocket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
@@ -24,5 +25,28 @@ export function connectSocket(): Socket {
 export function disconnectSocket(): void {
   if (socket?.connected) {
     socket.disconnect();
+  }
+}
+
+export function getTrackingSocket(): Socket {
+  if (!trackingSocket) {
+    trackingSocket = io(`${SOCKET_URL}/tracking`, {
+      withCredentials: true,
+      autoConnect: false,
+      transports: ['websocket', 'polling'],
+    });
+  }
+  return trackingSocket;
+}
+
+export function connectTrackingSocket(): Socket {
+  const s = getTrackingSocket();
+  if (!s.connected) s.connect();
+  return s;
+}
+
+export function disconnectTrackingSocket(): void {
+  if (trackingSocket?.connected) {
+    trackingSocket.disconnect();
   }
 }

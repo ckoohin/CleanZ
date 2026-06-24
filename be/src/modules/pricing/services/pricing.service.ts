@@ -250,7 +250,9 @@ export class PricingService {
     }
 
     if (subServices.length === 0) {
-      throw new BadRequestException('Vui lòng chọn ít nhất một dịch vụ con hợp lệ');
+      throw new BadRequestException(
+        'Vui lòng chọn ít nhất một dịch vụ con hợp lệ',
+      );
     }
 
     const durationHours = subServices.reduce(
@@ -371,7 +373,9 @@ export class PricingService {
       .findOne({ where: { id: serviceId }, relations: ['pricingConfig'] });
 
     if (!service || !service.pricingConfig || !service.pricingConfig.isActive) {
-      throw new NotFoundException('Không tìm thấy cấu hình hoa hồng dịch vụ con');
+      throw new NotFoundException(
+        'Không tìm thấy cấu hình hoa hồng dịch vụ con',
+      );
     }
 
     return toNumber(service.pricingConfig.platformCommissionRate);

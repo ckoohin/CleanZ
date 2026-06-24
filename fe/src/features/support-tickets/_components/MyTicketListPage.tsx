@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { useMyTicketList, useCreateTicket, useMyBookings } from "@/features/support-tickets/hooks/useMyTicket";
@@ -32,6 +32,7 @@ function CreateTicketSheet({
   onClose: () => void;
 }) {
   const createTicket = useCreateTicket();
+  const searchParams = useSearchParams();
   const { data: bookings, isLoading: bookingsLoading } = useMyBookings(open);
   const [images, setImages] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -41,6 +42,25 @@ function CreateTicketSheet({
     description: string;
     bookingId: string;
   }>({ category: "", subject: "", description: "", bookingId: "" });
+
+  // Tự động điền dữ liệu từ URL query params khi Modal được mở
+  React.useEffect(() => {
+    if (open) {
+      const urlBookingId = searchParams.get("bookingId") ?? "";
+      const urlCategory = searchParams.get("category") ?? "";
+      const urlSubject = searchParams.get("subject") ?? "";
+      const urlDescription = searchParams.get("description") ?? "";
+
+      if (urlBookingId || urlCategory || urlSubject || urlDescription) {
+        setForm({
+          bookingId: urlBookingId,
+          category: (urlCategory as TicketCategory) || "",
+          subject: urlSubject,
+          description: urlDescription,
+        });
+      }
+    }
+  }, [open, searchParams]);
 
   const addImages = (files: FileList | null) => {
     if (!files) return;
@@ -132,7 +152,7 @@ function CreateTicketSheet({
                               : p.bookingId,
                           }))
                         }
-                        className={`py-2.5 px-3 rounded-xl text-sm font-medium text-left border transition-all ${
+                        className={`py-3 px-4 rounded-xl text-sm font-semibold text-left border transition-all ${
                           form.category === opt.value
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-border bg-background text-foreground/70 hover:border-primary/50"
@@ -335,8 +355,17 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   basePath = ROUTES.CUSTOMER.SUPPORT_TICKETS,
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
   const [showCreate, setShowCreate] = useState(false);
+
+  // Tự động mở Modal tạo mới nếu phát hiện có tham số khiếu nại đơn từ URL
+  React.useEffect(() => {
+    const hasParams = searchParams.get("bookingId") || searchParams.get("category");
+    if (hasParams) {
+      setShowCreate(true);
+    }
+  }, [searchParams]);
 
   const statusFilter: TicketStatus | undefined =
     activeTab === "ALL" ? undefined :

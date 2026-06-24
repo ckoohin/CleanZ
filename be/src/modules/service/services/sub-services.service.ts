@@ -72,7 +72,10 @@ export class SubServicesService {
     return service;
   }
 
-  async update(id: string, dto: UpdateSubServiceDto): Promise<SubServiceEntity> {
+  async update(
+    id: string,
+    dto: UpdateSubServiceDto,
+  ): Promise<SubServiceEntity> {
     const service = await this.findOne(id);
 
     if (dto.isActive === false && service.isActive) {
@@ -160,7 +163,9 @@ export class SubServicesService {
     return this.serviceRepo.getServiceTaskers(id, page, limit);
   }
 
-  private mapPublicService(service: SubServiceEntity): PublicServiceResponseDto {
+  private mapPublicService(
+    service: SubServiceEntity,
+  ): PublicServiceResponseDto {
     const pricing = service.pricingConfig;
 
     return {

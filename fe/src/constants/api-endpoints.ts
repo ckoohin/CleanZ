@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
   TASKERS: {
     BASE: "/taskers",
     VERIFY: "/taskers/verify",
+    UPDATE_PRESENCE: "/tasker/me/presence",
   },
   SERVICES: {
     BASE: "/services",
@@ -33,6 +34,10 @@ export const API_ENDPOINTS = {
   PUBLIC: {
     CATEGORIES: "/public/categories",
     SERVICES: "/public/services",
+  },
+  SUB_SERVICES: {
+    LIST: "/admin/sub-services",
+    DETAIL: (id: string) => `/admin/sub-services/${id}`,
   },
   BOOKING: {
     // Customer APIs
@@ -45,6 +50,7 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/booking/customer/${id}/cancel`,
     UPDATE_SCHEDULE: (id: string) => `/booking/${id}/schedule-address`,
     // Tasker APIs
+    TASKER_ACTIVE: "/booking/tasker/active/current",
     TASKER_POSTED_LIST: "/booking/tasker/posted",
     TASKER_POSTED_DETAIL: (id: string) => `/booking/tasker/posted/${id}`,
     TASKER_ACCEPT: (id: string) => `/booking/tasker/posted/${id}/accept`,
@@ -98,10 +104,12 @@ export const API_ENDPOINTS = {
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
     VERIFY: (id: string) => `/admin/incidents/${id}/items/verify`,
     DECIDE: (id: string) => `/admin/incidents/${id}/decide`,
-    APPROVE_COMPENSATION: (id: string) => `/admin/incidents/${id}/approve-compensation`,
+    APPROVE_COMPENSATION: (id: string) =>
+      `/admin/incidents/${id}/approve-compensation`,
     COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
     UNLOCK_REPORTER: (id: string) => `/admin/incidents/${id}/unlock-reporter`,
-    FROM_TICKET: (ticketId: string) => `/admin/incidents/from-ticket/${ticketId}`,
+    FROM_TICKET: (ticketId: string) =>
+      `/admin/incidents/from-ticket/${ticketId}`,
     HOUSEKEEPING: "/admin/incidents/run-housekeeping",
   },
   ADMIN_SERVICES: {
@@ -118,7 +126,8 @@ export const API_ENDPOINTS = {
   ADMIN_BOOKINGS: {
     BASE: "/admin/bookings",
     DETAIL: (id: string) => `/admin/bookings/${id}`,
-    AVAILABLE_TASKERS: (id: string) => `/admin/bookings/${id}/available-taskers`,
+    AVAILABLE_TASKERS: (id: string) =>
+      `/admin/bookings/${id}/available-taskers`,
     ASSIGN_TASKER: (id: string) => `/admin/bookings/${id}/tasker`,
     STATUS: (id: string) => `/admin/bookings/${id}/status`,
     CANCEL: (id: string) => `/admin/bookings/${id}/cancel`,

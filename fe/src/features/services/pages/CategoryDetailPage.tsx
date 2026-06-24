@@ -37,7 +37,7 @@ import { ServiceDetailModal } from "../_components/ServiceDetailModal";
 import { ServiceItem } from "@/features/services/types/service.type";
 import { usePublicCategories } from "@/features/public/hooks/usePublicData";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
-import { PublicService, PublicSubService } from "@/features/services/types/public-service.type";
+import { PublicService } from "@/features/services/types/public-service.type";
 import { 
   containerVariants, 
   headingVariants 
@@ -359,7 +359,7 @@ export const CategoryDetailPage = () => {
                   rating: "5.0",
                   reviews: "10+",
                   price: srv.subServices && srv.subServices.length > 0
-                    ? "Từ " + Math.min(...srv.subServices.map((s: PublicSubService) => s.pricing?.basePrice || 0)).toLocaleString() + "đ"
+                    ? "Từ " + Math.min(...srv.subServices.map((s) => s.pricing?.basePrice || 0)).toLocaleString() + "đ"
                     : "Liên hệ",
                   unit: "/ lần",
                   duration: srv.maxHours ? `Tối đa ${srv.maxHours} giờ` : "Tùy chọn",

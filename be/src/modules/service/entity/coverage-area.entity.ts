@@ -23,7 +23,7 @@ export class CoverageAreaEntity {
     precision: 12,
     scale: 2,
     name: 'transport_fee',
-    default: 0.00,
+    default: 0.0,
   })
   transportFee!: number;
 

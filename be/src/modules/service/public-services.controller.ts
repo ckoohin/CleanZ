@@ -1,25 +1,33 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PublicServiceListQueryDto } from './dto/public-service-list-query.dto';
-import { PublicPackageListResponseDto, PublicPackageResponseDto } from './dto/public-service-response.dto';
+import {
+  PublicPackageListResponseDto,
+  PublicPackageResponseDto,
+} from './dto/public-service-response.dto';
 import { ServicePackagesService } from './services/service-packages.service';
 import { ServicePackageEntity } from './entity/service-package.entity';
 
 @ApiTags('Services')
 @Controller('services')
 export class PublicServicesController {
-  constructor(private readonly servicePackagesService: ServicePackagesService) {}
+  constructor(
+    private readonly servicePackagesService: ServicePackagesService,
+  ) {}
 
   @Get()
   @ApiOperation({
-    summary: 'Danh sách các gói dịch vụ khả dụng kèm theo các dịch vụ con bên trong',
+    summary:
+      'Danh sách các gói dịch vụ khả dụng kèm theo các dịch vụ con bên trong',
     description: 'Chỉ trả các gói dịch vụ đang hoạt động.',
   })
   @ApiOkResponse({ type: PublicPackageListResponseDto })
   async findAvailableServices(
     @Query() query: PublicServiceListQueryDto,
   ): Promise<PublicPackageListResponseDto> {
-    const packages = await this.servicePackagesService.findAvailablePackages(query.search);
+    const packages = await this.servicePackagesService.findAvailablePackages(
+      query.search,
+    );
 
     const mappedData = packages.map((pkg) => this.mapPublicPackage(pkg));
 
@@ -34,7 +42,9 @@ export class PublicServicesController {
     };
   }
 
-  private mapPublicPackage(pkg: ServicePackageEntity): PublicPackageResponseDto {
+  private mapPublicPackage(
+    pkg: ServicePackageEntity,
+  ): PublicPackageResponseDto {
     return {
       id: pkg.id,
       packageCode: pkg.packageCode,

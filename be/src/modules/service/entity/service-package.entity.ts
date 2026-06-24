@@ -53,7 +53,7 @@ export class ServicePackageEntity {
     precision: 12,
     scale: 2,
     name: 'night_surcharge',
-    default: 0.00,
+    default: 0.0,
   })
   nightSurcharge!: number;
 
@@ -62,7 +62,7 @@ export class ServicePackageEntity {
     precision: 12,
     scale: 2,
     name: 'pet_surcharge',
-    default: 0.00,
+    default: 0.0,
   })
   petSurcharge!: number;
 
@@ -71,7 +71,7 @@ export class ServicePackageEntity {
     precision: 12,
     scale: 2,
     name: 'waiting_surcharge',
-    default: 0.00,
+    default: 0.0,
   })
   waitingSurcharge!: number;
 
@@ -80,7 +80,7 @@ export class ServicePackageEntity {
     precision: 12,
     scale: 2,
     name: 'tool_fee',
-    default: 0.00,
+    default: 0.0,
   })
   toolFee!: number;
 
@@ -89,7 +89,7 @@ export class ServicePackageEntity {
     precision: 5,
     scale: 2,
     name: 'peak_rate_percent',
-    default: 0.00,
+    default: 0.0,
   })
   peakRatePercent!: number;
 
