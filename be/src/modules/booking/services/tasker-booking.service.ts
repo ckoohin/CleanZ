@@ -27,7 +27,6 @@ import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingPolicyService } from './booking-policy.service';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
-import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 
@@ -349,7 +348,9 @@ export class TaskerBookingService {
         if (booking.paymentMethod === PaymentMethod.CASH) {
           const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
           if (!subServiceId) {
-            throw new ConflictException('Booking không chứa dịch vụ con nào để tính hoa hồng');
+            throw new ConflictException(
+              'Booking không chứa dịch vụ con nào để tính hoa hồng',
+            );
           }
           const commissionRate =
             await this.pricingService.getPlatformCommissionRateByServiceId(
@@ -412,6 +413,18 @@ export class TaskerBookingService {
         `Tasker đã nhận đơn ${result.bookingCode}. Vui lòng chuẩn bị cho buổi dịch vụ.`,
       );
 
+      void this.trackingGateway
+        .emitToBookingRoom(result.id, 'booking:status_changed', {
+          bookingId: result.id,
+          status: BookingStatus.CONFIRMED,
+          tasker: result.tasker,
+        })
+        .catch((err) =>
+          this.logger.error(
+            `Không thể phát sự kiện socket booking:confirmed: ${err}`,
+          ),
+        );
+
       return result;
     }, 'Không thể nhận booking');
   }
@@ -447,6 +460,39 @@ export class TaskerBookingService {
       );
       return this.mapAssignedBookingDetail(booking, service, distance);
     }, 'Không thể lấy chi tiết booking của tasker');
+  }
+
+  async findActiveBooking(
+    userId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse | null> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.findTaskerProfile(userId);
+      const booking = await this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.tasker', 'tasker')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'customerUser')
+        .leftJoinAndSelect('booking.addressRef', 'addressRef')
+        .where('tasker.id = :taskerId', { taskerId: tasker.id })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: [
+            BookingStatus.CONFIRMED,
+            BookingStatus.TASKER_ON_THE_WAY,
+            BookingStatus.CHECKED_IN,
+            BookingStatus.IN_PROGRESS,
+          ],
+        })
+        .orderBy('booking.updatedAt', 'DESC')
+        .getOne();
+
+      if (!booking) {
+        return null;
+      }
+
+      const service = await this.findServiceByBooking(booking);
+      return this.mapAssignedBookingDetail(booking, service, null);
+    }, 'Không thể lấy booking đang hoạt động của tasker');
   }
 
   async markOnTheWay(
@@ -505,6 +551,17 @@ export class TaskerBookingService {
         'Tasker đang trên đường tới',
         'Tasker đã bắt đầu di chuyển tới địa điểm của bạn.',
       );
+
+      void this.trackingGateway
+        .emitToBookingRoom(booking.id, 'booking:status_changed', {
+          bookingId: booking.id,
+          status: BookingStatus.TASKER_ON_THE_WAY,
+        })
+        .catch((err) =>
+          this.logger.error(
+            `Không thể phát sự kiện socket booking:on_the_way: ${err}`,
+          ),
+        );
 
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);
@@ -696,7 +753,9 @@ export class TaskerBookingService {
         const totalPrice = toNumber(savedBooking.totalPrice);
         const subServiceId = savedBooking.bookingSubServices?.[0]?.subServiceId;
         if (!subServiceId) {
-          throw new ConflictException('Booking không chứa dịch vụ con nào để tính hoa hồng');
+          throw new ConflictException(
+            'Booking không chứa dịch vụ con nào để tính hoa hồng',
+          );
         }
         const commissionRate =
           await this.pricingService.getPlatformCommissionRateByServiceId(
@@ -804,9 +863,11 @@ export class TaskerBookingService {
       return new Map();
     }
 
-    const packages = await this.dataSource.manager.getRepository(ServicePackageEntity).find({
-      where: { id: In(packageIds) },
-    });
+    const packages = await this.dataSource.manager
+      .getRepository(ServicePackageEntity)
+      .find({
+        where: { id: In(packageIds) },
+      });
 
     return new Map(packages.map((pkg) => [pkg.id, pkg]));
   }
@@ -997,9 +1058,11 @@ export class TaskerBookingService {
     name: string;
     description?: string | null;
   }> {
-    const pkg = await this.dataSource.manager.getRepository(ServicePackageEntity).findOne({
-      where: { id: booking.packageId },
-    });
+    const pkg = await this.dataSource.manager
+      .getRepository(ServicePackageEntity)
+      .findOne({
+        where: { id: booking.packageId },
+      });
     return {
       id: booking.packageId,
       name: pkg?.name || 'Gói dịch vụ',

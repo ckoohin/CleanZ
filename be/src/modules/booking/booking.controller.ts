@@ -230,6 +230,25 @@ export class BookingController {
     return this.taskerBookingService.acceptPostedBooking(userId, bookingId);
   }
 
+  @Get('tasker/active/current')
+  @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker — Lấy thông tin đơn hàng đang hoạt động hiện tại',
+    description:
+      'Lấy đơn hàng đang hoạt động của tasker (ở các trạng thái CONFIRMED, TASKER_ON_THE_WAY, CHECKED_IN, IN_PROGRESS). Trả về chi tiết đơn hàng hoặc null nếu không có.',
+  })
+  @ApiOkResponse({
+    description: 'Thông tin đơn hàng đang hoạt động hoặc null',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  findActiveBookingForTasker(
+    @CurrentUser('id') userId: string,
+  ): Promise<TaskerAssignedBookingDetailResponse | null> {
+    return this.taskerBookingService.findActiveBooking(userId);
+  }
+
   @Get('tasker/:id')
   @Auth(UserRole.TASKER)
   @ApiTags('Booking – Tasker Flow')

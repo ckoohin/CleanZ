@@ -101,3 +101,22 @@ export function useUpdateTaskerDocuments() {
     },
   });
 }
+
+export function useUpdatePresence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (presenceStatus: 'ONLINE' | 'OFFLINE') =>
+      taskerApi.updatePresence(presenceStatus),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
+      toast.success(
+        data.presenceStatus === 'ONLINE'
+          ? 'Đã bật chế độ hoạt động!'
+          : 'Đã tắt chế độ hoạt động!'
+      );
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái hoạt động');
+    },
+  });
+}

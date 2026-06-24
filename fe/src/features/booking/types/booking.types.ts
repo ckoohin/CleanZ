@@ -1,4 +1,4 @@
-﻿// ─── Enums ────────────────────────────────────────────────────────────────────
+// ─── Enums ────────────────────────────────────────────────────────────────────
 export type BookingStatus =
   | "POSTED"
   | "CONFIRMED"
@@ -63,6 +63,7 @@ export interface BookingTasker {
   phone?: string | null;
   avatarUrl?: string | null;
   ratingAvg?: number;
+  totalCompletedJobs?: number;
 }
 
 export interface StatusLog {
@@ -75,18 +76,24 @@ export interface StatusLog {
 
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
 export interface CreateBookingDto {
-  serviceId?: string;
+  packageId?: string;        // ID ServicePackage (bắt buộc trên BE)
+  subServiceIds?: string[];  // Danh sách ID SubService (bắt buộc trên BE)
   addressId?: string;
-  scheduledDate: string;    // YYYY-MM-DD
-  scheduledTime: string;    // HH:mm
+  address?: string;          // Địa chỉ nhập tay
+  provinceCode?: string;
+  scheduledDate: string;     // YYYY-MM-DD
+  scheduledTime: string;     // HH:mm
   note?: string;
   paymentMethod?: PaymentMethod;
   voucherCode?: string;
 }
 
 export interface QuoteBookingDto {
-  serviceId?: string;
+  packageId?: string;
+  subServiceIds?: string[];
   addressId?: string;
+  address?: string;
+  provinceCode?: string;
   scheduledDate: string;
   scheduledTime: string;
   note?: string;
@@ -103,6 +110,21 @@ export interface UpdateBookingScheduleDto {
   longitude?: number;
   scheduledDate?: string;
   scheduledTime?: string;
+}
+
+// State dùng trong BookingWizard (lưu toàn bộ form data qua các step)
+export interface BookingFormState {
+  serviceId: string;        // ServicePackage ID (alias cho dễ đọc)
+  packageId?: string;       // ServicePackage ID (field gửi lên BE)
+  subServiceIds?: string[]; // SubService IDs gửi lên BE
+  addressId: string;
+  address: string;
+  provinceCode?: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  note?: string;
+  paymentMethod: PaymentMethod;
+  voucherCode?: string;
 }
 
 // ─── Customer Responses ───────────────────────────────────────────────────────
@@ -133,6 +155,11 @@ export interface CustomerBookingDetail {
 
 export interface CustomerActiveBookingResponse {
   booking: CustomerBookingDetail | null;
+}
+
+export interface CustomerBookingListResponse {
+  items: CustomerBookingDetail[];
+  total: number;
 }
 
 // ─── Tasker Responses ─────────────────────────────────────────────────────────
@@ -199,6 +226,11 @@ export interface TaskerAssignedBookingDetail {
     latitude?: number | null;
     longitude?: number | null;
     hasPet: boolean;
+    contactName?: string | null;
+    contactPhone?: string | null;
+    buildingFloor?: string | null;
+    gate?: string | null;
+    driverNote?: string | null;
   };
   schedule: BookingSchedule;
   price: {

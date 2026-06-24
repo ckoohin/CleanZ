@@ -106,6 +106,10 @@ export class CustomerBookingService {
           id: context.package.id,
           name: context.package.name,
         },
+        service: {
+          id: context.package.id,
+          name: context.package.name,
+        },
         subServices: context.subServices.map((sub) => ({
           id: sub.id,
           name: sub.name,
@@ -350,6 +354,7 @@ export class CustomerBookingService {
               phone: booking.tasker.user?.phone ?? null,
               avatarUrl: booking.tasker.user?.avatarUrl ?? null,
               ratingAvg: toNumber(booking.tasker.ratingAvg),
+              totalCompletedJobs: toNumber(booking.tasker.totalCompletedJobs),
             }
           : null,
         statusLogs: statusLogs.map((log) => ({
@@ -394,31 +399,121 @@ export class CustomerBookingService {
   }
 
   /** Danh sách booking của customer (cho select khi tạo ticket hỗ trợ). */
-  async findMyBookings(userId: string): Promise<
-    {
-      id: string;
-      bookingCode: string;
-      status: string;
-      scheduledStart: Date | null;
-      serviceName: string | null;
-    }[]
-  > {
+  async findMyBookings(userId: string): Promise<{
+    items: CustomerBookingDetailResponse[];
+    total: number;
+  }> {
     return asyncHandleOperation(async () => {
-      return this.dataSource
+      const bookings = await this.dataSource
         .getRepository(BookingEntity)
-        .createQueryBuilder('b')
-        .innerJoin('b.customer', 'c')
-        .innerJoin('c.user', 'u')
-        .leftJoin('service_packages', 's', 's.id = b.package_id')
-        .select('b.id', 'id')
-        .addSelect('b.booking_code', 'bookingCode')
-        .addSelect('b.status', 'status')
-        .addSelect('b.scheduled_start', 'scheduledStart')
-        .addSelect('s.name', 'serviceName')
-        .where('u.id = :userId', { userId })
-        .orderBy('b.created_at', 'DESC')
+        .createQueryBuilder('booking')
+        .innerJoin('booking.customer', 'customer')
+        .innerJoin('customer.user', 'customerUser')
+        .leftJoinAndSelect('booking.addressRef', 'addressRef')
+        .leftJoinAndSelect('booking.tasker', 'tasker')
+        .leftJoinAndSelect('tasker.user', 'taskerUser')
+        .leftJoinAndSelect('booking.package', 'package')
+        .leftJoinAndSelect('booking.bookingSubServices', 'bookingSubServices')
+        .leftJoinAndSelect('bookingSubServices.subService', 'subService')
+        .where('customerUser.id = :userId', { userId })
+        .orderBy('booking.createdAt', 'DESC')
         .limit(50)
-        .getRawMany();
+        .getMany();
+
+      const items: CustomerBookingDetailResponse[] = [];
+      for (const booking of bookings) {
+        const [payment, voucher] = await Promise.all([
+          this.paymentService.findLatestByBookingId(
+            this.dataSource.manager,
+            booking.id,
+          ),
+          booking.voucherId
+            ? this.voucherService
+                .getById(this.dataSource.manager, booking.voucherId)
+                .catch(() => null)
+            : Promise.resolve(null),
+        ]);
+
+        const packageSummary = {
+          id: booking.package?.id,
+          name: booking.package?.name,
+        };
+
+        const subServicesSummary = (booking.bookingSubServices || []).map(
+          (bss) => ({
+            id: bss.subServiceId,
+            name: bss.subService?.name || 'Dịch vụ con',
+            price: toNumber(bss.price),
+            durationHours: toNumber(bss.durationHours),
+          }),
+        );
+
+        items.push({
+          id: booking.id,
+          bookingCode: booking.bookingCode,
+          status: booking.status,
+          service: packageSummary,
+          package: packageSummary,
+          subServices: subServicesSummary,
+          address: {
+            id: booking.addressRef?.id ?? null,
+            label: booking.addressRef?.label ?? null,
+            fullAddress: booking.address,
+            wardDetail: booking.addressRef?.wardDetail ?? null,
+            latitude: booking.addressRef?.latitude ?? null,
+            longitude: booking.addressRef?.longitude ?? null,
+            hasPet: booking.addressRef?.hasPet ?? false,
+          },
+          schedule: {
+            scheduledStartDate: booking.scheduledStartDate,
+            scheduledStartTime: booking.scheduledStartTime,
+            scheduledEndDate: booking.scheduledEndDate,
+            scheduledEndTime: booking.scheduledEndTime,
+            durationHours: toNumber(booking.durationHours),
+          },
+          price: {
+            basePrice: toNumber(booking.basePrice),
+            addonPrice: toNumber(booking.addonPrice),
+            peakFee: toNumber(booking.peakFee),
+            petFee: toNumber(booking.petFee),
+            waitingFee: toNumber(booking.waitingFee),
+            discountAmount: toNumber(booking.discountAmount),
+            totalPrice: toNumber(booking.totalPrice),
+          },
+          payment: {
+            method: booking.paymentMethod,
+            status: booking.paymentStatus,
+            latestPaymentId: payment?.id ?? null,
+            amount: payment ? toNumber(payment.amount) : null,
+            transactionCode: payment?.transactionCode ?? null,
+            paidAt: payment?.paidAt ?? null,
+          },
+          voucher: voucher
+            ? {
+                id: voucher.id,
+                code: voucher.code,
+                name: voucher.name,
+              }
+            : null,
+          tasker: booking.tasker
+            ? {
+                id: booking.tasker.id,
+                fullName: booking.tasker.user?.fullName ?? null,
+                phone: booking.tasker.user?.phone ?? null,
+                avatarUrl: booking.tasker.user?.avatarUrl ?? null,
+                ratingAvg: toNumber(booking.tasker.ratingAvg),
+                totalCompletedJobs: toNumber(booking.tasker.totalCompletedJobs),
+              }
+            : null,
+          createdAt: booking.createdAt.toISOString(),
+          updatedAt: booking.updatedAt.toISOString(),
+        });
+      }
+
+      return {
+        items,
+        total: items.length,
+      };
     }, 'Không thể lấy danh sách booking');
   }
 

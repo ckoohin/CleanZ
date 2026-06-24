@@ -25,7 +25,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
   const quoteMutation = useBookingQuote();
   const createMutation = useCreateBooking();
   const { data: wallet, isLoading: isWalletLoading } = useCustomerWallet();
-  const [voucherInput, setVoucherInput] = useState(formData.voucherCode);
+  const [voucherInput, setVoucherInput] = useState(formData.voucherCode ?? "");
 
   const [inputPhone, setInputPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -34,7 +34,10 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       quoteMutation.mutate({
-        serviceId: formData.serviceId,
+        packageId: formData.serviceId || undefined,
+        subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
+          ? formData.subServiceIds
+          : undefined,
         addressId: formData.addressId || undefined,
         address: formData.address,
         provinceCode: formData.provinceCode,
@@ -76,7 +79,10 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
         onSuccess: () => {
           toast.success("Cập nhật số điện thoại thành công!");
           quoteMutation.mutate({
-            serviceId: formData.serviceId,
+            packageId: formData.serviceId || undefined,
+            subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
+              ? formData.subServiceIds
+              : undefined,
             addressId: formData.addressId || undefined,
             address: formData.address,
             provinceCode: formData.provinceCode,
@@ -91,7 +97,10 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
 
   const handleCheckout = () => {
     createMutation.mutate({
-      serviceId: formData.serviceId,
+      packageId: formData.serviceId || undefined,
+      subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
+        ? formData.subServiceIds
+        : undefined,
       addressId: formData.addressId || undefined,
       address: formData.address,
       provinceCode: formData.provinceCode,
