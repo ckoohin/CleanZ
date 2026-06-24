@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState } from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 import {
   BadgeCheck,
   Eye,
@@ -13,39 +13,39 @@ import {
   Trash2,
   User,
   Users,
-} from 'lucide-react';
-import { useAdminPolicies } from '../hooks/useAdminPolicies';
-import { Policy } from '../types/policy.type';
-import { PolicyFormModal } from './PolicyFormModal';
-import { DeletePolicyDialog } from './DeletePolicyDialog';
+} from "lucide-react";
+import { useAdminPolicies } from "../hooks/useAdminPolicies";
+import { Policy } from "../types/policy.type";
+import { DeletePolicyDialog } from "./DeletePolicyDialog";
 
 const roleMap: Record<string, { label: string; icon: React.ReactNode }> = {
   CUSTOMER: {
-    label: 'Customer',
+    label: "Customer",
     icon: <User className="w-3.5 h-3.5" />,
   },
   TASKER: {
-    label: 'Tasker',
+    label: "Tasker",
     icon: <Shield className="w-3.5 h-3.5" />,
   },
   ALL: {
-    label: 'Tất cả',
+    label: "Tất cả",
     icon: <Users className="w-3.5 h-3.5" />,
   },
 };
 
-function formatDate(dateString: string) {
+function formatDate(dateString?: string) {
+  if (!dateString) return "--";
   const date = new Date(dateString);
-  return date.toLocaleString('vi-VN');
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleString("vi-VN");
 }
 
 type PolicyRowProps = {
   policy: Policy;
-  onEdit: (policy: Policy) => void;
   onDelete: (policy: Policy) => void;
 };
 
-function PolicyRow({ policy, onEdit, onDelete }: PolicyRowProps) {
+function PolicyRow({ policy, onDelete }: PolicyRowProps) {
   const roleInfo = roleMap[policy.role] || roleMap.ALL;
 
   return (
@@ -81,35 +81,34 @@ function PolicyRow({ policy, onEdit, onDelete }: PolicyRowProps) {
         {formatDate(policy.createdAt)}
       </td>
 
-     <td className="px-4 py-4 align-top">
-  <div className="flex items-center gap-2 flex-wrap">
-    <Link
-      href={`/admin/policies/${policy.id}`}
-      className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-    >
-      <Eye className="w-3.5 h-3.5" />
-      Xem chi tiết
-    </Link>
+      <td className="px-4 py-4 align-top">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href={`/admin/policies/${policy.id}`}
+            className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Xem chi tiết
+          </Link>
 
-    <button
-      type="button"
-      onClick={() => onEdit(policy)}
-      className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition hover:bg-muted"
-    >
-      <Pencil className="w-3.5 h-3.5" />
-      Sửa
-    </button>
+          <Link
+            href={`/admin/policies/${policy.id}/edit`}
+            className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition hover:bg-muted"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Sửa
+          </Link>
 
-    <button
-      type="button"
-      onClick={() => onDelete(policy)}
-      className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-    >
-      <Trash2 className="w-3.5 h-3.5" />
-      Xóa
-    </button>
-  </div>
-</td>
+          <button
+            type="button"
+            onClick={() => onDelete(policy)}
+            className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Xóa
+          </button>
+        </div>
+      </td>
     </tr>
   );
 }
@@ -118,11 +117,9 @@ export function PolicyListTable() {
   const query = useAdminPolicies();
   const { data, isLoading, isError } = query;
 
-  const [openCreate, setOpenCreate] = useState(false);
-  const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
-  const [deletingPolicy, setDeletingPolicy] = useState<Policy | null>(null);
+  const [deletingPolicy, setDeletingPolicy] = React.useState<Policy | null>(null);
 
-  const policies = useMemo(() => data ?? [], [data]);
+  const policies = React.useMemo(() => data ?? [], [data]);
 
   if (isLoading) {
     return (
@@ -152,14 +149,13 @@ export function PolicyListTable() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpenCreate(true)}
+        <Link
+          href="/admin/policies/create"
           className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
         >
           <Plus className="w-4 h-4" />
           Thêm chính sách
-        </button>
+        </Link>
       </div>
 
       {policies.length === 0 ? (
@@ -172,14 +168,13 @@ export function PolicyListTable() {
             Hiện tại hệ thống chưa có policy nào để hiển thị.
           </p>
 
-          <button
-            type="button"
-            onClick={() => setOpenCreate(true)}
+          <Link
+            href="/admin/policies/create"
             className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
           >
             <Plus className="w-4 h-4" />
             Tạo policy đầu tiên
-          </button>
+          </Link>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border bg-background">
@@ -199,7 +194,6 @@ export function PolicyListTable() {
                   <PolicyRow
                     key={policy.id}
                     policy={policy}
-                    onEdit={setEditingPolicy}
                     onDelete={setDeletingPolicy}
                   />
                 ))}
@@ -209,20 +203,6 @@ export function PolicyListTable() {
         </div>
       )}
 
-      {/* Create modal */}
-      <PolicyFormModal
-        open={openCreate}
-        onClose={() => setOpenCreate(false)}
-      />
-
-      {/* Edit modal */}
-      <PolicyFormModal
-        open={Boolean(editingPolicy)}
-        onClose={() => setEditingPolicy(null)}
-        policy={editingPolicy}
-      />
-
-      {/* Delete dialog */}
       <DeletePolicyDialog
         open={Boolean(deletingPolicy)}
         onClose={() => setDeletingPolicy(null)}
