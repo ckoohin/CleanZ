@@ -28,7 +28,6 @@ import {
   type AdminTaskerDocStatus,
 } from "../constants";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
-import { TaskerDetailDrawer } from "./TaskerDetailDrawer";
 import { Eye, Maximize2, CheckCircle, ListFilter, AlertTriangle } from "lucide-react";
 
 type AccountStatusFilter = "ALL" | AdminTasker["status"];
@@ -47,8 +46,6 @@ export const TaskerListTable: React.FC = () => {
     page: number;
     limit: number;
   }>({ keyword: "", status: "ALL", docStatus: "ALL", page: 1, limit: 10 });
-
-  const [detailId, setDetailId] = useState<string | null>(null);
 
   const listFilter: AdminTaskerFilter = {
     keyword: filter.keyword || undefined,
@@ -162,12 +159,12 @@ export const TaskerListTable: React.FC = () => {
       type: "view",
       label: "Xem chi tiết",
       icon: Eye,
-      onClick: (row) => setDetailId(row.id),
+      onClick: (row) => router.push(`/admin/taskers/${row.id}`),
     },
     {
-      label: "Xem 360",
+      label: "Xem hồ sơ 360°",
       icon: Maximize2,
-      onClick: (row) => router.push(`/admin/taskers/${row.id}`),
+      onClick: (row) => router.push(`/admin/taskers/${row.id}/360`),
     },
     {
       type: "approve",
@@ -266,14 +263,6 @@ export const TaskerListTable: React.FC = () => {
           </div>
         }
       />
-
-      {detailId && (
-        <TaskerDetailDrawer
-          taskerId={detailId}
-          isOpen={!!detailId}
-          onClose={() => setDetailId(null)}
-        />
-      )}
     </div>
   );
 };
