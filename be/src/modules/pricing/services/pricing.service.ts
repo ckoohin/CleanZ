@@ -287,7 +287,19 @@ export class PricingService {
       }
     }
 
-    const peakRate = toNumber(servicePackage.peakRatePercent) / 100;
+    const schedulePeakRate =
+      await this.systemConfigService.getPeakRateForSchedule(
+        manager,
+        input.scheduledStart,
+        input.scheduledStartTime,
+      );
+    const packagePeakRate = toNumber(servicePackage.peakRatePercent) / 100;
+    const peakRate =
+      schedulePeakRate > 0
+        ? schedulePeakRate
+        : this.isDefaultPeakHour(input.scheduledStartTime)
+          ? packagePeakRate
+          : 0;
     const peakFee = peakRate > 0 ? Math.round(basePrice * peakRate) : 0;
     const petFee = input.hasPet ? toNumber(servicePackage.petSurcharge) : 0;
     const waitingFee = 0;
@@ -470,5 +482,14 @@ export class PricingService {
     }
 
     return value.length === 5 ? `${value}:00` : value;
+  }
+
+  private isDefaultPeakHour(scheduledStartTime: string): boolean {
+    const [hour, minute = 0] = scheduledStartTime.split(':').map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+      return false;
+    }
+
+    return hour * 60 + minute >= 18 * 60;
   }
 }

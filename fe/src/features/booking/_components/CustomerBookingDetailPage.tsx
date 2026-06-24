@@ -515,6 +515,8 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       }, 0);
       return () => clearTimeout(timer);
     }
+
+    setIsMapFullscreen(false);
   }, [booking?.status]);
 
   // Lắng nghe socket realtime
@@ -597,9 +599,9 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
     socket.on("connect", joinBookingRoom);
     socket.on("booking:status_changed", handleStatusChanged);
     socket.on("booking:status_updated", handleStatusUpdated);
-    socket.on("tasker:arrived", handleRefresh);
-    socket.on("booking:in_progress", handleRefresh);
-    socket.on("booking:completed", handleRefresh);
+    socket.on("tasker:arrived", handleStatusChanged);
+    socket.on("booking:in_progress", handleStatusChanged);
+    socket.on("booking:completed", handleStatusChanged);
     socket.on("customer:notification", handleRefresh);
     socket.on("tasker:location:updated", handleLocationUpdated);
 
@@ -613,9 +615,9 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       socket.off("connect", joinBookingRoom);
       socket.off("booking:status_changed", handleStatusChanged);
       socket.off("booking:status_updated", handleStatusUpdated);
-      socket.off("tasker:arrived", handleRefresh);
-      socket.off("booking:in_progress", handleRefresh);
-      socket.off("booking:completed", handleRefresh);
+      socket.off("tasker:arrived", handleStatusChanged);
+      socket.off("booking:in_progress", handleStatusChanged);
+      socket.off("booking:completed", handleStatusChanged);
       socket.off("customer:notification", handleRefresh);
       socket.off("tasker:location:updated", handleLocationUpdated);
     };
@@ -1141,7 +1143,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 
       {/* Modal Bản đồ Full Screen với Bottom Sheet trượt từ dưới lên (Grab/Uber Style) */}
       <AnimatePresence>
-        {isMapFullscreen && booking && (
+        {isMapFullscreen && booking.status === "TASKER_ON_THE_WAY" && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
