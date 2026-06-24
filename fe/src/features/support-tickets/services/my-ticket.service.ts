@@ -8,6 +8,8 @@ import type {
   SendMessageDto,
   SubmitSurveyDto,
   AttachmentUploadResult,
+  PublicMessage,
+  MarkReadDto,
 } from "../types/my-ticket.types";
 
 const EP = API_ENDPOINTS.SUPPORT_TICKETS;
@@ -42,9 +44,17 @@ export const myTicketApi = {
   findOne: (id: string): Promise<MyTicketDetail> =>
     http.get<MyTicketDetail>(EP.DETAIL(id)).then((r) => r.data),
 
-  /** Gửi tin nhắn công khai */
-  sendMessage: (id: string, dto: SendMessageDto): Promise<{ id: string }> =>
-    http.post<{ id: string }>(EP.MESSAGES(id), dto).then((r) => r.data),
+  /** Gửi tin nhắn công khai (trả message đầy đủ: senderRole + attachments) */
+  sendMessage: (id: string, dto: SendMessageDto): Promise<PublicMessage> =>
+    http.post<PublicMessage>(EP.MESSAGES(id), dto).then((r) => r.data),
+
+  /** Đánh dấu đã đọc luồng hội thoại của tôi */
+  markRead: (id: string, dto: MarkReadDto = {}): Promise<unknown> =>
+    http.post(EP.READ(id), dto).then((r) => r.data),
+
+  /** Tổng số tin chưa đọc trên tất cả ticket của tôi (badge nav) */
+  unreadTotal: (): Promise<{ count: number }> =>
+    http.get<{ count: number }>(EP.UNREAD_TOTAL).then((r) => r.data),
 
   /** Gửi đánh giá hài lòng (CSAT) */
   submitSurvey: (id: string, dto: SubmitSurveyDto): Promise<{ message: string }> =>

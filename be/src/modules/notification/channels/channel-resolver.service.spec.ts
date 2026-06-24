@@ -34,6 +34,16 @@ describe('ChannelResolverService (TC-U-CR)', () => {
     ).toEqual(['IN_APP']);
   });
 
+  it('returns only IN_APP for SUPPORT_REPLY (tin nhắn ticket — không email)', () => {
+    expect(
+      resolver.resolve({
+        userId: 'u1',
+        type: NotificationType.SUPPORT_REPLY,
+        title: 't',
+      }),
+    ).toEqual(['IN_APP']);
+  });
+
   it('honours explicit channels override', () => {
     expect(
       resolver.resolve({

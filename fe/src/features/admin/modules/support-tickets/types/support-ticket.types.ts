@@ -19,6 +19,8 @@ export type {
   TicketConfig,
   SlaEntry,
   PaginationMeta,
+  TicketAudience,
+  MarkReadAdminInput,
 } from "@/features/support-tickets/shared/ticket.types";
 
 import type {
