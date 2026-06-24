@@ -1,8 +1,18 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, Loader2, Trash2, X } from 'lucide-react';
-import { Policy } from '../types/policy.type';
+import { Trash2, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
+import { BaseButton } from '@/components/ui/base/base_button';
+import { Badge } from '@/components/ui/badge';
+import { POLICY_CATEGORY_META, Policy } from '../types/policy.type';
 import { useDeletePolicy } from '../hooks/useDeletePolicy';
 
 type DeletePolicyDialogProps = {
@@ -11,11 +21,7 @@ type DeletePolicyDialogProps = {
   policy: Policy | null;
 };
 
-export function DeletePolicyDialog({
-  open,
-  onClose,
-  policy,
-}: DeletePolicyDialogProps) {
+export function DeletePolicyDialog({ open, onClose, policy }: DeletePolicyDialogProps) {
   const deleteMutation = useDeletePolicy();
 
   if (!open || !policy) return null;
@@ -25,76 +31,69 @@ export function DeletePolicyDialog({
       await deleteMutation.mutateAsync(policy.id);
       onClose();
     } catch {
-      // lỗi đã có toast interceptor xử lý
+      /* errors handled via toast */
     }
   };
 
+  const meta = POLICY_CATEGORY_META[policy.category] ?? POLICY_CATEGORY_META.GENERAL;
+  const CategoryIcon = meta.icon;
+
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-border/60 bg-background shadow-2xl">
-        <div className="border-b px-6 py-5">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
-              <AlertTriangle className="h-6 w-6" />
+    <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <AlertDialogContent className="max-w-md">
+        <AlertDialogHeader>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
             </div>
+            <AlertDialogTitle className="text-lg font-bold">Xóa chính sách</AlertDialogTitle>
+          </div>
+          <AlertDialogDescription>
+            Hành động này không thể hoàn tác. Chính sách sẽ bị xóa khỏi hệ thống
+            và gỡ khỏi tất cả gói dịch vụ đang dùng.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-            <div className="min-w-0 flex-1">
-              <h3 className="text-xl font-black tracking-tight">
-                Xóa chính sách
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Bạn có chắc muốn xóa chính sách này không? Hành động này không thể hoàn tác.
-              </p>
+        {/* Policy preview card */}
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex items-start gap-3">
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${meta.bgColor}`}>
+            <CategoryIcon className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm text-foreground truncate">{policy.title}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 font-mono">{policy.slug}</p>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <Badge variant="secondary" className={`text-[10px] font-semibold ${meta.color}`}>
+                <CategoryIcon className="w-3 h-3 mr-1" />
+                {meta.label}
+              </Badge>
+              {policy.isDefault && (
+                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                  Mặc định
+                </Badge>
+              )}
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border bg-background text-muted-foreground transition hover:bg-muted"
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
         </div>
 
-        <div className="px-6 py-5">
-          <div className="rounded-2xl border bg-muted/30 p-4">
-            <p className="text-sm text-muted-foreground">Chính sách sẽ bị xóa:</p>
-            <p className="mt-1 font-bold">{policy.title}</p>
-            <p className="text-sm text-muted-foreground">{policy.slug}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col-reverse gap-3 border-t px-6 py-4 sm:flex-row sm:justify-end">
-          <button
-            type="button"
+        <AlertDialogFooter>
+          <BaseButton
+            variant="outline"
             onClick={onClose}
             disabled={deleteMutation.isPending}
-            className="inline-flex h-11 items-center justify-center rounded-2xl border px-5 text-sm font-semibold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
             Hủy
-          </button>
-
-          <button
-            type="button"
+          </BaseButton>
+          <BaseButton
+            variant="destructive"
             onClick={handleDelete}
-            disabled={deleteMutation.isPending}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            isLoading={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Đang xóa...
-              </>
-            ) : (
-              <>
-                <Trash2 className="h-4 w-4" />
-                Xóa chính sách
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+            {!deleteMutation.isPending && <Trash2 className="w-4 h-4" />}
+            Xóa chính sách
+          </BaseButton>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
