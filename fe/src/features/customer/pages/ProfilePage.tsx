@@ -26,6 +26,8 @@ import {
   useCustomerAddresses,
   useSetDefaultCustomerAddress,
 } from "@/features/customer/profile/hooks/useCustomerAddresses";
+import { useMyBookingHistory } from "@/features/booking/hooks/useCustomerBooking";
+import type { CustomerBookingDetail } from "@/features/booking/types/booking.types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -47,13 +49,6 @@ const TABS = [
   { id: "orders",   label: "Lịch sử",   icon: ClipboardList },
   { id: "security", label: "Bảo mật",   icon: Lock },
   { id: "notify",   label: "Thông báo", icon: Bell },
-];
-
-const ORDER_HISTORY = [
-  { id: "KOS-2401", service: "Sửa điều hòa",     date: "12/01/2025", price: "450.000đ", rating: 5, worker: "Minh Tuấn" },
-  { id: "KOS-2389", service: "Thông tắc bồn rửa", date: "05/01/2025", price: "280.000đ", rating: 4, worker: "Quang Nam" },
-  { id: "KOS-2310", service: "Sửa máy giặt",      date: "22/12/2024", price: "600.000đ", rating: 5, worker: "Hoàng Linh" },
-  { id: "KOS-2298", service: "Lắp đèn trần",      date: "15/12/2024", price: "150.000đ", rating: 5, worker: "Văn Đức" },
 ];
 
 const NOTIFICATIONS = [
@@ -83,9 +78,21 @@ const tabAnim: Variants = {
 
 export default function ProfilePage() {
   const { data: profile, isLoading, isError } = useProfile();
+  const { data: historyData, isLoading: isHistoryLoading } = useMyBookingHistory();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("info");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Tính stats từ real data
+  const completedBookings = historyData?.items?.filter((b) => b.status === "COMPLETED") ?? [];
+  const totalSpent = completedBookings.reduce((sum, b) => sum + b.price.totalPrice, 0);
+  const totalOrders = historyData?.items?.length ?? 0;
+
+  const stats = [
+    { label: "Tổng đơn",    value: isHistoryLoading ? "..." : String(totalOrders),       color: "text-foreground" },
+    { label: "Chi tiêu",    value: isHistoryLoading ? "..." : totalSpent > 0 ? `${(totalSpent / 1_000_000).toFixed(1)}tr` : "0đ", color: "text-foreground" },
+    { label: "Đánh giá TB", value: "★ 5.0",   color: "text-primary" },
+  ];
 
   if (isError) {
     return (
@@ -165,17 +172,14 @@ export default function ProfilePage() {
 
             {/* Stats */}
             <div className="border-t border-border grid grid-cols-3 divide-x divide-border">
-              {[
-                { label: "Tổng đơn",    value: "12",     color: "text-foreground" },
-                { label: "Chi tiêu",    value: "4.8tr",  color: "text-foreground" },
-                { label: "Đánh giá TB", value: "★ 4.9", color: "text-primary" },
-              ].map((s) => (
+              {stats.map((s) => (
                 <div key={s.label} className="py-4 text-center">
                   <p className={cn("text-lg font-bold", s.color)}>{s.value}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
                 </div>
               ))}
             </div>
+
           </div>
         </motion.div>
 
@@ -249,7 +253,7 @@ export default function ProfilePage() {
               <motion.div key={activeTab} variants={tabAnim} initial="hidden" animate="show" exit="exit">
                 {activeTab === "info"     && <TabInfo    profile={profile} phoneDisplay={phoneDisplay} onEdit={() => setIsEditDialogOpen(true)} />}
                 {activeTab === "address"  && <TabAddress />}
-                {activeTab === "orders"   && <TabOrders />}
+                {activeTab === "orders"   && <TabOrders bookings={historyData?.items ?? []} isLoading={isHistoryLoading} />}
                 {activeTab === "security" && <TabSecurity profile={profile} />}
                 {activeTab === "notify"   && <TabNotify />}
               </motion.div>
@@ -415,40 +419,102 @@ function TabAddress() {
   );
 }
 
-function TabOrders() {
+function TabOrders({ bookings, isLoading }: { bookings: CustomerBookingDetail[]; isLoading: boolean }) {
+  const router = useRouter();
+
+  function fmtCurrency(n: number) {
+    return n.toLocaleString("vi-VN") + "đ";
+  }
+
+  function fmtDate(dateStr: string | null) {
+    if (!dateStr) return "";
+    try {
+      return new Date(dateStr).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    } catch {
+      return dateStr;
+    }
+  }
+
+  const recentBookings = [...bookings]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  if (isLoading) {
+    return (
+      <TabCard title="Lịch sử dịch vụ" icon={ClipboardList}>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-xl" />
+          ))}
+        </div>
+      </TabCard>
+    );
+  }
+
+  if (recentBookings.length === 0) {
+    return (
+      <TabCard title="Lịch sử dịch vụ" icon={ClipboardList} count={0}>
+        <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+          <ClipboardList className="mx-auto mb-3 size-8 text-muted-foreground/50" />
+          <p className="text-sm font-medium text-foreground">Chưa có đơn nào</p>
+          <p className="mt-1 text-xs text-muted-foreground">Đặt dịch vụ đầu tiên của bạn ngay!</p>
+        </div>
+      </TabCard>
+    );
+  }
+
   return (
-    <TabCard title="Lịch sử dịch vụ" icon={ClipboardList} count={ORDER_HISTORY.length}>
+    <TabCard title="Lịch sử dịch vụ" icon={ClipboardList} count={bookings.length}>
       <div className="space-y-2">
-        {ORDER_HISTORY.map((order, i) => (
-          <motion.div key={order.id} custom={i} variants={fadeUp} initial="hidden" animate="show"
-            className="flex items-center gap-3 p-3.5 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors group cursor-pointer"
-          >
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-foreground truncate">{order.service}</span>
-                <span className="text-sm font-bold text-primary shrink-0">{order.price}</span>
+        {recentBookings.map((order, i) => {
+          const isDone = order.status === "COMPLETED";
+          return (
+            <motion.div
+              key={order.id}
+              custom={i}
+              variants={fadeUp}
+              initial="hidden"
+              animate="show"
+              onClick={() => router.push(`/customer/booking/${order.id}`)}
+              className="flex items-center gap-3 p-3.5 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors group cursor-pointer"
+            >
+              <div className={cn(
+                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                isDone ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-muted"
+              )}>
+                <CheckCircle2 className={cn("w-4 h-4", isDone ? "text-emerald-500" : "text-muted-foreground")} />
               </div>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-xs text-muted-foreground">{order.date}</span>
-                <span className="text-xs text-muted-foreground">·</span>
-                <span className="text-xs text-muted-foreground">{order.id}</span>
-                <span className="text-xs text-muted-foreground">· Thợ {order.worker}</span>
-                <div className="ml-auto flex items-center gap-0.5">
-                  {[...Array(order.rating)].map((_, j) => <Star key={j} className="w-3 h-3 fill-primary text-primary" />)}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-foreground truncate">{order.service.name}</span>
+                  <span className={cn("text-sm font-bold shrink-0", isDone ? "text-primary" : "text-muted-foreground line-through")}>
+                    {fmtCurrency(order.price.totalPrice)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground">{fmtDate(order.schedule.scheduledStartDate)}</span>
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs text-muted-foreground font-mono">{order.bookingCode}</span>
+                  {order.tasker?.fullName && (
+                    <span className="text-xs text-muted-foreground">· Thợ {order.tasker.fullName}</span>
+                  )}
                 </div>
               </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </motion.div>
-        ))}
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </motion.div>
+          );
+        })}
       </div>
-      <Button variant="ghost" className="w-full mt-3 text-primary text-xs font-semibold h-9 rounded-xl">
-        Xem tất cả lịch sử →
-      </Button>
+      {bookings.length > 5 && (
+        <Button
+          variant="ghost"
+          onClick={() => router.push(ROUTES.CUSTOMER.HISTORY)}
+          className="w-full mt-3 text-primary text-xs font-semibold h-9 rounded-xl"
+        >
+          Xem tất cả {bookings.length} đơn →
+        </Button>
+      )}
     </TabCard>
   );
 }

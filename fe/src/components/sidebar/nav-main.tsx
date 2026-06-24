@@ -40,7 +40,7 @@ export function NavMain({
   return (
     <SidebarGroup>
       {label && (
-        <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/60 mb-1 px-2">
+        <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/50 mb-1 px-2">
           {label}
         </SidebarGroupLabel>
       )}

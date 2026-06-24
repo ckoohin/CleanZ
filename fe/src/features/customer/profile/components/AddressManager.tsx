@@ -244,7 +244,7 @@ export const AddressManager = () => {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-10 max-w-3xl mx-auto">
+      <div className="fixed bottom-20 md:bottom-0 left-0 right-0 p-4 bg-background border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 max-w-3xl mx-auto">
         <button 
           onClick={() => handleOpenForm("Khác")}
           className="w-full py-3.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors"
@@ -379,7 +379,7 @@ export const AddressManager = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 max-w-3xl mx-auto">
+      <div className="fixed bottom-20 md:bottom-0 left-0 right-0 p-4 bg-background border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 max-w-3xl mx-auto">
         <button 
           onClick={handleSaveAddress}
           disabled={createAddressMutation.isPending}

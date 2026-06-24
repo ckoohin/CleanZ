@@ -118,6 +118,29 @@
     --sidebar-ring: #FFB300;
 }
 
+/* ─── Customer Sidebar Theme ─────────────────────────────────────────────────── */
+.customer-sidebar {
+    --sidebar:                   #ffffff;
+    --sidebar-foreground:        #1a1a2e;
+    --sidebar-primary:           #FFA000;
+    --sidebar-primary-foreground:#ffffff;
+    --sidebar-accent:            #fff8ec;
+    --sidebar-accent-foreground: #7a4800;
+    --sidebar-border:            #e8eaed;
+    --sidebar-ring:              #FFA000;
+}
+
+.dark .customer-sidebar {
+    --sidebar:                   #111113;
+    --sidebar-foreground:        #f0f0f5;
+    --sidebar-primary:           #FFB300;
+    --sidebar-primary-foreground:#0D1B3E;
+    --sidebar-accent:            #2a1a00;
+    --sidebar-accent-foreground: #FFB300;
+    --sidebar-border:            #2a2a32;
+    --sidebar-ring:              #FFB300;
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;
@@ -206,4 +229,10 @@
 
 .dashboard-grid .react-grid-item.react-grid-placeholder {
     transition: none;
+}
+
+/* ---- Skeleton shimmer animation ---- */
+@keyframes shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }

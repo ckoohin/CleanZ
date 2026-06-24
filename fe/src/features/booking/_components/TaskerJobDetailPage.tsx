@@ -28,6 +28,7 @@ import {
   useMarkStart,
   useMarkComplete,
 } from "@/features/booking/hooks/useTaskerBooking";
+import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
   BookingStatus,
   TaskerAssignedBookingDetail,
@@ -43,7 +44,6 @@ const STATUS_CONFIG: Record<
   BookingStatus,
   { label: string; color: string; bg: string }
 > = {
-  PENDING_PAYMENT: { label: "Chờ thanh toán", color: "text-rose-600", bg: "bg-rose-50" },
   POSTED: { label: "Chờ nhận", color: "text-blue-600", bg: "bg-blue-50" },
   CONFIRMED: { label: "Đã xác nhận", color: "text-indigo-600", bg: "bg-indigo-50" },
   TASKER_ON_THE_WAY: { label: "Đang di chuyển", color: "text-amber-600", bg: "bg-amber-50" },
@@ -191,17 +191,93 @@ function PostedDetailView({
 function AssignedDetailView({
   data,
   bookingId,
+  trackingSocket,
 }: {
   data: TaskerAssignedBookingDetail;
   bookingId: string;
+  trackingSocket: ReturnType<typeof useTrackingSocket>;
 }) {
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationStep, setSimulationStep] = useState(0);
+
+  const destLat = data.address?.latitude ? Number(data.address.latitude) : null;
+  const destLng = data.address?.longitude ? Number(data.address.longitude) : null;
+
+  const isDestValid =
+    destLat !== null &&
+    destLng !== null &&
+    !isNaN(destLat) &&
+    !isNaN(destLng) &&
+    destLat >= -90 &&
+    destLat <= 90 &&
+    destLng >= -180 &&
+    destLng <= 180;
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    if (isSimulating && isDestValid && destLat !== null && destLng !== null) {
+      // Điểm xuất phát của Tasker cách điểm đến 0.005 độ (khoảng 500m)
+      const startLat = destLat + 0.005;
+      const startLng = destLng + 0.005;
+
+      intervalId = setInterval(() => {
+        setSimulationStep((prevStep) => {
+          const nextStep = prevStep + 1;
+          if (nextStep > 10) {
+            setIsSimulating(false);
+            if (intervalId) clearInterval(intervalId);
+            return 0;
+          }
+
+          const currentLat = startLat - (startLat - destLat) * (nextStep / 10);
+          const currentLng = startLng - (startLng - destLng) * (nextStep / 10);
+
+          if (trackingSocket) {
+            trackingSocket.emit("tasker:location:update", {
+              bookingId,
+              latitude: currentLat,
+              longitude: currentLng,
+            });
+          }
+
+          return nextStep;
+        });
+      }, 2000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isSimulating, isDestValid, destLat, destLng, trackingSocket, bookingId]);
+
+  const handleToggleSimulation = () => {
+    setIsSimulating((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSimulationStep(0);
+      }
+      return next;
+    });
+  };
+  const router = useRouter();
   const markOnWay = useMarkOnTheWay(bookingId);
   const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
 
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
+
   const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.CONFIRMED;
   const canContact = data.canContactCustomer;
+
+  const handleComplete = () => {
+    markComplete.mutate(undefined, {
+      onSuccess: () => {
+        setShowConfirmComplete(false);
+        router.push("/tasker/jobs");
+      },
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -337,13 +413,39 @@ function AssignedDetailView({
         />
       )}
       {data.status === "TASKER_ON_THE_WAY" && (
-        <ActionButton
-          label="Check-in — Tôi đã đến nơi"
-          icon={MapPin}
-          onClick={() => markCheckedIn.mutate()}
-          isPending={markCheckedIn.isPending}
-          color="amber"
-        />
+        <div className="space-y-3">
+          <ActionButton
+            label="Check-in — Tôi đã đến nơi"
+            icon={MapPin}
+            onClick={() => markCheckedIn.mutate()}
+            isPending={markCheckedIn.isPending}
+            color="amber"
+          />
+
+          {/* GPS Simulator Button cho Tasker (chỉ hiện ở dev mode) */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="bg-card rounded-2xl border border-dashed border-primary/40 p-4 shadow-sm flex items-center justify-between gap-4 animate-in fade-in duration-300">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black uppercase text-primary tracking-wider">Bộ giả lập GPS di chuyển</p>
+                <p className="text-[10px] font-semibold text-muted-foreground mt-1">
+                  {isSimulating 
+                    ? `Đang gửi tọa độ: Chặng ${simulationStep}/10` 
+                    : "Giả lập GPS chạy xe tới nhà khách hàng"}
+                </p>
+              </div>
+              <button
+                onClick={handleToggleSimulation}
+                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-sm ${
+                  isSimulating
+                    ? "bg-red-500 hover:bg-red-600 text-white shadow-red-200"
+                    : "bg-primary hover:bg-primary/95 text-white shadow-primary/20"
+                }`}
+              >
+                {isSimulating ? "Dừng giả lập" : "Bắt đầu di chuyển"}
+              </button>
+            </div>
+          )}
+        </div>
       )}
       {data.status === "CHECKED_IN" && (
         <ActionButton
@@ -358,7 +460,7 @@ function AssignedDetailView({
         <ActionButton
           label="Hoàn thành công việc ✅"
           icon={Flag}
-          onClick={() => markComplete.mutate()}
+          onClick={() => setShowConfirmComplete(true)}
           isPending={markComplete.isPending}
           color="emerald"
         />
@@ -374,6 +476,60 @@ function AssignedDetailView({
           )}
         </div>
       )}
+
+      {/* Complete Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmComplete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => setShowConfirmComplete(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-x-4 top-[30%] md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="text-center space-y-1">
+                <h3 className="font-bold text-base text-foreground">Hoàn thành công việc?</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Xác nhận rằng bạn đã hoàn tất toàn bộ các đầu việc dọn dẹp theo yêu cầu của khách hàng. Thu nhập ước tính sẽ được cộng trực tiếp vào tài khoản của bạn.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowConfirmComplete(false)}
+                  disabled={markComplete.isPending}
+                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-foreground bg-muted/20 hover:bg-muted/50 transition-colors"
+                >
+                  Quay lại
+                </button>
+                <button
+                  onClick={handleComplete}
+                  disabled={markComplete.isPending}
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {markComplete.isPending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Flag className="w-3.5 h-3.5" />
+                      Xác nhận hoàn thành
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -386,6 +542,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   const router = useRouter();
   const searchParams = useSearchParams();
   const isPostedMode = searchParams.get("mode") === "posted";
+  const trackingSocket = useTrackingSocket();
 
   // Geolocation (optional — chỉ gửi nếu user cho phép)
   const [location, setLocation] = useState<{
@@ -394,6 +551,8 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   }>({});
   const [locationResolved, setLocationResolved] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+
 
   const requestCurrentLocation = () => {
     setLocationResolved(false);
@@ -455,6 +614,41 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     location,
     !isPostedMode,
   );
+
+  useEffect(() => {
+    if (isPostedMode || !trackingSocket) return;
+
+    const currentStatus = assignedQuery.data?.status;
+    if (currentStatus !== "TASKER_ON_THE_WAY") return;
+
+    // Join tracking room
+    trackingSocket.emit("tasker:tracking:start", { bookingId });
+
+    const handleLocationRequest = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            trackingSocket.emit("tasker:location:update", {
+              bookingId,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          (err) => {
+            console.error("Lỗi lấy vị trí Tasker định kỳ:", err);
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+    };
+
+    trackingSocket.on("tasker:location:request", handleLocationRequest);
+
+    return () => {
+      trackingSocket.emit("tasker:tracking:stop");
+      trackingSocket.off("tasker:location:request", handleLocationRequest);
+    };
+  }, [assignedQuery.data?.status, bookingId, trackingSocket, isPostedMode]);
 
   const isWaitingForLocation =
     isPostedMode &&
@@ -593,7 +787,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             </div>
           )
         ) : assignedQuery.data ? (
-          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} />
+          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} trackingSocket={trackingSocket} />
         ) : (
           <div className="text-center py-16 text-muted-foreground text-sm">
             Đang tải...

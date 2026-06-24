@@ -5,75 +5,86 @@ import {
   Home,
   ClipboardList,
   Wallet,
-  HeadphonesIcon,
+  Headphones,
   User,
-  Settings,
   MapPin,
+  LayoutGrid,
 } from "lucide-react"
 
-import { NavMain } from "@/components/siderber/nav-main"
+import { NavMain } from "@/components/sidebar/nav-main"
+import { NavUser } from "@/components/sidebar/nav-user"
+import { CustomerSidebarBrand } from "./CustomerSidebarBrand"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarRail,
-  SidebarMenuButton,
 } from "@/components/ui/sidebar"
-import LogoApp from "@/components/logo/LogoApp"
-import Link from "next/link"
 
-const customerData = {
-  main: [
-    {
-      title: "Trang chủ",
-      url: "/customer",
-      icon: <Home />,
-    },
-    {
-      title: "Hoạt động",
-      url: "/customer/history",
-      icon: <ClipboardList />,
-    },
-    {
-      title: "Ví CleanZ",
-      url: "/customer/wallet",
-      icon: <Wallet />,
-    },
-  ],
-  support: [
-    {
-      title: "Hỗ trợ khách hàng",
-      url: "/customer/support-tickets",
-      icon: <HeadphonesIcon />,
-    },
-  ],
-  account: [
-    {
-      title: "Hồ sơ cá nhân",
-      url: "/customer/profile",
-      icon: <User />,
-    },
-    {
-      title: "Sổ địa chỉ",
-      url: "/customer/addresses",
-      icon: <MapPin />,
-    },
-  ]
-}
+// ─── Nav data ──────────────────────────────────────────────────────────────────
+const serviceNav = [
+  {
+    title: "Trang chủ",
+    url: "/customer",
+    icon: <Home />,
+  },
+  {
+    title: "Danh mục dịch vụ",
+    url: "/customer/catalog",
+    icon: <LayoutGrid />,
+  },
+  {
+    title: "Hoạt động",
+    url: "/customer/history",
+    icon: <ClipboardList />,
+  },
+  {
+    title: "Ví CleanZ",
+    url: "/customer/wallet",
+    icon: <Wallet />,
+  },
+]
 
+const accountNav = [
+  {
+    title: "Hồ sơ cá nhân",
+    url: "/customer/profile",
+    icon: <User />,
+  },
+  {
+    title: "Sổ địa chỉ",
+    url: "/customer/addresses",
+    icon: <MapPin />,
+  },
+]
+
+const supportNav = [
+  {
+    title: "Hỗ trợ",
+    url: "/customer/support-tickets",
+    icon: <Headphones />,
+  },
+]
+
+// ─── CustomerSidebar ────────────────────────────────────────────────────────────
 export function CustomerSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="none" className="border-r border-border/40 bg-background/50 backdrop-blur-xl hidden md:flex" {...props}>
-      <SidebarHeader className="h-16 border-b border-border/40 justify-center px-4">
-        <Link href="/" className="flex items-center gap-2">
-            <LogoApp />
-        </Link>
+    <Sidebar collapsible="icon" className="border-r border-border/40" {...props}>
+      <SidebarHeader className="h-16 border-b border-border/40 justify-center">
+        <CustomerSidebarBrand />
       </SidebarHeader>
-      <SidebarContent className="py-4 scrollbar-hide bg-transparent transition-colors duration-300">
-        <NavMain items={customerData.main} label="Dịch vụ" />
-        <NavMain items={customerData.account} label="Tài khoản" />
-        <NavMain items={customerData.support} label="Trợ giúp" />
+
+      <SidebarContent className="py-2 scrollbar-hide">
+        <NavMain items={serviceNav} label="Dịch vụ" />
+        <NavMain items={accountNav} label="Tài khoản" />
+        <NavMain items={supportNav} label="Trợ giúp" />
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-border/40 p-3">
+        <NavUser />
+      </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   )
