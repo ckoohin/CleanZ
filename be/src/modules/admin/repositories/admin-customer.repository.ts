@@ -1,11 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
+import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { AuthProvider } from 'src/common/enums/auth-provider.enum';
+import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { CustomerQueryDto } from '../dto/customer-query.dto';
+import { CreateCustomerDto } from '../dto/create-customer.dto';
+import { UpdateCustomerDto } from '../dto/update-customer.dto';
 
 @Injectable()
 export class AdminCustomerRepository {
@@ -18,8 +24,9 @@ export class AdminCustomerRepository {
     const query = this.dataSource
       .getRepository(CustomerEntity)
       .createQueryBuilder('c')
-      .leftJoinAndSelect('c.user', 'u')
+      .innerJoinAndSelect('c.user', 'u')
       .where('u.role = :role', { role: UserRole.CUSTOMER })
+      .andWhere('u.deletedAt IS NULL')
       .orderBy('c.createdAt', 'DESC');
 
     if (keyword) {
@@ -64,9 +71,10 @@ export class AdminCustomerRepository {
     const customer = await this.dataSource
       .getRepository(CustomerEntity)
       .createQueryBuilder('c')
-      .leftJoinAndSelect('c.user', 'u')
+      .innerJoinAndSelect('c.user', 'u')
       .leftJoinAndSelect('c.addresses', 'a')
       .where('c.id = :customerId', { customerId })
+      .andWhere('u.deletedAt IS NULL')
       .getOne();
 
     if (!customer) return null;
@@ -198,5 +206,100 @@ export class AdminCustomerRepository {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async createCustomer(dto: CreateCustomerDto) {
+    return asyncHandleOperation(async () => {
+      const created = await this.dataSource.transaction(async (manager) => {
+        const userRepo = manager.getRepository(UserEntity);
+        const customerRepo = manager.getRepository(CustomerEntity);
+
+        const existing = await userRepo.findOne({
+          where: { email: dto.email },
+          withDeleted: true,
+        });
+        if (existing) {
+          throw new ConflictException('Email đã tồn tại');
+        }
+
+        const user = await userRepo.save(
+          userRepo.create({
+            email: dto.email,
+            fullName: dto.fullName.trim(),
+            phone: dto.phone?.trim(),
+            password: await bcrypt.hash(dto.password, 10),
+            provider: AuthProvider.LOCAL,
+            role: UserRole.CUSTOMER,
+            isVerified: true,
+            isActive: true,
+          }),
+        );
+
+        const customer = await customerRepo.save(
+          customerRepo.create({
+            user,
+            ...(dto.defaultPaymentMethod
+              ? { defaultPaymentMethod: dto.defaultPaymentMethod }
+              : {}),
+          }),
+        );
+
+        return customer;
+      });
+
+      return this.getCustomerDetail(created.id);
+    }, 'Lỗi khi tạo khách hàng');
+  }
+
+  async updateCustomer(customerId: string, dto: UpdateCustomerDto) {
+    return asyncHandleOperation(async () => {
+      await this.dataSource.transaction(async (manager) => {
+        const customerRepo = manager.getRepository(CustomerEntity);
+        const customer = await customerRepo.findOne({
+          where: { id: customerId },
+          relations: ['user'],
+        });
+        if (!customer || !customer.user) {
+          throw new NotFoundException(
+            `Không tìm thấy khách hàng với id ${customerId}`,
+          );
+        }
+
+        const userRepo = manager.getRepository(UserEntity);
+        if (dto.fullName !== undefined) {
+          customer.user.fullName = dto.fullName.trim();
+        }
+        if (dto.phone !== undefined) {
+          customer.user.phone = dto.phone.trim();
+        }
+        await userRepo.save(customer.user);
+
+        if (dto.defaultPaymentMethod !== undefined) {
+          customer.defaultPaymentMethod = dto.defaultPaymentMethod;
+          await customerRepo.save(customer);
+        }
+      });
+
+      return this.getCustomerDetail(customerId);
+    }, 'Lỗi khi cập nhật khách hàng');
+  }
+
+  async deleteCustomer(customerId: string) {
+    return asyncHandleOperation(async () => {
+      const customer = await this.dataSource
+        .getRepository(CustomerEntity)
+        .findOne({ where: { id: customerId }, relations: ['user'] });
+      if (!customer || !customer.user) {
+        throw new NotFoundException(
+          `Không tìm thấy khách hàng với id ${customerId}`,
+        );
+      }
+
+      await this.dataSource
+        .getRepository(UserEntity)
+        .softDelete(customer.user.id);
+
+      return { message: 'Đã xóa khách hàng' };
+    }, 'Lỗi khi xóa khách hàng');
   }
 }

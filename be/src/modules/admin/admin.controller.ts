@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Query,
   Body,
@@ -21,6 +22,8 @@ import {
   BookingDetailsQueryDto,
 } from './dto/date-range-query.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { BookingSearchQueryDto } from './dto/booking-search-query.dto';
 import { AvailableTaskersQueryDto } from './dto/available-taskers-query.dto';
 import { AssignTaskerDto } from './dto/assign-tasker.dto';
@@ -235,6 +238,11 @@ export class AdminController {
     return this.customerRepo.getCustomers(query);
   }
 
+  @Post('customers')
+  createCustomer(@Body() dto: CreateCustomerDto) {
+    return this.customerRepo.createCustomer(dto);
+  }
+
   @Get('customers/:id')
   async getCustomerDetail(@Param('id', ParseUUIDPipe) id: string) {
     const detail = await this.customerRepo.getCustomerDetail(id);
@@ -275,5 +283,18 @@ export class AdminController {
       message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản',
       isActive: user.isActive,
     };
+  }
+
+  @Patch('customers/:id')
+  updateCustomer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCustomerDto,
+  ) {
+    return this.customerRepo.updateCustomer(id, dto);
+  }
+
+  @Delete('customers/:id')
+  deleteCustomer(@Param('id', ParseUUIDPipe) id: string) {
+    return this.customerRepo.deleteCustomer(id);
   }
 }
