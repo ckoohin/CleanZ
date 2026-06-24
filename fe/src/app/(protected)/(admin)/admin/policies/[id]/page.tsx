@@ -1,9 +1,13 @@
-import { PolicyDetailView } from "@/features/admin/modules/policy/_components/PolicyDetailView";
+'use client';
+
+import React, { use } from 'react';
+import { PolicyDetailView } from '@/features/admin/modules/policy/_components/PolicyDetailView';
 
 export default function AdminPolicyDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <PolicyDetailView id={params.id} />;
+  const { id } = use(params);
+  return <PolicyDetailView id={id} />;
 }
