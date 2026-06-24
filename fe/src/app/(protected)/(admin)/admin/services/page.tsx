@@ -9,7 +9,6 @@ import { BaseTableList, Column, RowAction } from "@/components/ui/base/base_tabl
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
 import {
   AlertDialog,
@@ -21,13 +20,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { FilterGroup } from "@/components/ui/filter-group";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import {
   useAdminServices,
   useDeleteAdminService,
   useUpdateAdminService,
-} from "@/features/admin/hooks/useAdminServices";
-import { AdminServiceEntity } from "@/features/admin/services/admin-services.service";
+  useAdminPackages,
+} from "@/features/admin/modules/service/hooks/useAdminServices";
+import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
 
 // Custom useDebounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -48,6 +50,7 @@ export default function AdminServicesPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
 
   // State for Delete
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -58,7 +61,31 @@ export default function AdminServicesPage() {
     limit,
     search: debouncedSearchTerm || undefined,
     isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+    packageId: categoryFilter === "all" ? undefined : categoryFilter,
   });
+
+  const { data: categories } = useAdminPackages();
+
+  const categoryOptions = React.useMemo(() => {
+    const opts = [{ value: "all", label: "Tất cả gói dịch vụ" }];
+    if (categories) {
+      categories.forEach((cat) => {
+        opts.push({ value: cat.id, label: cat.name });
+      });
+    }
+    return opts;
+  }, [categories]);
+
+  const statusOptions = [
+    { value: "all", label: "Tất cả trạng thái" },
+    { value: "active", label: "Đang hoạt động" },
+    { value: "inactive", label: "Đã tắt" },
+  ];
+
+  const handleClearAll = () => {
+    setCategoryFilter("all");
+    setStatusFilter("all");
+  };
 
   const deleteMutation = useDeleteAdminService();
   const updateMutation = useUpdateAdminService();
@@ -102,7 +129,7 @@ export default function AdminServicesPage() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span className="font-bold text-base block text-foreground/90">{row.name}</span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">{row.serviceCode}</span>
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold">{row.subServiceCode}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {row.description && (
@@ -121,11 +148,11 @@ export default function AdminServicesPage() {
       ),
     },
     {
-      key: "baseDurationHours",
+      key: "durationHours",
       title: "Thời lượng",
       render: (row) => (
         <span className="font-medium text-slate-700 dark:text-slate-300">
-          {row.baseDurationHours ? `${row.baseDurationHours} giờ` : "N/A"}
+          {row.durationHours ? `${row.durationHours} giờ` : "N/A"}
         </span>
       ),
     },
@@ -213,16 +240,23 @@ export default function AdminServicesPage() {
         onKeywordChange={setSearchTerm}
         placeholderSearch="Tìm kiếm theo tên dịch vụ..."
         filters={
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] h-11 rounded-xl bg-background border-border/50">
-              <SelectValue placeholder="Trạng thái" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="active">Đang hoạt động</SelectItem>
-              <SelectItem value="inactive">Đã tắt</SelectItem>
-            </SelectContent>
-          </Select>
+          <FilterGroup
+            showClearBtn={categoryFilter !== "all" || statusFilter !== "all"}
+            onClearAll={handleClearAll}
+          >
+            <SearchableSelect
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+              options={categoryOptions}
+              placeholder="Chọn gói dịch vụ"
+            />
+            <SearchableSelect
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+              options={statusOptions}
+              placeholder="Chọn trạng thái"
+            />
+          </FilterGroup>
         }
         rowActions={rowActions}
         isLoading={isLoading}
@@ -230,7 +264,7 @@ export default function AdminServicesPage() {
 
       {/* Xóa Modal */}
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
-        <AlertDialogContent className="rounded-[2rem]">
+        <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold">Xác nhận xóa dịch vụ</AlertDialogTitle>
             <AlertDialogDescription className="text-base">

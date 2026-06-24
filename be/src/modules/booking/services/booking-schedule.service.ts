@@ -10,7 +10,8 @@ import { UpdateBookingScheduleAddressDto } from '../dto/update-booking-schedule-
 import { BookingEntity } from '../entity/booking.entity';
 
 export interface BookingScheduleDraft {
-  serviceId?: string;
+  packageId?: string;
+  subServiceIds?: string[];
   addressId?: string;
   address?: string;
   provinceCode?: string;
@@ -118,7 +119,9 @@ export class BookingScheduleService {
         : booking.address;
 
     return {
-      serviceId: booking.serviceId,
+      packageId: booking.packageId,
+      subServiceIds:
+        booking.bookingSubServices?.map((bss) => bss.subServiceId) || [],
       addressId,
       address,
       provinceCode: dto.provinceCode,

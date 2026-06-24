@@ -30,6 +30,7 @@ import {
   TrendingUp,
 } from "lucide-react"
 
+import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/siderber/nav-main"
 import { NavProjects } from "@/components/siderber/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -87,18 +88,14 @@ const adminData = {
       title: "Quản lý Đơn hàng",
       url: "/admin/bookings",
       icon: <CalendarCheck />,
-      items: [
-        { title: "Tất cả đơn hàng", url: "/admin/bookings" },
-        { title: "Đang thực hiện", url: "/admin/bookings/active" },
-        { title: "Sự cố & Khiếu nại", url: "/admin/incidents" },
-      ],
     },
     {
       title: "Quản lý Dịch vụ",
-      url: "/admin/services",
+      url: ROUTES.ADMIN.SERVICES,
       icon: <Wrench />,
       items: [
-        { title: "Danh sách dịch vụ", url: "/admin/services" },
+        { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICE_PACKAGES },
+        { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES },
       ],
     },
     {
@@ -187,10 +184,11 @@ const adminData = {
     },
     {
       title: "Cấu hình hệ thống",
-      url: "/admin/settings",
+      url: ROUTES.ADMIN.SETTINGS.BASE,
       icon: <Settings2 />,
       items: [
-        { title: "Cài đặt chung", url: "/admin/settings" },
+        { title: "Cài đặt chung", url: ROUTES.ADMIN.SETTINGS.BASE },
+        { title: "Ngày cao điểm", url: ROUTES.ADMIN.SETTINGS.PEAK_DAYS },
         { title: "Phân quyền & Role", url: "/admin/roles" },
       ],
     },

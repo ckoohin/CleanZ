@@ -8,8 +8,8 @@ import TopLoadingBar from "@/components/loadings/TopLoadingBar";
 
 const ROLE_ROUTES: Record<string, string> = {
   ADMIN: "/admin",
-  WORKER: "/worker/home",
-  CUSTOMER: "/customer/home",
+  WORKER: "/worker",
+  CUSTOMER: "/customer",
 };
 
 export default function Page() {

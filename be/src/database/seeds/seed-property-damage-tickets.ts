@@ -41,7 +41,11 @@ const TICKETS = [
   },
 ];
 
-const rand = (n = 4) => Math.random().toString(36).slice(2, 2 + n).toUpperCase();
+const rand = (n = 4) =>
+  Math.random()
+    .toString(36)
+    .slice(2, 2 + n)
+    .toUpperCase();
 const ymd = () => {
   const d = new Date();
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -65,14 +69,18 @@ async function main() {
     }
 
     // 2) Lấy tối đa 5 cặp (customer, tasker)
-    const pairs: { customer_id: string; reporter_user_id: string; tasker_id: string | null; counterparty_user_id: string | null }[] =
-      await dataSource.query(
-        `SELECT c.id AS customer_id, c."user_id" AS reporter_user_id,
+    const pairs: {
+      customer_id: string;
+      reporter_user_id: string;
+      tasker_id: string | null;
+      counterparty_user_id: string | null;
+    }[] = await dataSource.query(
+      `SELECT c.id AS customer_id, c."user_id" AS reporter_user_id,
                 t.id AS tasker_id, t."user_id" AS counterparty_user_id
          FROM customers c
          LEFT JOIN LATERAL (SELECT id, "user_id" FROM taskers ORDER BY created_at LIMIT 1) t ON true
          ORDER BY c.created_at LIMIT 5`,
-      );
+    );
     if (pairs.length === 0) {
       console.error('❌ Không có customer nào để gắn ticket.');
       return;
@@ -116,7 +124,9 @@ async function main() {
       created++;
     }
 
-    console.log(`✅ Đã tạo ${created} booking + ${created} ticket PROPERTY_DAMAGE.`);
+    console.log(
+      `✅ Đã tạo ${created} booking + ${created} ticket PROPERTY_DAMAGE.`,
+    );
   } finally {
     await dataSource.destroy();
   }

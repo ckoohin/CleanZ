@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
+import { CurrentUser } from 'src/modules/auth/decorators/current-user.decorator';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
 import { AdminBookingRepository } from './repositories/admin-booking.repository';
@@ -26,7 +27,6 @@ import { AssignTaskerDto } from './dto/assign-tasker.dto';
 import { ChangeBookingStatusDto } from './dto/change-booking-status.dto';
 import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from 'src/modules/auth/decorators/current-user.decorator';
 
 @AdminOnly()
 @Controller('admin')
@@ -133,6 +133,11 @@ export class AdminController {
     return this.bookingRepo.searchBookings(query);
   }
 
+  @Get('bookings/taskers/active')
+  getActiveTaskers() {
+    return this.bookingRepo.getActiveTaskers();
+  }
+
   @Post('bookings')
   @ApiOperation({
     summary: 'Admin tạo booking thủ công',
@@ -152,8 +157,12 @@ export class AdminController {
     description:
       'Trả toàn bộ thông tin booking, timeline vận hành và thông tin thanh toán/quyết toán.',
   })
-  getBookingDetail(@Param('id', ParseUUIDPipe) id: string) {
-    return this.bookingRepo.getBookingDetail(id);
+  async getBookingDetail(@Param('id', ParseUUIDPipe) id: string) {
+    const detail = await this.bookingRepo.getBookingDetail(id);
+    if (!detail) {
+      throw new NotFoundException(`Không tìm thấy booking với id ${id}`);
+    }
+    return detail;
   }
 
   @Get('bookings/:id/available-taskers')
@@ -171,7 +180,7 @@ export class AdminController {
 
   @Patch('bookings/:id/tasker')
   @ApiOperation({
-    summary: 'Admin gán hoặc thay Tasker thủ công',
+    summary: 'Admin gán hoặc thay Tasker thủ công (develop)',
   })
   assignTasker(
     @Param('id', ParseUUIDPipe) id: string,
@@ -179,6 +188,18 @@ export class AdminController {
     @Body() dto: AssignTaskerDto,
   ) {
     return this.bookingRepo.assignTasker(id, adminUserId, dto);
+  }
+
+  @Patch('bookings/:id/assign')
+  @ApiOperation({
+    summary: 'Admin gán Tasker thủ công (dev-v1)',
+  })
+  async assignTaskerV1(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('taskerId') taskerId: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.bookingRepo.assignTaskerToBooking(id, taskerId, adminUserId);
   }
 
   @Patch('bookings/:id/status')
@@ -195,6 +216,18 @@ export class AdminController {
     return this.bookingRepo.changeBookingStatus(id, adminUserId, dto);
   }
 
+  @Patch('bookings/:id/cancel')
+  async cancelBooking(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.bookingRepo.cancelBookingByAdmin(id, adminUserId);
+  }
+
+  @Post('bookings/expire-overdue')
+  expireOverdueBookings() {
+    return this.bookingRepo.expireOverdueBookings();
+  }
   // ─── Customer Management Endpoints ───
 
   @Get('customers')

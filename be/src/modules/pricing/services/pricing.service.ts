@@ -18,14 +18,16 @@ import { UpdatePricingConfigDto } from '../dto/update-pricing.dto';
 import { CreatePeakDayConfigDto } from '../dto/create-peak-day.dto';
 import { UpdatePeakDayConfigDto } from '../dto/update-peak-day.dto';
 import { EntityManager, In, Repository } from 'typeorm';
-import { ServiceEntity } from 'src/modules/service/entity/service.entity';
+import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
+import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 
 export interface CalculateBookingPriceInput {
-  serviceId?: string;
+  packageId?: string;
+  subServiceIds?: string[];
   durationHours?: number;
   scheduledStart: Date;
   scheduledStartTime: string;
@@ -40,7 +42,8 @@ export interface ServiceSummary {
 }
 
 export interface BookingPriceResult {
-  service: ServiceEntity;
+  package: ServicePackageEntity;
+  subServices: SubServiceEntity[];
   durationHours: number;
   basePrice: number;
   addonPrice: number;
@@ -66,20 +69,8 @@ export class PricingService {
   async createPricingConfig(
     dto: CreatePricingConfigDto,
   ): Promise<PricingConfigEntity> {
-    const service = await this.serviceRepo.findOne({
-      where: { id: dto.serviceId },
-    });
-    if (!service) throw new NotFoundException('SERVICE_NOT_FOUND');
-
-    const duplicate = await this.pricingRepo.findDuplicate(dto.serviceId);
-    if (duplicate) {
-      throw new ConflictException(
-        'PRICING_CONFIG_EXISTS: A pricing config for this service already exists.',
-      );
-    }
-
     const entity = this.pricingRepo.create({
-      serviceId: dto.serviceId,
+      name: dto.name,
       basePrice: dto.basePrice,
       peakPrice: dto.peakPrice ?? null,
       petFee: dto.petFee ?? 0,
@@ -100,7 +91,6 @@ export class PricingService {
   async findOnePricingConfig(id: string): Promise<PricingConfigEntity> {
     const config = await this.pricingRepo.findOne({
       where: { id },
-      relations: ['service'],
     });
     if (!config) throw new NotFoundException('PRICING_CONFIG_NOT_FOUND');
     return config;
@@ -112,24 +102,8 @@ export class PricingService {
   ): Promise<PricingConfigEntity> {
     const config = await this.findOnePricingConfig(id);
 
-    const newServiceId = dto.serviceId ?? config.serviceId;
-
-    if (dto.serviceId) {
-      const service = await this.serviceRepo.findOne({
-        where: { id: dto.serviceId },
-      });
-      if (!service) {
-        throw new NotFoundException('SERVICE_NOT_FOUND');
-      }
-
-      const duplicate = await this.pricingRepo.findDuplicate(newServiceId, id);
-      if (duplicate) {
-        throw new ConflictException('PRICING_CONFIG_EXISTS');
-      }
-    }
-
     Object.assign(config, {
-      serviceId: newServiceId,
+      name: dto.name ?? config.name,
       basePrice: dto.basePrice ?? config.basePrice,
       peakPrice: dto.peakPrice !== undefined ? dto.peakPrice : config.peakPrice,
       petFee: dto.petFee ?? config.petFee,
@@ -249,48 +223,73 @@ export class PricingService {
     manager: EntityManager,
     input: CalculateBookingPriceInput,
   ): Promise<BookingPriceResult> {
-    const serviceRepository = manager.getRepository(ServiceEntity);
-    const pricingRepository = manager.getRepository(PricingConfigEntity);
+    if (!input.packageId) {
+      throw new BadRequestException('Mã gói dịch vụ (packageId) là bắt buộc');
+    }
 
-    const service = await this.findBookingService(
-      serviceRepository,
-      input.durationHours,
-      input.serviceId,
+    const packageRepository = manager.getRepository(ServicePackageEntity);
+    const subServiceRepository = manager.getRepository(SubServiceEntity);
+
+    const servicePackage = await packageRepository.findOne({
+      where: { id: input.packageId, isActive: true },
+      relations: ['coverageAreas'],
+    });
+
+    if (!servicePackage) {
+      throw new NotFoundException(
+        'Không tìm thấy gói dịch vụ hoặc gói đã ngừng hoạt động',
+      );
+    }
+
+    let subServices: SubServiceEntity[] = [];
+    if (input.subServiceIds && input.subServiceIds.length > 0) {
+      subServices = await subServiceRepository.find({
+        where: { id: In(input.subServiceIds), isActive: true },
+        relations: ['pricingConfig'],
+      });
+    }
+
+    if (subServices.length === 0) {
+      throw new BadRequestException(
+        'Vui lòng chọn ít nhất một dịch vụ con hợp lệ',
+      );
+    }
+
+    const durationHours = subServices.reduce(
+      (sum, sub) => sum + toNumber(sub.durationHours),
+      0,
     );
-    if (!service) {
-      throw new NotFoundException(
-        'Không tìm thấy gói dịch vụ phù hợp hoặc gói đã ngừng hoạt động',
-      );
-    }
-    const durationHours = toNumber(service.baseDurationHours);
-    if (!Number.isFinite(durationHours) || durationHours <= 0) {
-      throw new NotFoundException(
-        `Dịch vụ ${service.name} chưa được cấu hình thời lượng`,
+
+    if (durationHours > toNumber(servicePackage.maxHours)) {
+      throw new BadRequestException(
+        `Tổng thời lượng công việc (${durationHours}h) vượt quá số giờ tối đa cho phép của gói (${servicePackage.maxHours}h)`,
       );
     }
 
-    const pricing = await pricingRepository
-      .createQueryBuilder('pricing')
-      .innerJoin('pricing.service', 'service')
-      .where('service.id = :serviceId', { serviceId: service.id })
-      .andWhere('pricing.is_active = true')
-      .orderBy('pricing.created_at', 'DESC')
-      .getOne();
-    if (!pricing) {
-      throw new NotFoundException(
-        `Không tìm thấy cấu hình giá cho dịch vụ ${service.name}`,
-      );
+    let basePrice = 0;
+    for (const sub of subServices) {
+      const pricing = sub.pricingConfig;
+      if (!pricing || !pricing.isActive) {
+        throw new NotFoundException(
+          `Không tìm thấy cấu hình giá hoạt động cho dịch vụ con ${sub.name}`,
+        );
+      }
+      basePrice += toNumber(pricing.basePrice);
     }
 
-    const basePrice = toNumber(pricing.basePrice);
-    const peakRate = await this.systemConfigService.getPeakRateForSchedule(
-      manager,
-      input.scheduledStart,
-      input.scheduledStartTime,
-    );
+    // Phụ phí đêm/sớm
+    let addonPrice = toNumber(servicePackage.toolFee);
+    const startTime = input.scheduledStartTime;
+    if (startTime) {
+      const hour = parseInt(startTime.split(':')[0], 10);
+      if (hour < 7 || hour >= 19) {
+        addonPrice += toNumber(servicePackage.nightSurcharge);
+      }
+    }
+
+    const peakRate = toNumber(servicePackage.peakRatePercent) / 100;
     const peakFee = peakRate > 0 ? Math.round(basePrice * peakRate) : 0;
-    const petFee = input.hasPet ? toNumber(pricing.petFee) : 0;
-    const addonPrice = 0;
+    const petFee = input.hasPet ? toNumber(servicePackage.petSurcharge) : 0;
     const waitingFee = 0;
     const subtotal = basePrice + addonPrice + peakFee + petFee + waitingFee;
 
@@ -298,7 +297,7 @@ export class PricingService {
       ? await this.voucherService.findValidForBooking(
           manager,
           input.voucherCode,
-          service.id,
+          input.subServiceIds || [],
           subtotal,
         )
       : null;
@@ -308,7 +307,8 @@ export class PricingService {
     const totalPrice: number = Math.max(subtotal - discountAmount, 0);
 
     return {
-      service,
+      package: servicePackage,
+      subServices,
       durationHours,
       basePrice,
       addonPrice,
@@ -325,8 +325,8 @@ export class PricingService {
   getServiceById(
     manager: EntityManager,
     serviceId: string,
-  ): Promise<ServiceEntity | null> {
-    return manager.getRepository(ServiceEntity).findOne({
+  ): Promise<SubServiceEntity | null> {
+    return manager.getRepository(SubServiceEntity).findOne({
       where: { id: serviceId },
     });
   }
@@ -334,12 +334,12 @@ export class PricingService {
   getServicesByIds(
     manager: EntityManager,
     serviceIds: string[],
-  ): Promise<ServiceEntity[]> {
+  ): Promise<SubServiceEntity[]> {
     if (!serviceIds.length) {
       return Promise.resolve([]);
     }
 
-    return manager.getRepository(ServiceEntity).find({
+    return manager.getRepository(SubServiceEntity).find({
       where: { id: In(serviceIds) },
     });
   }
@@ -368,30 +368,28 @@ export class PricingService {
     manager: EntityManager,
     serviceId: string,
   ): Promise<number> {
-    const pricing = await manager
-      .getRepository(PricingConfigEntity)
-      .createQueryBuilder('pricing')
-      .innerJoin('pricing.service', 'service')
-      .where('service.id = :serviceId', { serviceId })
-      .andWhere('pricing.is_active = true')
-      .orderBy('pricing.created_at', 'DESC')
-      .getOne();
+    const service = await manager
+      .getRepository(SubServiceEntity)
+      .findOne({ where: { id: serviceId }, relations: ['pricingConfig'] });
 
-    if (!pricing) {
-      throw new NotFoundException('Không tìm thấy cấu hình hoa hồng dịch vụ');
+    if (!service || !service.pricingConfig || !service.pricingConfig.isActive) {
+      throw new NotFoundException(
+        'Không tìm thấy cấu hình hoa hồng dịch vụ con',
+      );
     }
 
-    return toNumber(pricing.platformCommissionRate);
+    return toNumber(service.pricingConfig.platformCommissionRate);
   }
 
   private findBookingService(
-    serviceRepository: Repository<ServiceEntity>,
+    serviceRepository: Repository<SubServiceEntity>,
     durationHours?: number,
     serviceId?: string,
-  ): Promise<ServiceEntity | null> {
+  ): Promise<SubServiceEntity | null> {
     if (serviceId) {
       return serviceRepository.findOne({
         where: { id: serviceId, isActive: true },
+        relations: ['pricingConfig'],
       });
     }
     if (durationHours === undefined) {
@@ -400,11 +398,12 @@ export class PricingService {
 
     return serviceRepository
       .createQueryBuilder('service')
-      .where('service.is_active = true')
-      .andWhere('service.base_duration_hours = :durationHours::numeric', {
+      .leftJoinAndSelect('service.pricingConfig', 'pricingConfig')
+      .where('service.isActive = true')
+      .andWhere('service.durationHours = :durationHours', {
         durationHours,
       })
-      .orderBy('service.created_at', 'ASC')
+      .orderBy('service.createdAt', 'ASC')
       .getOne();
   }
 

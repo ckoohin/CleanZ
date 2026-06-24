@@ -3,20 +3,17 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  OneToOne,
-  JoinColumn,
-  Unique,
+  OneToMany,
 } from 'typeorm';
-import { ServiceEntity } from '../../service/entity/service.entity';
+import { SubServiceEntity } from '../../service/entity/sub-service.entity';
 
 @Entity('pricing_configs')
-@Unique('uq_pricing_service', ['serviceId'])
 export class PricingConfigEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid', name: 'service_id' })
-  serviceId!: string;
+  @Column({ type: 'varchar', length: 255 })
+  name!: string;
 
   @Column({ type: 'numeric', precision: 12, scale: 2, name: 'base_price' })
   basePrice!: number;
@@ -63,9 +60,6 @@ export class PricingConfigEntity {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @OneToOne(() => ServiceEntity, (service) => service.pricingConfig, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'service_id' })
-  service!: ServiceEntity;
+  @OneToMany(() => SubServiceEntity, (service) => service.pricingConfig)
+  services!: SubServiceEntity[];
 }

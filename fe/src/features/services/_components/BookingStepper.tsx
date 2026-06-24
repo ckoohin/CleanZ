@@ -110,8 +110,8 @@ export function BookingStepper({
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-foreground">{item.name}</p>
                         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                          {item.shortDescription ||
-                            item.description ||
+                          {item.subServices?.[0]?.shortDescription ||
+                            item.policyDescription ||
                             "Dịch vụ vệ sinh theo yêu cầu của bạn."}
                         </p>
                       </div>
@@ -123,10 +123,12 @@ export function BookingStepper({
                     <div className="mt-4 flex items-center justify-between">
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock3 className="size-3.5" />
-                        {item.baseDurationHours} giờ
+                        {item.maxHours ? `Tối đa ${item.maxHours} giờ` : "Tùy chọn"}
                       </span>
                       <span className="font-black text-primary">
-                        {formatCurrency(item.pricing.basePrice)}
+                        {item.subServices && item.subServices.length > 0
+                          ? "Từ " + formatCurrency(Math.min(...item.subServices.map((s) => s.pricing?.basePrice || 0)))
+                          : "Liên hệ"}
                       </span>
                     </div>
                   </button>

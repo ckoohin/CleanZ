@@ -1,4 +1,4 @@
-import type { BookingStatus } from "./booking.types";
+import type { BookingStatus, PaymentStatus } from "./booking.types";
 
 export interface BookingTrackingPayload {
   bookingId: string;
@@ -35,6 +35,23 @@ export interface BookingTrackingPayload {
   latitude: number;
   longitude: number;
   updatedAt: string;
+}
+
+export interface BookingStatusUpdatedPayload {
+  bookingId: string;
+  bookingCode: string;
+  previousStatus: BookingStatus;
+  status: BookingStatus;
+  changedAt: string;
+  actor: {
+    type: "TASKER" | "ADMIN" | "CUSTOMER" | "SYSTEM";
+    id?: string | null;
+    name?: string | null;
+  };
+  checkedInAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  paymentStatus?: PaymentStatus | null;
 }
 
 export interface TrackingErrorPayload {

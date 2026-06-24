@@ -1,9 +1,10 @@
 import { MyTicketDetailPage } from "@/features/support-tickets/_components/MyTicketDetailPage";
 
-export default function SupportTicketDetailRoute({
+export default async function SupportTicketDetailRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <MyTicketDetailPage ticketId={params.id} />;
+  const { id } = await params;
+  return <MyTicketDetailPage ticketId={id} />;
 }

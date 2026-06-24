@@ -17,7 +17,7 @@ import { Loader2, DollarSign } from "lucide-react";
 import type { PricingConfig } from "@/features/admin/types/pricing.types";
 
 export interface PricingConfigFormValues {
-  serviceId: string;
+  name: string;
   basePrice: string;
   peakPrice: string;
   petFee: string;
@@ -35,6 +35,49 @@ interface PricingConfigDialogProps {
   isSubmitting: boolean;
 }
 
+const NumberInput = ({
+  field,
+  label,
+  suffix = "₫",
+  hint,
+  placeholder = "0",
+  form,
+  set,
+  errors,
+}: {
+  field: keyof PricingConfigFormValues;
+  label: string;
+  suffix?: string;
+  hint?: string;
+  placeholder?: string;
+  form: PricingConfigFormValues;
+  set: (field: keyof PricingConfigFormValues, value: string) => void;
+  errors: Partial<Record<keyof PricingConfigFormValues, string>>;
+}) => (
+  <div className="space-y-1.5">
+    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      {label}
+    </Label>
+    <div className="relative">
+      <Input
+        type="number"
+        min={0}
+        value={form[field] as string}
+        onChange={(e) => set(field, e.target.value)}
+        placeholder={placeholder}
+        className="h-11 rounded-xl pr-8 bg-muted/30 border-border/50 text-sm font-medium focus-visible:ring-primary/20 focus-visible:border-primary/40"
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none">
+        {suffix}
+      </span>
+    </div>
+    {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    {errors[field] && (
+      <p className="text-xs text-destructive font-medium">{errors[field]}</p>
+    )}
+  </div>
+);
+
 export function PricingConfigDialog({
   open,
   onOpenChange,
@@ -44,7 +87,7 @@ export function PricingConfigDialog({
   isSubmitting,
 }: PricingConfigDialogProps) {
   const [form, setForm] = React.useState<PricingConfigFormValues>({
-    serviceId: "",
+    name: "",
     basePrice: "0",
     peakPrice: "",
     petFee: "0",
@@ -59,7 +102,7 @@ export function PricingConfigDialog({
     if (!open) return;
     if (mode === "edit" && initialData) {
       setForm({
-        serviceId: initialData.serviceId ?? "",
+        name: initialData.name ?? "",
         basePrice: String(initialData.basePrice),
         peakPrice: initialData.peakPrice != null ? String(initialData.peakPrice) : "",
         petFee: String(initialData.petFee),
@@ -69,7 +112,7 @@ export function PricingConfigDialog({
       });
     } else {
       setForm({
-        serviceId: "",
+        name: "",
         basePrice: "0",
         peakPrice: "",
         petFee: "0",
@@ -83,8 +126,8 @@ export function PricingConfigDialog({
 
   const validate = (): boolean => {
     const errs: Partial<Record<keyof PricingConfigFormValues, string>> = {};
-    if (mode === "create" && !form.serviceId.trim()) {
-      errs.serviceId = "Service ID không được để trống";
+    if (mode === "create" && !form.name.trim()) {
+      errs.name = "Tên bảng giá không được để trống";
     }
     if (form.basePrice === "" || isNaN(Number(form.basePrice)) || Number(form.basePrice) < 0) {
       errs.basePrice = "Giá cơ bản phải là số ≥ 0";
@@ -113,43 +156,6 @@ export function PricingConfigDialog({
   const set = (field: keyof PricingConfigFormValues, value: string | boolean) =>
     setForm((s) => ({ ...s, [field]: value }));
 
-  const NumberInput = ({
-    field,
-    label,
-    suffix = "₫",
-    hint,
-    placeholder = "0",
-  }: {
-    field: keyof PricingConfigFormValues;
-    label: string;
-    suffix?: string;
-    hint?: string;
-    placeholder?: string;
-  }) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-        {label}
-      </Label>
-      <div className="relative">
-        <Input
-          type="number"
-          min={0}
-          value={form[field] as string}
-          onChange={(e) => set(field, e.target.value)}
-          placeholder={placeholder}
-          className="h-11 rounded-xl pr-8 bg-muted/30 border-border/50 text-sm font-medium focus-visible:ring-primary/20 focus-visible:border-primary/40"
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none">
-          {suffix}
-        </span>
-      </div>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-      {errors[field] && (
-        <p className="text-xs text-destructive font-medium">{errors[field]}</p>
-      )}
-    </div>
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg rounded-2xl border-border/50 shadow-2xl bg-card">
@@ -164,42 +170,41 @@ export function PricingConfigDialog({
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
             {mode === "create"
-              ? "Thiết lập bảng giá cho một dịch vụ mới."
-              : `Đang chỉnh sửa cấu hình giá: ${initialData?.serviceName ?? initialData?.serviceId}`}
+              ? "Thiết lập một bảng giá mới."
+              : `Đang chỉnh sửa bảng giá: ${initialData?.name}`}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "create" && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Service ID (UUID)
-              </Label>
-              <Input
-                value={form.serviceId}
-                onChange={(e) => set("serviceId", e.target.value)}
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                className="h-11 rounded-xl bg-muted/30 border-border/50 font-mono text-sm focus-visible:ring-primary/20"
-              />
-              {errors.serviceId && (
-                <p className="text-xs text-destructive font-medium">{errors.serviceId}</p>
-              )}
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Tên Bảng Giá
+            </Label>
+            <Input
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder="VD: Bảng giá dọn dẹp cơ bản"
+              className="h-11 rounded-xl bg-muted/30 border-border/50 text-sm focus-visible:ring-primary/20"
+            />
+            {errors.name && (
+              <p className="text-xs text-destructive font-medium">{errors.name}</p>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <NumberInput field="basePrice" label="Giá cơ bản" placeholder="180000" />
+            <NumberInput field="basePrice" label="Giá cơ bản" placeholder="180000" form={form} set={set} errors={errors} />
             <NumberInput
               field="peakPrice"
               label="Giá cao điểm"
               placeholder="220000"
               hint="Để trống = dùng giá cơ bản"
+              form={form} set={set} errors={errors}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <NumberInput field="petFee" label="Phí thú cưng" placeholder="30000" />
-            <NumberInput field="waitingFee" label="Phí chờ" placeholder="50000" />
+            <NumberInput field="petFee" label="Phí thú cưng" placeholder="30000" form={form} set={set} errors={errors} />
+            <NumberInput field="waitingFee" label="Phí chờ" placeholder="50000" form={form} set={set} errors={errors} />
           </div>
 
           <NumberInput
@@ -207,6 +212,7 @@ export function PricingConfigDialog({
             label="Hoa hồng nền tảng"
             suffix="%"
             hint="Tỷ lệ hoa hồng từ 0 đến 100%"
+            form={form} set={set} errors={errors}
           />
 
           <div className="flex items-center justify-between rounded-xl bg-muted/30 border border-border/40 px-4 py-3">

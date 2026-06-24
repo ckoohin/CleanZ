@@ -231,3 +231,19 @@ export function useResetPassword() {
     },
   });
 }
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: { fullName?: string; phone?: string; avatar?: File }) =>
+      authApi.updateProfile(dto),
+    onSuccess: (res) => {
+      toast.success(res.message || "Cập nhật hồ sơ thành công!");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+}

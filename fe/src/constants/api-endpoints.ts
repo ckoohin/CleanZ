@@ -25,10 +25,19 @@ export const API_ENDPOINTS = {
   TASKERS: {
     BASE: "/taskers",
     VERIFY: "/taskers/verify",
+    UPDATE_PRESENCE: "/tasker/me/presence",
   },
   SERVICES: {
     BASE: "/services",
     CATEGORIES: "/services/categories",
+  },
+  PUBLIC: {
+    CATEGORIES: "/public/categories",
+    SERVICES: "/public/services",
+  },
+  SUB_SERVICES: {
+    LIST: "/admin/sub-services",
+    DETAIL: (id: string) => `/admin/sub-services/${id}`,
   },
   BOOKING: {
     // Customer APIs
@@ -37,9 +46,11 @@ export const API_ENDPOINTS = {
     MY_ACTIVE: "/booking/my-booking",
     MY_LIST: "/booking/my-bookings",
     DETAIL: (id: string) => `/booking/${id}`,
+    MOCK_PAY: (id: string) => `/booking/${id}/mock-pay`,
     CANCEL: (id: string) => `/booking/customer/${id}/cancel`,
     UPDATE_SCHEDULE: (id: string) => `/booking/${id}/schedule-address`,
     // Tasker APIs
+    TASKER_ACTIVE: "/booking/tasker/active/current",
     TASKER_POSTED_LIST: "/booking/tasker/posted",
     TASKER_POSTED_DETAIL: (id: string) => `/booking/tasker/posted/${id}`,
     TASKER_ACCEPT: (id: string) => `/booking/tasker/posted/${id}/accept`,
@@ -63,6 +74,12 @@ export const API_ENDPOINTS = {
   ADMIN_NOTIFICATIONS: {
     BROADCAST: "/admin/notifications/broadcast",
     HISTORY: "/admin/notifications",
+  },
+  NOTIFICATIONS: {
+    BASE: "/notifications",
+    UNREAD_COUNT: "/notifications/unread-count",
+    READ_ALL: "/notifications/read-all",
+    MARK_READ: (id: string) => `/notifications/${id}/read`,
   },
   SUPPORT_TICKETS: {
     BASE: "/support-tickets",
@@ -93,10 +110,53 @@ export const API_ENDPOINTS = {
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
     VERIFY: (id: string) => `/admin/incidents/${id}/items/verify`,
     DECIDE: (id: string) => `/admin/incidents/${id}/decide`,
-    APPROVE_COMPENSATION: (id: string) => `/admin/incidents/${id}/approve-compensation`,
+    APPROVE_COMPENSATION: (id: string) =>
+      `/admin/incidents/${id}/approve-compensation`,
     COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
     UNLOCK_REPORTER: (id: string) => `/admin/incidents/${id}/unlock-reporter`,
-    FROM_TICKET: (ticketId: string) => `/admin/incidents/from-ticket/${ticketId}`,
+    FROM_TICKET: (ticketId: string) =>
+      `/admin/incidents/from-ticket/${ticketId}`,
     HOUSEKEEPING: "/admin/incidents/run-housekeeping",
+  },
+  ADMIN_SERVICES: {
+    BASE: "/admin/sub-services",
+    DETAIL: (id: string) => `/admin/sub-services/${id}`,
+    BOOKINGS: (id: string) => `/admin/sub-services/${id}/bookings`,
+    TASKERS: (id: string) => `/admin/sub-services/${id}/taskers`,
+  },
+  ADMIN_SERVICE_PACKAGES: {
+    BASE: "/admin/service-packages",
+    DETAIL: (id: string) => `/admin/service-packages/${id}`,
+    ANALYTICS: (id: string) => `/admin/service-packages/${id}/analytics`,
+  },
+  ADMIN_BOOKINGS: {
+    BASE: "/admin/bookings",
+    DETAIL: (id: string) => `/admin/bookings/${id}`,
+    AVAILABLE_TASKERS: (id: string) =>
+      `/admin/bookings/${id}/available-taskers`,
+    ASSIGN_TASKER: (id: string) => `/admin/bookings/${id}/tasker`,
+    STATUS: (id: string) => `/admin/bookings/${id}/status`,
+    CANCEL: (id: string) => `/admin/bookings/${id}/cancel`,
+    EXPIRE_OVERDUE: "/admin/bookings/expire-overdue",
+    ACTIVE_TASKERS: "/admin/bookings/taskers/active",
+  },
+  ADMIN_CUSTOMERS: {
+    BASE: "/admin/customers",
+    DETAIL: (id: string) => `/admin/customers/${id}`,
+    BOOKINGS: (id: string) => `/admin/customers/${id}/bookings`,
+    STATUS: (id: string) => `/admin/customers/${id}/status`,
+  },
+  ADMIN_POLICIES: {
+    BASE: "/policy",
+    DETAIL: (id: string) => `/policy/${id}`,
+  },
+  ADMIN_PRICING: {
+    CONFIGS: "/admin/pricing/configs",
+    CONFIG_DETAIL: (id: string) => `/admin/pricing/configs/${id}`,
+    PEAK_DAYS: "/admin/pricing/peak-days",
+    PEAK_DAY_DETAIL: (id: string) => `/admin/pricing/peak-days/${id}`,
+  },
+  ADMIN_SETTINGS: {
+    BASE: "/admin/settings",
   },
 };

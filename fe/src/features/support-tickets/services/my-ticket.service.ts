@@ -23,7 +23,12 @@ export interface MyBookingOption {
 export const myTicketApi = {
   /** Booking của khách (cho select khi tạo ticket). */
   listMyBookings: (): Promise<MyBookingOption[]> =>
-    http.get<MyBookingOption[]>(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data),
+    http
+      .get<{ items: MyBookingOption[]; total: number }>(API_ENDPOINTS.BOOKING.MY_LIST)
+      .then((r) => {
+        const res = r.data as unknown as { items: MyBookingOption[] };
+        return res.items ?? [];
+      }),
 
   /** Tạo ticket khiếu nại từ đơn của tôi */
   create: (dto: CreateTicketDto): Promise<MyTicketDetail> =>

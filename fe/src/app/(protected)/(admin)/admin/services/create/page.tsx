@@ -4,13 +4,16 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { ServiceForm } from "@/features/admin/components/services/ServiceForm";
-import { useCreateAdminService } from "@/features/admin/hooks/useAdminServices";
-import { CreateAdminServiceDto } from "@/features/admin/services/admin-services.service";
+import { ServiceForm } from "@/features/admin/modules/service/_components/ServiceForm";
+import { useCreateAdminService, useAdminPackages } from "@/features/admin/modules/service/hooks/useAdminServices";
+import { usePricingConfigs } from "@/features/admin/hooks/useAdminPricing";
+import { CreateAdminServiceDto } from "@/features/admin/modules/service/services/admin-services.service";
 
 export default function CreateServicePage() {
   const router = useRouter();
   const createMutation = useCreateAdminService();
+  const { data: categories } = useAdminPackages();
+  const { data: pricingData } = usePricingConfigs({ limit: 100 }); // fetch enough configs
 
   const handleSubmit = (values: CreateAdminServiceDto) => {
     createMutation.mutate(values, {
@@ -21,7 +24,7 @@ export default function CreateServicePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-4">
         <BaseButton
           variant="outline"
@@ -44,7 +47,9 @@ export default function CreateServicePage() {
       <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
         <ServiceForm 
           onSubmit={handleSubmit} 
-          isSubmitting={createMutation.isPending} 
+          isSubmitting={createMutation.isPending}
+          categories={categories || []}
+          pricingConfigs={pricingData?.items || []}
         />
       </div>
     </div>

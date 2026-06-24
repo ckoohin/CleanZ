@@ -1,9 +1,10 @@
 import { TaskerIncidentDetail } from "@/features/incident/tasker/_components/TaskerIncidentDetail";
 
-export default function TaskerIncidentDetailRoute({
+export default async function TaskerIncidentDetailRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <TaskerIncidentDetail incidentId={params.id} />;
+  const { id } = await params;
+  return <TaskerIncidentDetail incidentId={id} />;
 }

@@ -9,6 +9,7 @@ import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
 import { MailService } from 'src/modules/mail/mail.service';
 import { UploadService } from 'src/modules/upload/upload.service';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
@@ -190,6 +191,26 @@ export class TaskerService {
 
       return this.mapProfile(tasker);
     }, 'Không thể lấy hồ sơ tasker');
+  }
+
+  async updatePresence(
+    userId: string,
+    presenceStatus: TASKER_PRESENCE_STATUS,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { user: { id: userId } },
+        relations: ['user'],
+      });
+
+      if (!tasker) {
+        throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+      }
+
+      tasker.presenceStatus = presenceStatus;
+      const saved = await this.taskerRepository.save(tasker);
+      return this.mapProfile(saved);
+    }, 'Không thể cập nhật trạng thái hoạt động');
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────

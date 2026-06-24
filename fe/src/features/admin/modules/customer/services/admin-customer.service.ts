@@ -1,4 +1,5 @@
 import http from '@/lib/api/http';
+import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import type {
   CustomerQueryFilter,
   PaginatedCustomersResponse,
@@ -7,16 +8,14 @@ import type {
   ToggleCustomerStatusResponse,
 } from '../types/customer.types';
 
-const BASE = '/admin/customers';
-
 export const adminCustomerApi = {
   getCustomers: (params: CustomerQueryFilter): Promise<PaginatedCustomersResponse> => {
     // If params.isActive is undefined, don't pass it or pass it. The Backend handles isActive optionally.
-    return http.get<PaginatedCustomersResponse>(BASE, { params }).then((res) => res.data);
+    return http.get<PaginatedCustomersResponse>(API_ENDPOINTS.ADMIN_CUSTOMERS.BASE, { params }).then((res) => res.data);
   },
 
   getCustomerDetail: (id: string): Promise<CustomerDetailResponse> => {
-    return http.get<CustomerDetailResponse>(`${BASE}/${id}`).then((res) => res.data);
+    return http.get<CustomerDetailResponse>(API_ENDPOINTS.ADMIN_CUSTOMERS.DETAIL(id)).then((res) => res.data);
   },
 
   getCustomerBookings: (
@@ -25,7 +24,7 @@ export const adminCustomerApi = {
     limit: number = 10,
   ): Promise<PaginatedCustomerBookingsResponse> => {
     return http
-      .get<PaginatedCustomerBookingsResponse>(`${BASE}/${id}/bookings`, {
+      .get<PaginatedCustomerBookingsResponse>(API_ENDPOINTS.ADMIN_CUSTOMERS.BOOKINGS(id), {
         params: { page, limit },
       })
       .then((res) => res.data);
@@ -33,7 +32,7 @@ export const adminCustomerApi = {
 
   toggleCustomerStatus: (id: string, isActive: boolean): Promise<ToggleCustomerStatusResponse> => {
     return http
-      .patch<ToggleCustomerStatusResponse>(`${BASE}/${id}/status`, { isActive })
+      .patch<ToggleCustomerStatusResponse>(API_ENDPOINTS.ADMIN_CUSTOMERS.STATUS(id), { isActive })
       .then((res) => res.data);
   },
 };

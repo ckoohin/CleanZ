@@ -1,4 +1,8 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -13,6 +17,7 @@ import { Server, Socket } from 'socket.io';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { LocationUpdateDto } from './dto/location-update.dto';
 import {
+  AuthenticatedTrackingUser,
   BookingRoomResponse,
   TaskerLocationUpdatedPayload,
   TrackingService,
@@ -42,6 +47,27 @@ interface BookingCompletedPayload {
   paymentStatus: string;
 }
 
+interface BookingStatusUpdatedPayload {
+  bookingId: string;
+  bookingCode: string;
+  previousStatus: string;
+  status: string;
+  changedAt: string;
+  actor: {
+    type: 'TASKER' | 'ADMIN' | 'CUSTOMER' | 'SYSTEM';
+    id?: string | null;
+    name?: string | null;
+  };
+  checkedInAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  paymentStatus?: string | null;
+}
+
+interface TrackingSocketData {
+  user?: AuthenticatedTrackingUser;
+}
+
 @WebSocketGateway({
   namespace: '/tracking',
   cors: {
@@ -66,8 +92,23 @@ export class TrackingGateway
     this.logger.log('Socket.io tracking gateway is ready at /tracking');
   }
 
-  handleConnection(client: Socket): void {
-    this.logger.log(`Socket connected: ${client.id}`);
+  async handleConnection(client: Socket): Promise<void> {
+    try {
+      const user = await this.authenticateClient(client);
+      this.getSocketData(client).user = user;
+      this.logger.log(
+        `Socket connected: ${client.id} user=${user.id} role=${user.role}`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Không thể xác thực socket';
+      this.logger.warn(`Socket rejected: ${client.id}. ${message}`);
+      client.emit('tracking:error', {
+        event: 'connect',
+        message,
+      });
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket): void {
@@ -93,7 +134,10 @@ export class TrackingGateway
         throw new BadRequestException('bookingId là bắt buộc');
       }
 
-      const response = await this.trackingService.buildBookingRoom(bookingId);
+      const response = await this.trackingService.buildBookingRoom(
+        bookingId,
+        this.getClientUser(client),
+      );
       await client.join(response.room);
       const roomSockets = await this.server.in(response.room).allSockets();
       client.emit('booking:joined', {
@@ -135,7 +179,10 @@ export class TrackingGateway
         throw new BadRequestException('bookingId là bắt buộc');
       }
 
-      const response = await this.trackingService.buildBookingRoom(bookingId);
+      const response = await this.trackingService.buildTaskerTrackingRoom(
+        bookingId,
+        this.getClientUser(client),
+      );
       await client.join(response.room);
       this.startTaskerTrackingTimer(client, bookingId);
 
@@ -210,6 +257,13 @@ export class TrackingGateway
     return this.emitToBookingRoom(bookingId, 'booking:in_progress', payload);
   }
 
+  emitBookingStatusUpdated(
+    bookingId: string,
+    payload: BookingStatusUpdatedPayload,
+  ): Promise<{ room: string; roomMemberCount: number }> {
+    return this.emitToBookingRoom(bookingId, 'booking:status_updated', payload);
+  }
+
   async emitBookingCompleted(
     bookingId: string,
     payload: BookingCompletedPayload,
@@ -246,6 +300,7 @@ export class TrackingGateway
       const location =
         await this.trackingService.buildTaskerLocationUpdatedPayload(
           this.parseSocketPayload<LocationUpdateDto>(payload),
+          this.getClientUser(client),
         );
 
       const emitResult = await this.emitToBookingRoom(
@@ -286,6 +341,50 @@ export class TrackingGateway
     }
 
     return JSON.parse(payload) as TPayload;
+  }
+
+  private async authenticateClient(
+    client: Socket,
+  ): Promise<AuthenticatedTrackingUser> {
+    const handshakeAuth = client.handshake.auth as
+      | { token?: unknown }
+      | undefined;
+    const authToken =
+      typeof handshakeAuth?.token === 'string'
+        ? handshakeAuth.token
+        : undefined;
+    const headers = client.handshake.headers as {
+      authorization?: unknown;
+      cookie?: unknown;
+    };
+    const authorizationHeader = Array.isArray(headers.authorization)
+      ? headers.authorization.find(
+          (value): value is string => typeof value === 'string',
+        )
+      : typeof headers.authorization === 'string'
+        ? headers.authorization
+        : undefined;
+    const cookieHeader =
+      typeof headers.cookie === 'string' ? headers.cookie : undefined;
+
+    return this.trackingService.authenticateSocket({
+      cookieHeader,
+      authorizationHeader,
+      authToken,
+    });
+  }
+
+  private getClientUser(client: Socket): AuthenticatedTrackingUser {
+    const user = this.getSocketData(client).user;
+    if (!user) {
+      throw new UnauthorizedException('Socket chưa được xác thực');
+    }
+
+    return user;
+  }
+
+  private getSocketData(client: Socket): TrackingSocketData {
+    return client.data as TrackingSocketData;
   }
 
   private startTaskerTrackingTimer(client: Socket, bookingId: string): void {

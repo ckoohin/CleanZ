@@ -1,9 +1,10 @@
 import { MyIncidentDetailPage } from "@/features/incident/customer/pages/MyIncidentDetailPage";
 
-export default function CustomerIncidentDetailRoute({
+export default async function CustomerIncidentDetailRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <MyIncidentDetailPage incidentId={params.id} />;
+  const { id } = await params;
+  return <MyIncidentDetailPage incidentId={id} />;
 }

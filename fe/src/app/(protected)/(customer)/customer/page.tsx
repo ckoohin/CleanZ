@@ -1,13 +1,5 @@
-import React from 'react'
-import HomePage from './home/page'
+import AppleStyleHomePage from "@/features/customer/pages/HomePage";
 
-function CustomerPage() {
-
-    return (
-        <>
-            <HomePage />
-        </>
-    )
+export default function CustomerPage() {
+  return <AppleStyleHomePage />;
 }
-
-export default CustomerPage

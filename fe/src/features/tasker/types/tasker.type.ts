@@ -23,6 +23,7 @@ export interface TaskerProfile {
   bio: string;
   avatarUrl: string | null;
   approvalStatus: TaskerStatus;
+  presenceStatus?: string | null;
   totalJobs: number;
   avgRating: number;
   adminNotes?: string;

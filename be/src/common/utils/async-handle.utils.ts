@@ -14,7 +14,12 @@ export async function asyncHandleOperation<T>(
     return await operation();
   } catch (error: unknown) {
     if (error instanceof HttpException) {
-      logger.error(`${errorMessage} | ${error.message}`, error.stack);
+      const status = error.getStatus();
+      if (status >= 500) {
+        logger.error(`${errorMessage} | ${error.message}`, error.stack);
+      } else {
+        logger.warn(`${errorMessage} | ${error.message}`);
+      }
       throw error;
     }
 

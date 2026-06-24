@@ -25,6 +25,9 @@ interface BookingTrackingMapProps {
   isConnected: boolean;
   error?: string | null;
   viewer?: "customer" | "tasker";
+  mobileFull?: boolean;
+  grabFull?: boolean;
+  onOpenFullscreen?: () => void;
 }
 
 function decodePolyline(encoded: string): [number, number][] {
@@ -88,6 +91,9 @@ export function BookingTrackingMap({
   isConnected,
   error,
   viewer = "customer",
+  mobileFull = false,
+  grabFull = false,
+  onOpenFullscreen,
 }: BookingTrackingMapProps) {
   const mapRef = useRef<MapRef | null>(null);
   const [mapStyle, setMapStyle] = useState<StyleSpecification | null>(null);
@@ -231,50 +237,32 @@ export function BookingTrackingMap({
 
   if (!hasDestination) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+      <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-700 shadow-sm">
         Booking chưa có tọa độ địa chỉ để hiển thị hành trình.
       </div>
     );
   }
 
-  return (
-    <section className="overflow-hidden rounded-2xl border border-border/50 bg-card">
-      <div className="flex items-center justify-between gap-3 p-4">
-        <div>
-          <h3 className="text-sm font-bold">
-            {viewer === "tasker"
-              ? "Điều hướng tới khách hàng"
-              : "Theo dõi Tasker"}
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            {tracking
-              ? `Cập nhật lúc ${new Date(tracking.updatedAt).toLocaleTimeString("vi-VN")}`
-              : viewer === "tasker"
-                ? "Đang xác định vị trí và tuyến đường"
-                : "Đang chờ vị trí đầu tiên từ Tasker"}
-          </p>
-        </div>
-        <span
-          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-            isConnected
-              ? "bg-emerald-50 text-emerald-600"
-              : "bg-slate-100 text-slate-500"
-          }`}
-        >
-          <span
-            className={`h-2 w-2 rounded-full ${
-              isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-            }`}
-          />
-          {isConnected
-            ? viewer === "tasker"
-              ? "GPS trực tuyến"
-              : "Đang trực tuyến"
-            : "Đang kết nối"}
-        </span>
-      </div>
+  const isTaskerView = viewer === "tasker";
+  const routeColor = "#fd7e14";
 
-      <div className="relative h-[340px] w-full bg-muted md:h-[430px]">
+  return (
+    <section
+      className={
+        mobileFull
+          ? "-mx-4 -mt-4 overflow-hidden border-b border-border/50 bg-card shadow-md md:mx-0 md:mt-0 md:rounded-3xl md:border"
+          : "overflow-hidden rounded-3xl border border-border/50 bg-card shadow-md"
+      }
+    >
+      <div
+        className={
+          grabFull
+            ? "relative h-[calc(100svh-112px)] min-h-[540px] w-full overflow-hidden bg-muted md:h-[430px] md:min-h-0"
+            : mobileFull
+            ? "relative h-[calc(100svh-168px)] min-h-[520px] w-full overflow-hidden bg-muted md:h-[430px] md:min-h-0"
+            : "relative h-[360px] w-full overflow-hidden bg-muted md:h-[430px]"
+        }
+      >
         {mapStyle ? (
           <Map
             ref={mapRef}
@@ -304,7 +292,11 @@ export function BookingTrackingMap({
                 <Layer
                   id="tracking-route-line"
                   type="line"
-                  paint={{ "line-color": "#2563eb", "line-width": 5 }}
+                  paint={{
+                    "line-color": routeColor,
+                    "line-width": isTaskerView ? 5 : 5,
+                    "line-opacity": 0.88,
+                  }}
                   layout={{ "line-cap": "round", "line-join": "round" }}
                 />
               </Source>
@@ -315,8 +307,13 @@ export function BookingTrackingMap({
               latitude={destination.latitude}
               anchor="bottom"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border-4 border-white bg-primary text-white shadow-lg">
-                <Home className="h-5 w-5" />
+              <div className="flex flex-col items-center justify-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white bg-primary text-white shadow-lg">
+                  <Home className="h-5 w-5" />
+                </div>
+                <span className="mt-1 rounded-full border border-white/20 bg-primary/95 px-2 py-0.5 text-[9px] font-black uppercase leading-none text-white shadow-sm">
+                  Điểm đến
+                </span>
               </div>
             </Marker>
 
@@ -326,9 +323,14 @@ export function BookingTrackingMap({
                 latitude={taskerLocation.latitude}
                 anchor="center"
               >
-                <div className="relative flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-blue-600 text-white shadow-xl">
-                  <Navigation className="h-5 w-5 fill-current" />
-                  <span className="absolute -inset-2 -z-10 animate-ping rounded-full bg-blue-400/40" />
+                <div className="relative flex flex-col items-center justify-center">
+                  <span className="absolute top-0 h-11 w-11 animate-ping rounded-full bg-emerald-500/50" />
+                  <div className="relative z-10 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-emerald-500 bg-white text-emerald-600 shadow-xl">
+                    <Navigation className="h-5 w-5 rotate-45 fill-current" />
+                  </div>
+                  <span className="z-10 mt-1 rounded-full border border-white/20 bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase leading-none text-white shadow-sm">
+                    {isTaskerView ? "Bạn" : "Tasker"}
+                  </span>
                 </div>
               </Marker>
             )}
@@ -346,22 +348,94 @@ export function BookingTrackingMap({
             )}
           </div>
         )}
+
+        <div className="absolute left-4 right-4 top-4 z-10 flex items-center gap-3 rounded-2xl border border-border/50 bg-card/90 px-4 py-3 shadow-md backdrop-blur-md">
+          <div className="relative flex h-2.5 w-2.5 shrink-0">
+            <span
+              className={`absolute inline-flex h-full w-full rounded-full ${
+                isConnected ? "animate-ping bg-emerald-400 opacity-75" : "bg-slate-300"
+              }`}
+            />
+            <span
+              className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                isConnected ? "bg-emerald-500" : "bg-slate-400"
+              }`}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black uppercase text-foreground">
+              {isTaskerView ? "Điều hướng tới khách hàng" : "Theo dõi Tasker"}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] font-medium text-muted-foreground">
+              {tracking
+                ? `Cập nhật lúc ${new Date(tracking.updatedAt).toLocaleTimeString("vi-VN")}`
+                : isTaskerView
+                  ? "Đang xác định vị trí và tuyến đường"
+                  : "Đang chờ vị trí đầu tiên từ Tasker"}
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${
+              isConnected
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {isConnected ? "Trực tuyến" : "Đang nối"}
+          </span>
+        </div>
+
+        {onOpenFullscreen && (
+          <button
+            type="button"
+            onClick={onOpenFullscreen}
+            className="absolute bottom-32 right-4 z-10 rounded-2xl border border-border/50 bg-card/95 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary shadow-md backdrop-blur-md transition active:scale-95 md:bottom-4"
+          >
+            Mở rộng
+          </button>
+        )}
+
+        {mobileFull && !grabFull && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 rounded-t-[28px] border-t border-border/50 bg-card/95 p-4 pb-5 shadow-[0_-10px_30px_rgba(15,23,42,0.12)] backdrop-blur-md md:hidden">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
+            <div className="grid gap-3">
+              <div className="rounded-2xl bg-primary/5 p-4">
+                <p className="text-[11px] font-black uppercase text-primary">
+                  {viewer === "tasker" ? "Địa chỉ khách hàng" : "Điểm đến"}
+                </p>
+                <p className="mt-1 line-clamp-2 text-sm font-bold text-foreground">
+                  {destination.address || fallbackDestination?.address}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-blue-50 p-4">
+                <p className="text-[11px] font-black uppercase text-blue-500">
+                  Dự kiến còn lại
+                </p>
+                <p className="mt-1 text-sm font-black text-blue-700">
+                  {tracking
+                    ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
+                    : "Đang tính toán..."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-3 p-4 sm:grid-cols-2">
-        <div className="rounded-xl bg-primary/5 p-3">
-          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+      <div className={`${mobileFull || grabFull ? "hidden md:grid" : "grid"} gap-3 p-4 sm:grid-cols-2`}>
+        <div className="rounded-2xl bg-primary/5 p-4">
+          <p className="text-[11px] font-black uppercase text-primary">
             {viewer === "tasker" ? "Địa chỉ khách hàng" : "Điểm đến"}
           </p>
-          <p className="mt-1 line-clamp-2 text-sm font-medium">
+          <p className="mt-1 line-clamp-2 text-sm font-bold text-foreground">
             {destination.address || fallbackDestination?.address}
           </p>
         </div>
-        <div className="rounded-xl bg-blue-50 p-3">
-          <p className="text-[11px] font-semibold uppercase text-blue-500">
+        <div className="rounded-2xl bg-blue-50 p-4">
+          <p className="text-[11px] font-black uppercase text-blue-500">
             Dự kiến còn lại
           </p>
-          <p className="mt-1 text-sm font-bold text-blue-700">
+          <p className="mt-1 text-sm font-black text-blue-700">
             {tracking
               ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
               : "Đang tính toán..."}

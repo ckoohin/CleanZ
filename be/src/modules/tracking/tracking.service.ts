@@ -1,19 +1,31 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Server } from 'socket.io';
 import { DataSource } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { UserRole } from 'src/common/enums/user-role.enum';
 import { BookingEntity } from '../booking/entity/booking.entity';
 import { GoongMapService, GoongRouteSummary } from '../goong/goong-map.service';
+import { JwtPayload } from '../auth/types/JwtPayLoad';
 import { LocationUpdateDto } from './dto/location-update.dto';
 
 export interface BookingRoomResponse {
   bookingId: string;
   room: string;
+}
+
+export interface AuthenticatedTrackingUser {
+  id: string;
+  email: string;
+  role: UserRole;
 }
 
 export interface TaskerLocationUpdatedPayload {
@@ -73,21 +85,129 @@ export class TrackingService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly goongMapService: GoongMapService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
-  async buildBookingRoom(bookingId: string): Promise<BookingRoomResponse> {
-    const bookingExists = await this.dataSource
-      .getRepository(BookingEntity)
-      .exists({ where: { id: bookingId } });
+  async authenticateSocket(input: {
+    cookieHeader?: string;
+    authorizationHeader?: string;
+    authToken?: string;
+  }): Promise<AuthenticatedTrackingUser> {
+    const token =
+      input.authToken?.trim() ||
+      this.extractBearerToken(input.authorizationHeader) ||
+      this.extractCookie(input.cookieHeader, 'access_token');
 
-    if (!bookingExists) {
-      throw new NotFoundException('Booking không tồn tại');
+    if (!token) {
+      throw new UnauthorizedException('Bạn cần đăng nhập để tracking booking');
+    }
+
+    const payload = await this.jwtService
+      .verifyAsync<JwtPayload>(token, {
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      })
+      .catch(() => {
+        throw new UnauthorizedException('Token tracking không hợp lệ');
+      });
+
+    return {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role as UserRole,
+    };
+  }
+
+  async buildBookingRoom(
+    bookingId: string,
+    user: AuthenticatedTrackingUser,
+  ): Promise<BookingRoomResponse> {
+    const booking = await this.findBookingParticipants(bookingId);
+
+    this.assertCanJoinBooking(booking, user);
+
+    return {
+      bookingId,
+      room: this.getBookingRoom(bookingId),
+    };
+  }
+
+  async buildTaskerTrackingRoom(
+    bookingId: string,
+    user: AuthenticatedTrackingUser,
+  ): Promise<BookingRoomResponse> {
+    const booking = await this.findBookingParticipants(bookingId);
+
+    this.assertAssignedTasker(booking, user);
+    if (booking.status !== BookingStatus.TASKER_ON_THE_WAY) {
+      throw new ForbiddenException(
+        'Chỉ được bắt đầu tracking khi tasker đang trên đường',
+      );
     }
 
     return {
       bookingId,
       room: this.getBookingRoom(bookingId),
     };
+  }
+
+  private async findBookingParticipants(
+    bookingId: string,
+  ): Promise<BookingEntity> {
+    const booking = await this.dataSource
+      .getRepository(BookingEntity)
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'customerUser')
+      .leftJoinAndSelect('booking.tasker', 'tasker')
+      .leftJoinAndSelect('tasker.user', 'taskerUser')
+      .where('booking.id = :bookingId', { bookingId })
+      .getOne();
+
+    if (!booking) {
+      throw new NotFoundException('Booking không tồn tại');
+    }
+
+    return booking;
+  }
+
+  private assertCanJoinBooking(
+    booking: BookingEntity,
+    user: AuthenticatedTrackingUser,
+  ): void {
+    if (user.role === UserRole.ADMIN) {
+      return;
+    }
+
+    if (user.role === UserRole.CUSTOMER) {
+      const customerUserId = booking.customer?.user?.id;
+      if (customerUserId === user.id) {
+        return;
+      }
+
+      throw new ForbiddenException('Bạn không thuộc customer của booking này');
+    }
+
+    if (user.role === UserRole.TASKER) {
+      this.assertAssignedTasker(booking, user);
+      return;
+    }
+
+    throw new ForbiddenException('Bạn không có quyền tracking booking này');
+  }
+
+  private assertAssignedTasker(
+    booking: BookingEntity,
+    user: AuthenticatedTrackingUser,
+  ): void {
+    if (user.role !== UserRole.TASKER) {
+      throw new ForbiddenException('Chỉ tasker được gửi vị trí booking');
+    }
+
+    const taskerUserId = booking.tasker?.user?.id;
+    if (taskerUserId !== user.id) {
+      throw new ForbiddenException('Booking không thuộc tasker hiện tại');
+    }
   }
 
   async emitToBookingRoom<TPayload>(
@@ -112,7 +232,12 @@ export class TrackingService {
 
   async buildTaskerLocationUpdatedPayload(
     dto: LocationUpdateDto,
+    user: AuthenticatedTrackingUser,
   ): Promise<TaskerLocationUpdatedPayload> {
+    if (user.role !== UserRole.TASKER) {
+      throw new ForbiddenException('Chỉ tasker được gửi vị trí booking');
+    }
+
     const bookingId = dto.bookingId?.trim();
     if (!bookingId) {
       throw new BadRequestException('bookingId là bắt buộc');
@@ -139,6 +264,7 @@ export class TrackingService {
       .leftJoinAndSelect('tasker.user', 'taskerUser')
       .leftJoinAndSelect('booking.addressRef', 'addressRef')
       .where('booking.id = :bookingId', { bookingId })
+      .andWhere('taskerUser.id = :userId', { userId: user.id })
       .andWhere('booking.status = :status', {
         status: BookingStatus.TASKER_ON_THE_WAY,
       })
@@ -318,5 +444,44 @@ export class TrackingService {
       earthRadiusMeters *
       Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
     );
+  }
+
+  private extractBearerToken(authorizationHeader?: string): string | null {
+    if (!authorizationHeader) {
+      return null;
+    }
+
+    const [scheme, token] = authorizationHeader.split(' ');
+    if (scheme?.toLowerCase() !== 'bearer' || !token?.trim()) {
+      return null;
+    }
+
+    return token.trim();
+  }
+
+  private extractCookie(
+    cookieHeader: string | undefined,
+    name: string,
+  ): string | null {
+    if (!cookieHeader) {
+      return null;
+    }
+
+    const cookies = cookieHeader.split(';');
+    for (const cookie of cookies) {
+      const separatorIndex = cookie.indexOf('=');
+      if (separatorIndex === -1) {
+        continue;
+      }
+
+      const key = cookie.slice(0, separatorIndex).trim();
+      if (key !== name) {
+        continue;
+      }
+
+      return decodeURIComponent(cookie.slice(separatorIndex + 1).trim());
+    }
+
+    return null;
   }
 }

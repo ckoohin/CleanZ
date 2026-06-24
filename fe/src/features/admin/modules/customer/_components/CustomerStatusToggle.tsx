@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useToggleCustomerStatus } from "../hooks/useAdminCustomer";
+import { useToggleCustomerStatus } from "@/features/admin/modules/customer/hooks/useAdminCustomer";
 
 interface CustomerStatusToggleProps {
   customerId: string;

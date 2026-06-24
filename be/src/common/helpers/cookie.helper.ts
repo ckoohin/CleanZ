@@ -43,10 +43,7 @@ export class CookieHelper {
       return undefined;
     }
 
-    const domainWithoutProtocol = configuredDomain.replace(
-      /^https?:\/\//i,
-      '',
-    );
+    const domainWithoutProtocol = configuredDomain.replace(/^https?:\/\//i, '');
     const hostname = domainWithoutProtocol
       .split('/')[0]
       .replace(/:\d+$/, '')
@@ -71,10 +68,7 @@ export class CookieHelper {
 
     // Chỉ gắn Domain khi request thực sự đến từ domain đã cấu hình.
     // Localhost sẽ dùng cookie host-only và vẫn chia sẻ được giữa các port.
-    if (
-      requestHost !== hostname &&
-      !requestHost?.endsWith(`.${hostname}`)
-    ) {
+    if (requestHost !== hostname && !requestHost?.endsWith(`.${hostname}`)) {
       return undefined;
     }
 

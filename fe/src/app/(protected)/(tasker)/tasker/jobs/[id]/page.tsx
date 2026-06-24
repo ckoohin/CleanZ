@@ -2,12 +2,10 @@ import { TaskerJobDetailPage } from "@/features/booking/_components/TaskerJobDet
 
 export default async function TaskerJobDetailRoute({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ mode?: string }>;
 }) {
-  const [{ id }, { mode }] = await Promise.all([params, searchParams]);
+  const { id } = await params;
 
-  return <TaskerJobDetailPage bookingId={id} mode={mode} />;
+  return <TaskerJobDetailPage bookingId={id} />;
 }

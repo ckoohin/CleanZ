@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -49,13 +49,15 @@ interface ServiceOption {
   description?: string | null;
   baseDurationHours?: number | null;
   basePrice: number;
+  subServiceIds: string[];  // IDs của SubService thuộc Package này
 }
 
 // 0=Dịch vụ, 1=Địa chỉ, 2=Lịch, 3=Thanh toán, 4=Xác nhận, 5=Thành công
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface WizardState {
-  serviceId: string;
+  serviceId: string;        // ServicePackage ID
+  subServiceIds: string[];  // SubService IDs thuộc package đã chọn
   // Địa chỉ
   addressId: string;
   selectedAddress: string; // địa chỉ hiển thị
@@ -72,6 +74,7 @@ interface WizardState {
 
 const INIT_STATE: WizardState = {
   serviceId: "",
+  subServiceIds: [],
   addressId: "",
   selectedAddress: "",
   selectedLat: null,
@@ -162,7 +165,8 @@ function StepService({
       name: service.name,
       description: service.shortDescription || service.description,
       baseDurationHours: service.baseDurationHours,
-      basePrice: service.pricing.basePrice,
+      basePrice: service.pricing?.basePrice ?? 0,
+      subServiceIds: (service.subServices ?? []).map((s) => s.id),
     })) ?? [];
 
   if (isLoading) {
@@ -183,7 +187,7 @@ function StepService({
           <button
             key={svc.id}
             onClick={() =>
-              onChange({ serviceId: svc.id })
+              onChange({ serviceId: svc.id, subServiceIds: svc.subServiceIds })
             }
             className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
               selected
@@ -747,6 +751,25 @@ export const BookingWizard = ({
   const [quote, setQuote] = useState<BookingQuoteResponse | null>(null);
   const [createdId, setCreatedId] = useState<string>("");
 
+  const { data: publicServicesData, isLoading: isServicesLoading } = usePublicServices();
+  const [resolvedServiceId, setResolvedServiceId] = useState<string | null>(null);
+
+  const parentPackage = useMemo(() => {
+    if (!initialServiceId || !publicServicesData?.data) return null;
+    return publicServicesData.data.find((pkg) =>
+      (pkg.subServices || []).some((sub) => sub.id === initialServiceId)
+    );
+  }, [initialServiceId, publicServicesData]);
+
+  if (parentPackage && resolvedServiceId !== parentPackage.id) {
+    setResolvedServiceId(parentPackage.id);
+    setForm((prev) => ({
+      ...prev,
+      serviceId: parentPackage.id,
+      subServiceIds: [initialServiceId!],
+    }));
+  }
+
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
 
@@ -782,7 +805,8 @@ export const BookingWizard = ({
     if (step === 3) {
       try {
         const result = await quoteQuery.mutateAsync({
-          serviceId: form.serviceId || undefined,
+          packageId: form.serviceId || undefined,
+          subServiceIds: form.subServiceIds.length > 0 ? form.subServiceIds : undefined,
           addressId: form.addressId || undefined,
           scheduledDate: form.scheduledDate,
           scheduledTime: form.scheduledTime,
@@ -800,7 +824,8 @@ export const BookingWizard = ({
     // Step 4 (Xác nhận) → Submit booking → Step 5 (Thành công)
     if (step === 4) {
       const dto: CreateBookingDto = {
-        serviceId: form.serviceId || undefined,
+        packageId: form.serviceId || undefined,
+        subServiceIds: form.subServiceIds.length > 0 ? form.subServiceIds : undefined,
         addressId: form.addressId || undefined,
         scheduledDate: form.scheduledDate,
         scheduledTime: form.scheduledTime,
@@ -859,6 +884,17 @@ export const BookingWizard = ({
   const isPending =
     (step === 3 && quoteQuery.isPending) ||
     (step === 4 && createMutation.isPending);
+
+  const isResolvingPackage = !!initialServiceId && form.subServiceIds.length === 0;
+
+  if (initialServiceId && (isServicesLoading || isResolvingPackage)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-background">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-sm text-muted-foreground">Đang xử lý dịch vụ...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -995,7 +1031,7 @@ export const BookingWizard = ({
 
       {/* Bottom CTA */}
       {step < 5 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 pb-8 z-30">
+        <div className="fixed bottom-20 md:bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 z-30">
           <div className="mx-auto max-w-5xl">
             <button
               onClick={handleNext}
