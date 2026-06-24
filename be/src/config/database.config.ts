@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from '../config/config.type';
@@ -7,6 +8,10 @@ export const getDatabaseConfig = (
 ): TypeOrmModuleOptions => {
   const isDev =
     configService.get('NODE_ENV', { infer: true }) === 'development';
+
+  // Bật/tắt tự chạy migration lúc app khởi động. Mặc định BẬT.
+  // Đặt DB_MIGRATIONS_RUN=false trong .env để tắt nếu cần.
+  const migrationsRun = process.env.DB_MIGRATIONS_RUN !== 'false';
 
   return {
     type: 'postgres',
@@ -18,6 +23,13 @@ export const getDatabaseConfig = (
 
     autoLoadEntities: true,
     synchronize: false,
-    logging: true,
+
+    // Glob khớp cả runtime dev (.ts qua ts-node) lẫn prod (.js trong dist/)
+    migrations: [join(__dirname, '..', 'database', 'migrations', '*.{ts,js}')],
+    migrationsTableName: 'migrations',
+    migrationsRun,
+
+    logging: isDev,
+    // ssl: { rejectUnauthorized: false },
   };
 };

@@ -96,3 +96,23 @@ export interface ToggleCustomerStatusResponse {
   message: string;
   isActive: boolean;
 }
+
+export type PaymentMethod = "CASH" | "MOMO" | "ZALOPAY" | "VNPAY" | "VIETQR";
+
+export interface CreateCustomerPayload {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
+  defaultPaymentMethod?: PaymentMethod;
+}
+
+export interface UpdateCustomerPayload {
+  fullName?: string;
+  phone?: string;
+  defaultPaymentMethod?: PaymentMethod;
+}
+
+export interface DeleteCustomerResponse {
+  message: string;
+}

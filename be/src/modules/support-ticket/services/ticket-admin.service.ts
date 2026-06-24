@@ -16,6 +16,8 @@ import { SupportTicketEntity } from '../entity/support-ticket.entity';
 import { TicketMessageEntity } from '../entity/ticket-message.entity';
 import { TicketStatusLogEntity } from '../entity/ticket-status-log.entity';
 import { TicketResolutionEntity } from '../entity/ticket-resolution.entity';
+import { TicketAttachmentEntity } from '../entity/ticket-attachment.entity';
+import { UploadService } from 'src/modules/upload/upload.service';
 import { AdminQueryTicketDto } from '../dto/admin-query-ticket.dto';
 import { ChangeStatusDto } from '../dto/change-status.dto';
 import { AssignTicketDto } from '../dto/assign-ticket.dto';
@@ -28,6 +30,9 @@ import {
   toAdminView,
   toAdminTicketSummary,
 } from '../dto/ticket-response.dto';
+import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
+import { TicketRealtimeService } from '../realtime/ticket-realtime.service';
+import { MarkReadAdminDto } from '../dto/mark-read.dto';
 import { CreateAdminMessageDto } from '../dto/create-message.dto';
 import { TicketService } from './ticket.service';
 import { TicketSlaService } from './ticket-sla.service';
@@ -62,9 +67,13 @@ export class TicketAdminService {
     private readonly resolutionRepo: Repository<TicketResolutionEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(TicketAttachmentEntity)
+    private readonly attachmentRepo: Repository<TicketAttachmentEntity>,
     private readonly ticketService: TicketService,
     private readonly sla: TicketSlaService,
     private readonly notification: NotificationService,
+    private readonly uploadService: UploadService,
+    private readonly realtime: TicketRealtimeService,
   ) {}
 
   private notify(
@@ -88,7 +97,10 @@ export class TicketAdminService {
       .catch(() => undefined);
   }
 
-  async list(query: AdminQueryTicketDto): Promise<PaginatedTickets> {
+  async list(
+    query: AdminQueryTicketDto,
+    actingAdminId: string,
+  ): Promise<PaginatedTickets> {
     return asyncHandleOperation(async () => {
       const page = query.page ?? 1;
       const limit = query.limit ?? 10;
@@ -134,8 +146,16 @@ export class TicketAdminService {
       }
 
       const [rows, total] = await qb.getManyAndCount();
+      const unread = await this.ticketService.unreadCountMap(
+        actingAdminId,
+        true,
+        rows.map((r) => r.id),
+      );
       return {
-        data: rows.map(toAdminTicketSummary),
+        data: rows.map((r) => ({
+          ...toAdminTicketSummary(r),
+          unreadCount: unread[r.id] ?? 0,
+        })),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }, 'Lỗi khi lấy hàng đợi ticket');
@@ -144,7 +164,7 @@ export class TicketAdminService {
   async findOne(id: string): Promise<TicketAdminView> {
     return asyncHandleOperation(async () => {
       const ticket = await this.loadOrFail(id);
-      const [messages, logs, resolutions] = await Promise.all([
+      const [messages, logs, resolutions, attachments] = await Promise.all([
         this.messageRepo.find({
           where: { ticket: { id } },
           relations: ['sender'],
@@ -160,8 +180,13 @@ export class TicketAdminService {
           relations: ['proposedBy'],
           order: { createdAt: 'ASC' },
         }),
+        this.attachmentRepo.find({
+          where: { ticket: { id } },
+          relations: ['message'],
+          order: { createdAt: 'ASC' },
+        }),
       ]);
-      return toAdminView(ticket, messages, logs, resolutions);
+      return toAdminView(ticket, messages, logs, resolutions, attachments);
     }, 'Lỗi khi lấy chi tiết ticket');
   }
 
@@ -354,38 +379,138 @@ export class TicketAdminService {
   ): Promise<AdminMessage> {
     return asyncHandleOperation(async () => {
       const ticket = await this.loadOrFail(id);
-      const isInternal = dto.isInternal ?? false;
+      const body = dto.body?.trim() ?? '';
+      if (!body && !dto.attachmentIds?.length) {
+        throw new UnprocessableEntityException(
+          'Tin nhắn phải có nội dung hoặc ảnh đính kèm',
+        );
+      }
+
+      // Xác định luồng đích: isInternal (back-compat) ưu tiên; ngược lại lấy
+      // targetAudience (mặc định REPORTER). isInternal được suy lại cho nhất quán.
+      const audience: TicketMessageAudience = dto.isInternal
+        ? TicketMessageAudience.INTERNAL
+        : (dto.targetAudience ?? TicketMessageAudience.REPORTER);
+      const isInternal = audience === TicketMessageAudience.INTERNAL;
+
+      if (
+        audience === TicketMessageAudience.COUNTERPARTY &&
+        !ticket.counterparty?.id
+      ) {
+        throw new UnprocessableEntityException(
+          'Ticket chưa có bên liên quan (counterparty) để gửi vào luồng này',
+        );
+      }
+
       const msg = await this.messageRepo.save(
         this.messageRepo.create({
           ticket: { id },
           sender: { id: actingAdminId },
-          body: dto.body,
+          body,
           isInternal,
+          audience,
         }),
       );
+
+      // Gắn ảnh đã upload trước (đang ở cấp ticket, message_id NULL) vào message này
+      if (dto.attachmentIds?.length) {
+        await this.attachmentRepo
+          .createQueryBuilder()
+          .update()
+          .set({ message: { id: msg.id }, ticket: { id } })
+          .whereInIds(dto.attachmentIds)
+          .execute();
+      }
 
       if (!isInternal) {
         if (!ticket.firstRespondedAt) {
           ticket.firstRespondedAt = new Date();
           await this.ticketRepo.save(ticket);
         }
-        this.notify(
-          ticket.reporter?.id,
-          id,
-          'Bạn có phản hồi mới cho yêu cầu hỗ trợ',
-          dto.body,
-          `ticketmsg-${msg.id}`,
-        );
+        // Badge "tin chưa đọc" cho đúng người của luồng (không đẩy inbox/email
+        // cho từng tin — thiết kế hiển thị số lượng ngay ngoài ticket).
+        const recipientId =
+          audience === TicketMessageAudience.COUNTERPARTY
+            ? ticket.counterparty?.id
+            : ticket.reporter?.id;
+        this.realtime.emitUnread(recipientId, id);
       }
 
-      return {
+      const atts = dto.attachmentIds?.length
+        ? await this.attachmentRepo.find({ where: { message: { id: msg.id } } })
+        : [];
+
+      const result: AdminMessage = {
         id: msg.id,
         senderUserId: actingAdminId,
+        senderRole: 'ADMIN',
         body: msg.body,
         isInternal: msg.isInternal,
+        audience: msg.audience,
         createdAt: msg.createdAt,
+        attachments: atts.map((a) => ({ id: a.id, url: a.url })),
       };
+      // Realtime: phát vào room của luồng (mọi người đang mở đều nhận).
+      this.realtime.emitMessage(ticket, audience, result);
+      return result;
     }, 'Lỗi khi gửi tin nhắn');
+  }
+
+  async unreadTotal(actingAdminId: string): Promise<{ count: number }> {
+    return { count: await this.ticketService.unreadTotal(actingAdminId, true) };
+  }
+
+  async markThreadRead(
+    id: string,
+    dto: MarkReadAdminDto,
+    actingAdminId: string,
+  ): Promise<{
+    audience: TicketMessageAudience;
+    lastReadMessageId: string | null;
+    readAt: Date;
+  }> {
+    return asyncHandleOperation(async () => {
+      const ticket = await this.loadOrFail(id);
+      const record = await this.ticketService.upsertThreadRead(
+        ticket,
+        actingAdminId,
+        dto.audience,
+        dto.lastMessageId,
+      );
+      this.realtime.emitRead(
+        ticket,
+        dto.audience,
+        actingAdminId,
+        record.lastReadMessageId,
+        record.readAt,
+      );
+      return {
+        audience: dto.audience,
+        lastReadMessageId: record.lastReadMessageId,
+        readAt: record.readAt,
+      };
+    }, 'Lỗi khi đánh dấu đã đọc');
+  }
+
+  /** Upload 1 ảnh (cấp ticket) — admin lấy attachmentId để gắn vào reply hoặc lưu kèm hồ sơ. */
+  async uploadAttachment(
+    id: string,
+    actingAdminId: string,
+    file: Express.Multer.File,
+  ): Promise<{ id: string; url: string }> {
+    return asyncHandleOperation(async () => {
+      await this.loadOrFail(id);
+      const uploaded = await this.uploadService.uploadImage(file);
+      const att = await this.attachmentRepo.save(
+        this.attachmentRepo.create({
+          ticket: { id },
+          url: uploaded.url,
+          publicId: uploaded.public_id,
+          uploadedBy: { id: actingAdminId },
+        }),
+      );
+      return { id: att.id, url: att.url };
+    }, 'Lỗi khi tải ảnh đính kèm');
   }
 
   private async loadOrFail(id: string): Promise<SupportTicketEntity> {

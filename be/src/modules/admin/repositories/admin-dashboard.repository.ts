@@ -284,14 +284,21 @@ export class AdminDashboardRepository {
     const promoters = Number(npsRow?.promoters ?? 0);
     const detractors = Number(npsRow?.detractors ?? 0);
     const npsValue =
-      npsTotal > 0 ? Math.round(((promoters - detractors) / npsTotal) * 100) : 0;
+      npsTotal > 0
+        ? Math.round(((promoters - detractors) / npsTotal) * 100)
+        : 0;
 
     return {
-      commission: { value: commission, change: calcChange(commission, prevCommission) },
+      commission: {
+        value: commission,
+        change: calcChange(commission, prevCommission),
+      },
       nps: {
         value: npsValue,
-        promoterPct: npsTotal > 0 ? Math.round((promoters / npsTotal) * 100) : 0,
-        detractorPct: npsTotal > 0 ? Math.round((detractors / npsTotal) * 100) : 0,
+        promoterPct:
+          npsTotal > 0 ? Math.round((promoters / npsTotal) * 100) : 0,
+        detractorPct:
+          npsTotal > 0 ? Math.round((detractors / npsTotal) * 100) : 0,
       },
       gmv: { value: gmv, change: calcChange(gmv, prevGmv) },
       aov: { value: aov, change: null },
@@ -618,12 +625,9 @@ export class AdminDashboardRepository {
     const rows = await this.dataSource
       .getRepository(TaskerLevelEntity)
       .createQueryBuilder('l')
-      .leftJoin(
-        'taskers',
-        't',
-        "t.level_id = l.id AND t.status = :active",
-        { active: TaskerStatus.ACTIVE },
-      )
+      .leftJoin('taskers', 't', 't.level_id = l.id AND t.status = :active', {
+        active: TaskerStatus.ACTIVE,
+      })
       .select([
         'l.name AS "label"',
         'l.color AS "color"',

@@ -1,21 +1,90 @@
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
+import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 
 export class BookingSearchQueryDto {
+  @ApiPropertyOptional({
+    description:
+      'Tìm theo mã booking, tên/email/số điện thoại khách hàng hoặc Tasker',
+    example: 'BKMQ',
+  })
   @IsOptional()
   @IsString()
   keyword?: string;
 
+  @ApiPropertyOptional({ enum: BookingStatus })
+  @IsOptional()
+  @IsEnum(BookingStatus)
+  status?: BookingStatus;
+
+  @ApiPropertyOptional({ enum: PaymentStatus })
+  @IsOptional()
+  @IsEnum(PaymentStatus)
+  paymentStatus?: PaymentStatus;
+
+  @ApiPropertyOptional({
+    description: 'Customer ID trong bảng customers',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  customerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tasker ID trong bảng taskers',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  taskerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Service ID trong bảng services',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  serviceId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lọc booking được tạo từ thời điểm này',
+    example: '2026-06-01T00:00:00+07:00',
+  })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lọc booking được tạo đến thời điểm này',
+    example: '2026-06-30T23:59:59+07:00',
+  })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page = 1;
 
+  @ApiPropertyOptional({ default: 10, minimum: 1, maximum: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(50)
-  limit?: number = 10;
+  limit = 10;
 }

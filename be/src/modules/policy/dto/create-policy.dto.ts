@@ -1,12 +1,13 @@
 import {
   IsBoolean,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
-
-import { PolicyRole } from '../entity/policy.entity';
+import { PolicyCategory, PolicyRole } from '../entity/policy.entity';
 
 export class CreatePolicyDto {
   @IsString()
@@ -14,16 +15,35 @@ export class CreatePolicyDto {
   title!: string;
 
   @IsString()
-@MaxLength(255)
-slug!: string;
+  @MaxLength(255)
+  slug!: string;
 
   @IsString()
   content!: string;
 
   @IsEnum(PolicyRole)
-  role!: PolicyRole;
-
   @IsOptional()
+  role?: PolicyRole;
+
+  @IsEnum(PolicyCategory)
+  @IsOptional()
+  category?: PolicyCategory;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  iconEmoji?: string;
+
   @IsBoolean()
+  @IsOptional()
+  isDefault?: boolean;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  sortOrder?: number;
+
+  @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
 }

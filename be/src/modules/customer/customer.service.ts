@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { isHanoiAddress } from 'src/common/utils/hanoi-address.utils';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { UploadService } from '../upload/upload.service';
 import { UserEntity } from '../users/entities/user.entity';
@@ -34,6 +39,11 @@ export interface CustomerAddressResponse {
   longitude?: number | null;
   isDefault: boolean;
   hasPet: boolean;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  buildingFloor?: string | null;
+  gate?: string | null;
+  driverNote?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -112,7 +122,11 @@ export class CustomerService {
           order: { isDefault: 'DESC', createdAt: 'DESC' },
         });
 
-      return addresses.map((address) => this.mapAddress(address));
+      return addresses
+        .filter((address) =>
+          isHanoiAddress(address.fullAddress, address.wardDetail),
+        )
+        .map((address) => this.mapAddress(address));
     }, 'Không thể lấy danh sách địa chỉ customer');
   }
 
@@ -124,11 +138,19 @@ export class CustomerService {
       return this.dataSource.transaction(async (manager) => {
         const customer = await this.findCustomerByUserId(userId, manager);
         const addressRepository = manager.getRepository(CustomerAddressEntity);
+        this.assertHanoiAddress(dto.fullAddress, dto.wardDetail);
+        const existingAddresses = await addressRepository.find({
+          where: { customer: { id: customer.id } },
+          select: {
+            fullAddress: true,
+            wardDetail: true,
+          },
+        });
         const shouldSetDefault =
           dto.isDefault === true ||
-          !(await addressRepository.exists({
-            where: { customer: { id: customer.id } },
-          }));
+          !existingAddresses.some((address) =>
+            isHanoiAddress(address.fullAddress, address.wardDetail),
+          );
 
         if (shouldSetDefault) {
           await this.clearDefaultAddresses(manager, customer.id);
@@ -143,6 +165,11 @@ export class CustomerService {
           longitude: dto.longitude ?? null,
           isDefault: shouldSetDefault,
           hasPet: dto.hasPet ?? false,
+          contactName: dto.contactName?.trim() || null,
+          contactPhone: dto.contactPhone?.trim() || null,
+          buildingFloor: dto.buildingFloor?.trim() || null,
+          gate: dto.gate?.trim() || null,
+          driverNote: dto.driverNote?.trim() || null,
         });
 
         return this.mapAddress(await addressRepository.save(address));
@@ -169,6 +196,13 @@ export class CustomerService {
           );
         }
 
+        const nextFullAddress = dto.fullAddress?.trim() ?? address.fullAddress;
+        const nextWardDetail =
+          dto.wardDetail !== undefined
+            ? dto.wardDetail?.trim() || null
+            : address.wardDetail;
+        this.assertHanoiAddress(nextFullAddress, nextWardDetail);
+
         if (dto.isDefault === true && !address.isDefault) {
           await this.clearDefaultAddresses(manager, customer.id);
           address.isDefault = true;
@@ -194,6 +228,21 @@ export class CustomerService {
         if (dto.hasPet !== undefined) {
           address.hasPet = dto.hasPet;
         }
+        if (dto.contactName !== undefined) {
+          address.contactName = dto.contactName?.trim() || null;
+        }
+        if (dto.contactPhone !== undefined) {
+          address.contactPhone = dto.contactPhone?.trim() || null;
+        }
+        if (dto.buildingFloor !== undefined) {
+          address.buildingFloor = dto.buildingFloor?.trim() || null;
+        }
+        if (dto.gate !== undefined) {
+          address.gate = dto.gate?.trim() || null;
+        }
+        if (dto.driverNote !== undefined) {
+          address.driverNote = dto.driverNote?.trim() || null;
+        }
 
         return this.mapAddress(await addressRepository.save(address));
       });
@@ -217,6 +266,8 @@ export class CustomerService {
             'Địa chỉ không tồn tại hoặc không thuộc customer',
           );
         }
+
+        this.assertHanoiAddress(address.fullAddress, address.wardDetail);
 
         if (!address.isDefault) {
           await this.clearDefaultAddresses(manager, customer.id);
@@ -258,6 +309,17 @@ export class CustomerService {
       .execute();
   }
 
+  private assertHanoiAddress(
+    fullAddress: string,
+    wardDetail?: string | null,
+  ): void {
+    if (!isHanoiAddress(fullAddress, wardDetail)) {
+      throw new BadRequestException(
+        'Hiện hệ thống chỉ hỗ trợ địa chỉ tại Hà Nội',
+      );
+    }
+  }
+
   private mapProfile(customer: CustomerEntity): CustomerProfileResponse {
     return {
       id: customer.id,
@@ -286,6 +348,11 @@ export class CustomerService {
       longitude: address.longitude ?? null,
       isDefault: address.isDefault,
       hasPet: address.hasPet,
+      contactName: address.contactName ?? null,
+      contactPhone: address.contactPhone ?? null,
+      buildingFloor: address.buildingFloor ?? null,
+      gate: address.gate ?? null,
+      driverNote: address.driverNote ?? null,
       createdAt: address.createdAt,
       updatedAt: address.updatedAt,
     };

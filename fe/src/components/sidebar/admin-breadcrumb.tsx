@@ -13,7 +13,7 @@ import { usePathname } from "next/navigation"
 const ROUTE_LABELS: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/services": "Quản lý Dịch vụ",
-  "/admin/categories": "Danh mục",
+  "/admin/service-packages": "Gói dịch vụ",
   "/admin/pricing": "Bảng giá",
   "/admin/bookings": "Quản lý Đơn hàng",
   "/admin/bookings/active": "Đang thực hiện",

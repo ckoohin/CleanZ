@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -17,12 +18,21 @@ import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 export class CreateBookingDto {
   @ApiPropertyOptional({
     example: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
-    description:
-      'ID gói dịch vụ customer muốn đặt. Khi truyền serviceId, hệ thống tự lấy thời lượng từ services.base_duration_hours.',
+    description: 'ID gói dịch vụ (ServicePackage) customer muốn đặt.',
   })
   @IsOptional()
   @IsUUID()
-  serviceId?: string;
+  packageId?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['6224bfaf-ed46-4770-88c0-ff1a645cc279'],
+    description: 'Danh sách ID các dịch vụ con (SubService) được chọn.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  subServiceIds?: string[];
 
   @ApiPropertyOptional({
     example: '6d625675-7d12-458f-af83-2db2e8eb7db8',

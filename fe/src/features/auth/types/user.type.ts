@@ -9,6 +9,7 @@ export interface User {
   phone?: string | null;
   role: UserRole;
   avatar?: string | null;
+  avatarUrl?: string | null;
   isActive: boolean;
   isVerified: boolean;
   lastLogin?: string | null;

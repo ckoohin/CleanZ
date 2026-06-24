@@ -1,132 +1,444 @@
 "use client";
 
 import { useState } from "react";
+import { Briefcase, Home, MapPin, Plus, Star, X, Loader2, ChevronRight, User, Phone, CheckCircle2, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { slideInVariants } from "@/constants/motion";
-import { MapPin, Plus, Home, Briefcase, Star, Trash2, X } from "lucide-react";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
 
-interface Address {
-  id: string;
-  label: "Nhà" | "Công ty" | "Khác";
-  address: string;
-  isDefault: boolean;
-  hasPet: boolean;
-}
+import {
+  useCustomerAddresses,
+  useCreateCustomerAddress,
+  useSetDefaultCustomerAddress,
+} from "../hooks/useCustomerAddresses";
+
+type ViewState = "list" | "form" | "map";
 
 export const AddressManager = () => {
   const router = useRouter();
-  const [addresses, setAddresses] = useState<Address[]>([
-    { id: "1", label: "Nhà", address: "Vinhome Central Park, 208 Nguyễn Hữu Cảnh, P.22, Bình Thạnh", isDefault: true, hasPet: true },
-    { id: "2", label: "Công ty", address: "Tòa nhà Bitexco, 2 Hải Triều, Q.1", isDefault: false, hasPet: false }
-  ]);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const { data: user } = useAuth();
+  const { data: addresses = [], isLoading, isError } = useCustomerAddresses();
+  const createAddressMutation = useCreateCustomerAddress();
+  const setDefaultAddressMutation = useSetDefaultCustomerAddress();
 
-  const handleDelete = (id: string) => {
-    setAddresses(addresses.filter(a => a.id !== id));
+  const [view, setView] = useState<ViewState>("list");
+
+  // Form state
+  const [label, setLabel] = useState<"Nhà" | "Công ty" | "Khác">("Nhà");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [fullAddress, setFullAddress] = useState("");
+  const [buildingFloor, setBuildingFloor] = useState("");
+  const [gate, setGate] = useState("");
+  const [driverNote, setDriverNote] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [hasPet, setHasPet] = useState(false);
+  const [isDefault, setIsDefault] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleOpenForm = (defaultLabel: "Nhà" | "Công ty" | "Khác" = "Khác") => {
+    setLabel(defaultLabel);
+    setContactName(user?.fullName || "");
+    setContactPhone(user?.phone || "");
+    setFullAddress("");
+    setBuildingFloor("");
+    setGate("");
+    setDriverNote("");
+    setLatitude(null);
+    setLongitude(null);
+    setHasPet(false);
+    setIsDefault(addresses.length === 0);
+    setError("");
+    setView("form");
   };
 
-  const handleSetDefault = (id: string) => {
-    setAddresses(addresses.map(a => ({ ...a, isDefault: a.id === id })));
+  const handleMapSelect = (lat: number, lng: number, address: string) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setFullAddress(address);
+    setError("");
   };
 
-  return (
-    <div className="min-h-screen bg-background relative pb-20">
+  const handleAutoSelect = (placeId: string, description: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_GOONG_API_KEY ?? "";
+    fetch(`https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${apiKey}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const loc = data?.result?.geometry?.location;
+        if (loc) {
+          setFullAddress(description);
+          setLatitude(loc.lat);
+          setLongitude(loc.lng);
+          setError("");
+        } else {
+          setFullAddress(description);
+        }
+      })
+      .catch(() => setFullAddress(description));
+  };
+
+  const handleSaveAddress = async () => {
+    if (!contactName.trim() || !contactPhone.trim()) {
+      toast.error("Vui lòng nhập tên và số điện thoại liên hệ");
+      return;
+    }
+    if (!fullAddress.trim() || !latitude || !longitude) {
+      toast.error("Vui lòng chọn địa chỉ trên bản đồ");
+      return;
+    }
+
+    let finalAddress = fullAddress;
+    const parts = [];
+    if (buildingFloor) parts.push(buildingFloor);
+    if (gate) parts.push(`Cổng ${gate}`);
+    if (driverNote) parts.push(`Ghi chú: ${driverNote}`);
+    
+    if (parts.length > 0) {
+      finalAddress = `${parts.join(", ")} - ${fullAddress}`;
+    }
+
+    try {
+      await createAddressMutation.mutateAsync({
+        label,
+        fullAddress: finalAddress,
+        latitude,
+        longitude,
+        hasPet,
+        isDefault,
+      });
+      setView("list");
+    } catch {
+      // Handled in hook
+    }
+  };
+
+  const renderList = () => (
+    <motion.div variants={slideInVariants} initial="hidden" animate="visible" className="pb-24 min-h-screen bg-background relative">
       {/* Header */}
-      <div className="bg-card px-4 py-4 sticky top-0 z-20 shadow-sm flex items-center">
-        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-muted">
-          <X className="w-6 h-6 text-foreground/90" />
+      <div className="bg-card px-4 py-4 sticky top-0 z-20 shadow-sm flex items-center border-b border-border/50">
+        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
+          <ArrowLeft className="w-6 h-6 text-foreground" />
         </button>
         <h1 className="text-lg font-bold text-foreground ml-2">Sổ địa chỉ</h1>
       </div>
 
-      <div className="p-4 space-y-4">
-        {!showAddForm ? (
-          <motion.div variants={slideInVariants} initial="hidden" animate="visible" className="space-y-4">
-            <button 
-              onClick={() => setShowAddForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-primary/30 text-primary font-bold rounded-2xl hover:bg-primary/5 transition-colors"
-            >
-              <Plus className="w-5 h-5" /> Thêm địa chỉ mới
-            </button>
-
-            {addresses.map((addr) => (
-              <div key={addr.id} className="bg-card p-5 rounded-2xl shadow-sm border border-border/50 flex gap-4 relative overflow-hidden">
-                {addr.isDefault && <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-3 py-1 rounded-bl-xl">MẶC ĐỊNH</div>}
-                
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-1">
-                  {addr.label === "Nhà" ? <Home className="w-5 h-5" /> : addr.label === "Công ty" ? <Briefcase className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="font-bold text-foreground flex items-center gap-2">
-                    {addr.label}
-                    {addr.hasPet && <span className="bg-orange-100 text-orange-600 text-[10px] px-2 py-0.5 rounded">Có thú cưng</span>}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1 pr-6">{addr.address}</p>
-                  
-                  <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border/50">
-                    {!addr.isDefault && (
-                      <button onClick={() => handleSetDefault(addr.id)} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-                        <Star className="w-3.5 h-3.5" /> Chọn mặc định
-                      </button>
-                    )}
-                    <button onClick={() => handleDelete(addr.id)} className="text-xs font-bold text-red-500 flex items-center gap-1 hover:underline ml-auto">
-                      <Trash2 className="w-3.5 h-3.5" /> Xóa
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </motion.div>
+      <div className="p-4 space-y-4 max-w-3xl mx-auto">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-sm text-muted-foreground font-medium animate-pulse">Đang tải danh sách địa chỉ...</p>
+          </div>
+        ) : isError ? (
+          <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+            Không thể tải danh sách địa chỉ. Vui lòng thử lại.
+          </div>
         ) : (
-          <motion.div variants={slideInVariants} initial="hidden" animate="visible" className="space-y-6">
-            <GoongAutocomplete onSelect={(id, address) => console.log(id, address)} className="z-30" />
-            
-            <div className="bg-card p-2 rounded-3xl shadow-sm border border-border/50 relative">
-              <GoongMap />
-              <div className="absolute bottom-4 left-4 right-4 bg-primary/10 text-primary text-xs font-medium p-3 rounded-xl border border-primary/20 flex items-start gap-2">
-                <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>Di chuyển bản đồ để ghim chính xác vị trí</p>
-              </div>
-            </div>
-
-            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border/50 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground/90 mb-2">Lưu địa chỉ thành</label>
-                <div className="flex gap-3">
-                  {["Nhà", "Công ty", "Khác"].map((lbl) => (
-                    <button key={lbl} className="px-4 py-2 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary transition-colors focus:ring-2 focus:ring-primary/20">
-                      {lbl}
-                    </button>
-                  ))}
+          <>
+            {/* Quick Add Buttons */}
+            <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-sm">
+              <button 
+                onClick={() => handleOpenForm("Nhà")}
+                className="w-full flex items-center gap-3 p-4 border-b border-border/50 hover:bg-muted/30 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <Home className="w-5 h-5 text-blue-500" />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground/90 mb-2">Số nhà, Tên tòa nhà</label>
-                <input type="text" placeholder="Nhập chi tiết số nhà..." className="w-full bg-background border border-border rounded-xl p-3 text-sm text-foreground/90 focus:ring-2 focus:ring-primary/20 outline-none" />
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <input type="checkbox" id="hasPet" className="w-5 h-5 rounded border-border text-primary focus:ring-primary" />
-                <label htmlFor="hasPet" className="text-sm font-medium text-foreground/90">Nhà có vật nuôi (Chó, mèo...)</label>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setShowAddForm(false)} className="flex-1 py-4 bg-muted text-muted-foreground font-bold rounded-2xl hover:bg-muted/80 transition-colors">
-                Hủy
+                <span className="font-semibold text-sm flex-1 text-left">Thêm địa chỉ Nhà</span>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </button>
-              <button onClick={() => setShowAddForm(false)} className="flex-[2] py-4 bg-primary text-white font-bold rounded-2xl hover:bg-orange-600 shadow-lg shadow-primary/30 transition-all">
-                Lưu địa chỉ
+              <button 
+                onClick={() => handleOpenForm("Công ty")}
+                className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
+                  <Briefcase className="w-5 h-5 text-orange-500" />
+                </div>
+                <span className="font-semibold text-sm flex-1 text-left">Thêm địa chỉ Công ty</span>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
-          </motion.div>
+
+            {/* Address List */}
+            {addresses && addresses.length > 0 ? (
+              <div className="space-y-3 mt-6">
+                <h2 className="text-sm font-bold text-muted-foreground px-1 uppercase tracking-wider">Đã lưu</h2>
+                {addresses.map((addr) => {
+                  const normalizedLabel = addr.label?.toLowerCase() ?? "";
+                  const AddressIcon = normalizedLabel.includes("nhà")
+                    ? Home
+                    : normalizedLabel.includes("công") ||
+                        normalizedLabel.includes("văn phòng")
+                      ? Briefcase
+                      : MapPin;
+
+                  return (
+                    <div key={addr.id} className={cn(
+                      "bg-card p-4 rounded-2xl border shadow-sm relative overflow-hidden",
+                      addr.isDefault ? "border-primary/40 bg-primary/5" : "border-border/50"
+                    )}>
+                      {addr.isDefault && (
+                        <div className="absolute right-0 top-0 rounded-bl-xl bg-primary px-3 py-1 text-[10px] font-bold text-primary-foreground">
+                          MẶC ĐỊNH
+                        </div>
+                      )}
+                      
+                      <div className="flex gap-4">
+                        <div className="mt-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <AddressIcon className="size-5" />
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex gap-2 items-center mb-1 pr-16 flex-wrap">
+                            <span className="font-bold text-sm">{user?.fullName || "Địa chỉ"}</span>
+                            {addr.hasPet && (
+                              <span className="rounded bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 text-[10px] text-orange-600 dark:text-orange-400">
+                                Có thú cưng
+                              </span>
+                            )}
+                          </div>
+                          
+                          <p className="mt-1 text-sm text-foreground leading-relaxed">{addr.fullAddress}</p>
+
+                          <div className="flex items-center gap-4 mt-3">
+                            {addr.label && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-primary/30 text-primary text-[10px] font-bold bg-primary/5">
+                                <AddressIcon className="w-3 h-3" />
+                                {addr.label}
+                              </span>
+                            )}
+                            
+                            {!addr.isDefault && (
+                              <button 
+                                onClick={() => setDefaultAddressMutation.mutate(addr.id)}
+                                disabled={setDefaultAddressMutation.isPending}
+                                className="flex items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-50 ml-auto"
+                              >
+                                <Star className="size-3.5" />
+                                Chọn mặc định
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center mt-6">
+                <MapPin className="mx-auto mb-3 size-10 text-muted-foreground/40" />
+                <p className="font-semibold text-foreground">Bạn chưa có địa chỉ đã lưu</p>
+                <p className="mt-1 text-sm text-muted-foreground">Thêm địa chỉ để bắt đầu đặt dịch vụ.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
-    </div>
+
+      {/* Fixed Bottom Button */}
+      <div className="fixed bottom-20 md:bottom-0 left-0 right-0 p-4 bg-background border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 max-w-3xl mx-auto">
+        <button 
+          onClick={() => handleOpenForm("Khác")}
+          className="w-full py-3.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors"
+        >
+          Thêm địa chỉ mới
+        </button>
+      </div>
+    </motion.div>
+  );
+
+  const renderForm = () => (
+    <motion.div variants={slideInVariants} initial="hidden" animate="visible" className="min-h-screen bg-muted/30 pb-24 relative z-30">
+      {/* Header */}
+      <div className="bg-card px-4 py-4 sticky top-0 z-20 shadow-sm flex items-center border-b border-border/50">
+        <button onClick={() => setView("list")} className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
+          <ArrowLeft className="w-6 h-6 text-foreground" />
+        </button>
+        <h1 className="text-lg font-bold text-foreground ml-2">Thêm địa chỉ mới</h1>
+      </div>
+
+      <div className="space-y-2 mt-2 max-w-3xl mx-auto">
+        {/* Contact Info */}
+        <div className="bg-card px-4 py-2 border-y border-border/50">
+          <div className="flex items-center border-b border-border/50 py-2">
+            <span className="w-24 text-sm font-semibold text-muted-foreground">Liên hệ</span>
+            <input 
+              type="text" 
+              placeholder="Họ và tên" 
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              className="flex-1 text-sm bg-transparent outline-none py-2 font-medium"
+            />
+          </div>
+          <div className="flex items-center py-2">
+            <span className="w-24 text-sm font-semibold text-muted-foreground">Số ĐT</span>
+            <input 
+              type="tel" 
+              placeholder="Số điện thoại" 
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              className="flex-1 text-sm bg-transparent outline-none py-2 font-medium"
+            />
+          </div>
+        </div>
+
+        {/* Address Selection */}
+        <div className="bg-card px-4 py-2 border-y border-border/50">
+          <button 
+            onClick={() => setView("map")}
+            className="w-full flex items-center justify-between py-3 border-b border-border/50 text-left"
+          >
+            <div className="flex-1 pr-4">
+              <span className="text-sm font-semibold text-muted-foreground block mb-1">Địa chỉ</span>
+              <span className={`text-sm font-medium ${fullAddress ? "text-foreground line-clamp-2" : "text-muted-foreground"}`}>
+                {fullAddress || "Chọn địa chỉ"}
+              </span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+          </button>
+          
+          <input 
+            type="text" 
+            placeholder="Tòa nhà, Số tầng (Không bắt buộc)" 
+            value={buildingFloor}
+            onChange={(e) => setBuildingFloor(e.target.value)}
+            className="w-full text-sm bg-transparent outline-none py-3 border-b border-border/50 font-medium placeholder:text-muted-foreground"
+          />
+          <input 
+            type="text" 
+            placeholder="Cổng (không bắt buộc)" 
+            value={gate}
+            onChange={(e) => setGate(e.target.value)}
+            className="w-full text-sm bg-transparent outline-none py-3 font-medium placeholder:text-muted-foreground"
+          />
+        </div>
+
+        {/* Labels */}
+        <div className="bg-card px-4 py-4 border-y border-border/50">
+          <span className="text-sm font-semibold text-muted-foreground block mb-3">Loại địa chỉ</span>
+          <div className="flex gap-3">
+            {(["Nhà", "Công ty", "Khác"] as const).map((lbl) => (
+              <button 
+                key={lbl}
+                onClick={() => setLabel(lbl)}
+                className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                  label === lbl 
+                    ? "border-primary text-primary bg-primary/5" 
+                    : "border-border text-muted-foreground bg-background"
+                }`}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Note */}
+        <div className="bg-card px-4 py-2 border-y border-border/50">
+          <textarea 
+            placeholder="Ghi chú cho Tài xế (không bắt buộc)" 
+            value={driverNote}
+            onChange={(e) => setDriverNote(e.target.value)}
+            rows={3}
+            className="w-full text-sm bg-transparent outline-none py-2 font-medium placeholder:text-muted-foreground resize-none"
+          />
+        </div>
+
+        {/* Toggles */}
+        <div className="bg-card px-4 py-2 border-y border-border/50">
+          <div className="flex items-center justify-between py-3 border-b border-border/50">
+            <span className="text-sm font-semibold text-foreground">Đặt làm địa chỉ mặc định</span>
+            <input 
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+              className="toggle toggle-primary toggle-sm"
+              style={{ accentColor: "var(--primary)" }}
+            />
+          </div>
+          <div className="flex items-center justify-between py-3">
+            <span className="text-sm font-semibold text-foreground flex items-center gap-1">
+              Nhà có vật nuôi (Chó, mèo...) <span className="text-xs text-muted-foreground font-normal">(Có phụ phí)</span>
+            </span>
+            <input 
+              type="checkbox"
+              checked={hasPet}
+              onChange={(e) => setHasPet(e.target.checked)}
+              className="toggle toggle-primary toggle-sm"
+              style={{ accentColor: "var(--primary)" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-20 md:bottom-0 left-0 right-0 p-4 bg-background border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 max-w-3xl mx-auto">
+        <button 
+          onClick={handleSaveAddress}
+          disabled={createAddressMutation.isPending}
+          className="w-full py-3.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors flex justify-center items-center gap-2"
+        >
+          {createAddressMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Lưu"}
+        </button>
+      </div>
+    </motion.div>
+  );
+
+  const renderMap = () => (
+    <motion.div variants={slideInVariants} initial="hidden" animate="visible" className="fixed inset-0 z-[60] bg-background flex flex-col mx-auto">
+      {/* Map Header */}
+      <div className="bg-card px-4 py-3 shadow-sm flex items-center gap-3 z-20 absolute top-0 left-0 right-0">
+        <button onClick={() => setView("form")} className="p-1.5 rounded-full hover:bg-muted bg-background shadow-sm border border-border">
+          <ArrowLeft className="w-5 h-5 text-foreground" />
+        </button>
+        <div className="flex-1">
+          <GoongAutocomplete onSelect={handleAutoSelect} placeholder="Tìm kiếm địa chỉ..." className="w-full text-sm" />
+        </div>
+      </div>
+
+      {/* Map View */}
+      <div className="flex-1 relative">
+        <GoongMap 
+          initialLat={latitude ?? 21.028511}
+          initialLng={longitude ?? 105.804817}
+          onLocationSelect={handleMapSelect}
+        />
+        {/* Center Marker Overlay for visual confirmation */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none mb-10">
+          <MapPin className="w-10 h-10 text-primary drop-shadow-md" />
+        </div>
+      </div>
+
+      {/* Map Footer */}
+      <div className="bg-card p-4 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 absolute bottom-0 left-0 right-0 pb-8">
+        <h3 className="font-bold text-sm text-foreground mb-1">Địa chỉ đã chọn</h3>
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-10">
+          {fullAddress || "Di chuyển bản đồ để chọn vị trí"}
+        </p>
+        <button 
+          onClick={() => {
+            if (fullAddress) setView("form");
+            else toast.error("Vui lòng chọn địa chỉ hợp lệ");
+          }}
+          className="w-full py-3.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors"
+        >
+          Xác nhận
+        </button>
+      </div>
+    </motion.div>
+  );
+  return (
+    <AnimatePresence mode="wait">
+      {view === "list" && renderList()}
+      {view === "form" && renderForm()}
+      {view === "map" && renderMap()}
+    </AnimatePresence>
   );
 };

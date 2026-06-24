@@ -1,0 +1,122 @@
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  ManyToMany,
+  JoinTable,
+  Index,
+} from 'typeorm';
+import { PackageSubServiceEntity } from './package-sub-service.entity';
+import { CoverageAreaEntity } from './coverage-area.entity';
+import { Policy } from '../../policy/entity/policy.entity';
+
+@Entity('service_packages')
+export class ServicePackageEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ type: 'varchar', length: 255 })
+  name!: string;
+
+  @Index('idx_service_packages_code', { unique: true })
+  @Column({ type: 'varchar', length: 255, unique: true, name: 'package_code' })
+  packageCode!: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'icon_url' })
+  iconUrl?: string | null;
+
+  @Column({ type: 'int', default: 0, name: 'sort_order' })
+  sortOrder!: number;
+
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  isActive!: boolean;
+
+  @Column({
+    type: 'numeric',
+    precision: 4,
+    scale: 1,
+    name: 'max_hours',
+    default: 8.0,
+  })
+  maxHours!: number;
+
+  @Column({ type: 'text', nullable: true, name: 'terms_and_conditions' })
+  termsAndConditions?: string | null;
+
+  @Column({ type: 'text', nullable: true, name: 'policy_description' })
+  policyDescription?: string | null;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'night_surcharge',
+    default: 0.0,
+  })
+  nightSurcharge!: number;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'pet_surcharge',
+    default: 0.0,
+  })
+  petSurcharge!: number;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'waiting_surcharge',
+    default: 0.0,
+  })
+  waitingSurcharge!: number;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'tool_fee',
+    default: 0.0,
+  })
+  toolFee!: number;
+
+  @Column({
+    type: 'numeric',
+    precision: 5,
+    scale: 2,
+    name: 'peak_rate_percent',
+    default: 0.0,
+  })
+  peakRatePercent!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  updatedAt!: Date;
+
+  @OneToMany(() => PackageSubServiceEntity, (pss) => pss.package)
+  packageSubServices!: PackageSubServiceEntity[];
+
+  @ManyToMany(() => CoverageAreaEntity, (area) => area.packages)
+  @JoinTable({
+    name: 'package_coverage_areas',
+    joinColumn: { name: 'package_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'area_id', referencedColumnName: 'id' },
+  })
+  coverageAreas!: CoverageAreaEntity[];
+
+  /** Chính sách được gán cho gói dịch vụ này */
+  @ManyToMany(() => Policy, (policy) => policy.packages)
+  @JoinTable({
+    name: 'package_policies',
+    joinColumn: { name: 'package_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'policy_id', referencedColumnName: 'id' },
+  })
+  policies!: Policy[];
+}

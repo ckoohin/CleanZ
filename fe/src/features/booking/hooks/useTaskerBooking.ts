@@ -6,6 +6,7 @@ const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
   postedDetail: (id: string) => ["tasker-booking", "posted", id],
   assigned: (id: string) => ["tasker-booking", "assigned", id],
+  active: ["tasker-booking", "active"],
 };
 
 function getErrorMsg(err: unknown): string {
@@ -29,12 +30,17 @@ export function usePostedBookingList() {
 /** 05. Chi tiết đơn posted + khoảng cách */
 export function usePostedBookingDetail(
   id: string,
-  location?: { currentLatitude?: number; currentLongitude?: number }
+  location?: { currentLatitude?: number; currentLongitude?: number },
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...TASKER_KEYS.postedDetail(id), location],
     queryFn: () => taskerBookingApi.findPostedDetail(id, location),
-    enabled: !!id,
+    enabled:
+      enabled &&
+      !!id &&
+      Number.isFinite(location?.currentLatitude) &&
+      Number.isFinite(location?.currentLongitude),
   });
 }
 
@@ -46,6 +52,7 @@ export function useAcceptBooking() {
     onSuccess: (data) => {
       toast.success(`Đã nhận đơn ${data.bookingCode}! 🎉`);
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
     onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
@@ -54,13 +61,23 @@ export function useAcceptBooking() {
 /** 07. Chi tiết đơn đã nhận */
 export function useAssignedBookingDetail(
   id: string,
-  location?: { currentLatitude?: number; currentLongitude?: number }
+  location?: { currentLatitude?: number; currentLongitude?: number },
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...TASKER_KEYS.assigned(id), location],
     queryFn: () => taskerBookingApi.findAssigned(id, location),
-    enabled: !!id,
+    enabled: enabled && !!id,
     refetchInterval: 10_000,
+  });
+}
+
+/** 07A. Lấy đơn hàng đang hoạt động hiện tại */
+export function useTaskerActiveBooking() {
+  return useQuery({
+    queryKey: TASKER_KEYS.active,
+    queryFn: () => taskerBookingApi.findActive(),
+    refetchInterval: 10_000, // poll mỗi 10s
   });
 }
 
@@ -72,6 +89,7 @@ export function useMarkOnTheWay(bookingId: string) {
     onSuccess: () => {
       toast.success("Đã bật trạng thái đang tới");
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
     onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
@@ -85,6 +103,7 @@ export function useMarkCheckedIn(bookingId: string) {
     onSuccess: () => {
       toast.success("Check-in thành công! Bạn đã đến nơi");
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
     onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
@@ -98,6 +117,7 @@ export function useMarkStart(bookingId: string) {
     onSuccess: () => {
       toast.success("Bắt đầu làm việc! 💪");
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
     onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
@@ -111,6 +131,7 @@ export function useMarkComplete(bookingId: string) {
     onSuccess: (data) => {
       toast.success(`Hoàn thành đơn ${data.bookingCode}! Thu nhập đã vào ví ✅`);
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
     },
     onError: (err: unknown) => toast.error(getErrorMsg(err)),

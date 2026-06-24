@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useTaskerProfile } from '@/features/tasker/hooks/tasker.hooks';
+import { useTaskerProfile, useUpdatePresence } from '@/features/tasker/hooks/tasker.hooks';
 import { useTaskerActionGuard } from '@/features/tasker/hooks/useTaskerActionGuard';
 import { TaskerVerificationModal } from '@/features/tasker/_components/TaskerVerificationModal';
 import { TaskerStatus } from '@/features/tasker/types/tasker.type';
@@ -376,6 +376,7 @@ function TaskerPageSkeleton() {
 function TaskerPage() {
   const { data: tasker, isLoading } = useTaskerProfile();
   const isVerified = tasker?.approvalStatus === TaskerStatus.APPROVED;
+  const updatePresence = useUpdatePresence();
 
   // Guard hook — dùng chung cho toàn page
   const guard = useTaskerActionGuard(tasker);
@@ -383,8 +384,9 @@ function TaskerPage() {
   // Handler khi bật hoạt động — gọi guard trước
   const handleToggleOnline = () => {
     guard.requireVerified(() => {
-      // TODO: Gọi API set isOnline thật khi BE sẵn sàng
-      console.log('Toggle online — tasker is verified');
+      const currentStatus = tasker?.presenceStatus;
+      const newStatus = currentStatus === "ONLINE" ? "OFFLINE" : "ONLINE";
+      updatePresence.mutate(newStatus);
     });
   };
 

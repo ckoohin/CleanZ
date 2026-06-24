@@ -1,4 +1,4 @@
-import { CustomerDetailPage } from "@/features/admin-customer/_components/CustomerDetailPage";
+import { CustomerDetailPage } from "@/features/admin/modules/customer/_components/CustomerDetailPage";
 
 export default function AdminCustomerDetailRoute({
   params,

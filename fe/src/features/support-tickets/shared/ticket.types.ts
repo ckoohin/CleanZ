@@ -31,12 +31,15 @@ export interface PublicMessage {
   attachments: Attachment[];
   createdAt: string;
 }
+export type TicketAudience = 'REPORTER' | 'COUNTERPARTY' | 'INTERNAL';
+
 export interface AdminMessage {
   id: string;
   senderUserId: string | null;
   senderRole: string;
   body: string;
   isInternal: boolean;
+  audience: TicketAudience;
   attachments: Attachment[];
   createdAt: string;
 }
@@ -77,6 +80,8 @@ export interface TicketSummary {
   updatedAt: string;
   /** Admin phụ trách (chỉ có ở hàng đợi admin). */
   assignedAdmin?: PartyRef | null;
+  /** Số tin nhắn chưa đọc — badge ngoài ticket. */
+  unreadCount?: number;
 }
 
 export interface TicketPublicView extends TicketSummary {
@@ -117,11 +122,16 @@ export interface CreateTicketAdminInput extends CreateTicketInput {
   assignToSelf?: boolean;
 }
 export interface SendMessageInput {
-  body: string;
+  body?: string;
   attachmentIds?: string[];
 }
 export interface AdminMessageInput extends SendMessageInput {
   isInternal?: boolean;
+  targetAudience?: TicketAudience;
+}
+export interface MarkReadAdminInput {
+  audience: TicketAudience;
+  lastMessageId?: string;
 }
 export interface ChangeStatusInput {
   status: TicketStatus;

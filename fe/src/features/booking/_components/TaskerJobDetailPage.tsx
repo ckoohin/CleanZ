@@ -3,21 +3,19 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SwipeToAccept } from "@/features/tasker/_components/SwipeToAccept";
 import {
   ArrowLeft,
   MapPin,
   Clock,
   Calendar,
-  DollarSign,
   Phone,
   User,
   Navigation,
   CheckCircle2,
   PlayCircle,
   Flag,
-  Package,
   PawPrint,
-  Zap,
   AlertTriangle,
   Route,
 } from "lucide-react";
@@ -30,6 +28,7 @@ import {
   useMarkStart,
   useMarkComplete,
 } from "@/features/booking/hooks/useTaskerBooking";
+import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
   BookingStatus,
   TaskerAssignedBookingDetail,
@@ -105,10 +104,13 @@ function PostedDetailView({
 }) {
   const accept = useAcceptBooking();
 
-  const handleAccept = () => {
-    accept.mutate(bookingId, {
-      onSuccess: () => onAccepted(),
-    });
+  const handleAccept = async () => {
+    try {
+      await accept.mutateAsync(bookingId);
+      onAccepted();
+    } catch (err) {
+      throw err;
+    }
   };
 
   return (
@@ -175,12 +177,11 @@ function PostedDetailView({
       </div>
 
       {/* Accept button */}
-      <ActionButton
-        label="Nhận đơn ngay 🎯"
-        icon={CheckCircle2}
-        onClick={handleAccept}
-        isPending={accept.isPending}
-        color="primary"
+      <SwipeToAccept
+        label="Vuốt để nhận đơn"
+        successLabel="Đã nhận đơn!"
+        onConfirm={handleAccept}
+        isLoading={accept.isPending}
       />
     </div>
   );
@@ -190,17 +191,93 @@ function PostedDetailView({
 function AssignedDetailView({
   data,
   bookingId,
+  trackingSocket,
 }: {
   data: TaskerAssignedBookingDetail;
   bookingId: string;
+  trackingSocket: ReturnType<typeof useTrackingSocket>;
 }) {
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationStep, setSimulationStep] = useState(0);
+
+  const destLat = data.address?.latitude ? Number(data.address.latitude) : null;
+  const destLng = data.address?.longitude ? Number(data.address.longitude) : null;
+
+  const isDestValid =
+    destLat !== null &&
+    destLng !== null &&
+    !isNaN(destLat) &&
+    !isNaN(destLng) &&
+    destLat >= -90 &&
+    destLat <= 90 &&
+    destLng >= -180 &&
+    destLng <= 180;
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    if (isSimulating && isDestValid && destLat !== null && destLng !== null) {
+      // Điểm xuất phát của Tasker cách điểm đến 0.005 độ (khoảng 500m)
+      const startLat = destLat + 0.005;
+      const startLng = destLng + 0.005;
+
+      intervalId = setInterval(() => {
+        setSimulationStep((prevStep) => {
+          const nextStep = prevStep + 1;
+          if (nextStep > 10) {
+            setIsSimulating(false);
+            if (intervalId) clearInterval(intervalId);
+            return 0;
+          }
+
+          const currentLat = startLat - (startLat - destLat) * (nextStep / 10);
+          const currentLng = startLng - (startLng - destLng) * (nextStep / 10);
+
+          if (trackingSocket) {
+            trackingSocket.emit("tasker:location:update", {
+              bookingId,
+              latitude: currentLat,
+              longitude: currentLng,
+            });
+          }
+
+          return nextStep;
+        });
+      }, 2000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isSimulating, isDestValid, destLat, destLng, trackingSocket, bookingId]);
+
+  const handleToggleSimulation = () => {
+    setIsSimulating((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSimulationStep(0);
+      }
+      return next;
+    });
+  };
+  const router = useRouter();
   const markOnWay = useMarkOnTheWay(bookingId);
   const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
 
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
+
   const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.CONFIRMED;
   const canContact = data.canContactCustomer;
+
+  const handleComplete = () => {
+    markComplete.mutate(undefined, {
+      onSuccess: () => {
+        setShowConfirmComplete(false);
+        router.push("/tasker/jobs");
+      },
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -219,13 +296,15 @@ function AssignedDetailView({
               <User className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm text-foreground">{data.customer.fullName ?? "—"}</p>
-              {data.customer.phone && (
+              <p className="font-semibold text-sm text-foreground">
+                {data.address?.contactName || data.customer.fullName || "—"}
+              </p>
+              {(data.address?.contactPhone || data.customer.phone) && (
                 <a
-                  href={`tel:${data.customer.phone}`}
+                  href={`tel:${data.address?.contactPhone || data.customer.phone}`}
                   className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5"
                 >
-                  <Phone className="w-3 h-3" /> {data.customer.phone}
+                  <Phone className="w-3 h-3" /> {data.address?.contactPhone || data.customer.phone}
                 </a>
               )}
             </div>
@@ -235,19 +314,54 @@ function AssignedDetailView({
 
       {/* Address (full khi canContactCustomer) */}
       {canContact && data.address ? (
-        <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-1">
-          <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-primary" /> Địa chỉ làm việc
-          </h3>
-          <p className="text-sm text-foreground font-medium">{data.address.fullAddress}</p>
-          {data.address.wardDetail && (
-            <p className="text-xs text-muted-foreground">{data.address.wardDetail}</p>
-          )}
-          {data.address.hasPet && (
-            <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-1">
-              <PawPrint className="w-2.5 h-2.5" /> Nhà có thú cưng
-            </span>
-          )}
+        <div className="bg-card rounded-2xl border border-border/50 p-4">
+          <div className="flex justify-between items-start gap-2">
+            <div className="space-y-1">
+              <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-primary" /> Địa chỉ làm việc
+              </h3>
+              <p className="text-sm text-foreground font-medium">{data.address.fullAddress}</p>
+              {data.address.wardDetail && (
+                <p className="text-xs text-muted-foreground">{data.address.wardDetail}</p>
+              )}
+              {(data.address.buildingFloor || data.address.gate) && (
+                <div className="flex items-center gap-2 mt-1">
+                  {data.address.buildingFloor && (
+                    <span className="text-xs bg-muted px-2 py-1 rounded-md text-foreground">
+                      <span className="font-semibold">Tòa/Tầng:</span> {data.address.buildingFloor}
+                    </span>
+                  )}
+                  {data.address.gate && (
+                    <span className="text-xs bg-muted px-2 py-1 rounded-md text-foreground">
+                      <span className="font-semibold">Cổng:</span> {data.address.gate}
+                    </span>
+                  )}
+                </div>
+              )}
+              {data.address.driverNote && (
+                <div className="text-xs bg-orange-50 text-orange-700 px-3 py-2 rounded-lg mt-2 border border-orange-100">
+                  <span className="font-bold block mb-0.5">Lưu ý cho tài xế:</span>
+                  {data.address.driverNote}
+                </div>
+              )}
+              {data.address.hasPet && (
+                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-2">
+                  <PawPrint className="w-2.5 h-2.5" /> Nhà có thú cưng
+                </span>
+              )}
+            </div>
+            {(data.status === "CONFIRMED" || data.status === "TASKER_ON_THE_WAY") && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(data.address.fullAddress)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/20 transition-colors shrink-0"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                Chỉ đường
+              </a>
+            )}
+          </div>
         </div>
       ) : !canContact ? (
         <div className="bg-muted/50 border border-border/30 rounded-2xl p-4 text-center">
@@ -299,13 +413,39 @@ function AssignedDetailView({
         />
       )}
       {data.status === "TASKER_ON_THE_WAY" && (
-        <ActionButton
-          label="Check-in — Tôi đã đến nơi"
-          icon={MapPin}
-          onClick={() => markCheckedIn.mutate()}
-          isPending={markCheckedIn.isPending}
-          color="amber"
-        />
+        <div className="space-y-3">
+          <ActionButton
+            label="Check-in — Tôi đã đến nơi"
+            icon={MapPin}
+            onClick={() => markCheckedIn.mutate()}
+            isPending={markCheckedIn.isPending}
+            color="amber"
+          />
+
+          {/* GPS Simulator Button cho Tasker (chỉ hiện ở dev mode) */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="bg-card rounded-2xl border border-dashed border-primary/40 p-4 shadow-sm flex items-center justify-between gap-4 animate-in fade-in duration-300">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black uppercase text-primary tracking-wider">Bộ giả lập GPS di chuyển</p>
+                <p className="text-[10px] font-semibold text-muted-foreground mt-1">
+                  {isSimulating 
+                    ? `Đang gửi tọa độ: Chặng ${simulationStep}/10` 
+                    : "Giả lập GPS chạy xe tới nhà khách hàng"}
+                </p>
+              </div>
+              <button
+                onClick={handleToggleSimulation}
+                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-sm ${
+                  isSimulating
+                    ? "bg-red-500 hover:bg-red-600 text-white shadow-red-200"
+                    : "bg-primary hover:bg-primary/95 text-white shadow-primary/20"
+                }`}
+              >
+                {isSimulating ? "Dừng giả lập" : "Bắt đầu di chuyển"}
+              </button>
+            </div>
+          )}
+        </div>
       )}
       {data.status === "CHECKED_IN" && (
         <ActionButton
@@ -320,7 +460,7 @@ function AssignedDetailView({
         <ActionButton
           label="Hoàn thành công việc ✅"
           icon={Flag}
-          onClick={() => markComplete.mutate()}
+          onClick={() => setShowConfirmComplete(true)}
           isPending={markComplete.isPending}
           color="emerald"
         />
@@ -336,48 +476,192 @@ function AssignedDetailView({
           )}
         </div>
       )}
+
+      {/* Complete Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmComplete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => setShowConfirmComplete(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-x-4 top-[30%] md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="text-center space-y-1">
+                <h3 className="font-bold text-base text-foreground">Hoàn thành công việc?</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Xác nhận rằng bạn đã hoàn tất toàn bộ các đầu việc dọn dẹp theo yêu cầu của khách hàng. Thu nhập ước tính sẽ được cộng trực tiếp vào tài khoản của bạn.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowConfirmComplete(false)}
+                  disabled={markComplete.isPending}
+                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-foreground bg-muted/20 hover:bg-muted/50 transition-colors"
+                >
+                  Quay lại
+                </button>
+                <button
+                  onClick={handleComplete}
+                  disabled={markComplete.isPending}
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {markComplete.isPending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Flag className="w-3.5 h-3.5" />
+                      Xác nhận hoàn thành
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }> = ({
+export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
-  mode,
 }) => {
+  const MAX_LOCATION_ACCURACY_METERS = 500;
   const router = useRouter();
-  const isPostedMode = mode === "posted";
+  const searchParams = useSearchParams();
+  const isPostedMode = searchParams.get("mode") === "posted";
+  const trackingSocket = useTrackingSocket();
 
   // Geolocation (optional — chỉ gửi nếu user cho phép)
   const [location, setLocation] = useState<{
     currentLatitude?: number;
     currentLongitude?: number;
   }>({});
+  const [locationResolved, setLocationResolved] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+
+
+  const requestCurrentLocation = () => {
+    setLocationResolved(false);
+    setLocationError(null);
+    setLocation({});
+
+    if (!navigator.geolocation) {
+      setLocationError("Trình duyệt không hỗ trợ định vị.");
+      setLocationResolved(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (position.coords.accuracy > MAX_LOCATION_ACCURACY_METERS) {
+          setLocationError(
+            `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
+          );
+          setLocationResolved(true);
+          return;
+        }
+
+        setLocation({
+          currentLatitude: position.coords.latitude,
+          currentLongitude: position.coords.longitude,
+        });
+        setLocationResolved(true);
+      },
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? "Bạn chưa cấp quyền truy cập vị trí cho trình duyệt."
+            : "Không thể xác định vị trí chính xác. Vui lòng thử lại.";
+        setLocationError(message);
+        setLocationResolved(true);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10_000,
+      },
+    );
+  };
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          setLocation({
-            currentLatitude: pos.coords.latitude,
-            currentLongitude: pos.coords.longitude,
-          }),
-        () => {}, // ignore error nếu user từ chối
-        { timeout: 5000 }
-      );
-    }
+    const timer = window.setTimeout(requestCurrentLocation, 0);
+
+    // Chỉ lấy vị trí khi mở booking hoặc khi người dùng chủ động thử lại.
+    return () => window.clearTimeout(timer);
   }, []);
 
   const postedQuery = usePostedBookingDetail(
     bookingId,
-    isPostedMode ? location : undefined
+    location,
+    isPostedMode,
   );
   const assignedQuery = useAssignedBookingDetail(
     bookingId,
-    isPostedMode ? undefined : location
+    location,
+    !isPostedMode,
   );
 
-  const isLoading = isPostedMode ? postedQuery.isLoading : assignedQuery.isLoading;
+  useEffect(() => {
+    if (isPostedMode || !trackingSocket) return;
+
+    const currentStatus = assignedQuery.data?.status;
+    if (currentStatus !== "TASKER_ON_THE_WAY") return;
+
+    // Join tracking room
+    trackingSocket.emit("tasker:tracking:start", { bookingId });
+
+    const handleLocationRequest = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            trackingSocket.emit("tasker:location:update", {
+              bookingId,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          (err) => {
+            console.error("Lỗi lấy vị trí Tasker định kỳ:", err);
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+    };
+
+    trackingSocket.on("tasker:location:request", handleLocationRequest);
+
+    return () => {
+      trackingSocket.emit("tasker:tracking:stop");
+      trackingSocket.off("tasker:location:request", handleLocationRequest);
+    };
+  }, [assignedQuery.data?.status, bookingId, trackingSocket, isPostedMode]);
+
+  const isWaitingForLocation =
+    isPostedMode &&
+    (!Number.isFinite(location.currentLatitude) ||
+      !Number.isFinite(location.currentLongitude));
+  const isLoading =
+    isWaitingForLocation ||
+    (isPostedMode ? postedQuery.isLoading : assignedQuery.isLoading);
+  const isLocationUnavailable =
+    isPostedMode &&
+    locationResolved &&
+    (!Number.isFinite(location.currentLatitude) ||
+      !Number.isFinite(location.currentLongitude));
   const activeStatus = isPostedMode ? null : assignedQuery.data?.status;
 
   return (
@@ -387,7 +671,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0"
+            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 hover:bg-muted/80 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -402,18 +686,70 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
             )}
           </div>
         </div>
+        
+        {locationError && (
+          <div className="mt-3 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] px-3 py-2 rounded-lg flex gap-2 items-start">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
+            <p className="leading-tight">{locationError}</p>
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="px-4 py-4">
-        {isLoading ? (
+        {isLocationUnavailable ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <MapPin className="w-10 h-10 mx-auto mb-2 text-amber-400" />
+            <p className="text-sm font-semibold">
+              Cần quyền truy cập vị trí
+            </p>
+            <p className="text-xs mt-1">
+              {locationError ??
+                "Hãy cho phép trình duyệt dùng vị trí để tính khoảng cách tới đơn."}
+            </p>
+            <button
+              type="button"
+              onClick={requestCurrentLocation}
+              className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white"
+            >
+              Thử lấy lại vị trí
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse" />
             ))}
           </div>
         ) : isPostedMode ? (
-          postedQuery.data ? (
+          postedQuery.isError ? (
+            // Check if error is 404 (Not Found / Picked)
+            (postedQuery.error as { response?: { status?: number } })?.response?.status === 404 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-amber-400" />
+                <p className="text-sm font-semibold">Đơn không còn khả dụng</p>
+                <p className="text-xs mt-1">Có thể đã được nhận bởi tasker khác</p>
+                <button
+                  onClick={() => router.back()}
+                  className="mt-4 text-primary text-sm font-semibold"
+                >
+                  ← Quay lại danh sách
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-red-400" />
+                <p className="text-sm font-semibold text-red-600">Lỗi tải dữ liệu</p>
+                <p className="text-xs mt-1">Không thể kết nối đến máy chủ hoặc lỗi mạng.</p>
+                <button
+                  onClick={() => postedQuery.refetch()}
+                  className="mt-4 text-primary text-sm font-semibold"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )
+          ) : postedQuery.data ? (
             <PostedDetailView
               data={postedQuery.data}
               bookingId={bookingId}
@@ -432,11 +768,29 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string; mode?: string }>
               </button>
             </div>
           )
+        ) : assignedQuery.isError ? (
+          (assignedQuery.error as { response?: { status?: number } })?.response?.status === 404 ? (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              Không tìm thấy đơn hàng
+            </div>
+          ) : (
+             <div className="text-center py-16 text-muted-foreground">
+              <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-red-400" />
+              <p className="text-sm font-semibold text-red-600">Lỗi tải dữ liệu</p>
+              <p className="text-xs mt-1">Không thể tải thông tin đơn hàng này.</p>
+              <button
+                onClick={() => assignedQuery.refetch()}
+                className="mt-4 text-primary text-sm font-semibold"
+              >
+                Thử lại
+              </button>
+            </div>
+          )
         ) : assignedQuery.data ? (
-          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} />
+          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} trackingSocket={trackingSocket} />
         ) : (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            Không tìm thấy đơn hàng
+            Đang tải...
           </div>
         )}
       </div>

@@ -29,7 +29,7 @@ import {
   Wallet,
   Building2
 } from "lucide-react";
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -89,7 +89,11 @@ const PAYMENT_METHODS = [
   { id: 'card', name: 'Thẻ / Banking', icon: CreditCard, desc: 'Visa, Master, ATM' },
 ];
 
-export default function ServiceBookingPage() {
+interface ServiceBookingPageProps {
+  slug: string;
+}
+
+export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState("");

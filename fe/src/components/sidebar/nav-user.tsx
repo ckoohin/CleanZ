@@ -45,16 +45,27 @@ function NavUserSkeleton() {
 type User = { name: string; email: string; avatar: string; fullName: string }
 
 export function NavUser({
-  user
+  user: userProp
 }: {
-  user?:  User
+  user?: User
 }) {
   const { isMobile } = useSidebar()
-  const { data: data, isLoading } = useAuth()
+  const { data: authData, isLoading } = useAuth()
   const logout = useLogout()
 
   if (isLoading) return <NavUserSkeleton />
-  if (!user) return null
+
+  // Dùng prop nếu có, fallback sang auth data
+  const user: User | null = userProp ?? (authData
+    ? {
+        name: authData.fullName ?? "",
+        fullName: authData.fullName ?? "",
+        email: authData.email ?? "",
+        avatar: authData.avatar ?? "",
+      }
+    : null)
+
+  if (!user) return <NavUserSkeleton />
 
   const initials = getInitials(user.fullName)
 

@@ -85,4 +85,28 @@ export const authApi = {
     const res = await http.post('/auth/reset-password', credentials);
     return res.data;
   },
+
+  updateProfile: async (data: {
+    fullName?: string;
+    phone?: string;
+    avatar?: File;
+  }): Promise<{ message: string; data: Profile }> => {
+    const formData = new FormData();
+
+    if (data.fullName) formData.append('fullName', data.fullName);
+    if (data.phone) formData.append('phone', data.phone);
+    if (data.avatar) formData.append('avatar', data.avatar);
+
+    const res = await http.patch<{ message: string; data: Profile }>(
+      '/customer/profile/me',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+
+    return res.data;
+  },
 };

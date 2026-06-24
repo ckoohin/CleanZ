@@ -14,15 +14,17 @@ import {
   Wifi,
   WifiOff,
   Briefcase,
-  Bell,
   Settings,
   WalletCards,
+  LifeBuoy,
 } from "lucide-react";
+import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
 import { useLogout } from "@/features/auth/hooks/auth.hooks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import LogoApp from "@/components/logo/LogoApp";
+import { useTaskerActiveBooking } from "@/features/booking/hooks/useTaskerBooking";
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
@@ -32,9 +34,10 @@ const ALL_NAV_ITEMS = [
   { href: "/tasker/earnings",      label: "Thu nhập",  icon: WalletCards },
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
+  { href: "/tasker/support-tickets", label: "Hỗ trợ",  icon: LifeBuoy },
 ];
 
-// Bottom nav: 2 bên FAB center
+// Bottom nav: 2 bên FAB center (giữ index 0,1,3,4 — không gồm "Thu nhập"/"Hỗ trợ")
 const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
 const RIGHT_TABS = [ALL_NAV_ITEMS[3], ALL_NAV_ITEMS[4]];
 
@@ -55,8 +58,8 @@ function isTabActive(href: string, exact: boolean | undefined, pathname: string)
 function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
   const { data: tasker } = useTaskerProfile();
   const logout = useLogout();
-  const [isOnline, setIsOnline] = useState(false);
   const pathname = usePathname();
+  const isOnline = tasker?.presenceStatus === "ONLINE";
 
   const initials = tasker?.fullName
     ? tasker.fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -85,13 +88,7 @@ function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
       {/* Online toggle */}
       <div className="px-4 py-3 border-b border-border/30">
         <button
-          onClick={() => {
-            if (onToggleOnline) {
-              onToggleOnline();
-            } else {
-              setIsOnline((value) => !value);
-            }
-          }}
+          onClick={() => onToggleOnline?.()}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all",
             isOnline
@@ -209,13 +206,13 @@ function MobileTopBar() {
           </span>
         </div>
         
+        <Link href="/tasker/support-tickets" aria-label="Hỗ trợ" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
+          <LifeBuoy className="w-4 h-4" />
+        </Link>
         <Link href="/tasker/settings" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
           <Settings className="w-4 h-4" />
         </Link>
-        <Link href="/tasker/notifications" className="relative w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card"></span>
-        </Link>
+        <NotificationBell href="/tasker/notifications" className="w-8 h-8 shrink-0" />
 
         <Avatar className="w-9 h-9 border-2 border-background shadow-sm ring-1 ring-border shrink-0">
           <AvatarImage src={tasker?.avatarUrl ?? undefined} />
@@ -293,18 +290,28 @@ function MobileBottomNav({
   onToggleOnline,
 }: {
   isOnline: boolean;
-  onToggleOnline: () => void;
+  onToggleOnline?: () => void;
 }) {
+  const { data: activeBooking } = useTaskerActiveBooking();
+  const hasActiveBooking = !!activeBooking;
+
   return (
     // Wrapper cố định bottom — bao gồm cả FAB nổi
     <div
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {/* Nút Toggle Online/Offline nổi lên ở góc phải */}
-      <div className="absolute right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+74px)]">
+      {/* Nút Toggle Online/Offline nổi lên ở góc phải, tự động đẩy lên nếu có đơn hàng đang chạy */}
+      <div 
+        className={cn(
+          "absolute right-4 transition-all duration-300 z-50",
+          hasActiveBooking 
+            ? "bottom-[calc(env(safe-area-inset-bottom,0px)+178px)]" 
+            : "bottom-[calc(env(safe-area-inset-bottom,0px)+74px)]"
+        )}
+      >
         <motion.button
-          onClick={onToggleOnline}
+          onClick={() => onToggleOnline?.()}
           whileTap={{ scale: 0.92 }}
           className={cn(
             "relative w-[48px] h-[48px] rounded-full flex flex-col items-center justify-center gap-[1px]",
@@ -384,25 +391,17 @@ function MobileBottomNav({
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function TaskerSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
-  // Shared online state giữa TopBar
-  const [isOnline, setIsOnline] = useState(false);
-
-  const handleToggle = () => {
-    if (onToggleOnline) {
-      onToggleOnline();
-    } else {
-      setIsOnline(!isOnline);
-    }
-  };
+  const { data: tasker } = useTaskerProfile();
+  const isOnline = tasker?.presenceStatus === "ONLINE";
 
   return (
     <>
       {/* Desktop: sidebar trái */}
-      <DesktopSidebar className={className} onToggleOnline={handleToggle} />
+      <DesktopSidebar className={className} onToggleOnline={onToggleOnline} />
 
       {/* Mobile */}
       <MobileTopBar />
-      <MobileBottomNav isOnline={isOnline} onToggleOnline={handleToggle} />
+      <MobileBottomNav isOnline={isOnline} onToggleOnline={onToggleOnline} />
     </>
   );
 }

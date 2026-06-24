@@ -128,13 +128,12 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
           </SheetHeader>
           <Link
             href={`/admin/customers/${customerId}`}
-            className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary hover:underline transition-colors"
+            className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary hover:underline transition-colors animate-pulse"
           >
             Xem trang đầy đủ
             <ExternalLink className="w-3.5 h-3.5" />
           </Link>
         </div>
-
 
         {isCustomerLoading ? (
           <div className="flex-1 p-6 space-y-6 overflow-y-auto">

@@ -65,6 +65,19 @@ export class WalletController {
     return this.walletService.getMyTaskerWallet(userId);
   }
 
+  @Get('customer/me')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Customer xem ví của chính mình' })
+  @ApiOkResponse({
+    description: 'Lấy ví customer thành công',
+  })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  getMyCustomerWallet(
+    @CurrentUser('id') userId: string,
+  ): Promise<WalletResponse> {
+    return this.walletService.getMyCustomerWallet(userId);
+  }
+
   @Post('tasker/me/withdrawals')
   @Auth(UserRole.TASKER)
   @ApiOperation({ summary: 'Tasker gửi yêu cầu rút tiền' })
@@ -115,6 +128,19 @@ export class WalletController {
     @CurrentUser('id') userId: string,
   ): Promise<WalletTransactionListResponse> {
     return this.walletService.getMyTaskerTransactions(userId);
+  }
+
+  @Get('customer/me/transactions')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Customer xem lịch sử giao dịch ví của chính mình' })
+  @ApiOkResponse({
+    description: 'Lấy lịch sử giao dịch ví customer thành công',
+  })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  getMyCustomerTransactions(
+    @CurrentUser('id') userId: string,
+  ): Promise<WalletTransactionListResponse> {
+    return this.walletService.getMyCustomerTransactions(userId);
   }
 
   @Get('system')

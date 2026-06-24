@@ -14,6 +14,13 @@ import { WithdrawalEntity } from 'src/modules/withdrawal/entity/withdrawal.entit
 import { ReviewEntity } from 'src/modules/review/entity/review.entity';
 import { TaskerLevelEntity } from 'src/modules/tasker/entity/tasker-level.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
+import { PricingModule } from 'src/modules/pricing/pricing.module';
+import { WalletModule } from 'src/modules/wallet/wallet.module';
+import { NotificationModule } from 'src/modules/notification/notification.module';
+import { PaymentModule } from 'src/modules/payment/payment.module';
+import { BookingModule } from 'src/modules/booking/booking.module';
+import { NotificationEntity } from 'src/modules/notification/entity/notification.entity';
+import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 
 @Module({
   imports: [
@@ -27,9 +34,17 @@ import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
       ReviewEntity,
       TaskerLevelEntity,
       VoucherEntity,
+      NotificationEntity,
+      BookingStatusLogEntity,
     ]),
     UsersModule,
+    PricingModule,
+    WalletModule,
+    NotificationModule,
+    PaymentModule,
+    BookingModule,
   ],
+
   controllers: [AdminController],
   providers: [
     AdminDashboardRepository,

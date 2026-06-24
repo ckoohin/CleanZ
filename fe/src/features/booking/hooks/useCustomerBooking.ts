@@ -10,8 +10,24 @@ import type {
 
 const QUERY_KEYS = {
   myActive: ["booking", "my-active"],
+  myList: ["booking", "my-list"],
   detail: (id: string) => ["booking", id],
 };
+
+function getBookingErrorMessage(error: unknown, fallback: string): string {
+  const responseMessage = (
+    error as {
+      response?: {
+        data?: {
+          message?: string | { message?: string };
+        };
+      };
+    }
+  )?.response?.data?.message;
+
+  if (typeof responseMessage === "string") return responseMessage;
+  return responseMessage?.message ?? fallback;
+}
 
 // ─── Customer Hooks ───────────────────────────────────────────────────────────
 
@@ -20,10 +36,8 @@ export function useBookingQuote() {
   return useMutation({
     mutationFn: (dto: QuoteBookingDto) => customerBookingApi.quote(dto),
     onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Không thể lấy báo giá";
-      toast.error(message);
+      const msgError = err as { response?: { data?: { errors?: { message?: string } } } };
+      toast.error(getBookingErrorMessage(err, msgError?.response?.data?.errors?.message ?? "Không thể xem báo giá"));
     },
   });
 }
@@ -38,10 +52,7 @@ export function useCreateBooking() {
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
     },
     onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Không thể tạo booking";
-      toast.error(message);
+      toast.error(getBookingErrorMessage(err, "Không thể tạo booking"));
     },
   });
 }
@@ -52,6 +63,13 @@ export function useBookingDetail(id: string) {
     queryKey: QUERY_KEYS.detail(id),
     queryFn: () => customerBookingApi.findDetail(id),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'COMPLETED' || status === 'CANCELLED') {
+        return false;
+      }
+      return 5000;
+    },
   });
 }
 
@@ -60,7 +78,34 @@ export function useMyActiveBooking() {
   return useQuery({
     queryKey: QUERY_KEYS.myActive,
     queryFn: () => customerBookingApi.findMyActive(),
-    refetchInterval: 30_000, // poll 30s để cập nhật status
+    refetchInterval: 30_000,
+  });
+}
+
+/** Danh sách lịch sử booking (History page + Profile stats) */
+export function useMyBookingHistory() {
+  return useQuery({
+    queryKey: QUERY_KEYS.myList,
+    queryFn: () => customerBookingApi.findMyBookings(),
+    staleTime: 2 * 60 * 1000, // cache 2 phút
+  });
+}
+
+export function useMockPay(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => customerBookingApi.mockPay(bookingId),
+    onSuccess: () => {
+      toast.success("Thanh toán thành công");
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.detail(bookingId) });
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
+    },
+    onError: (err: unknown) => {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Không thể thanh toán";
+      toast.error(message);
+    },
   });
 }
 

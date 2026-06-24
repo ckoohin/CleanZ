@@ -74,6 +74,8 @@ describe('TicketService.create (TC-U-CRT)', () => {
       config as any,
       {} as any,
       { scheduleBreach: jest.fn(), onResume: jest.fn() } as any,
+      { emitMessage: jest.fn(), emitRead: jest.fn() } as any,
+      {} as any,
     );
   });
 
@@ -164,5 +166,145 @@ describe('TicketService.create (TC-U-CRT)', () => {
         description: 'd',
       } as any),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+});
+
+// ─── Audience / thread (TC-U-CHAT) ────────────────────────────────────────────
+describe('TicketService chat — audience & thread (TC-U-CHAT)', () => {
+  const REPORTER = { id: CUST_USER, role: 'CUSTOMER' };
+  const COUNTERPARTY = { id: TASK_USER, role: 'TASKER' };
+
+  function makeService(over: any = {}) {
+    const ticketRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'tk1',
+        status: 'IN_PROGRESS',
+        reporter: REPORTER,
+        counterparty: COUNTERPARTY,
+        ...over.ticket,
+      }),
+      save: jest.fn(),
+    };
+    const messageRepo = {
+      create: (x: any) => x,
+      save: jest
+        .fn()
+        .mockImplementation((x: any) =>
+          Promise.resolve({ id: 'msg1', createdAt: new Date(), ...x }),
+        ),
+      find: jest.fn().mockResolvedValue([]),
+    };
+    const attachmentRepo = {
+      createQueryBuilder: () => ({
+        update: () => ({
+          set: () => ({ whereInIds: () => ({ execute: jest.fn() }) }),
+        }),
+      }),
+      find: jest
+        .fn()
+        .mockResolvedValue([{ id: 'att1', url: 'http://img/1.jpg' }]),
+    };
+    const threadReadRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: (x: any) => x,
+      save: jest
+        .fn()
+        .mockImplementation((x: any) =>
+          Promise.resolve({ ...x, readAt: new Date() }),
+        ),
+    };
+    const realtime = {
+      emitMessage: jest.fn(),
+      emitRead: jest.fn(),
+      emitUnread: jest.fn(),
+      emitUnreadToAdmins: jest.fn(),
+    };
+    const svc = new TicketService(
+      {} as any,
+      ticketRepo as any,
+      messageRepo as any,
+      attachmentRepo as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      { onResume: jest.fn() } as any,
+      realtime as any,
+      threadReadRepo as any,
+    );
+    return { svc, ticketRepo, messageRepo, attachmentRepo, threadReadRepo, realtime };
+  }
+
+  it('reporter gửi → audience REPORTER + senderRole CUSTOMER', async () => {
+    const { svc, messageRepo } = makeService();
+    const res = await svc.addUserMessage(CUST_USER, 'tk1', {
+      body: 'hi',
+    } as any);
+    expect(messageRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: 'REPORTER', isInternal: false }),
+    );
+    expect(res.senderRole).toBe('CUSTOMER');
+  });
+
+  it('counterparty gửi → audience COUNTERPARTY + senderRole TASKER', async () => {
+    const { svc, messageRepo } = makeService();
+    const res = await svc.addUserMessage(TASK_USER, 'tk1', {
+      body: 'hi',
+    } as any);
+    expect(messageRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ audience: 'COUNTERPARTY' }),
+    );
+    expect(res.senderRole).toBe('TASKER');
+  });
+
+  it('ảnh-only (không body) → OK, trả attachments', async () => {
+    const { svc } = makeService();
+    const res = await svc.addUserMessage(CUST_USER, 'tk1', {
+      attachmentIds: ['att1'],
+    } as any);
+    expect(res.attachments).toEqual([{ id: 'att1', url: 'http://img/1.jpg' }]);
+  });
+
+  it('không body & không ảnh → 422', async () => {
+    const { svc } = makeService();
+    await expect(
+      svc.addUserMessage(CUST_USER, 'tk1', {} as any),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('findOneForUser (reporter) → chỉ lấy message luồng REPORTER', async () => {
+    const { svc, messageRepo } = makeService();
+    await svc.findOneForUser(CUST_USER, 'tk1');
+    expect(messageRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ audience: 'REPORTER' }),
+      }),
+    );
+  });
+
+  it('findOneForUser (counterparty) → chỉ lấy message luồng COUNTERPARTY', async () => {
+    const { svc, messageRepo } = makeService();
+    await svc.findOneForUser(TASK_USER, 'tk1');
+    expect(messageRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ audience: 'COUNTERPARTY' }),
+      }),
+    );
+  });
+
+  it('user gửi + ticket có admin phụ trách → ping badge unread cho admin', async () => {
+    const { svc, realtime } = makeService({
+      ticket: { assignedAdmin: { id: 'admin-1' } },
+    });
+    await svc.addUserMessage(CUST_USER, 'tk1', { body: 'hi' } as any);
+    expect(realtime.emitUnread).toHaveBeenCalledWith('admin-1', 'tk1');
+  });
+
+  it('user gửi + ticket CHƯA gán admin → broadcast badge tới mọi admin', async () => {
+    const { svc, realtime } = makeService();
+    await svc.addUserMessage(CUST_USER, 'tk1', { body: 'hi' } as any);
+    expect(realtime.emitUnreadToAdmins).toHaveBeenCalledWith('tk1');
+    expect(realtime.emitUnread).not.toHaveBeenCalled();
   });
 });

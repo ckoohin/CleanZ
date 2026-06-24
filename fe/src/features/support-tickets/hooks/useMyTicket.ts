@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSocketEvent } from "@/hooks/use-socket";
 import { myTicketApi } from "../services/my-ticket.service";
 import type {
   CreateTicketDto,
   MyTicketQueryParams,
-  SendMessageDto,
   SubmitSurveyDto,
 } from "../types/my-ticket.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
@@ -17,12 +17,40 @@ export const myTicketKeys = {
   detail: (id: string) => ["my-tickets", "detail", id] as const,
 };
 
+// ─── Booking options (cho select khi tạo ticket) ──────────────────────────────
+export function useMyBookings(enabled = true) {
+  return useQuery({
+    queryKey: ["my-bookings", "for-ticket"],
+    queryFn: () => myTicketApi.listMyBookings(),
+    enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
 // ─── List ─────────────────────────────────────────────────────────────────────
 export function useMyTicketList(params?: MyTicketQueryParams) {
   return useQuery({
     queryKey: myTicketKeys.list(params),
     queryFn: () => myTicketApi.listMine(params),
     placeholderData: (prev) => prev,
+  });
+}
+
+// ─── Unread (badge ngoài ticket) ───────────────────────────────────────────────
+export function useMyTicketUnreadTotal() {
+  return useQuery({
+    queryKey: ["my-tickets", "unread-total"],
+    queryFn: () => myTicketApi.unreadTotal(),
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Realtime: tin mới (kể cả khi không mở ticket) → làm mới list + tổng chưa đọc. */
+export function useMyTicketUnreadRealtime() {
+  const queryClient = useQueryClient();
+  useSocketEvent("ticket:unread", () => {
+    queryClient.invalidateQueries({ queryKey: myTicketKeys.all });
+    queryClient.invalidateQueries({ queryKey: ["my-tickets", "unread-total"] });
   });
 }
 
@@ -48,19 +76,6 @@ export function useCreateTicket() {
   });
 }
 
-// ─── Send Message ────────────────────────────────────────────────────────────
-export function useSendMyTicketMessage(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: SendMessageDto) => myTicketApi.sendMessage(id, dto),
-    onSuccess: () => {
-      toast.success("Đã gửi tin nhắn");
-      queryClient.invalidateQueries({ queryKey: myTicketKeys.detail(id) });
-    },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
-  });
-}
-
 // ─── Submit Survey (CSAT) ─────────────────────────────────────────────────────
 export function useSubmitSurvey(id: string) {
   const queryClient = useQueryClient();
@@ -74,15 +89,3 @@ export function useSubmitSurvey(id: string) {
   });
 }
 
-// ─── Upload Attachment ────────────────────────────────────────────────────────
-export function useUploadTicketAttachment(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (file: File) => myTicketApi.uploadAttachment(id, file),
-    onSuccess: () => {
-      toast.success("Đã upload ảnh bằng chứng");
-      queryClient.invalidateQueries({ queryKey: myTicketKeys.detail(id) });
-    },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
-  });
-}

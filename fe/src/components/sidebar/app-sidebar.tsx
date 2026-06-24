@@ -11,8 +11,10 @@ import {
   UserCog,
   Wallet,
   Wrench,
+  ShieldCheck,
 } from "lucide-react"
 
+import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -28,10 +30,10 @@ import {
 const overviewNav = [
   {
     title: "Dashboard",
-    url: "/admin",
+    url: ROUTES.ADMIN.DASHBOARD,
     icon: <LayoutDashboard />,
     items: [
-      { title: "Bảng điều khiển", url: "/admin" },
+      { title: "Bảng điều khiển", url: ROUTES.ADMIN.DASHBOARD },
       { title: "Hoạt động hệ thống", url: "/admin/activity" },
     ],
   },
@@ -40,10 +42,11 @@ const overviewNav = [
 const managementNav = [
   {
     title: "Quản lý Dịch vụ",
-    url: "/admin/services",
+    url: ROUTES.ADMIN.SERVICES.BASE,
     icon: <Wrench />,
     items: [
-      { title: "Danh sách dịch vụ", url: "/admin/services" },
+      { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICE_PACKAGES },
+      { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES.BASE },
     ],
   },
   {
@@ -101,11 +104,20 @@ const operationsNav = [
   },
 ]
 
-const systemSettings = [
+const systemNav = [
   {
-    name: "Cài đặt hệ thống",
+    title: "Cài đặt hệ thống",
     url: "/admin/settings",
     icon: <Settings2 />,
+    items: [
+      { title: "Cài đặt chung", url: "/admin/settings" },
+      { title: "Ngày cao điểm", url: "/admin/settings/peak-days" },
+    ],
+  },
+  {
+    title: "Nhân viên hệ thống",
+    url: "/admin/staff",
+    icon: <ShieldCheck />,
   },
 ]
 
@@ -119,7 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={overviewNav} label="Tổng quan" />
         <NavMain items={managementNav} label="Quản lý" />
         <NavMain items={operationsNav} label="Vận hành" />
-        <NavProjects projects={systemSettings} label="Hệ thống" />
+        <NavMain items={systemNav} label="Hệ thống" />
       </SidebarContent>
       <SidebarFooter className="border-t border-border/40 p-3">
         <NavUser />

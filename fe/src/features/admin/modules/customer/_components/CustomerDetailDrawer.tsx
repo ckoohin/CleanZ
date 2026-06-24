@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Sheet,
   SheetContent,
@@ -23,8 +24,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useAdminCustomerDetail,
   useAdminCustomerBookings,
-} from "../hooks/useAdminCustomer";
-import { CustomerStatusToggle } from "./CustomerStatusToggle";
+} from "@/features/admin/modules/customer/hooks/useAdminCustomer";
+import { CustomerStatusToggle } from "@/features/admin/modules/customer/_components/CustomerStatusToggle";
 import {
   User,
   Mail,
@@ -42,6 +43,7 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  ExternalLink,
 } from "lucide-react";
 
 interface CustomerDetailDrawerProps {
@@ -51,14 +53,14 @@ interface CustomerDetailDrawerProps {
 }
 
 const BOOKING_STATUS_STYLES: Record<string, string> = {
-  POSTED: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-gray-200/50",
-  CONFIRMED: "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200/50",
-  TASKER_ON_THE_WAY: "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200/50",
-  CHECKED_IN: "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 border-amber-200/50",
-  IN_PROGRESS: "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 border-amber-200/50",
-  COMPLETED: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 border-emerald-200/50",
-  CANCELLED: "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300 border-red-200/50",
-  EXPIRED: "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300 border-red-200/50",
+  POSTED: "bg-muted text-muted-foreground border-border/50",
+  CONFIRMED: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  TASKER_ON_THE_WAY: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  CHECKED_IN: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  IN_PROGRESS: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  COMPLETED: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+  CANCELLED: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+  EXPIRED: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 };
 
 const BOOKING_STATUS_LABELS: Record<string, string> = {
@@ -115,7 +117,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="sm:max-w-xl md:max-w-2xl w-full h-full p-0 flex flex-col bg-background rounded-l-[24px] overflow-hidden border-l border-border/40 shadow-2xl">
         <div className="p-6 border-b border-border/40 flex items-center justify-between shrink-0">
-          <SheetHeader className="text-left">
+          <SheetHeader className="text-left flex-1">
             <SheetTitle className="text-lg font-bold text-foreground flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
               Chi tiết khách hàng
@@ -124,6 +126,13 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
               Thông tin chi tiết về lịch sử giao dịch và tài khoản khách hàng.
             </SheetDescription>
           </SheetHeader>
+          <Link
+            href={`/admin/customers/${customerId}`}
+            className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-primary hover:underline transition-colors animate-pulse"
+          >
+            Xem trang đầy đủ
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
         {isCustomerLoading ? (

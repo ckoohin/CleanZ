@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-// @ts-ignore
 import Map, { Marker, NavigationControl, ViewStateChangeEvent } from "react-map-gl/mapbox";
+import type { StyleSpecification } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapPin } from "lucide-react";
-
-const GOONG_MAPTILES_KEY = process.env.NEXT_PUBLIC_GOONG_MAPTILES_KEY || "";
-const GOONG_API_KEY = process.env.NEXT_PUBLIC_GOONG_API_KEY || "";
+import {
+  GOONG_API_KEY,
+  GOONG_MAPTILES_KEY,
+} from "@/lib/maps/goong-config";
 
 interface GoongMapProps {
   initialLat?: number;
@@ -30,9 +31,37 @@ export const GoongMap = ({
 
   const [address, setAddress] = useState<string>("Đang tải vị trí...");
   const [isDragging, setIsDragging] = useState(false);
+  const [mapStyle, setMapStyle] = useState<StyleSpecification | null>(null);
   
   // Custom hook or simple debounce can be used here
   const fetchAddressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadMapStyle = async () => {
+      try {
+        const response = await fetch(
+          `https://tiles.goong.io/assets/goong_map_web.json?api_key=${GOONG_MAPTILES_KEY}`,
+          { signal: controller.signal },
+        );
+        const style = (await response.json()) as StyleSpecification;
+
+        setMapStyle({
+          ...style,
+          layers: style.layers.filter((layer) => layer.id !== "poi-tree"),
+        });
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setAddress("Không thể tải bản đồ");
+        }
+      }
+    };
+
+    void loadMapStyle();
+
+    return () => controller.abort();
+  }, []);
 
   const getAddressFromCoords = async (lat: number, lng: number) => {
     if (!GOONG_API_KEY) {
@@ -90,17 +119,19 @@ export const GoongMap = ({
 
   return (
     <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-inner bg-muted border border-border">
-      <Map
-        {...viewState}
-        onMove={handleMove}
-        onMoveStart={handleMoveStart}
-        onMoveEnd={handleMoveEnd}
-        mapStyle={`https://tiles.goong.io/assets/goong_map_web.json?api_key=${GOONG_MAPTILES_KEY}`}
-        mapboxAccessToken="placeholder-not-needed-for-goong"
-        interactive={!readOnly}
-      >
-        <NavigationControl position="bottom-right" />
-      </Map>
+      {mapStyle && (
+        <Map
+          {...viewState}
+          onMove={handleMove}
+          onMoveStart={handleMoveStart}
+          onMoveEnd={handleMoveEnd}
+          mapStyle={mapStyle}
+          mapboxAccessToken="placeholder-not-needed-for-goong"
+          interactive={!readOnly}
+        >
+          <NavigationControl position="bottom-right" />
+        </Map>
+      )}
 
       {/* Center Fixed Pin (Grab/Be style) */}
       {!readOnly && (

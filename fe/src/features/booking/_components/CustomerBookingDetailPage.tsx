@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -18,6 +18,15 @@ import {
   Pencil,
   Loader2,
   Navigation,
+  Sparkles,
+  UserX,
+  ShieldAlert,
+  CreditCard,
+  HelpCircle,
+  MessageSquare,
+  ShieldCheck,
+  Briefcase,
+  ChevronRight,
 } from "lucide-react";
 import {
   useBookingDetail,
@@ -25,12 +34,16 @@ import {
   useUpdateBookingSchedule,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { GoongMap } from "@/components/maps/GoongMap";
+import { TaskerTrackingMap } from "./TaskerTrackingMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
+import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import type {
   BookingStatus,
   StatusLog,
   UpdateBookingScheduleDto,
 } from "@/features/booking/types/booking.types";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTrackingSocket } from "@/hooks/use-socket";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -239,9 +252,8 @@ function EditScheduleSheet({
   };
 
   const handleAutoSelect = (placeId: string, description: string) => {
-    const apiKey = process.env.NEXT_PUBLIC_GOONG_API_KEY ?? "";
     fetch(
-      `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${apiKey}`
+      `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${GOONG_API_KEY}`
     )
       .then((r) => r.json())
       .then((data) => {
@@ -442,9 +454,123 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
 }) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const socket = useTrackingSocket();
   const { data: booking, isLoading } = useBookingDetail(bookingId);
+
   const [showCancel, setShowCancel] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showReportSheet, setShowReportSheet] = useState(false);
+  const [showTaskerModal, setShowTaskerModal] = useState(false);
+  const [showAvatarZoom, setShowAvatarZoom] = useState(false);
+  const [taskerLocation, setTaskerLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+
+  const destLat = booking?.address?.latitude ? Number(booking.address.latitude) : null;
+  const destLng = booking?.address?.longitude ? Number(booking.address.longitude) : null;
+  
+  const isDestCoordsValid = 
+    destLat !== null && 
+    destLng !== null && 
+    !isNaN(destLat) && 
+    !isNaN(destLng) &&
+    destLat >= -90 &&
+    destLat <= 90 &&
+    destLng >= -180 &&
+    destLng <= 180;
+
+  const displayTaskerLat = taskerLocation?.latitude ?? (isDestCoordsValid ? destLat + 0.003 : null);
+  const displayTaskerLng = taskerLocation?.longitude ?? (isDestCoordsValid ? destLng + 0.003 : null);
+
+  const isTaskerCoordsValid = 
+    displayTaskerLat !== null && 
+    displayTaskerLng !== null && 
+    !isNaN(displayTaskerLat) && 
+    !isNaN(displayTaskerLng) &&
+    displayTaskerLat >= -90 &&
+    displayTaskerLat <= 90 &&
+    displayTaskerLng >= -180 &&
+    displayTaskerLng <= 180;
+
+
+
+  // Tự động bật bản đồ Full Screen khi trạng thái chuyển sang TASKER_ON_THE_WAY
+  useEffect(() => {
+    if (booking?.status === "TASKER_ON_THE_WAY") {
+      const timer = setTimeout(() => {
+        setIsMapFullscreen(true);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [booking?.status]);
+
+  // Lắng nghe socket realtime
+  useEffect(() => {
+    if (!bookingId || !socket) return;
+
+    socket.emit("booking:join", { bookingId });
+
+    const handleRefresh = () => {
+      void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-list"] });
+    };
+
+    interface TaskerLocationPayload {
+      bookingId: string;
+      latitude: number;
+      longitude: number;
+      updatedAt?: string;
+    }
+
+    const handleLocationUpdated = (data: TaskerLocationPayload) => {
+      if (data && data.bookingId === bookingId && data.latitude && data.longitude) {
+        setTaskerLocation({
+          latitude: data.latitude,
+          longitude: data.longitude,
+        });
+      }
+    };
+
+    socket.on("booking:status_changed", handleRefresh);
+    socket.on("tasker:arrived", handleRefresh);
+    socket.on("booking:in_progress", handleRefresh);
+    socket.on("booking:completed", handleRefresh);
+    socket.on("customer:notification", handleRefresh);
+    socket.on("tasker:location:updated", handleLocationUpdated);
+
+    return () => {
+      socket.off("booking:status_changed", handleRefresh);
+      socket.off("tasker:arrived", handleRefresh);
+      socket.off("booking:in_progress", handleRefresh);
+      socket.off("booking:completed", handleRefresh);
+      socket.off("customer:notification", handleRefresh);
+      socket.off("tasker:location:updated", handleLocationUpdated);
+    };
+  }, [bookingId, socket, queryClient]);
+
+  const REPORT_OPTIONS = [
+    { category: "SERVICE_QUALITY", icon: Sparkles, label: "Chất lượng dọn dẹp chưa sạch", desc: "Không đạt yêu cầu vệ sinh cam kết" },
+    { category: "TASKER_BEHAVIOR", icon: UserX, label: "Thái độ Tasker không phù hợp", desc: "Tasker giao tiếp thiếu lịch sự hoặc trễ giờ" },
+    { category: "PROPERTY_DAMAGE", icon: ShieldAlert, label: "Hư hỏng hoặc thất lạc tài sản", desc: "Có đồ vật bị bể vỡ hoặc mất mát trong quá trình dọn" },
+    { category: "PAYMENT_BILLING", icon: CreditCard, label: "Vấn đề về thanh toán / Phụ phí", desc: "Sai lệch số tiền hoặc lỗi trừ ví" },
+    { category: "OTHER", icon: HelpCircle, label: "Các vấn đề khác", desc: "Gặp sự cố khác cần nhân viên hỗ trợ giải quyết" },
+  ];
+
+  const handleReportOption = (opt: typeof REPORT_OPTIONS[0]) => {
+    if (!booking) return;
+    const subject = `Khiếu nại đơn hàng ${booking.bookingCode}`;
+    const description = `Tôi muốn phản hồi về sự cố liên quan đến đơn hàng ${booking.bookingCode}. Vấn đề: ${opt.label}.\nYêu cầu phản hồi từ CleanZ: ...`;
+    router.push(
+      `/customer/support-tickets?bookingId=${booking.id}&category=${opt.category}&subject=${encodeURIComponent(
+        subject
+      )}&description=${encodeURIComponent(description)}`
+    );
+  };
 
   // Chỉ POSTED mới được sửa lịch + hủy. CONFIRMED chỉ được hủy.
   const canEdit = booking?.status === "POSTED";
@@ -454,7 +580,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-background pb-48">
         <div className="bg-card px-4 pt-12 pb-4 shadow-sm">
           <div className="h-6 w-40 bg-muted rounded animate-pulse" />
         </div>
@@ -485,12 +611,12 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   }
 
   return (
-    <div className="min-h-screen bg-background pb-28">
+    <div className="min-h-screen bg-background pb-48">
       {/* Header */}
       <div className="bg-card px-4 pt-12 pb-4 shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push("/customer/history")}
             className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -514,38 +640,115 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Banner Đặt lịch thành công */}
+        {booking.status === "POSTED" && (
+          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm shrink-0">🎉</span>
+              <h3 className="font-extrabold text-sm text-foreground">Đặt lịch thành công!</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Yêu cầu đặt lịch của bạn đã được ghi nhận. Hệ thống đang tìm kiếm chuyên gia dọn dẹp phù hợp nhất cho bạn. Bạn có thể theo dõi tiến trình đơn hàng trực tiếp tại trang này.
+            </p>
+          </div>
+        )}
+        {/* Realtime Tracking Map */}
+        {booking.status === "TASKER_ON_THE_WAY" &&
+          isDestCoordsValid &&
+          isTaskerCoordsValid && (
+            <div className="space-y-3">
+              {/* Bản đồ hiển thị sẵn trên trang chi tiết đơn hàng */}
+              <div 
+                onClick={() => setIsMapFullscreen(true)}
+                className="relative group cursor-pointer overflow-hidden rounded-3xl border border-border shadow-sm active:scale-[0.99] transition-transform duration-200"
+              >
+                <TaskerTrackingMap
+                  destLat={destLat as number}
+                  destLng={destLng as number}
+                  taskerLat={displayTaskerLat as number}
+                  taskerLng={displayTaskerLng as number}
+                  taskerAvatar={booking.tasker?.avatarUrl}
+                  taskerName={booking.tasker?.fullName}
+                />
+                <div className="absolute bottom-4 right-4 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-border/50 text-[10px] font-black uppercase text-primary tracking-wider shadow-sm flex items-center gap-1.5 pointer-events-none group-hover:scale-105 transition-transform duration-200">
+                  <Navigation className="w-3 h-3 rotate-45 animate-pulse text-primary fill-primary" />
+                  Xem chi tiết bản đồ
+                </div>
+              </div>
+
+            </div>
+          )}
+
         {/* Tasker card */}
         {booking.tasker ? (
-          <div className="bg-card rounded-2xl border border-border/50 p-4 flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-              {booking.tasker.avatarUrl ? (
-                <img
-                  src={booking.tasker.avatarUrl}
-                  alt={booking.tasker.fullName ?? ""}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User className="w-6 h-6 text-primary" />
+          <div className="space-y-2">
+            <div 
+              onClick={() => setShowTaskerModal(true)}
+              className="bg-card rounded-2xl border border-border/50 p-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:bg-muted/10 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
+                  {booking.tasker.avatarUrl ? (
+                    <img
+                      src={booking.tasker.avatarUrl}
+                      alt={booking.tasker.fullName ?? ""}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-6 h-6 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-foreground truncate flex items-center gap-1 group-hover:text-primary transition-colors">
+                    {booking.tasker.fullName ?? "Tasker"}
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-xs font-semibold">
+                    <span className="text-amber-500 flex items-center gap-0.5 shrink-0">
+                      <Star className="w-3 h-3 fill-amber-400" />{" "}
+                      {booking.tasker.ratingAvg && booking.tasker.ratingAvg > 0
+                        ? booking.tasker.ratingAvg.toFixed(1)
+                        : "5.0"}
+                    </span>
+                    <span className="text-muted-foreground/40 shrink-0">•</span>
+                    <span className="text-muted-foreground flex items-center gap-1 truncate">
+                      <Briefcase className="w-3 h-3 text-primary/75 shrink-0" />
+                      {booking.tasker.totalCompletedJobs ?? 0} đơn hoàn thành
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {booking.tasker.phone && (
+                <div className="shrink-0">
+                  {booking.status === "COMPLETED" || booking.status === "CANCELLED" || booking.status === "EXPIRED" ? (
+                    <div className="text-right">
+                      <p className="text-[9px] text-muted-foreground mb-0.5">Số điện thoại (đã che)</p>
+                      <span className="text-xs font-bold font-mono text-muted-foreground bg-muted px-2.5 py-1 rounded-lg">
+                        {booking.tasker.phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2")}
+                      </span>
+                    </div>
+                  ) : (
+                    <a
+                      href={`tel:${booking.tasker.phone}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center hover:bg-primary/20 transition-colors"
+                    >
+                      <Phone className="w-4 h-4 text-primary" />
+                    </a>
+                  )}
+                </div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm text-foreground">
-                {booking.tasker.fullName ?? "Tasker"}
-              </p>
-              {booking.tasker.ratingAvg && booking.tasker.ratingAvg > 0 && (
-                <p className="text-xs text-amber-500 flex items-center gap-0.5">
-                  <Star className="w-3 h-3 fill-amber-400" />{" "}
-                  {booking.tasker.ratingAvg.toFixed(1)}
-                </p>
-              )}
-            </div>
-            {booking.tasker.phone && (
-              <a
-                href={`tel:${booking.tasker.phone}`}
-                className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center"
+            
+            {/* Nút báo cáo sự cố khi đơn đã kết thúc */}
+            {(booking.status === "COMPLETED" || booking.status === "CANCELLED") && (
+              <button
+                onClick={() => setShowReportSheet(true)}
+                className="w-full py-3 bg-red-500/5 hover:bg-red-500/10 text-red-600 font-bold text-xs rounded-2xl border border-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
               >
-                <Phone className="w-4 h-4 text-primary" />
-              </a>
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                Báo cáo sự cố hoặc khiếu nại đơn này
+              </button>
             )}
           </div>
         ) : (
@@ -643,15 +846,36 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           </div>
         )}
 
+        {/* Điều hướng nhanh cho người dùng thao tác các flow khác */}
+        <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3 shadow-sm">
+          <h3 className="font-bold text-xs text-foreground flex items-center gap-1.5 uppercase tracking-wider text-primary">
+            🎯 Thao tác khác
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => router.push("/customer/home")}
+              className="py-3 bg-muted hover:bg-muted/80 text-foreground font-bold text-xs rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>Về Trang chủ</span>
+            </button>
+            <button
+              onClick={() => router.push("/customer/history")}
+              className="py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <span>Danh sách đơn hàng</span>
+            </button>
+          </div>
+        </div>
+
         {/* Status timeline */}
         <StatusTimeline logs={booking.statusLogs} />
       </div>
 
-      {/* Footer action — POSTED: 2 nút | CONFIRMED: chỉ hủy */}
+      {/* Footer action — POSTED: Sửa lịch + Hủy | CONFIRMED: chỉ Hủy */}
       {canCancel && (
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 pb-8 z-30">
+        <div className="fixed bottom-20 md:bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-border/40 p-4 pb-4 md:pb-8 z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
           <div className="flex gap-3 max-w-md mx-auto">
-            {canEdit && (
+              {canEdit && (
               <button
                 onClick={() => setShowEdit(true)}
                 className="flex-1 py-3.5 border border-primary text-primary font-bold text-sm rounded-2xl hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5"
@@ -665,7 +889,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                 canEdit ? "flex-1" : "w-full"
               } py-3.5 border border-red-300 text-red-600 font-bold text-sm rounded-2xl hover:bg-red-50 transition-colors`}
             >
-              Hủy đơn hàng
+              Hủy đơn
             </button>
           </div>
         </div>
@@ -687,6 +911,353 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           onClose={() => setShowEdit(false)}
         />
       )}
+
+      {/* Report Incident Sheet */}
+      <AnimatePresence>
+        {showReportSheet && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-45"
+              onClick={() => setShowReportSheet(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl overflow-y-auto max-h-[85vh] p-5 space-y-4"
+            >
+              <div className="w-10 h-1 bg-border rounded-full mx-auto" />
+              <div className="text-center space-y-1">
+                <h3 className="text-xl font-bold text-foreground md:text-2xl">Báo cáo sự cố đơn hàng</h3>
+                <p className="text-sm text-muted-foreground">Chọn nhóm sự cố để nhân viên CSKH hỗ trợ bạn tốt nhất.</p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                {REPORT_OPTIONS.map((opt) => {
+                  const IconComponent = opt.icon;
+                  return (
+                    <button
+                      key={opt.category}
+                      onClick={() => handleReportOption(opt)}
+                      className="w-full p-5 bg-background hover:bg-primary/5 border border-border hover:border-primary rounded-2xl text-left active:scale-[0.99] transition-all flex items-start gap-4 shadow-sm"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <IconComponent className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <span className="text-sm font-bold text-foreground leading-snug md:text-base">{opt.label}</span>
+                        <span className="text-xs text-muted-foreground/90 leading-relaxed font-medium md:text-sm">{opt.desc}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 pb-4">
+                <button
+                  onClick={() => setShowReportSheet(false)}
+                  className="w-full py-4 border border-border rounded-2xl text-base font-bold text-foreground hover:bg-muted/30 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Tasker Detail Modal */}
+      <AnimatePresence>
+        {showTaskerModal && booking?.tasker && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-45"
+              onClick={() => setShowTaskerModal(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl overflow-y-auto max-h-[85vh] p-6 space-y-6 shadow-2xl border-t border-border/40 pb-10"
+            >
+              <div className="w-10 h-1 bg-border rounded-full mx-auto" />
+              
+              <div className="flex flex-col items-center text-center space-y-3">
+                <div 
+                  onClick={() => booking.tasker?.avatarUrl && setShowAvatarZoom(true)}
+                  className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-primary/20 shadow-sm shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
+                >
+                  {booking.tasker.avatarUrl ? (
+                    <img
+                      src={booking.tasker.avatarUrl}
+                      alt={booking.tasker.fullName ?? ""}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-10 h-10 text-primary" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-foreground">{booking.tasker.fullName ?? "Chuyên gia dọn dẹp"}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Hồ sơ đối tác chuyên nghiệp</p>
+                </div>
+              </div>
+
+              {/* Stats info */}
+              <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-2xl border border-border/20">
+                <div className="flex flex-col items-center justify-center text-center p-2 border-r border-border/50">
+                  <div className="flex items-center gap-1 text-amber-500 font-extrabold text-base">
+                    <Star className="w-4 h-4 fill-amber-400" />
+                    <span>{booking.tasker.ratingAvg && booking.tasker.ratingAvg > 0 ? booking.tasker.ratingAvg.toFixed(1) : "5.0"}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Đánh giá</span>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center text-center p-2">
+                  <div className="flex items-center gap-1 text-primary font-extrabold text-base">
+                    <Briefcase className="w-4 h-4" />
+                    <span>{booking.tasker.totalCompletedJobs ?? 0}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Số đơn hoàn thành</span>
+                </div>
+              </div>
+
+              {/* Contact section */}
+              {booking.status === "COMPLETED" || booking.status === "CANCELLED" || booking.status === "EXPIRED" ? (
+                <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                    Đơn hàng đã kết thúc. Để đảm bảo an toàn thông tin, số điện thoại và các hình thức liên hệ của chuyên gia đã được ẩn tự động.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {booking.tasker.phone && (
+                    <div className="flex flex-col items-center justify-center text-center space-y-1">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Số điện thoại liên hệ</span>
+                      <a href={`tel:${booking.tasker.phone}`} className="text-xl font-black font-mono text-primary hover:underline">
+                        {booking.tasker.phone}
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Actions call/chat */}
+                  <div className="flex flex-col gap-2 pt-2">
+                    <a
+                      href={`tel:${booking.tasker.phone}`}
+                      className="w-full py-4 bg-primary text-primary-foreground font-black text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all shadow-md shadow-primary/20 active:scale-[0.98]"
+                    >
+                      <Phone className="w-4 h-4 fill-primary-foreground" />
+                      <span>Gọi điện ngay</span>
+                    </a>
+                    
+                    <button
+                      disabled
+                      className="w-full py-4 border border-border bg-background text-muted-foreground/60 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 cursor-not-allowed opacity-80"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Hội thoại trong ứng dụng (Sắp ra mắt)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom close button */}
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowTaskerModal(false)}
+                  className="w-full py-3.5 border border-border rounded-2xl text-sm font-bold text-foreground hover:bg-muted/30 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Bản đồ Full Screen với Bottom Sheet trượt từ dưới lên (Grab/Uber Style) */}
+      <AnimatePresence>
+        {isMapFullscreen && booking && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background z-50 overflow-hidden"
+            >
+              {/* Nút đóng (Back) tròn góc trên bên trái */}
+              <button
+                onClick={() => setIsMapFullscreen(false)}
+                className="absolute top-12 left-4 z-[60] w-11 h-11 rounded-full bg-card/95 backdrop-blur-md border border-border/60 shadow-lg flex items-center justify-center text-foreground hover:bg-muted active:scale-95 transition-all"
+              >
+                <ArrowLeft className="w-5 h-5 text-foreground" />
+              </button>
+
+              {/* Bản đồ fullscreen chiếm 100% viewport */}
+              <div className="w-full h-full">
+                <TaskerTrackingMap
+                  destLat={destLat as number}
+                  destLng={destLng as number}
+                  taskerLat={displayTaskerLat as number}
+                  taskerLng={displayTaskerLng as number}
+                  taskerAvatar={booking.tasker?.avatarUrl}
+                  taskerName={booking.tasker?.fullName}
+                  isFullscreen={true}
+                />
+              </div>
+
+              {/* Bottom Sheet trượt từ dưới lên */}
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 180 }}
+                className="absolute bottom-0 left-0 right-0 bg-card rounded-t-[32px] border-t border-border shadow-[0_-12px_40px_rgba(0,0,0,0.12)] pb-10 z-[60]"
+              >
+                {/* Handle kéo kéo trang trí */}
+                <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto my-3.5" />
+                
+                <div className="px-5 space-y-4">
+                  {/* Trạng thái di chuyển */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </div>
+                      <span className="text-xs font-black uppercase text-emerald-600 tracking-wider">Chuyên gia đang đến</span>
+                    </div>
+                    <span className="text-[9px] font-black bg-primary/10 text-primary px-2.5 py-1 rounded-full uppercase tracking-wider">Realtime GPS</span>
+                  </div>
+
+                  {/* Card thông tin rút gọn của Chuyên gia */}
+                  {booking.tasker && (
+                    <div className="bg-muted/40 border border-border/40 rounded-2xl p-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-full border border-border/50 overflow-hidden bg-primary/10 shrink-0">
+                          {booking.tasker.avatarUrl ? (
+                            <img
+                              src={booking.tasker.avatarUrl}
+                              alt={booking.tasker.fullName ?? ""}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-6 h-6 text-primary m-3" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-sm text-foreground truncate">
+                            {booking.tasker.fullName ?? "Chuyên gia dọn dẹp"}
+                          </h4>
+                          <p className="text-[11px] font-bold text-muted-foreground flex items-center gap-1 mt-1">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                            {booking.tasker.ratingAvg && booking.tasker.ratingAvg > 0
+                              ? booking.tasker.ratingAvg.toFixed(1)
+                              : "5.0"}
+                            <span className="text-muted-foreground/40">•</span>
+                            <span>{booking.tasker.totalCompletedJobs ?? 0} đơn hoàn thành</span>
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {booking.tasker.phone && (
+                        <div className="shrink-0 flex gap-2">
+                          <a
+                            href={`tel:${booking.tasker.phone}`}
+                            className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-200 hover:bg-emerald-600 transition-colors"
+                          >
+                            <Phone className="w-4 h-4 fill-white text-emerald-500" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Bảng tiến trình stepper check đơn giản */}
+                  <div className="bg-muted/20 border border-border/30 rounded-2xl p-4 space-y-4">
+                    <p className="text-[10px] font-black uppercase text-muted-foreground/80 tracking-wider">Tiến trình di chuyển</p>
+                    
+                    <div className="relative pl-6 space-y-4 before:absolute before:left-[9px] before:top-2 before:bottom-2 before:w-0.5 before:bg-border/60">
+                      {/* Step 1: Xác nhận đơn */}
+                      <div className="relative flex items-start gap-3">
+                        <div className="absolute -left-6 w-5 h-5 rounded-full bg-primary/20 border border-primary/50 flex items-center justify-center">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-foreground/85">Xác nhận chuyến đi</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Chuyên gia đã nhận đơn và chuẩn bị di chuyển</p>
+                        </div>
+                      </div>
+
+                      {/* Step 2: Đang di chuyển */}
+                      <div className="relative flex items-start gap-3">
+                        <div className="absolute -left-6 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow flex items-center justify-center animate-pulse">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-emerald-600">Đang trên đường đến</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Bạn có thể theo dõi vị trí trực tiếp trên bản đồ</p>
+                        </div>
+                      </div>
+
+                      {/* Step 3: Check-in điểm đến */}
+                      <div className="relative flex items-start gap-3 opacity-45">
+                        <div className="absolute -left-6 w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-muted-foreground">Chờ check-in địa chỉ</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Chuyên gia sẽ bấm check-in khi tới điểm đến</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox Zoom Avatar */}
+      <AnimatePresence>
+        {showAvatarZoom && booking?.tasker?.avatarUrl && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/90 z-[80] backdrop-blur-sm flex items-center justify-center cursor-zoom-out"
+              onClick={() => setShowAvatarZoom(false)}
+            >
+              <div className="relative max-w-[90vw] max-h-[80vh] flex flex-col items-center">
+                <motion.img
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  src={booking.tasker.avatarUrl}
+                  alt={booking.tasker.fullName ?? ""}
+                  className="max-w-full max-h-[70vh] rounded-2xl object-contain shadow-2xl border border-white/10"
+                />
+                <div className="mt-4 text-center">
+                  <p className="text-white font-bold text-base">{booking.tasker.fullName ?? "Chuyên gia dọn dẹp"}</p>
+                  <p className="text-white/60 text-xs mt-1">Chạm vào vùng trống bất kỳ hoặc ảnh để đóng</p>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,14 +1,18 @@
-// src/features/services/_components/BookingStepper.tsx
+"use client";
 
-import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, Clock3, Loader2, PackageOpen } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { ServiceItem } from "@/features/services/types/service.type"; // corrected type
-import { StepSelectService } from "./StepSelectService";
-import { StepCustomerInfo } from "./StepCustomerInfo";
-import { StepConfirmation } from "./StepConfirmation";
-import { createBooking, BookingPayload } from "@/lib/api/booking";
+import type { ServiceItem } from "@/features/services/types/service.type";
+import { usePublicServices } from "../hooks/usePublicServices";
 
 interface BookingStepperProps {
   open: boolean;
@@ -16,75 +20,141 @@ interface BookingStepperProps {
   service: ServiceItem | null;
 }
 
-export const BookingStepper: React.FC<BookingStepperProps> = ({ open, onOpenChange, service }) => {
-  const [step, setStep] = useState(0);
-  const [bookingData, setBookingData] = useState<BookingPayload>({
-    serviceId: "",
-    locationType: "home",
-    address: "",
-    bookingDate: "",
-    bookingTime: "",
-  });
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
 
-  const { toast } = useToast();
+export function BookingStepper({
+  open,
+  onOpenChange,
+  service,
+}: BookingStepperProps) {
+  const router = useRouter();
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const { data, isLoading, isError, refetch } = usePublicServices();
+  const services = data?.data ?? [];
+  const requestedId = service ? String(service.id) : "";
+  const effectiveServiceId =
+    services.find((item) => item.id === selectedServiceId)?.id ??
+    services.find((item) => item.id === requestedId)?.id ??
+    services[0]?.id ??
+    "";
 
-  const handleNext = (data?: Partial<BookingPayload>) => {
-    if (data) {
-      setBookingData((prev) => ({ ...prev, ...data }));
-    }
-    setStep((s) => s + 1);
+  const continueBooking = () => {
+    if (!effectiveServiceId) return;
+    onOpenChange(false);
+    router.push(
+      `/customer/booking?serviceId=${encodeURIComponent(effectiveServiceId)}`,
+    );
   };
-
-  const handleBack = () => {
-    setStep((s) => Math.max(s - 1, 0));
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const res = await createBooking(bookingData);
-      toast({
-        title: "Đặt lịch thành công",
-        description: `Mã đặt: ${res.bookingId}`,
-        variant: "default",
-      });
-      // reset state & close
-      setStep(0);
-      onOpenChange(false);
-    } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        toast({
-          title: "Lỗi đặt lịch",
-          description: err.message || "Không thể đặt lịch",
-          variant: "destructive",
-        });
-      }
-  };
-
-  // Khi mở, khởi tạo serviceId
-  React.useEffect(() => {
-    if (open && service) {
-      setBookingData((prev) => ({ ...prev, serviceId: String(service.id) }));
-    }
-  }, [open, service]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg sm:w-full">
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-hidden rounded-2xl p-0 sm:max-w-xl">
+        <DialogHeader className="border-b border-border/50 px-6 py-5">
           <DialogTitle>Đặt dịch vụ</DialogTitle>
-          <DialogDescription>Vui lòng điền thông tin để hoàn tất đặt lịch</DialogDescription>
+          <DialogDescription>
+            Chọn gói dịch vụ phù hợp để bắt đầu đặt lịch.
+          </DialogDescription>
         </DialogHeader>
-        {step === 0 && service && (
-          <StepSelectService service={service} onNext={() => handleNext()} onClose={() => onOpenChange(false)} />
-        )}
-        {step === 1 && (
-          <StepCustomerInfo onNext={(data) => handleNext(data)} onBack={handleBack} />
-        )}
-        {step === 2 && (
-          <StepConfirmation data={bookingData} onBack={handleBack} onConfirm={handleSubmit} />
-        )}
-        <DialogFooter className="hidden" /> {/* Footer not used, steps render own buttons */}
+
+        <div className="max-h-[60vh] overflow-y-auto px-6 py-5">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-14">
+              <Loader2 className="size-7 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                Đang tải danh sách dịch vụ...
+              </p>
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <PackageOpen className="size-9 text-muted-foreground/50" />
+              <div>
+                <p className="font-bold">Không thể tải dịch vụ</p>
+                <p className="text-sm text-muted-foreground">
+                  Vui lòng thử lại sau ít phút.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => void refetch()}>
+                Thử lại
+              </Button>
+            </div>
+          ) : services.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <PackageOpen className="size-9 text-muted-foreground/50" />
+              <p className="font-bold">Chưa có dịch vụ khả dụng</p>
+              <p className="text-sm text-muted-foreground">
+                Hệ thống chưa mở gói dịch vụ để đặt lịch.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {services.map((item) => {
+                const selected = item.id === effectiveServiceId;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedServiceId(item.id)}
+                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                      selected
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border/60 hover:border-primary/40"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground">{item.name}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          {item.subServices?.[0]?.shortDescription ||
+                            item.policyDescription ||
+                            "Dịch vụ vệ sinh theo yêu cầu của bạn."}
+                        </p>
+                      </div>
+                      {selected && (
+                        <CheckCircle2 className="size-5 shrink-0 text-primary" />
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock3 className="size-3.5" />
+                        {item.maxHours ? `Tối đa ${item.maxHours} giờ` : "Tùy chọn"}
+                      </span>
+                      <span className="font-black text-primary">
+                        {item.subServices && item.subServices.length > 0
+                          ? "Từ " + formatCurrency(Math.min(...item.subServices.map((s) => s.pricing?.basePrice || 0)))
+                          : "Liên hệ"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 border-t border-border/50 px-6 py-4">
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => onOpenChange(false)}
+          >
+            Hủy
+          </Button>
+          <Button
+            className="rounded-xl"
+            disabled={!effectiveServiceId || isLoading}
+            onClick={continueBooking}
+          >
+            Tiếp tục
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
-};
+}

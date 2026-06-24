@@ -30,6 +30,7 @@ import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
+import { UpdatePresenceDto } from './dto/update-presence.dto';
 import { TaskerService } from './tasker.service';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -190,6 +191,18 @@ export class TaskerController {
   })
   findMyProfile(@CurrentUser() user: AuthUser) {
     return this.taskerService.findMyProfile(user.id);
+  }
+
+  @Patch('me/presence')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker cập nhật trạng thái hoạt động (ONLINE / OFFLINE)',
+  })
+  updatePresence(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdatePresenceDto,
+  ) {
+    return this.taskerService.updatePresence(user.id, dto.presenceStatus);
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────

@@ -1,7 +1,6 @@
 export interface PricingConfig {
   id: string;
-  serviceId: string;
-  serviceName?: string;
+  name: string;
   basePrice: number;
   peakPrice: number | null;
   petFee: number;
@@ -12,7 +11,7 @@ export interface PricingConfig {
 }
 
 export interface CreatePricingConfigPayload {
-  serviceId: string;
+  name: string;
   basePrice: number;
   peakPrice?: number | null;
   petFee?: number;
@@ -22,6 +21,7 @@ export interface CreatePricingConfigPayload {
 }
 
 export interface UpdatePricingConfigPayload {
+  name?: string;
   basePrice?: number;
   peakPrice?: number | null;
   petFee?: number;
@@ -33,7 +33,7 @@ export interface UpdatePricingConfigPayload {
 export interface PricingListQuery {
   page?: number;
   limit?: number;
-  serviceId?: string;
+  name?: string;
 }
 
 export interface PricingListResponse {

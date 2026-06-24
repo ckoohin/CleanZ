@@ -19,13 +19,49 @@ export interface MyTicketSummary {
   slaBreached: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Số tin nhắn chưa đọc — badge ngoài ticket. */
+  unreadCount?: number;
+}
+
+export type MessageSenderRole = "CUSTOMER" | "TASKER" | "ADMIN" | "SYSTEM";
+
+export interface TicketAttachment {
+  id: string;
+  url: string;
 }
 
 export interface PublicMessage {
   id: string;
   senderUserId: string | null;
+  senderRole: MessageSenderRole;
   body: string;
+  attachments: TicketAttachment[];
   createdAt: string;
+  /** Đánh dấu tin đang gửi (optimistic, chưa có id thật từ server). */
+  pending?: boolean;
+}
+
+export type TicketAudience = "REPORTER" | "COUNTERPARTY" | "INTERNAL";
+
+export interface TicketMessageEvent {
+  ticketId: string;
+  audience: TicketAudience;
+  message: PublicMessage;
+}
+
+export interface TicketTypingEvent {
+  ticketId: string;
+  audience: TicketAudience;
+  fromUserId: string;
+  fromRole: string;
+}
+
+export interface TicketReadEvent {
+  ticketId: string;
+  audience: TicketAudience;
+  byUserId: string;
+  lastReadMessageId: string | null;
+  readAt: string;
 }
 
 export interface MyTicketDetail extends MyTicketSummary {
@@ -74,8 +110,12 @@ export interface MyTicketQueryParams {
 }
 
 export interface SendMessageDto {
-  body: string;
+  body?: string;
   attachmentIds?: string[];
+}
+
+export interface MarkReadDto {
+  lastMessageId?: string;
 }
 
 export interface SubmitSurveyDto {

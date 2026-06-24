@@ -15,7 +15,7 @@ lerna-debug.log*
 # Environment variables
 .env
 
-
+./database
 # OS
 .DS_Store
 
@@ -70,3 +70,4 @@ testsprite_tests
 # Scripts
 check-db.js
 sync-db.js
+fake-migrations.js

@@ -26,6 +26,12 @@ export const taskerApi = {
     }
   },
 
+  // PATCH /tasker/me/presence — cập nhật trạng thái hoạt động (online/offline)
+  updatePresence: (presenceStatus: 'ONLINE' | 'OFFLINE'): Promise<TaskerProfile> =>
+    http
+      .patch<TaskerProfile>('/tasker/me/presence', { presenceStatus })
+      .then((res) => res.data),
+
   // POST /tasker/profile — nộp hồ sơ (multipart/form-data)
   submitProfile: (formData: FormData): Promise<TaskerProfile> =>
     http

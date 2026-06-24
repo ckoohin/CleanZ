@@ -4,9 +4,10 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { TaskerSidebar } from "@/features/tasker/_components/TaskerSidebar";
-import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
+import { useTaskerProfile, useUpdatePresence } from "@/features/tasker/hooks/tasker.hooks";
 import { useTaskerActionGuard } from "@/features/tasker/hooks/useTaskerActionGuard";
 import RoleGuard from "@/features/auth/_components/authv1/RoleGuard";
+import { ActiveJobWidget } from "@/features/booking/components/ActiveJobWidget";
 
 // Page transition variants — slide nhẹ từ phải sang trái (kiểu native app)
 const PAGE_VARIANTS = {
@@ -29,11 +30,13 @@ export default function TaskerLayout({
   const pathname = usePathname();
   const { data: tasker } = useTaskerProfile();
   const guard = useTaskerActionGuard(tasker);
+  const updatePresence = useUpdatePresence();
 
   const handleToggleOnline = () => {
     guard.requireVerified(() => {
-      // TODO: Gọi API set isOnline thật khi BE sẵn sàng
-      console.log("Toggle online — tasker is verified");
+      const currentStatus = tasker?.presenceStatus;
+      const newStatus = currentStatus === "ONLINE" ? "OFFLINE" : "ONLINE";
+      updatePresence.mutate(newStatus);
     });
   };
 
@@ -59,6 +62,9 @@ export default function TaskerLayout({
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* Khôi phục và định vị Widget theo dõi công việc hoạt động chuẩn xác theo viewport toàn màn hình */}
+        <ActiveJobWidget />
       </div>
     </RoleGuard>
   );

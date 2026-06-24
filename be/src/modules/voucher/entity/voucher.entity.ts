@@ -9,7 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { VoucherType } from '../../../common/enums/voucher-type.enum';
-import { ServiceEntity } from '../../service/entity/service.entity';
+import { SubServiceEntity } from '../../service/entity/sub-service.entity';
 import { CustomerVoucherEntity } from './customer-voucher.entity';
 
 @Entity('vouchers')
@@ -73,12 +73,12 @@ export class VoucherEntity {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @ManyToOne(() => ServiceEntity, (s) => s.vouchers, {
+  @ManyToOne(() => SubServiceEntity, (s) => s.vouchers, {
     nullable: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'service_id' })
-  service?: ServiceEntity | null;
+  service?: SubServiceEntity | null;
 
   @OneToMany(() => CustomerVoucherEntity, (cv) => cv.voucher)
   customerVouchers!: CustomerVoucherEntity[];

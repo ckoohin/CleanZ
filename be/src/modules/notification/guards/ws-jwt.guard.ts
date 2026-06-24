@@ -26,6 +26,13 @@ export class WsJwtGuard {
   ) {}
 
   verifyFromHandshake(client: Socket): string | null {
+    return this.verifyPayloadFromHandshake(client)?.userId ?? null;
+  }
+
+  /** Trả userId + role từ handshake (cookie hoặc auth.token); null nếu sai. */
+  verifyPayloadFromHandshake(
+    client: Socket,
+  ): { userId: string; role: string } | null {
     const rawCookie = client.handshake.headers.cookie ?? '';
     const cookies = parseCookieHeader(rawCookie);
     let token: string | undefined = cookies['access_token'];
@@ -40,7 +47,8 @@ export class WsJwtGuard {
       const payload = this.jwtService.verify<JwtPayload>(token, {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
-      return payload.sub ?? null;
+      if (!payload.sub) return null;
+      return { userId: payload.sub, role: payload.role };
     } catch {
       this.logger.debug('WS handshake: invalid/expired token');
       return null;

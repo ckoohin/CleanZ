@@ -33,8 +33,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import Container from "@/components/Container";
 import ServiceCard from "../_components/ServiceCard";
-import { BookingStepper } from "../_components/BookingStepper";
+import { ServiceDetailModal } from "../_components/ServiceDetailModal";
 import { ServiceItem } from "@/features/services/types/service.type";
+import { usePublicCategories } from "@/features/public/hooks/usePublicData";
+import { usePublicServices } from "@/features/services/hooks/usePublicServices";
+import { PublicService } from "@/features/services/types/public-service.type";
 import { 
   containerVariants, 
   headingVariants 
@@ -108,18 +111,6 @@ const CATEGORY_MAP: Record<string, CategoryMapItem> = {
   },
 };
 
-const DUMMY_SERVICES = (slug: string) => [
-  ...Array(4).fill(null).map((_, i) => ({
-    id: i + 1,
-    title: `Gói tiêu chuẩn ${i + 2} giờ`,
-    desc: "Người giúp việc sẽ thực hiện các công việc vệ sinh theo yêu cầu trong khoảng thời gian đã đặt.",
-    image: CATEGORY_MAP[slug]?.image || "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=800&q=80",
-    tag: "Phổ biến", rating: "4.9", reviews: "450",
-    price: `${(i + 2) * 60}.000đ`, unit: "/ lần", duration: `${i + 2} giờ`,
-    categoryId: slug
-  }))
-];
-
 const EXPERTS = [
   { name: "Nguyễn Thị A", role: "Nhân viên vệ sinh", rating: 4.9, avatar: "https://i.pravatar.cc/150?img=1" },
   { name: "Trần Thị B", role: "Chuyên viên làm sạch", rating: 5.0, avatar: "https://i.pravatar.cc/150?img=5" },
@@ -127,26 +118,32 @@ const EXPERTS = [
   { name: "Phạm Thị D", role: "Nhân viên vệ sinh", rating: 4.9, avatar: "https://i.pravatar.cc/150?img=16" },
 ];
 
+
+
 export const CategoryDetailPage = () => {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
 
+  const { data: categories } = usePublicCategories();
+  const currentCategoryData = categories?.find(c => c.slug === slug);
+  const categoryId = currentCategoryData?.id;
+
+  const { data: publicServicesResponse, isLoading: isLoadingServices } = usePublicServices();
+  const services = publicServicesResponse?.data ?? [];
+
   // Booking modal state
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
-  const handleBook = (service: ServiceItem) => {
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<PublicService | null>(null);
+  
+  const handleViewDetail = (service: PublicService) => {
     setSelectedService(service);
-    setBookingModalOpen(true);
+    setDetailModalOpen(true);
   };
 
-  
-  
-  
-  
   const category = CATEGORY_MAP[slug] || { 
     icon: SparklesIcon, 
-    label: slug?.charAt(0).toUpperCase() + slug?.slice(1) || "Dịch vụ", 
+    label: currentCategoryData?.name || slug?.charAt(0).toUpperCase() + slug?.slice(1) || "Dịch vụ", 
     color: "text-primary", 
     bg: "var(--color-primary-10)",
     theme: "hsl(var(--primary))",
@@ -154,20 +151,21 @@ export const CategoryDetailPage = () => {
     image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1600&q=80"
   };
 
+  const Icon = category.icon;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setBy] = useState("popular");
 
   const filteredServices = useMemo(() => {
-  // booking state moved to top of component
-
-    return DUMMY_SERVICES(slug).filter(s => 
-      s.categoryId === slug && 
-      (s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       s.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [searchQuery, slug]);
-
-  const Icon = category.icon;
+    return services.filter((s: PublicService) => {
+      const firstSub = s.subServices?.[0];
+      const shortDesc = firstSub?.shortDescription || s.policyDescription || "";
+      return (
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        shortDesc.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [searchQuery, services]);
 
   return (
     <div className="category-detail-page min-h-screen bg-background text-foreground transition-colors duration-300 relative overflow-hidden">
@@ -188,7 +186,7 @@ export const CategoryDetailPage = () => {
             alt={category.label} 
             className="w-full h-full object-cover opacity-[0.05] md:opacity-[0.07] scale-110 blur-[2px]"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/80 to-background" />
+          <div className="absolute inset-0 bg-linear-to-b from-background/0 via-background/80 to-background" />
         </div>
 
         <Container className="px-5 md:px-0">
@@ -218,7 +216,7 @@ export const CategoryDetailPage = () => {
                 animate="visible"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6 md:gap-8 mb-8 md:mb-10 group">
-                  <div className={`w-16 h-16 md:w-28 md:h-28 rounded-2xl md:rounded-[2.5rem] bg-card border border-border/80 flex items-center justify-center shadow-2xl transition-all duration-700 group-hover:rotate-[15deg] group-hover:scale-110 relative shrink-0`}>
+                  <div className={`w-16 h-16 md:w-28 md:h-28 rounded-2xl md:rounded-[2.5rem] bg-card border border-border/80 flex items-center justify-center shadow-2xl transition-all duration-700 group-hover:rotate-15 group-hover:scale-110 relative shrink-0`}>
                     <div className="absolute inset-0 rounded-2xl md:rounded-[2.5rem] opacity-20 blur-xl" style={{ backgroundColor: category.theme }} />
                     <Icon className="w-8 h-8 md:w-14 md:h-14 relative z-10" style={{ color: category.theme }} />
                   </div>
@@ -277,7 +275,6 @@ export const CategoryDetailPage = () => {
                 <Button 
                    size="lg" 
                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 md:h-20 rounded-2xl md:rounded-[1.5rem] font-black text-base md:text-lg shadow-2xl shadow-primary/30 mb-4"
-                   onClick={() => handleBook(DUMMY_SERVICES(slug)[0] as any)}
                 >
                   Đặt yêu cầu ngay
                 </Button>
@@ -344,31 +341,41 @@ export const CategoryDetailPage = () => {
           </div>
 
           {/* Grid Layout */}
-          <AnimatePresence mode="popLayout">
-            {filteredServices.length > 0 ? (
-              <motion.div 
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10"
-                variants={containerVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                layout
-              >
-                {filteredServices.map((service, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {isLoadingServices ? (
+              <div className="col-span-full py-20 text-center text-muted-foreground flex flex-col items-center justify-center">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                Đang tải danh sách dịch vụ...
+              </div>
+            ) : filteredServices.length > 0 ? (
+              filteredServices.map((srv: PublicService, idx: number) => {
+                const firstSub = srv.subServices?.[0];
+                const mappedService: ServiceItem = {
+                  id: srv.id,
+                  title: srv.name,
+                  desc: firstSub?.shortDescription || srv.policyDescription || "",
+                  image: srv.iconUrl || firstSub?.thumbnailUrl || category.image,
+                  tag: idx === 0 ? "Phổ biến" : "Mới",
+                  rating: "5.0",
+                  reviews: "10+",
+                  price: srv.subServices && srv.subServices.length > 0
+                    ? "Từ " + Math.min(...srv.subServices.map((s) => s.pricing?.basePrice || 0)).toLocaleString() + "đ"
+                    : "Liên hệ",
+                  unit: "/ lần",
+                  duration: srv.maxHours ? `Tối đa ${srv.maxHours} giờ` : "Tùy chọn",
+                  categoryId: srv.id
+                };
+                return (
                   <ServiceCard 
-                    key={service.id} 
-                    service={service} 
-                    index={index}
-                    onBook={handleBook}
+                    key={srv.id} 
+                    index={idx} 
+                    service={mappedService} 
+                    onBook={() => handleViewDetail(srv)} 
                   />
-                ))}
-              </motion.div>
+                );
+              })
             ) : (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-24 md:py-40 bg-card/20 backdrop-blur-xl rounded-[2.5rem] md:rounded-[4rem] border border-dashed border-border/60"
-              >
+              <div className="col-span-full text-center py-24 md:py-40 bg-card/20 backdrop-blur-xl rounded-[2.5rem] md:rounded-[4rem] border border-dashed border-border/60">
                 <div className="w-16 h-16 md:w-24 md:h-24 bg-muted/30 rounded-full flex items-center justify-center mx-auto mb-8">
                   <Search className="w-8 h-8 md:w-10 md:h-10 text-muted-foreground/30" />
                 </div>
@@ -383,9 +390,9 @@ export const CategoryDetailPage = () => {
                 >
                   Xem tất cả gói
                 </Button>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </div>
         </Container>
       </section>
 
@@ -435,7 +442,7 @@ export const CategoryDetailPage = () => {
         <Container className="px-5 md:px-0">
           <div className="flex flex-col gap-12 lg:flex-row lg:gap-20 items-center">
              <div className="w-full lg:w-1/2 relative">
-                <div className="aspect-[4/3] rounded-[2rem] md:rounded-[4rem] overflow-hidden shadow-2xl relative z-10">
+                <div className="aspect-4/3 rounded-[2rem] md:rounded-[4rem] overflow-hidden shadow-2xl relative z-10">
                    <img 
                     src={category.image} 
                     alt="Why choose us" 
@@ -521,9 +528,13 @@ export const CategoryDetailPage = () => {
            </div>
         </Container>
       </section>
-    {/* Booking Modal */}
-    <BookingStepper open={bookingModalOpen} onOpenChange={setBookingModalOpen} service={selectedService} />
-    </div>
+      {/* Detail Modal */}
+      <ServiceDetailModal 
+        isOpen={detailModalOpen} 
+        onClose={() => setDetailModalOpen(false)} 
+        service={selectedService} 
+      />
+      </div>
   );
 };
 

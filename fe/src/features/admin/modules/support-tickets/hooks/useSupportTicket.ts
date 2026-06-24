@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSocketEvent } from "@/hooks/use-socket";
 import { supportTicketAdminApi } from "../services/support-ticket.service";
 import type {
   AdminTicketQueryParams,
   AssignTicketDto,
   ChangeStatusDto,
-  CreateAdminMessageDto,
   CreateResolutionDto,
   CreateTicketOnBehalfDto,
   ReclassifyTicketDto,
@@ -49,6 +49,26 @@ export function useTicketList(params?: AdminTicketQueryParams) {
     queryKey: supportTicketKeys.list(params),
     queryFn: () => supportTicketAdminApi.list(params),
     placeholderData: (prev) => prev,
+  });
+}
+
+// ─── Unread realtime (badge ngoài ticket) ─────────────────────────────────────
+export function useAdminTicketUnreadTotal() {
+  return useQuery({
+    queryKey: ["admin-support-tickets", "unread-total"],
+    queryFn: () => supportTicketAdminApi.unreadTotal(),
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Realtime: có tin mới của user → làm mới hàng đợi để badge cập nhật. */
+export function useAdminTicketUnreadRealtime() {
+  const queryClient = useQueryClient();
+  useSocketEvent("ticket:unread", () => {
+    queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
+    queryClient.invalidateQueries({
+      queryKey: ["admin-support-tickets", "unread-total"],
+    });
   });
 }
 
@@ -100,22 +120,6 @@ export function useChangeTicketStatus(id: string) {
       toast.success("Đã cập nhật trạng thái ticket");
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
-    },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
-  });
-}
-
-// ─── Add Message ──────────────────────────────────────────────────────────────
-export function useAddTicketMessage(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: CreateAdminMessageDto) =>
-      supportTicketAdminApi.addMessage(id, dto),
-    onSuccess: (_, variables) => {
-      toast.success(
-        variables.isInternal ? "Đã thêm internal note" : "Đã gửi tin nhắn"
-      );
-      queryClient.invalidateQueries({ queryKey: supportTicketKeys.detail(id) });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });

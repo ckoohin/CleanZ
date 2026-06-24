@@ -5,6 +5,9 @@ import type {
   CustomerDetailResponse,
   PaginatedCustomerBookingsResponse,
   ToggleCustomerStatusResponse,
+  CreateCustomerPayload,
+  UpdateCustomerPayload,
+  DeleteCustomerResponse,
 } from '../types/customer.types';
 
 const BASE = '/admin/customers';
@@ -35,5 +38,17 @@ export const adminCustomerApi = {
     return http
       .patch<ToggleCustomerStatusResponse>(`${BASE}/${id}/status`, { isActive })
       .then((res) => res.data);
+  },
+
+  createCustomer: (payload: CreateCustomerPayload): Promise<CustomerDetailResponse> => {
+    return http.post<CustomerDetailResponse>(BASE, payload).then((res) => res.data);
+  },
+
+  updateCustomer: (id: string, payload: UpdateCustomerPayload): Promise<CustomerDetailResponse> => {
+    return http.patch<CustomerDetailResponse>(`${BASE}/${id}`, payload).then((res) => res.data);
+  },
+
+  deleteCustomer: (id: string): Promise<DeleteCustomerResponse> => {
+    return http.delete<DeleteCustomerResponse>(`${BASE}/${id}`).then((res) => res.data);
   },
 };

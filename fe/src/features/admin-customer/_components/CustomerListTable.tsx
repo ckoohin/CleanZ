@@ -15,12 +15,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useAdminCustomers } from "../hooks/useAdminCustomer";
+import { Button } from "@/components/ui/button";
+import {
+  useAdminCustomers,
+  useDeleteCustomer,
+} from "../hooks/useAdminCustomer";
 import type { CustomerListItem } from "../types/customer.types";
 import { CustomerStatusToggle } from "./CustomerStatusToggle";
 import { CustomerDetailDrawer } from "./CustomerDetailDrawer";
+import { CustomerFormDialog } from "./CustomerFormDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import {
   Eye,
+  Pencil,
   ShieldAlert,
   ListFilter,
   UserCheck,
@@ -28,6 +35,7 @@ import {
   PauseCircle,
   Download,
   Trash2,
+  Plus,
 } from "lucide-react";
 
 export const CustomerListTable: React.FC = () => {
@@ -44,6 +52,13 @@ export const CustomerListTable: React.FC = () => {
   });
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  // null = closed, undefined = create mode, CustomerListItem = edit mode
+  const [formCustomer, setFormCustomer] = useState<
+    CustomerListItem | null | undefined
+  >(null);
+  const [deleteTarget, setDeleteTarget] = useState<CustomerListItem | null>(null);
+
+  const deleteMutation = useDeleteCustomer();
 
   // Map state to API filters
   const apiActiveParam =
@@ -63,7 +78,9 @@ export const CustomerListTable: React.FC = () => {
   const displayData = response?.data || [];
   const totalItems = response?.meta?.total || 0;
 
-  // Bulk actions — UI chỉ hiển thị, backend chưa hỗ trợ (sẽ wiring sau).
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState<CustomerListItem[]>([]);
+
+  // Bulk actions — một số UI chỉ hiển thị, backend chưa hỗ trợ (sẽ wiring sau).
   const notImplemented = (label: string) => (rows: CustomerListItem[]) =>
     toast.info(`${label} (${rows.length} khách hàng): tính năng đang được phát triển.`);
 
@@ -75,9 +92,26 @@ export const CustomerListTable: React.FC = () => {
       label: "Xóa",
       icon: Trash2,
       variant: "destructive",
-      onClick: notImplemented("Xóa"),
+      onClick: (rows) => setBulkDeleteTargets(rows),
     },
   ];
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+    });
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      await Promise.all(
+        bulkDeleteTargets.map((c) => deleteMutation.mutateAsync(c.id)),
+      );
+    } finally {
+      setBulkDeleteTargets([]);
+    }
+  };
 
   // Columns definition
   const columns: Column<CustomerListItem>[] = [
@@ -155,6 +189,19 @@ export const CustomerListTable: React.FC = () => {
       icon: Eye,
       onClick: (row) => setSelectedCustomerId(row.id),
     },
+    {
+      type: "edit",
+      label: "Chỉnh sửa",
+      icon: Pencil,
+      onClick: (row) => setFormCustomer(row),
+    },
+    {
+      type: "delete",
+      label: "Xóa",
+      icon: Trash2,
+      variant: "destructive",
+      onClick: (row) => setDeleteTarget(row),
+    },
   ];
 
   return (
@@ -166,6 +213,13 @@ export const CustomerListTable: React.FC = () => {
             Tìm kiếm, lọc theo trạng thái và quản lý tài khoản khách hàng.
           </p>
         </div>
+        <Button
+          onClick={() => setFormCustomer(undefined)}
+          className="rounded-full shrink-0 gap-1.5"
+        >
+          <Plus className="w-4 h-4" />
+          Thêm khách hàng
+        </Button>
       </div>
 
       <BaseTableList
@@ -184,7 +238,7 @@ export const CustomerListTable: React.FC = () => {
         emptyTitle="Không tìm thấy khách hàng"
         emptyDescription="Không có khách hàng nào khớp với tìm kiếm hoặc bộ lọc của bạn."
         rowActions={rowActions}
-        inlineActionCount={1}
+        inlineActionCount={3}
         bulkActions={bulkActions}
         filters={
           <Select
@@ -231,6 +285,50 @@ export const CustomerListTable: React.FC = () => {
           onClose={() => setSelectedCustomerId(null)}
         />
       )}
+
+      {formCustomer !== null && (
+        <CustomerFormDialog
+          // Remount on each open so the form state initializes fresh from props.
+          key={formCustomer ? formCustomer.id : "create"}
+          isOpen={formCustomer !== null}
+          customer={formCustomer}
+          onClose={() => setFormCustomer(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        isPending={deleteMutation.isPending}
+        variant="destructive"
+        title="Xóa khách hàng"
+        confirmLabel="Xóa"
+        description={
+          <span>
+            Bạn có chắc chắn muốn xóa khách hàng{" "}
+            <strong>{deleteTarget?.fullName}</strong>? Tài khoản sẽ bị vô hiệu hóa
+            và không còn xuất hiện trong danh sách.
+          </span>
+        }
+      />
+
+      <ConfirmDialog
+        isOpen={bulkDeleteTargets.length > 0}
+        onClose={() => setBulkDeleteTargets([])}
+        onConfirm={handleConfirmBulkDelete}
+        isPending={deleteMutation.isPending}
+        variant="destructive"
+        title="Xóa khách hàng đã chọn"
+        confirmLabel={`Xóa ${bulkDeleteTargets.length} khách hàng`}
+        description={
+          <span>
+            Bạn có chắc chắn muốn xóa{" "}
+            <strong>{bulkDeleteTargets.length}</strong> khách hàng đã chọn? Các tài
+            khoản sẽ bị vô hiệu hóa và không còn xuất hiện trong danh sách.
+          </span>
+        }
+      />
     </div>
   );
 };

@@ -1,36 +1,57 @@
 "use client";
 
 import React, { use } from "react";
-import { ArrowLeft, Loader2, Info, ListOrdered, Users } from "lucide-react";
+import { ArrowLeft, Loader2, LayoutDashboard, DollarSign, Package, ScrollText, Star, Activity, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { useAdminServiceDetail } from "@/features/admin/hooks/useAdminServices";
+import {
+  useAdminPackageDetail,
+  useUpdateAdminPackage,
+} from "@/features/admin/modules/service/hooks/useAdminServices";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ServiceOverviewTab } from "@/features/admin/components/services/detail/ServiceOverviewTab";
-import { ServiceBookingsTab } from "@/features/admin/components/services/detail/ServiceBookingsTab";
-import { ServiceTaskersTab } from "@/features/admin/components/services/detail/ServiceTaskersTab";
 
-export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+// Tab components
+import { PackageHero } from "@/features/admin/modules/service/_components/detail/PackageHero";
+import { PackageOverviewTab } from "@/features/admin/modules/service/_components/detail/PackageOverviewTab";
+import { PackagePricingTab } from "@/features/admin/modules/service/_components/detail/PackagePricingTab";
+import { PackageSubServicesTab } from "@/features/admin/modules/service/_components/detail/PackageSubServicesTab";
+import { PackageTermsTab } from "@/features/admin/modules/service/_components/detail/PackageTermsTab";
+import { PackageReviewsTab } from "@/features/admin/modules/service/_components/detail/PackageReviewsTab";
+import { PackageStatsTab } from "@/features/admin/modules/service/_components/detail/PackageStatsTab";
+import { PackageOperationsTab } from "@/features/admin/modules/service/_components/detail/PackageOperationsTab";
+
+const TABS = [
+  { value: "overview",     label: "Tổng quan",       icon: LayoutDashboard },
+  { value: "pricing",     label: "Bảng giá",         icon: DollarSign },
+  { value: "sub-services",label: "Dịch vụ con",      icon: Package },
+  { value: "terms",       label: "Chính sách & ĐK",  icon: ScrollText },
+  { value: "reviews",     label: "Đánh giá",          icon: Star },
+  { value: "operations",  label: "Vận hành",          icon: Activity },
+  { value: "stats",       label: "Thống kê",          icon: BarChart3 },
+];
+
+export default function ServicePackageDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
 
-  const { data: service, isLoading, isError } = useAdminServiceDetail(id);
+  const { data: pkg, isLoading, isError } = useAdminPackageDetail(id);
+  const updateMutation = useUpdateAdminPackage();
 
   if (isLoading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" aria-hidden="true" />
       </div>
     );
   }
 
-  if (isError || !service) {
+  if (isError || !pkg) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <BaseEmptyState 
-          title="Không tìm thấy dịch vụ" 
-          description="Dịch vụ này có thể đã bị xóa hoặc không tồn tại." 
+        <BaseEmptyState
+          title="Không tìm thấy gói dịch vụ"
+          description="Gói dịch vụ này có thể đã bị xóa hoặc không tồn tại."
         />
         <BaseButton className="mt-6" onClick={() => router.push("/admin/services")}>
           Quay lại danh sách
@@ -40,53 +61,76 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex items-center gap-4">
+    <div className="space-y-6 w-full">
+      {/* Back button */}
+      <div className="flex items-center gap-3">
         <BaseButton
           variant="outline"
           size="icon"
           onClick={() => router.push("/admin/services")}
           className="rounded-full h-10 w-10 shrink-0"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
         </BaseButton>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Chi tiết dịch vụ
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Mã dịch vụ: <span className="font-mono font-bold text-primary">{service.serviceCode}</span>
-          </p>
+          <p className="text-xs text-muted-foreground font-medium">Quản lý Gói Dịch vụ</p>
+          <h1 className="text-lg font-bold text-foreground leading-tight">{pkg.name}</h1>
         </div>
       </div>
 
-      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
+      {/* Hero section */}
+      <PackageHero
+        pkg={pkg}
+        onToggle={() => updateMutation.mutate({ id: pkg.id, payload: { isActive: !pkg.isActive } })}
+        isToggling={updateMutation.isPending}
+      />
+
+      {/* Main tabs */}
+      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-5 md:p-8">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/50 p-1.5 rounded-2xl h-auto">
-            <TabsTrigger value="overview" className="rounded-xl py-3 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all">
-              <Info className="w-4 h-4 mr-2" />
-              Tổng quan
-            </TabsTrigger>
-            <TabsTrigger value="bookings" className="rounded-xl py-3 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all">
-              <ListOrdered className="w-4 h-4 mr-2" />
-              Lịch sử Đặt lịch
-            </TabsTrigger>
-            <TabsTrigger value="taskers" className="rounded-xl py-3 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all">
-              <Users className="w-4 h-4 mr-2" />
-              Nhân sự phục vụ
-            </TabsTrigger>
-          </TabsList>
+          {/* Tab list - scrollable on mobile */}
+          <div className="overflow-x-auto scrollbar-hide mb-8">
+            <TabsList className="inline-flex w-max min-w-full bg-muted/50 p-1.5 rounded-2xl h-auto gap-1">
+              {TABS.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="rounded-xl py-2.5 px-4 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all text-sm gap-1.5"
+                >
+                  <tab.icon className="w-4 h-4" aria-hidden="true" />
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
-          <TabsContent value="overview" className="mt-0 animate-in fade-in-50 duration-500">
-            <ServiceOverviewTab service={service} />
+          {/* Tab contents */}
+          <TabsContent value="overview" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageOverviewTab pkg={pkg} />
           </TabsContent>
 
-          <TabsContent value="bookings" className="mt-0 animate-in fade-in-50 duration-500">
-            <ServiceBookingsTab serviceId={id} />
+          <TabsContent value="pricing" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackagePricingTab pkg={pkg} />
           </TabsContent>
 
-          <TabsContent value="taskers" className="mt-0 animate-in fade-in-50 duration-500">
-            <ServiceTaskersTab serviceId={id} />
+          <TabsContent value="sub-services" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageSubServicesTab pkg={pkg} />
+          </TabsContent>
+
+          <TabsContent value="terms" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageTermsTab pkg={pkg} />
+          </TabsContent>
+
+          <TabsContent value="reviews" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageReviewsTab packageId={id} />
+          </TabsContent>
+
+          <TabsContent value="operations" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageOperationsTab pkg={pkg} />
+          </TabsContent>
+
+          <TabsContent value="stats" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageStatsTab packageId={id} packageName={pkg.name} />
           </TabsContent>
         </Tabs>
       </div>

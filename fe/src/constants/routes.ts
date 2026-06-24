@@ -37,10 +37,55 @@ export const ROUTES = {
   },
   ADMIN: {
     DASHBOARD: "/admin",
-    CUSTOMERS: "/admin/customers",
-    TASKERS: "/admin/taskers",
-    SERVICES: "/admin/services",
+    ACTIVITY: "/admin/activity",
+    SERVICE_PACKAGES: "/admin/service-packages",
+    REPORTS: {
+      BASE: "/admin/reports",
+      TASKERS: "/admin/reports/taskers",
+      BOOKINGS: "/admin/reports/bookings",
+    },
     BOOKINGS: "/admin/bookings",
-    REPORTS: "/admin/reports",
+    SERVICES: {
+      BASE: "/admin/services",
+      CREATE: "/admin/services/create-package",
+      SUB_SERVICES: "/admin/services/sub-services",
+    },
+    POLICIES: {
+      BASE: "/admin/policies",
+      DEFAULTS: "/admin/policies/defaults",
+    },
+    CUSTOMERS: {
+      BASE: "/admin/customers",
+      REVIEWS: "/admin/reviews",
+    },
+    TASKERS: {
+      BASE: "/admin/taskers",
+      VERIFICATION: "/admin/taskers/verification",
+      SCHEDULE: "/admin/taskers/schedule",
+      PAYROLL: "/admin/taskers/payroll",
+    },
+    TRACKING: {
+      BASE: "/admin/tracking",
+      ROUTES: "/admin/tracking/routes",
+    },
+    NOTIFICATIONS: "/admin/notifications",
+    FINANCES: {
+      BASE: "/admin/finances",
+      WITHDRAWALS: "/admin/withdrawals",
+      WALLETS: "/admin/wallets",
+    },
+    VOUCHERS: {
+      BASE: "/admin/vouchers",
+      CREATE: "/admin/vouchers/create",
+    },
+    SUPPORT_TICKETS: {
+      BASE: "/admin/support-tickets",
+    },
+    SETTINGS: {
+      BASE: "/admin/settings",
+      PEAK_DAYS: "/admin/settings/peak-days",
+      ROLES: "/admin/roles",
+    },
   },
 } as const;
+

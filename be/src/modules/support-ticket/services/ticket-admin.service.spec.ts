@@ -41,8 +41,9 @@ describe('TicketAdminService.changeStatus (TC-U-STATE)', () => {
       findRepo as any,
       statusLogRepo,
       resolutionRepo,
-      {} as any,
-      {} as any,
+      {} as any, // userRepo
+      findRepo as any, // attachmentRepo
+      {} as any, // ticketService
       {
         onPause: jest.fn(),
         onResume: jest.fn(),
@@ -53,6 +54,13 @@ describe('TicketAdminService.changeStatus (TC-U-STATE)', () => {
         enqueueCsat: jest.fn(),
       } as any, // sla
       { notify: jest.fn().mockResolvedValue(undefined) } as any, // notification
+      { uploadImage: jest.fn() } as any, // uploadService
+      {
+        emitMessage: jest.fn(),
+        emitRead: jest.fn(),
+        emitTyping: jest.fn(),
+        emitUnread: jest.fn(),
+      } as any, // realtime
     );
   });
 

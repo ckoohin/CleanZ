@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminCustomerApi } from '../services/admin-customer.service';
-import type { CustomerQueryFilter } from '../types/customer.types';
+import type {
+  CustomerQueryFilter,
+  CreateCustomerPayload,
+  UpdateCustomerPayload,
+} from '../types/customer.types';
 import { toast } from 'sonner';
 
 export const adminCustomerKeys = {
@@ -49,6 +53,49 @@ export function useToggleCustomerStatus() {
       toast.error(
         error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái khách hàng!',
       );
+    },
+  });
+}
+
+export function useCreateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateCustomerPayload) => adminCustomerApi.createCustomer(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success('Tạo khách hàng thành công!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo khách hàng!');
+    },
+  });
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateCustomerPayload }) =>
+      adminCustomerApi.updateCustomer(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success('Cập nhật khách hàng thành công!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật khách hàng!');
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminCustomerApi.deleteCustomer(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success(data.message || 'Đã xóa khách hàng!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa khách hàng!');
     },
   });
 }

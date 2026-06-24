@@ -1,4 +1,5 @@
 import { SupportTicketEntity } from '../entity/support-ticket.entity';
+import { TicketAttachmentEntity } from '../entity/ticket-attachment.entity';
 import { TicketMessageEntity } from '../entity/ticket-message.entity';
 import { TicketStatusLogEntity } from '../entity/ticket-status-log.entity';
 import { TicketResolutionEntity } from '../entity/ticket-resolution.entity';
@@ -7,6 +8,21 @@ import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { TicketPriority } from 'src/common/enums/ticket-priority.enum';
 import { TicketSource } from 'src/common/enums/ticket-source.enum';
 import { TicketPendingReason } from 'src/common/enums/ticket-pending-reason.enum';
+import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
+import { UserEntity } from 'src/modules/users/entities/user.entity';
+
+/** Vai trò người gửi message (suy từ user.role; null sender = hệ thống). */
+export type MessageSenderRole = 'CUSTOMER' | 'TASKER' | 'ADMIN' | 'SYSTEM';
+
+export function senderRoleOf(sender?: UserEntity | null): MessageSenderRole {
+  if (!sender) return 'SYSTEM';
+  return sender.role as MessageSenderRole;
+}
+
+export interface AttachmentView {
+  id: string;
+  url: string;
+}
 
 export interface TicketSummary {
   id: string;
@@ -22,6 +38,8 @@ export interface TicketSummary {
   slaBreached: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** Số tin nhắn chưa đọc của người xem (badge ngoài ticket). */
+  unreadCount?: number;
 }
 
 export interface PartyRef {
@@ -33,7 +51,9 @@ export interface PartyRef {
 export interface PublicMessage {
   id: string;
   senderUserId: string | null;
+  senderRole: MessageSenderRole;
   body: string;
+  attachments: AttachmentView[];
   createdAt: Date;
 }
 
@@ -81,7 +101,9 @@ export interface AdminTicketSummary extends TicketSummary {
 }
 
 /** Summary cho hàng đợi admin (kèm admin phụ trách). KHÔNG dùng cho user. */
-export function toAdminTicketSummary(t: SupportTicketEntity): AdminTicketSummary {
+export function toAdminTicketSummary(
+  t: SupportTicketEntity,
+): AdminTicketSummary {
   return {
     ...toTicketSummary(t),
     assignedAdmin: t.assignedAdmin
@@ -101,22 +123,41 @@ export function toAdminTicketSummary(t: SupportTicketEntity): AdminTicketSummary
   };
 }
 
+function groupAttachmentsByMessage(
+  attachments: TicketAttachmentEntity[],
+): Map<string, AttachmentView[]> {
+  const byMessage = new Map<string, AttachmentView[]>();
+  for (const a of attachments) {
+    if (!a.message?.id) continue;
+    const arr = byMessage.get(a.message.id) ?? [];
+    arr.push({ id: a.id, url: a.url });
+    byMessage.set(a.message.id, arr);
+  }
+  return byMessage;
+}
+
 export function toPublicView(
   t: SupportTicketEntity,
   messages: TicketMessageEntity[] = [],
+  attachments: TicketAttachmentEntity[] = [],
 ): TicketPublicView {
+  const byMessage = groupAttachmentsByMessage(attachments);
   return {
     ...toTicketSummary(t),
     description: t.description ?? null,
     firstRespondedAt: t.firstRespondedAt ?? null,
     resolvedAt: t.resolvedAt ?? null,
     closedAt: t.closedAt ?? null,
+    // Phòng vệ: KHÔNG bao giờ lộ internal note cho user (service đã lọc theo
+    // audience của luồng, đây là lớp chặn thứ hai — AD7/BR-8).
     messages: messages
-      .filter((m) => !m.isInternal)
+      .filter((m) => m.audience !== TicketMessageAudience.INTERNAL)
       .map((m) => ({
         id: m.id,
         senderUserId: m.sender?.id ?? null,
+        senderRole: senderRoleOf(m.sender),
         body: m.body,
+        attachments: byMessage.get(m.id) ?? [],
         createdAt: m.createdAt,
       })),
   };
@@ -124,6 +165,7 @@ export function toPublicView(
 
 export interface AdminMessage extends PublicMessage {
   isInternal: boolean;
+  audience: TicketMessageAudience;
 }
 export interface StatusLogView {
   id: string;
@@ -161,6 +203,8 @@ export interface TicketAdminView extends TicketSummary {
   messages: AdminMessage[];
   statusLogs: StatusLogView[];
   resolutions: ResolutionView[];
+  /** Ảnh đính kèm ở cấp ticket (không thuộc message nào). */
+  attachments: AttachmentView[];
 }
 
 export function toAdminView(
@@ -168,7 +212,12 @@ export function toAdminView(
   messages: TicketMessageEntity[] = [],
   statusLogs: TicketStatusLogEntity[] = [],
   resolutions: TicketResolutionEntity[] = [],
+  attachments: TicketAttachmentEntity[] = [],
 ): TicketAdminView {
+  const byMessage = groupAttachmentsByMessage(attachments);
+  const ticketLevel: AttachmentView[] = attachments
+    .filter((a) => !a.message?.id)
+    .map((a) => ({ id: a.id, url: a.url }));
   return {
     ...toTicketSummary(t),
     description: t.description ?? null,
@@ -177,7 +226,11 @@ export function toAdminView(
     counterpartyUserId: t.counterparty?.id ?? null,
     assignedAdminId: t.assignedAdmin?.id ?? null,
     reporter: t.reporter
-      ? { id: t.reporter.id, fullName: t.reporter.fullName, role: t.reporter.role }
+      ? {
+          id: t.reporter.id,
+          fullName: t.reporter.fullName,
+          role: t.reporter.role,
+        }
       : null,
     counterparty: t.counterparty
       ? {
@@ -201,10 +254,14 @@ export function toAdminView(
     messages: messages.map((m) => ({
       id: m.id,
       senderUserId: m.sender?.id ?? null,
+      senderRole: senderRoleOf(m.sender),
       body: m.body,
       isInternal: m.isInternal,
+      audience: m.audience,
       createdAt: m.createdAt,
+      attachments: byMessage.get(m.id) ?? [],
     })),
+    attachments: ticketLevel,
     statusLogs: statusLogs.map((l) => ({
       id: l.id,
       oldStatus: l.oldStatus ?? null,

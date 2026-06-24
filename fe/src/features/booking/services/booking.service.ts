@@ -6,6 +6,7 @@ import type {
   CreateBookingDto,
   CustomerActiveBookingResponse,
   CustomerBookingDetail,
+  CustomerBookingListResponse,
   QuoteBookingDto,
   TaskerAcceptResponse,
   TaskerAssignedBookingDetail,
@@ -18,11 +19,19 @@ import type {
 export const customerBookingApi = {
   /** 01. Xem báo giá trước khi tạo */
   quote: (dto: QuoteBookingDto): Promise<BookingQuoteResponse> =>
-    http.post(API_ENDPOINTS.BOOKING.QUOTE, dto).then((r) => r.data.data ?? r.data),
+    http
+      .post(API_ENDPOINTS.BOOKING.QUOTE, dto, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 02. Tạo booking */
   create: (dto: CreateBookingDto): Promise<CustomerBookingDetail> =>
-    http.post(API_ENDPOINTS.BOOKING.CREATE, dto).then((r) => r.data.data ?? r.data),
+    http
+      .post(API_ENDPOINTS.BOOKING.CREATE, dto, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 03. Xem chi tiết booking */
   findDetail: (id: string): Promise<CustomerBookingDetail> =>
@@ -32,6 +41,10 @@ export const customerBookingApi = {
   updateSchedule: (id: string, dto: UpdateBookingScheduleDto): Promise<CustomerBookingDetail> =>
     http.patch(API_ENDPOINTS.BOOKING.UPDATE_SCHEDULE(id), dto).then((r) => r.data.data ?? r.data),
 
+  /** 03B. Thanh toán ảo cho VNPAY */
+  mockPay: (id: string): Promise<{ success: boolean; message: string }> =>
+    http.post(API_ENDPOINTS.BOOKING.MOCK_PAY(id)).then((r) => r.data),
+
   /** 03C. Hủy booking */
   cancel: (id: string, dto: CancelBookingDto): Promise<{ message: string }> =>
     http.patch(API_ENDPOINTS.BOOKING.CANCEL(id), dto).then((r) => r.data),
@@ -39,6 +52,10 @@ export const customerBookingApi = {
   /** 03D. Lấy booking đang hoạt động */
   findMyActive: (): Promise<CustomerActiveBookingResponse> =>
     http.get(API_ENDPOINTS.BOOKING.MY_ACTIVE).then((r) => r.data.data ?? r.data),
+
+  /** 03E. Danh sách toàn bộ booking của customer */
+  findMyBookings: (): Promise<CustomerBookingListResponse> =>
+    http.get(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data.data ?? r.data),
 };
 
 // ─── Tasker Booking APIs ───────────────────────────────────────────────────────
@@ -59,6 +76,10 @@ export const taskerBookingApi = {
   /** 06. Nhận đơn */
   accept: (id: string): Promise<TaskerAcceptResponse> =>
     http.post(API_ENDPOINTS.BOOKING.TASKER_ACCEPT(id)).then((r) => r.data.data ?? r.data),
+
+  /** 07A. Lấy đơn hàng đang hoạt động hiện tại */
+  findActive: (): Promise<TaskerAssignedBookingDetail | null> =>
+    http.get(API_ENDPOINTS.BOOKING.TASKER_ACTIVE).then((r) => r.data.data ?? r.data),
 
   /** 07. Chi tiết đơn đã nhận */
   findAssigned: (

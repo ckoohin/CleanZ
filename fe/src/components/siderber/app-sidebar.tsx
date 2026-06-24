@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Bell,
   CalendarCheck,
-  FileText,
+ FileText,
   HeadphonesIcon,
   LayoutDashboard,
   MapPinned,
@@ -101,7 +101,7 @@ const financeNav = [
     icon: <TicketPercent />,
     items: [
       { title: "Danh sách voucher", url: "/admin/vouchers" },
-    
+      { title: "Tạo voucher mới", url: "/admin/vouchers/create" },
     ],
   },
 ];
@@ -129,7 +129,7 @@ const systemNav = [
     icon: <FileText />,
     items: [
       { title: "Danh sách chính sách", url: "/admin/policies" },
-     
+      { title: "Tạo chính sách mới", url: "/admin/policies/create" },
     ],
   },
 ];
