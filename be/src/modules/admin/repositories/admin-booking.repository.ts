@@ -242,7 +242,9 @@ export class AdminBookingRepository {
         }),
       );
 
-      const bookingSubServiceRepository = manager.getRepository(BookingSubServiceEntity);
+      const bookingSubServiceRepository = manager.getRepository(
+        BookingSubServiceEntity,
+      );
       const bookingSubServices = price.subServices.map((sub) => {
         return bookingSubServiceRepository.create({
           booking,
@@ -633,7 +635,11 @@ export class AdminBookingRepository {
       .innerJoin('customer.user', 'customerUser')
       .leftJoin('booking.tasker', 'tasker')
       .leftJoin('tasker.user', 'taskerUser')
-      .leftJoin(ServicePackageEntity, 'package', 'package.id = booking.packageId');
+      .leftJoin(
+        ServicePackageEntity,
+        'package',
+        'package.id = booking.packageId',
+      );
 
     const normalizedKeyword = keyword?.trim();
     if (normalizedKeyword) {
@@ -816,24 +822,23 @@ export class AdminBookingRepository {
       throw new NotFoundException(`Không tìm thấy booking với id ${bookingId}`);
     }
 
-    const [payment, timeline, voucher, settledPlatformFee] =
-      await Promise.all([
-        this.dataSource.getRepository(PaymentEntity).findOne({
-          where: { booking: { id: booking.id } },
-          order: { createdAt: 'DESC' },
-        }),
-        this.dataSource.getRepository(BookingStatusLogEntity).find({
-          where: { booking: { id: booking.id } },
-          relations: ['changedByUser', 'cancelledByUser', 'payment'],
-          order: { createdAt: 'ASC' },
-        }),
-        booking.voucherId
-          ? this.dataSource.getRepository(VoucherEntity).findOne({
-              where: { id: booking.voucherId },
-            })
-          : Promise.resolve(null),
-        this.getSettledPlatformFee(booking.id),
-      ]);
+    const [payment, timeline, voucher, settledPlatformFee] = await Promise.all([
+      this.dataSource.getRepository(PaymentEntity).findOne({
+        where: { booking: { id: booking.id } },
+        order: { createdAt: 'DESC' },
+      }),
+      this.dataSource.getRepository(BookingStatusLogEntity).find({
+        where: { booking: { id: booking.id } },
+        relations: ['changedByUser', 'cancelledByUser', 'payment'],
+        order: { createdAt: 'ASC' },
+      }),
+      booking.voucherId
+        ? this.dataSource.getRepository(VoucherEntity).findOne({
+            where: { id: booking.voucherId },
+          })
+        : Promise.resolve(null),
+      this.getSettledPlatformFee(booking.id),
+    ]);
 
     const totalPrice = Number(booking.totalPrice);
     let commissionRate =
@@ -844,9 +849,11 @@ export class AdminBookingRepository {
       try {
         let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
         if (!subServiceId) {
-          const bss = await this.dataSource.getRepository(BookingSubServiceEntity).findOne({
-            where: { bookingId: booking.id }
-          });
+          const bss = await this.dataSource
+            .getRepository(BookingSubServiceEntity)
+            .findOne({
+              where: { bookingId: booking.id },
+            });
           subServiceId = bss?.subServiceId || '';
         }
         if (subServiceId) {
@@ -1548,12 +1555,14 @@ export class AdminBookingRepository {
     let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
     if (!subServiceId) {
       const bss = await manager.getRepository(BookingSubServiceEntity).findOne({
-        where: { bookingId: booking.id }
+        where: { bookingId: booking.id },
       });
       subServiceId = bss?.subServiceId || '';
     }
     if (!subServiceId) {
-      throw new ConflictException('Booking không chứa dịch vụ con nào để tính hoa hồng');
+      throw new ConflictException(
+        'Booking không chứa dịch vụ con nào để tính hoa hồng',
+      );
     }
     const commissionRate =
       await this.pricingService.getPlatformCommissionRateByServiceId(
@@ -1759,12 +1768,14 @@ export class AdminBookingRepository {
     let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
     if (!subServiceId) {
       const bss = await manager.getRepository(BookingSubServiceEntity).findOne({
-        where: { bookingId: booking.id }
+        where: { bookingId: booking.id },
       });
       subServiceId = bss?.subServiceId || '';
     }
     if (!subServiceId) {
-      throw new ConflictException('Booking không chứa dịch vụ con nào để tính hoa hồng');
+      throw new ConflictException(
+        'Booking không chứa dịch vụ con nào để tính hoa hồng',
+      );
     }
     const commissionRate =
       await this.pricingService.getPlatformCommissionRateByServiceId(

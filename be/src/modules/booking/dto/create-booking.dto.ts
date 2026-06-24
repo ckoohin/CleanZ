@@ -18,8 +18,7 @@ import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 export class CreateBookingDto {
   @ApiPropertyOptional({
     example: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
-    description:
-      'ID gói dịch vụ (ServicePackage) customer muốn đặt.',
+    description: 'ID gói dịch vụ (ServicePackage) customer muốn đặt.',
   })
   @IsOptional()
   @IsUUID()

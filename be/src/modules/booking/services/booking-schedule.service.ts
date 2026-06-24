@@ -120,7 +120,8 @@ export class BookingScheduleService {
 
     return {
       packageId: booking.packageId,
-      subServiceIds: booking.bookingSubServices?.map((bss) => bss.subServiceId) || [],
+      subServiceIds:
+        booking.bookingSubServices?.map((bss) => bss.subServiceId) || [],
       addressId,
       address,
       provinceCode: dto.provinceCode,

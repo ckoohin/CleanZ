@@ -6,6 +6,7 @@ import type {
   CreateBookingDto,
   CustomerActiveBookingResponse,
   CustomerBookingDetail,
+  CustomerBookingListResponse,
   QuoteBookingDto,
   TaskerAcceptResponse,
   TaskerAssignedBookingDetail,
@@ -51,6 +52,10 @@ export const customerBookingApi = {
   /** 03D. Lấy booking đang hoạt động */
   findMyActive: (): Promise<CustomerActiveBookingResponse> =>
     http.get(API_ENDPOINTS.BOOKING.MY_ACTIVE).then((r) => r.data.data ?? r.data),
+
+  /** 03E. Danh sách toàn bộ booking của customer */
+  findMyBookings: (): Promise<CustomerBookingListResponse> =>
+    http.get(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data.data ?? r.data),
 };
 
 // ─── Tasker Booking APIs ───────────────────────────────────────────────────────
@@ -71,6 +76,10 @@ export const taskerBookingApi = {
   /** 06. Nhận đơn */
   accept: (id: string): Promise<TaskerAcceptResponse> =>
     http.post(API_ENDPOINTS.BOOKING.TASKER_ACCEPT(id)).then((r) => r.data.data ?? r.data),
+
+  /** 07A. Lấy đơn hàng đang hoạt động hiện tại */
+  findActive: (): Promise<TaskerAssignedBookingDetail | null> =>
+    http.get(API_ENDPOINTS.BOOKING.TASKER_ACTIVE).then((r) => r.data.data ?? r.data),
 
   /** 07. Chi tiết đơn đã nhận */
   findAssigned: (

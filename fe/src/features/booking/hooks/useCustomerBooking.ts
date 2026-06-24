@@ -10,6 +10,7 @@ import type {
 
 const QUERY_KEYS = {
   myActive: ["booking", "my-active"],
+  myList: ["booking", "my-list"],
   detail: (id: string) => ["booking", id],
 };
 
@@ -77,7 +78,16 @@ export function useMyActiveBooking() {
   return useQuery({
     queryKey: QUERY_KEYS.myActive,
     queryFn: () => customerBookingApi.findMyActive(),
-    refetchInterval: 30_000, // poll 30s để cập nhật status
+    refetchInterval: 30_000,
+  });
+}
+
+/** Danh sách lịch sử booking (History page + Profile stats) */
+export function useMyBookingHistory() {
+  return useQuery({
+    queryKey: QUERY_KEYS.myList,
+    queryFn: () => customerBookingApi.findMyBookings(),
+    staleTime: 2 * 60 * 1000, // cache 2 phút
   });
 }
 
