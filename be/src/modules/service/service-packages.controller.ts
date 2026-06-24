@@ -15,6 +15,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ServicePackagesService } from './services/service-packages.service';
 import { CreateServicePackageDto } from './dto/create-service-package.dto';
 import { UpdateServicePackageDto } from './dto/update-service-package.dto';
+import { AddSubServicesToPackageDto } from './dto/add-sub-services-to-package.dto';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -79,5 +80,28 @@ export class ServicePackagesController {
   async getAnalytics(@Param('id', ParseUUIDPipe) id: string) {
     const data = await this.servicePackagesService.getAnalytics(id);
     return successResponse(data);
+  }
+
+  @Post(':id/sub-services')
+  @Auth(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Thêm hoặc cập nhật danh sách dịch vụ con trong gói' })
+  async addSubServices(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddSubServicesToPackageDto,
+  ) {
+    await this.servicePackagesService.addSubServices(id, dto);
+    return successResponse(null, 'Liên kết dịch vụ con thành công');
+  }
+
+  @Delete(':id/sub-services/:subServiceId')
+  @Auth(UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Gỡ dịch vụ con khỏi gói' })
+  async removeSubService(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('subServiceId', ParseUUIDPipe) subServiceId: string,
+  ) {
+    await this.servicePackagesService.removeSubService(id, subServiceId);
   }
 }
