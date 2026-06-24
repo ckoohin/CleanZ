@@ -6,33 +6,20 @@ import {
   Wrench,
   CalendarCheck,
   Users,
-  CreditCard,
-  FileText,
   BarChart3,
   Settings2,
-  ShieldCheck,
-  Star,
   Sparkles,
   Ticket,
   Wallet,
-  ArrowDownToLine,
   HeadphonesIcon,
-  MapPin,
   Bell,
-  Tag,
-  Activity,
-  ClipboardList,
   UserCog,
   Truck,
-  AlertTriangle,
-  PackageCheck,
-  PiggyBank,
-  TrendingUp,
+  ShieldAlert,
 } from "lucide-react"
 
 import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/siderber/nav-main"
-import { NavProjects } from "@/components/siderber/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
 import { SidebarBrand } from "@/components/sidebar/team-switcher"
 import {
@@ -63,21 +50,21 @@ const adminData = {
   overview: [
     {
       title: "Dashboard",
-      url: "/admin",
+      url: ROUTES.ADMIN.DASHBOARD,
       icon: <LayoutDashboard />,
       items: [
-        { title: "Bảng điều khiển", url: "/admin" },
-        { title: "Hoạt động hệ thống", url: "/admin/activity" },
+        { title: "Bảng điều khiển", url: ROUTES.ADMIN.DASHBOARD },
+        { title: "Hoạt động hệ thống", url: ROUTES.ADMIN.ACTIVITY },
       ],
     },
     {
       title: "Báo cáo & Phân tích",
-      url: "/admin/reports",
+      url: ROUTES.ADMIN.REPORTS.BASE,
       icon: <BarChart3 />,
       items: [
-        { title: "Doanh thu tổng hợp", url: "/admin/reports" },
-        { title: "Hiệu suất Tasker", url: "/admin/reports/taskers" },
-        { title: "Xu hướng đặt dịch vụ", url: "/admin/reports/bookings" },
+        { title: "Doanh thu tổng hợp", url: ROUTES.ADMIN.REPORTS.BASE },
+        { title: "Hiệu suất Tasker", url: ROUTES.ADMIN.REPORTS.TASKERS },
+        { title: "Xu hướng đặt dịch vụ", url: ROUTES.ADMIN.REPORTS.BOOKINGS },
       ],
     },
   ],
@@ -86,33 +73,35 @@ const adminData = {
   core: [
     {
       title: "Quản lý Đơn hàng",
-      url: "/admin/bookings",
+      url: ROUTES.ADMIN.BOOKINGS,
       icon: <CalendarCheck />,
     },
     {
       title: "Quản lý Dịch vụ",
-      url: ROUTES.ADMIN.SERVICES,
+      url: ROUTES.ADMIN.SERVICES.BASE,
       icon: <Wrench />,
       items: [
-        { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICE_PACKAGES },
-        { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES },
+        { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICES.BASE },
+        { title: "Tạo gói mới", url: ROUTES.ADMIN.SERVICES.CREATE },
+        { title: "Quản lý dịch vụ con", url: ROUTES.ADMIN.SERVICES.SUB_SERVICES },
       ],
     },
     {
-      title: "Quản lý Bảng giá",
-      url: "/admin/pricing",
-      icon: <Tag />,
+      title: "Quản lý Chính sách",
+      url: ROUTES.ADMIN.POLICIES.BASE,
+      icon: <ShieldAlert />,
       items: [
-        { title: "Cấu hình giá", url: "/admin/pricing" },
+        { title: "Tất cả chính sách", url: ROUTES.ADMIN.POLICIES.BASE },
+        { title: "Chính sách mặc định", url: ROUTES.ADMIN.POLICIES.DEFAULTS },
       ],
     },
     {
       title: "Khách hàng",
-      url: "/admin/customers",
+      url: ROUTES.ADMIN.CUSTOMERS.BASE,
       icon: <Users />,
       items: [
-        { title: "Danh sách khách hàng", url: "/admin/customers" },
-        { title: "Đánh giá & Phản hồi", url: "/admin/reviews" },
+        { title: "Danh sách khách hàng", url: ROUTES.ADMIN.CUSTOMERS.BASE },
+        { title: "Đánh giá & Phản hồi", url: ROUTES.ADMIN.CUSTOMERS.REVIEWS },
       ],
     },
   ],
@@ -121,30 +110,30 @@ const adminData = {
   operations: [
     {
       title: "Quản lý Tasker",
-      url: "/admin/taskers",
+      url: ROUTES.ADMIN.TASKERS.BASE,
       icon: <UserCog />,
       items: [
-        { title: "Danh sách Tasker", url: "/admin/taskers" },
-        { title: "Xác minh hồ sơ", url: "/admin/taskers/verification" },
-        { title: "Lịch làm việc", url: "/admin/taskers/schedule" },
-        { title: "Bảng lương", url: "/admin/taskers/payroll" },
+        { title: "Danh sách Tasker", url: ROUTES.ADMIN.TASKERS.BASE },
+        { title: "Xác minh hồ sơ", url: ROUTES.ADMIN.TASKERS.VERIFICATION },
+        { title: "Lịch làm việc", url: ROUTES.ADMIN.TASKERS.SCHEDULE },
+        { title: "Bảng lương", url: ROUTES.ADMIN.TASKERS.PAYROLL },
       ],
     },
     {
       title: "Theo dõi GPS",
-      url: "/admin/tracking",
+      url: ROUTES.ADMIN.TRACKING.BASE,
       icon: <Truck />,
       items: [
-        { title: "Theo dõi đơn hàng", url: "/admin/tracking" },
-        { title: "Lộ trình Tasker", url: "/admin/tracking/routes" },
+        { title: "Theo dõi đơn hàng", url: ROUTES.ADMIN.TRACKING.BASE },
+        { title: "Lộ trình Tasker", url: ROUTES.ADMIN.TRACKING.ROUTES },
       ],
     },
     {
       title: "Thông báo",
-      url: "/admin/notifications",
+      url: ROUTES.ADMIN.NOTIFICATIONS,
       icon: <Bell />,
       items: [
-        { title: "Broadcast & Lịch sử", url: "/admin/notifications" },
+        { title: "Broadcast & Lịch sử", url: ROUTES.ADMIN.NOTIFICATIONS },
       ],
     },
   ],
@@ -153,21 +142,21 @@ const adminData = {
   finance: [
     {
       title: "Tài chính & Ví",
-      url: "/admin/finances",
+      url: ROUTES.ADMIN.FINANCES.BASE,
       icon: <Wallet />,
       items: [
-        { title: "Lịch sử giao dịch", url: "/admin/finances" },
-        { title: "Yêu cầu rút tiền", url: "/admin/withdrawals" },
-        { title: "Quản lý ví", url: "/admin/wallets" },
+        { title: "Lịch sử giao dịch", url: ROUTES.ADMIN.FINANCES.BASE },
+        { title: "Yêu cầu rút tiền", url: ROUTES.ADMIN.FINANCES.WITHDRAWALS },
+        { title: "Quản lý ví", url: ROUTES.ADMIN.FINANCES.WALLETS },
       ],
     },
     {
       title: "Voucher & Khuyến mãi",
-      url: "/admin/vouchers",
+      url: ROUTES.ADMIN.VOUCHERS.BASE,
       icon: <Ticket />,
       items: [
-        { title: "Danh sách voucher", url: "/admin/vouchers" },
-        { title: "Tạo voucher mới", url: "/admin/vouchers/create" },
+        { title: "Danh sách voucher", url: ROUTES.ADMIN.VOUCHERS.BASE },
+        { title: "Tạo voucher mới", url: ROUTES.ADMIN.VOUCHERS.CREATE },
       ],
     },
   ],
@@ -176,10 +165,10 @@ const adminData = {
   support: [
     {
       title: "Hỗ trợ khách hàng",
-      url: "/admin/support-tickets",
+      url: ROUTES.ADMIN.SUPPORT_TICKETS.BASE,
       icon: <HeadphonesIcon />,
       items: [
-        { title: "Hàng đợi ticket", url: "/admin/support-tickets" },
+        { title: "Hàng đợi ticket", url: ROUTES.ADMIN.SUPPORT_TICKETS.BASE },
       ],
     },
     {
@@ -189,13 +178,11 @@ const adminData = {
       items: [
         { title: "Cài đặt chung", url: ROUTES.ADMIN.SETTINGS.BASE },
         { title: "Ngày cao điểm", url: ROUTES.ADMIN.SETTINGS.PEAK_DAYS },
-        { title: "Phân quyền & Role", url: "/admin/roles" },
+        { title: "Phân quyền & Role", url: ROUTES.ADMIN.SETTINGS.ROLES },
       ],
     },
   ],
 }
-
-type User = { name: string; email: string; avatar: string }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (

@@ -132,6 +132,9 @@ export const API_ENDPOINTS = {
     BASE: "/admin/service-packages",
     DETAIL: (id: string) => `/admin/service-packages/${id}`,
     ANALYTICS: (id: string) => `/admin/service-packages/${id}/analytics`,
+    SUB_SERVICES: (id: string) => `/admin/service-packages/${id}/sub-services`,
+    REMOVE_SUB_SERVICE: (id: string, subServiceId: string) =>
+      `/admin/service-packages/${id}/sub-services/${subServiceId}`,
   },
   ADMIN_BOOKINGS: {
     BASE: "/admin/bookings",
@@ -153,6 +156,16 @@ export const API_ENDPOINTS = {
   ADMIN_POLICIES: {
     BASE: "/policy",
     DETAIL: (id: string) => `/policy/${id}`,
+    PACKAGES_BY_POLICY: (id: string) => `/policy/${id}/packages`,
+    SEED: "/policy/seed",
+    DEFAULTS: "/policy/defaults",
+    PUBLIC_ALL: "/policy/public/all",
+    PUBLIC_BY_SLUG: (slug: string) => `/policy/public/by-slug/${slug}`,
+    // Package assignment
+    PACKAGE_POLICIES: (pkgId: string) => `/policy/packages/${pkgId}`,
+    ASSIGN_TO_PACKAGE: (pkgId: string) => `/policy/packages/${pkgId}/assign`,
+    REMOVE_FROM_PACKAGE: (pkgId: string, policyId: string) => `/policy/packages/${pkgId}/policies/${policyId}`,
+    APPLY_DEFAULTS: (pkgId: string) => `/policy/packages/${pkgId}/apply-defaults`,
   },
   ADMIN_PRICING: {
     CONFIGS: "/admin/pricing/configs",
