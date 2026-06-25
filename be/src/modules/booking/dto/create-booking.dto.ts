@@ -107,6 +107,23 @@ export class CreateBookingDto {
   durationHours?: number;
 
   @ApiPropertyOptional({
+    example: 55.5,
+    description: 'Diện tích căn hộ (m²), dùng khi tính giá theo m²',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  areaM2?: number;
+
+  @ApiPropertyOptional({
+    example: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
+    description: 'ID mức giá (pricing tier) cụ thể được chọn',
+  })
+  @IsOptional()
+  @IsUUID()
+  pricingTierId?: string;
+
+  @ApiPropertyOptional({
     example: 'Nhà có mèo, vui lòng gọi trước khi tới.',
     description: 'Ghi chú cho tasker',
   })

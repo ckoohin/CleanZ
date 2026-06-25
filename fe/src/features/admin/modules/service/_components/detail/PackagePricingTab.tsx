@@ -5,6 +5,7 @@ import {
   DollarSign, Moon, PawPrint, Clock, Wrench, TrendingUp, Edit3, Save, X as XIcon, Sparkles,
   Calculator, AlertCircle, Plus, Trash2, CheckCircle2, XCircle, Pencil, Flame,
   Timer, CalendarDays, SlidersHorizontal, Tag, BarChart3, ArrowUpRight, Info,
+  Layers, ChevronDown, ChevronUp, Home, Ruler, ToggleLeft,
 } from "lucide-react";
 import { AdminServicePackageEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { useUpdateAdminPackage } from "@/features/admin/modules/service/hooks/useAdminServices";
@@ -13,10 +14,17 @@ import {
   useCreatePeakDay,
   useUpdatePeakDay,
   useDeletePeakDay,
+  usePricingTiers,
+  useCreatePricingTier,
+  useUpdatePricingTier,
+  useDeletePricingTier,
 } from "@/features/admin/hooks/useAdminPricing";
 import {
   PeakDayConfigEntity,
   CreatePeakDayConfigDto,
+  PricingTierEntity,
+  CreatePricingTierDto,
+  PricingMode,
 } from "@/features/admin/services/admin-pricing.service";
 
 import { Input } from "@/components/ui/input";
@@ -29,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import Link from "next/link";
- 
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const vnd = (val: number | null | undefined) => {
@@ -254,6 +262,271 @@ function PeakDayForm({ initial, onSave, onCancel, isSaving }: {
   );
 }
 
+// ─── Pricing Mode config ──────────────────────────────────────────────────────
+
+const MODE_META: Record<PricingMode, { label: string; color: string; bg: string; icon: React.ElementType; desc: string }> = {
+  AREA_HOURLY: { label: "Theo m²", color: "text-violet-700", bg: "bg-violet-100", icon: Ruler,      desc: "Giá = đơn giá/m² × diện tích × giờ" },
+  HOURLY:      { label: "Theo giờ", color: "text-blue-700",   bg: "bg-blue-100",   icon: Clock,      desc: "Giá = đơn giá/giờ × số giờ" },
+  FIXED:       { label: "Cố định",  color: "text-emerald-700",bg: "bg-emerald-100",icon: ToggleLeft, desc: "Giá cố định, không phụ thuộc giờ/m²" },
+};
+
+// ─── Pricing Tier Card ────────────────────────────────────────────────────────
+
+function PricingTierCard({ tier, onEdit, onDelete, isDeleting }: {
+  tier: PricingTierEntity;
+  onEdit: (t: PricingTierEntity) => void;
+  onDelete: (id: string) => void;
+  isDeleting: boolean;
+}) {
+  const meta = MODE_META[tier.pricingMode];
+  const ModeIcon = meta.icon;
+
+  const priceDisplay = () => {
+    if (tier.pricingMode === "AREA_HOURLY") {
+      return (
+        <div className="space-y-1">
+          <p className="text-xl font-black text-violet-700">{vnd(Number(tier.pricePerM2))}<span className="text-xs font-normal text-muted-foreground ml-1">/m²/giờ</span></p>
+          {(tier.areaMinM2 || tier.areaMaxM2) && (
+            <p className="text-xs text-muted-foreground">
+              📐 {tier.areaMinM2 ? `${tier.areaMinM2}m²` : "—"} → {tier.areaMaxM2 ? `${tier.areaMaxM2}m²` : "∞"}
+            </p>
+          )}
+        </div>
+      );
+    }
+    if (tier.pricingMode === "HOURLY") {
+      return <p className="text-xl font-black text-blue-700">{vnd(Number(tier.pricePerHour))}<span className="text-xs font-normal text-muted-foreground ml-1">/giờ</span></p>;
+    }
+    return <p className="text-xl font-black text-emerald-700">{vnd(Number(tier.fixedPrice))}</p>;
+  };
+
+  return (
+    <div className={cn(
+      "rounded-2xl border p-5 space-y-3 transition-all group relative",
+      tier.isActive ? "border-primary/30 bg-primary/5 shadow-sm" : "border-border/40 bg-muted/20 opacity-60",
+    )}>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-foreground truncate">{tier.name}</p>
+          {tier.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{tier.description}</p>}
+        </div>
+        <span className={cn("text-[9px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shrink-0", meta.bg, meta.color)}>
+          <ModeIcon className="w-3 h-3" />{meta.label}
+        </span>
+      </div>
+
+      {/* Price */}
+      {priceDisplay()}
+
+      {/* Hours range */}
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{tier.minHours}h – {tier.maxHours}h</span>
+        {tier.defaultHours && <span className="text-primary font-semibold">mặc định {tier.defaultHours}h</span>}
+      </div>
+
+      {/* Active badge */}
+      <div className="flex items-center justify-between">
+        <span className={cn(
+          "inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full",
+          tier.isActive ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground",
+        )}>
+          {tier.isActive ? <><CheckCircle2 className="w-2.5 h-2.5" />Hoạt động</> : <><XCircle className="w-2.5 h-2.5" />Tắt</>}
+        </span>
+        <span className="text-[9px] text-muted-foreground">#{tier.sortOrder}</span>
+      </div>
+
+      {/* Actions — hover */}
+      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button type="button" onClick={() => onEdit(tier)}
+          className="p-1.5 rounded-lg hover:bg-background border border-transparent hover:border-border/40 transition-all text-muted-foreground hover:text-foreground">
+          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+        <button type="button" onClick={() => onDelete(tier.id)} disabled={isDeleting}
+          className="p-1.5 rounded-lg hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all text-muted-foreground hover:text-destructive disabled:opacity-30">
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Pricing Tier Form ────────────────────────────────────────────────────────
+
+const defaultTierForm: Omit<CreatePricingTierDto, "packageId"> & { id?: string } = {
+  name: "", description: "", pricingMode: "HOURLY",
+  pricePerHour: undefined, pricePerM2: undefined, fixedPrice: undefined,
+  areaMinM2: undefined, areaMaxM2: undefined,
+  minHours: 1, maxHours: 8, defaultHours: undefined,
+  sortOrder: 0, isActive: true,
+};
+
+function PricingTierForm({ initial, packageId, onSave, onCancel, isSaving }: {
+  initial?: Partial<typeof defaultTierForm>;
+  packageId: string;
+  onSave: (data: CreatePricingTierDto & { id?: string }) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [form, setForm] = useState({ ...defaultTierForm, ...initial });
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+    setForm(prev => ({ ...prev, [k]: v }));
+
+  const meta = MODE_META[form.pricingMode];
+
+  const canSave = () => {
+    if (!form.name.trim()) return false;
+    if (form.pricingMode === "AREA_HOURLY" && !form.pricePerM2) return false;
+    if (form.pricingMode === "HOURLY" && !form.pricePerHour) return false;
+    if (form.pricingMode === "FIXED" && !form.fixedPrice) return false;
+    return true;
+  };
+
+  return (
+    <div className="space-y-5 bg-muted/30 border border-border/50 rounded-2xl p-5">
+      <p className="text-sm font-black text-foreground flex items-center gap-2">
+        <Layers className="w-4 h-4 text-primary" />
+        {form.id ? "Chỉnh sửa mức giá" : "Thêm mức giá mới"}
+      </p>
+
+      {/* Mode selector */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-bold">Loại tính giá *</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(["HOURLY", "AREA_HOURLY", "FIXED"] as PricingMode[]).map(mode => {
+            const m = MODE_META[mode];
+            const MIcon = m.icon;
+            const active = form.pricingMode === mode;
+            return (
+              <button key={mode} type="button" onClick={() => set("pricingMode", mode)}
+                className={cn(
+                  "flex flex-col items-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all",
+                  active
+                    ? cn("border-primary bg-primary/10 text-primary")
+                    : "border-border/50 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                )}>
+                <MIcon className="w-4 h-4" />
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-muted-foreground">{meta.desc}</p>
+      </div>
+
+      {/* Name & description */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold">Tên mức giá *</label>
+          <Input placeholder="VD: Nhà dưới 60m²" value={form.name}
+            onChange={e => set("name", e.target.value)} className="h-10 rounded-xl" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold">Mô tả</label>
+          <Input placeholder="VD: Phù hợp căn hộ 1 phòng ngủ" value={form.description ?? ""}
+            onChange={e => set("description", e.target.value)} className="h-10 rounded-xl" />
+        </div>
+      </div>
+
+      {/* Mode-specific fields */}
+      {form.pricingMode === "AREA_HOURLY" && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold">Đơn giá / m² / giờ (₫) *</label>
+            <Input inputMode="numeric" placeholder="4500"
+              value={form.pricePerM2 ?? ""}
+              onChange={e => set("pricePerM2", e.target.value ? Number(e.target.value) : undefined)}
+              className="h-10 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold">m² tối thiểu</label>
+            <Input inputMode="numeric" placeholder="Không giới hạn"
+              value={form.areaMinM2 ?? ""}
+              onChange={e => set("areaMinM2", e.target.value ? Number(e.target.value) : undefined)}
+              className="h-10 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold">m² tối đa</label>
+            <Input inputMode="numeric" placeholder="Không giới hạn"
+              value={form.areaMaxM2 ?? ""}
+              onChange={e => set("areaMaxM2", e.target.value ? Number(e.target.value) : undefined)}
+              className="h-10 rounded-xl" />
+          </div>
+        </div>
+      )}
+
+      {form.pricingMode === "HOURLY" && (
+        <div className="space-y-1.5 max-w-xs">
+          <label className="text-xs font-bold">Đơn giá / giờ (₫) *</label>
+          <Input inputMode="numeric" placeholder="150000"
+            value={form.pricePerHour ?? ""}
+            onChange={e => set("pricePerHour", e.target.value ? Number(e.target.value) : undefined)}
+            className="h-10 rounded-xl" />
+          {form.pricePerHour && (
+            <p className="text-xs text-blue-600 font-semibold">→ 3 giờ = {vnd(form.pricePerHour * 3)}</p>
+          )}
+        </div>
+      )}
+
+      {form.pricingMode === "FIXED" && (
+        <div className="space-y-1.5 max-w-xs">
+          <label className="text-xs font-bold">Giá cố định (₫) *</label>
+          <Input inputMode="numeric" placeholder="300000"
+            value={form.fixedPrice ?? ""}
+            onChange={e => set("fixedPrice", e.target.value ? Number(e.target.value) : undefined)}
+            className="h-10 rounded-xl" />
+        </div>
+      )}
+
+      {/* Hours & common */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold">Giờ tối thiểu</label>
+          <Input inputMode="decimal" value={form.minHours ?? 1}
+            onChange={e => set("minHours", Number(e.target.value))} className="h-10 rounded-xl" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold">Giờ tối đa</label>
+          <Input inputMode="decimal" value={form.maxHours ?? 8}
+            onChange={e => set("maxHours", Number(e.target.value))} className="h-10 rounded-xl" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold">Giờ mặc định</label>
+          <Input inputMode="decimal" placeholder="Không bắt buộc"
+            value={form.defaultHours ?? ""}
+            onChange={e => set("defaultHours", e.target.value ? Number(e.target.value) : undefined)}
+            className="h-10 rounded-xl" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold">Thứ tự</label>
+          <Input inputMode="numeric" value={form.sortOrder ?? 0}
+            onChange={e => set("sortOrder", Number(e.target.value))} className="h-10 rounded-xl" />
+        </div>
+      </div>
+
+      {/* Status + Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Switch checked={form.isActive ?? true} onCheckedChange={v => set("isActive", v)} />
+          <span className={cn("text-sm font-semibold", form.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+            {form.isActive ? "Hoạt động" : "Tắt"}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <BaseButton variant="outline" size="sm" onClick={onCancel} disabled={isSaving} className="rounded-xl">
+            Hủy
+          </BaseButton>
+          <BaseButton variant="primary" size="sm" disabled={isSaving || !canSave()}
+            onClick={() => onSave({ ...form, packageId })} className="rounded-xl gap-2">
+            <Save className="w-3.5 h-3.5" />
+            {isSaving ? "Đang lưu..." : "Lưu mức giá"}
+          </BaseButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface PackagePricingTabProps {
@@ -290,6 +563,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
     setIsSurchargeEditing(false);
   };
 
+
   // ── Peak days ──
   const { data: peakDays, isLoading: peakLoading } = usePeakDays();
   const createPeakMutation = useCreatePeakDay();
@@ -298,6 +572,35 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
 
   const [showPeakForm, setShowPeakForm] = useState(false);
   const [editingPeak, setEditingPeak] = useState<PeakDayConfigEntity | null>(null);
+
+  // ── Pricing Tiers ──
+  const { data: tiers, isLoading: tiersLoading } = usePricingTiers(pkg.id);
+  const createTierMutation = useCreatePricingTier();
+  const updateTierMutation = useUpdatePricingTier(pkg.id);
+  const deleteTierMutation = useDeletePricingTier(pkg.id);
+
+  const [showTierForm, setShowTierForm] = useState(false);
+  const [editingTier, setEditingTier] = useState<PricingTierEntity | null>(null);
+
+  const handleTierSave = (data: CreatePricingTierDto & { id?: string }) => {
+    if (data.id) {
+      const { id, packageId: _pkgId, ...payload } = data;
+      updateTierMutation.mutate(
+        { id, payload },
+        { onSuccess: () => setEditingTier(null) }
+      );
+    } else {
+      createTierMutation.mutate(data, {
+        onSuccess: () => setShowTierForm(false),
+      });
+    }
+  };
+
+  const handleTierDelete = (id: string) => {
+    if (confirm("Xác nhận xóa mức giá này?")) {
+      deleteTierMutation.mutate(id);
+    }
+  };
 
   const handlePeakSave = (data: CreatePeakDayConfigDto & { id?: string }) => {
     const cleanData = {
@@ -451,7 +754,95 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
         </div>
       </SCard>
 
-      {/* ═══ SECTION 2: Tổng hợp giá dịch vụ con ═════════════════════════════ */}
+      {/* ═══ SECTION 2: Pricing Tiers ══════════════════════════════════════ */}
+      <SCard
+        icon={Layers}
+        title="Mức giá gói (Pricing Tiers)"
+        description="Cấu hình các mức giá theo giờ, m² hoặc cố định — khách sẽ chọn khi đặt đơn"
+        action={
+          !showTierForm && !editingTier ? (
+            <BaseButton variant="primary" size="sm" onClick={() => setShowTierForm(true)} className="gap-1 rounded-xl h-8 text-xs">
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />Thêm mức giá
+            </BaseButton>
+          ) : null
+        }
+      >
+        <div className="space-y-4">
+          {/* Summary */}
+          {!tiersLoading && (tiers?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Badge className="bg-primary/10 text-primary text-xs font-bold">
+                📋 {tiers?.length} mức giá
+              </Badge>
+              <Badge className="bg-emerald-100 text-emerald-700 text-xs font-bold">
+                ✅ {tiers?.filter(t => t.isActive).length} đang hoạt động
+              </Badge>
+              {tiers?.some(t => t.pricingMode === "AREA_HOURLY") && (
+                <Badge className="bg-violet-100 text-violet-700 text-xs font-bold">📐 Có tính theo m²</Badge>
+              )}
+            </div>
+          )}
+
+          {/* Create / Edit form */}
+          {showTierForm && (
+            <PricingTierForm
+              packageId={pkg.id}
+              onSave={handleTierSave}
+              onCancel={() => setShowTierForm(false)}
+              isSaving={createTierMutation.isPending}
+            />
+          )}
+          {editingTier && (
+            <PricingTierForm
+              packageId={pkg.id}
+              initial={{
+                id: editingTier.id,
+                name: editingTier.name,
+                description: editingTier.description ?? "",
+                pricingMode: editingTier.pricingMode,
+                pricePerHour: editingTier.pricePerHour ? Number(editingTier.pricePerHour) : undefined,
+                pricePerM2: editingTier.pricePerM2 ? Number(editingTier.pricePerM2) : undefined,
+                fixedPrice: editingTier.fixedPrice ? Number(editingTier.fixedPrice) : undefined,
+                areaMinM2: editingTier.areaMinM2 ? Number(editingTier.areaMinM2) : undefined,
+                areaMaxM2: editingTier.areaMaxM2 ? Number(editingTier.areaMaxM2) : undefined,
+                minHours: Number(editingTier.minHours),
+                maxHours: Number(editingTier.maxHours),
+                defaultHours: editingTier.defaultHours ? Number(editingTier.defaultHours) : undefined,
+                sortOrder: editingTier.sortOrder,
+                isActive: editingTier.isActive,
+              }}
+              onSave={handleTierSave}
+              onCancel={() => setEditingTier(null)}
+              isSaving={updateTierMutation.isPending}
+            />
+          )}
+
+          {/* Tiers grid */}
+          {tiersLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Đang tải mức giá...</div>
+          ) : (tiers?.length ?? 0) === 0 && !showTierForm ? (
+            <div className="py-12 text-center border-2 border-dashed border-border/40 rounded-2xl">
+              <Layers className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" aria-hidden="true" />
+              <p className="text-sm font-semibold text-muted-foreground">Chưa có mức giá nào</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Nhấn Thêm mức giá để tạo mức giá đầu tiên</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {(tiers ?? []).map(tier => (
+                <PricingTierCard
+                  key={tier.id}
+                  tier={tier}
+                  onEdit={t => { setEditingTier(t); setShowTierForm(false); }}
+                  onDelete={handleTierDelete}
+                  isDeleting={deleteTierMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </SCard>
+
+      {/* ═══ SECTION 3: Tổng hợp giá dịch vụ con ═══════════════════════════ */}
       <SCard
         icon={Tag}
         title="Tổng hợp giá dịch vụ con"

@@ -120,7 +120,7 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/admin/services/${svc.id}`);
+                      window.open(`/admin/services/sub-services?openId=${svc.id}`, '_blank');
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   >
@@ -214,7 +214,7 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                   {/* View detail button */}
                   <div className="mt-5 flex justify-end">
                     <button
-                      onClick={() => router.push(`/admin/services/${svc.id}`)}
+                      onClick={() => window.open(`/admin/services/sub-services?openId=${svc.id}`, '_blank')}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
                     >
                       <Eye className="w-4 h-4" aria-hidden="true" />

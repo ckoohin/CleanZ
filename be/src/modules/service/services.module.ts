@@ -10,6 +10,8 @@ import { SubServicesController } from './sub-services.controller';
 import { PublicServicesController } from './public-services.controller';
 import { ServicePackagesService } from './services/service-packages.service';
 import { ServicePackagesController } from './service-packages.controller';
+import { CoverageAreasService } from './services/coverage-areas.service';
+import { CoverageAreasController } from './coverage-areas.controller';
 
 @Module({
   imports: [
@@ -24,8 +26,10 @@ import { ServicePackagesController } from './service-packages.controller';
     SubServicesController,
     PublicServicesController,
     ServicePackagesController,
+    CoverageAreasController,
   ],
-  providers: [SubServicesService, ServiceRepository, ServicePackagesService],
-  exports: [SubServicesService, ServiceRepository, ServicePackagesService],
+  providers: [SubServicesService, ServiceRepository, ServicePackagesService, CoverageAreasService],
+  exports: [SubServicesService, ServiceRepository, ServicePackagesService, CoverageAreasService],
 })
 export class ServicesModule {}
+

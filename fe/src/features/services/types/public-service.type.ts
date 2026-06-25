@@ -23,6 +23,7 @@ export interface PublicSubService {
 export interface PublicService {
   id: string;
   serviceCode: string;
+  packageCode: string;
   name: string;
   description: string | null;
   shortDescription: string | null;
@@ -36,6 +37,13 @@ export interface PublicService {
   excludedTasks: string[];
   pricing: PublicServicePricing | null;
   subServices: PublicSubService[];
+  pricingMode?: string | null;
+  nightSurcharge?: number;
+  petSurcharge?: number;
+  waitingSurcharge?: number;
+  toolFee?: number;
+  peakRatePercent?: number;
+  coverageAreas?: { id: string; name: string }[];
 }
 
 export interface PublicServiceListResponse {

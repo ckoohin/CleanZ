@@ -10,18 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface PackageOverviewTabProps {
   pkg: AdminServicePackageEntity;
 }
 
 export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [name, setName] = useState(pkg.name);
   const [description, setDescription] = useState(pkg.policyDescription ?? "");
   const [iconUrl, setIconUrl] = useState(pkg.iconUrl ?? "");
   const [galleryInput, setGalleryInput] = useState("");
-  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(pkg.galleryUrls || []);
   const [maxHours, setMaxHours] = useState(pkg.maxHours);
   const [sortOrder, setSortOrder] = useState(pkg.sortOrder);
 
@@ -29,7 +32,7 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
 
   const handleSave = () => {
     updateMutation.mutate(
-      { id: pkg.id, payload: { name, policyDescription: description, iconUrl, maxHours, sortOrder } },
+      { id: pkg.id, payload: { name, policyDescription: description, iconUrl, galleryUrls: galleryUrls.filter(Boolean), maxHours, sortOrder } },
       {
         onSuccess: () => {
           toast.success("Đã lưu thông tin gói dịch vụ!");
@@ -43,6 +46,7 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
     setName(pkg.name);
     setDescription(pkg.policyDescription ?? "");
     setIconUrl(pkg.iconUrl ?? "");
+    setGalleryUrls(pkg.galleryUrls || []);
     setMaxHours(pkg.maxHours);
     setSortOrder(pkg.sortOrder);
     setIsEditing(false);
@@ -71,23 +75,10 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
           <h3 className="text-xl font-bold text-foreground">Thông tin tổng quan</h3>
           <p className="text-sm text-muted-foreground mt-0.5">Hình ảnh, mô tả và các thông số cơ bản của gói</p>
         </div>
-        {!isEditing ? (
-          <BaseButton variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 rounded-xl">
-            <Edit3 className="w-4 h-4" aria-hidden="true" />
-            Chỉnh sửa
-          </BaseButton>
-        ) : (
-          <div className="flex gap-2">
-            <BaseButton variant="outline" size="sm" onClick={handleCancel} className="gap-2 rounded-xl" disabled={updateMutation.isPending}>
-              <XIcon className="w-4 h-4" aria-hidden="true" />
-              Hủy
-            </BaseButton>
-            <BaseButton variant="primary" size="sm" onClick={handleSave} className="gap-2 rounded-xl" disabled={updateMutation.isPending}>
-              <Save className="w-4 h-4" aria-hidden="true" />
-              {updateMutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}
-            </BaseButton>
-          </div>
-        )}
+        <BaseButton variant="outline" size="sm" onClick={() => router.push(`/admin/services/${pkg.id}/edit`)} className="gap-2 rounded-xl">
+          <Edit3 className="w-4 h-4" aria-hidden="true" />
+          Chỉnh sửa
+        </BaseButton>
       </div>
 
       {/* Main info */}
@@ -137,9 +128,22 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
                 placeholder="Mô tả dịch vụ, chính sách áp dụng..."
               />
             ) : (
-              <p className="text-sm text-muted-foreground bg-muted/20 px-4 py-3 rounded-xl border border-border/40 min-h-[80px] whitespace-pre-wrap leading-relaxed">
-                {pkg.policyDescription || "Chưa có mô tả."}
-              </p>
+              <div className="space-y-2">
+                <p className={`text-sm text-muted-foreground bg-muted/20 px-4 py-3 rounded-xl border border-border/40 min-h-[80px] whitespace-pre-wrap leading-relaxed transition-all duration-300 ${
+                  descExpanded ? "" : "line-clamp-5"
+                }`}>
+                  {pkg.policyDescription || "Chưa có mô tả."}
+                </p>
+                {pkg.policyDescription && pkg.policyDescription.length > 150 && (
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded(!descExpanded)}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mt-1"
+                  >
+                    {descExpanded ? "Thu gọn" : "Xem thêm..."}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 

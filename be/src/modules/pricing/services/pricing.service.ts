@@ -11,6 +11,7 @@ import {
 import { ServiceRepository } from '../../service/service.repository';
 import { PricingConfigEntity } from '../entity/pricing-config.entity';
 import { PeakDayConfigEntity } from '../entity/peak-day-config.entity';
+import { PricingTierEntity, PricingMode } from '../entity/pricing-tier.entity';
 import { PaginatedData } from '../../../common/helpers/response.interface';
 import { CreatePricingConfigDto } from '../dto/create-pricing.dto';
 import { PricingListQueryDto } from '../dto/list-query-pricing.dto';
@@ -29,6 +30,8 @@ export interface CalculateBookingPriceInput {
   packageId?: string;
   subServiceIds?: string[];
   durationHours?: number;
+  areaM2?: number;
+  pricingTierId?: string;
   scheduledStart: Date;
   scheduledStartTime: string;
   hasPet: boolean;
@@ -54,6 +57,7 @@ export interface BookingPriceResult {
   discountAmount: number;
   totalPrice: number;
   voucher?: VoucherEntity | null;
+  pricingTierId?: string;
 }
 
 @Injectable()
@@ -267,14 +271,72 @@ export class PricingService {
     }
 
     let basePrice = 0;
-    for (const sub of subServices) {
-      const pricing = sub.pricingConfig;
-      if (!pricing || !pricing.isActive) {
-        throw new NotFoundException(
-          `Không tìm thấy cấu hình giá hoạt động cho dịch vụ con ${sub.name}`,
-        );
+    let matchedTierId: string | undefined;
+
+    // 1. Tải các pricing tiers hoạt động của package này
+    const pricingTierRepo = manager.getRepository(PricingTierEntity);
+    const activeTiers = await pricingTierRepo.find({
+      where: { packageId: servicePackage.id, isActive: true },
+      order: { sortOrder: 'ASC' },
+    });
+
+    if (activeTiers.length > 0) {
+      let matchedTier: PricingTierEntity | null = null;
+
+      // Nếu truyền thẳng ID mức giá lên
+      if (input.pricingTierId) {
+        matchedTier = activeTiers.find((t) => t.id === input.pricingTierId) ?? null;
       }
-      basePrice += toNumber(pricing.basePrice);
+
+      // Nếu không khớp hoặc không gửi, tự động tìm dựa trên Pricing Mode
+      if (!matchedTier) {
+        const mode = servicePackage.pricingMode ?? PricingMode.HOURLY;
+        if (mode === PricingMode.HOURLY) {
+          // Khớp khoảng giờ
+          matchedTier = activeTiers.find(
+            (t) =>
+              t.pricingMode === PricingMode.HOURLY &&
+              durationHours >= toNumber(t.minHours) &&
+              durationHours <= toNumber(t.maxHours),
+          ) ?? null;
+        } else if (mode === PricingMode.AREA_HOURLY) {
+          // Khớp khoảng diện tích
+          const area = input.areaM2 ?? 0;
+          matchedTier = activeTiers.find((t) => {
+            if (t.pricingMode !== PricingMode.AREA_HOURLY) return false;
+            const minArea = t.areaMinM2 ? toNumber(t.areaMinM2) : 0;
+            const maxArea = t.areaMaxM2 ? toNumber(t.areaMaxM2) : Infinity;
+            return area >= minArea && area <= maxArea;
+          }) ?? null;
+        } else if (mode === PricingMode.FIXED) {
+          // Lấy cái đầu tiên hoạt động
+          matchedTier = activeTiers.find((t) => t.pricingMode === PricingMode.FIXED) ?? null;
+        }
+      }
+
+      if (matchedTier) {
+        matchedTierId = matchedTier.id;
+        if (matchedTier.pricingMode === PricingMode.HOURLY) {
+          basePrice = toNumber(matchedTier.pricePerHour) * durationHours;
+        } else if (matchedTier.pricingMode === PricingMode.AREA_HOURLY) {
+          basePrice = toNumber(matchedTier.pricePerM2) * (input.areaM2 ?? 0) * durationHours;
+        } else if (matchedTier.pricingMode === PricingMode.FIXED) {
+          basePrice = toNumber(matchedTier.fixedPrice);
+        }
+      }
+    }
+
+    // Fallback: Nếu không tìm thấy Pricing Tier, tính theo tổng giá trị mặc định của subServices như cũ
+    if (basePrice === 0) {
+      for (const sub of subServices) {
+        const pricing = sub.pricingConfig;
+        if (!pricing || !pricing.isActive) {
+          throw new NotFoundException(
+            `Không tìm thấy cấu hình giá hoạt động cho dịch vụ con ${sub.name}`,
+          );
+        }
+        basePrice += toNumber(pricing.basePrice);
+      }
     }
 
     // Phụ phí đêm/sớm
@@ -287,8 +349,42 @@ export class PricingService {
       }
     }
 
-    const peakRate = toNumber(servicePackage.peakRatePercent) / 100;
-    const peakFee = peakRate > 0 ? Math.round(basePrice * peakRate) : 0;
+    // 2. Tính tỷ lệ cao điểm & ngày lễ tết (Peak Days)
+    const basePeakRate = toNumber(servicePackage.peakRatePercent) / 100;
+    let holidayPeakRate = 0;
+    const peakDays = await this.peakDayRepo.findAll(true);
+
+    if (peakDays.length > 0 && input.scheduledStart) {
+      const bookingDate = new Date(input.scheduledStart);
+      const bookingTimeStr = input.scheduledStartTime;
+
+      const matchingPeakDays = peakDays.filter((pd) => {
+        // Kiểm tra ngày
+        if (pd.startAt && bookingDate < new Date(pd.startAt)) return false;
+        if (pd.endAt && bookingDate > new Date(pd.endAt)) return false;
+
+        // Kiểm tra giờ
+        if (pd.startTime && pd.endTime && bookingTimeStr) {
+          const t = bookingTimeStr.slice(0, 5);
+          const start = pd.startTime.slice(0, 5);
+          const end = pd.endTime.slice(0, 5);
+
+          if (start < end) {
+            if (t < start || t > end) return false;
+          } else {
+            if (t < start && t > end) return false;
+          }
+        }
+        return true;
+      });
+
+      if (matchingPeakDays.length > 0) {
+        holidayPeakRate = Math.max(...matchingPeakDays.map((pd) => toNumber(pd.peakRate)), 0);
+      }
+    }
+
+    const totalPeakRate = basePeakRate + holidayPeakRate;
+    const peakFee = totalPeakRate > 0 ? Math.round(basePrice * totalPeakRate) : 0;
     const petFee = input.hasPet ? toNumber(servicePackage.petSurcharge) : 0;
     const waitingFee = 0;
     const subtotal = basePrice + addonPrice + peakFee + petFee + waitingFee;
@@ -319,6 +415,7 @@ export class PricingService {
       discountAmount,
       totalPrice,
       voucher,
+      pricingTierId: matchedTierId,
     };
   }
 

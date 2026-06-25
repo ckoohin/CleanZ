@@ -98,6 +98,14 @@ export class BookingEntity {
   })
   durationHours!: number;
 
+  /** Diện tích m² khách nhập khi đặt (dùng khi pricingMode = AREA_HOURLY) */
+  @Column({ name: 'area_m2', type: 'numeric', precision: 7, scale: 1, nullable: true })
+  areaM2?: number | null;
+
+  /** Mức giá (pricing tier) được chọn khi đặt booking */
+  @Column({ name: 'pricing_tier_id', type: 'uuid', nullable: true })
+  pricingTierId?: string | null;
+
   @Column({
     type: 'enum',
     enum: BookingStatus,

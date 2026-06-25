@@ -49,9 +49,11 @@ export class ServicePackagesService {
       name: dto.name,
       packageCode,
       iconUrl: dto.iconUrl || null,
+      galleryUrls: dto.galleryUrls || null,
       sortOrder: dto.sortOrder ?? 0,
       isActive: dto.isActive ?? true,
       maxHours: dto.maxHours ?? 8.0,
+      pricingMode: dto.pricingMode ?? null,
       termsAndConditions: dto.termsAndConditions || null,
       policyDescription: dto.policyDescription || null,
       nightSurcharge: dto.nightSurcharge ?? 0,
@@ -137,10 +139,13 @@ export class ServicePackagesService {
       name: dto.name ?? servicePackage.name,
       packageCode: dto.packageCode ?? servicePackage.packageCode,
       iconUrl: dto.iconUrl !== undefined ? dto.iconUrl : servicePackage.iconUrl,
+      galleryUrls:
+        dto.galleryUrls !== undefined ? dto.galleryUrls : servicePackage.galleryUrls,
       sortOrder: dto.sortOrder ?? servicePackage.sortOrder,
       isActive:
         dto.isActive !== undefined ? dto.isActive : servicePackage.isActive,
       maxHours: dto.maxHours ?? servicePackage.maxHours,
+      pricingMode: dto.pricingMode !== undefined ? dto.pricingMode : servicePackage.pricingMode,
       termsAndConditions:
         dto.termsAndConditions !== undefined
           ? dto.termsAndConditions
