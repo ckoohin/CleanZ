@@ -32,7 +32,11 @@ import { UpdatePricingConfigDto } from './dto/update-pricing.dto';
 import { CreatePeakDayConfigDto } from './dto/create-peak-day.dto';
 import { UpdatePeakDayConfigDto } from './dto/update-peak-day.dto';
 import { PricingListQueryDto } from './dto/list-query-pricing.dto';
+import { CreatePricingTierDto } from './dto/create-pricing-tier.dto';
+import { UpdatePricingTierDto } from './dto/update-pricing-tier.dto';
+import { CalculatePriceDto } from './dto/calculate-price.dto';
 import { PricingService } from './services/pricing.service';
+import { PricingTierService } from './services/pricing-tier.service';
 
 @ApiTags('Admin – Pricing')
 @ApiBearerAuth()
@@ -40,7 +44,66 @@ import { PricingService } from './services/pricing.service';
 @Auth(UserRole.ADMIN)
 @Controller('admin/pricing')
 export class PricingController {
-  constructor(private readonly pricingService: PricingService) {}
+  constructor(
+    private readonly pricingService: PricingService,
+    private readonly pricingTierService: PricingTierService,
+  ) {}
+
+  // ─────────────────────────── PRICING TIERS ───────────────────────────────
+
+  @Post('tiers')
+  @ApiOperation({ summary: 'Tạo mức giá (pricing tier) cho gói dịch vụ' })
+  @ApiCreatedResponse()
+  async createTier(@Body() dto: CreatePricingTierDto) {
+    return successResponse(
+      await this.pricingTierService.create(dto),
+      'Pricing tier created',
+    );
+  }
+
+  @Get('tiers/by-package/:packageId')
+  @ApiOperation({ summary: 'Lấy tất cả mức giá của một gói dịch vụ' })
+  async getTiersByPackage(
+    @Param('packageId', ParseUUIDPipe) packageId: string,
+  ) {
+    return successResponse(
+      await this.pricingTierService.findByPackageId(packageId),
+    );
+  }
+
+  @Get('tiers/:id')
+  @ApiOperation({ summary: 'Lấy chi tiết mức giá' })
+  async findOneTier(@Param('id', ParseUUIDPipe) id: string) {
+    return successResponse(await this.pricingTierService.findOne(id));
+  }
+
+  @Patch('tiers/:id')
+  @ApiOperation({ summary: 'Cập nhật mức giá' })
+  async updateTier(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePricingTierDto,
+  ) {
+    return successResponse(
+      await this.pricingTierService.update(id, dto),
+      'Pricing tier updated',
+    );
+  }
+
+  @Delete('tiers/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Xóa mức giá' })
+  async removeTier(@Param('id', ParseUUIDPipe) id: string) {
+    await this.pricingTierService.remove(id);
+  }
+
+  @Post('calculate')
+  @ApiOperation({
+    summary:
+      'Tính tiền booking (không lưu DB) — dùng cho preview trước khi đặt',
+  })
+  async calculatePrice(@Body() dto: CalculatePriceDto) {
+    return successResponse(await this.pricingTierService.calculatePrice(dto));
+  }
 
   @Post('configs')
   @ApiOperation({

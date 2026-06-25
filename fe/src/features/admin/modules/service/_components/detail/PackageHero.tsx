@@ -1,13 +1,15 @@
 import React from "react";
 import Image from "next/image";
-import { Package, Star, Clock, MapPin, Image as ImageIcon } from "lucide-react";
+import { Package, Star, Clock, MapPin, Image as ImageIcon, Edit } from "lucide-react";
 import { AdminServicePackageEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { Switch } from "@/components/ui/switch";
+import { BaseButton } from "@/components/ui/base/base_button";
 
 interface PackageHeroProps {
   pkg: AdminServicePackageEntity;
   onToggle: () => void;
   isToggling: boolean;
+  onEdit?: () => void;
 }
 
 const vnd = (val: number | null | undefined) => {
@@ -15,7 +17,7 @@ const vnd = (val: number | null | undefined) => {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(val);
 };
 
-export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
+export function PackageHero({ pkg, onToggle, isToggling, onEdit }: PackageHeroProps) {
   const subCount = pkg.packageSubServices?.length ?? 0;
 
   return (
@@ -80,16 +82,31 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex flex-row md:flex-col items-center md:items-end gap-3 shrink-0">
-          <div className="flex items-center gap-2 bg-background/70 backdrop-blur-sm border border-border/40 px-3 py-2 rounded-xl">
-            <span className="text-xs font-medium text-muted-foreground">
-              {pkg.isActive ? "Bật" : "Tắt"}
-            </span>
-            <Switch
-              checked={pkg.isActive}
-              onCheckedChange={onToggle}
-              disabled={isToggling}
-            />
+        <div className="flex flex-row md:flex-col items-center md:items-end gap-3 shrink-0 w-full md:w-auto">
+          <div className="flex items-center justify-between md:justify-end gap-3 md:flex-col md:items-end w-full">
+            <div className="flex items-center gap-2 bg-background/70 backdrop-blur-sm border border-border/40 px-3 py-2 rounded-xl shrink-0">
+              <span className="text-xs font-medium text-muted-foreground">
+                {pkg.isActive ? "Bật" : "Tắt"}
+              </span>
+              <Switch
+                checked={pkg.isActive}
+                onCheckedChange={onToggle}
+                disabled={isToggling}
+              />
+            </div>
+            
+            {onEdit && (
+              <BaseButton
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onEdit}
+                className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl font-bold bg-background/70 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all shadow-2xs shrink-0"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                Sửa chi tiết
+              </BaseButton>
+            )}
           </div>
 
           {/* KPI mini */}

@@ -86,6 +86,8 @@ export interface CreateBookingDto {
   note?: string;
   paymentMethod?: PaymentMethod;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
 }
 
 export interface QuoteBookingDto {
@@ -98,6 +100,8 @@ export interface QuoteBookingDto {
   scheduledTime: string;
   note?: string;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
 }
 
 export interface CancelBookingDto {
@@ -125,6 +129,8 @@ export interface BookingFormState {
   note?: string;
   paymentMethod: PaymentMethod;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
 }
 
 // ─── Customer Responses ───────────────────────────────────────────────────────

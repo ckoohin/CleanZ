@@ -6,10 +6,12 @@ import {
   IsInt,
   IsNumber,
   IsArray,
+  IsEnum,
   Min,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PricingMode } from '../../pricing/entity/pricing-tier.entity';
 
 export class CreateServicePackageDto {
   @ApiProperty({ example: 'Dọn dẹp nhà cửa' })
@@ -87,9 +89,20 @@ export class CreateServicePackageDto {
   @Min(0)
   peakRatePercent?: number;
 
+  @ApiPropertyOptional({ enum: PricingMode, example: PricingMode.HOURLY })
+  @IsOptional()
+  @IsEnum(PricingMode)
+  pricingMode?: PricingMode;
+
   @ApiPropertyOptional({ example: ['uuid-area-1', 'uuid-area-2'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   coverageAreaIds?: string[];
+
+  @ApiPropertyOptional({ example: ['https://cdn.example.com/img1.jpg'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  galleryUrls?: string[];
 }

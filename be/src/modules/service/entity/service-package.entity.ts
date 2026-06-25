@@ -12,6 +12,10 @@ import {
 import { PackageSubServiceEntity } from './package-sub-service.entity';
 import { CoverageAreaEntity } from './coverage-area.entity';
 import { Policy } from '../../policy/entity/policy.entity';
+import {
+  PricingTierEntity,
+  PricingMode,
+} from '../../pricing/entity/pricing-tier.entity';
 
 @Entity('service_packages')
 export class ServicePackageEntity {
@@ -28,11 +32,30 @@ export class ServicePackageEntity {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'icon_url' })
   iconUrl?: string | null;
 
+  @Column({ type: 'jsonb', nullable: true, name: 'gallery_urls' })
+  galleryUrls?: string[] | null;
+
   @Column({ type: 'int', default: 0, name: 'sort_order' })
   sortOrder!: number;
 
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive!: boolean;
+
+  /**
+   * Chế độ tính giá cho gói:
+   * - HOURLY: giá = pricePerHour × durationHours
+   * - AREA_HOURLY: giá = pricePerM2 × areaM2 × durationHours
+   * - FIXED: giá cố định
+   */
+  @Column({
+    type: 'enum',
+    enum: PricingMode,
+    enumName: 'pricing_mode',
+    default: PricingMode.HOURLY,
+    name: 'pricing_mode',
+    nullable: true,
+  })
+  pricingMode?: PricingMode | null;
 
   @Column({
     type: 'numeric',
@@ -102,6 +125,10 @@ export class ServicePackageEntity {
 
   @OneToMany(() => PackageSubServiceEntity, (pss) => pss.package)
   packageSubServices!: PackageSubServiceEntity[];
+
+  /** Cấu hình mức giá theo m² / giờ / cố định */
+  @OneToMany(() => PricingTierEntity, (tier) => tier.package, { cascade: true })
+  pricingTiers!: PricingTierEntity[];
 
   @ManyToMany(() => CoverageAreaEntity, (area) => area.packages)
   @JoinTable({

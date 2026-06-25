@@ -174,8 +174,25 @@ export const API_ENDPOINTS = {
     CONFIG_DETAIL: (id: string) => `/admin/pricing/configs/${id}`,
     PEAK_DAYS: "/admin/pricing/peak-days",
     PEAK_DAY_DETAIL: (id: string) => `/admin/pricing/peak-days/${id}`,
+    // Pricing Tiers (mức giá theo m²/giờ/cố định)
+    TIERS: "/admin/pricing/tiers",
+    TIER_DETAIL: (id: string) => `/admin/pricing/tiers/${id}`,
+    TIERS_BY_PACKAGE: (packageId: string) =>
+      `/admin/pricing/tiers/by-package/${packageId}`,
+    CALCULATE: "/admin/pricing/calculate",
   },
   ADMIN_SETTINGS: {
     BASE: "/admin/settings",
+  },
+  ADMIN_WORKFLOWS: {
+    BASE: "/admin/workflows",
+    DETAIL: (id: string) => `/admin/workflows/${id}`,
+    STEPS: (id: string) => `/admin/workflows/${id}/steps`,
+    STEP_DETAIL: (id: string, stepId: string) => `/admin/workflows/${id}/steps/${stepId}`,
+    REORDER: (id: string) => `/admin/workflows/${id}/steps/reorder`,
+  },
+  ADMIN_COVERAGE_AREAS: {
+    BASE: "/admin/coverage-areas",
+    SEED: "/admin/coverage-areas/seed",
   },
 };

@@ -20,6 +20,8 @@ export interface BookingScheduleDraft {
   scheduledTime?: string;
   durationHours?: number;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
 }
 
 export interface BookingScheduleStartContext {
@@ -134,6 +136,8 @@ export class BookingScheduleService {
         : (dto.scheduledTime ?? currentStartTime),
       durationHours: toNumber(booking.durationHours),
       voucherCode: voucher?.code,
+      areaM2: booking.areaM2 ? toNumber(booking.areaM2) : undefined,
+      pricingTierId: booking.pricingTierId ?? undefined,
     };
   }
 
