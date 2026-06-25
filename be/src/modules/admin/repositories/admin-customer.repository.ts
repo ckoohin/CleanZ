@@ -42,6 +42,10 @@ export class AdminCustomerRepository {
 
     const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
 
+    const spentByCustomer = await this.getTotalSpentByCustomers(
+      data.map((c) => c.id),
+    );
+
     return {
       data: data.map((c) => ({
         id: c.id,
@@ -55,6 +59,7 @@ export class AdminCustomerRepository {
         defaultPaymentMethod: c.defaultPaymentMethod,
         totalBookings: c.totalBookings,
         totalCancelled: c.totalCancelled,
+        totalSpent: spentByCustomer.get(c.id) ?? 0,
         createdAt: c.createdAt,
         lastLogin: c.user.lastLogin,
       })),
@@ -65,6 +70,35 @@ export class AdminCustomerRepository {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Tính tổng chi tiêu (tổng tiền các booking đã hoàn thành) cho nhiều customer
+   * trong 1 truy vấn gộp, tránh N+1 khi đổ danh sách.
+   */
+  private async getTotalSpentByCustomers(
+    customerIds: string[],
+  ): Promise<Map<string, number>> {
+    const spentMap = new Map<string, number>();
+    if (customerIds.length === 0) return spentMap;
+
+    const rows = await this.dataSource
+      .getRepository(BookingEntity)
+      .createQueryBuilder('b')
+      .leftJoin('b.customer', 'c')
+      .select('c.id', 'customerId')
+      .addSelect('COALESCE(SUM(b.totalPrice), 0)', 'totalSpent')
+      .where('c.id IN (:...customerIds)', { customerIds })
+      .andWhere('b.status = :completed', {
+        completed: BookingStatus.COMPLETED,
+      })
+      .groupBy('c.id')
+      .getRawMany<{ customerId: string; totalSpent: string }>();
+
+    for (const r of rows) {
+      spentMap.set(r.customerId, Number(r.totalSpent));
+    }
+    return spentMap;
   }
 
   async getCustomerDetail(customerId: string) {

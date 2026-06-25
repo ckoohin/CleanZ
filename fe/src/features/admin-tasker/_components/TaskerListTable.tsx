@@ -28,7 +28,7 @@ import {
   type AdminTaskerDocStatus,
 } from "../constants";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
-import { Eye, Maximize2, CheckCircle, ListFilter, AlertTriangle } from "lucide-react";
+import { Eye, CheckCircle, ListFilter, AlertTriangle } from "lucide-react";
 
 type AccountStatusFilter = "ALL" | AdminTasker["status"];
 type DocStatusFilter = "ALL" | AdminTaskerDocStatus;
@@ -160,11 +160,6 @@ export const TaskerListTable: React.FC = () => {
       label: "Xem chi tiết",
       icon: Eye,
       onClick: (row) => router.push(`/admin/taskers/${row.id}`),
-    },
-    {
-      label: "Xem hồ sơ 360°",
-      icon: Maximize2,
-      onClick: (row) => router.push(`/admin/taskers/${row.id}/360`),
     },
     {
       type: "approve",

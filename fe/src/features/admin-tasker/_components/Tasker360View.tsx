@@ -7,13 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useAdminTaskerDetail } from "../hooks/admin-tasker.hooks";
+import {
+  useAdminTaskerDetail,
+  useAdminTaskerDocuments,
+  useAdminTaskerPenalties,
+} from "../hooks/admin-tasker.hooks";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
+import { parseAdminNotes } from "./AdminRequestInfoModal";
 import {
   ACCOUNT_STATUS_BADGE_STYLES,
   ACCOUNT_STATUS_LABELS,
-  DOC_STATUS_BADGE_STYLES,
   DOC_STATUS_LABELS,
 } from "../constants";
 import type { AdminTaskerDetail } from "../types/admin-tasker.types";
@@ -36,16 +41,58 @@ import {
   FileText,
   Wallet,
   ZoomIn,
-  ExternalLink,
   ClipboardList,
   Receipt,
   Construction,
   User,
+  IdCard,
+  ScanFace,
+  Scale,
+  HeartPulse,
+  Award as AwardIcon,
+  ImageIcon,
+  AlertTriangle,
+  Minus,
+  AlertCircle,
 } from "lucide-react";
 
 interface Tasker360ViewProps {
   taskerId: string;
 }
+
+interface TaskerPenalty {
+  id: string;
+  reason: string;
+  type: string;
+  createdAt: string;
+  endsAt: string | null;
+  createdBy?: { fullName?: string };
+}
+
+const PENALTY_TYPE_LABELS: Record<string, string> = {
+  DAYS_2: "Khóa 2 ngày",
+  DAYS_7: "Khóa 7 ngày",
+  TEMPORARY: "Đình chỉ tạm thời",
+  PERMANENT: "Khóa vĩnh viễn",
+};
+
+// ─── Identity & legal document groups (đồng bộ với màn duyệt hồ sơ) ────────────
+
+interface DocGroup {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  required: boolean;
+  hint?: string;
+}
+
+const DOC_GROUPS: DocGroup[] = [
+  { id: "citizenCard", label: "CCCD / CMND (2 mặt)", icon: IdCard, required: true, hint: "Rõ nét, đủ 2 mặt" },
+  { id: "idWithSelfie", label: "Ảnh selfie cầm CCCD", icon: ScanFace, required: false, hint: "Nhìn thẳng, rõ mặt" },
+  { id: "criminalRecord", label: "Lý lịch tư pháp", icon: Scale, required: false },
+  { id: "healthCertificate", label: "Giấy khám sức khoẻ", icon: HeartPulse, required: false },
+  { id: "certificate", label: "Chứng chỉ nghề nghiệp", icon: AwardIcon, required: false },
+];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -155,97 +202,95 @@ const ComingSoon: React.FC<{
   </div>
 );
 
-// ─── Documents (Hồ sơ tab) ──────────────────────────────────────────────────
+// ─── Document group card (read-only detail view — không có nút duyệt) ─────────
 
-interface DocEntry {
-  label: string;
-  sub: string;
-  url: string | null;
-  has: boolean;
-}
-
-const DocItem: React.FC<{ doc: DocEntry; statusLabel: string }> = ({
-  doc,
-  statusLabel,
-}) => {
-  const pill = !doc.has ? (
-    <Badge
-      variant="outline"
-      className="text-[10px] font-bold bg-muted text-muted-foreground border-border shrink-0"
-    >
-      Chưa nộp
-    </Badge>
-  ) : (
-    <Badge
-      variant="outline"
-      className={cn(
-        "text-[10px] font-bold shrink-0",
-        DOC_STATUS_BADGE_STYLES[statusLabel] ||
-          "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-      )}
-    >
-      {DOC_STATUS_LABELS[statusLabel] || "Đã nộp"}
-    </Badge>
-  );
-
-  const inner = (
-    <>
-      <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-muted shrink-0">
-        {doc.url ? (
+const DocGroupCard: React.FC<{
+  group: DocGroup;
+  docs: Array<{ id: string; fileUrl: string }>;
+  onZoom: (url: string) => void;
+}> = ({ group, docs, onZoom }) => (
+  <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="mb-3">
+      <p className="text-sm font-bold flex items-center gap-2">
+        <group.icon className="w-4 h-4 text-primary" aria-hidden="true" /> {group.label}
+        {!group.required && (
+          <span className="text-[10px] font-normal text-muted-foreground">(tuỳ chọn)</span>
+        )}
+      </p>
+      <p
+        className={cn(
+          "text-xs mt-0.5 flex items-center gap-1",
+          docs.length > 0
+            ? "text-emerald-600"
+            : group.required
+            ? "text-red-500"
+            : "text-muted-foreground"
+        )}
+      >
+        {docs.length > 0 ? (
           <>
-            <img
-              src={doc.url}
-              alt={doc.label}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/50 transition-colors flex items-center justify-center text-background opacity-0 group-hover:opacity-100">
-              <ZoomIn className="w-4 h-4" aria-hidden="true" />
-            </div>
+            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> Đã nộp {docs.length} ảnh
+          </>
+        ) : group.required ? (
+          <>
+            <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" /> Chưa nộp
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground/50">
-            <FileText className="w-5 h-5" aria-hidden="true" />
-          </div>
+          <>
+            <Minus className="w-3.5 h-3.5" aria-hidden="true" /> Chưa nộp (không bắt buộc)
+          </>
         )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm flex items-center gap-1.5">
-          {doc.label}
-          {doc.url && (
-            <ExternalLink
-              className="w-3 h-3 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity"
-              aria-hidden="true"
+        {group.hint && docs.length > 0 && (
+          <span className="text-muted-foreground"> • {group.hint}</span>
+        )}
+      </p>
+    </div>
+
+    {docs.length > 0 ? (
+      <div className="grid sm:grid-cols-2 gap-3">
+        {docs.map((doc, idx) => (
+          <button
+            key={doc.id}
+            type="button"
+            onClick={() => onZoom(doc.fileUrl)}
+            className="group relative aspect-video rounded-xl border border-border overflow-hidden bg-muted"
+          >
+            <img
+              src={doc.fileUrl}
+              alt={`${group.label} ${idx + 1}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
-          )}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5 truncate">{doc.sub}</p>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-white/90 text-gray-900 rounded-full px-3 py-1.5 text-xs font-semibold shadow">
+                <ZoomIn className="w-3.5 h-3.5" aria-hidden="true" /> Xem ảnh
+              </span>
+            </div>
+            {docs.length > 1 && (
+              <Badge className="absolute top-2 left-2 bg-black/60 text-white border-none text-[10px]">
+                Ảnh {idx + 1}
+              </Badge>
+            )}
+          </button>
+        ))}
       </div>
-      {pill}
-    </>
-  );
-
-  const className =
-    "group flex items-center gap-3.5 p-3 rounded-xl border border-transparent hover:border-border hover:bg-muted/40 transition-colors";
-
-  return doc.url ? (
-    <a
-      href={doc.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={className}
-    >
-      {inner}
-    </a>
-  ) : (
-    <div className={cn(className, "cursor-default")}>{inner}</div>
-  );
-};
+    ) : (
+      <div className="border border-dashed border-border rounded-xl py-8 flex flex-col items-center gap-2 text-center">
+        <ImageIcon className="w-8 h-8 text-muted-foreground/50" aria-hidden="true" />
+        <p className="text-xs text-muted-foreground">Ứng viên chưa tải lên</p>
+      </div>
+    )}
+  </div>
+);
 
 // ─── Main view ──────────────────────────────────────────────────────────────
 
 export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
   const router = useRouter();
   const { data: tasker, isLoading } = useAdminTaskerDetail(taskerId);
+  const { data: docsData, isLoading: isDocsLoading } =
+    useAdminTaskerDocuments(taskerId);
+  const { data: penaltiesData } = useAdminTaskerPenalties(taskerId);
+  const [lightbox, setLightbox] = React.useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -286,48 +331,18 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const docStatus = (detail.document?.status || "").toLowerCase();
-  const docEntries: DocEntry[] = [
-    {
-      label: "CCCD / CMND",
-      sub: detail.document?.idNumber
-        ? `${detail.document.idNumber}${
-            detail.document.expiredDate
-              ? ` · Hết hạn ${formatDate(detail.document.expiredDate)}`
-              : ""
-          }`
-        : "Mặt trước & mặt sau",
-      url: detail.document?.frontUrl ?? detail.document?.backUrl ?? null,
-      has: !!detail.hasCitizenCardImage,
-    },
-    {
-      label: "Selfie cùng CCCD",
-      sub: "Ảnh chân dung xác thực danh tính",
-      url: detail.avatarUrl,
-      has: !!detail.hasIdWithSelfieImage,
-    },
-    {
-      label: "Lý lịch tư pháp",
-      sub: detail.document?.issuedDate
-        ? `Cấp ${formatDate(detail.document.issuedDate)}`
-        : "Phiếu lý lịch tư pháp số 2",
-      url: detail.document?.criminalRecordUrl ?? null,
-      has: !!detail.hasCriminalRecordImage,
-    },
-    {
-      label: "Giấy khám sức khỏe",
-      sub: "Còn hiệu lực trong 12 tháng",
-      url: detail.document?.healthCertificateUrl ?? null,
-      has: !!detail.hasHealthCertificateImage,
-    },
-    {
-      label: "Chứng chỉ nghề",
-      sub: "Chứng chỉ kỹ năng vệ sinh chuyên sâu",
-      url: detail.document?.certificateUrl ?? null,
-      has: !!detail.hasCertificateImage,
-    },
-  ];
-  const completedDocs = docEntries.filter((d) => d.has).length;
+  const docs = (docsData?.documents ?? []).filter((d) => d.fileUrl) as Array<{
+    id: string;
+    type: string;
+    fileUrl: string;
+  }>;
+  const getDocsByType = (type: string) => docs.filter((d) => d.type === type);
+  const completedDocs = DOC_GROUPS.filter(
+    (g) => getDocsByType(g.id).length > 0
+  ).length;
+
+  const parsedNotes = parseAdminNotes(detail.adminNotes);
+  const penalties = (penaltiesData ?? []) as TaskerPenalty[];
 
   return (
     <div className="space-y-6">
@@ -526,6 +541,113 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
               )}
             </div>
           </div>
+
+          {/* Admin notes */}
+          {parsedNotes ? (
+            <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-blue-600 mb-2 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi chú của
+                admin
+              </p>
+              {parsedNotes.itemLabels.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {parsedNotes.itemLabels.map((label) => (
+                    <Badge
+                      key={label}
+                      variant="outline"
+                      className="text-xs bg-white/60 dark:bg-white/10"
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {parsedNotes.note && (
+                <p className="text-sm text-foreground/80 italic leading-relaxed">
+                  &ldquo;{parsedNotes.note}&rdquo;
+                </p>
+              )}
+            </div>
+          ) : (
+            detail.adminNotes && (
+              <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-blue-600 mb-2 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi chú của
+                  admin
+                </p>
+                <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                  {detail.adminNotes}
+                </p>
+              </div>
+            )
+          )}
+
+          {/* Ban reason */}
+          {detail.banReason && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-red-600 mb-2 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Lý do khóa
+                tài khoản
+              </p>
+              <p className="text-sm text-foreground/80 leading-relaxed">
+                {detail.banReason}
+              </p>
+            </div>
+          )}
+
+          {/* Penalties */}
+          {penalties.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl p-5">
+              <h3 className="text-sm font-bold flex items-center gap-2 mb-3">
+                <AlertCircle className="w-4 h-4 text-primary" aria-hidden="true" />
+                Lịch sử kỷ luật
+              </h3>
+              <div className="space-y-3">
+                {penalties.map((p) => (
+                  <div
+                    key={p.id}
+                    className="rounded-xl border border-border/50 p-4 space-y-2 bg-background"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 uppercase tracking-widest",
+                          p.type === "PERMANENT"
+                            ? "bg-red-500/10 text-red-700 border-red-500/30"
+                            : "bg-amber-500/10 text-amber-700 border-amber-500/30"
+                        )}
+                      >
+                        {PENALTY_TYPE_LABELS[p.type] || p.type}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(p.createdAt).toLocaleDateString("vi-VN")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground font-medium leading-relaxed">
+                      {p.reason}
+                    </p>
+                    <div className="text-[11px] text-muted-foreground flex justify-between gap-2 pt-1 border-t border-border/50">
+                      <span>
+                        Người xử lý:{" "}
+                        <span className="font-semibold text-foreground">
+                          {p.createdBy?.fullName || "Admin"}
+                        </span>
+                      </span>
+                      {p.endsAt && (
+                        <span>
+                          Hết hạn:{" "}
+                          <span className="font-semibold text-foreground">
+                            {new Date(p.endsAt).toLocaleDateString("vi-VN")}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ── Hồ sơ ── */}
@@ -590,34 +712,47 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                   <ShieldCheck className="w-5 h-5 text-primary" aria-hidden="true" />
                 </div>
                 <p className="font-bold mt-1.5 mb-2.5">
-                  {completedDocs} / {docEntries.length} mục giấy tờ
+                  {completedDocs} / {DOC_GROUPS.length} mục giấy tờ
                 </p>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
                     style={{
-                      width: `${(completedDocs / docEntries.length) * 100}%`,
+                      width: `${(completedDocs / DOC_GROUPS.length) * 100}%`,
                     }}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Documents */}
+            {/* Documents — giấy tờ định danh & pháp lý (xem chi tiết) */}
             <div className="bg-card border border-border/50 rounded-2xl p-3 sm:p-4">
               <div className="flex items-center justify-between px-2 pt-1.5 pb-2">
                 <h3 className="text-sm font-bold flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" aria-hidden="true" />
-                  Giấy tờ pháp lý
+                  <ImageIcon className="w-4 h-4 text-primary" aria-hidden="true" />
+                  Giấy tờ định danh & pháp lý
                 </h3>
-                <span className="text-xs text-muted-foreground">Bấm để xem ảnh gốc</span>
+                <span className="text-xs text-muted-foreground">Bấm ảnh để xem ảnh gốc</span>
               </div>
-              <Separator className="mb-1.5" />
-              <div className="space-y-0.5">
-                {docEntries.map((doc) => (
-                  <DocItem key={doc.label} doc={doc} statusLabel={docStatus} />
-                ))}
-              </div>
+              <Separator className="mb-3" />
+              {isDocsLoading ? (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="aspect-video rounded-2xl" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4 items-start">
+                  {DOC_GROUPS.map((group) => (
+                    <DocGroupCard
+                      key={group.id}
+                      group={group}
+                      docs={getDocsByType(group.id)}
+                      onZoom={setLightbox}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>
@@ -693,6 +828,20 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Lightbox — xem ảnh giấy tờ gốc */}
+      <Dialog open={!!lightbox} onOpenChange={(o) => !o && setLightbox(null)}>
+        <DialogContent className="max-w-4xl w-[95vw] p-2 bg-black/95 border-none">
+          <DialogTitle className="sr-only">Xem ảnh giấy tờ</DialogTitle>
+          {lightbox && (
+            <img
+              src={lightbox}
+              alt="Ảnh giấy tờ"
+              className="w-full max-h-[85vh] object-contain rounded-lg"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
