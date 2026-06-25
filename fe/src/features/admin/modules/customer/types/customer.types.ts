@@ -10,6 +10,7 @@ export interface CustomerListItem {
   defaultPaymentMethod: string | null;
   totalBookings: number;
   totalCancelled: number;
+  totalSpent: number;
   createdAt: string;
   lastLogin: string | null;
 }

@@ -1,14 +1,16 @@
 import { CustomerDetailPage } from "@/features/admin/modules/customer/_components/CustomerDetailPage";
 
-export default function AdminCustomerDetailRoute({
+export default async function AdminCustomerDetailRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
+
   return (
     <main className="min-h-screen bg-background py-6">
       <div className="w-full">
-        <CustomerDetailPage customerId={params.id} />
+        <CustomerDetailPage customerId={id} />
       </div>
     </main>
   );
