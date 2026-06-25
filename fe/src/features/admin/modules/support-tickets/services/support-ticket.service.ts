@@ -14,6 +14,7 @@ import type {
   UpdateTicketConfigDto,
   AdminMessage,
   Resolution,
+  MarkReadAdminInput,
 } from "../types/support-ticket.types";
 
 const EP = API_ENDPOINTS.ADMIN_SUPPORT_TICKETS;
@@ -29,6 +30,10 @@ export const supportTicketAdminApi = {
   // ── Ticket List ────────────────────────────────────────────────────────────
   list: (params?: AdminTicketQueryParams): Promise<PaginatedTickets> =>
     http.get<PaginatedTickets>(EP.BASE, { params }).then((r) => r.data),
+
+  // ── Tổng tin chưa đọc (badge) ────────────────────────────────────────────
+  unreadTotal: (): Promise<{ count: number }> =>
+    http.get<{ count: number }>(EP.UNREAD_TOTAL).then((r) => r.data),
 
   // ── Tạo ticket hộ (hotline) ───────────────────────────────────────────────
   createOnBehalf: (dto: CreateTicketOnBehalfDto): Promise<TicketAdminDetail> =>
@@ -60,6 +65,10 @@ export const supportTicketAdminApi = {
   // ── Gửi tin nhắn (public / internal note) — BE trả Message (spec §2.6) ────
   addMessage: (id: string, dto: CreateAdminMessageDto): Promise<AdminMessage> =>
     http.post<AdminMessage>(EP.MESSAGES(id), dto).then((r) => r.data),
+
+  // ── Đánh dấu đã đọc 1 luồng (REPORTER/COUNTERPARTY/INTERNAL) ─────────────
+  markRead: (id: string, dto: MarkReadAdminInput): Promise<unknown> =>
+    http.post(EP.READ(id), dto).then((r) => r.data),
 
   // ── Ghi nhận kết luận xử lý — BE trả Resolution (spec §2.7) ──────────────
   addResolution: (id: string, dto: CreateResolutionDto): Promise<Resolution> =>

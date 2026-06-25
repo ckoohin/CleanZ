@@ -6,5 +6,6 @@ export default async function SupportTicketDetailRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
   return <MyTicketDetailPage ticketId={id} />;
 }

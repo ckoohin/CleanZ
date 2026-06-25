@@ -42,11 +42,11 @@ const overviewNav = [
 const managementNav = [
   {
     title: "Quản lý Dịch vụ",
-    url: ROUTES.ADMIN.SERVICES,
+    url: ROUTES.ADMIN.SERVICES.BASE,
     icon: <Wrench />,
     items: [
       { title: "Gói dịch vụ", url: ROUTES.ADMIN.SERVICE_PACKAGES },
-      { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES },
+      { title: "Danh sách dịch vụ", url: ROUTES.ADMIN.SERVICES.BASE },
     ],
   },
   {

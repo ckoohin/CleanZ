@@ -13,7 +13,8 @@ const CHANNEL_MATRIX: Record<NotificationType, NotificationChannel[]> = {
   [NotificationType.PAYMENT_SUCCESS]: ['IN_APP', 'EMAIL'],
   [NotificationType.PAYMENT_FAILED]: ['IN_APP', 'EMAIL'],
   [NotificationType.INCIDENT_UPDATE]: ['IN_APP', 'EMAIL'],
-  [NotificationType.SUPPORT_REPLY]: ['IN_APP', 'EMAIL'],
+  // Hỗ trợ / tin nhắn ticket: CHỈ in-app (không gửi email khi nhắn tin).
+  [NotificationType.SUPPORT_REPLY]: ['IN_APP'],
   [NotificationType.PROMOTION]: ['IN_APP'],
   [NotificationType.SYSTEM]: ['IN_APP'],
 };

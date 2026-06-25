@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
-import { useMyTicketList, useCreateTicket, useMyBookings } from "@/features/support-tickets/hooks/useMyTicket";
+import { useMyTicketList, useCreateTicket, useMyBookings, useMyTicketUnreadRealtime } from "@/features/support-tickets/hooks/useMyTicket";
 import { myTicketApi } from "@/features/support-tickets/services/my-ticket.service";
 import { toast } from "sonner";
 import type {
@@ -320,6 +320,11 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
         </div>
 
         <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {!!ticket.unreadCount && ticket.unreadCount > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white shadow-sm">
+              {ticket.unreadCount > 9 ? "9+" : ticket.unreadCount}
+            </span>
+          )}
           <span
             className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${TONE_BADGE_CLASS[STATUS_TONE[ticket.status]]}`}
           >
@@ -333,7 +338,10 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
 
       <div className="flex items-center justify-end mt-3 pt-3 border-t border-border/30">
         <span className="text-xs text-primary font-semibold flex items-center gap-0.5">
-          Xem chi tiết <ChevronRight className="w-3.5 h-3.5" />
+          {!!ticket.unreadCount && ticket.unreadCount > 0
+            ? `${ticket.unreadCount} tin mới`
+            : "Xem chi tiết"}{" "}
+          <ChevronRight className="w-3.5 h-3.5" />
         </span>
       </div>
     </motion.div>
@@ -358,6 +366,7 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
   const [showCreate, setShowCreate] = useState(false);
+  useMyTicketUnreadRealtime(); // tin mới → badge ngoài ticket cập nhật tức thì
 
   // Tự động mở Modal tạo mới nếu phát hiện có tham số khiếu nại đơn từ URL
   React.useEffect(() => {

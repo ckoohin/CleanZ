@@ -4,11 +4,13 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ServicePackageEntity } from '../entity/service-package.entity';
 import { CreateServicePackageDto } from '../dto/create-service-package.dto';
 import { UpdateServicePackageDto } from '../dto/update-service-package.dto';
 import { CoverageAreaEntity } from '../entity/coverage-area.entity';
+import { PackageSubServiceEntity } from '../entity/package-sub-service.entity';
+import { AddSubServicesToPackageDto } from '../dto/add-sub-services-to-package.dto';
 
 export interface ServicePackageAnalytics {
   totalBookings: number;
@@ -28,6 +30,8 @@ export class ServicePackagesService {
   constructor(
     @InjectRepository(ServicePackageEntity)
     private readonly packageRepository: Repository<ServicePackageEntity>,
+    @InjectRepository(PackageSubServiceEntity)
+    private readonly pssRepository: Repository<PackageSubServiceEntity>,
   ) {}
 
   async create(dto: CreateServicePackageDto): Promise<ServicePackageEntity> {
@@ -164,6 +168,39 @@ export class ServicePackagesService {
   async remove(id: string): Promise<void> {
     const servicePackage = await this.findOne(id);
     await this.packageRepository.remove(servicePackage);
+  }
+
+  async addSubServices(
+    packageId: string,
+    dto: AddSubServicesToPackageDto,
+  ): Promise<void> {
+    await this.findOne(packageId); // Verify package exists
+
+    // Remove existing links for these sub-services (upsert pattern)
+    const incomingIds = dto.subServices.map((s) => s.id);
+    if (incomingIds.length > 0) {
+      await this.pssRepository.delete({
+        packageId,
+        subServiceId: In(incomingIds),
+      });
+    }
+
+    // Insert new links
+    const entities = dto.subServices.map((item, index) =>
+      this.pssRepository.create({
+        packageId,
+        subServiceId: item.id,
+        isRequired: item.isRequired ?? false,
+        isDefault: item.isDefault ?? false,
+        sortOrder: item.sortOrder ?? index,
+      }),
+    );
+
+    await this.pssRepository.save(entities);
+  }
+
+  async removeSubService(packageId: string, subServiceId: string): Promise<void> {
+    await this.pssRepository.delete({ packageId, subServiceId });
   }
 
   async getAnalytics(id: string): Promise<ServicePackageAnalytics> {

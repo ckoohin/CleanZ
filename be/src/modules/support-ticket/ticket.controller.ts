@@ -26,6 +26,7 @@ import { TicketService } from './services/ticket.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { QueryTicketDto } from './dto/query-ticket.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { MarkReadDto } from './dto/mark-read.dto';
 import { SubmitSurveyDto } from './dto/submit-survey.dto';
 import { TicketSurveyService } from './services/ticket-survey.service';
 
@@ -62,6 +63,12 @@ export class TicketController {
     return this.ticketService.listMine(userId, query);
   }
 
+  @Get('unread-total')
+  @ApiOperation({ summary: 'Tổng số tin chưa đọc (badge)' })
+  async unreadTotal(@CurrentUser('id') userId: string) {
+    return { count: await this.ticketService.unreadTotal(userId, false) };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết ticket (ẩn ghi chú nội bộ)' })
   findOne(
@@ -79,6 +86,16 @@ export class TicketController {
     @Body() dto: CreateMessageDto,
   ) {
     return this.ticketService.addUserMessage(userId, id, dto);
+  }
+
+  @Post(':id/read')
+  @ApiOperation({ summary: 'Đánh dấu đã đọc luồng hội thoại của tôi' })
+  markRead(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: MarkReadDto,
+  ) {
+    return this.ticketService.markThreadRead(userId, id, dto);
   }
 
   @Post(':id/survey')

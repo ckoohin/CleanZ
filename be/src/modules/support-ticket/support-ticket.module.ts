@@ -7,6 +7,7 @@ import { TicketAttachmentEntity } from './entity/ticket-attachment.entity';
 import { TicketStatusLogEntity } from './entity/ticket-status-log.entity';
 import { TicketResolutionEntity } from './entity/ticket-resolution.entity';
 import { TicketSurveyEntity } from './entity/ticket-survey.entity';
+import { TicketThreadReadEntity } from './entity/ticket-thread-read.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { NotificationModule } from 'src/modules/notification/notification.module';
@@ -22,6 +23,8 @@ import { TicketResolutionService } from './services/ticket-resolution.service';
 import { TicketSlaService } from './services/ticket-sla.service';
 import { TicketSurveyService } from './services/ticket-survey.service';
 import { SupportTicketProcessor } from './support-ticket.processor';
+import { TicketRealtimeService } from './realtime/ticket-realtime.service';
+import { SupportChatGateway } from './realtime/support-chat.gateway';
 import {
   RESOLUTION_EXECUTOR,
   NoopResolutionExecutor,
@@ -37,6 +40,7 @@ import { SUPPORT_TICKET_QUEUE } from './support-ticket.constants';
       TicketStatusLogEntity,
       TicketResolutionEntity,
       TicketSurveyEntity,
+      TicketThreadReadEntity,
       UserEntity,
       BookingEntity,
     ]),
@@ -55,6 +59,8 @@ import { SUPPORT_TICKET_QUEUE } from './support-ticket.constants';
     TicketSlaService,
     TicketSurveyService,
     SupportTicketProcessor,
+    TicketRealtimeService,
+    SupportChatGateway,
     { provide: RESOLUTION_EXECUTOR, useClass: NoopResolutionExecutor },
   ],
   exports: [TypeOrmModule, TicketService],

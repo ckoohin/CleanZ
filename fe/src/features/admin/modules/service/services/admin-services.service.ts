@@ -114,6 +114,13 @@ export interface CreateAdminPackageDto {
 
 export type UpdateAdminPackageDto = Partial<CreateAdminPackageDto>;
 
+export interface SubServiceLinkItem {
+  id: string;
+  isRequired?: boolean;
+  isDefault?: boolean;
+  sortOrder?: number;
+}
+
 export interface AdminPackageAnalytics {
   totalBookings: number;
   totalRevenue: number;
@@ -215,6 +222,15 @@ export const adminServicesApi = {
 
   deletePackage: async (id: string) => {
     await http.delete(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.DETAIL(id));
+  },
+
+  // ─── LINK / UNLINK SUB-SERVICES ───
+  addSubServicesToPackage: async (packageId: string, subServices: SubServiceLinkItem[]) => {
+    await http.post(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.SUB_SERVICES(packageId), { subServices });
+  },
+
+  removeSubServiceFromPackage: async (packageId: string, subServiceId: string) => {
+    await http.delete(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.REMOVE_SUB_SERVICE(packageId, subServiceId));
   },
 
   getPackageAnalytics: async (id: string) => {

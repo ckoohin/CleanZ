@@ -55,6 +55,12 @@ describe('TicketAdminService.changeStatus (TC-U-STATE)', () => {
       } as any, // sla
       { notify: jest.fn().mockResolvedValue(undefined) } as any, // notification
       { uploadImage: jest.fn() } as any, // uploadService
+      {
+        emitMessage: jest.fn(),
+        emitRead: jest.fn(),
+        emitTyping: jest.fn(),
+        emitUnread: jest.fn(),
+      } as any, // realtime
     );
   });
 

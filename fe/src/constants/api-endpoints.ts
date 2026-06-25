@@ -63,10 +63,12 @@ export const API_ENDPOINTS = {
   ADMIN_SUPPORT_TICKETS: {
     BASE: "/admin/support-tickets",
     CONFIG: "/admin/support-tickets/config",
+    UNREAD_TOTAL: "/admin/support-tickets/unread-total",
     DETAIL: (id: string) => `/admin/support-tickets/${id}`,
     ASSIGN: (id: string) => `/admin/support-tickets/${id}/assign`,
     STATUS: (id: string) => `/admin/support-tickets/${id}/status`,
     MESSAGES: (id: string) => `/admin/support-tickets/${id}/messages`,
+    READ: (id: string) => `/admin/support-tickets/${id}/read`,
     ATTACHMENTS: (id: string) => `/admin/support-tickets/${id}/attachments`,
     RESOLUTIONS: (id: string) => `/admin/support-tickets/${id}/resolutions`,
     CATEGORY: (id: string) => `/admin/support-tickets/${id}/category`,
@@ -76,16 +78,20 @@ export const API_ENDPOINTS = {
     HISTORY: "/admin/notifications",
   },
   NOTIFICATIONS: {
+    LIST: "/notifications",
     BASE: "/notifications",
     UNREAD_COUNT: "/notifications/unread-count",
     READ_ALL: "/notifications/read-all",
+    READ_ONE: (id: string) => `/notifications/${id}/read`,
     MARK_READ: (id: string) => `/notifications/${id}/read`,
   },
   SUPPORT_TICKETS: {
     BASE: "/support-tickets",
     MINE: "/support-tickets/mine",
+    UNREAD_TOTAL: "/support-tickets/unread-total",
     DETAIL: (id: string) => `/support-tickets/${id}`,
     MESSAGES: (id: string) => `/support-tickets/${id}/messages`,
+    READ: (id: string) => `/support-tickets/${id}/read`,
     SURVEY: (id: string) => `/support-tickets/${id}/survey`,
     ATTACHMENTS: (id: string) => `/support-tickets/${id}/attachments`,
   },
@@ -128,6 +134,9 @@ export const API_ENDPOINTS = {
     BASE: "/admin/service-packages",
     DETAIL: (id: string) => `/admin/service-packages/${id}`,
     ANALYTICS: (id: string) => `/admin/service-packages/${id}/analytics`,
+    SUB_SERVICES: (id: string) => `/admin/service-packages/${id}/sub-services`,
+    REMOVE_SUB_SERVICE: (id: string, subServiceId: string) =>
+      `/admin/service-packages/${id}/sub-services/${subServiceId}`,
   },
   ADMIN_BOOKINGS: {
     BASE: "/admin/bookings",
@@ -149,6 +158,16 @@ export const API_ENDPOINTS = {
   ADMIN_POLICIES: {
     BASE: "/policy",
     DETAIL: (id: string) => `/policy/${id}`,
+    PACKAGES_BY_POLICY: (id: string) => `/policy/${id}/packages`,
+    SEED: "/policy/seed",
+    DEFAULTS: "/policy/defaults",
+    PUBLIC_ALL: "/policy/public/all",
+    PUBLIC_BY_SLUG: (slug: string) => `/policy/public/by-slug/${slug}`,
+    // Package assignment
+    PACKAGE_POLICIES: (pkgId: string) => `/policy/packages/${pkgId}`,
+    ASSIGN_TO_PACKAGE: (pkgId: string) => `/policy/packages/${pkgId}/assign`,
+    REMOVE_FROM_PACKAGE: (pkgId: string, policyId: string) => `/policy/packages/${pkgId}/policies/${policyId}`,
+    APPLY_DEFAULTS: (pkgId: string) => `/policy/packages/${pkgId}/apply-defaults`,
   },
   ADMIN_PRICING: {
     CONFIGS: "/admin/pricing/configs",

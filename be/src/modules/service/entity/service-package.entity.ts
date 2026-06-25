@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { PackageSubServiceEntity } from './package-sub-service.entity';
 import { CoverageAreaEntity } from './coverage-area.entity';
+import { Policy } from '../../policy/entity/policy.entity';
 
 @Entity('service_packages')
 export class ServicePackageEntity {
@@ -109,4 +110,13 @@ export class ServicePackageEntity {
     inverseJoinColumn: { name: 'area_id', referencedColumnName: 'id' },
   })
   coverageAreas!: CoverageAreaEntity[];
+
+  /** Chính sách được gán cho gói dịch vụ này */
+  @ManyToMany(() => Policy, (policy) => policy.packages)
+  @JoinTable({
+    name: 'package_policies',
+    joinColumn: { name: 'package_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'policy_id', referencedColumnName: 'id' },
+  })
+  policies!: Policy[];
 }

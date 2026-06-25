@@ -15,8 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertTriangle,
   CheckCircle2,
-  Lock,
-  User,
   MessageSquare,
   ArrowRight,
   History,
@@ -35,7 +33,7 @@ import { StatusChangePanel } from "./panels/StatusChangePanel";
 import { AssignPanel } from "./panels/AssignPanel";
 import { ReclassifyPanel } from "./panels/ReclassifyPanel";
 import { ResolutionPanel } from "./panels/ResolutionPanel";
-import { AdminMessageComposer } from "./panels/AdminMessageComposer";
+import { AdminTicketChat } from "./panels/AdminTicketChat";
 
 function fmtDate(d: string | null | undefined) {
   return d ? new Date(d).toLocaleString("vi-VN") : "N/A";
@@ -171,47 +169,9 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Messages */}
-                <TabsContent value="messages" className="space-y-3 mt-4">
-                  <div className="space-y-2 pr-1">
-                    {ticket.messages.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-4">Chưa có tin nhắn</p>
-                    ) : (
-                      ticket.messages.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`rounded-xl p-3 text-sm border ${
-                            m.isInternal
-                              ? "bg-amber-500/5 border-amber-500/20"
-                              : "bg-muted/40 border-border/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 mb-1">
-                            {m.isInternal ? (
-                              <Lock className="w-3 h-3 text-amber-500" />
-                            ) : (
-                              <User className="w-3 h-3 text-muted-foreground" />
-                            )}
-                            <span className="text-[10px] text-muted-foreground">
-                              {m.isInternal ? "Ghi chú nội bộ" : "Công khai"} · {fmtDate(m.createdAt)}
-                            </span>
-                          </div>
-                          <p className="text-foreground/80">{m.body}</p>
-                          {m.attachments?.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {m.attachments.map((a) => (
-                                <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={a.url} alt="đính kèm" className="size-14 rounded-lg border border-border/40 object-cover" />
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <AdminMessageComposer ticketId={ticket.id} />
+                {/* Messages — 3 luồng tách (admin trung gian) */}
+                <TabsContent value="messages" className="mt-4">
+                  <AdminTicketChat ticket={ticket} />
                 </TabsContent>
 
                 {/* Actions */}

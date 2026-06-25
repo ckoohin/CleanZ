@@ -36,10 +36,10 @@ export default function CreateServicePage() {
         </BaseButton>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Thêm dịch vụ mới
+            Thêm dịch vụ con mới
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Nhập các thông tin cơ bản để tạo mới dịch vụ vào hệ thống.
+            Tạo mới một dịch vụ con độc lập và gán vào gói dịch vụ.
           </p>
         </div>
       </div>

@@ -5,7 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
@@ -31,6 +31,11 @@ import { TicketConfigService } from './ticket-config.service';
 import { TicketSlaService } from './ticket-sla.service';
 import { TicketSource } from 'src/common/enums/ticket-source.enum';
 import { TicketPendingReason } from 'src/common/enums/ticket-pending-reason.enum';
+import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
+import { senderRoleOf } from '../dto/ticket-response.dto';
+import { TicketThreadReadEntity } from '../entity/ticket-thread-read.entity';
+import { TicketRealtimeService } from '../realtime/ticket-realtime.service';
+import { MarkReadDto } from '../dto/mark-read.dto';
 
 const NO_BOOKING_CATEGORIES = [
   TicketCategory.ACCOUNT_TECHNICAL,
@@ -55,6 +60,9 @@ export class TicketService {
     private readonly config: TicketConfigService,
     private readonly uploadService: UploadService,
     private readonly sla: TicketSlaService,
+    private readonly realtime: TicketRealtimeService,
+    @InjectRepository(TicketThreadReadEntity)
+    private readonly threadReadRepo: Repository<TicketThreadReadEntity>,
   ) {}
 
   async create(
@@ -190,15 +198,29 @@ export class TicketService {
       if (ticket.status === SupportTicketStatus.CLOSED) {
         throw new ConflictException('Ticket đã đóng');
       }
+      const body = dto.body?.trim() ?? '';
+      if (!body && !dto.attachmentIds?.length) {
+        throw new UnprocessableEntityException(
+          'Tin nhắn phải có nội dung hoặc ảnh đính kèm',
+        );
+      }
+
+      const isReporter = ticket.reporter?.id === userId;
+      // Định tuyến luồng theo người gửi (mô hình admin trung gian 2 thread).
+      const audience = isReporter
+        ? TicketMessageAudience.REPORTER
+        : TicketMessageAudience.COUNTERPARTY;
 
       const msg = await this.messageRepo.save(
         this.messageRepo.create({
           ticket: { id: ticket.id },
           sender: { id: userId },
-          body: dto.body,
+          body,
           isInternal: false,
+          audience,
         }),
       );
+      let attachments: { id: string; url: string }[] = [];
       if (dto.attachmentIds?.length) {
         await this.attachmentRepo
           .createQueryBuilder()
@@ -206,9 +228,12 @@ export class TicketService {
           .set({ message: { id: msg.id }, ticket: { id: ticket.id } })
           .whereInIds(dto.attachmentIds)
           .execute();
+        const rows = await this.attachmentRepo.find({
+          where: { message: { id: msg.id } },
+        });
+        attachments = rows.map((a) => ({ id: a.id, url: a.url }));
       }
 
-      const isReporter = ticket.reporter?.id === userId;
       const awaitsThisParty =
         ticket.status === SupportTicketStatus.PENDING &&
         ((ticket.pendingReason === TicketPendingReason.WAIT_CUSTOMER &&
@@ -232,12 +257,26 @@ export class TicketService {
         );
       }
 
-      return {
+      const result: PublicMessage = {
         id: msg.id,
         senderUserId: userId,
+        senderRole: senderRoleOf(
+          isReporter ? ticket.reporter : ticket.counterparty,
+        ),
         body: msg.body,
+        attachments,
         createdAt: msg.createdAt,
       };
+      // Realtime: phát vào room của luồng (người đang mở ticket nhận tin ngay).
+      this.realtime.emitMessage(ticket, audience, result);
+      // Ping badge "tin chưa đọc": admin phụ trách (nếu có), ngược lại broadcast
+      // cho mọi admin (ticket chưa gán) — để hàng đợi admin cập nhật realtime.
+      if (ticket.assignedAdmin?.id) {
+        this.realtime.emitUnread(ticket.assignedAdmin.id, ticket.id);
+      } else {
+        this.realtime.emitUnreadToAdmins(ticket.id);
+      }
+      return result;
     }, 'Lỗi khi gửi tin nhắn');
   }
 
@@ -274,11 +313,76 @@ export class TicketService {
         qb.andWhere('t.priority = :priority', { priority: query.priority });
 
       const [rows, total] = await qb.getManyAndCount();
+      const unread = await this.unreadCountMap(
+        userId,
+        false,
+        rows.map((r) => r.id),
+      );
       return {
-        data: rows.map(toTicketSummary),
+        data: rows.map((r) => ({
+          ...toTicketSummary(r),
+          unreadCount: unread[r.id] ?? 0,
+        })),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }, 'Lỗi khi lấy danh sách ticket');
+  }
+
+  /**
+   * Số tin CHƯA ĐỌC theo từng ticket cho 1 người xem (badge ngoài ticket).
+   * Unread = message trong luồng người đó thấy, KHÔNG do họ gửi, tạo SAU mốc
+   * last-read của họ (ticket_thread_reads). Admin tính cả REPORTER+COUNTERPARTY.
+   */
+  async unreadCountMap(
+    viewerId: string,
+    isAdmin: boolean,
+    ticketIds: string[],
+  ): Promise<Record<string, number>> {
+    if (ticketIds.length === 0) return {};
+    const audienceFilter = isAdmin
+      ? `m.audience IN ('REPORTER','COUNTERPARTY')`
+      : `m.audience = (CASE WHEN t.reporter_user_id = $1 THEN 'REPORTER'::ticket_message_audience
+                            WHEN t.counterparty_user_id = $1 THEN 'COUNTERPARTY'::ticket_message_audience END)`;
+    const rows: { ticketId: string; count: string }[] =
+      await this.dataSource.query(
+        `SELECT m.ticket_id AS "ticketId", COUNT(*)::int AS "count"
+         FROM ticket_messages m
+         JOIN support_tickets t ON t.id = m.ticket_id
+         LEFT JOIN ticket_thread_reads r
+           ON r.ticket_id = m.ticket_id AND r.user_id = $1 AND r.audience = m.audience
+         LEFT JOIN ticket_messages lr ON lr.id = r.last_read_message_id
+         WHERE m.ticket_id = ANY($2::uuid[])
+           AND m.sender_user_id IS DISTINCT FROM $1
+           AND ${audienceFilter}
+           AND (lr.created_at IS NULL OR m.created_at > lr.created_at)
+         GROUP BY m.ticket_id`,
+        [viewerId, ticketIds],
+      );
+    const map: Record<string, number> = {};
+    for (const row of rows) map[row.ticketId] = Number(row.count);
+    return map;
+  }
+
+  /** Tổng số tin chưa đọc trên TẤT CẢ ticket của người xem (badge trên nav). */
+  async unreadTotal(viewerId: string, isAdmin: boolean): Promise<number> {
+    const scope = isAdmin
+      ? `m.audience IN ('REPORTER','COUNTERPARTY')`
+      : `(t.reporter_user_id = $1 OR t.counterparty_user_id = $1)
+         AND m.audience = (CASE WHEN t.reporter_user_id = $1 THEN 'REPORTER'::ticket_message_audience
+                                WHEN t.counterparty_user_id = $1 THEN 'COUNTERPARTY'::ticket_message_audience END)`;
+    const rows: { c: string }[] = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS c
+       FROM ticket_messages m
+       JOIN support_tickets t ON t.id = m.ticket_id
+       LEFT JOIN ticket_thread_reads r
+         ON r.ticket_id = m.ticket_id AND r.user_id = $1 AND r.audience = m.audience
+       LEFT JOIN ticket_messages lr ON lr.id = r.last_read_message_id
+       WHERE m.sender_user_id IS DISTINCT FROM $1
+         AND ${scope}
+         AND (lr.created_at IS NULL OR m.created_at > lr.created_at)`,
+      [viewerId],
+    );
+    return Number(rows[0]?.c ?? 0);
   }
 
   async findOneForUser(
@@ -287,13 +391,95 @@ export class TicketService {
   ): Promise<TicketPublicView> {
     return asyncHandleOperation(async () => {
       const ticket = await this.loadAccessible(ticketId, userId);
+      // Chỉ trả message thuộc ĐÚNG luồng của người xem (admin trung gian):
+      // reporter thấy luồng REPORTER, counterparty thấy COUNTERPARTY; không bao
+      // giờ thấy INTERNAL hay luồng của bên kia (AD7/BR-8/FR-D2).
+      const viewerAudience =
+        ticket.reporter?.id === userId
+          ? TicketMessageAudience.REPORTER
+          : TicketMessageAudience.COUNTERPARTY;
       const messages = await this.messageRepo.find({
-        where: { ticket: { id: ticketId } },
+        where: { ticket: { id: ticketId }, audience: viewerAudience },
         relations: ['sender'],
         order: { createdAt: 'ASC' },
       });
-      return toPublicView(ticket, messages);
+      const attachments = messages.length
+        ? await this.attachmentRepo.find({
+            where: { message: { id: In(messages.map((m) => m.id)) } },
+            relations: ['message'],
+          })
+        : [];
+      return toPublicView(ticket, messages, attachments);
     }, 'Lỗi khi lấy chi tiết ticket');
+  }
+
+  async markThreadRead(
+    userId: string,
+    ticketId: string,
+    dto: MarkReadDto,
+  ): Promise<{
+    audience: TicketMessageAudience;
+    lastReadMessageId: string | null;
+    readAt: Date;
+  }> {
+    return asyncHandleOperation(async () => {
+      const ticket = await this.loadAccessible(ticketId, userId);
+      const audience =
+        ticket.reporter?.id === userId
+          ? TicketMessageAudience.REPORTER
+          : TicketMessageAudience.COUNTERPARTY;
+      const record = await this.upsertThreadRead(
+        ticket,
+        userId,
+        audience,
+        dto.lastMessageId,
+      );
+      this.realtime.emitRead(
+        ticket,
+        audience,
+        userId,
+        record.lastReadMessageId,
+        record.readAt,
+      );
+      return {
+        audience,
+        lastReadMessageId: record.lastReadMessageId,
+        readAt: record.readAt,
+      };
+    }, 'Lỗi khi đánh dấu đã đọc');
+  }
+
+  /**
+   * Upsert mốc đã đọc theo (ticket,user,audience). Nếu không truyền message thì
+   * lấy message mới nhất của luồng. Dùng chung cho user & admin.
+   */
+  async upsertThreadRead(
+    ticket: SupportTicketEntity,
+    userId: string,
+    audience: TicketMessageAudience,
+    lastMessageId?: string,
+  ): Promise<{ lastReadMessageId: string | null; readAt: Date }> {
+    let resolvedId = lastMessageId ?? null;
+    if (!resolvedId) {
+      const latest = await this.messageRepo.findOne({
+        where: { ticket: { id: ticket.id }, audience },
+        order: { createdAt: 'DESC' },
+      });
+      resolvedId = latest?.id ?? null;
+    }
+    let row = await this.threadReadRepo.findOne({
+      where: { ticket: { id: ticket.id }, user: { id: userId }, audience },
+    });
+    if (!row) {
+      row = this.threadReadRepo.create({
+        ticket: { id: ticket.id },
+        user: { id: userId },
+        audience,
+      });
+    }
+    row.lastReadMessage = resolvedId ? ({ id: resolvedId } as never) : null;
+    const saved = await this.threadReadRepo.save(row);
+    return { lastReadMessageId: resolvedId, readAt: saved.readAt };
   }
 
   private async loadAccessible(
@@ -302,7 +488,7 @@ export class TicketService {
   ): Promise<SupportTicketEntity> {
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId },
-      relations: ['booking', 'reporter', 'counterparty'],
+      relations: ['booking', 'reporter', 'counterparty', 'assignedAdmin'],
     });
     if (
       !ticket ||

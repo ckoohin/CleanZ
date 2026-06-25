@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
+import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
 import { SupportTicketEntity } from './support-ticket.entity';
 
 @Entity('ticket_messages')
@@ -32,6 +33,18 @@ export class TicketMessageEntity {
 
   @Column({ name: 'is_internal', type: 'boolean', default: false })
   isInternal!: boolean;
+
+  // Luồng hiển thị của message (REPORTER / COUNTERPARTY / INTERNAL).
+  // Nguồn sự thật để định tuyến thread + scope realtime; `is_internal` giữ
+  // đồng bộ (= audience===INTERNAL) cho tương thích logic cũ tới khi S2 refactor.
+  @Column({
+    name: 'audience',
+    type: 'enum',
+    enum: TicketMessageAudience,
+    enumName: 'ticket_message_audience',
+    default: TicketMessageAudience.REPORTER,
+  })
+  audience!: TicketMessageAudience;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

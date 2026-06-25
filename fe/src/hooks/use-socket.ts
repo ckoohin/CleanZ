@@ -1,28 +1,30 @@
 import { useEffect, useMemo } from 'react';
 import { Socket } from 'socket.io-client';
 import {
-  connectSocket,
-  disconnectSocket,
-  getSocket,
-  connectTrackingSocket,
-  disconnectTrackingSocket,
-  getTrackingSocket,
+  acquireAppRealtimeSocket,
+  releaseAppRealtimeSocket,
+  getAppRealtimeSocket,
+  connectBookingTrackingSocket,
+  disconnectBookingTrackingSocket,
+  getBookingTrackingSocket,
 } from '@/lib/socket/socket.client';
 
 /**
- * Hook kết nối socket và tự động ngắt kết nối khi unmount.
+ * Hook kết nối socket realtime app ở namespace mặc định `/`.
+ *
+ * Dùng cho notification, support ticket chat, unread badge.
+ * Không dùng cho GPS booking tracking.
+ *
  * @param autoConnect - Tự động kết nối khi mount (mặc định: true)
  */
 export function useSocket(autoConnect = true): Socket {
-  const socket = useMemo(() => getSocket(), []);
+  const socket = useMemo(() => getAppRealtimeSocket(), []);
 
   useEffect(() => {
-    if (autoConnect) {
-      connectSocket();
-    }
-
+    if (!autoConnect) return;
+    acquireAppRealtimeSocket();
     return () => {
-      disconnectSocket();
+      releaseAppRealtimeSocket();
     };
   }, [autoConnect]);
 
@@ -49,18 +51,18 @@ export function useSocketEvent<T = unknown>(
 }
 
 /**
- * Hook kết nối socket namespace /tracking và tự động ngắt kết nối khi unmount.
+ * Hook kết nối socket booking GPS tracking ở namespace `/tracking`.
  */
 export function useTrackingSocket(autoConnect = true): Socket {
-  const socket = useMemo(() => getTrackingSocket(), []);
+  const socket = useMemo(() => getBookingTrackingSocket(), []);
 
   useEffect(() => {
     if (autoConnect) {
-      connectTrackingSocket();
+      connectBookingTrackingSocket();
     }
 
     return () => {
-      disconnectTrackingSocket();
+      disconnectBookingTrackingSocket();
     };
   }, [autoConnect]);
 

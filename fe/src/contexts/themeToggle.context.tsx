@@ -21,6 +21,7 @@ export const ThemeToggleProvider = ({ children }: { children: React.ReactNode })
     if (saved) {
       setTheme(saved);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // apply vào DOM + save

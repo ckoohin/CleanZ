@@ -6,5 +6,6 @@ export default async function TaskerSupportTicketDetailRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
   return <MyTicketDetailPage ticketId={id} />;
 }

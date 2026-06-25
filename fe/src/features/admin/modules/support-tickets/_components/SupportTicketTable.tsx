@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BaseTableList, type Column, type RowAction } from "@/components/ui/base/base_table_list";
-import { useTicketList } from "../hooks/useSupportTicket";
+import { useTicketList, useAdminTicketUnreadRealtime } from "../hooks/useSupportTicket";
 import { useAdminList, useCustomerLookup, useBookingLookup } from "../hooks/useAdminLookup";
 import type {
   TicketSummary,
@@ -116,15 +116,26 @@ export const SupportTicketTable: React.FC = () => {
   };
 
   const { data: response, isLoading } = useTicketList(apiParams);
+  useAdminTicketUnreadRealtime(); // tin mới của user → badge hàng đợi cập nhật
 
   const columns: Column<TicketSummary>[] = [
     {
       key: "ticketCode",
       title: "Ticket",
       render: (row) => (
-        <div>
-          <p className="font-bold text-xs text-primary">{row.ticketCode ?? "—"}</p>
-          <p className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">{row.subject}</p>
+        <div className="flex items-center gap-2">
+          {!!row.unreadCount && row.unreadCount > 0 && (
+            <span
+              className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white"
+              title={`${row.unreadCount} tin chưa đọc`}
+            >
+              {row.unreadCount > 9 ? "9+" : row.unreadCount}
+            </span>
+          )}
+          <div>
+            <p className="font-bold text-xs text-primary">{row.ticketCode ?? "—"}</p>
+            <p className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">{row.subject}</p>
+          </div>
         </div>
       ),
     },

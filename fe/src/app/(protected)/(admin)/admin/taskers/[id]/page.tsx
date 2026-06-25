@@ -1,6 +1,6 @@
-import { Tasker360View } from "@/features/admin-tasker/_components/Tasker360View";
+import { TaskerDetailPage } from "@/features/admin-tasker/_components/TaskerDetailPage";
 
-export default async function AdminTasker360Route({
+export default async function AdminTaskerDetailRoute({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -10,7 +10,7 @@ export default async function AdminTasker360Route({
   return (
     <main className="min-h-screen bg-background py-6">
       <div className="w-full">
-        <Tasker360View taskerId={id} />
+        <TaskerDetailPage taskerId={id} />
       </div>
     </main>
   );

@@ -20,3 +20,6 @@ export const NOTIFICATION_EVENT_UNREAD = 'notification:unread_count';
 export function userRoom(userId: string): string {
   return `user:${userId}`;
 }
+
+// Room chung cho tất cả admin (badge tin chưa đọc của ticket CHƯA gán).
+export const ADMINS_ROOM = 'role:admins';

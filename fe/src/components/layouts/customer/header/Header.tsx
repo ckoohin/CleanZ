@@ -4,6 +4,7 @@ import { HeaderNav } from "@/components/layouts/site/header/HeaderNav";
 import { HeaderActions } from "@/components/layouts/site/header/HeaderActions";
 import { MobileSidebar } from "@/components/layouts/site/header/MobileSidebar";
 import { AvatarProfile } from "@/components/layouts/site/header/AvatarProfile";
+import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { LoggedInBanner } from "@/components/layouts/site/header/LoggedInBanner";
 import { MobileBottomNav } from "@/components/layouts/site/header/MobileBottomNav";
 import { NavLink, HeaderAction, NAV_LINKS, HEADER_ACTIONS } from "@/components/layouts/site/header/nav.config";
@@ -308,6 +309,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </motion.div>
               </div>
               )}
+
+              {/* notifications (chỉ khi đã đăng nhập) */}
+              {profile && <NotificationBell href="/customer/notifications" />}
 
               {/* avatar */}
               <AvatarProfile />
