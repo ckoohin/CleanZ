@@ -34,7 +34,11 @@ import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { parseAdminNotes } from '@/features/admin-tasker/_components/AdminRequestInfoModal';
+import {
+  buildReviewParts,
+  getReviewPartMap,
+  getReviewGeneralNote,
+} from '@/lib/kyc/review-notes';
 
 // ─── Status Banner (hiển thị phía trên, không thay thế layout) ───────────────
 
@@ -89,7 +93,8 @@ function StatusBanner({ status, adminNotes }: {
   }
 
   if (status === TaskerStatus.NEED_INFO) {
-    const parsed = parseAdminNotes(adminNotes);
+    const parts = buildReviewParts(adminNotes);
+    const generalNote = getReviewGeneralNote(adminNotes);
     return (
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <div className="w-full rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 flex flex-col sm:flex-row items-start gap-4">
@@ -97,19 +102,24 @@ function StatusBanner({ status, adminNotes }: {
             <Info className="w-5 h-5 text-blue-600" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0 space-y-2">
-            <p className="font-semibold text-sm text-blue-700">Cần bổ sung thêm thông tin</p>
-            {parsed && parsed.itemLabels.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {parsed.itemLabels.map((label) => (
-                  <Badge key={label} variant="outline" className="text-[10px] bg-blue-50 border-blue-200 text-blue-700">
-                    <ListChecks className="w-2.5 h-2.5 mr-1" aria-hidden="true" />
-                    {label}
-                  </Badge>
+            <p className="font-semibold text-sm text-blue-700">Cần bổ sung các phần sau</p>
+            {parts.length > 0 ? (
+              <ul className="space-y-1">
+                {parts.map((p) => (
+                  <li key={p.id} className="text-xs text-blue-700/90 flex items-start gap-1.5">
+                    <ListChecks className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />
+                    <span>
+                      <span className="font-semibold">{p.label}</span>
+                      {p.note && <span className="text-blue-600/70"> — {p.note}</span>}
+                    </span>
+                  </li>
                 ))}
-              </div>
-            )}
-            {!parsed && adminNotes && (
-              <p className="text-xs text-blue-600/80 italic">{adminNotes}</p>
+              </ul>
+            ) : (generalNote || adminNotes) ? (
+              <p className="text-xs text-blue-600/80 italic">{generalNote || adminNotes}</p>
+            ) : null}
+            {parts.length > 0 && generalNote && (
+              <p className="text-xs text-blue-600/70 italic">{generalNote}</p>
             )}
           </div>
           <Button asChild size="sm" className="rounded-xl shrink-0 gap-2 bg-blue-600 hover:bg-blue-700">
@@ -123,16 +133,32 @@ function StatusBanner({ status, adminNotes }: {
   }
 
   if (status === TaskerStatus.REJECTED) {
+    const parts = buildReviewParts(adminNotes);
+    const generalNote = getReviewGeneralNote(adminNotes);
+    const reason = generalNote || (parts.length === 0 ? adminNotes : '');
     return (
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="w-full rounded-2xl border border-red-500/20 bg-red-500/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="w-full rounded-2xl border border-red-500/20 bg-red-500/5 p-5 flex flex-col sm:flex-row items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
             <XCircle className="w-5 h-5 text-red-600" aria-hidden="true" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-1.5">
             <p className="font-semibold text-sm text-red-700">Hồ sơ không được duyệt</p>
-            {adminNotes && <p className="text-xs text-red-600/70 mt-0.5 italic">Lý do: {adminNotes}</p>}
-            <p className="text-xs text-red-600/60 mt-1">Liên hệ hotline <span className="font-bold">1800 6868</span> để được hỗ trợ.</p>
+            {reason && <p className="text-xs text-red-600/70 italic">Lý do: {reason}</p>}
+            {parts.length > 0 && (
+              <ul className="space-y-1">
+                {parts.map((p) => (
+                  <li key={p.id} className="text-xs text-red-700/90 flex items-start gap-1.5">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                    <span>
+                      <span className="font-semibold">{p.label}</span>
+                      {p.note && <span className="text-red-600/70"> — {p.note}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-xs text-red-600/60">Liên hệ hotline <span className="font-bold">1800 6868</span> để được hỗ trợ.</p>
           </div>
         </div>
       </motion.div>
@@ -174,14 +200,15 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
 function ProfileCompletionCard({ tasker }: { tasker: ReturnType<typeof useTaskerProfile>['data'] }) {
   if (!tasker) return null;
 
+  const reviewMap = getReviewPartMap(tasker.adminNotes);
   const checks = [
-    { label: 'Ảnh CCCD', done: !!tasker.hasCitizenCardImage },
-    { label: 'Ảnh selfie + CCCD', done: !!tasker.hasIdWithSelfieImage },
-    { label: 'Lý lịch tư pháp', done: !!tasker.hasCriminalRecordImage },
-    { label: 'Giấy khám sức khoẻ', done: !!tasker.hasHealthCertificateImage },
-    { label: 'Số điện thoại', done: !!tasker.phone },
-    { label: 'Địa chỉ hiện tại', done: !!tasker.addressCurrent },
-    { label: 'Thông tin ngân hàng', done: !!tasker.bankName },
+    { id: 'citizenCard', label: 'Ảnh CCCD', done: !!tasker.hasCitizenCardImage },
+    { id: 'idWithSelfie', label: 'Ảnh selfie + CCCD', done: !!tasker.hasIdWithSelfieImage },
+    { id: 'criminalRecord', label: 'Lý lịch tư pháp', done: !!tasker.hasCriminalRecordImage },
+    { id: 'healthCertificate', label: 'Giấy khám sức khoẻ', done: !!tasker.hasHealthCertificateImage },
+    { id: 'phone', label: 'Số điện thoại', done: !!tasker.phone },
+    { id: 'address', label: 'Địa chỉ hiện tại', done: !!tasker.addressCurrent },
+    { id: 'bankInfo', label: 'Thông tin ngân hàng', done: !!tasker.bankName },
   ];
 
   const completed = checks.filter((c) => c.done).length;
@@ -195,16 +222,20 @@ function ProfileCompletionCard({ tasker }: { tasker: ReturnType<typeof useTasker
       </div>
       <Progress value={pct} className="h-2" />
       <div className="space-y-2">
-        {checks.map((c) => (
-          <div key={c.label} className="flex items-center gap-2 text-sm">
-            <div className={cn('w-4 h-4 rounded-full flex items-center justify-center shrink-0',
-              c.done ? 'bg-emerald-500/20 text-emerald-600' : 'bg-muted text-muted-foreground'
-            )}>
-              {c.done ? <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> : <AlertCircle className="w-3 h-3" aria-hidden="true" />}
+        {checks.map((c) => {
+          const flagged = reviewMap[c.id];
+          return (
+            <div key={c.label} className="flex items-center gap-2 text-sm">
+              <div className={cn('w-4 h-4 rounded-full flex items-center justify-center shrink-0',
+                flagged ? 'bg-red-500/20 text-red-600' : c.done ? 'bg-emerald-500/20 text-emerald-600' : 'bg-muted text-muted-foreground'
+              )}>
+                {flagged ? <AlertCircle className="w-3 h-3" aria-hidden="true" /> : c.done ? <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> : <AlertCircle className="w-3 h-3" aria-hidden="true" />}
+              </div>
+              <span className={cn('flex-1', flagged ? 'text-red-600 font-medium' : c.done ? 'text-foreground' : 'text-muted-foreground')}>{c.label}</span>
+              {flagged && <span className="text-[9px] font-bold uppercase tracking-wide text-red-600">Nộp lại</span>}
             </div>
-            <span className={c.done ? 'text-foreground' : 'text-muted-foreground'}>{c.label}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {pct < 100 && (
         <Button asChild size="sm" variant="outline" className="w-full rounded-xl h-9">

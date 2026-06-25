@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BaseTableList,
   type Column,
@@ -18,7 +19,6 @@ import { toast } from "sonner";
 import { useAdminCustomers } from "@/features/admin/modules/customer/hooks/useAdminCustomer";
 import type { CustomerListItem } from "@/features/admin/modules/customer/types/customer.types";
 import { CustomerStatusToggle } from "@/features/admin/modules/customer/_components/CustomerStatusToggle";
-import { CustomerDetailDrawer } from "@/features/admin/modules/customer/_components/CustomerDetailDrawer";
 import {
   Eye,
   ShieldAlert,
@@ -28,9 +28,31 @@ import {
   PauseCircle,
   Download,
   Trash2,
+  BadgeCheck,
+  Wallet,
 } from "lucide-react";
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: "Tiền mặt",
+  MOMO: "MoMo",
+  ZALOPAY: "ZaloPay",
+  VNPAY: "VNPay",
+  VIETQR: "VietQR",
+};
+
+const formatVND = (value: number) =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+
+const formatDate = (value?: string | null) =>
+  value ? new Date(value).toLocaleDateString("vi-VN") : "N/A";
+
 export const CustomerListTable: React.FC = () => {
+  const router = useRouter();
+
   const [filter, setFilter] = useState<{
     isActive: "ALL" | "ACTIVE" | "BLOCKED";
     keyword: string;
@@ -42,8 +64,6 @@ export const CustomerListTable: React.FC = () => {
     page: 1,
     limit: 10,
   });
-
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   // Map state to API filters
   const apiActiveParam =
@@ -62,6 +82,8 @@ export const CustomerListTable: React.FC = () => {
 
   const displayData = response?.data || [];
   const totalItems = response?.meta?.total || 0;
+
+  const goToDetail = (id: string) => router.push(`/admin/customers/${id}`);
 
   // Bulk actions — UI chỉ hiển thị, backend chưa hỗ trợ (sẽ wiring sau).
   const notImplemented = (label: string) => (rows: CustomerListItem[]) =>
@@ -83,52 +105,92 @@ export const CustomerListTable: React.FC = () => {
   const columns: Column<CustomerListItem>[] = [
     {
       key: "fullName",
-      title: "Họ và tên",
+      title: "Khách hàng",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
             {row.avatarUrl ? (
               <img
                 src={row.avatarUrl}
                 alt={row.fullName}
-                className="w-full h-full rounded-xl object-cover"
+                className="w-full h-full object-cover"
               />
             ) : (
               row.fullName?.[0]?.toUpperCase() || "C"
             )}
           </div>
-          <div>
-            <p className="font-bold text-sm text-foreground/90">{row.fullName || "Chưa cập nhật"}</p>
-            <p className="text-xs text-muted-foreground">{row.phone || "Không có số điện thoại"}</p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="font-bold text-sm text-foreground/90 truncate">
+                {row.fullName || "Chưa cập nhật"}
+              </p>
+              {row.isVerified && (
+                <BadgeCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground truncate">{row.email}</p>
           </div>
         </div>
       ),
     },
     {
-      key: "email",
-      title: "Email",
+      key: "phone",
+      title: "Số điện thoại",
+      hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-foreground/70">{row.email}</span>
+        <span className="text-xs font-semibold text-foreground/70">
+          {row.phone || "Chưa cập nhật"}
+        </span>
       ),
     },
     {
       key: "totalBookings",
-      title: "Số đơn",
+      title: "Đơn hàng",
       hideOnMobile: true,
-      className: "text-center w-[120px]",
+      className: "w-[130px]",
       render: (row) => (
-        <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/5 text-primary text-xs font-bold">
-          {row.totalBookings} đơn
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-bold text-foreground/90">
+            {row.totalBookings} đơn
+          </span>
+          {row.totalCancelled > 0 && (
+            <span className="text-[11px] font-semibold text-rose-500">
+              {row.totalCancelled} đã hủy
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "totalSpent",
+      title: "Tổng chi tiêu",
+      hideOnMobile: true,
+      render: (row) => (
+        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+          {formatVND(row.totalSpent)}
+        </span>
+      ),
+    },
+    {
+      key: "defaultPaymentMethod",
+      title: "Thanh toán",
+      hideOnMobile: true,
+      render: (row) => (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-foreground/70 text-[11px] font-bold">
+          <Wallet className="w-3 h-3" />
+          {PAYMENT_METHOD_LABELS[row.defaultPaymentMethod ?? ""] ||
+            row.defaultPaymentMethod ||
+            "—"}
         </span>
       ),
     },
     {
       key: "createdAt",
-      title: "Ngày tham gia",
+      title: "Tham gia",
       hideOnMobile: true,
       render: (row) => (
         <span className="text-xs font-semibold text-muted-foreground">
-          {row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "N/A"}
+          {formatDate(row.createdAt)}
         </span>
       ),
     },
@@ -153,7 +215,7 @@ export const CustomerListTable: React.FC = () => {
       type: "view",
       label: "Xem chi tiết",
       icon: Eye,
-      onClick: (row) => setSelectedCustomerId(row.id),
+      onClick: (row) => goToDetail(row.id),
     },
   ];
 
@@ -223,14 +285,6 @@ export const CustomerListTable: React.FC = () => {
           </Select>
         }
       />
-
-      {selectedCustomerId && (
-        <CustomerDetailDrawer
-          customerId={selectedCustomerId}
-          isOpen={!!selectedCustomerId}
-          onClose={() => setSelectedCustomerId(null)}
-        />
-      )}
     </div>
   );
 };

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useTaskerProfile, useUpdateTaskerProfile } from '@/features/tasker/hooks/tasker.hooks';
 import { TaskerSidebar } from '@/features/tasker/_components/TaskerSidebar';
+import { buildReviewParts, getReviewPartMap, type ReviewPart } from '@/lib/kyc/review-notes';
 
 const schema = z.object({
   phone: z.string().min(9, 'Số điện thoại không hợp lệ').optional().or(z.literal('')),
@@ -36,7 +37,22 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function DocBadge({ done, label }: { done: boolean; label: string }) {
+function DocBadge({ done, label, flag }: { done: boolean; label: string; flag?: ReviewPart }) {
+  // Admin yêu cầu nộp lại phần này → ưu tiên hiển thị cờ đỏ + lý do, thay vì chỉ "đã nộp".
+  if (flag) {
+    return (
+      <div className="flex flex-col gap-1 px-3 py-2 rounded-xl border text-sm border-red-500/40 bg-red-500/8 text-red-700">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span className="font-semibold">{label}</span>
+          <span className="ml-auto text-[9px] font-bold uppercase tracking-wider bg-red-500/15 px-1.5 py-0.5 rounded">
+            Cần nộp lại
+          </span>
+        </div>
+        {flag.note && <p className="text-xs text-red-600/80 pl-6 leading-snug">{flag.note}</p>}
+      </div>
+    );
+  }
   return (
     <div className={cn(
       'flex items-center gap-2 px-3 py-2 rounded-xl border text-sm',
@@ -49,6 +65,20 @@ function DocBadge({ done, label }: { done: boolean; label: string }) {
         : <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />}
       {label}
     </div>
+  );
+}
+
+/** Cờ đỏ inline đặt ngay dưới một trường thông tin admin yêu cầu cập nhật lại. */
+function FieldFlag({ part }: { part?: ReviewPart }) {
+  if (!part) return null;
+  return (
+    <p className="text-xs text-red-600 flex items-start gap-1 mt-1">
+      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+      <span>
+        <span className="font-semibold">Cần cập nhật lại</span>
+        {part.note ? ` — ${part.note}` : ''}
+      </span>
+    </p>
   );
 }
 
@@ -133,6 +163,10 @@ export default function TaskerProfilePage() {
     ? tasker.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
     : 'S';
 
+  // Các phần admin yêu cầu nộp lại (kèm lý do riêng) — để gắn cờ tại đúng chỗ.
+  const reviewParts = buildReviewParts(tasker?.adminNotes);
+  const reviewMap = getReviewPartMap(tasker?.adminNotes);
+
   if (isLoading) {
     return (
       <div className="p-5 md:p-8 max-w-3xl mx-auto space-y-4 w-full">
@@ -162,6 +196,42 @@ export default function TaskerProfilePage() {
               Quản lý tài khoản, thu nhập và cập nhật thông tin cá nhân của bạn.
             </p>
           </div>
+
+          {/* Tổng hợp các phần cần nộp lại — chỉ rõ chỗ cần sửa, không chỉ banner chung */}
+          {reviewParts.length > 0 && (
+            <div className="mb-8 rounded-2xl border border-red-500/25 bg-red-500/5 p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5 text-red-600" aria-hidden="true" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-red-700">
+                    {tasker?.approvalStatus === 'rejected'
+                      ? 'Hồ sơ chưa được duyệt — cần chỉnh sửa các phần sau'
+                      : 'Quản trị viên yêu cầu bổ sung các phần sau'}
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {reviewParts.map((p) => (
+                      <li key={p.id} className="text-sm text-red-700/90 flex items-start gap-1.5">
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                        <span>
+                          <span className="font-semibold">{p.label}</span>
+                          {p.note && <span className="text-red-600/70"> — {p.note}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-red-600/70 mt-2">
+                    Cập nhật trực tiếp thông tin bên dưới hoặc{' '}
+                    <Link href="/tasker/onboarding" className="font-bold underline">
+                      mở trang nộp lại giấy tờ
+                    </Link>
+                    , rồi gửi lại để được duyệt.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* --- CÁC MỤC CHỨC NĂNG BỔ SUNG (Tài chính, Hành trình, Cài đặt...) --- */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -315,6 +385,7 @@ export default function TaskerProfilePage() {
                     />
                   </div>
                   {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+                  <FieldFlag part={reviewMap.phone} />
                 </div>
 
                 <div className="space-y-1.5">
@@ -327,6 +398,7 @@ export default function TaskerProfilePage() {
                     className="rounded-xl resize-none"
                   />
                   {errors.bio && <p className="text-xs text-destructive">{errors.bio.message}</p>}
+                  <FieldFlag part={reviewMap.bio} />
                 </div>
 
                 <div className="space-y-1.5">
@@ -338,6 +410,7 @@ export default function TaskerProfilePage() {
                     rows={3}
                     className="rounded-xl resize-none"
                   />
+                  <FieldFlag part={reviewMap.experience} />
                 </div>
 
                 <div className="space-y-1.5">
@@ -348,6 +421,9 @@ export default function TaskerProfilePage() {
                     placeholder="VD: Dọn nhà, Vệ sinh văn phòng, Giặt thảm..."
                     className="h-11 rounded-xl"
                   />
+                  {/* Admin chỉ gắn cờ 1 mục "experience" gộp cả kinh nghiệm + kỹ năng,
+                      nên field kỹ năng cũng sáng cờ theo. */}
+                  <FieldFlag part={reviewMap.skills ?? reviewMap.experience} />
                 </div>
               </div>
             </SectionCard>
@@ -372,6 +448,7 @@ export default function TaskerProfilePage() {
                     placeholder="Số nhà, đường, phường, quận, tỉnh/thành"
                     className="h-11 rounded-xl"
                   />
+                  <FieldFlag part={reviewMap.address} />
                 </div>
               </div>
             </SectionCard>
@@ -381,6 +458,7 @@ export default function TaskerProfilePage() {
               <p className="text-xs text-muted-foreground -mt-2">
                 Dùng để nhận thanh toán từ CleanZ sau mỗi đơn hoàn thành.
               </p>
+              <FieldFlag part={reviewMap.bankInfo} />
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="prof-bank-name">Tên ngân hàng</Label>
@@ -415,11 +493,11 @@ export default function TaskerProfilePage() {
             {/* Documents status */}
             <SectionCard title="Giấy tờ đã nộp" icon={FileText}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <DocBadge done={!!tasker?.hasCitizenCardImage} label="Ảnh CCCD" />
-                <DocBadge done={!!tasker?.hasIdWithSelfieImage} label="Selfie + CCCD" />
-                <DocBadge done={!!tasker?.hasCriminalRecordImage} label="Lý lịch tư pháp" />
-                <DocBadge done={!!tasker?.hasHealthCertificateImage} label="Khám sức khoẻ" />
-                <DocBadge done={!!tasker?.hasCertificateImage} label="Chứng chỉ nghề" />
+                <DocBadge done={!!tasker?.hasCitizenCardImage} label="Ảnh CCCD" flag={reviewMap.citizenCard} />
+                <DocBadge done={!!tasker?.hasIdWithSelfieImage} label="Selfie + CCCD" flag={reviewMap.idWithSelfie} />
+                <DocBadge done={!!tasker?.hasCriminalRecordImage} label="Lý lịch tư pháp" flag={reviewMap.criminalRecord} />
+                <DocBadge done={!!tasker?.hasHealthCertificateImage} label="Khám sức khoẻ" flag={reviewMap.healthCertificate} />
+                <DocBadge done={!!tasker?.hasCertificateImage} label="Chứng chỉ nghề" flag={reviewMap.certificate} />
               </div>
               <Button asChild variant="outline" size="sm" className="rounded-xl h-9 w-fit">
                 <Link href="/tasker/onboarding">Cập nhật giấy tờ</Link>

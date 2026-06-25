@@ -358,11 +358,49 @@ export class TaskerService {
       void this.mailService.sendTaskerRequestInfoEmail(
         tasker.user.email,
         tasker.user.fullName,
-        dto.notes,
+        // docNote có thể là JSON có cấu trúc (v:2) từ FE — chuyển sang văn bản
+        // dễ đọc trước khi gửi email, tránh lộ chuỗi JSON thô cho tasker.
+        this.buildReviewNotesText(dto.notes),
       );
 
       return this.mapProfile(tasker);
     }, 'Không thể yêu cầu bổ sung thông tin');
+  }
+
+  /**
+   * Chuyển docNote (có thể là JSON có cấu trúc {v:2,...} hoặc text thuần) sang
+   * văn bản dễ đọc để hiển thị trong email gửi tasker.
+   */
+  private buildReviewNotesText(notes: string): string {
+    try {
+      const parsed = JSON.parse(notes) as {
+        v?: number;
+        items?: string[];
+        itemLabels?: string[];
+        itemNotes?: Record<string, string>;
+        note?: string;
+      };
+      if (parsed && parsed.v === 2 && Array.isArray(parsed.items)) {
+        const lines = parsed.items.map((id, i) => {
+          const label = parsed.itemLabels?.[i] ?? id;
+          const reason = parsed.itemNotes?.[id]?.trim();
+          return reason ? `• ${label}: ${reason}` : `• ${label}`;
+        });
+        const blocks: string[] = [];
+        if (lines.length > 0) {
+          blocks.push(`Các phần cần bổ sung:\n${lines.join('\n')}`);
+        }
+        const general = parsed.note?.trim();
+        if (general) blocks.push(general);
+        return (
+          blocks.join('\n\n') ||
+          'Vui lòng kiểm tra lại toàn bộ giấy tờ và thông tin đã nộp.'
+        );
+      }
+    } catch {
+      // notes là plain text cũ — dùng nguyên văn.
+    }
+    return notes;
   }
 
   async banTasker(

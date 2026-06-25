@@ -55,7 +55,8 @@ import {
 import {
   serializeAdminNotes,
   parseAdminNotes,
-} from "./AdminRequestInfoModal";
+  buildReviewParts,
+} from "@/lib/kyc/review-notes";
 import { AdminReviewModal } from "./AdminReviewModal";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
@@ -152,6 +153,7 @@ function ResendControl({
           value={comment}
           onChange={(e) => onComment(e.target.value)}
           rows={3}
+          maxLength={500}
           placeholder={`VD: ${label} chưa đạt, vui lòng cập nhật lại...`}
           className="rounded-lg resize-none text-sm bg-background"
         />
@@ -255,28 +257,11 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
   const canReview =
     status === TaskerStatus.PENDING || status === TaskerStatus.NEED_INFO;
 
-  const LABELS: Record<string, string> = {
-    citizenCard: "CCCD / CMND",
-    idWithSelfie: "Ảnh selfie cầm CCCD",
-    criminalRecord: "Lý lịch tư pháp",
-    healthCertificate: "Giấy khám sức khoẻ",
-    certificate: "Chứng chỉ nghề nghiệp",
-    phone: "Số điện thoại",
-    address: "Địa chỉ hiện tại",
-    bankInfo: "Thông tin ngân hàng",
-    experience: "Kinh nghiệm & kỹ năng",
-  };
-
+  // `flagged` map id → lý do riêng = chính là itemNotes. Lý do hiển thị inline
+  // tại từng giấy tờ / trường phía tasker, nên không cần gộp thành 1 chuỗi note.
   const handleSendRequest = () => {
-    const note = flaggedIds
-      .map((id) => {
-        const label = LABELS[id] ?? id;
-        const c = flagged[id]?.trim();
-        return c ? `• ${label}: ${c}` : `• ${label}`;
-      })
-      .join("\n");
     requestInfoMutation.mutate(
-      { id: taskerId, notes: serializeAdminNotes(flaggedIds, note) },
+      { id: taskerId, notes: serializeAdminNotes(flaggedIds, "", flagged) },
       { onSuccess: backToList }
     );
   };
@@ -288,6 +273,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
     deleteMutation.mutate(taskerId, { onSuccess: backToList });
 
   const parsedNotes = parseAdminNotes(tasker?.adminNotes);
+  const priorParts = buildReviewParts(tasker?.adminNotes);
 
   // ── Loading ──
   if (isLoading) {
@@ -516,17 +502,32 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
             <ShieldCheck className="w-4 h-4 text-primary" /> Quyết định phê duyệt
           </h2>
 
-            {/* Ghi chú lần trước */}
+            {/* Ghi chú lần trước — hiển thị rõ từng phần đã yêu cầu + lý do riêng */}
             {tasker.adminNotes && (
-              <div className="rounded-xl border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950/20 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 text-blue-700">
-                  Yêu cầu lần trước
+              <div className="rounded-xl border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700">
+                  Đã yêu cầu lần trước
                 </p>
-                {parsedNotes?.note ? (
-                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{parsedNotes.note}</p>
-                ) : (
-                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{tasker.adminNotes}</p>
+                {priorParts.length > 0 && (
+                  <ul className="space-y-1">
+                    {priorParts.map((p) => (
+                      <li key={p.id} className="text-xs leading-relaxed flex gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
+                        <span>
+                          <span className="font-semibold">{p.label}</span>
+                          {p.note && <span className="text-muted-foreground"> — {p.note}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
+                {parsedNotes?.note ? (
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                    {parsedNotes.note}
+                  </p>
+                ) : !parsedNotes ? (
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{tasker.adminNotes}</p>
+                ) : null}
               </div>
             )}
 
@@ -651,7 +652,9 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
         isLoading={rejectMutation.isPending}
         onConfirm={(notes) =>
           rejectMutation.mutate(
-            { id: taskerId, notes },
+            // Đính kèm các phần đã gắn cờ (+ lý do riêng) để tasker thấy rõ chỗ cần sửa,
+            // `notes` của modal đóng vai trò lý do từ chối chung.
+            { id: taskerId, notes: serializeAdminNotes(flaggedIds, notes, flagged) },
             { onSuccess: () => { setRejectOpen(false); backToList(); } }
           )
         }

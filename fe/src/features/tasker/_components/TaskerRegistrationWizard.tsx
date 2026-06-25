@@ -29,6 +29,12 @@ import { toast } from "sonner";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { TaskerStatus } from "../types/tasker.type";
 import { useTaskerProfile, useSubmitTaskerProfile } from "../hooks/tasker.hooks";
+import {
+  buildReviewParts,
+  getReviewPartMap,
+  getReviewGeneralNote,
+  type ReviewPart,
+} from "@/lib/kyc/review-notes";
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens — Operations / Slate                                 */
@@ -53,6 +59,13 @@ const C = {
   inputBg: "color-mix(in oklab, var(--foreground) 3%, var(--background))",
 };
 
+/**
+ * Cột grid tự co: hiển thị nhiều cột khi đủ rộng và tự xuống 1 cột trên màn hình
+ * hẹp (điện thoại). `min(100%, ...)` chặn tràn ngang khi viewport rất nhỏ.
+ */
+const autoCols = (min: number) =>
+  `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))`;
+
 const STEPS = [
   { key: "personal", label: "Cá nhân", icon: User },
   { key: "verify", label: "Xác minh", icon: ShieldCheck },
@@ -71,18 +84,43 @@ type IconType = React.ComponentType<{ size?: number; style?: React.CSSProperties
 /* ------------------------------------------------------------------ */
 /*  Primitives                                                         */
 /* ------------------------------------------------------------------ */
+function FlagNote({ flag }: { flag: ReviewPart }) {
+  return (
+    <span
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 5,
+        fontSize: 11.5,
+        color: C.warn,
+        fontWeight: 600,
+        marginTop: 6,
+        lineHeight: 1.45,
+      }}
+    >
+      <AlertTriangle size={12} style={{ marginTop: 1, flexShrink: 0 }} />
+      <span>
+        Cần cập nhật lại
+        {flag.note ? ` — ${flag.note}` : ""}
+      </span>
+    </span>
+  );
+}
+
 function Field({
   label,
   required,
   children,
   hint,
   error,
+  flag,
 }: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
   hint?: string;
   error?: string;
+  flag?: ReviewPart;
 }) {
   return (
     <label style={{ display: "block", marginBottom: 18 }}>
@@ -100,6 +138,7 @@ function Field({
         {required && <span style={{ color: C.accent, marginLeft: 4 }}>*</span>}
       </span>
       {children}
+      {flag && <FlagNote flag={flag} />}
       {error ? (
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.danger, marginTop: 6 }}>
           <AlertTriangle size={12} /> {error}
@@ -161,6 +200,7 @@ function UploadBox({
   aspect = "4/2.5",
   hint,
   error,
+  flag,
 }: {
   label: string;
   value: Slot;
@@ -168,6 +208,7 @@ function UploadBox({
   aspect?: string;
   hint?: string;
   error?: string;
+  flag?: ReviewPart;
 }) {
   const id = "up-" + label.replace(/\s/g, "");
   const isExisting = typeof value === "string";
@@ -286,6 +327,7 @@ function UploadBox({
           </>
         )}
       </label>
+      {flag && <FlagNote flag={flag} />}
       {error && (
         <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.danger, marginTop: 6 }}>
           <AlertTriangle size={12} /> {error}
@@ -332,8 +374,8 @@ function Stepper({ current, onJump }: { current: number; onJump: (i: number) => 
             >
               <div
                 style={{
-                  width: 42,
-                  height: 42,
+                  width: "clamp(34px, 9vw, 42px)",
+                  height: "clamp(34px, 9vw, 42px)",
                   borderRadius: 12,
                   display: "grid",
                   placeItems: "center",
@@ -347,9 +389,11 @@ function Stepper({ current, onJump }: { current: number; onJump: (i: number) => 
               </div>
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: "clamp(10px, 2.6vw, 12px)",
                   fontWeight: active ? 700 : 500,
                   color: active ? C.text : done ? C.textMute : C.textFaint,
+                  textAlign: "center",
+                  lineHeight: 1.2,
                 }}
               >
                 {s.label}
@@ -360,7 +404,7 @@ function Stepper({ current, onJump }: { current: number; onJump: (i: number) => 
                 style={{
                   flex: 1,
                   height: 2,
-                  margin: "0 6px 26px",
+                  margin: "0 clamp(3px, 1.5vw, 6px) 26px",
                   borderRadius: 2,
                   background: i < current ? C.accent : C.border,
                   transition: "background .25s",
@@ -507,7 +551,15 @@ export const TaskerRegistrationWizard: React.FC = () => {
   const needsResubmit =
     profile?.approvalStatus === TaskerStatus.NEED_INFO ||
     profile?.approvalStatus === TaskerStatus.REJECTED;
-  const reviewNote = profile?.adminNotes || profile?.document?.note || "";
+  // Các phần admin yêu cầu nộp lại (+ lý do riêng) để gắn cờ ngay tại từng ô.
+  const reviewParts = buildReviewParts(profile?.adminNotes);
+  const reviewMap = getReviewPartMap(profile?.adminNotes);
+  // Lý do chung; fallback về note thô (cũ) khi chưa có dữ liệu cấu trúc.
+  const reviewGeneralNote =
+    getReviewGeneralNote(profile?.adminNotes) ||
+    (reviewParts.length === 0
+      ? profile?.adminNotes || profile?.document?.note || ""
+      : "");
 
   /* Điều hướng theo trạng thái hồ sơ */
   useEffect(() => {
@@ -657,7 +709,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
         background: C.bg,
         color: C.text,
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        padding: "32px 20px 60px",
+        padding: "28px clamp(12px, 4vw, 20px) 56px",
       }}
     >
       <div style={{ maxWidth: 820, margin: "0 auto" }}>
@@ -691,7 +743,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
               CleanZ Tasker
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(22px, 5.5vw, 26px)", fontWeight: 800, letterSpacing: -0.5 }}>
             {needsResubmit ? "Bổ sung & gửi lại hồ sơ" : "Xác minh hồ sơ (KYC)"}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: C.textFaint }}>
@@ -743,10 +795,30 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   fontSize: 13,
                   color: C.text,
                   lineHeight: 1.55,
-                  whiteSpace: "pre-line",
                 }}
               >
-                {reviewNote || "Vui lòng kiểm tra lại toàn bộ giấy tờ và thông tin đã nộp."}
+                {reviewParts.length > 0 ? (
+                  <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 7 }}>
+                    {reviewParts.map((p) => (
+                      <li key={p.id} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                        <span style={{ marginTop: 6, width: 6, height: 6, borderRadius: 999, background: C.warn, flexShrink: 0 }} />
+                        <span>
+                          <span style={{ fontWeight: 700 }}>{p.label}</span>
+                          {p.note && <span style={{ color: C.textMute }}> — {p.note}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span style={{ whiteSpace: "pre-line" }}>
+                    {reviewGeneralNote || "Vui lòng kiểm tra lại toàn bộ giấy tờ và thông tin đã nộp."}
+                  </span>
+                )}
+                {reviewParts.length > 0 && reviewGeneralNote && (
+                  <p style={{ margin: "9px 0 0", color: C.textMute, whiteSpace: "pre-line" }}>
+                    {reviewGeneralNote}
+                  </p>
+                )}
               </div>
               <p style={{ margin: "8px 0 0", fontSize: 12, color: C.textFaint }}>
                 Ảnh cũ được giữ trong các ô bên dưới — chỉ thay phần cần sửa rồi gửi lại.
@@ -762,7 +834,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
               background: C.panel,
               border: `1px solid ${C.borderSoft}`,
               borderRadius: 16,
-              padding: "22px 24px 18px",
+              padding: "20px clamp(12px, 3.5vw, 24px) 16px",
               marginBottom: 22,
             }}
           >
@@ -776,7 +848,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
             background: C.panel,
             border: `1px solid ${C.borderSoft}`,
             borderRadius: 16,
-            padding: "30px 30px 28px",
+            padding: "clamp(18px, 5vw, 30px)",
           }}
         >
           {/* ---------- STEP 0: CÁ NHÂN ---------- */}
@@ -786,11 +858,11 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 Thông tin cá nhân
               </SectionTitle>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: autoCols(220), gap: "0 20px" }}>
                 <Field label="Họ và tên" required error={errors.fullName}>
                   <TextInput icon={User} placeholder="Nguyễn Văn A" value={form.fullName} error={!!errors.fullName} onChange={(e) => set("fullName", e.target.value)} />
                 </Field>
-                <Field label="Số điện thoại" required error={errors.phone}>
+                <Field label="Số điện thoại" required error={errors.phone} flag={reviewMap.phone}>
                   <TextInput icon={Phone} placeholder="0901234567" value={form.phone} error={!!errors.phone} onChange={(e) => set("phone", e.target.value)} />
                 </Field>
               </div>
@@ -810,6 +882,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 required
                 error={errors.currentAddress}
                 hint="Dùng để phân công việc gần khu vực bạn sinh sống"
+                flag={reviewMap.address}
               >
                 <TextInput icon={MapPin} placeholder="Địa chỉ nơi bạn đang ở" value={form.currentAddress} error={!!errors.currentAddress} onChange={(e) => set("currentAddress", e.target.value)} />
               </Field>
@@ -842,6 +915,12 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   </button>
                 </div>
 
+                {reviewMap.experience && (
+                  <div style={{ marginBottom: 12 }}>
+                    <FlagNote flag={reviewMap.experience} />
+                  </div>
+                )}
+
                 {experiences.map((exp, idx) => (
                   <div
                     key={idx}
@@ -863,7 +942,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                         <Trash2 size={15} />
                       </button>
                     )}
-                    <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.7fr", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: autoCols(150), gap: 12 }}>
                       {([
                         ["Nơi làm việc", "company", "Công ty / hộ gia đình"],
                         ["Vị trí / công việc", "role", "Giúp việc, dọn dẹp…"],
@@ -906,13 +985,13 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 />
               </Field>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 6 }}>
-                <UploadBox label="Ảnh CCCD mặt trước" value={cccdFront} onChange={onSlot("cccdFront", setCccdFront)} hint="Rõ nét, không lóa sáng" error={errors.cccdFront} />
-                <UploadBox label="Ảnh CCCD mặt sau" value={cccdBack} onChange={onSlot("cccdBack", setCccdBack)} hint="Hiển thị đầy đủ thông tin" error={errors.cccdBack} />
+              <div style={{ display: "grid", gridTemplateColumns: autoCols(200), gap: 20, marginTop: 6 }}>
+                <UploadBox label="Ảnh CCCD mặt trước" value={cccdFront} onChange={onSlot("cccdFront", setCccdFront)} hint="Rõ nét, không lóa sáng" error={errors.cccdFront} flag={reviewMap.citizenCard} />
+                <UploadBox label="Ảnh CCCD mặt sau" value={cccdBack} onChange={onSlot("cccdBack", setCccdBack)} hint="Hiển thị đầy đủ thông tin" error={errors.cccdBack} flag={reviewMap.citizenCard} />
               </div>
 
               <div style={{ marginTop: 20 }}>
-                <UploadBox label="Ảnh selfie cầm CCCD" value={selfie} onChange={onSlot("selfie", setSelfie)} aspect="4/2" hint="Khuôn mặt và giấy tờ cùng khung hình" error={errors.selfie} />
+                <UploadBox label="Ảnh selfie cầm CCCD" value={selfie} onChange={onSlot("selfie", setSelfie)} aspect="4/2" hint="Khuôn mặt và giấy tờ cùng khung hình" error={errors.selfie} flag={reviewMap.idWithSelfie} />
               </div>
 
               <div
@@ -947,8 +1026,8 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   <Building2 size={15} style={{ color: C.accent }} />
                   <span style={{ fontSize: 13.5, fontWeight: 700 }}>Tài khoản ngân hàng nhận thu nhập</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
-                  <Field label="Ngân hàng" required error={errors.bankName}>
+                <div style={{ display: "grid", gridTemplateColumns: autoCols(220), gap: "0 18px" }}>
+                  <Field label="Ngân hàng" required error={errors.bankName} flag={reviewMap.bankInfo}>
                     <TextInput placeholder="Vietcombank, Techcombank…" value={form.bankName} error={!!errors.bankName} onChange={(e) => set("bankName", e.target.value)} />
                   </Field>
                   <Field label="Số tài khoản" required error={errors.bankAccount}>
@@ -963,10 +1042,10 @@ export const TaskerRegistrationWizard: React.FC = () => {
               <span style={{ fontSize: 13, fontWeight: 700, color: C.textMute, display: "block", marginBottom: 14 }}>
                 Giấy tờ pháp lý
               </span>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                <UploadBox label="Lý lịch tư pháp *" value={docJudicial} onChange={onSlot("docJudicial", setDocJudicial)} aspect="3/4" error={errors.docJudicial} />
-                <UploadBox label="Giấy khám sức khỏe" value={docHealth} onChange={setDocHealth} aspect="3/4" />
-                <UploadBox label="Chứng chỉ (nếu có)" value={docCert} onChange={setDocCert} aspect="3/4" />
+              <div style={{ display: "grid", gridTemplateColumns: autoCols(160), gap: 16 }}>
+                <UploadBox label="Lý lịch tư pháp *" value={docJudicial} onChange={onSlot("docJudicial", setDocJudicial)} aspect="3/4" error={errors.docJudicial} flag={reviewMap.criminalRecord} />
+                <UploadBox label="Giấy khám sức khỏe" value={docHealth} onChange={setDocHealth} aspect="3/4" flag={reviewMap.healthCertificate} />
+                <UploadBox label="Chứng chỉ (nếu có)" value={docCert} onChange={setDocCert} aspect="3/4" flag={reviewMap.certificate} />
               </div>
             </div>
           )}
@@ -1098,7 +1177,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   border: `1px solid ${C.border}`,
                   color: step === 0 ? C.textFaint : C.text,
                   borderRadius: 10,
-                  padding: "11px 18px",
+                  padding: "11px clamp(13px, 4vw, 18px)",
                   fontSize: 14,
                   fontWeight: 600,
                   cursor: step === 0 ? "not-allowed" : "pointer",
@@ -1122,7 +1201,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   border: "none",
                   color: C.onAccent,
                   borderRadius: 10,
-                  padding: "11px 22px",
+                  padding: "11px clamp(15px, 4vw, 22px)",
                   fontSize: 14,
                   fontWeight: 700,
                   cursor: submitting ? "wait" : "pointer",

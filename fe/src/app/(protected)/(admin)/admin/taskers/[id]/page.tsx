@@ -1,4 +1,4 @@
-import { TaskerDetailPage } from "@/features/admin-tasker/_components/TaskerDetailPage";
+import { Tasker360View } from "@/features/admin-tasker/_components/Tasker360View";
 
 export default async function AdminTaskerDetailRoute({
   params,
@@ -10,7 +10,7 @@ export default async function AdminTaskerDetailRoute({
   return (
     <main className="min-h-screen bg-background py-6">
       <div className="w-full">
-        <TaskerDetailPage taskerId={id} />
+        <Tasker360View taskerId={id} />
       </div>
     </main>
   );

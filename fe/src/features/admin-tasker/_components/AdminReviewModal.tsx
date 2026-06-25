@@ -51,6 +51,7 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({
             placeholder="Nhập nội dung phản hồi cụ thể cho nhân viên..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            maxLength={1500}
             className="min-h-[120px] rounded-2xl resize-none focus-visible:ring-primary"
           />
         </div>
