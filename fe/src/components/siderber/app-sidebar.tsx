@@ -115,8 +115,6 @@ const adminData = {
       items: [
         { title: "Danh sách Tasker", url: ROUTES.ADMIN.TASKERS.BASE },
         { title: "Xác minh hồ sơ", url: ROUTES.ADMIN.TASKERS.VERIFICATION },
-        { title: "Lịch làm việc", url: ROUTES.ADMIN.TASKERS.SCHEDULE },
-        { title: "Bảng lương", url: ROUTES.ADMIN.TASKERS.PAYROLL },
       ],
     },
     {
