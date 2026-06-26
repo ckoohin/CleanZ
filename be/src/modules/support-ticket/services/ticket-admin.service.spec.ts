@@ -14,7 +14,15 @@ describe('TicketAdminService.changeStatus (TC-U-STATE)', () => {
   let resolutionRepo: any;
   let ticket: any;
 
-  const findRepo = { find: jest.fn().mockResolvedValue([]) };
+  const findRepo = {
+    find: jest.fn().mockResolvedValue([]),
+    count: jest.fn().mockResolvedValue(0),
+  };
+  const ticketServiceMock = {
+    loadMessagePage: jest
+      .fn()
+      .mockResolvedValue({ messages: [], attachments: [], hasMore: false }),
+  };
 
   beforeEach(() => {
     ticket = {
@@ -43,7 +51,7 @@ describe('TicketAdminService.changeStatus (TC-U-STATE)', () => {
       resolutionRepo,
       {} as any, // userRepo
       findRepo as any, // attachmentRepo
-      {} as any, // ticketService
+      ticketServiceMock as any, // ticketService
       {
         onPause: jest.fn(),
         onResume: jest.fn(),
@@ -61,6 +69,11 @@ describe('TicketAdminService.changeStatus (TC-U-STATE)', () => {
         emitTyping: jest.fn(),
         emitUnread: jest.fn(),
       } as any, // realtime
+      {
+        encrypt: (x: string) => x,
+        decrypt: (x: string) => x,
+        decryptEntities: (x: unknown) => x,
+      } as any, // crypto
     );
   });
 

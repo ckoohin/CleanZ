@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lock, User, Users } from "lucide-react";
+import { User, Users } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { TicketChatBox } from "@/features/support-tickets/_components/chat/TicketChatBox";
 import type { ChatApi } from "@/features/support-tickets/_components/chat/useTicketChat";
@@ -64,6 +64,13 @@ function AdminThreadPanel({
         queryClient.invalidateQueries({ queryKey: ["admin-support-tickets"] });
         return res;
       },
+      loadOlder: (beforeId) =>
+        supportTicketAdminApi
+          .olderMessages(ticket.id, audience, beforeId)
+          .then((page) => ({
+            messages: page.messages.map(toPublic),
+            hasMore: page.hasMore,
+          })),
     }),
     [ticket.id, audience, queryClient],
   );
@@ -72,6 +79,10 @@ function AdminThreadPanel({
     () => ticket.messages.filter((m) => m.audience === audience).map(toPublic),
     [ticket.messages, audience],
   );
+  const hasMore =
+    audience === "REPORTER" || audience === "COUNTERPARTY"
+      ? !!ticket.messagePaging?.[audience]?.hasMore
+      : false;
 
   return (
     <div className="h-[460px]">
@@ -82,11 +93,9 @@ function AdminThreadPanel({
         api={api}
         audience={audience}
         locked={locked}
-        lockedHint={
-          audience === "INTERNAL"
-            ? "Ticket đã đóng — không thể thêm ghi chú."
-            : "Ticket đã đóng — không thể gửi tin nhắn."
-        }
+        hasMore={hasMore}
+        lockedHint="Ticket đã đóng — không thể gửi tin nhắn."
+        hideScrollbar
         threadClassName="px-1 pb-2"
         composerClassName="border-t border-border/40 bg-card pt-3"
       />
@@ -95,8 +104,10 @@ function AdminThreadPanel({
 }
 
 /**
- * ChatBox admin desktop — 3 luồng tách (admin trung gian):
- * Người báo cáo (REPORTER) · Đối tượng (COUNTERPARTY) · Nội bộ (INTERNAL).
+ * ChatBox admin desktop — 2 luồng hội thoại tách (admin trung gian):
+ * Người báo cáo (REPORTER) · Đối tượng (COUNTERPARTY).
+ * Ghi chú nội bộ (INTERNAL) đã TÁCH ra panel log riêng (InternalNotesDrawer),
+ * mở từ nút cạnh "Xem chi tiết" ngoài bảng ticket — không còn là tab ở đây.
  * Giữ tỉ lệ desktop (bounded height, không ép mobile).
  */
 export const AdminTicketChat: React.FC<{ ticket: TicketAdminDetail }> = ({
@@ -123,15 +134,18 @@ export const AdminTicketChat: React.FC<{ ticket: TicketAdminDetail }> = ({
           icon: Users,
           disabled: !hasCounterparty,
         },
-        { key: "INTERNAL" as TicketAudience, label: "Nội bộ", icon: Lock, disabled: false },
       ] as const,
     [ticket.reporter?.fullName, hasCounterparty],
   );
 
   const [active, setActive] = useState<TicketAudience>("REPORTER");
 
+  // Tổng thực theo luồng (server trả) — không chỉ trang đã tải (≤30).
   const count = (a: TicketAudience) =>
-    ticket.messages.filter((m) => m.audience === a).length;
+    a === "REPORTER" || a === "COUNTERPARTY"
+      ? (ticket.messagePaging?.[a]?.total ??
+        ticket.messages.filter((m) => m.audience === a).length)
+      : ticket.messages.filter((m) => m.audience === a).length;
 
   return (
     <div className="space-y-3">

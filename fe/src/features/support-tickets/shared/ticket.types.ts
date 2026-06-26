@@ -66,6 +66,16 @@ export interface PartyRef {
   fullName: string;
 }
 
+/** 1 dòng ghi chú nội bộ (hiển thị dạng log/timeline, ngoài luồng chat). */
+export interface InternalNote {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface TicketSummary {
   id: string;
   ticketCode: string | null;
@@ -90,10 +100,22 @@ export interface TicketPublicView extends TicketSummary {
   counterpartyRole: string | null;
   resolutionSummary: string | null;
   messages: PublicMessage[];
+  /** Còn tin cũ hơn trang hiện tại để "tải thêm". */
+  hasMoreMessages?: boolean;
   attachments: Attachment[];
   firstRespondedAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
+}
+
+/** 1 trang tin nhắn trả về khi "tải tin cũ hơn". */
+export interface MessagePage {
+  messages: PublicMessage[];
+  hasMore: boolean;
+}
+export interface AdminMessagePage {
+  messages: AdminMessage[];
+  hasMore: boolean;
 }
 
 export interface TicketAdminView extends TicketPublicView {
@@ -104,6 +126,11 @@ export interface TicketAdminView extends TicketPublicView {
   firstResponseDueAt: string | null;
   resolutionDueAt: string | null;
   messages: AdminMessage[];
+  /** Phân trang theo từng luồng hội thoại. */
+  messagePaging?: Record<
+    "REPORTER" | "COUNTERPARTY",
+    { hasMore: boolean; total: number }
+  >;
   statusLogs: StatusLog[];
   resolutions: Resolution[];
 }

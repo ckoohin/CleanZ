@@ -8,8 +8,10 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import {
@@ -78,8 +80,23 @@ export class TicketController {
     return this.ticketService.findOneForUser(userId, id);
   }
 
+  @Get(':id/messages')
+  @ApiOperation({
+    summary: 'Tải trang tin cũ hơn (cursor: before = id tin cũ nhất đang có)',
+  })
+  messages(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('before') before?: string,
+  ) {
+    return this.ticketService.getUserMessagePage(userId, id, before);
+  }
+
   @Post(':id/messages')
   @ApiOperation({ summary: 'Gửi tin nhắn công khai' })
+  // Chống spam/flood: tối đa 20 tin/phút/người trên endpoint này.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
   addMessage(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,

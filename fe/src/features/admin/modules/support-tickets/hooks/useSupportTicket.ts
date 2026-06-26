@@ -19,6 +19,8 @@ export const supportTicketKeys = {
   list: (params?: AdminTicketQueryParams) =>
     ["admin-support-tickets", "list", params] as const,
   detail: (id: string) => ["admin-support-tickets", "detail", id] as const,
+  internalNotes: (id: string) =>
+    ["admin-support-tickets", "internal-notes", id] as const,
   config: ["admin-support-tickets", "config"] as const,
 };
 
@@ -78,6 +80,29 @@ export function useTicketDetail(id: string) {
     queryKey: supportTicketKeys.detail(id),
     queryFn: () => supportTicketAdminApi.findOne(id),
     enabled: !!id,
+  });
+}
+
+// ─── Ghi chú nội bộ (log) ────────────────────────────────────────────────────
+export function useInternalNotes(id: string, enabled = true) {
+  return useQuery({
+    queryKey: supportTicketKeys.internalNotes(id),
+    queryFn: () => supportTicketAdminApi.listInternalNotes(id),
+    enabled: !!id && enabled,
+  });
+}
+
+export function useAddInternalNote(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) =>
+      supportTicketAdminApi.addInternalNote(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: supportTicketKeys.internalNotes(id),
+      });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 

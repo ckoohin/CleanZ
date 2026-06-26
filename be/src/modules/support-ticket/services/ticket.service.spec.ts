@@ -76,6 +76,11 @@ describe('TicketService.create (TC-U-CRT)', () => {
       { scheduleBreach: jest.fn(), onResume: jest.fn() } as any,
       { emitMessage: jest.fn(), emitRead: jest.fn() } as any,
       {} as any,
+      {
+        encrypt: (x: string) => x,
+        decrypt: (x: string) => x,
+        decryptEntities: (x: unknown) => x,
+      } as any,
     );
   });
 
@@ -185,6 +190,17 @@ describe('TicketService chat — audience & thread (TC-U-CHAT)', () => {
       }),
       save: jest.fn(),
     };
+    // Query builder chainable cho loadMessagePage (phân trang cursor).
+    const qb: any = {
+      leftJoinAndSelect: jest.fn(() => qb),
+      where: jest.fn(() => qb),
+      andWhere: jest.fn(() => qb),
+      orderBy: jest.fn(() => qb),
+      addOrderBy: jest.fn(() => qb),
+      take: jest.fn(() => qb),
+      limit: jest.fn(() => qb),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
     const messageRepo = {
       create: (x: any) => x,
       save: jest
@@ -193,6 +209,9 @@ describe('TicketService chat — audience & thread (TC-U-CHAT)', () => {
           Promise.resolve({ id: 'msg1', createdAt: new Date(), ...x }),
         ),
       find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      createQueryBuilder: jest.fn(() => qb),
+      qb,
     };
     const attachmentRepo = {
       createQueryBuilder: () => ({
@@ -232,6 +251,11 @@ describe('TicketService chat — audience & thread (TC-U-CHAT)', () => {
       { onResume: jest.fn() } as any,
       realtime as any,
       threadReadRepo as any,
+      {
+        encrypt: (x: string) => x,
+        decrypt: (x: string) => x,
+        decryptEntities: (x: unknown) => x,
+      } as any,
     );
     return { svc, ticketRepo, messageRepo, attachmentRepo, threadReadRepo, realtime };
   }
@@ -276,21 +300,17 @@ describe('TicketService chat — audience & thread (TC-U-CHAT)', () => {
   it('findOneForUser (reporter) → chỉ lấy message luồng REPORTER', async () => {
     const { svc, messageRepo } = makeService();
     await svc.findOneForUser(CUST_USER, 'tk1');
-    expect(messageRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ audience: 'REPORTER' }),
-      }),
-    );
+    expect(messageRepo.qb.andWhere).toHaveBeenCalledWith('m.audience = :aud', {
+      aud: 'REPORTER',
+    });
   });
 
   it('findOneForUser (counterparty) → chỉ lấy message luồng COUNTERPARTY', async () => {
     const { svc, messageRepo } = makeService();
     await svc.findOneForUser(TASK_USER, 'tk1');
-    expect(messageRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ audience: 'COUNTERPARTY' }),
-      }),
-    );
+    expect(messageRepo.qb.andWhere).toHaveBeenCalledWith('m.audience = :aud', {
+      aud: 'COUNTERPARTY',
+    });
   });
 
   it('user gửi + ticket có admin phụ trách → ping badge unread cho admin', async () => {

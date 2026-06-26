@@ -15,7 +15,10 @@ import type {
   AdminMessage,
   Resolution,
   MarkReadAdminInput,
+  InternalNote,
+  TicketAudience,
 } from "../types/support-ticket.types";
+import type { AdminMessagePage } from "@/features/support-tickets/shared/ticket.types";
 
 const EP = API_ENDPOINTS.ADMIN_SUPPORT_TICKETS;
 
@@ -65,6 +68,27 @@ export const supportTicketAdminApi = {
   // ── Gửi tin nhắn (public / internal note) — BE trả Message (spec §2.6) ────
   addMessage: (id: string, dto: CreateAdminMessageDto): Promise<AdminMessage> =>
     http.post<AdminMessage>(EP.MESSAGES(id), dto).then((r) => r.data),
+
+  // ── Ghi chú nội bộ (log) — tách khỏi luồng chat ──────────────────────────
+  listInternalNotes: (id: string): Promise<InternalNote[]> =>
+    http.get<InternalNote[]>(EP.INTERNAL_NOTES(id)).then((r) => r.data),
+
+  addInternalNote: (id: string, body: string): Promise<InternalNote> =>
+    http
+      .post<InternalNote>(EP.INTERNAL_NOTES(id), { body })
+      .then((r) => r.data),
+
+  // ── Tải trang tin cũ hơn 1 luồng (cursor) ────────────────────────────────
+  olderMessages: (
+    id: string,
+    audience: TicketAudience,
+    before?: string,
+  ): Promise<AdminMessagePage> =>
+    http
+      .get<AdminMessagePage>(EP.MESSAGES(id), {
+        params: { audience, ...(before ? { before } : {}) },
+      })
+      .then((r) => r.data),
 
   // ── Đánh dấu đã đọc 1 luồng (REPORTER/COUNTERPARTY/INTERNAL) ─────────────
   markRead: (id: string, dto: MarkReadAdminInput): Promise<unknown> =>

@@ -68,6 +68,8 @@ export const API_ENDPOINTS = {
     ASSIGN: (id: string) => `/admin/support-tickets/${id}/assign`,
     STATUS: (id: string) => `/admin/support-tickets/${id}/status`,
     MESSAGES: (id: string) => `/admin/support-tickets/${id}/messages`,
+    INTERNAL_NOTES: (id: string) =>
+      `/admin/support-tickets/${id}/internal-notes`,
     READ: (id: string) => `/admin/support-tickets/${id}/read`,
     ATTACHMENTS: (id: string) => `/admin/support-tickets/${id}/attachments`,
     RESOLUTIONS: (id: string) => `/admin/support-tickets/${id}/resolutions`,

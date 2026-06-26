@@ -131,6 +131,7 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
         queryClient.invalidateQueries({ queryKey: ["my-tickets"] });
         return res;
       },
+      loadOlder: (beforeId) => myTicketApi.olderMessages(ticketId, beforeId),
     }),
     [ticketId, queryClient],
   );
@@ -249,6 +250,8 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
           threadHeader={threadHeader}
           threadClassName="pb-2"
           composerClassName="border-t border-border/40 bg-card p-4 pb-8"
+          hideScrollbar
+          hasMore={ticket.hasMoreMessages}
         />
       ) : (
         <AnimatePresence mode="wait">

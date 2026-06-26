@@ -25,11 +25,17 @@ import { ReclassifyTicketDto } from '../dto/reclassify-ticket.dto';
 import { CreateTicketAdminDto } from '../dto/create-ticket-admin.dto';
 import {
   AdminMessage,
+  AdminMessagePage,
+  InternalNoteView,
   PaginatedTickets,
   TicketAdminView,
+  toAdminMessages,
   toAdminView,
   toAdminTicketSummary,
+  senderRoleOf,
 } from '../dto/ticket-response.dto';
+import { MessageCryptoService } from './message-crypto.service';
+import { MESSAGE_PAGE_SIZE } from '../support-ticket.constants';
 import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
 import { TicketRealtimeService } from '../realtime/ticket-realtime.service';
 import { MarkReadAdminDto } from '../dto/mark-read.dto';
@@ -74,6 +80,7 @@ export class TicketAdminService {
     private readonly notification: NotificationService,
     private readonly uploadService: UploadService,
     private readonly realtime: TicketRealtimeService,
+    private readonly crypto: MessageCryptoService,
   ) {}
 
   private notify(
@@ -164,30 +171,78 @@ export class TicketAdminService {
   async findOne(id: string): Promise<TicketAdminView> {
     return asyncHandleOperation(async () => {
       const ticket = await this.loadOrFail(id);
-      const [messages, logs, resolutions, attachments] = await Promise.all([
-        this.messageRepo.find({
-          where: { ticket: { id } },
-          relations: ['sender'],
-          order: { createdAt: 'ASC' },
+      // Chỉ tải TRANG MỚI NHẤT của 2 luồng hội thoại (REPORTER + COUNTERPARTY) —
+      // tránh kéo toàn bộ tin của ticket dài. INTERNAL nằm ở drawer ghi chú riêng.
+      const [reporter, counterparty, logs, resolutions, ticketAttachments] =
+        await Promise.all([
+          this.ticketService.loadMessagePage(
+            id,
+            TicketMessageAudience.REPORTER,
+          ),
+          this.ticketService.loadMessagePage(
+            id,
+            TicketMessageAudience.COUNTERPARTY,
+          ),
+          this.statusLogRepo.find({
+            where: { ticket: { id } },
+            relations: ['changedBy'],
+            order: { createdAt: 'ASC' },
+          }),
+          this.resolutionRepo.find({
+            where: { ticket: { id } },
+            relations: ['proposedBy'],
+            order: { createdAt: 'ASC' },
+          }),
+          this.attachmentRepo.find({
+            where: { ticket: { id } },
+            relations: ['message'],
+            order: { createdAt: 'ASC' },
+          }),
+        ]);
+
+      const [reporterTotal, counterpartyTotal] = await Promise.all([
+        this.messageRepo.count({
+          where: { ticket: { id }, audience: TicketMessageAudience.REPORTER },
         }),
-        this.statusLogRepo.find({
-          where: { ticket: { id } },
-          relations: ['changedBy'],
-          order: { createdAt: 'ASC' },
-        }),
-        this.resolutionRepo.find({
-          where: { ticket: { id } },
-          relations: ['proposedBy'],
-          order: { createdAt: 'ASC' },
-        }),
-        this.attachmentRepo.find({
-          where: { ticket: { id } },
-          relations: ['message'],
-          order: { createdAt: 'ASC' },
+        this.messageRepo.count({
+          where: {
+            ticket: { id },
+            audience: TicketMessageAudience.COUNTERPARTY,
+          },
         }),
       ]);
-      return toAdminView(ticket, messages, logs, resolutions, attachments);
+
+      const messages = [...reporter.messages, ...counterparty.messages];
+      // Gộp attachment 2 trang + attachment cấp ticket (lọc trùng theo id).
+      const attachments = [
+        ...reporter.attachments,
+        ...counterparty.attachments,
+        ...ticketAttachments,
+      ].filter((a, i, arr) => arr.findIndex((x) => x.id === a.id) === i);
+
+      return toAdminView(ticket, messages, logs, resolutions, attachments, {
+        REPORTER: { hasMore: reporter.hasMore, total: reporterTotal },
+        COUNTERPARTY: {
+          hasMore: counterparty.hasMore,
+          total: counterpartyTotal,
+        },
+      });
     }, 'Lỗi khi lấy chi tiết ticket');
+  }
+
+  /** "Tải tin cũ hơn" cho admin theo 1 luồng (REPORTER/COUNTERPARTY). */
+  async getMessagePage(
+    id: string,
+    audience: TicketMessageAudience,
+    beforeId?: string,
+    limit = MESSAGE_PAGE_SIZE,
+  ): Promise<AdminMessagePage> {
+    return asyncHandleOperation(async () => {
+      await this.loadOrFail(id);
+      const { messages, attachments, hasMore } =
+        await this.ticketService.loadMessagePage(id, audience, beforeId, limit);
+      return { messages: toAdminMessages(messages, attachments), hasMore };
+    }, 'Lỗi khi tải tin nhắn');
   }
 
   async assign(
@@ -406,7 +461,8 @@ export class TicketAdminService {
         this.messageRepo.create({
           ticket: { id },
           sender: { id: actingAdminId },
-          body,
+          // Lưu DB mã hoá at-rest; `body` plaintext dùng cho response + realtime.
+          body: this.crypto.encrypt(body),
           isInternal,
           audience,
         }),
@@ -444,7 +500,7 @@ export class TicketAdminService {
         id: msg.id,
         senderUserId: actingAdminId,
         senderRole: 'ADMIN',
-        body: msg.body,
+        body,
         isInternal: msg.isInternal,
         audience: msg.audience,
         createdAt: msg.createdAt,
@@ -454,6 +510,52 @@ export class TicketAdminService {
       this.realtime.emitMessage(ticket, audience, result);
       return result;
     }, 'Lỗi khi gửi tin nhắn');
+  }
+
+  /**
+   * Danh sách ghi chú nội bộ (luồng INTERNAL) — hiển thị dạng LOG/timeline ở
+   * panel riêng ngoài bảng ticket, KHÔNG lẫn với hội thoại khách/tasker.
+   */
+  async listInternalNotes(id: string): Promise<InternalNoteView[]> {
+    return asyncHandleOperation(async () => {
+      await this.loadOrFail(id);
+      const notes = await this.messageRepo.find({
+        where: { ticket: { id }, audience: TicketMessageAudience.INTERNAL },
+        relations: ['sender'],
+        order: { createdAt: 'ASC' },
+      });
+      this.crypto.decryptEntities(notes);
+      return notes.map((n) => ({
+        id: n.id,
+        authorId: n.sender?.id ?? null,
+        authorName: n.sender?.fullName ?? 'Hệ thống',
+        authorRole: senderRoleOf(n.sender),
+        body: n.body,
+        createdAt: n.createdAt,
+      }));
+    }, 'Lỗi khi lấy ghi chú nội bộ');
+  }
+
+  /** Thêm 1 ghi chú nội bộ (text-only). Tái dùng addMessage với audience INTERNAL. */
+  async addInternalNote(
+    id: string,
+    body: string,
+    actingAdminId: string,
+  ): Promise<InternalNoteView> {
+    return asyncHandleOperation(async () => {
+      const msg = await this.addMessage(id, { body, isInternal: true }, actingAdminId);
+      const author = await this.userRepo.findOne({
+        where: { id: actingAdminId },
+      });
+      return {
+        id: msg.id,
+        authorId: actingAdminId,
+        authorName: author?.fullName ?? 'Admin',
+        authorRole: 'ADMIN',
+        body: msg.body,
+        createdAt: msg.createdAt,
+      };
+    }, 'Lỗi khi thêm ghi chú nội bộ');
   }
 
   async unreadTotal(actingAdminId: string): Promise<{ count: number }> {
