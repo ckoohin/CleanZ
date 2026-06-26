@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
@@ -30,6 +31,7 @@ export class TaskerService {
     private readonly taskerRepository: Repository<TaskerEntity>,
     private readonly uploadService: UploadService,
     private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async submitProfile(
@@ -355,12 +357,26 @@ export class TaskerService {
       tasker.docReviewedAt = new Date();
       await this.taskerRepository.save(tasker);
 
+      // Link bấm thẳng vào trang nộp lại hồ sơ. Applicant NEED_INFO vẫn là CUSTOMER
+      // (chưa nâng role tới khi duyệt) nên phải vào /become-partner/signup — đúng nơi
+      // menu trong app điều hướng; route /tasker/* sẽ chặn vì chưa có role TASKER.
+      // FRONTEND_URL có thể thiếu ở môi trường dev → fallback PORT.
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
+      // Phần đầu tiên admin yêu cầu → để link email nhảy & focus đúng ô cần nộp.
+      const focusItem = this.getFirstReviewItemId(dto.notes);
+      const kycResubmitUrl =
+        `${frontendUrl}/become-partner/signup` +
+        (focusItem ? `?focus=${encodeURIComponent(focusItem)}` : '');
+
       void this.mailService.sendTaskerRequestInfoEmail(
         tasker.user.email,
         tasker.user.fullName,
         // docNote có thể là JSON có cấu trúc (v:2) từ FE — chuyển sang văn bản
         // dễ đọc trước khi gửi email, tránh lộ chuỗi JSON thô cho tasker.
         this.buildReviewNotesText(dto.notes),
+        kycResubmitUrl,
       );
 
       return this.mapProfile(tasker);
@@ -401,6 +417,24 @@ export class TaskerService {
       // notes là plain text cũ — dùng nguyên văn.
     }
     return notes;
+  }
+
+  /** Lấy id phần đầu tiên admin yêu cầu nộp lại — dùng cho deep-link trong email. */
+  private getFirstReviewItemId(notes: string): string | null {
+    try {
+      const parsed = JSON.parse(notes) as { v?: number; items?: string[] };
+      if (
+        parsed &&
+        parsed.v === 2 &&
+        Array.isArray(parsed.items) &&
+        parsed.items.length > 0
+      ) {
+        return parsed.items[0];
+      }
+    } catch {
+      // notes là plain text cũ — không có phần cụ thể để focus.
+    }
+    return null;
   }
 
   async banTasker(

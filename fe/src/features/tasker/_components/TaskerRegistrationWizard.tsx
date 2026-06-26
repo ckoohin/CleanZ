@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   User,
   ShieldCheck,
@@ -27,6 +28,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { authApi } from "@/features/auth/services/auth.service";
+import { queryKeys } from "@/features/auth/queries/auth.query";
 import { TaskerStatus } from "../types/tasker.type";
 import { useTaskerProfile, useSubmitTaskerProfile } from "../hooks/tasker.hooks";
 import {
@@ -74,10 +77,59 @@ const STEPS = [
   { key: "done", label: "Hoàn tất", icon: CheckCircle2 },
 ] as const;
 
+/* Deep-link từ email (?focus=<phần>): id phần admin yêu cầu → bước chứa nó +
+   phần tử để cuộn tới / focus. Khớp với MISSING_ITEM_OPTIONS ở review-notes. */
+const FOCUS_TARGETS: Record<string, { step: number; elementId: string }> = {
+  phone: { step: 0, elementId: "kyc-field-phone" },
+  address: { step: 0, elementId: "kyc-field-address" },
+  experience: { step: 0, elementId: "kyc-field-experience" },
+  skills: { step: 0, elementId: "kyc-field-experience" },
+  bio: { step: 0, elementId: "kyc-field-experience" },
+  citizenCard: { step: 1, elementId: "kyc-field-citizenCard" },
+  idWithSelfie: { step: 1, elementId: "kyc-field-idWithSelfie" },
+  bankInfo: { step: 2, elementId: "kyc-field-bankInfo" },
+  criminalRecord: { step: 2, elementId: "kyc-field-criminalRecord" },
+  healthCertificate: { step: 2, elementId: "kyc-field-healthCertificate" },
+  certificate: { step: 2, elementId: "kyc-field-certificate" },
+};
+
 /* Mỗi ô ảnh có thể là: File (ảnh mới chọn), string (URL ảnh đã nộp trước đó), hoặc null */
 type Slot = File | string | null;
 const hasSlot = (s: Slot) =>
   s instanceof File || (typeof s === "string" && s.length > 0);
+
+/**
+ * Parse chuỗi kinh nghiệm đã lưu ("<vị trí> @ <nơi làm> (n năm); ...") ngược về
+ * mảng để đổ lại form khi nộp lại hồ sơ — đảo ngược cách build ở handleSubmit.
+ */
+function parseExperiences(
+  raw?: string | null,
+): { company: string; role: string; years: string }[] {
+  if (!raw) return [];
+  return raw
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((part) => {
+      let years = "";
+      let body = part;
+      const ym = body.match(/\((\d+)\s*năm\)\s*$/);
+      if (ym) {
+        years = ym[1];
+        body = body.slice(0, ym.index).trim();
+      }
+      let role = body;
+      let company = "";
+      const at = body.indexOf(" @ ");
+      if (at >= 0) {
+        role = body.slice(0, at).trim();
+        company = body.slice(at + 3).trim();
+      }
+      if (role === "—") role = "";
+      if (company === "—") company = "";
+      return { company, role, years };
+    });
+}
 
 type IconType = React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
 
@@ -114,6 +166,7 @@ function Field({
   hint,
   error,
   flag,
+  id,
 }: {
   label: string;
   required?: boolean;
@@ -121,9 +174,10 @@ function Field({
   hint?: string;
   error?: string;
   flag?: ReviewPart;
+  id?: string;
 }) {
   return (
-    <label style={{ display: "block", marginBottom: 18 }}>
+    <label id={id} style={{ display: "block", marginBottom: 18 }}>
       <span
         style={{
           display: "block",
@@ -201,6 +255,7 @@ function UploadBox({
   hint,
   error,
   flag,
+  anchorId,
 }: {
   label: string;
   value: Slot;
@@ -209,6 +264,7 @@ function UploadBox({
   hint?: string;
   error?: string;
   flag?: ReviewPart;
+  anchorId?: string;
 }) {
   const id = "up-" + label.replace(/\s/g, "");
   const isExisting = typeof value === "string";
@@ -223,7 +279,7 @@ function UploadBox({
   }, [value, preview]);
 
   return (
-    <div style={{ marginBottom: 4 }}>
+    <div id={anchorId} style={{ marginBottom: 4 }}>
       <span
         style={{
           display: "block",
@@ -505,9 +561,14 @@ export const TaskerRegistrationWizard: React.FC = () => {
   const { data: user } = useAuth();
   const { data: profile, isLoading: isProfileLoading } = useTaskerProfile();
   const submitMutation = useSubmitTaskerProfile();
+  const queryClient = useQueryClient();
+  // Tránh chạy lại luồng refresh-token + điều hướng khi đã được duyệt nhiều lần.
+  const approvedHandledRef = useRef(false);
 
   const [step, setStep] = useState(0);
   const [seeded, setSeeded] = useState(false);
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+  const [focusHandled, setFocusHandled] = useState(false);
   const [agree, setAgree] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -522,7 +583,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
-    cccdAddress: "",
     currentAddress: "",
     cccdNumber: "",
     bankName: "",
@@ -565,35 +625,105 @@ export const TaskerRegistrationWizard: React.FC = () => {
   useEffect(() => {
     if (isProfileLoading) return;
     if (profile?.approvalStatus === TaskerStatus.APPROVED) {
-      router.replace("/tasker");
+      // Admin duyệt → role trong DB đã thành TASKER, NHƯNG access token hiện tại
+      // vẫn là CUSTOMER nên RoleGuard ở /tasker sẽ chặn (kẹt loading / đá về login).
+      // Gọi /auth/refresh để lấy token mới (refresh strategy đọc role mới từ DB),
+      // làm mới cache /auth/me rồi mới vào khu vực tasker.
+      if (approvedHandledRef.current) return;
+      approvedHandledRef.current = true;
+      void (async () => {
+        try {
+          await authApi.refresh();
+        } catch {
+          // Refresh thất bại (phiên hết hạn) → vào /tasker, RoleGuard sẽ đưa về
+          // trang đăng nhập đối tác để nhận token TASKER mới.
+        }
+        await queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
+        router.replace("/tasker");
+      })();
     } else if (profile?.approvalStatus === TaskerStatus.PENDING) {
       setStep(4);
     }
-  }, [profile, isProfileLoading, router]);
+  }, [profile, isProfileLoading, router, queryClient]);
 
-  /* Nạp dữ liệu cũ (khi nộp lại) — chạy 1 lần khi hồ sơ đã tải xong */
+  /* Nạp dữ liệu cũ (khi nộp lại) — chạy 1 lần khi hồ sơ & user đã tải xong.
+     Đổ lại toàn bộ dữ liệu cũ, sau đó CHỈ để trống đúng phần admin yêu cầu nộp lại. */
   useEffect(() => {
-    if (isProfileLoading || seeded) return;
+    if (isProfileLoading || seeded || !user) return;
+
+    // Các phần admin gắn cờ cần nộp lại → để trống để tasker nhập / đính kèm lại.
+    const flagged = getReviewPartMap(profile?.adminNotes);
+    const doc = profile?.document;
+
     setForm((prev) => ({
       ...prev,
-      fullName: prev.fullName || user?.fullName || "",
-      phone: prev.phone || profile?.phone || "",
-      cccdAddress: prev.cccdAddress || profile?.addressResident || "",
-      currentAddress: prev.currentAddress || profile?.addressCurrent || "",
+      // /auth/me (user) là payload từ JWT — KHÔNG có fullName → ưu tiên lấy từ hồ sơ.
+      fullName: prev.fullName || profile?.fullName || user?.fullName || "",
+      phone: flagged.phone ? "" : prev.phone || profile?.phone || "",
+      currentAddress: flagged.address
+        ? ""
+        : prev.currentAddress || profile?.addressCurrent || "",
       cccdNumber: prev.cccdNumber || profile?.document?.idNumber || "",
-      bankName: prev.bankName || profile?.bankName || "",
-      bankAccount: prev.bankAccount || profile?.bankAccountNumber || "",
-      bankHolder: prev.bankHolder || profile?.bankAccountName || "",
+      bankName: flagged.bankInfo ? "" : prev.bankName || profile?.bankName || "",
+      bankAccount: flagged.bankInfo
+        ? ""
+        : prev.bankAccount || profile?.bankAccountNumber || "",
+      bankHolder: flagged.bankInfo
+        ? ""
+        : prev.bankHolder || profile?.bankAccountName || "",
     }));
-    const doc = profile?.document;
-    if (doc?.frontUrl) setCccdFront(doc.frontUrl);
-    if (doc?.backUrl) setCccdBack(doc.backUrl);
-    if (profile?.avatarUrl) setSelfie(profile.avatarUrl);
-    if (doc?.healthCertificateUrl) setDocHealth(doc.healthCertificateUrl);
-    if (doc?.criminalRecordUrl) setDocJudicial(doc.criminalRecordUrl);
-    if (doc?.certificateUrl) setDocCert(doc.certificateUrl);
+
+    // Kinh nghiệm: nạp lại từ chuỗi đã lưu, trừ khi bị gắn cờ cần cập nhật.
+    if (!(flagged.experience || flagged.skills || flagged.bio)) {
+      const parsedExp = parseExperiences(profile?.experience);
+      if (parsedExp.length) setExperiences(parsedExp);
+    }
+
+    // Ảnh/giấy tờ: giữ ảnh cũ; phần bị gắn cờ thì để trống để buộc nộp lại.
+    if (!flagged.citizenCard) {
+      if (doc?.frontUrl) setCccdFront(doc.frontUrl);
+      if (doc?.backUrl) setCccdBack(doc.backUrl);
+    }
+    if (!flagged.idWithSelfie && profile?.avatarUrl) setSelfie(profile.avatarUrl);
+    if (!flagged.healthCertificate && doc?.healthCertificateUrl)
+      setDocHealth(doc.healthCertificateUrl);
+    if (!flagged.criminalRecord && doc?.criminalRecordUrl)
+      setDocJudicial(doc.criminalRecordUrl);
+    if (!flagged.certificate && doc?.certificateUrl)
+      setDocCert(doc.certificateUrl);
+
     setSeeded(true);
   }, [profile, user, isProfileLoading, seeded]);
+
+  /* Deep-link từ email (?focus=<phần>): sau khi seed xong, nhảy tới đúng bước
+     chứa phần admin yêu cầu rồi cuộn / focus vào ô đó. Chỉ chạy 1 lần. */
+  useEffect(() => {
+    if (!seeded || focusHandled || !needsResubmit) return;
+    setFocusHandled(true);
+    const focusParam = new URLSearchParams(window.location.search).get("focus");
+    if (!focusParam) return;
+    const target = FOCUS_TARGETS[focusParam];
+    if (!target) return;
+    setStep(target.step);
+    setPendingFocusId(target.elementId);
+  }, [seeded, focusHandled, needsResubmit]);
+
+  /* Thực thi cuộn + focus sau khi bước đích đã render. */
+  useEffect(() => {
+    if (!pendingFocusId) return;
+    const raf = window.requestAnimationFrame(() => {
+      const el = document.getElementById(pendingFocusId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = el.querySelector<HTMLElement>(
+          'input:not([type="file"]):not([type="hidden"]), textarea',
+        );
+        input?.focus({ preventScroll: true });
+      }
+      setPendingFocusId(null);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [pendingFocusId, step]);
 
   /* Validation từng bước — trả về map field → thông báo lỗi */
   const validateStepErrors = (s: number): Record<string, string> => {
@@ -602,7 +732,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
       if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ và tên";
       if (!/^0\d{9,10}$/.test(form.phone.trim()))
         e.phone = "Số điện thoại không hợp lệ (bắt đầu bằng 0, 10–11 số)";
-      if (!form.cccdAddress.trim()) e.cccdAddress = "Vui lòng nhập địa chỉ theo CCCD";
       if (!form.currentAddress.trim()) e.currentAddress = "Vui lòng nhập chỗ ở hiện tại";
     }
     if (s === 1) {
@@ -748,7 +877,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: C.textFaint }}>
             {needsResubmit
-              ? "Cập nhật đúng phần được yêu cầu rồi gửi lại — ảnh đã nộp trước đó vẫn được giữ nguyên."
+              ? "Cập nhật đúng phần được yêu cầu rồi gửi lại — các thông tin khác đã được điền sẵn từ hồ sơ trước."
               : "Hoàn tất 4 bước để bắt đầu nhận việc. Hồ sơ sẽ được duyệt trong 24–48 giờ."}
           </p>
         </div>
@@ -821,7 +950,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 )}
               </div>
               <p style={{ margin: "8px 0 0", fontSize: 12, color: C.textFaint }}>
-                Ảnh cũ được giữ trong các ô bên dưới — chỉ thay phần cần sửa rồi gửi lại.
+                Các phần được yêu cầu đã được để trống để bạn nộp lại; những phần khác vẫn được giữ nguyên.
               </p>
             </div>
           </div>
@@ -862,20 +991,10 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 <Field label="Họ và tên" required error={errors.fullName}>
                   <TextInput icon={User} placeholder="Nguyễn Văn A" value={form.fullName} error={!!errors.fullName} onChange={(e) => set("fullName", e.target.value)} />
                 </Field>
-                <Field label="Số điện thoại" required error={errors.phone} flag={reviewMap.phone}>
+                <Field label="Số điện thoại" required error={errors.phone} flag={reviewMap.phone} id="kyc-field-phone">
                   <TextInput icon={Phone} placeholder="0901234567" value={form.phone} error={!!errors.phone} onChange={(e) => set("phone", e.target.value)} />
                 </Field>
               </div>
-
-              <Field label="Địa chỉ theo CCCD" required error={errors.cccdAddress}>
-                <TextInput
-                  icon={MapPin}
-                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-                  value={form.cccdAddress}
-                  error={!!errors.cccdAddress}
-                  onChange={(e) => set("cccdAddress", e.target.value)}
-                />
-              </Field>
 
               <Field
                 label="Chỗ ở hiện tại"
@@ -883,12 +1002,13 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 error={errors.currentAddress}
                 hint="Dùng để phân công việc gần khu vực bạn sinh sống"
                 flag={reviewMap.address}
+                id="kyc-field-address"
               >
                 <TextInput icon={MapPin} placeholder="Địa chỉ nơi bạn đang ở" value={form.currentAddress} error={!!errors.currentAddress} onChange={(e) => set("currentAddress", e.target.value)} />
               </Field>
 
               {/* Kinh nghiệm */}
-              <div style={{ marginTop: 8, paddingTop: 22, borderTop: `1px solid ${C.borderSoft}` }}>
+              <div id="kyc-field-experience" style={{ marginTop: 8, paddingTop: 22, borderTop: `1px solid ${C.borderSoft}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                     <Briefcase size={16} style={{ color: C.accent }} />
@@ -985,12 +1105,12 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 />
               </Field>
 
-              <div style={{ display: "grid", gridTemplateColumns: autoCols(200), gap: 20, marginTop: 6 }}>
+              <div id="kyc-field-citizenCard" style={{ display: "grid", gridTemplateColumns: autoCols(200), gap: 20, marginTop: 6 }}>
                 <UploadBox label="Ảnh CCCD mặt trước" value={cccdFront} onChange={onSlot("cccdFront", setCccdFront)} hint="Rõ nét, không lóa sáng" error={errors.cccdFront} flag={reviewMap.citizenCard} />
                 <UploadBox label="Ảnh CCCD mặt sau" value={cccdBack} onChange={onSlot("cccdBack", setCccdBack)} hint="Hiển thị đầy đủ thông tin" error={errors.cccdBack} flag={reviewMap.citizenCard} />
               </div>
 
-              <div style={{ marginTop: 20 }}>
+              <div id="kyc-field-idWithSelfie" style={{ marginTop: 20 }}>
                 <UploadBox label="Ảnh selfie cầm CCCD" value={selfie} onChange={onSlot("selfie", setSelfie)} aspect="4/2" hint="Khuôn mặt và giấy tờ cùng khung hình" error={errors.selfie} flag={reviewMap.idWithSelfie} />
               </div>
 
@@ -1021,7 +1141,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 Pháp lý & thanh toán
               </SectionTitle>
 
-              <div style={{ background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 12, padding: 18, marginBottom: 24 }}>
+              <div id="kyc-field-bankInfo" style={{ background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 12, padding: 18, marginBottom: 24 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                   <Building2 size={15} style={{ color: C.accent }} />
                   <span style={{ fontSize: 13.5, fontWeight: 700 }}>Tài khoản ngân hàng nhận thu nhập</span>
@@ -1043,9 +1163,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 Giấy tờ pháp lý
               </span>
               <div style={{ display: "grid", gridTemplateColumns: autoCols(160), gap: 16 }}>
-                <UploadBox label="Lý lịch tư pháp *" value={docJudicial} onChange={onSlot("docJudicial", setDocJudicial)} aspect="3/4" error={errors.docJudicial} flag={reviewMap.criminalRecord} />
-                <UploadBox label="Giấy khám sức khỏe" value={docHealth} onChange={setDocHealth} aspect="3/4" flag={reviewMap.healthCertificate} />
-                <UploadBox label="Chứng chỉ (nếu có)" value={docCert} onChange={setDocCert} aspect="3/4" flag={reviewMap.certificate} />
+                <UploadBox label="Lý lịch tư pháp *" value={docJudicial} onChange={onSlot("docJudicial", setDocJudicial)} aspect="3/4" error={errors.docJudicial} flag={reviewMap.criminalRecord} anchorId="kyc-field-criminalRecord" />
+                <UploadBox label="Giấy khám sức khỏe" value={docHealth} onChange={setDocHealth} aspect="3/4" flag={reviewMap.healthCertificate} anchorId="kyc-field-healthCertificate" />
+                <UploadBox label="Chứng chỉ (nếu có)" value={docCert} onChange={setDocCert} aspect="3/4" flag={reviewMap.certificate} anchorId="kyc-field-certificate" />
               </div>
             </div>
           )}
@@ -1063,7 +1183,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 rows={[
                   ["Họ và tên", form.fullName],
                   ["Số điện thoại", form.phone],
-                  ["Địa chỉ CCCD", form.cccdAddress],
                   ["Chỗ ở hiện tại", form.currentAddress],
                   [
                     "Kinh nghiệm",

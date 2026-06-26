@@ -103,12 +103,13 @@ export class MailService {
     email: string,
     fullName: string,
     notes: string,
+    kycResubmitUrl?: string,
   ): Promise<void> {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Hồ sơ tasker của bạn cần bổ sung thông tin',
       template: 'tasker-request-info',
-      context: { fullName, notes },
+      context: { fullName, notes, kycResubmitUrl },
     });
   }
 
