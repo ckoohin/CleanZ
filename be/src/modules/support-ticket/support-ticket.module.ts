@@ -25,6 +25,7 @@ import { TicketSurveyService } from './services/ticket-survey.service';
 import { SupportTicketProcessor } from './support-ticket.processor';
 import { TicketRealtimeService } from './realtime/ticket-realtime.service';
 import { SupportChatGateway } from './realtime/support-chat.gateway';
+import { MessageCryptoService } from './services/message-crypto.service';
 import {
   RESOLUTION_EXECUTOR,
   NoopResolutionExecutor,
@@ -61,6 +62,7 @@ import { SUPPORT_TICKET_QUEUE } from './support-ticket.constants';
     SupportTicketProcessor,
     TicketRealtimeService,
     SupportChatGateway,
+    MessageCryptoService,
     { provide: RESOLUTION_EXECUTOR, useClass: NoopResolutionExecutor },
   ],
   exports: [TypeOrmModule, TicketService],

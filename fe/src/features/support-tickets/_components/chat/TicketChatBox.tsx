@@ -20,7 +20,15 @@ interface TicketChatBoxProps {
   /** Lớp bao ngoài composer (vd fixed bottom cho mobile). */
   composerClassName?: string;
   threadClassName?: string;
+  /** Ẩn thanh cuộn (vẫn cuộn được) — dùng cho skin mobile customer/tasker. */
+  hideScrollbar?: boolean;
+  /** Còn tin cũ hơn trang đầu (từ detail) → hiện nút "tải tin cũ hơn". */
+  hasMore?: boolean;
 }
+
+/** Ẩn scrollbar nhưng giữ khả năng cuộn (Firefox + WebKit). */
+const SCROLLBAR_HIDDEN =
+  "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
 
 /**
  * ChatBox tái sử dụng cho cả Customer/Tasker (mobile) và Admin (desktop, Slice 5).
@@ -37,28 +45,44 @@ export const TicketChatBox: React.FC<TicketChatBoxProps> = ({
   threadHeader,
   composerClassName,
   threadClassName,
+  hideScrollbar,
+  hasMore,
 }) => {
-  const { messages, sending, typingLabel, otherLastReadId, send, notifyTyping } =
-    useTicketChat({
-      ticketId,
-      currentUserId,
-      initialMessages,
-      api,
-      audience,
-      locked,
-    });
+  const {
+    messages,
+    sending,
+    typingLabel,
+    otherLastReadId,
+    send,
+    notifyTyping,
+    hasMore: hasMoreState,
+    loadingOlder,
+    loadOlder,
+  } = useTicketChat({
+    ticketId,
+    currentUserId,
+    initialMessages,
+    api,
+    audience,
+    locked,
+    initialHasMore: hasMore,
+  });
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className={`flex-1 overflow-y-auto ${threadClassName ?? ""}`}>
-        <ChatThread
-          messages={messages}
-          currentUserId={currentUserId}
-          typingLabel={typingLabel}
-          otherLastReadId={otherLastReadId}
-          header={threadHeader}
-        />
-      </div>
+      <ChatThread
+        messages={messages}
+        currentUserId={currentUserId}
+        typingLabel={typingLabel}
+        otherLastReadId={otherLastReadId}
+        header={threadHeader}
+        className={`flex-1 ${hideScrollbar ? SCROLLBAR_HIDDEN : ""} ${
+          threadClassName ?? ""
+        }`}
+        hasMore={hasMoreState}
+        loadingOlder={loadingOlder}
+        onLoadOlder={loadOlder}
+      />
 
       {locked ? (
         <div className={composerClassName}>

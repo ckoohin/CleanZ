@@ -11,6 +11,9 @@ export const ST_CONFIG_KEYS = {
   SLA_PAUSE_ON_WAIT_TASKER: 'TICKET_SLA_PAUSE_ON_WAIT_TASKER',
 } as const;
 
+/** Số tin nhắn mỗi trang (cursor pagination) — chống tải toàn bộ ticket dài. */
+export const MESSAGE_PAGE_SIZE = 30;
+
 export const ST_DEFAULTS = {
   AUTOCLOSE_HOURS: 48,
   COMPLAINT_WINDOW_DAYS: 7,

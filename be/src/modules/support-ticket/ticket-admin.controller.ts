@@ -10,8 +10,11 @@ import {
   Put,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { TicketMessageAudience } from 'src/common/enums/ticket-message-audience.enum';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import {
@@ -32,7 +35,10 @@ import { ChangeStatusDto } from './dto/change-status.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { ReclassifyTicketDto } from './dto/reclassify-ticket.dto';
 import { CreateTicketAdminDto } from './dto/create-ticket-admin.dto';
-import { CreateAdminMessageDto } from './dto/create-message.dto';
+import {
+  CreateAdminMessageDto,
+  CreateInternalNoteDto,
+} from './dto/create-message.dto';
 import { MarkReadAdminDto } from './dto/mark-read.dto';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { TicketResolutionService } from './services/ticket-resolution.service';
@@ -136,14 +142,49 @@ export class TicketAdminController {
     return this.adminService.uploadAttachment(id, adminId, file);
   }
 
+  @Get(':id/messages')
+  @ApiOperation({
+    summary:
+      'Tải trang tin cũ hơn 1 luồng (audience=REPORTER|COUNTERPARTY, before=id)',
+  })
+  messages(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('audience') audience?: string,
+    @Query('before') before?: string,
+  ) {
+    const aud =
+      audience === TicketMessageAudience.COUNTERPARTY
+        ? TicketMessageAudience.COUNTERPARTY
+        : TicketMessageAudience.REPORTER;
+    return this.adminService.getMessagePage(id, aud, before);
+  }
+
   @Post(':id/messages')
   @ApiOperation({ summary: 'Gửi public reply / internal note (+tag)' })
+  @Throttle({ default: { limit: 40, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
   addMessage(
     @CurrentUser('id') adminId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateAdminMessageDto,
   ) {
     return this.adminService.addMessage(id, dto, adminId);
+  }
+
+  @Get(':id/internal-notes')
+  @ApiOperation({ summary: 'Danh sách ghi chú nội bộ (log) của ticket' })
+  listInternalNotes(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.listInternalNotes(id);
+  }
+
+  @Post(':id/internal-notes')
+  @ApiOperation({ summary: 'Thêm ghi chú nội bộ (log) cho ticket' })
+  addInternalNote(
+    @CurrentUser('id') adminId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateInternalNoteDto,
+  ) {
+    return this.adminService.addInternalNote(id, dto.body, adminId);
   }
 
   @Post(':id/read')
