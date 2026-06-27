@@ -39,11 +39,11 @@ export class ServiceWorkflowEntity {
   @Index('IDX_workflows_package_id')
   packageId?: string | null;
 
-  @ManyToOne(() => ServicePackageEntity, { nullable: true, onDelete: 'CASCADE' })
-  @JoinColumn({
-    name: 'package_id',
-    foreignKeyConstraintName: 'FK_workflows_package',
+  @ManyToOne(() => ServicePackageEntity, {
+    nullable: true,
+    onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'package_id' })
   package?: ServicePackageEntity;
 
   @Column({ type: 'varchar', length: 200 })

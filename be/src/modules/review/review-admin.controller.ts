@@ -48,10 +48,7 @@ export class ReviewAdminController {
   @Get('export')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @ApiOperation({ summary: 'Xuất báo cáo đánh giá CSV' })
-  async exportCsv(
-    @Query() query: AdminReviewQueryDto,
-    @Res() res: Response,
-  ) {
+  async exportCsv(@Query() query: AdminReviewQueryDto, @Res() res: Response) {
     const buffer = await this.reviewService.exportCsv(query);
     const filename = `reviews_${new Date().toISOString().slice(0, 10)}.csv`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

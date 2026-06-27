@@ -20,7 +20,11 @@ import { CustomerEntity } from '../customer/entity/customer.entity';
       CustomerEntity,
     ]),
   ],
-  controllers: [ReviewController, ReviewAdminController, ReviewTaskerController],
+  controllers: [
+    ReviewController,
+    ReviewAdminController,
+    ReviewTaskerController,
+  ],
   providers: [ReviewService],
   exports: [ReviewService],
 })

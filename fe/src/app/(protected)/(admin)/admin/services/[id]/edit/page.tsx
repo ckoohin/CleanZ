@@ -253,13 +253,24 @@ function SurchargeField({ icon: Icon, label, hint, value, onChange, suffix = "VN
 }
 
 // ─── StepIndicator ────────────────────────────────────────────────────────────
-function StepIndicator({ current, onStepClick }: { current: number; onStepClick: (step: number) => void }) {
+function StepIndicator({
+  current,
+  onStepClick,
+  validations
+}: {
+  current: number;
+  onStepClick: (step: number) => void;
+  validations: Record<number, boolean>;
+}) {
   return (
     <div className="flex items-center gap-1.5 md:gap-3 flex-wrap">
       {STEPS.map((s, idx) => {
-        const Icon = s.icon;
+        const Icon = s.id < current && !validations[s.id] ? AlertCircle : s.icon;
         const isActive = s.id === current;
         const isCompleted = s.id < current;
+        const isValid = validations[s.id];
+        const hasError = isCompleted && !isValid;
+
         return (
           <React.Fragment key={s.id}>
             <button
@@ -269,12 +280,14 @@ function StepIndicator({ current, onStepClick }: { current: number; onStepClick:
                 "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] active:scale-98 border-2",
                 isActive
                   ? "bg-primary border-primary text-white shadow-md shadow-primary/20 scale-105"
+                  : hasError
+                  ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
                   : isCompleted
                   ? "bg-primary/5 border-primary/25 text-primary hover:bg-primary/10"
                   : "bg-muted/15 border-border/30 text-muted-foreground hover:bg-muted"
               )}
             >
-              <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-white" : isCompleted ? "text-primary" : "text-muted-foreground")} />
+              <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-white" : hasError ? "text-rose-600 animate-pulse" : isCompleted ? "text-primary" : "text-muted-foreground")} />
               <span className="hidden md:inline">{s.label}</span>
             </button>
             {idx < STEPS.length - 1 && (
@@ -881,6 +894,16 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
   const [quickGalleryUrls, setQuickGalleryUrls] = useState<string[]>([]);
   const [isEditingPriceSaving, setIsEditingPriceSaving] = useState(false);
 
+  const validations = useMemo(() => ({
+    1: name.trim().length >= 2 && packageCode.trim().length >= 3,
+    2: nightSurcharge >= 0 && petSurcharge >= 0 && waitingSurcharge >= 0 && toolFee >= 0,
+    3: tiers.length > 0,
+    4: true,
+    5: selectedAreaIds.length > 0,
+    6: workflowSteps.length > 0 || termsAndConditions.trim().length > 0,
+    7: true
+  }), [name, packageCode, nightSurcharge, petSurcharge, waitingSurcharge, toolFee, tiers, selectedAreaIds, workflowSteps, termsAndConditions]);
+
   // ── Initialize States from data ──
   useEffect(() => {
     if (pkg && !hasInitialized) {
@@ -1193,7 +1216,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
 
       {/* Step Indicator */}
       <div className="bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center justify-between flex-wrap gap-2">
-        <StepIndicator current={step} onStepClick={setStep} />
+        <StepIndicator current={step} onStepClick={setStep} validations={validations} />
         <span className="text-xs text-muted-foreground font-semibold">Bước {step} / {STEPS.length}</span>
       </div>
 

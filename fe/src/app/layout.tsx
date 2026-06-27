@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter, Source_Sans_3, Playfair_Display } from 'next/font/google';
+import { Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 import { cn } from '@/lib/utils';
 import { Toaster } from 'sonner';
 import { ThemeToggleProvider } from '@/contexts/themeToggle.context';
 
-const sourceSans3 = Source_Sans_3({ subsets: ['latin'], variable: '--font-sans' });
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-serif',
@@ -28,7 +27,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={cn("font-sans overflow-x-hidden w-full", sourceSans3.variable, playfair.variable)}
+      className={cn("font-sans overflow-x-hidden w-full", inter.variable, playfair.variable)}
     >
       <head>
         <meta charSet="utf-8" />

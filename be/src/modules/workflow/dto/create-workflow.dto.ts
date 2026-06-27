@@ -14,12 +14,16 @@ import { Type } from 'class-transformer';
 import { CreateWorkflowStepDto } from './create-workflow-step.dto';
 
 export class CreateWorkflowDto {
-  @ApiPropertyOptional({ description: 'UUID của dịch vụ con (hoặc bỏ trống nếu gắn vào package)' })
+  @ApiPropertyOptional({
+    description: 'UUID của dịch vụ con (hoặc bỏ trống nếu gắn vào package)',
+  })
   @IsOptional()
   @IsUUID()
   subServiceId?: string;
 
-  @ApiPropertyOptional({ description: 'UUID của gói dịch vụ (hoặc bỏ trống nếu gắn vào sub-service)' })
+  @ApiPropertyOptional({
+    description: 'UUID của gói dịch vụ (hoặc bỏ trống nếu gắn vào sub-service)',
+  })
   @IsOptional()
   @IsUUID()
   packageId?: string;
@@ -29,7 +33,9 @@ export class CreateWorkflowDto {
   @MaxLength(200)
   name!: string;
 
-  @ApiPropertyOptional({ example: 'Áp dụng cho gói dọn dẹp cơ bản 1-2 phòng ngủ' })
+  @ApiPropertyOptional({
+    example: 'Áp dụng cho gói dọn dẹp cơ bản 1-2 phòng ngủ',
+  })
   @IsOptional()
   @IsString()
   description?: string;

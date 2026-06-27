@@ -303,17 +303,31 @@ function AssignedPolicyRow({ policy, packageId }: { policy: Policy; packageId: s
 
 interface TermItem { id: string; text: string; }
 
-function parseterms(raw: string | null | undefined): TermItem[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split("\n")
-    .map((l) => l.replace(/^\d+\.\s*/, "").trim())
-    .filter(Boolean)
-    .map((text, i) => ({ id: `t-${i}`, text }));
+function parseTermsAndPremium(raw: string | null | undefined): { standard: TermItem[], premium: TermItem[] } {
+  if (!raw?.trim()) return { standard: [], premium: [] };
+  const parts = raw.split(/---\s*PREMIUM\s*---/i);
+  const standardRaw = parts[0] || "";
+  const premiumRaw = parts[1] || "";
+  
+  const parseLines = (text: string, prefix: string): TermItem[] => {
+    return text
+      .split("\n")
+      .map((l) => l.replace(/^\d+\.\s*/, "").trim())
+      .filter(Boolean)
+      .map((text, i) => ({ id: `t-${prefix}-${i}-${Math.random()}`, text }));
+  };
+  
+  return {
+    standard: parseLines(standardRaw, "std"),
+    premium: parseLines(premiumRaw, "prem"),
+  };
 }
 
-function serializeTerms(items: TermItem[]) {
-  return items.map((t, i) => `${i + 1}. ${t.text}`).join("\n");
+function serializeTermsAndPremium(standard: TermItem[], premium: TermItem[]) {
+  const stdText = standard.map((t, i) => `${i + 1}. ${t.text}`).join("\n");
+  const premText = premium.map((t, i) => `${i + 1}. ${t.text}`).join("\n");
+  if (premium.length === 0) return stdText;
+  return `${stdText}\n--- PREMIUM ---\n${premText}`;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -338,21 +352,36 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
     return map;
   }, [assignedPolicies]);
 
-  const [terms, setTerms]       = useState<TermItem[]>(() => parseterms(pkg.termsAndConditions));
+  const parsed = useMemo(() => parseTermsAndPremium(pkg.termsAndConditions), [pkg.termsAndConditions]);
+  const [terms, setTerms] = useState<TermItem[]>(parsed.standard);
+  const [premiumTerms, setPremiumTerms] = useState<TermItem[]>(parsed.premium);
+  const [newPremiumTerm, setNewPremiumTerm] = useState("");
   const [policyDesc, setPolicyDesc] = useState(pkg.policyDescription ?? "");
   const updateMutation = useUpdateAdminPackage();
 
+  React.useEffect(() => {
+    const res = parseTermsAndPremium(pkg.termsAndConditions);
+    setTerms(res.standard);
+    setPremiumTerms(res.premium);
+  }, [pkg.termsAndConditions]);
+
   const handleSaveTerms = () => {
     updateMutation.mutate(
-      { id: pkg.id, payload: { termsAndConditions: serializeTerms(terms), policyDescription: policyDesc } },
-      { onSuccess: () => { toast.success("Đã lưu điều khoản!"); setIsEditingTerms(false); } }
+      { id: pkg.id, payload: { termsAndConditions: serializeTermsAndPremium(terms, premiumTerms), policyDescription: policyDesc } },
+      { onSuccess: () => { toast.success("Đã lưu điều khoản & cam kết Premium!"); setIsEditingTerms(false); } }
     );
   };
 
   const addTerm = () => {
     if (!newTerm.trim()) return;
-    setTerms((prev) => [...prev, { id: `t-${Date.now()}`, text: newTerm.trim() }]);
+    setTerms((prev) => [...prev, { id: `t-std-${Date.now()}`, text: newTerm.trim() }]);
     setNewTerm("");
+  };
+
+  const addPremiumTerm = () => {
+    if (!newPremiumTerm.trim()) return;
+    setPremiumTerms((prev) => [...prev, { id: `t-prem-${Date.now()}`, text: newPremiumTerm.trim() }]);
+    setNewPremiumTerm("");
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -368,8 +397,8 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
           </TabsTrigger>
           <TabsTrigger value="terms" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary">
             <ScrollText className="w-4 h-4" />
-            Điều khoản
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{terms.length}</Badge>
+            Điều khoản & Quy chuẩn Premium
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{terms.length + premiumTerms.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="guarantees" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary">
             <ShieldCheck className="w-4 h-4" />
@@ -475,8 +504,7 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              Điều khoản tùy chỉnh
-              <Badge variant="secondary">{terms.length}</Badge>
+              Điều khoản & Quy chuẩn chi tiết
             </h3>
             {!isEditingTerms ? (
               <BaseButton variant="outline" size="sm" onClick={() => setIsEditingTerms(true)} className="gap-2">
@@ -489,7 +517,9 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setTerms(parseterms(pkg.termsAndConditions));
+                    const res = parseTermsAndPremium(pkg.termsAndConditions);
+                    setTerms(res.standard);
+                    setPremiumTerms(res.premium);
                     setPolicyDesc(pkg.policyDescription ?? "");
                     setIsEditingTerms(false);
                   }}
@@ -510,85 +540,155 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
             )}
           </div>
 
-          {isEditingTerms && (
-            <div className="flex gap-2">
-              <Input
-                value={newTerm}
-                onChange={(e) => setNewTerm(e.target.value)}
-                placeholder="Nhập điều khoản mới..."
-                onKeyDown={(e) => e.key === "Enter" && addTerm()}
-                className="flex-1"
-              />
-              <BaseButton variant="outline" size="sm" onClick={addTerm} className="gap-1 shrink-0">
-                <Plus className="w-4 h-4" />
-                Thêm
-              </BaseButton>
-            </div>
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Standard Terms Section */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5 pb-2 border-b border-border/40">
+                <ScrollText className="w-4 h-4 text-slate-500" />
+                Điều khoản áp dụng chung (Gói Chuẩn)
+                <Badge variant="secondary" className="ml-auto">{terms.length}</Badge>
+              </h4>
+              
+              {isEditingTerms && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newTerm}
+                    onChange={(e) => setNewTerm(e.target.value)}
+                    placeholder="Nhập điều khoản chuẩn mới..."
+                    onKeyDown={(e) => e.key === "Enter" && addTerm()}
+                    className="flex-1 text-xs"
+                  />
+                  <BaseButton variant="outline" size="sm" onClick={addTerm} className="gap-1 shrink-0">
+                    <Plus className="w-4 h-4" /> Thêm
+                  </BaseButton>
+                </div>
+              )}
 
-          {terms.length === 0 ? (
-            <div className="py-10 text-center rounded-xl border border-dashed border-border bg-muted/10">
-              <ScrollText className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Chưa có điều khoản. Nhấn <strong>Chỉnh sửa</strong> để thêm.
-              </p>
+              {terms.length === 0 ? (
+                <div className="py-6 text-center rounded-lg border border-dashed border-border bg-muted/10">
+                  <p className="text-xs text-muted-foreground italic">Chưa có điều khoản.</p>
+                </div>
+              ) : (
+                <ol className="space-y-2.5">
+                  {terms.map((term, idx) => (
+                    <li key={term.id} className="flex items-start gap-2.5">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-slate-100 text-slate-800 text-xs font-bold flex items-center justify-center mt-0.5">
+                        {idx + 1}
+                      </span>
+                      {isEditingTerms ? (
+                        <div className="flex-1 flex gap-2">
+                          <Input
+                            value={term.text}
+                            onChange={(e) =>
+                              setTerms((prev) =>
+                                prev.map((t) => t.id === term.id ? { ...t, text: e.target.value } : t)
+                              )
+                            }
+                            className="flex-1 text-xs h-8"
+                          />
+                          <BaseButton
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setTerms((prev) => prev.filter((t) => t.id !== term.id))}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </BaseButton>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-800 leading-relaxed flex-1 pt-0.5 font-medium">{term.text}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
-          ) : (
-            <ol className="space-y-2.5">
-              {terms.map((term, idx) => (
-                <li key={term.id} className="flex items-start gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
-                    {idx + 1}
-                  </span>
-                  {isEditingTerms ? (
-                    <div className="flex-1 flex gap-2">
-                      <Input
-                        value={term.text}
-                        onChange={(e) =>
-                          setTerms((prev) =>
-                            prev.map((t) => t.id === term.id ? { ...t, text: e.target.value } : t)
-                          )
-                        }
-                        className="flex-1"
-                      />
-                      <BaseButton
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setTerms((prev) => prev.filter((t) => t.id !== term.id))}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </BaseButton>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-foreground leading-relaxed flex-1 pt-0.5">{term.text}</p>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
+
+            {/* Premium Commitments Section */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-extrabold text-amber-800 flex items-center gap-1.5 pb-2 border-b border-border/40">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                Quy chuẩn & Cam kết Premium
+                <Badge variant="secondary" className="ml-auto bg-amber-50 text-amber-700 border-amber-200">{premiumTerms.length}</Badge>
+              </h4>
+
+              {isEditingTerms && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newPremiumTerm}
+                    onChange={(e) => setNewPremiumTerm(e.target.value)}
+                    placeholder="Nhập cam kết Premium mới..."
+                    onKeyDown={(e) => e.key === "Enter" && addPremiumTerm()}
+                    className="flex-1 text-xs"
+                  />
+                  <BaseButton variant="outline" size="sm" onClick={addPremiumTerm} className="gap-1 shrink-0 border-amber-200 text-amber-700 hover:bg-amber-50">
+                    <Plus className="w-4 h-4" /> Thêm
+                  </BaseButton>
+                </div>
+              )}
+
+              {premiumTerms.length === 0 ? (
+                <div className="py-6 text-center rounded-lg border border-dashed border-amber-200/50 bg-amber-50/20">
+                  <p className="text-xs text-amber-800/60 italic">Chưa có cam kết Premium riêng. Nhấn Chỉnh sửa để thêm.</p>
+                </div>
+              ) : (
+                <ol className="space-y-2.5">
+                  {premiumTerms.map((term, idx) => (
+                    <li key={term.id} className="flex items-start gap-2.5">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center mt-0.5">
+                        {idx + 1}
+                      </span>
+                      {isEditingTerms ? (
+                        <div className="flex-1 flex gap-2">
+                          <Input
+                            value={term.text}
+                            onChange={(e) =>
+                              setPremiumTerms((prev) =>
+                                prev.map((t) => t.id === term.id ? { ...t, text: e.target.value } : t)
+                              )
+                            }
+                            className="flex-1 text-xs h-8"
+                          />
+                          <BaseButton
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setPremiumTerms((prev) => prev.filter((t) => t.id !== term.id))}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </BaseButton>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-800 leading-relaxed flex-1 pt-0.5 font-bold">{term.text}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
 
           <Separator />
 
           <div>
-            <Label className="font-semibold flex items-center gap-2 mb-2">
+            <Label className="font-semibold flex items-center gap-2 mb-2 text-xs">
               <Info className="w-4 h-4 text-blue-500" />
-              Ghi chú nội bộ
+              Ghi chú nội bộ cho gói dịch vụ
             </Label>
             {isEditingTerms ? (
               <Textarea
                 value={policyDesc}
                 onChange={(e) => setPolicyDesc(e.target.value)}
-                rows={5}
-                className="resize-none"
+                rows={4}
+                className="resize-none text-xs"
                 placeholder="Ghi chú nội bộ cho gói dịch vụ này..."
               />
             ) : (
-              <div className="rounded-xl border bg-muted/10 px-4 py-3 min-h-[80px]">
+              <div className="rounded-xl border bg-muted/10 px-4 py-3 min-h-[60px]">
                 {policyDesc ? (
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{policyDesc}</p>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{policyDesc}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Chưa có ghi chú.</p>
+                  <p className="text-xs text-muted-foreground italic">Chưa có ghi chú.</p>
                 )}
               </div>
             )}
@@ -596,28 +696,52 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
         </TabsContent>
 
         {/* ── Guarantees Tab ───────────────────────────────────────────────── */}
-        <TabsContent value="guarantees" className="mt-5 space-y-4">
-          <h3 className="font-bold text-base flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            Cam kết chất lượng CleanZ
-          </h3>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {[
-              { icon: ShieldCheck, label: "Bảo hành 48h",          desc: "Làm lại miễn phí nếu chưa đạt",        cls: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" },
-              { icon: Star,        label: "Nhân viên chuyên nghiệp", desc: "Đào tạo bài bản, kiểm tra lý lịch",   cls: "bg-amber-50 text-amber-600 dark:bg-amber-900/20" },
-              { icon: FileText,   label: "Hóa chất an toàn",       desc: "An toàn cho gia đình và thú cưng",    cls: "bg-blue-50 text-blue-600 dark:bg-blue-900/20" },
-            ].map(({ icon: Icon, label, desc, cls }) => (
-              <div key={label} className={`rounded-xl p-4 border border-border/40 ${cls}`}>
-                <Icon className="w-6 h-6 mb-2" />
-                <p className="font-bold text-sm">{label}</p>
-                <p className="text-xs mt-1 opacity-80 leading-relaxed">{desc}</p>
-              </div>
-            ))}
+        <TabsContent value="guarantees" className="mt-5 space-y-5">
+          <div>
+            <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              Cam kết chất lượng CleanZ (Áp dụng chung)
+            </h3>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                { icon: ShieldCheck, label: "Bảo hành 48h",          desc: "Làm lại miễn phí nếu chưa đạt",        cls: "bg-emerald-50/60 border-emerald-100 text-emerald-800 dark:bg-emerald-950/20" },
+                { icon: Star,        label: "Nhân viên chuyên nghiệp", desc: "Đào tạo bài bản, kiểm tra lý lịch",   cls: "bg-amber-50/60 border-amber-100 text-amber-800 dark:bg-amber-950/20" },
+                { icon: FileText,   label: "Hóa chất an toàn",       desc: "An toàn cho gia đình và thú cưng",    cls: "bg-blue-50/60 border-blue-100 text-blue-800 dark:bg-blue-950/20" },
+              ].map(({ icon: Icon, label, desc, cls }) => (
+                <div key={label} className={`rounded-xl p-4 border ${cls}`}>
+                  <Icon className="w-5 h-5 mb-2 opacity-80" />
+                  <p className="font-extrabold text-xs">{label}</p>
+                  <p className="text-[11px] mt-1 opacity-90 leading-relaxed">{desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {premiumTerms.length > 0 && (
+            <div className="pt-2">
+              <h3 className="font-extrabold text-sm text-amber-800 flex items-center gap-2 mb-3">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                Đặc quyền & Quy chuẩn Premium của gói
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {premiumTerms.map((term, idx) => (
+                  <div key={term.id} className="rounded-xl p-4 border border-amber-200 bg-amber-50/30 text-amber-900 flex gap-3 items-start">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-amber-100/80 border border-amber-200 text-amber-800 text-xs font-bold flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-extrabold text-amber-950">Quy chuẩn Premium</p>
+                      <p className="text-[11px] leading-relaxed text-amber-800 font-bold">{term.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl bg-muted/20 border border-border/30 px-4 py-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong>Lưu ý:</strong> Các cam kết trên áp dụng chung cho tất cả gói dịch vụ.
-              Tùy chỉnh điều khoản riêng ở tab <strong>Điều khoản</strong> hoặc gán thêm chính sách ở tab <strong>Chính sách</strong>.
+              <strong>Lưu ý:</strong> Cam kết chất lượng Premium hiển thị rõ ràng trên giao diện ứng dụng để khách hàng nắm được quyền lợi đặc quyền của gói. Cấu hình các cam kết này ở tab <strong>Điều khoản & Quy chuẩn Premium</strong>.
             </p>
           </div>
         </TabsContent>

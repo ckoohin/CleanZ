@@ -11,16 +11,22 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { WorkflowService } from './workflow.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { CreateWorkflowStepDto, UpdateWorkflowStepDto } from './dto/create-workflow-step.dto';
+import {
+  CreateWorkflowStepDto,
+  UpdateWorkflowStepDto,
+} from './dto/create-workflow-step.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
-import {
-  successResponse,
-} from '../../common/helpers/response.helper';
+import { successResponse } from '../../common/helpers/response.helper';
 
 @ApiTags('Admin — Workflows')
 @ApiBearerAuth()
@@ -114,7 +120,9 @@ export class WorkflowController {
   }
 
   @Patch(':id/steps/reorder')
-  @ApiOperation({ summary: 'Sắp xếp lại thứ tự các bước (gửi mảng step IDs theo thứ tự mới)' })
+  @ApiOperation({
+    summary: 'Sắp xếp lại thứ tự các bước (gửi mảng step IDs theo thứ tự mới)',
+  })
   async reorderSteps(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { orderedIds: string[] },

@@ -55,7 +55,9 @@ export class ReviewService {
       .getRawOne<{ avg: string | null }>();
 
     const avg = result?.avg ? parseFloat(result.avg) : 5;
-    await this.taskerRepo.update(taskerId, { ratingAvg: Math.round(avg * 100) / 100 });
+    await this.taskerRepo.update(taskerId, {
+      ratingAvg: Math.round(avg * 100) / 100,
+    });
   }
 
   // ─── Customer ───────────────────────────────────────────────────────────────
@@ -71,13 +73,16 @@ export class ReviewService {
       throw new ForbiddenException('Bạn không có quyền đánh giá đơn hàng này');
 
     if (booking.status !== BookingStatus.COMPLETED)
-      throw new BadRequestException('Chỉ có thể đánh giá đơn hàng đã hoàn thành');
+      throw new BadRequestException(
+        'Chỉ có thể đánh giá đơn hàng đã hoàn thành',
+      );
 
     if (!booking.tasker)
       throw new BadRequestException('Đơn hàng chưa có Tasker');
 
     const existing = await this.reviewRepo.findOne({ where: { bookingId } });
-    if (existing) throw new BadRequestException('Đơn hàng này đã được đánh giá');
+    if (existing)
+      throw new BadRequestException('Đơn hàng này đã được đánh giá');
 
     const review = this.reviewRepo.create({
       bookingId,
@@ -120,7 +125,8 @@ export class ReviewService {
     const existing = await this.reportRepo.findOne({
       where: { reviewId, reportedBy: userId },
     });
-    if (existing) throw new BadRequestException('Bạn đã báo cáo đánh giá này rồi');
+    if (existing)
+      throw new BadRequestException('Bạn đã báo cáo đánh giá này rồi');
 
     const report = this.reportRepo.create({
       reviewId,
@@ -131,7 +137,9 @@ export class ReviewService {
     await this.reportRepo.save(report);
     await this.reviewRepo.increment({ id: reviewId }, 'reportCount', 1);
 
-    return { message: 'Đã gửi báo cáo. Chúng tôi sẽ xem xét trong thời gian sớm nhất.' };
+    return {
+      message: 'Đã gửi báo cáo. Chúng tôi sẽ xem xét trong thời gian sớm nhất.',
+    };
   }
 
   // ─── Package (public) ─────────────────────────────────────────────────────────
@@ -169,10 +177,20 @@ export class ReviewService {
         .offset(skip)
         .limit(limit)
         .getRawMany<{
-          id: string; overallRating: string; punctuality: number; cleanliness: number;
-          friendliness: number; satisfaction: number; comment: string | null; images: string | null;
-          adminReply: string | null; taskerReply: string | null; isAnonymous: boolean;
-          createdAt: Date; customerName: string | null; avatar: string | null;
+          id: string;
+          overallRating: string;
+          punctuality: number;
+          cleanliness: number;
+          friendliness: number;
+          satisfaction: number;
+          comment: string | null;
+          images: string | null;
+          adminReply: string | null;
+          taskerReply: string | null;
+          isAnonymous: boolean;
+          createdAt: Date;
+          customerName: string | null;
+          avatar: string | null;
         }>(),
 
       baseQb().getCount(),
@@ -201,7 +219,11 @@ export class ReviewService {
       distribution: [5, 4, 3, 2, 1].map((star) => {
         const found = distribution.find((d) => Number(d.star) === star);
         const count = found ? parseInt(found.count) : 0;
-        return { stars: star, count, pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0 };
+        return {
+          stars: star,
+          count,
+          pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+        };
       }),
     };
   }
@@ -243,19 +265,37 @@ export class ReviewService {
         'b.booking_code AS "bookingCode"',
       ]);
 
-    if (minRating !== undefined) qb.andWhere('r.overall_rating >= :minRating', { minRating });
-    if (maxRating !== undefined) qb.andWhere('r.overall_rating <= :maxRating', { maxRating });
+    if (minRating !== undefined)
+      qb.andWhere('r.overall_rating >= :minRating', { minRating });
+    if (maxRating !== undefined)
+      qb.andWhere('r.overall_rating <= :maxRating', { maxRating });
 
     const [rawItems, total, aggResult] = await Promise.all([
-      qb.clone().orderBy('r.created_at', 'DESC').offset(skip).limit(limit)
+      qb
+        .clone()
+        .orderBy('r.created_at', 'DESC')
+        .offset(skip)
+        .limit(limit)
         .getRawMany<{
-          id: string; overallRating: string; punctuality: number; cleanliness: number;
-          friendliness: number; satisfaction: number; comment: string | null; images: string | null;
-          taskerReply: string | null; taskerRepliedAt: Date | null; reportCount: number;
-          isAnonymous: boolean; createdAt: Date; customerName: string | null; bookingCode: string | null;
+          id: string;
+          overallRating: string;
+          punctuality: number;
+          cleanliness: number;
+          friendliness: number;
+          satisfaction: number;
+          comment: string | null;
+          images: string | null;
+          taskerReply: string | null;
+          taskerRepliedAt: Date | null;
+          reportCount: number;
+          isAnonymous: boolean;
+          createdAt: Date;
+          customerName: string | null;
+          bookingCode: string | null;
         }>(),
       qb.getCount(),
-      this.reviewRepo.createQueryBuilder('r')
+      this.reviewRepo
+        .createQueryBuilder('r')
         .where('r.tasker_id = :taskerId', { taskerId })
         .andWhere('r.is_hidden = false')
         .select('AVG(r.overall_rating)', 'avg')
@@ -277,14 +317,20 @@ export class ReviewService {
     };
   }
 
-  async taskerReplyReview(reviewId: string, userId: string, dto: TaskerReplyDto) {
+  async taskerReplyReview(
+    reviewId: string,
+    userId: string,
+    dto: TaskerReplyDto,
+  ) {
     const taskerId = await this.resolveTaskerId(userId);
     const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
     if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
     if (review.taskerId !== taskerId)
       throw new ForbiddenException('Bạn không có quyền phản hồi đánh giá này');
     if (review.taskerReply)
-      throw new BadRequestException('Bạn đã phản hồi đánh giá này rồi (chỉ được phép 1 lần)');
+      throw new BadRequestException(
+        'Bạn đã phản hồi đánh giá này rồi (chỉ được phép 1 lần)',
+      );
 
     review.taskerReply = dto.reply;
     review.taskerRepliedAt = new Date();
@@ -293,7 +339,11 @@ export class ReviewService {
     return { message: 'Đã gửi phản hồi', taskerReply: review.taskerReply };
   }
 
-  async taskerReportReview(reviewId: string, userId: string, dto: ReportReviewDto) {
+  async taskerReportReview(
+    reviewId: string,
+    userId: string,
+    dto: ReportReviewDto,
+  ) {
     const taskerId = await this.resolveTaskerId(userId);
     const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
     if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
@@ -303,7 +353,8 @@ export class ReviewService {
     const existing = await this.reportRepo.findOne({
       where: { reviewId, reportedBy: taskerId },
     });
-    if (existing) throw new BadRequestException('Bạn đã báo cáo đánh giá này rồi');
+    if (existing)
+      throw new BadRequestException('Bạn đã báo cáo đánh giá này rồi');
 
     const report = this.reportRepo.create({
       reviewId,
@@ -320,7 +371,17 @@ export class ReviewService {
   // ─── Admin ───────────────────────────────────────────────────────────────────
 
   async getAdminReviews(query: AdminReviewQueryDto) {
-    const { page = 1, limit = 20, fromDate, toDate, minRating, maxRating, isHidden, taskerId, reportStatus } = query;
+    const {
+      page = 1,
+      limit = 20,
+      fromDate,
+      toDate,
+      minRating,
+      maxRating,
+      isHidden,
+      taskerId,
+      reportStatus,
+    } = query;
     const skip = (page - 1) * limit;
 
     const qb = this.reviewRepo
@@ -357,9 +418,12 @@ export class ReviewService {
 
     if (fromDate) qb.andWhere('r.created_at >= :fromDate', { fromDate });
     if (toDate) qb.andWhere('r.created_at <= :toDate', { toDate });
-    if (minRating !== undefined) qb.andWhere('r.overall_rating >= :minRating', { minRating });
-    if (maxRating !== undefined) qb.andWhere('r.overall_rating <= :maxRating', { maxRating });
-    if (isHidden !== undefined) qb.andWhere('r.is_hidden = :isHidden', { isHidden });
+    if (minRating !== undefined)
+      qb.andWhere('r.overall_rating >= :minRating', { minRating });
+    if (maxRating !== undefined)
+      qb.andWhere('r.overall_rating <= :maxRating', { maxRating });
+    if (isHidden !== undefined)
+      qb.andWhere('r.is_hidden = :isHidden', { isHidden });
     if (taskerId) qb.andWhere('r.tasker_id = :taskerId', { taskerId });
     if (reportStatus === ReviewReportStatus.PENDING) {
       qb.andWhere('r.report_count > 0');
@@ -372,18 +436,38 @@ export class ReviewService {
     }
 
     type RawRow = {
-      id: string; bookingId: string; customerId: string; taskerId: string;
-      packageId: string | null; overallRating: string; punctuality: number;
-      cleanliness: number; friendliness: number; satisfaction: number;
-      comment: string | null; images: string | null; isAnonymous: boolean;
-      isHidden: boolean; adminReply: string | null; taskerReply: string | null;
-      reportCount: number; createdAt: Date; customerName: string | null;
-      customerAvatar: string | null; taskerName: string | null; bookingCode: string | null;
+      id: string;
+      bookingId: string;
+      customerId: string;
+      taskerId: string;
+      packageId: string | null;
+      overallRating: string;
+      punctuality: number;
+      cleanliness: number;
+      friendliness: number;
+      satisfaction: number;
+      comment: string | null;
+      images: string | null;
+      isAnonymous: boolean;
+      isHidden: boolean;
+      adminReply: string | null;
+      taskerReply: string | null;
+      reportCount: number;
+      createdAt: Date;
+      customerName: string | null;
+      customerAvatar: string | null;
+      taskerName: string | null;
+      bookingCode: string | null;
     };
 
     const [total, items] = await Promise.all([
       qb.getCount(),
-      qb.clone().orderBy('r.created_at', 'DESC').offset(skip).limit(limit).getRawMany<RawRow>(),
+      qb
+        .clone()
+        .orderBy('r.created_at', 'DESC')
+        .offset(skip)
+        .limit(limit)
+        .getRawMany<RawRow>(),
     ]);
 
     return {
@@ -399,11 +483,14 @@ export class ReviewService {
   }
 
   async getAdminDashboard(fromDate?: string, toDate?: string) {
-    const from = fromDate ? new Date(fromDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const from = fromDate
+      ? new Date(fromDate)
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = toDate ? new Date(toDate) : new Date();
 
     const [agg, distribution, trend, pendingReports] = await Promise.all([
-      this.reviewRepo.createQueryBuilder('r')
+      this.reviewRepo
+        .createQueryBuilder('r')
         .where('r.created_at BETWEEN :from AND :to', { from, to })
         .andWhere('r.is_hidden = false')
         .select([
@@ -417,11 +504,18 @@ export class ReviewService {
           'AVG(r.satisfaction) AS "avgSatisfaction"',
         ])
         .getRawOne<{
-          avg: string; total: string; promoters: string; detractors: string;
-          avgPunctuality: string; avgCleanliness: string; avgFriendliness: string; avgSatisfaction: string;
+          avg: string;
+          total: string;
+          promoters: string;
+          detractors: string;
+          avgPunctuality: string;
+          avgCleanliness: string;
+          avgFriendliness: string;
+          avgSatisfaction: string;
         }>(),
 
-      this.reviewRepo.createQueryBuilder('r')
+      this.reviewRepo
+        .createQueryBuilder('r')
         .where('r.created_at BETWEEN :from AND :to', { from, to })
         .andWhere('r.is_hidden = false')
         .select('FLOOR(r.overall_rating)::int', 'star')
@@ -429,7 +523,8 @@ export class ReviewService {
         .groupBy('FLOOR(r.overall_rating)::int')
         .getRawMany<{ star: number; count: string }>(),
 
-      this.reviewRepo.createQueryBuilder('r')
+      this.reviewRepo
+        .createQueryBuilder('r')
         .where('r.created_at BETWEEN :from AND :to', { from, to })
         .andWhere('r.is_hidden = false')
         .select(`DATE_TRUNC('day', r.created_at)::date`, 'date')
@@ -439,7 +534,8 @@ export class ReviewService {
         .orderBy('date', 'ASC')
         .getRawMany<{ date: string; count: string; avg: string }>(),
 
-      this.reportRepo.createQueryBuilder('rr')
+      this.reportRepo
+        .createQueryBuilder('rr')
         .where('rr.status = :status', { status: ReviewReportStatus.PENDING })
         .getCount(),
     ]);
@@ -447,7 +543,8 @@ export class ReviewService {
     const total = parseInt(agg?.total ?? '0');
     const promoters = parseInt(agg?.promoters ?? '0');
     const detractors = parseInt(agg?.detractors ?? '0');
-    const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+    const nps =
+      total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
 
     return {
       summary: {
@@ -464,7 +561,11 @@ export class ReviewService {
       distribution: [5, 4, 3, 2, 1].map((star) => {
         const found = distribution.find((d) => Number(d.star) === star);
         const count = found ? parseInt(found.count) : 0;
-        return { stars: star, count, pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0 };
+        return {
+          stars: star,
+          count,
+          pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+        };
       }),
       trend: trend.map((t) => ({
         date: t.date,
@@ -475,11 +576,7 @@ export class ReviewService {
     };
   }
 
-  async getAdminReports(
-    page = 1,
-    limit = 20,
-    status?: ReviewReportStatus,
-  ) {
+  async getAdminReports(page = 1, limit = 20, status?: ReviewReportStatus) {
     const skip = (page - 1) * limit;
 
     const qb = this.reportRepo
@@ -505,14 +602,29 @@ export class ReviewService {
     if (status) qb.where('rr.status = :status', { status });
 
     type RawReport = {
-      id: string; reviewId: string; reportedBy: string; reason: string; description: string | null;
-      status: string; adminNote: string | null; reviewedAt: Date | null; createdAt: Date;
-      reporterName: string | null; reviewRating: string | null; reviewComment: string | null; reviewHidden: boolean | null;
+      id: string;
+      reviewId: string;
+      reportedBy: string;
+      reason: string;
+      description: string | null;
+      status: string;
+      adminNote: string | null;
+      reviewedAt: Date | null;
+      createdAt: Date;
+      reporterName: string | null;
+      reviewRating: string | null;
+      reviewComment: string | null;
+      reviewHidden: boolean | null;
     };
 
     const [total, items] = await Promise.all([
       qb.getCount(),
-      qb.clone().orderBy('rr.created_at', 'DESC').offset(skip).limit(limit).getRawMany<RawReport>(),
+      qb
+        .clone()
+        .orderBy('rr.created_at', 'DESC')
+        .offset(skip)
+        .limit(limit)
+        .getRawMany<RawReport>(),
     ]);
 
     return {
@@ -526,7 +638,11 @@ export class ReviewService {
     };
   }
 
-  async decideReport(reportId: string, adminUserId: string, dto: DecideReportDto) {
+  async decideReport(
+    reportId: string,
+    adminUserId: string,
+    dto: DecideReportDto,
+  ) {
     const report = await this.reportRepo.findOne({ where: { id: reportId } });
     if (!report) throw new NotFoundException('Không tìm thấy báo cáo');
     if (report.status !== ReviewReportStatus.PENDING)
@@ -543,7 +659,9 @@ export class ReviewService {
 
     if (dto.decision === ReportDecision.APPROVE) {
       await this.reviewRepo.update(report.reviewId, { isHidden: true });
-      const review = await this.reviewRepo.findOne({ where: { id: report.reviewId } });
+      const review = await this.reviewRepo.findOne({
+        where: { id: report.reviewId },
+      });
       if (review) await this.recalcTaskerRating(review.taskerId);
     }
 
@@ -561,7 +679,10 @@ export class ReviewService {
     review.isHidden = !review.isHidden;
     await this.reviewRepo.save(review);
     await this.recalcTaskerRating(review.taskerId);
-    return { message: review.isHidden ? 'Đã ẩn đánh giá' : 'Đã hiện đánh giá', isHidden: review.isHidden };
+    return {
+      message: review.isHidden ? 'Đã ẩn đánh giá' : 'Đã hiện đánh giá',
+      isHidden: review.isHidden,
+    };
   }
 
   async setAdminReply(id: string, reply: string | null | undefined) {
@@ -576,9 +697,19 @@ export class ReviewService {
     const data = await this.getAdminReviews({ ...query, page: 1, limit: 1000 });
 
     const header = [
-      'ID', 'Mã đơn', 'Khách hàng', 'Tasker', 'Tổng điểm',
-      'Đúng giờ', 'Vệ sinh', 'Thái độ', 'Hài lòng',
-      'Bình luận', 'Ẩn danh', 'Đã ẩn', 'Ngày tạo',
+      'ID',
+      'Mã đơn',
+      'Khách hàng',
+      'Tasker',
+      'Tổng điểm',
+      'Đúng giờ',
+      'Vệ sinh',
+      'Thái độ',
+      'Hài lòng',
+      'Bình luận',
+      'Ẩn danh',
+      'Đã ẩn',
+      'Ngày tạo',
     ].join(',');
 
     const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;

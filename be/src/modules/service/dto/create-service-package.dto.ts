@@ -105,4 +105,151 @@ export class CreateServicePackageDto {
   @IsArray()
   @IsString({ each: true })
   galleryUrls?: string[];
+
+  @ApiPropertyOptional({ example: 100000 })
+  @IsOptional()
+  @IsNumber()
+  baseHourlyRate?: number;
+
+  @ApiPropertyOptional({ example: 120000 })
+  @IsOptional()
+  @IsNumber()
+  premiumHourlyRate?: number;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  allowMultipleTaskers?: boolean;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  allowSubscription?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  durations?: ServiceDurationDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  addons?: ServiceAddonDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  subscriptions?: ServiceSubscriptionDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  peakHours?: ServicePeakHourDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  subServices?: ServiceSubServiceDto[];
+}
+
+export class ServiceDurationDto {
+  @IsNumber()
+  durationHours!: number;
+
+  @IsNumber()
+  priceMultiplier!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  suggestedArea?: number;
+
+  @IsOptional()
+  @IsNumber()
+  taskerCount?: number;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class ServiceAddonDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsNumber()
+  price!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ServiceSubscriptionDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsNumber()
+  discountPercent!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ServicePeakHourDto {
+  @IsInt()
+  dayOfWeek!: number;
+
+  @IsString()
+  startHour!: string;
+
+  @IsString()
+  endHour!: string;
+
+  @IsNumber()
+  multiplier!: number;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ServiceSubServiceDto {
+  @IsString()
+  subServiceId!: string;
+
+  @IsNumber()
+  price!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

@@ -71,7 +71,9 @@ export class AddPricingTiers1782360000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_pricing_tiers_package_id"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_pricing_tiers_package_id"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "pricing_tiers"`);
     await queryRunner.query(`
       ALTER TABLE "service_packages" DROP COLUMN IF EXISTS "pricing_mode"

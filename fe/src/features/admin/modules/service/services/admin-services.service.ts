@@ -82,6 +82,53 @@ export interface CreateAdminServiceDto {
 export type UpdateAdminServiceDto = Partial<CreateAdminServiceDto>;
 
 // ─── ServicePackage Interface ───────────────────────────────────────────────
+export interface ServiceDurationEntity {
+  id?: string;
+  durationHours: number;
+  priceMultiplier: number;
+  isPopular: boolean;
+  isActive: boolean;
+  suggestedArea?: number | null;
+  taskerCount?: number;
+  title?: string;
+  description?: string;
+}
+
+export interface ServiceAddonEntity {
+  id?: string;
+  name: string;
+  description?: string;
+  price: number;
+  isActive: boolean;
+}
+
+export interface ServiceSubscriptionEntity {
+  id?: string;
+  name: string;
+  description?: string;
+  discountPercent: number;
+  isActive: boolean;
+}
+
+export interface ServicePeakHourEntity {
+  id?: string;
+  dayOfWeek: number;
+  startHour: string;
+  endHour: string;
+  multiplier: number;
+  isActive: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface ServiceSubServiceEntity {
+  id?: string;
+  subServiceId: string;
+  subService?: AdminServiceEntity;
+  price: number;
+  isActive: boolean;
+}
+
 export interface AdminServicePackageEntity {
   id: string;
   packageCode: string;
@@ -108,6 +155,15 @@ export interface AdminServicePackageEntity {
     isDefault?: boolean;
     sortOrder?: number;
   }[];
+  baseHourlyRate?: number;
+  premiumHourlyRate?: number;
+  allowMultipleTaskers?: boolean;
+  allowSubscription?: boolean;
+  durations?: ServiceDurationEntity[];
+  addons?: ServiceAddonEntity[];
+  subscriptions?: ServiceSubscriptionEntity[];
+  peakHours?: ServicePeakHourEntity[];
+  subServices?: ServiceSubServiceEntity[];
   createdAt: string;
   updatedAt: string;
 }
@@ -129,6 +185,15 @@ export interface CreateAdminPackageDto {
   toolFee?: number;
   peakRatePercent?: number;
   coverageAreaIds?: string[];
+  baseHourlyRate?: number;
+  premiumHourlyRate?: number;
+  allowMultipleTaskers?: boolean;
+  allowSubscription?: boolean;
+  durations?: ServiceDurationEntity[];
+  addons?: ServiceAddonEntity[];
+  subscriptions?: ServiceSubscriptionEntity[];
+  peakHours?: ServicePeakHourEntity[];
+  subServices?: ServiceSubServiceEntity[];
 }
 
 export type UpdateAdminPackageDto = Partial<CreateAdminPackageDto>;

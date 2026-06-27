@@ -94,7 +94,10 @@ export class PublicPackageResponseDto {
   @ApiProperty({ example: 10 })
   peakRatePercent!: number;
 
-  @ApiPropertyOptional({ example: 'HOURLY', description: 'Chế độ tính giá của gói' })
+  @ApiPropertyOptional({
+    example: 'HOURLY',
+    description: 'Chế độ tính giá của gói',
+  })
   pricingMode!: string | null;
 
   @ApiProperty({ type: [PublicCoverageAreaDto] })

@@ -1,56 +1,148 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AutoMigration1782303687151 implements MigrationInterface {
-    name = 'AutoMigration1782303687151'
+  name = 'AutoMigration1782303687151';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`CREATE TYPE "public"."withdrawal_status" AS ENUM('PENDING', 'APPROVED', 'REJECTED')`);
-        await queryRunner.query(`CREATE TABLE "withdrawals" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "tasker_id" uuid NOT NULL, "amount" numeric(12,2) NOT NULL, "status" "public"."withdrawal_status" NOT NULL DEFAULT 'PENDING', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_9871ec481baa7755f8bd8b7c7e9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."tokens_type_enum" AS ENUM('refresh', 'forgot_password', 'login_otp')`);
-        await queryRunner.query(`CREATE TABLE "tokens" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."tokens_type_enum" NOT NULL, "token" character varying NOT NULL, "expires_at" TIMESTAMP NOT NULL, "is_used" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "userId" uuid, CONSTRAINT "PK_3001e89ada36263dabf1fb6210a" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."users_role_enum" AS ENUM('ADMIN', 'CUSTOMER', 'TASKER')`);
-        await queryRunner.query(`CREATE TYPE "public"."users_provider_enum" AS ENUM('LOCAL', 'GOOGLE', 'FACEBOOK')`);
-        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "email" character varying NOT NULL, "phone" character varying(11), "password_hash" character varying, "avatar_url" character varying, "full_name" character varying(100) NOT NULL, "role" "public"."users_role_enum" NOT NULL DEFAULT 'CUSTOMER', "provider" "public"."users_provider_enum" NOT NULL DEFAULT 'LOCAL', "provider_id" character varying, "is_active" boolean NOT NULL DEFAULT true, "is_verified" boolean NOT NULL DEFAULT false, "last_login" TIMESTAMP, "deleted_at" TIMESTAMP, CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."payment_method" AS ENUM('CASH', 'MOMO', 'ZALOPAY', 'VNPAY', 'VIETQR')`);
-        await queryRunner.query(`CREATE TABLE "customers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "default_payment_method" "public"."payment_method" NOT NULL DEFAULT 'CASH', "total_bookings" integer NOT NULL DEFAULT '0', "total_cancelled" integer NOT NULL DEFAULT '0', "reporting_locked_until" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "user_id" uuid, CONSTRAINT "REL_11d81cd7be87b6f8865b0cf766" UNIQUE ("user_id"), CONSTRAINT "PK_133ec679a801fab5e070f73d3ea" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "customer_addresses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "label" character varying(100), "full_address" text NOT NULL, "ward_detail" character varying(255), "latitude" numeric(10,7), "longitude" numeric(10,7), "is_default" boolean NOT NULL DEFAULT false, "has_pet" boolean NOT NULL DEFAULT false, "contact_name" character varying(100), "contact_phone" character varying(20), "building_floor" character varying(100), "gate" character varying(100), "driver_note" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, CONSTRAINT "PK_336bda7b0a0cd04241f719fc834" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."tasker_status" AS ENUM('PENDING', 'TRAINING', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'TERMINATED')`);
-        await queryRunner.query(`CREATE TYPE "public"."document_type" AS ENUM('CITIZEN_ID', 'OTHER')`);
-        await queryRunner.query(`CREATE TYPE "public"."document_status" AS ENUM('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'NEED_INFO')`);
-        await queryRunner.query(`CREATE TYPE "public"."tasker_presence_status" AS ENUM('ONLINE', 'OFFLINE')`);
-        await queryRunner.query(`CREATE TABLE "taskers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "working_address" text, "bio" text, "experience" text, "skills" text, "status" "public"."tasker_status" NOT NULL DEFAULT 'PENDING', "deposit_amount" numeric(12,2) NOT NULL DEFAULT '400000', "current_deposit_balance" numeric(12,2) NOT NULL DEFAULT '400000', "rating_avg" numeric(3,2) NOT NULL DEFAULT '5', "total_completed_jobs" integer NOT NULL DEFAULT '0', "total_working_hours" numeric(10,2) NOT NULL DEFAULT '0', "total_points" integer NOT NULL DEFAULT '0', "level_id" uuid, "doc_type" "public"."document_type", "doc_id_number" character varying(50), "doc_front_url" text, "doc_back_url" text, "criminal_record_url" text, "health_certificate_url" text, "certificate_url" text, "doc_issued_date" date, "doc_expired_date" date, "doc_status" "public"."document_status" NOT NULL DEFAULT 'PENDING', "doc_reviewed_at" TIMESTAMP, "doc_note" text, "ban_reason" character varying(500), "deposit_topup_due" TIMESTAMP, "presence_status" "public"."tasker_presence_status" NOT NULL DEFAULT 'OFFLINE', "bank_name" character varying(100), "bank_account_number" character varying(50), "bank_account_name" character varying(150), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "user_id" uuid, CONSTRAINT "REL_14773e687ebdd304693d30787a" UNIQUE ("user_id"), CONSTRAINT "PK_37c2e996f067382c86dda5a9dd0" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "pricing_configs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(255) NOT NULL, "base_price" numeric(12,2) NOT NULL, "peak_price" numeric(12,2), "pet_fee" numeric(12,2) NOT NULL DEFAULT '0', "waiting_fee" numeric(12,2) NOT NULL DEFAULT '0', "platform_commission_rate" numeric(5,2) NOT NULL DEFAULT '20', "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_68f45b3c5c0404cfa95eada68f2" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "customer_vouchers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "customer_id" uuid NOT NULL, "voucher_id" uuid NOT NULL, "is_used" boolean NOT NULL DEFAULT false, "used_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "uq_customer_voucher" UNIQUE ("customer_id", "voucher_id"), CONSTRAINT "PK_ae417e91ab934d36629f77ce065" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_customer_vouchers_voucher_id" ON "customer_vouchers" ("voucher_id") `);
-        await queryRunner.query(`CREATE TYPE "public"."vouchers_type_enum" AS ENUM('PERCENT', 'FIXED')`);
-        await queryRunner.query(`CREATE TABLE "vouchers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "code" character varying(50) NOT NULL, "name" character varying(255) NOT NULL, "description" text, "type" "public"."vouchers_type_enum" NOT NULL, "value" numeric(12,2) NOT NULL, "max_discount" numeric(12,2), "min_order_amount" numeric(12,2) NOT NULL DEFAULT '0', "usage_limit" integer, "used_count" integer NOT NULL DEFAULT '0', "service_id" uuid, "start_date" TIMESTAMP, "end_date" TIMESTAMP, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_efc30b2b9169e05e0e1e19d6dd6" UNIQUE ("code"), CONSTRAINT "PK_ed1b7dd909a696560763acdbc04" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "uq_voucher_code" ON "vouchers" ("code") `);
-        await queryRunner.query(`CREATE INDEX "idx_vouchers_active_dates" ON "vouchers" ("start_date") `);
-        await queryRunner.query(`CREATE TABLE "sub_services" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "sub_service_code" character varying(20) NOT NULL DEFAULT 'SRV-' || upper(substr(md5(random()::text), 1, 6)), "name" character varying(255) NOT NULL, "description" text, "duration_hours" numeric(4,1) DEFAULT '1', "coverage_area" text, "is_active" boolean NOT NULL DEFAULT true, "thumbnail_url" character varying(500), "gallery_urls" jsonb, "short_description" character varying(500), "included_tasks" jsonb, "excluded_tasks" jsonb, "terms_and_conditions" text, "pricing_type" character varying(20) NOT NULL DEFAULT 'FIXED', "pricing_config_id" uuid, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_4a07cea2983106bec7942159df7" UNIQUE ("sub_service_code"), CONSTRAINT "PK_8d0808cbbab4fad02bc41183a70" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_sub_services_is_active" ON "sub_services" ("is_active") `);
-        await queryRunner.query(`CREATE TABLE "package_sub_services" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "package_id" uuid NOT NULL, "sub_service_id" uuid NOT NULL, "is_required" boolean NOT NULL DEFAULT false, "is_default" boolean NOT NULL DEFAULT false, "exclusivity_group_id" character varying(50), "sort_order" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ae01eeeaacd69312a8ec92491f9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "coverage_areas" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(100) NOT NULL, "city" character varying(50) NOT NULL DEFAULT 'Hà Nội', "transport_fee" numeric(12,2) NOT NULL DEFAULT '0', "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_0176a96d781b8cfa1723b2929f1" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "service_packages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(255) NOT NULL, "package_code" character varying(255) NOT NULL, "icon_url" character varying(500), "sort_order" integer NOT NULL DEFAULT '0', "is_active" boolean NOT NULL DEFAULT true, "max_hours" numeric(4,1) NOT NULL DEFAULT '8', "terms_and_conditions" text, "policy_description" text, "night_surcharge" numeric(12,2) NOT NULL DEFAULT '0', "pet_surcharge" numeric(12,2) NOT NULL DEFAULT '0', "waiting_surcharge" numeric(12,2) NOT NULL DEFAULT '0', "tool_fee" numeric(12,2) NOT NULL DEFAULT '0', "peak_rate_percent" numeric(5,2) NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_5d18904b7380627ecc4e37bb4a8" UNIQUE ("package_code"), CONSTRAINT "PK_d602a30f23af1a0ecf7c8e994df" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "idx_service_packages_code" ON "service_packages" ("package_code") `);
-        await queryRunner.query(`CREATE TABLE "booking_sub_services" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "sub_service_id" uuid NOT NULL, "price" numeric(12,2) NOT NULL, "duration_hours" numeric(4,1) NOT NULL, "quantity" integer NOT NULL DEFAULT '1', "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_64ae475065310e9d6b1bb36f8a1" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."booking_status" AS ENUM('POSTED', 'CONFIRMED', 'TASKER_ON_THE_WAY', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED')`);
-        await queryRunner.query(`CREATE TYPE "public"."payment_status" AS ENUM('PENDING', 'PAID', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED')`);
-        await queryRunner.query(`CREATE TYPE "public"."cancelled_by" AS ENUM('CUSTOMER', 'TASKER', 'SYSTEM', 'ADMIN')`);
-        await queryRunner.query(`CREATE TABLE "bookings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_code" character varying(20) NOT NULL, "package_id" uuid NOT NULL, "address" text NOT NULL, "district" character varying(100), "note" text, "scheduled_start" TIMESTAMP, "scheduled_end" TIMESTAMP, "scheduled_start_date" date, "scheduled_start_time" TIME, "scheduled_end_date" date, "scheduled_end_time" TIME, "duration_hours" numeric(4,1) NOT NULL, "status" "public"."booking_status" NOT NULL DEFAULT 'POSTED', "base_price" numeric(12,2) NOT NULL, "addon_price" numeric(12,2) NOT NULL DEFAULT '0', "peak_fee" numeric(12,2) NOT NULL DEFAULT '0', "pet_fee" numeric(12,2) NOT NULL DEFAULT '0', "waiting_fee" numeric(12,2) NOT NULL DEFAULT '0', "discount_amount" numeric(12,2) NOT NULL DEFAULT '0', "total_price" numeric(12,2) NOT NULL, "payment_method" "public"."payment_method" NOT NULL DEFAULT 'CASH', "payment_status" "public"."payment_status" NOT NULL DEFAULT 'PENDING', "voucher_id" uuid, "is_recurring" boolean NOT NULL DEFAULT false, "recurring_rule" character varying(255), "cancelled_by" "public"."cancelled_by", "cancelled_by_user_id" uuid, "checked_in_at" TIMESTAMP, "completed_at" TIMESTAMP, "cancelled_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, "tasker_id" uuid, "address_id" uuid, CONSTRAINT "UQ_796e0227e4beff186bdd72ac53b" UNIQUE ("booking_code"), CONSTRAINT "PK_bee6805982cc1e248e94ce94957" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."wallet_transaction_type" AS ENUM('DEPOSIT', 'WITHDRAW', 'PAYMENT', 'REFUND', 'PLATFORM_FEE', 'TASKER_EARNING', 'DEPOSIT_HOLD', 'DEPOSIT_RELEASE', 'DEPOSIT_DEDUCT', 'CANCELLATION_FEE', 'ADJUSTMENT')`);
-        await queryRunner.query(`CREATE TABLE "wallet_transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "reference_id" uuid, "reference_type" character varying(50), "type" "public"."wallet_transaction_type" NOT NULL, "amount" numeric(12,2) NOT NULL, "balance_before" numeric(12,2) NOT NULL, "balance_after" numeric(12,2) NOT NULL, "description" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "wallet_id" uuid, "booking_id" uuid, CONSTRAINT "PK_5120f131bde2cda940ec1a621db" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_wallet_transactions_created_at" ON "wallet_transactions" ("created_at") `);
-        await queryRunner.query(`CREATE INDEX "idx_wallet_transactions_type" ON "wallet_transactions" ("type") `);
-        await queryRunner.query(`CREATE INDEX "idx_wallet_transactions_reference" ON "wallet_transactions" ("reference_id", "reference_type") `);
-        await queryRunner.query(`CREATE INDEX "idx_wallet_transactions_booking_id" ON "wallet_transactions" ("booking_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_wallet_transactions_wallet_id" ON "wallet_transactions" ("wallet_id") `);
-        await queryRunner.query(`CREATE TYPE "public"."tasker_withdrawal_requests_status_enum" AS ENUM('PENDING', 'APPROVED', 'REJECTED', 'PROCESSED')`);
-        await queryRunner.query(`CREATE TABLE "tasker_withdrawal_requests" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "tasker_id" uuid NOT NULL, "wallet_id" uuid NOT NULL, "amount" numeric(12,2) NOT NULL, "status" "public"."tasker_withdrawal_requests_status_enum" NOT NULL DEFAULT 'PENDING', "bank_account" character varying(255), "bank_name" character varying(100), "note" text, "reviewed_at" TIMESTAMP, "processed_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_346777f85c4f5d033047d178fbe" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_tasker_withdrawal_tasker_id" ON "tasker_withdrawal_requests" ("tasker_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_tasker_withdrawal_wallet_id" ON "tasker_withdrawal_requests" ("wallet_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_tasker_withdrawal_status" ON "tasker_withdrawal_requests" ("status") `);
-        await queryRunner.query(`CREATE TYPE "public"."wallets_owner_type_enum" AS ENUM('CUSTOMER', 'TASKER', 'SYSTEM')`);
-        await queryRunner.query(`CREATE TABLE "wallets" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "owner_type" "public"."wallets_owner_type_enum" NOT NULL, "balance" numeric(12,2) NOT NULL DEFAULT '0', "hold_balance" numeric(12,2) NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, "tasker_id" uuid, CONSTRAINT "chk_wallet_owner" CHECK (
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE TYPE "public"."withdrawal_status" AS ENUM('PENDING', 'APPROVED', 'REJECTED')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "withdrawals" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "tasker_id" uuid NOT NULL, "amount" numeric(12,2) NOT NULL, "status" "public"."withdrawal_status" NOT NULL DEFAULT 'PENDING', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_9871ec481baa7755f8bd8b7c7e9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."tokens_type_enum" AS ENUM('refresh', 'forgot_password', 'login_otp')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "tokens" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."tokens_type_enum" NOT NULL, "token" character varying NOT NULL, "expires_at" TIMESTAMP NOT NULL, "is_used" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "userId" uuid, CONSTRAINT "PK_3001e89ada36263dabf1fb6210a" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."users_role_enum" AS ENUM('ADMIN', 'CUSTOMER', 'TASKER')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."users_provider_enum" AS ENUM('LOCAL', 'GOOGLE', 'FACEBOOK')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "email" character varying NOT NULL, "phone" character varying(11), "password_hash" character varying, "avatar_url" character varying, "full_name" character varying(100) NOT NULL, "role" "public"."users_role_enum" NOT NULL DEFAULT 'CUSTOMER', "provider" "public"."users_provider_enum" NOT NULL DEFAULT 'LOCAL', "provider_id" character varying, "is_active" boolean NOT NULL DEFAULT true, "is_verified" boolean NOT NULL DEFAULT false, "last_login" TIMESTAMP, "deleted_at" TIMESTAMP, CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."payment_method" AS ENUM('CASH', 'MOMO', 'ZALOPAY', 'VNPAY', 'VIETQR')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "customers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "default_payment_method" "public"."payment_method" NOT NULL DEFAULT 'CASH', "total_bookings" integer NOT NULL DEFAULT '0', "total_cancelled" integer NOT NULL DEFAULT '0', "reporting_locked_until" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "user_id" uuid, CONSTRAINT "REL_11d81cd7be87b6f8865b0cf766" UNIQUE ("user_id"), CONSTRAINT "PK_133ec679a801fab5e070f73d3ea" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "customer_addresses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "label" character varying(100), "full_address" text NOT NULL, "ward_detail" character varying(255), "latitude" numeric(10,7), "longitude" numeric(10,7), "is_default" boolean NOT NULL DEFAULT false, "has_pet" boolean NOT NULL DEFAULT false, "contact_name" character varying(100), "contact_phone" character varying(20), "building_floor" character varying(100), "gate" character varying(100), "driver_note" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, CONSTRAINT "PK_336bda7b0a0cd04241f719fc834" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."tasker_status" AS ENUM('PENDING', 'TRAINING', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'TERMINATED')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."document_type" AS ENUM('CITIZEN_ID', 'OTHER')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."document_status" AS ENUM('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'NEED_INFO')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."tasker_presence_status" AS ENUM('ONLINE', 'OFFLINE')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "taskers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "working_address" text, "bio" text, "experience" text, "skills" text, "status" "public"."tasker_status" NOT NULL DEFAULT 'PENDING', "deposit_amount" numeric(12,2) NOT NULL DEFAULT '400000', "current_deposit_balance" numeric(12,2) NOT NULL DEFAULT '400000', "rating_avg" numeric(3,2) NOT NULL DEFAULT '5', "total_completed_jobs" integer NOT NULL DEFAULT '0', "total_working_hours" numeric(10,2) NOT NULL DEFAULT '0', "total_points" integer NOT NULL DEFAULT '0', "level_id" uuid, "doc_type" "public"."document_type", "doc_id_number" character varying(50), "doc_front_url" text, "doc_back_url" text, "criminal_record_url" text, "health_certificate_url" text, "certificate_url" text, "doc_issued_date" date, "doc_expired_date" date, "doc_status" "public"."document_status" NOT NULL DEFAULT 'PENDING', "doc_reviewed_at" TIMESTAMP, "doc_note" text, "ban_reason" character varying(500), "deposit_topup_due" TIMESTAMP, "presence_status" "public"."tasker_presence_status" NOT NULL DEFAULT 'OFFLINE', "bank_name" character varying(100), "bank_account_number" character varying(50), "bank_account_name" character varying(150), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "user_id" uuid, CONSTRAINT "REL_14773e687ebdd304693d30787a" UNIQUE ("user_id"), CONSTRAINT "PK_37c2e996f067382c86dda5a9dd0" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "pricing_configs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(255) NOT NULL, "base_price" numeric(12,2) NOT NULL, "peak_price" numeric(12,2), "pet_fee" numeric(12,2) NOT NULL DEFAULT '0', "waiting_fee" numeric(12,2) NOT NULL DEFAULT '0', "platform_commission_rate" numeric(5,2) NOT NULL DEFAULT '20', "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_68f45b3c5c0404cfa95eada68f2" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "customer_vouchers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "customer_id" uuid NOT NULL, "voucher_id" uuid NOT NULL, "is_used" boolean NOT NULL DEFAULT false, "used_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "uq_customer_voucher" UNIQUE ("customer_id", "voucher_id"), CONSTRAINT "PK_ae417e91ab934d36629f77ce065" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_customer_vouchers_voucher_id" ON "customer_vouchers" ("voucher_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."vouchers_type_enum" AS ENUM('PERCENT', 'FIXED')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "vouchers" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "code" character varying(50) NOT NULL, "name" character varying(255) NOT NULL, "description" text, "type" "public"."vouchers_type_enum" NOT NULL, "value" numeric(12,2) NOT NULL, "max_discount" numeric(12,2), "min_order_amount" numeric(12,2) NOT NULL DEFAULT '0', "usage_limit" integer, "used_count" integer NOT NULL DEFAULT '0', "service_id" uuid, "start_date" TIMESTAMP, "end_date" TIMESTAMP, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_efc30b2b9169e05e0e1e19d6dd6" UNIQUE ("code"), CONSTRAINT "PK_ed1b7dd909a696560763acdbc04" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "uq_voucher_code" ON "vouchers" ("code") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_vouchers_active_dates" ON "vouchers" ("start_date") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "sub_services" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "sub_service_code" character varying(20) NOT NULL DEFAULT 'SRV-' || upper(substr(md5(random()::text), 1, 6)), "name" character varying(255) NOT NULL, "description" text, "duration_hours" numeric(4,1) DEFAULT '1', "coverage_area" text, "is_active" boolean NOT NULL DEFAULT true, "thumbnail_url" character varying(500), "gallery_urls" jsonb, "short_description" character varying(500), "included_tasks" jsonb, "excluded_tasks" jsonb, "terms_and_conditions" text, "pricing_type" character varying(20) NOT NULL DEFAULT 'FIXED', "pricing_config_id" uuid, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_4a07cea2983106bec7942159df7" UNIQUE ("sub_service_code"), CONSTRAINT "PK_8d0808cbbab4fad02bc41183a70" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_sub_services_is_active" ON "sub_services" ("is_active") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "package_sub_services" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "package_id" uuid NOT NULL, "sub_service_id" uuid NOT NULL, "is_required" boolean NOT NULL DEFAULT false, "is_default" boolean NOT NULL DEFAULT false, "exclusivity_group_id" character varying(50), "sort_order" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ae01eeeaacd69312a8ec92491f9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "coverage_areas" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(100) NOT NULL, "city" character varying(50) NOT NULL DEFAULT 'Hà Nội', "transport_fee" numeric(12,2) NOT NULL DEFAULT '0', "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_0176a96d781b8cfa1723b2929f1" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "service_packages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(255) NOT NULL, "package_code" character varying(255) NOT NULL, "icon_url" character varying(500), "sort_order" integer NOT NULL DEFAULT '0', "is_active" boolean NOT NULL DEFAULT true, "max_hours" numeric(4,1) NOT NULL DEFAULT '8', "terms_and_conditions" text, "policy_description" text, "night_surcharge" numeric(12,2) NOT NULL DEFAULT '0', "pet_surcharge" numeric(12,2) NOT NULL DEFAULT '0', "waiting_surcharge" numeric(12,2) NOT NULL DEFAULT '0', "tool_fee" numeric(12,2) NOT NULL DEFAULT '0', "peak_rate_percent" numeric(5,2) NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_5d18904b7380627ecc4e37bb4a8" UNIQUE ("package_code"), CONSTRAINT "PK_d602a30f23af1a0ecf7c8e994df" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "idx_service_packages_code" ON "service_packages" ("package_code") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "booking_sub_services" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "sub_service_id" uuid NOT NULL, "price" numeric(12,2) NOT NULL, "duration_hours" numeric(4,1) NOT NULL, "quantity" integer NOT NULL DEFAULT '1', "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_64ae475065310e9d6b1bb36f8a1" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."booking_status" AS ENUM('POSTED', 'CONFIRMED', 'TASKER_ON_THE_WAY', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."payment_status" AS ENUM('PENDING', 'PAID', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."cancelled_by" AS ENUM('CUSTOMER', 'TASKER', 'SYSTEM', 'ADMIN')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "bookings" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_code" character varying(20) NOT NULL, "package_id" uuid NOT NULL, "address" text NOT NULL, "district" character varying(100), "note" text, "scheduled_start" TIMESTAMP, "scheduled_end" TIMESTAMP, "scheduled_start_date" date, "scheduled_start_time" TIME, "scheduled_end_date" date, "scheduled_end_time" TIME, "duration_hours" numeric(4,1) NOT NULL, "status" "public"."booking_status" NOT NULL DEFAULT 'POSTED', "base_price" numeric(12,2) NOT NULL, "addon_price" numeric(12,2) NOT NULL DEFAULT '0', "peak_fee" numeric(12,2) NOT NULL DEFAULT '0', "pet_fee" numeric(12,2) NOT NULL DEFAULT '0', "waiting_fee" numeric(12,2) NOT NULL DEFAULT '0', "discount_amount" numeric(12,2) NOT NULL DEFAULT '0', "total_price" numeric(12,2) NOT NULL, "payment_method" "public"."payment_method" NOT NULL DEFAULT 'CASH', "payment_status" "public"."payment_status" NOT NULL DEFAULT 'PENDING', "voucher_id" uuid, "is_recurring" boolean NOT NULL DEFAULT false, "recurring_rule" character varying(255), "cancelled_by" "public"."cancelled_by", "cancelled_by_user_id" uuid, "checked_in_at" TIMESTAMP, "completed_at" TIMESTAMP, "cancelled_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, "tasker_id" uuid, "address_id" uuid, CONSTRAINT "UQ_796e0227e4beff186bdd72ac53b" UNIQUE ("booking_code"), CONSTRAINT "PK_bee6805982cc1e248e94ce94957" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."wallet_transaction_type" AS ENUM('DEPOSIT', 'WITHDRAW', 'PAYMENT', 'REFUND', 'PLATFORM_FEE', 'TASKER_EARNING', 'DEPOSIT_HOLD', 'DEPOSIT_RELEASE', 'DEPOSIT_DEDUCT', 'CANCELLATION_FEE', 'ADJUSTMENT')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "wallet_transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "reference_id" uuid, "reference_type" character varying(50), "type" "public"."wallet_transaction_type" NOT NULL, "amount" numeric(12,2) NOT NULL, "balance_before" numeric(12,2) NOT NULL, "balance_after" numeric(12,2) NOT NULL, "description" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "wallet_id" uuid, "booking_id" uuid, CONSTRAINT "PK_5120f131bde2cda940ec1a621db" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_wallet_transactions_created_at" ON "wallet_transactions" ("created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_wallet_transactions_type" ON "wallet_transactions" ("type") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_wallet_transactions_reference" ON "wallet_transactions" ("reference_id", "reference_type") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_wallet_transactions_booking_id" ON "wallet_transactions" ("booking_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_wallet_transactions_wallet_id" ON "wallet_transactions" ("wallet_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."tasker_withdrawal_requests_status_enum" AS ENUM('PENDING', 'APPROVED', 'REJECTED', 'PROCESSED')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "tasker_withdrawal_requests" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "tasker_id" uuid NOT NULL, "wallet_id" uuid NOT NULL, "amount" numeric(12,2) NOT NULL, "status" "public"."tasker_withdrawal_requests_status_enum" NOT NULL DEFAULT 'PENDING', "bank_account" character varying(255), "bank_name" character varying(100), "note" text, "reviewed_at" TIMESTAMP, "processed_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_346777f85c4f5d033047d178fbe" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tasker_withdrawal_tasker_id" ON "tasker_withdrawal_requests" ("tasker_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tasker_withdrawal_wallet_id" ON "tasker_withdrawal_requests" ("wallet_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tasker_withdrawal_status" ON "tasker_withdrawal_requests" ("status") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."wallets_owner_type_enum" AS ENUM('CUSTOMER', 'TASKER', 'SYSTEM')`,
+    );
+    await queryRunner.query(`CREATE TABLE "wallets" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "owner_type" "public"."wallets_owner_type_enum" NOT NULL, "balance" numeric(12,2) NOT NULL DEFAULT '0', "hold_balance" numeric(12,2) NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, "tasker_id" uuid, CONSTRAINT "chk_wallet_owner" CHECK (
   (
     owner_type = 'CUSTOMER'
     AND customer_id IS NOT NULL
@@ -69,312 +161,731 @@ export class AutoMigration1782303687151 implements MigrationInterface {
     AND tasker_id IS NULL
   )
 ), CONSTRAINT "PK_8402e5df5a30a229380e83e4f7e" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_wallets_owner_type" ON "wallets" ("owner_type") `);
-        await queryRunner.query(`CREATE UNIQUE INDEX "uq_wallets_system" ON "wallets" ("owner_type") WHERE owner_type = 'SYSTEM'`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "uq_wallets_tasker" ON "wallets" ("tasker_id") WHERE tasker_id IS NOT NULL`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "uq_wallets_customer" ON "wallets" ("customer_id") WHERE customer_id IS NOT NULL`);
-        await queryRunner.query(`CREATE TYPE "public"."tasker_deposit_transaction_type" AS ENUM('CASH_COMMISSION_DEDUCT', 'INCIDENT_COMPENSATION_DEDUCT', 'TOP_UP', 'TERMINATION_REFUND')`);
-        await queryRunner.query(`CREATE TABLE "tasker_deposit_transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."tasker_deposit_transaction_type" NOT NULL, "amount" numeric(12,2) NOT NULL, "balance_before" numeric(12,2) NOT NULL, "balance_after" numeric(12,2) NOT NULL, "description" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "tasker_id" uuid, "booking_id" uuid, CONSTRAINT "PK_92e3d909cd0db990f74a43c1dac" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_tasker_deposit_transactions_booking" ON "tasker_deposit_transactions" ("booking_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_tasker_deposit_transactions_tasker" ON "tasker_deposit_transactions" ("tasker_id") `);
-        await queryRunner.query(`CREATE TABLE "tasker_levels" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(50) NOT NULL, "min_points" integer NOT NULL DEFAULT '0', "color" character varying(20), "sort_order" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_7a1e40c0b42cb432d7b39241587" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "system_configs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "config_key" character varying(100) NOT NULL, "config_value" text NOT NULL, "description" text, "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_8430d4ebdc1faef3d3eeef36e87" UNIQUE ("config_key"), CONSTRAINT "PK_29ac548e654c799fd885e1b9b71" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."ticket_category" AS ENUM('SERVICE_QUALITY', 'TASKER_BEHAVIOR', 'SCHEDULING', 'PROPERTY_DAMAGE', 'PAYMENT_BILLING', 'ACCOUNT_TECHNICAL', 'OTHER')`);
-        await queryRunner.query(`CREATE TYPE "public"."ticket_priority" AS ENUM('URGENT', 'HIGH', 'MEDIUM', 'LOW')`);
-        await queryRunner.query(`CREATE TYPE "public"."support_ticket_status" AS ENUM('NEW', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED')`);
-        await queryRunner.query(`CREATE TYPE "public"."ticket_source" AS ENUM('CUSTOMER_APP', 'TASKER_APP', 'ADMIN')`);
-        await queryRunner.query(`CREATE TYPE "public"."ticket_pending_reason" AS ENUM('WAIT_CUSTOMER', 'WAIT_TASKER', 'WAIT_INTERNAL')`);
-        await queryRunner.query(`CREATE TABLE "support_tickets" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "ticket_code" character varying(20), "subject" character varying(255) NOT NULL, "description" text, "category" "public"."ticket_category" NOT NULL DEFAULT 'OTHER', "subtype" character varying(100), "priority" "public"."ticket_priority" NOT NULL DEFAULT 'MEDIUM', "status" "public"."support_ticket_status" NOT NULL DEFAULT 'NEW', "source" "public"."ticket_source" NOT NULL DEFAULT 'CUSTOMER_APP', "first_response_due_at" TIMESTAMP, "resolution_due_at" TIMESTAMP, "first_responded_at" TIMESTAMP, "resolved_at" TIMESTAMP, "closed_at" TIMESTAMP, "sla_paused_at" TIMESTAMP, "sla_paused_accum_ms" bigint NOT NULL DEFAULT '0', "sla_breached" boolean NOT NULL DEFAULT false, "pending_reason" "public"."ticket_pending_reason", "incident_id" uuid, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "reporter_user_id" uuid, "counterparty_user_id" uuid, "assigned_admin_id" uuid, CONSTRAINT "PK_942e8d8f5df86100471d2324643" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_st_assigned" ON "support_tickets" ("assigned_admin_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_st_booking" ON "support_tickets" ("booking_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_st_reporter" ON "support_tickets" ("reporter_user_id") `);
-        await queryRunner.query(`CREATE INDEX "idx_st_status_priority_created" ON "support_tickets" ("status", "priority", "created_at") `);
-        await queryRunner.query(`CREATE TABLE "ticket_status_logs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "old_status" "public"."support_ticket_status", "new_status" "public"."support_ticket_status" NOT NULL, "note" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "changed_by_user_id" uuid, CONSTRAINT "PK_7c6d819f63bf300128f720048dc" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_tsl_ticket" ON "ticket_status_logs" ("ticket_id", "created_at") `);
-        await queryRunner.query(`CREATE TABLE "ticket_surveys" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "rating" smallint, "comment" text, "submitted_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, CONSTRAINT "REL_7724c54f5ad18c6850d9416c15" UNIQUE ("ticket_id"), CONSTRAINT "CHK_ticket_survey_rating" CHECK ("rating" BETWEEN 1 AND 5), CONSTRAINT "PK_2e61bb81b9754cc165badc790ce" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."resolution_type" AS ENUM('EXPLANATION', 'RECLEAN', 'VOUCHER', 'REFUND', 'COMPENSATION', 'TASKER_PENALTY')`);
-        await queryRunner.query(`CREATE TABLE "ticket_resolutions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."resolution_type" NOT NULL, "amount" numeric(12,2), "voucher_id" uuid, "reclean_booking_id" uuid, "wallet_transaction_id" uuid, "note" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "proposed_by_user_id" uuid, CONSTRAINT "PK_8d660124143985f4c7944c2ae23" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_tr_ticket" ON "ticket_resolutions" ("ticket_id") `);
-        await queryRunner.query(`CREATE TABLE "ticket_messages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "body" text NOT NULL, "is_internal" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "sender_user_id" uuid, CONSTRAINT "PK_37beb692dedf7eccb4e519ccec1" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_tm_ticket" ON "ticket_messages" ("ticket_id", "created_at") `);
-        await queryRunner.query(`CREATE TABLE "ticket_attachments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "url" text NOT NULL, "public_id" character varying(255), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "message_id" uuid, "uploaded_by_user_id" uuid, CONSTRAINT "PK_7e5011f87f95e78fe4bd7d982a3" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_ta_ticket" ON "ticket_attachments" ("ticket_id") `);
-        await queryRunner.query(`CREATE TABLE "reviews" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "customer_id" uuid NOT NULL, "tasker_id" uuid NOT NULL, "overall_rating" numeric(2,1) NOT NULL, "punctuality" integer NOT NULL DEFAULT '5', "cleanliness" integer NOT NULL DEFAULT '5', "friendliness" integer NOT NULL DEFAULT '5', "satisfaction" integer NOT NULL DEFAULT '5', "comment" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_231ae565c273ee700b283f15c1d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_reviews_created" ON "reviews" ("created_at") `);
-        await queryRunner.query(`CREATE INDEX "idx_reviews_tasker" ON "reviews" ("tasker_id") `);
-        await queryRunner.query(`CREATE TABLE "peak_day_configs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(255) NOT NULL, "start_time" TIME, "end_time" TIME, "start_at" TIMESTAMP, "end_at" TIMESTAMP, "peak_rate" numeric(5,2) NOT NULL DEFAULT 0.1, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "chk_peak_day_range" CHECK ("start_at" < "end_at"), CONSTRAINT "PK_f2cd5780ad99ec6d0eb0a6fc4bc" PRIMARY KEY ("id")); COMMENT ON COLUMN "peak_day_configs"."peak_rate" IS 'Peak surcharge rate (e.g. 0.1 = +10%)'`);
-        await queryRunner.query(`CREATE INDEX "idx_peak_day_configs_range" ON "peak_day_configs" ("start_at") `);
-        await queryRunner.query(`CREATE TYPE "public"."policies_role_enum" AS ENUM('CUSTOMER', 'TASKER', 'ALL')`);
-        await queryRunner.query(`CREATE TABLE "policies" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying(255) NOT NULL, "slug" character varying NOT NULL, "content" text NOT NULL, "role" "public"."policies_role_enum" NOT NULL DEFAULT 'ALL', "isActive" boolean NOT NULL DEFAULT true, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_fbb46ad645d0f8767847530c8e3" UNIQUE ("slug"), CONSTRAINT "PK_603e09f183df0108d8695c57e28" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "payments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "method" "public"."payment_method" NOT NULL, "status" "public"."payment_status" NOT NULL DEFAULT 'PENDING', "amount" numeric(12,2) NOT NULL, "transaction_code" character varying(255), "paid_at" TIMESTAMP, "refunded_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "customer_id" uuid, CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."notification_type" AS ENUM('BOOKING_CONFIRMED', 'TASKER_ON_THE_WAY', 'BOOKING_COMPLETED', 'BOOKING_CANCELLED', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'INCIDENT_UPDATE', 'SUPPORT_REPLY', 'PROMOTION', 'SYSTEM')`);
-        await queryRunner.query(`CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."notification_type" NOT NULL DEFAULT 'SYSTEM', "reference_id" uuid, "reference_type" character varying(50), "title" character varying(255) NOT NULL, "content" text, "is_read" boolean NOT NULL DEFAULT false, "dedupe_key" character varying(255), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "user_id" uuid, CONSTRAINT "CHK_notifications_reference_type" CHECK ("reference_type" IS NULL OR "reference_type" IN ('BOOKING','INCIDENT','SUPPORT_TICKET','PAYMENT')), CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_notifications_created_at" ON "notifications" ("created_at") `);
-        await queryRunner.query(`CREATE INDEX "idx_notifications_reference" ON "notifications" ("reference_id", "reference_type") `);
-        await queryRunner.query(`CREATE INDEX "idx_notifications_user_created" ON "notifications" ("user_id", "created_at") `);
-        await queryRunner.query(`CREATE INDEX "idx_notifications_user_read" ON "notifications" ("user_id", "is_read") `);
-        await queryRunner.query(`CREATE INDEX "idx_notifications_user_id" ON "notifications" ("user_id") `);
-        await queryRunner.query(`CREATE TABLE "incident_damage_items" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "description" character varying(255) NOT NULL, "claimed_amount" numeric(12,2) NOT NULL, "verified_amount" numeric(12,2), "approved_amount" numeric(12,2), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, CONSTRAINT "PK_9b42708e79060e356cdef0c7fd8" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_idi_incident" ON "incident_damage_items" ("incident_id") `);
-        await queryRunner.query(`CREATE TYPE "public"."incident_severity" AS ENUM('CRITICAL', 'MAJOR', 'MINOR')`);
-        await queryRunner.query(`CREATE TYPE "public"."incident_status" AS ENUM('REPORTED', 'INVESTIGATING', 'APPROVED', 'REJECTED', 'COMPENSATED', 'CLOSED')`);
-        await queryRunner.query(`CREATE TYPE "public"."incident_compensation_status" AS ENUM('NONE', 'PENDING', 'PROCESSING', 'RECORDED', 'FAILED')`);
-        await queryRunner.query(`CREATE TYPE "public"."incident_closure_reason" AS ENUM('COMPENSATED', 'REJECTED', 'WITHDRAWN', 'DUPLICATE', 'INVALID_BOOKING', 'EXPIRED')`);
-        await queryRunner.query(`CREATE TABLE "incidents" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "incident_code" character varying(20), "title" character varying(255) NOT NULL, "description" text NOT NULL, "severity" "public"."incident_severity" NOT NULL DEFAULT 'MINOR', "status" "public"."incident_status" NOT NULL DEFAULT 'REPORTED', "compensation_status" "public"."incident_compensation_status" NOT NULL DEFAULT 'NONE', "closure_reason" "public"."incident_closure_reason", "claimed_amount" numeric(12,2), "approved_compensation_amount" numeric(12,2), "tasker_borne_amount" numeric(12,2), "platform_borne_amount" numeric(12,2), "allocation_reason" text, "compensation_source" character varying(50), "cooling_until" TIMESTAMP, "received_due_at" TIMESTAMP, "statement_due_at" TIMESTAMP, "decision_due_at" TIMESTAMP, "report_window_until" TIMESTAMP, "reported_at" TIMESTAMP NOT NULL DEFAULT now(), "resolved_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "customer_id" uuid, "tasker_id" uuid, "decided_by_investigator_id" uuid, "approved_by_checker_id" uuid, CONSTRAINT "PK_ccb34c01719889017e2246469f9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_inc_severity_created" ON "incidents" ("severity", "created_at") `);
-        await queryRunner.query(`CREATE INDEX "idx_inc_status_comp" ON "incidents" ("status", "compensation_status") `);
-        await queryRunner.query(`CREATE TABLE "incident_statements" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "body" text NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, "submitted_by_user_id" uuid, CONSTRAINT "PK_e86291c46c62bb9be5d9800a6ce" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_ist_incident" ON "incident_statements" ("incident_id", "created_at") `);
-        await queryRunner.query(`CREATE TYPE "public"."incident_log_dimension" AS ENUM('STATUS', 'COMPENSATION')`);
-        await queryRunner.query(`CREATE TABLE "incident_status_logs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "dimension" "public"."incident_log_dimension" NOT NULL, "old_value" character varying(50), "new_value" character varying(50) NOT NULL, "reason" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, "changed_by_user_id" uuid, CONSTRAINT "PK_f5224eb24e4173a0e782e5866bd" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_isl_incident" ON "incident_status_logs" ("incident_id", "created_at") `);
-        await queryRunner.query(`CREATE TABLE "incident_evidences" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "file_url" text NOT NULL, "file_type" character varying(50), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, "damage_item_id" uuid, "uploaded_by_user_id" uuid, CONSTRAINT "PK_7eb5c331e73693403c33e10135b" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_ie_damage_item" ON "incident_evidences" ("damage_item_id") `);
-        await queryRunner.query(`CREATE TABLE "customer_incident_strikes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "reason" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, "incident_id" uuid, CONSTRAINT "PK_b06e28b5be050dce72a7dc2abf8" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "idx_cis_customer" ON "customer_incident_strikes" ("customer_id") `);
-        await queryRunner.query(`CREATE TABLE "booking_status_logs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "old_status" "public"."booking_status", "new_status" "public"."booking_status" NOT NULL, "note" text, "cancelled_by" "public"."cancelled_by", "cancel_reason" text, "cancellation_fee" numeric(12,2) NOT NULL DEFAULT '0', "refund_amount" numeric(12,2) NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "changed_by_user_id" uuid, "cancelled_by_user_id" uuid, "payment_id" uuid, CONSTRAINT "PK_f5ec1a5a9046c21b40ad1c35561" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "package_coverage_areas" ("package_id" uuid NOT NULL, "area_id" uuid NOT NULL, CONSTRAINT "PK_a910899bb0812395e8d3eb80f41" PRIMARY KEY ("package_id", "area_id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_e1a6a844aa22491dc799fc85d4" ON "package_coverage_areas" ("package_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_cc7b6205936d8c13d2ddafe014" ON "package_coverage_areas" ("area_id") `);
-        await queryRunner.query(`ALTER TABLE "tokens" ADD CONSTRAINT "FK_d417e5d35f2434afc4bd48cb4d2" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "customers" ADD CONSTRAINT "FK_11d81cd7be87b6f8865b0cf7661" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "customer_addresses" ADD CONSTRAINT "FK_6be4e1a698f5c3f2c2e4c75c186" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "taskers" ADD CONSTRAINT "FK_14773e687ebdd304693d30787a2" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "customer_vouchers" ADD CONSTRAINT "FK_5d66d730e4a014373f201fe8a99" FOREIGN KEY ("voucher_id") REFERENCES "vouchers"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "vouchers" ADD CONSTRAINT "FK_820556fd3264ae9abfe7cbc0734" FOREIGN KEY ("service_id") REFERENCES "sub_services"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "sub_services" ADD CONSTRAINT "FK_5c2f8bc9f177a0c0fa5ea3e1e98" FOREIGN KEY ("pricing_config_id") REFERENCES "pricing_configs"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "package_sub_services" ADD CONSTRAINT "FK_c0514b33998fcc04d27eac0dae7" FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "package_sub_services" ADD CONSTRAINT "FK_34f40d449a715e7153a45a5dd41" FOREIGN KEY ("sub_service_id") REFERENCES "sub_services"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "booking_sub_services" ADD CONSTRAINT "FK_52a00c84772520ee19b9e16d7dc" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "booking_sub_services" ADD CONSTRAINT "FK_7ac1e8135c6bdf716dca6451ee5" FOREIGN KEY ("sub_service_id") REFERENCES "sub_services"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "bookings" ADD CONSTRAINT "FK_8e21b7ae33e7b0673270de4146f" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "bookings" ADD CONSTRAINT "FK_1b64199f5630ac1b020fc7de9e5" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "bookings" ADD CONSTRAINT "FK_402873fd6596d556781ac5d8ae4" FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE RESTRICT ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "bookings" ADD CONSTRAINT "FK_6be8707748f3ac879b552a05216" FOREIGN KEY ("address_id") REFERENCES "customer_addresses"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "wallet_transactions" ADD CONSTRAINT "FK_c57d19129968160f4db28fc8b28" FOREIGN KEY ("wallet_id") REFERENCES "wallets"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "wallet_transactions" ADD CONSTRAINT "FK_14355451ca51402529acd2e2ed2" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "tasker_withdrawal_requests" ADD CONSTRAINT "FK_c92c31706d11eb49f9b1d2e69c2" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "tasker_withdrawal_requests" ADD CONSTRAINT "FK_2af50fc317b474555af1647ba68" FOREIGN KEY ("wallet_id") REFERENCES "wallets"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "wallets" ADD CONSTRAINT "FK_6580899a2293de27787376887fa" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "wallets" ADD CONSTRAINT "FK_dcd55e9573c58b2ff8b74162ee1" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "tasker_deposit_transactions" ADD CONSTRAINT "FK_9a7ed9c8fc252a7312fc562aabd" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "tasker_deposit_transactions" ADD CONSTRAINT "FK_406ca47645b25213ee68058ed6f" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_a8c6ccffa5d66547c61ef7e2924" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_6605ed8112884d5d8efae3cdc6c" FOREIGN KEY ("reporter_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_be6405cc25bdd470590fc37ec2e" FOREIGN KEY ("counterparty_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_a1f62770508fc8eff38c11c81ea" FOREIGN KEY ("assigned_admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_status_logs" ADD CONSTRAINT "FK_f0ad6a4b582b013bcfd321121e7" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_status_logs" ADD CONSTRAINT "FK_2ef7187d2b0f411cea0b0498481" FOREIGN KEY ("changed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_surveys" ADD CONSTRAINT "FK_7724c54f5ad18c6850d9416c15b" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_resolutions" ADD CONSTRAINT "FK_15a380c71fb7affe74eead88c64" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_resolutions" ADD CONSTRAINT "FK_1ba9b12bfbdf15b296fadfcd156" FOREIGN KEY ("proposed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_messages" ADD CONSTRAINT "FK_75b3a5f421dbf7b73778da519cb" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_messages" ADD CONSTRAINT "FK_c5a611c7a231d6e899422720607" FOREIGN KEY ("sender_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_attachments" ADD CONSTRAINT "FK_0301cfaf908edba6ce419eb66b0" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_attachments" ADD CONSTRAINT "FK_0571b827b74076e72e0221d13de" FOREIGN KEY ("message_id") REFERENCES "ticket_messages"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "ticket_attachments" ADD CONSTRAINT "FK_e3aca48b83066a74970d8391d5c" FOREIGN KEY ("uploaded_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "payments" ADD CONSTRAINT "FK_e86edf76dc2424f123b9023a2b2" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "payments" ADD CONSTRAINT "FK_d0b02233df1c52323107fe7b4d7" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "notifications" ADD CONSTRAINT "FK_9a8a82462cab47c73d25f49261f" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_damage_items" ADD CONSTRAINT "FK_96f01ddfa744de86c46d8390759" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incidents" ADD CONSTRAINT "FK_1310173d16de1076b3dd63dd668" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incidents" ADD CONSTRAINT "FK_6caad38ca61ab3059e26e19187f" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incidents" ADD CONSTRAINT "FK_76969f00a2070f52ab67b130b9b" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incidents" ADD CONSTRAINT "FK_1f3ef187d743269ffd3b808fc0b" FOREIGN KEY ("decided_by_investigator_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incidents" ADD CONSTRAINT "FK_ba5ec4d7426655c4c6cacd6a2c9" FOREIGN KEY ("approved_by_checker_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_statements" ADD CONSTRAINT "FK_10f1ce406fe4711c9065ba686a1" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_statements" ADD CONSTRAINT "FK_45c0a81a7809ccb528b6692c825" FOREIGN KEY ("submitted_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_status_logs" ADD CONSTRAINT "FK_729efee54e1bf7b6deeeafb010d" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_status_logs" ADD CONSTRAINT "FK_c05dc187c382b7b3b2665a45d7c" FOREIGN KEY ("changed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_evidences" ADD CONSTRAINT "FK_9f09e953491c748f7455d26b614" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_evidences" ADD CONSTRAINT "FK_be9ffc7456861755ca521803469" FOREIGN KEY ("damage_item_id") REFERENCES "incident_damage_items"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "incident_evidences" ADD CONSTRAINT "FK_8545d2fd85e9232e2e69231e1fd" FOREIGN KEY ("uploaded_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "customer_incident_strikes" ADD CONSTRAINT "FK_9f019da92fe80de43914e9e18d2" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "customer_incident_strikes" ADD CONSTRAINT "FK_4b05221d2a3e27b4f2acbb02c02" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_21c42d93bdff461b6abfaf19a72" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_59fc6614bb8e402ca04b70498c0" FOREIGN KEY ("changed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_bbb0d5d5b5cd46de8b0bc971cc4" FOREIGN KEY ("cancelled_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_293c9f501b5290880a0428f848a" FOREIGN KEY ("payment_id") REFERENCES "payments"("id") ON DELETE SET NULL ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "package_coverage_areas" ADD CONSTRAINT "FK_e1a6a844aa22491dc799fc85d4c" FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
-        await queryRunner.query(`ALTER TABLE "package_coverage_areas" ADD CONSTRAINT "FK_cc7b6205936d8c13d2ddafe0148" FOREIGN KEY ("area_id") REFERENCES "coverage_areas"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-    }
+    await queryRunner.query(
+      `CREATE INDEX "idx_wallets_owner_type" ON "wallets" ("owner_type") `,
+    );
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "uq_wallets_system" ON "wallets" ("owner_type") WHERE owner_type = 'SYSTEM'`,
+    );
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "uq_wallets_tasker" ON "wallets" ("tasker_id") WHERE tasker_id IS NOT NULL`,
+    );
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "uq_wallets_customer" ON "wallets" ("customer_id") WHERE customer_id IS NOT NULL`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."tasker_deposit_transaction_type" AS ENUM('CASH_COMMISSION_DEDUCT', 'INCIDENT_COMPENSATION_DEDUCT', 'TOP_UP', 'TERMINATION_REFUND')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "tasker_deposit_transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."tasker_deposit_transaction_type" NOT NULL, "amount" numeric(12,2) NOT NULL, "balance_before" numeric(12,2) NOT NULL, "balance_after" numeric(12,2) NOT NULL, "description" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "tasker_id" uuid, "booking_id" uuid, CONSTRAINT "PK_92e3d909cd0db990f74a43c1dac" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tasker_deposit_transactions_booking" ON "tasker_deposit_transactions" ("booking_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tasker_deposit_transactions_tasker" ON "tasker_deposit_transactions" ("tasker_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "tasker_levels" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(50) NOT NULL, "min_points" integer NOT NULL DEFAULT '0', "color" character varying(20), "sort_order" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_7a1e40c0b42cb432d7b39241587" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "system_configs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "config_key" character varying(100) NOT NULL, "config_value" text NOT NULL, "description" text, "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_8430d4ebdc1faef3d3eeef36e87" UNIQUE ("config_key"), CONSTRAINT "PK_29ac548e654c799fd885e1b9b71" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."ticket_category" AS ENUM('SERVICE_QUALITY', 'TASKER_BEHAVIOR', 'SCHEDULING', 'PROPERTY_DAMAGE', 'PAYMENT_BILLING', 'ACCOUNT_TECHNICAL', 'OTHER')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."ticket_priority" AS ENUM('URGENT', 'HIGH', 'MEDIUM', 'LOW')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."support_ticket_status" AS ENUM('NEW', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."ticket_source" AS ENUM('CUSTOMER_APP', 'TASKER_APP', 'ADMIN')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."ticket_pending_reason" AS ENUM('WAIT_CUSTOMER', 'WAIT_TASKER', 'WAIT_INTERNAL')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "support_tickets" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "ticket_code" character varying(20), "subject" character varying(255) NOT NULL, "description" text, "category" "public"."ticket_category" NOT NULL DEFAULT 'OTHER', "subtype" character varying(100), "priority" "public"."ticket_priority" NOT NULL DEFAULT 'MEDIUM', "status" "public"."support_ticket_status" NOT NULL DEFAULT 'NEW', "source" "public"."ticket_source" NOT NULL DEFAULT 'CUSTOMER_APP', "first_response_due_at" TIMESTAMP, "resolution_due_at" TIMESTAMP, "first_responded_at" TIMESTAMP, "resolved_at" TIMESTAMP, "closed_at" TIMESTAMP, "sla_paused_at" TIMESTAMP, "sla_paused_accum_ms" bigint NOT NULL DEFAULT '0', "sla_breached" boolean NOT NULL DEFAULT false, "pending_reason" "public"."ticket_pending_reason", "incident_id" uuid, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "reporter_user_id" uuid, "counterparty_user_id" uuid, "assigned_admin_id" uuid, CONSTRAINT "PK_942e8d8f5df86100471d2324643" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_st_assigned" ON "support_tickets" ("assigned_admin_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_st_booking" ON "support_tickets" ("booking_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_st_reporter" ON "support_tickets" ("reporter_user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_st_status_priority_created" ON "support_tickets" ("status", "priority", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "ticket_status_logs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "old_status" "public"."support_ticket_status", "new_status" "public"."support_ticket_status" NOT NULL, "note" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "changed_by_user_id" uuid, CONSTRAINT "PK_7c6d819f63bf300128f720048dc" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tsl_ticket" ON "ticket_status_logs" ("ticket_id", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "ticket_surveys" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "rating" smallint, "comment" text, "submitted_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, CONSTRAINT "REL_7724c54f5ad18c6850d9416c15" UNIQUE ("ticket_id"), CONSTRAINT "CHK_ticket_survey_rating" CHECK ("rating" BETWEEN 1 AND 5), CONSTRAINT "PK_2e61bb81b9754cc165badc790ce" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."resolution_type" AS ENUM('EXPLANATION', 'RECLEAN', 'VOUCHER', 'REFUND', 'COMPENSATION', 'TASKER_PENALTY')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "ticket_resolutions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."resolution_type" NOT NULL, "amount" numeric(12,2), "voucher_id" uuid, "reclean_booking_id" uuid, "wallet_transaction_id" uuid, "note" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "proposed_by_user_id" uuid, CONSTRAINT "PK_8d660124143985f4c7944c2ae23" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tr_ticket" ON "ticket_resolutions" ("ticket_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "ticket_messages" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "body" text NOT NULL, "is_internal" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "sender_user_id" uuid, CONSTRAINT "PK_37beb692dedf7eccb4e519ccec1" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_tm_ticket" ON "ticket_messages" ("ticket_id", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "ticket_attachments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "url" text NOT NULL, "public_id" character varying(255), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "ticket_id" uuid, "message_id" uuid, "uploaded_by_user_id" uuid, CONSTRAINT "PK_7e5011f87f95e78fe4bd7d982a3" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_ta_ticket" ON "ticket_attachments" ("ticket_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "reviews" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "booking_id" uuid NOT NULL, "customer_id" uuid NOT NULL, "tasker_id" uuid NOT NULL, "overall_rating" numeric(2,1) NOT NULL, "punctuality" integer NOT NULL DEFAULT '5', "cleanliness" integer NOT NULL DEFAULT '5', "friendliness" integer NOT NULL DEFAULT '5', "satisfaction" integer NOT NULL DEFAULT '5', "comment" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_231ae565c273ee700b283f15c1d" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_reviews_created" ON "reviews" ("created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_reviews_tasker" ON "reviews" ("tasker_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "peak_day_configs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(255) NOT NULL, "start_time" TIME, "end_time" TIME, "start_at" TIMESTAMP, "end_at" TIMESTAMP, "peak_rate" numeric(5,2) NOT NULL DEFAULT 0.1, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "chk_peak_day_range" CHECK ("start_at" < "end_at"), CONSTRAINT "PK_f2cd5780ad99ec6d0eb0a6fc4bc" PRIMARY KEY ("id")); COMMENT ON COLUMN "peak_day_configs"."peak_rate" IS 'Peak surcharge rate (e.g. 0.1 = +10%)'`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_peak_day_configs_range" ON "peak_day_configs" ("start_at") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."policies_role_enum" AS ENUM('CUSTOMER', 'TASKER', 'ALL')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "policies" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying(255) NOT NULL, "slug" character varying NOT NULL, "content" text NOT NULL, "role" "public"."policies_role_enum" NOT NULL DEFAULT 'ALL', "isActive" boolean NOT NULL DEFAULT true, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_fbb46ad645d0f8767847530c8e3" UNIQUE ("slug"), CONSTRAINT "PK_603e09f183df0108d8695c57e28" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "payments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "method" "public"."payment_method" NOT NULL, "status" "public"."payment_status" NOT NULL DEFAULT 'PENDING', "amount" numeric(12,2) NOT NULL, "transaction_code" character varying(255), "paid_at" TIMESTAMP, "refunded_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "customer_id" uuid, CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."notification_type" AS ENUM('BOOKING_CONFIRMED', 'TASKER_ON_THE_WAY', 'BOOKING_COMPLETED', 'BOOKING_CANCELLED', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'INCIDENT_UPDATE', 'SUPPORT_REPLY', 'PROMOTION', 'SYSTEM')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."notification_type" NOT NULL DEFAULT 'SYSTEM', "reference_id" uuid, "reference_type" character varying(50), "title" character varying(255) NOT NULL, "content" text, "is_read" boolean NOT NULL DEFAULT false, "dedupe_key" character varying(255), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "user_id" uuid, CONSTRAINT "CHK_notifications_reference_type" CHECK ("reference_type" IS NULL OR "reference_type" IN ('BOOKING','INCIDENT','SUPPORT_TICKET','PAYMENT')), CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_notifications_created_at" ON "notifications" ("created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_notifications_reference" ON "notifications" ("reference_id", "reference_type") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_notifications_user_created" ON "notifications" ("user_id", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_notifications_user_read" ON "notifications" ("user_id", "is_read") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_notifications_user_id" ON "notifications" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "incident_damage_items" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "description" character varying(255) NOT NULL, "claimed_amount" numeric(12,2) NOT NULL, "verified_amount" numeric(12,2), "approved_amount" numeric(12,2), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, CONSTRAINT "PK_9b42708e79060e356cdef0c7fd8" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_idi_incident" ON "incident_damage_items" ("incident_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."incident_severity" AS ENUM('CRITICAL', 'MAJOR', 'MINOR')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."incident_status" AS ENUM('REPORTED', 'INVESTIGATING', 'APPROVED', 'REJECTED', 'COMPENSATED', 'CLOSED')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."incident_compensation_status" AS ENUM('NONE', 'PENDING', 'PROCESSING', 'RECORDED', 'FAILED')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."incident_closure_reason" AS ENUM('COMPENSATED', 'REJECTED', 'WITHDRAWN', 'DUPLICATE', 'INVALID_BOOKING', 'EXPIRED')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "incidents" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "incident_code" character varying(20), "title" character varying(255) NOT NULL, "description" text NOT NULL, "severity" "public"."incident_severity" NOT NULL DEFAULT 'MINOR', "status" "public"."incident_status" NOT NULL DEFAULT 'REPORTED', "compensation_status" "public"."incident_compensation_status" NOT NULL DEFAULT 'NONE', "closure_reason" "public"."incident_closure_reason", "claimed_amount" numeric(12,2), "approved_compensation_amount" numeric(12,2), "tasker_borne_amount" numeric(12,2), "platform_borne_amount" numeric(12,2), "allocation_reason" text, "compensation_source" character varying(50), "cooling_until" TIMESTAMP, "received_due_at" TIMESTAMP, "statement_due_at" TIMESTAMP, "decision_due_at" TIMESTAMP, "report_window_until" TIMESTAMP, "reported_at" TIMESTAMP NOT NULL DEFAULT now(), "resolved_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "customer_id" uuid, "tasker_id" uuid, "decided_by_investigator_id" uuid, "approved_by_checker_id" uuid, CONSTRAINT "PK_ccb34c01719889017e2246469f9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_inc_severity_created" ON "incidents" ("severity", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_inc_status_comp" ON "incidents" ("status", "compensation_status") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "incident_statements" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "body" text NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, "submitted_by_user_id" uuid, CONSTRAINT "PK_e86291c46c62bb9be5d9800a6ce" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_ist_incident" ON "incident_statements" ("incident_id", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."incident_log_dimension" AS ENUM('STATUS', 'COMPENSATION')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "incident_status_logs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "dimension" "public"."incident_log_dimension" NOT NULL, "old_value" character varying(50), "new_value" character varying(50) NOT NULL, "reason" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, "changed_by_user_id" uuid, CONSTRAINT "PK_f5224eb24e4173a0e782e5866bd" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_isl_incident" ON "incident_status_logs" ("incident_id", "created_at") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "incident_evidences" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "file_url" text NOT NULL, "file_type" character varying(50), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "incident_id" uuid, "damage_item_id" uuid, "uploaded_by_user_id" uuid, CONSTRAINT "PK_7eb5c331e73693403c33e10135b" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_ie_damage_item" ON "incident_evidences" ("damage_item_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "customer_incident_strikes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "reason" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "customer_id" uuid, "incident_id" uuid, CONSTRAINT "PK_b06e28b5be050dce72a7dc2abf8" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "idx_cis_customer" ON "customer_incident_strikes" ("customer_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "booking_status_logs" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "old_status" "public"."booking_status", "new_status" "public"."booking_status" NOT NULL, "note" text, "cancelled_by" "public"."cancelled_by", "cancel_reason" text, "cancellation_fee" numeric(12,2) NOT NULL DEFAULT '0', "refund_amount" numeric(12,2) NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "booking_id" uuid, "changed_by_user_id" uuid, "cancelled_by_user_id" uuid, "payment_id" uuid, CONSTRAINT "PK_f5ec1a5a9046c21b40ad1c35561" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "package_coverage_areas" ("package_id" uuid NOT NULL, "area_id" uuid NOT NULL, CONSTRAINT "PK_a910899bb0812395e8d3eb80f41" PRIMARY KEY ("package_id", "area_id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_e1a6a844aa22491dc799fc85d4" ON "package_coverage_areas" ("package_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_cc7b6205936d8c13d2ddafe014" ON "package_coverage_areas" ("area_id") `,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tokens" ADD CONSTRAINT "FK_d417e5d35f2434afc4bd48cb4d2" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customers" ADD CONSTRAINT "FK_11d81cd7be87b6f8865b0cf7661" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_addresses" ADD CONSTRAINT "FK_6be4e1a698f5c3f2c2e4c75c186" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "taskers" ADD CONSTRAINT "FK_14773e687ebdd304693d30787a2" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_vouchers" ADD CONSTRAINT "FK_5d66d730e4a014373f201fe8a99" FOREIGN KEY ("voucher_id") REFERENCES "vouchers"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "vouchers" ADD CONSTRAINT "FK_820556fd3264ae9abfe7cbc0734" FOREIGN KEY ("service_id") REFERENCES "sub_services"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sub_services" ADD CONSTRAINT "FK_5c2f8bc9f177a0c0fa5ea3e1e98" FOREIGN KEY ("pricing_config_id") REFERENCES "pricing_configs"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_sub_services" ADD CONSTRAINT "FK_c0514b33998fcc04d27eac0dae7" FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_sub_services" ADD CONSTRAINT "FK_34f40d449a715e7153a45a5dd41" FOREIGN KEY ("sub_service_id") REFERENCES "sub_services"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_sub_services" ADD CONSTRAINT "FK_52a00c84772520ee19b9e16d7dc" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_sub_services" ADD CONSTRAINT "FK_7ac1e8135c6bdf716dca6451ee5" FOREIGN KEY ("sub_service_id") REFERENCES "sub_services"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" ADD CONSTRAINT "FK_8e21b7ae33e7b0673270de4146f" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" ADD CONSTRAINT "FK_1b64199f5630ac1b020fc7de9e5" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" ADD CONSTRAINT "FK_402873fd6596d556781ac5d8ae4" FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" ADD CONSTRAINT "FK_6be8707748f3ac879b552a05216" FOREIGN KEY ("address_id") REFERENCES "customer_addresses"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallet_transactions" ADD CONSTRAINT "FK_c57d19129968160f4db28fc8b28" FOREIGN KEY ("wallet_id") REFERENCES "wallets"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallet_transactions" ADD CONSTRAINT "FK_14355451ca51402529acd2e2ed2" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_withdrawal_requests" ADD CONSTRAINT "FK_c92c31706d11eb49f9b1d2e69c2" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_withdrawal_requests" ADD CONSTRAINT "FK_2af50fc317b474555af1647ba68" FOREIGN KEY ("wallet_id") REFERENCES "wallets"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallets" ADD CONSTRAINT "FK_6580899a2293de27787376887fa" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallets" ADD CONSTRAINT "FK_dcd55e9573c58b2ff8b74162ee1" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_deposit_transactions" ADD CONSTRAINT "FK_9a7ed9c8fc252a7312fc562aabd" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_deposit_transactions" ADD CONSTRAINT "FK_406ca47645b25213ee68058ed6f" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_a8c6ccffa5d66547c61ef7e2924" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_6605ed8112884d5d8efae3cdc6c" FOREIGN KEY ("reporter_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_be6405cc25bdd470590fc37ec2e" FOREIGN KEY ("counterparty_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" ADD CONSTRAINT "FK_a1f62770508fc8eff38c11c81ea" FOREIGN KEY ("assigned_admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_status_logs" ADD CONSTRAINT "FK_f0ad6a4b582b013bcfd321121e7" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_status_logs" ADD CONSTRAINT "FK_2ef7187d2b0f411cea0b0498481" FOREIGN KEY ("changed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_surveys" ADD CONSTRAINT "FK_7724c54f5ad18c6850d9416c15b" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_resolutions" ADD CONSTRAINT "FK_15a380c71fb7affe74eead88c64" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_resolutions" ADD CONSTRAINT "FK_1ba9b12bfbdf15b296fadfcd156" FOREIGN KEY ("proposed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_messages" ADD CONSTRAINT "FK_75b3a5f421dbf7b73778da519cb" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_messages" ADD CONSTRAINT "FK_c5a611c7a231d6e899422720607" FOREIGN KEY ("sender_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_attachments" ADD CONSTRAINT "FK_0301cfaf908edba6ce419eb66b0" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_attachments" ADD CONSTRAINT "FK_0571b827b74076e72e0221d13de" FOREIGN KEY ("message_id") REFERENCES "ticket_messages"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_attachments" ADD CONSTRAINT "FK_e3aca48b83066a74970d8391d5c" FOREIGN KEY ("uploaded_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" ADD CONSTRAINT "FK_e86edf76dc2424f123b9023a2b2" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" ADD CONSTRAINT "FK_d0b02233df1c52323107fe7b4d7" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notifications" ADD CONSTRAINT "FK_9a8a82462cab47c73d25f49261f" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_damage_items" ADD CONSTRAINT "FK_96f01ddfa744de86c46d8390759" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" ADD CONSTRAINT "FK_1310173d16de1076b3dd63dd668" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" ADD CONSTRAINT "FK_6caad38ca61ab3059e26e19187f" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" ADD CONSTRAINT "FK_76969f00a2070f52ab67b130b9b" FOREIGN KEY ("tasker_id") REFERENCES "taskers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" ADD CONSTRAINT "FK_1f3ef187d743269ffd3b808fc0b" FOREIGN KEY ("decided_by_investigator_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" ADD CONSTRAINT "FK_ba5ec4d7426655c4c6cacd6a2c9" FOREIGN KEY ("approved_by_checker_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_statements" ADD CONSTRAINT "FK_10f1ce406fe4711c9065ba686a1" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_statements" ADD CONSTRAINT "FK_45c0a81a7809ccb528b6692c825" FOREIGN KEY ("submitted_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_status_logs" ADD CONSTRAINT "FK_729efee54e1bf7b6deeeafb010d" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_status_logs" ADD CONSTRAINT "FK_c05dc187c382b7b3b2665a45d7c" FOREIGN KEY ("changed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_evidences" ADD CONSTRAINT "FK_9f09e953491c748f7455d26b614" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_evidences" ADD CONSTRAINT "FK_be9ffc7456861755ca521803469" FOREIGN KEY ("damage_item_id") REFERENCES "incident_damage_items"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_evidences" ADD CONSTRAINT "FK_8545d2fd85e9232e2e69231e1fd" FOREIGN KEY ("uploaded_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_incident_strikes" ADD CONSTRAINT "FK_9f019da92fe80de43914e9e18d2" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_incident_strikes" ADD CONSTRAINT "FK_4b05221d2a3e27b4f2acbb02c02" FOREIGN KEY ("incident_id") REFERENCES "incidents"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_21c42d93bdff461b6abfaf19a72" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_59fc6614bb8e402ca04b70498c0" FOREIGN KEY ("changed_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_bbb0d5d5b5cd46de8b0bc971cc4" FOREIGN KEY ("cancelled_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" ADD CONSTRAINT "FK_293c9f501b5290880a0428f848a" FOREIGN KEY ("payment_id") REFERENCES "payments"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_coverage_areas" ADD CONSTRAINT "FK_e1a6a844aa22491dc799fc85d4c" FOREIGN KEY ("package_id") REFERENCES "service_packages"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_coverage_areas" ADD CONSTRAINT "FK_cc7b6205936d8c13d2ddafe0148" FOREIGN KEY ("area_id") REFERENCES "coverage_areas"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "package_coverage_areas" DROP CONSTRAINT "FK_cc7b6205936d8c13d2ddafe0148"`);
-        await queryRunner.query(`ALTER TABLE "package_coverage_areas" DROP CONSTRAINT "FK_e1a6a844aa22491dc799fc85d4c"`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_293c9f501b5290880a0428f848a"`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_bbb0d5d5b5cd46de8b0bc971cc4"`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_59fc6614bb8e402ca04b70498c0"`);
-        await queryRunner.query(`ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_21c42d93bdff461b6abfaf19a72"`);
-        await queryRunner.query(`ALTER TABLE "customer_incident_strikes" DROP CONSTRAINT "FK_4b05221d2a3e27b4f2acbb02c02"`);
-        await queryRunner.query(`ALTER TABLE "customer_incident_strikes" DROP CONSTRAINT "FK_9f019da92fe80de43914e9e18d2"`);
-        await queryRunner.query(`ALTER TABLE "incident_evidences" DROP CONSTRAINT "FK_8545d2fd85e9232e2e69231e1fd"`);
-        await queryRunner.query(`ALTER TABLE "incident_evidences" DROP CONSTRAINT "FK_be9ffc7456861755ca521803469"`);
-        await queryRunner.query(`ALTER TABLE "incident_evidences" DROP CONSTRAINT "FK_9f09e953491c748f7455d26b614"`);
-        await queryRunner.query(`ALTER TABLE "incident_status_logs" DROP CONSTRAINT "FK_c05dc187c382b7b3b2665a45d7c"`);
-        await queryRunner.query(`ALTER TABLE "incident_status_logs" DROP CONSTRAINT "FK_729efee54e1bf7b6deeeafb010d"`);
-        await queryRunner.query(`ALTER TABLE "incident_statements" DROP CONSTRAINT "FK_45c0a81a7809ccb528b6692c825"`);
-        await queryRunner.query(`ALTER TABLE "incident_statements" DROP CONSTRAINT "FK_10f1ce406fe4711c9065ba686a1"`);
-        await queryRunner.query(`ALTER TABLE "incidents" DROP CONSTRAINT "FK_ba5ec4d7426655c4c6cacd6a2c9"`);
-        await queryRunner.query(`ALTER TABLE "incidents" DROP CONSTRAINT "FK_1f3ef187d743269ffd3b808fc0b"`);
-        await queryRunner.query(`ALTER TABLE "incidents" DROP CONSTRAINT "FK_76969f00a2070f52ab67b130b9b"`);
-        await queryRunner.query(`ALTER TABLE "incidents" DROP CONSTRAINT "FK_6caad38ca61ab3059e26e19187f"`);
-        await queryRunner.query(`ALTER TABLE "incidents" DROP CONSTRAINT "FK_1310173d16de1076b3dd63dd668"`);
-        await queryRunner.query(`ALTER TABLE "incident_damage_items" DROP CONSTRAINT "FK_96f01ddfa744de86c46d8390759"`);
-        await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_9a8a82462cab47c73d25f49261f"`);
-        await queryRunner.query(`ALTER TABLE "payments" DROP CONSTRAINT "FK_d0b02233df1c52323107fe7b4d7"`);
-        await queryRunner.query(`ALTER TABLE "payments" DROP CONSTRAINT "FK_e86edf76dc2424f123b9023a2b2"`);
-        await queryRunner.query(`ALTER TABLE "ticket_attachments" DROP CONSTRAINT "FK_e3aca48b83066a74970d8391d5c"`);
-        await queryRunner.query(`ALTER TABLE "ticket_attachments" DROP CONSTRAINT "FK_0571b827b74076e72e0221d13de"`);
-        await queryRunner.query(`ALTER TABLE "ticket_attachments" DROP CONSTRAINT "FK_0301cfaf908edba6ce419eb66b0"`);
-        await queryRunner.query(`ALTER TABLE "ticket_messages" DROP CONSTRAINT "FK_c5a611c7a231d6e899422720607"`);
-        await queryRunner.query(`ALTER TABLE "ticket_messages" DROP CONSTRAINT "FK_75b3a5f421dbf7b73778da519cb"`);
-        await queryRunner.query(`ALTER TABLE "ticket_resolutions" DROP CONSTRAINT "FK_1ba9b12bfbdf15b296fadfcd156"`);
-        await queryRunner.query(`ALTER TABLE "ticket_resolutions" DROP CONSTRAINT "FK_15a380c71fb7affe74eead88c64"`);
-        await queryRunner.query(`ALTER TABLE "ticket_surveys" DROP CONSTRAINT "FK_7724c54f5ad18c6850d9416c15b"`);
-        await queryRunner.query(`ALTER TABLE "ticket_status_logs" DROP CONSTRAINT "FK_2ef7187d2b0f411cea0b0498481"`);
-        await queryRunner.query(`ALTER TABLE "ticket_status_logs" DROP CONSTRAINT "FK_f0ad6a4b582b013bcfd321121e7"`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_a1f62770508fc8eff38c11c81ea"`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_be6405cc25bdd470590fc37ec2e"`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_6605ed8112884d5d8efae3cdc6c"`);
-        await queryRunner.query(`ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_a8c6ccffa5d66547c61ef7e2924"`);
-        await queryRunner.query(`ALTER TABLE "tasker_deposit_transactions" DROP CONSTRAINT "FK_406ca47645b25213ee68058ed6f"`);
-        await queryRunner.query(`ALTER TABLE "tasker_deposit_transactions" DROP CONSTRAINT "FK_9a7ed9c8fc252a7312fc562aabd"`);
-        await queryRunner.query(`ALTER TABLE "wallets" DROP CONSTRAINT "FK_dcd55e9573c58b2ff8b74162ee1"`);
-        await queryRunner.query(`ALTER TABLE "wallets" DROP CONSTRAINT "FK_6580899a2293de27787376887fa"`);
-        await queryRunner.query(`ALTER TABLE "tasker_withdrawal_requests" DROP CONSTRAINT "FK_2af50fc317b474555af1647ba68"`);
-        await queryRunner.query(`ALTER TABLE "tasker_withdrawal_requests" DROP CONSTRAINT "FK_c92c31706d11eb49f9b1d2e69c2"`);
-        await queryRunner.query(`ALTER TABLE "wallet_transactions" DROP CONSTRAINT "FK_14355451ca51402529acd2e2ed2"`);
-        await queryRunner.query(`ALTER TABLE "wallet_transactions" DROP CONSTRAINT "FK_c57d19129968160f4db28fc8b28"`);
-        await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT "FK_6be8707748f3ac879b552a05216"`);
-        await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT "FK_402873fd6596d556781ac5d8ae4"`);
-        await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT "FK_1b64199f5630ac1b020fc7de9e5"`);
-        await queryRunner.query(`ALTER TABLE "bookings" DROP CONSTRAINT "FK_8e21b7ae33e7b0673270de4146f"`);
-        await queryRunner.query(`ALTER TABLE "booking_sub_services" DROP CONSTRAINT "FK_7ac1e8135c6bdf716dca6451ee5"`);
-        await queryRunner.query(`ALTER TABLE "booking_sub_services" DROP CONSTRAINT "FK_52a00c84772520ee19b9e16d7dc"`);
-        await queryRunner.query(`ALTER TABLE "package_sub_services" DROP CONSTRAINT "FK_34f40d449a715e7153a45a5dd41"`);
-        await queryRunner.query(`ALTER TABLE "package_sub_services" DROP CONSTRAINT "FK_c0514b33998fcc04d27eac0dae7"`);
-        await queryRunner.query(`ALTER TABLE "sub_services" DROP CONSTRAINT "FK_5c2f8bc9f177a0c0fa5ea3e1e98"`);
-        await queryRunner.query(`ALTER TABLE "vouchers" DROP CONSTRAINT "FK_820556fd3264ae9abfe7cbc0734"`);
-        await queryRunner.query(`ALTER TABLE "customer_vouchers" DROP CONSTRAINT "FK_5d66d730e4a014373f201fe8a99"`);
-        await queryRunner.query(`ALTER TABLE "taskers" DROP CONSTRAINT "FK_14773e687ebdd304693d30787a2"`);
-        await queryRunner.query(`ALTER TABLE "customer_addresses" DROP CONSTRAINT "FK_6be4e1a698f5c3f2c2e4c75c186"`);
-        await queryRunner.query(`ALTER TABLE "customers" DROP CONSTRAINT "FK_11d81cd7be87b6f8865b0cf7661"`);
-        await queryRunner.query(`ALTER TABLE "tokens" DROP CONSTRAINT "FK_d417e5d35f2434afc4bd48cb4d2"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_cc7b6205936d8c13d2ddafe014"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_e1a6a844aa22491dc799fc85d4"`);
-        await queryRunner.query(`DROP TABLE "package_coverage_areas"`);
-        await queryRunner.query(`DROP TABLE "booking_status_logs"`);
-        await queryRunner.query(`DROP TYPE "public"."cancelled_by"`);
-        await queryRunner.query(`DROP TYPE "public"."booking_status"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_cis_customer"`);
-        await queryRunner.query(`DROP TABLE "customer_incident_strikes"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_ie_damage_item"`);
-        await queryRunner.query(`DROP TABLE "incident_evidences"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_isl_incident"`);
-        await queryRunner.query(`DROP TABLE "incident_status_logs"`);
-        await queryRunner.query(`DROP TYPE "public"."incident_log_dimension"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_ist_incident"`);
-        await queryRunner.query(`DROP TABLE "incident_statements"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_inc_status_comp"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_inc_severity_created"`);
-        await queryRunner.query(`DROP TABLE "incidents"`);
-        await queryRunner.query(`DROP TYPE "public"."incident_closure_reason"`);
-        await queryRunner.query(`DROP TYPE "public"."incident_compensation_status"`);
-        await queryRunner.query(`DROP TYPE "public"."incident_status"`);
-        await queryRunner.query(`DROP TYPE "public"."incident_severity"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_idi_incident"`);
-        await queryRunner.query(`DROP TABLE "incident_damage_items"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_notifications_user_id"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_notifications_user_read"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_notifications_user_created"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_notifications_reference"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_notifications_created_at"`);
-        await queryRunner.query(`DROP TABLE "notifications"`);
-        await queryRunner.query(`DROP TYPE "public"."notification_type"`);
-        await queryRunner.query(`DROP TABLE "payments"`);
-        await queryRunner.query(`DROP TYPE "public"."payment_status"`);
-        await queryRunner.query(`DROP TYPE "public"."payment_method"`);
-        await queryRunner.query(`DROP TABLE "policies"`);
-        await queryRunner.query(`DROP TYPE "public"."policies_role_enum"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_peak_day_configs_range"`);
-        await queryRunner.query(`DROP TABLE "peak_day_configs"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_reviews_tasker"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_reviews_created"`);
-        await queryRunner.query(`DROP TABLE "reviews"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_ta_ticket"`);
-        await queryRunner.query(`DROP TABLE "ticket_attachments"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tm_ticket"`);
-        await queryRunner.query(`DROP TABLE "ticket_messages"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tr_ticket"`);
-        await queryRunner.query(`DROP TABLE "ticket_resolutions"`);
-        await queryRunner.query(`DROP TYPE "public"."resolution_type"`);
-        await queryRunner.query(`DROP TABLE "ticket_surveys"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tsl_ticket"`);
-        await queryRunner.query(`DROP TABLE "ticket_status_logs"`);
-        await queryRunner.query(`DROP TYPE "public"."support_ticket_status"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_st_status_priority_created"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_st_reporter"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_st_booking"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_st_assigned"`);
-        await queryRunner.query(`DROP TABLE "support_tickets"`);
-        await queryRunner.query(`DROP TYPE "public"."ticket_pending_reason"`);
-        await queryRunner.query(`DROP TYPE "public"."ticket_source"`);
-        await queryRunner.query(`DROP TYPE "public"."ticket_priority"`);
-        await queryRunner.query(`DROP TYPE "public"."ticket_category"`);
-        await queryRunner.query(`DROP TABLE "system_configs"`);
-        await queryRunner.query(`DROP TABLE "tasker_levels"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tasker_deposit_transactions_tasker"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tasker_deposit_transactions_booking"`);
-        await queryRunner.query(`DROP TABLE "tasker_deposit_transactions"`);
-        await queryRunner.query(`DROP TYPE "public"."tasker_deposit_transaction_type"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_wallets_owner_type"`);
-        await queryRunner.query(`DROP INDEX "public"."uq_wallets_customer"`);
-        await queryRunner.query(`DROP INDEX "public"."uq_wallets_tasker"`);
-        await queryRunner.query(`DROP INDEX "public"."uq_wallets_system"`);
-        await queryRunner.query(`DROP TABLE "wallets"`);
-        await queryRunner.query(`DROP TYPE "public"."wallets_owner_type_enum"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tasker_withdrawal_status"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tasker_withdrawal_wallet_id"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_tasker_withdrawal_tasker_id"`);
-        await queryRunner.query(`DROP TABLE "tasker_withdrawal_requests"`);
-        await queryRunner.query(`DROP TYPE "public"."tasker_withdrawal_requests_status_enum"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_wallet_transactions_wallet_id"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_wallet_transactions_booking_id"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_wallet_transactions_reference"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_wallet_transactions_type"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_wallet_transactions_created_at"`);
-        await queryRunner.query(`DROP TABLE "wallet_transactions"`);
-        await queryRunner.query(`DROP TYPE "public"."wallet_transaction_type"`);
-        await queryRunner.query(`DROP TABLE "bookings"`);
-        await queryRunner.query(`DROP TABLE "booking_sub_services"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_service_packages_code"`);
-        await queryRunner.query(`DROP TABLE "service_packages"`);
-        await queryRunner.query(`DROP TABLE "coverage_areas"`);
-        await queryRunner.query(`DROP TABLE "package_sub_services"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_sub_services_is_active"`);
-        await queryRunner.query(`DROP TABLE "sub_services"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_vouchers_active_dates"`);
-        await queryRunner.query(`DROP INDEX "public"."uq_voucher_code"`);
-        await queryRunner.query(`DROP TABLE "vouchers"`);
-        await queryRunner.query(`DROP TYPE "public"."vouchers_type_enum"`);
-        await queryRunner.query(`DROP INDEX "public"."idx_customer_vouchers_voucher_id"`);
-        await queryRunner.query(`DROP TABLE "customer_vouchers"`);
-        await queryRunner.query(`DROP TABLE "pricing_configs"`);
-        await queryRunner.query(`DROP TABLE "taskers"`);
-        await queryRunner.query(`DROP TYPE "public"."tasker_presence_status"`);
-        await queryRunner.query(`DROP TYPE "public"."document_status"`);
-        await queryRunner.query(`DROP TYPE "public"."document_type"`);
-        await queryRunner.query(`DROP TYPE "public"."tasker_status"`);
-        await queryRunner.query(`DROP TABLE "customer_addresses"`);
-        await queryRunner.query(`DROP TABLE "customers"`);
-        await queryRunner.query(`DROP TABLE "users"`);
-        await queryRunner.query(`DROP TYPE "public"."users_provider_enum"`);
-        await queryRunner.query(`DROP TYPE "public"."users_role_enum"`);
-        await queryRunner.query(`DROP TABLE "tokens"`);
-        await queryRunner.query(`DROP TYPE "public"."tokens_type_enum"`);
-        await queryRunner.query(`DROP TABLE "withdrawals"`);
-        await queryRunner.query(`DROP TYPE "public"."withdrawal_status"`);
-    }
-
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "package_coverage_areas" DROP CONSTRAINT "FK_cc7b6205936d8c13d2ddafe0148"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_coverage_areas" DROP CONSTRAINT "FK_e1a6a844aa22491dc799fc85d4c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_293c9f501b5290880a0428f848a"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_bbb0d5d5b5cd46de8b0bc971cc4"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_59fc6614bb8e402ca04b70498c0"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_status_logs" DROP CONSTRAINT "FK_21c42d93bdff461b6abfaf19a72"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_incident_strikes" DROP CONSTRAINT "FK_4b05221d2a3e27b4f2acbb02c02"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_incident_strikes" DROP CONSTRAINT "FK_9f019da92fe80de43914e9e18d2"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_evidences" DROP CONSTRAINT "FK_8545d2fd85e9232e2e69231e1fd"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_evidences" DROP CONSTRAINT "FK_be9ffc7456861755ca521803469"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_evidences" DROP CONSTRAINT "FK_9f09e953491c748f7455d26b614"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_status_logs" DROP CONSTRAINT "FK_c05dc187c382b7b3b2665a45d7c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_status_logs" DROP CONSTRAINT "FK_729efee54e1bf7b6deeeafb010d"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_statements" DROP CONSTRAINT "FK_45c0a81a7809ccb528b6692c825"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_statements" DROP CONSTRAINT "FK_10f1ce406fe4711c9065ba686a1"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" DROP CONSTRAINT "FK_ba5ec4d7426655c4c6cacd6a2c9"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" DROP CONSTRAINT "FK_1f3ef187d743269ffd3b808fc0b"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" DROP CONSTRAINT "FK_76969f00a2070f52ab67b130b9b"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" DROP CONSTRAINT "FK_6caad38ca61ab3059e26e19187f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incidents" DROP CONSTRAINT "FK_1310173d16de1076b3dd63dd668"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "incident_damage_items" DROP CONSTRAINT "FK_96f01ddfa744de86c46d8390759"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notifications" DROP CONSTRAINT "FK_9a8a82462cab47c73d25f49261f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" DROP CONSTRAINT "FK_d0b02233df1c52323107fe7b4d7"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" DROP CONSTRAINT "FK_e86edf76dc2424f123b9023a2b2"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_attachments" DROP CONSTRAINT "FK_e3aca48b83066a74970d8391d5c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_attachments" DROP CONSTRAINT "FK_0571b827b74076e72e0221d13de"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_attachments" DROP CONSTRAINT "FK_0301cfaf908edba6ce419eb66b0"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_messages" DROP CONSTRAINT "FK_c5a611c7a231d6e899422720607"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_messages" DROP CONSTRAINT "FK_75b3a5f421dbf7b73778da519cb"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_resolutions" DROP CONSTRAINT "FK_1ba9b12bfbdf15b296fadfcd156"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_resolutions" DROP CONSTRAINT "FK_15a380c71fb7affe74eead88c64"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_surveys" DROP CONSTRAINT "FK_7724c54f5ad18c6850d9416c15b"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_status_logs" DROP CONSTRAINT "FK_2ef7187d2b0f411cea0b0498481"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ticket_status_logs" DROP CONSTRAINT "FK_f0ad6a4b582b013bcfd321121e7"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_a1f62770508fc8eff38c11c81ea"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_be6405cc25bdd470590fc37ec2e"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_6605ed8112884d5d8efae3cdc6c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "support_tickets" DROP CONSTRAINT "FK_a8c6ccffa5d66547c61ef7e2924"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_deposit_transactions" DROP CONSTRAINT "FK_406ca47645b25213ee68058ed6f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_deposit_transactions" DROP CONSTRAINT "FK_9a7ed9c8fc252a7312fc562aabd"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallets" DROP CONSTRAINT "FK_dcd55e9573c58b2ff8b74162ee1"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallets" DROP CONSTRAINT "FK_6580899a2293de27787376887fa"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_withdrawal_requests" DROP CONSTRAINT "FK_2af50fc317b474555af1647ba68"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasker_withdrawal_requests" DROP CONSTRAINT "FK_c92c31706d11eb49f9b1d2e69c2"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallet_transactions" DROP CONSTRAINT "FK_14355451ca51402529acd2e2ed2"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wallet_transactions" DROP CONSTRAINT "FK_c57d19129968160f4db28fc8b28"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP CONSTRAINT "FK_6be8707748f3ac879b552a05216"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP CONSTRAINT "FK_402873fd6596d556781ac5d8ae4"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP CONSTRAINT "FK_1b64199f5630ac1b020fc7de9e5"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "bookings" DROP CONSTRAINT "FK_8e21b7ae33e7b0673270de4146f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_sub_services" DROP CONSTRAINT "FK_7ac1e8135c6bdf716dca6451ee5"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "booking_sub_services" DROP CONSTRAINT "FK_52a00c84772520ee19b9e16d7dc"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_sub_services" DROP CONSTRAINT "FK_34f40d449a715e7153a45a5dd41"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "package_sub_services" DROP CONSTRAINT "FK_c0514b33998fcc04d27eac0dae7"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sub_services" DROP CONSTRAINT "FK_5c2f8bc9f177a0c0fa5ea3e1e98"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "vouchers" DROP CONSTRAINT "FK_820556fd3264ae9abfe7cbc0734"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_vouchers" DROP CONSTRAINT "FK_5d66d730e4a014373f201fe8a99"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "taskers" DROP CONSTRAINT "FK_14773e687ebdd304693d30787a2"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customer_addresses" DROP CONSTRAINT "FK_6be4e1a698f5c3f2c2e4c75c186"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "customers" DROP CONSTRAINT "FK_11d81cd7be87b6f8865b0cf7661"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tokens" DROP CONSTRAINT "FK_d417e5d35f2434afc4bd48cb4d2"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_cc7b6205936d8c13d2ddafe014"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_e1a6a844aa22491dc799fc85d4"`,
+    );
+    await queryRunner.query(`DROP TABLE "package_coverage_areas"`);
+    await queryRunner.query(`DROP TABLE "booking_status_logs"`);
+    await queryRunner.query(`DROP TYPE "public"."cancelled_by"`);
+    await queryRunner.query(`DROP TYPE "public"."booking_status"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_cis_customer"`);
+    await queryRunner.query(`DROP TABLE "customer_incident_strikes"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_ie_damage_item"`);
+    await queryRunner.query(`DROP TABLE "incident_evidences"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_isl_incident"`);
+    await queryRunner.query(`DROP TABLE "incident_status_logs"`);
+    await queryRunner.query(`DROP TYPE "public"."incident_log_dimension"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_ist_incident"`);
+    await queryRunner.query(`DROP TABLE "incident_statements"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_inc_status_comp"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_inc_severity_created"`);
+    await queryRunner.query(`DROP TABLE "incidents"`);
+    await queryRunner.query(`DROP TYPE "public"."incident_closure_reason"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."incident_compensation_status"`,
+    );
+    await queryRunner.query(`DROP TYPE "public"."incident_status"`);
+    await queryRunner.query(`DROP TYPE "public"."incident_severity"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_idi_incident"`);
+    await queryRunner.query(`DROP TABLE "incident_damage_items"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_notifications_user_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_notifications_user_read"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_notifications_user_created"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_notifications_reference"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_notifications_created_at"`,
+    );
+    await queryRunner.query(`DROP TABLE "notifications"`);
+    await queryRunner.query(`DROP TYPE "public"."notification_type"`);
+    await queryRunner.query(`DROP TABLE "payments"`);
+    await queryRunner.query(`DROP TYPE "public"."payment_status"`);
+    await queryRunner.query(`DROP TYPE "public"."payment_method"`);
+    await queryRunner.query(`DROP TABLE "policies"`);
+    await queryRunner.query(`DROP TYPE "public"."policies_role_enum"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_peak_day_configs_range"`);
+    await queryRunner.query(`DROP TABLE "peak_day_configs"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_reviews_tasker"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_reviews_created"`);
+    await queryRunner.query(`DROP TABLE "reviews"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_ta_ticket"`);
+    await queryRunner.query(`DROP TABLE "ticket_attachments"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_tm_ticket"`);
+    await queryRunner.query(`DROP TABLE "ticket_messages"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_tr_ticket"`);
+    await queryRunner.query(`DROP TABLE "ticket_resolutions"`);
+    await queryRunner.query(`DROP TYPE "public"."resolution_type"`);
+    await queryRunner.query(`DROP TABLE "ticket_surveys"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_tsl_ticket"`);
+    await queryRunner.query(`DROP TABLE "ticket_status_logs"`);
+    await queryRunner.query(`DROP TYPE "public"."support_ticket_status"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_st_status_priority_created"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."idx_st_reporter"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_st_booking"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_st_assigned"`);
+    await queryRunner.query(`DROP TABLE "support_tickets"`);
+    await queryRunner.query(`DROP TYPE "public"."ticket_pending_reason"`);
+    await queryRunner.query(`DROP TYPE "public"."ticket_source"`);
+    await queryRunner.query(`DROP TYPE "public"."ticket_priority"`);
+    await queryRunner.query(`DROP TYPE "public"."ticket_category"`);
+    await queryRunner.query(`DROP TABLE "system_configs"`);
+    await queryRunner.query(`DROP TABLE "tasker_levels"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_tasker_deposit_transactions_tasker"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_tasker_deposit_transactions_booking"`,
+    );
+    await queryRunner.query(`DROP TABLE "tasker_deposit_transactions"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."tasker_deposit_transaction_type"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."idx_wallets_owner_type"`);
+    await queryRunner.query(`DROP INDEX "public"."uq_wallets_customer"`);
+    await queryRunner.query(`DROP INDEX "public"."uq_wallets_tasker"`);
+    await queryRunner.query(`DROP INDEX "public"."uq_wallets_system"`);
+    await queryRunner.query(`DROP TABLE "wallets"`);
+    await queryRunner.query(`DROP TYPE "public"."wallets_owner_type_enum"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_tasker_withdrawal_status"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_tasker_withdrawal_wallet_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_tasker_withdrawal_tasker_id"`,
+    );
+    await queryRunner.query(`DROP TABLE "tasker_withdrawal_requests"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."tasker_withdrawal_requests_status_enum"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_wallet_transactions_wallet_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_wallet_transactions_booking_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_wallet_transactions_reference"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_wallet_transactions_type"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_wallet_transactions_created_at"`,
+    );
+    await queryRunner.query(`DROP TABLE "wallet_transactions"`);
+    await queryRunner.query(`DROP TYPE "public"."wallet_transaction_type"`);
+    await queryRunner.query(`DROP TABLE "bookings"`);
+    await queryRunner.query(`DROP TABLE "booking_sub_services"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_service_packages_code"`);
+    await queryRunner.query(`DROP TABLE "service_packages"`);
+    await queryRunner.query(`DROP TABLE "coverage_areas"`);
+    await queryRunner.query(`DROP TABLE "package_sub_services"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_sub_services_is_active"`);
+    await queryRunner.query(`DROP TABLE "sub_services"`);
+    await queryRunner.query(`DROP INDEX "public"."idx_vouchers_active_dates"`);
+    await queryRunner.query(`DROP INDEX "public"."uq_voucher_code"`);
+    await queryRunner.query(`DROP TABLE "vouchers"`);
+    await queryRunner.query(`DROP TYPE "public"."vouchers_type_enum"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."idx_customer_vouchers_voucher_id"`,
+    );
+    await queryRunner.query(`DROP TABLE "customer_vouchers"`);
+    await queryRunner.query(`DROP TABLE "pricing_configs"`);
+    await queryRunner.query(`DROP TABLE "taskers"`);
+    await queryRunner.query(`DROP TYPE "public"."tasker_presence_status"`);
+    await queryRunner.query(`DROP TYPE "public"."document_status"`);
+    await queryRunner.query(`DROP TYPE "public"."document_type"`);
+    await queryRunner.query(`DROP TYPE "public"."tasker_status"`);
+    await queryRunner.query(`DROP TABLE "customer_addresses"`);
+    await queryRunner.query(`DROP TABLE "customers"`);
+    await queryRunner.query(`DROP TABLE "users"`);
+    await queryRunner.query(`DROP TYPE "public"."users_provider_enum"`);
+    await queryRunner.query(`DROP TYPE "public"."users_role_enum"`);
+    await queryRunner.query(`DROP TABLE "tokens"`);
+    await queryRunner.query(`DROP TYPE "public"."tokens_type_enum"`);
+    await queryRunner.query(`DROP TABLE "withdrawals"`);
+    await queryRunner.query(`DROP TYPE "public"."withdrawal_status"`);
+  }
 }
