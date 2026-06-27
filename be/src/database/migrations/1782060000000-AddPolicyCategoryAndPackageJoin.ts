@@ -61,28 +61,47 @@ export class AddPolicyCategoryAndPackageJoin1782060000000 implements MigrationIn
     `);
 
     // 6. Tạo bảng join package_policies (M2M)
-    await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "package_policies" (
-        "package_id" uuid NOT NULL,
-        "policy_id"  uuid NOT NULL,
-        CONSTRAINT "PK_package_policies"
-          PRIMARY KEY ("package_id", "policy_id"),
-        CONSTRAINT "FK_package_policies_package"
-          FOREIGN KEY ("package_id")
-          REFERENCES "service_packages"("id")
-          ON DELETE CASCADE ON UPDATE CASCADE,
-        CONSTRAINT "FK_package_policies_policy"
-          FOREIGN KEY ("policy_id")
-          REFERENCES "policies"("id")
-          ON DELETE CASCADE ON UPDATE CASCADE
-      )
-    `);
-
+  await queryRunner.query(`
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'service_packages'
+  ) THEN
+    CREATE TABLE IF NOT EXISTS "package_policies" (
+      "package_id" uuid NOT NULL,
+      "policy_id" uuid NOT NULL,
+      CONSTRAINT "PK_package_policies"
+        PRIMARY KEY ("package_id", "policy_id"),
+      CONSTRAINT "FK_package_policies_package"
+        FOREIGN KEY ("package_id")
+        REFERENCES "service_packages"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "FK_package_policies_policy"
+        FOREIGN KEY ("policy_id")
+        REFERENCES "policies"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE
+    );
+  END IF;
+END $$;
+`);
     // 7. Index hỗ trợ lookup theo policy_id
-    await queryRunner.query(`
-      CREATE INDEX IF NOT EXISTS "idx_package_policies_policy"
-        ON "package_policies" ("policy_id")
-    `);
+   await queryRunner.query(`
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'package_policies'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS "idx_package_policies_policy"
+      ON "package_policies" ("policy_id");
+  END IF;
+END $$;
+`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

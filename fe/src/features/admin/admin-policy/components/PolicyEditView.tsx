@@ -13,9 +13,9 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PolicyForm, PolicyFormValues } from "./PolicyForm";
-import { useAdminPolicyDetail } from "../hooks/useAdminPolicyDetail";
-import { useCreatePolicy } from "../hooks/useCreatePolicy";
-import { useUpdatePolicy } from "../hooks/useUpdatePolicy";
+import { useAdminPolicyDetail } from "@/features/admin/modules/policy/hooks/useAdminPolicyDetail";
+import { useCreatePolicy } from "@/features/admin/modules/policy/hooks/useCreatePolicy";
+import { useUpdatePolicy } from "@/features/admin/modules/policy/hooks/useUpdatePolicy";
 
 type Props = {
   mode: "create" | "edit";

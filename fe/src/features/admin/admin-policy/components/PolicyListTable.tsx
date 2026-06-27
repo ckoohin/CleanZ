@@ -14,7 +14,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useAdminPolicies } from "../hooks/useAdminPolicies";
+import { useAdminPolicies } from "@/features/admin/modules/policy/hooks/useAdminPolicies";
 import { Policy } from "../types/policy.type";
 import { DeletePolicyDialog } from "./DeletePolicyDialog";
 

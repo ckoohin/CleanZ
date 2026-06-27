@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useAdminPolicyDetail } from "../hooks/useAdminPolicyDetail";
+import { useAdminPolicyDetail } from "@/features/admin/modules/policy/hooks/useAdminPolicyDetail";
 
 type Props = {
   id: string;

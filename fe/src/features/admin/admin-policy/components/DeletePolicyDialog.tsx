@@ -3,7 +3,7 @@
 import React from "react";
 import { Loader2, Trash2, X } from "lucide-react";
 import { Policy } from "../types/policy.type";
-import { useDeletePolicy } from "../hooks/useDeletePolicy";
+import { useDeletePolicy } from "@/features/admin/modules/policy/hooks/useDeletePolicy";
 import { toast } from "sonner";
 
 type Props = {
