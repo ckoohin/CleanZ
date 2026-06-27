@@ -9,10 +9,10 @@ export class WalletTransactionListQueryDto {
   @Type(() => Number)
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 20 })
+  @ApiPropertyOptional({ default: 10 })
   @IsOptional()
   @Type(() => Number)
-  limit?: number = 20;
+  limit?: number = 10;
 
   @ApiPropertyOptional()
   @IsOptional()
