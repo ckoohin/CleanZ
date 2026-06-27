@@ -181,6 +181,26 @@ export const API_ENDPOINTS = {
       `/admin/pricing/tiers/by-package/${packageId}`,
     CALCULATE: "/admin/pricing/calculate",
   },
+  REVIEWS: {
+    CREATE: (bookingId: string) => `/reviews/booking/${bookingId}`,
+    MY_REVIEW: (bookingId: string) => `/reviews/booking/${bookingId}`,
+    PACKAGE: (packageId: string) => `/reviews/package/${packageId}`,
+    REPORT: (id: string) => `/reviews/${id}/report`,
+  },
+  TASKER_REVIEWS: {
+    BASE: "/tasker/reviews",
+    REPLY: (id: string) => `/tasker/reviews/${id}/reply`,
+    REPORT: (id: string) => `/tasker/reviews/${id}/report`,
+  },
+  ADMIN_REVIEWS: {
+    BASE: "/admin/reviews",
+    DASHBOARD: "/admin/reviews/dashboard",
+    EXPORT: "/admin/reviews/export",
+    REPORTS: "/admin/reviews/reports",
+    DECIDE_REPORT: (reportId: string) => `/admin/reviews/reports/${reportId}/decide`,
+    HIDE: (id: string) => `/admin/reviews/${id}/hide`,
+    REPLY: (id: string) => `/admin/reviews/${id}/reply`,
+  },
   ADMIN_SETTINGS: {
     BASE: "/admin/settings",
   },

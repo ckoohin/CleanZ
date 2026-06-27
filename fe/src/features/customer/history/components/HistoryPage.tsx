@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
-  Clock,
   CheckCircle2,
   XCircle,
   MapPin,
@@ -14,6 +13,7 @@ import {
   User,
   Loader2,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { useMyActiveBooking, useMyBookingHistory } from "@/features/booking/hooks/useCustomerBooking";
 import type { BookingStatus, CustomerBookingDetail } from "@/features/booking/types/booking.types";
@@ -108,7 +108,7 @@ function ActiveBookingCard({ booking, onClick }: { booking: CustomerBookingDetai
 }
 
 // ─── History Card ───────────────────────────────────────────────────────────
-function HistoryCard({ booking, onClick, index }: { booking: CustomerBookingDetail; onClick: () => void; index: number }) {
+function HistoryCard({ booking, onClick, onReview, index }: { booking: CustomerBookingDetail; onClick: () => void; onReview: () => void; index: number }) {
   const status = STATUS_MAP[booking.status] ?? STATUS_MAP.COMPLETED;
   const isDone = booking.status === "COMPLETED";
   const isCancelled = booking.status === "CANCELLED" || booking.status === "EXPIRED";
@@ -157,6 +157,17 @@ function HistoryCard({ booking, onClick, index }: { booking: CustomerBookingDeta
           <ChevronRight className="w-4 h-4 text-muted-foreground/50 mt-2 ml-auto" />
         </div>
       </div>
+      {isDone && (
+        <div className="mt-3 pt-3 border-t border-border/30 flex justify-end">
+          <button
+            onClick={(e) => { e.stopPropagation(); onReview(); }}
+            className="flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+          >
+            <Star className="w-3.5 h-3.5 fill-primary" />
+            Viết đánh giá
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -222,6 +233,7 @@ export const HistoryPage = () => {
   }, [historyData]);
 
   const goToDetail = (id: string) => router.push(`/customer/booking/${id}`);
+  const goToReview = (id: string) => router.push(`/customer/history/review/${id}`);
   const goToCatalog = () => router.push(ROUTES.CUSTOMER.CATALOG);
 
   const isLoading = activeTab === "ACTIVE" ? isActiveLoading : isHistoryLoading;
@@ -272,7 +284,7 @@ export const HistoryPage = () => {
                       {historyBookings.length} đơn đã hoàn tất
                     </p>
                     {historyBookings.map((b, i) => (
-                      <HistoryCard key={b.id} booking={b} onClick={() => goToDetail(b.id)} index={i} />
+                      <HistoryCard key={b.id} booking={b} onClick={() => goToDetail(b.id)} onReview={() => goToReview(b.id)} index={i} />
                     ))}
                   </>
                 ) : (

@@ -35,9 +35,13 @@ export class CookieHelper {
   }
 
   private getCookieDomain(res: Response): string | undefined {
-    const configuredDomain = this.configService
-      .get<string>('COOKIE_DOMAIN')
-      ?.trim();
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+
+    const configuredDomain = (
+      this.configService.get<string>('COOKIE_DOMAIN') ??
+      (isProduction ? '.cleanz.online' : '')
+    )?.trim();
 
     if (!configuredDomain) {
       return undefined;
