@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { authApi } from "@/features/auth/services/auth.service";
+import { queryKeys } from "@/features/auth/queries/auth.query";
 import { UserRole } from "@/features/auth/types/user.type";
 import { hasAnyRole } from "@/features/auth/permissions";
+import { ROUTES } from "@/constants/routes";
 import { usePathname, useRouter } from "next/navigation";
 import { ShieldAlert, ArrowLeft, Home, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -259,6 +263,10 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
   const { data: user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
+  // Role trong access token có thể cũ hơn DB (vd vừa được nâng CUSTOMER→TASKER khi
+  // duyệt hồ sơ). Thử refresh token 1 lần để lấy role mới trước khi từ chối truy cập.
+  const [roleRecheckDone, setRoleRecheckDone] = useState(false);
 
   // Side effect: redirect khi auth resolved
   useEffect(() => {
@@ -281,16 +289,50 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
       return;
     }
 
-    if (!hasAnyRole(user, allowedRoles) && autoRedirect && !fallback) {
-      const roleHomePath =
-        user.role === "ADMIN"
-          ? "/admin"
-          : user.role === "TASKER"
-          ? "/tasker"
-          : "/customer";
-      router.replace(roleHomePath);
+    // Tài khoản do admin tạo bằng mật khẩu tạm: buộc đổi mật khẩu trước khi vào
+    // bất kỳ khu vực bảo vệ nào.
+    if (user.mustChangePassword) {
+      router.replace(ROUTES.AUTH.CHANGE_PASSWORD);
+      return;
     }
-  }, [user, isLoading, allowedRoles, router, pathname, autoRedirect, fallback]);
+
+    if (!hasAnyRole(user, allowedRoles)) {
+      // Thử làm mới token 1 lần (refresh strategy đọc role mới từ DB) rồi mới quyết
+      // định — giúp role vừa được nâng có hiệu lực ngay mà không cần đăng nhập lại.
+      if (!roleRecheckDone) {
+        setRoleRecheckDone(true);
+        void (async () => {
+          try {
+            await authApi.refresh();
+          } catch {
+            // refresh lỗi → xử lý mismatch ở lần chạy effect kế tiếp.
+          }
+          await queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
+        })();
+        return;
+      }
+
+      if (autoRedirect && !fallback) {
+        const roleHomePath =
+          user.role === "ADMIN"
+            ? "/admin"
+            : user.role === "TASKER"
+            ? "/tasker"
+            : "/customer";
+        router.replace(roleHomePath);
+      }
+    }
+  }, [
+    user,
+    isLoading,
+    allowedRoles,
+    router,
+    pathname,
+    autoRedirect,
+    fallback,
+    roleRecheckDone,
+    queryClient,
+  ]);
 
   // Còn đang fetch auth → show loading
   if (isLoading) {
@@ -300,7 +342,12 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
   // Auth resolved nhưng chưa có user → đang redirect → show loading để tránh flash
   if (!user) return <AuthLoadingScreen />;
 
+  // Đang điều hướng tới màn buộc đổi mật khẩu → tránh nháy nội dung bảo vệ.
+  if (user.mustChangePassword) return <AuthLoadingScreen />;
+
   if (!hasAnyRole(user, allowedRoles)) {
+    // Đang thử refresh token để lấy role mới → hiển thị loading, tránh nháy "từ chối".
+    if (!roleRecheckDone) return <AuthLoadingScreen />;
     if (fallback) return <>{fallback}</>;
 
     return (

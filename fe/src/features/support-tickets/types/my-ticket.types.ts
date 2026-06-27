@@ -69,7 +69,16 @@ export interface MyTicketDetail extends MyTicketSummary {
   firstRespondedAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
+  /** Trang tin mới nhất (cursor pagination). */
   messages: PublicMessage[];
+  /** Còn tin cũ hơn để "tải thêm". */
+  hasMoreMessages?: boolean;
+}
+
+/** 1 trang tin nhắn (cursor) khi tải tin cũ hơn. */
+export interface MessagePage {
+  messages: PublicMessage[];
+  hasMore: boolean;
 }
 
 export interface PaginationMeta {

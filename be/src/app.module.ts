@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getDatabaseConfig } from './config/database.config';
 import { UsersModule } from './modules/users/users.module';
@@ -28,6 +29,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
 import { ReviewModule } from './modules/review/review.module';
+import { AppealModule } from './modules/appeal/appeal.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { ReviewModule } from './modules/review/review.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    // Rate-limit (áp cục bộ qua @UseGuards(ThrottlerGuard) ở route cần chặn flood).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -64,6 +68,7 @@ import { ReviewModule } from './modules/review/review.module';
     FinanceModule,
     WorkflowModule,
     ReviewModule,
+    AppealModule,
   ],
   controllers: [AppController],
   providers: [AppService],

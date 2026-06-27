@@ -20,13 +20,16 @@ export class WorkflowStepEntity {
   id!: string;
 
   @Column({ name: 'workflow_id', type: 'uuid' })
-  @Index()
+  @Index('IDX_steps_workflow_id')
   workflowId!: string;
 
   @ManyToOne(() => ServiceWorkflowEntity, (wf) => wf.steps, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'workflow_id' })
+  @JoinColumn({
+    name: 'workflow_id',
+    foreignKeyConstraintName: 'FK_steps_workflow',
+  })
   workflow!: ServiceWorkflowEntity;
 
   /** Thứ tự bước (sắp xếp ASC) */

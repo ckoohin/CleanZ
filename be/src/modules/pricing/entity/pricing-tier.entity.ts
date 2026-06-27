@@ -26,7 +26,10 @@ export class PricingTierEntity {
   packageId!: string;
 
   @ManyToOne(() => ServicePackageEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'package_id' })
+  @JoinColumn({
+    name: 'package_id',
+    foreignKeyConstraintName: 'FK_pricing_tiers_package',
+  })
   package!: ServicePackageEntity;
 
   /** Tên mức (ví dụ: "Nhà 30-60m²", "Gói 2 giờ") */

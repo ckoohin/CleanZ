@@ -1,33 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsEmail,
   IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 
 export class CreateCustomerDto {
   @ApiProperty({ example: 'customer@example.com', description: 'Email tài khoản' })
-  @IsString()
+  @IsEmail({}, { message: 'Email không hợp lệ' })
   @IsNotEmpty({ message: 'Email không được để trống' })
   email!: string;
 
-  @ApiProperty({
-    example: 'Str0ngPass1',
-    minLength: 6,
-    description: 'Mật khẩu khách hàng',
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'Mật khẩu không được để trống' })
-  @MinLength(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/, {
-    message: 'Mật khẩu phải chứa ít nhất một chữ hoa, một chữ thường và một số',
-  })
-  password!: string;
+  // Mật khẩu KHÔNG do admin nhập: hệ thống tự sinh mật khẩu tạm và gửi qua email,
+  // khách buộc đổi ở lần đăng nhập đầu tiên.
 
   @ApiProperty({ example: 'Nguyen Van A', maxLength: 100, description: 'Họ tên khách hàng' })
   @IsString()

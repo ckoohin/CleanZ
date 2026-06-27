@@ -24,6 +24,7 @@ const DEFAULT_CATEGORY_PRIORITY: Record<TicketCategory, TicketPriority> = {
   [TicketCategory.PROPERTY_DAMAGE]: TicketPriority.URGENT,
   [TicketCategory.PAYMENT_BILLING]: TicketPriority.MEDIUM,
   [TicketCategory.ACCOUNT_TECHNICAL]: TicketPriority.LOW,
+  [TicketCategory.APPEAL]: TicketPriority.HIGH,
   [TicketCategory.OTHER]: TicketPriority.LOW,
 };
 

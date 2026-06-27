@@ -22,9 +22,15 @@ import {
  * cho join (xem SupportChatGateway). Emit TRỰC TIẾP sau commit (không qua BullMQ).
  * Client tự dedupe theo id + bỏ qua event của chính mình.
  */
+/** Cửa sổ gộp ping badge cho phòng admin (chống "refetch storm"). */
+const ADMIN_UNREAD_THROTTLE_MS = 5_000;
+
 @Injectable()
 export class TicketRealtimeService {
   constructor(private readonly gateway: NotificationGateway) {}
+
+  /** Mốc lần cuối đã ping ADMINS_ROOM theo từng ticket (leading throttle). */
+  private readonly adminUnreadAt = new Map<string, number>();
 
   emitMessage(
     ticket: SupportTicketEntity,
@@ -84,8 +90,16 @@ export class TicketRealtimeService {
     }
   }
 
-  /** Ping badge tới TẤT CẢ admin (ticket chưa gán → admin nào cũng có thể xử lý). */
+  /**
+   * Ping badge tới TẤT CẢ admin (ticket chưa gán). Gộp theo cửa sổ
+   * {@link ADMIN_UNREAD_THROTTLE_MS}/ticket: nhiều tin liên tiếp chỉ phát 1 ping
+   * → tránh mọi admin invalidate query dồn dập ("refetch storm").
+   */
   emitUnreadToAdmins(ticketId: string): void {
+    const now = Date.now();
+    const last = this.adminUnreadAt.get(ticketId) ?? 0;
+    if (now - last < ADMIN_UNREAD_THROTTLE_MS) return;
+    this.adminUnreadAt.set(ticketId, now);
     try {
       this.gateway.emitToRoom(ADMINS_ROOM, TICKET_EVENT_UNREAD, { ticketId });
     } catch {

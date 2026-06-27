@@ -24,20 +24,26 @@ export class ServiceWorkflowEntity {
 
   /** Workflow thuộc về dịch vụ con nào (nullable — có thể gắn vào package) */
   @Column({ name: 'sub_service_id', type: 'uuid', nullable: true })
-  @Index()
+  @Index('IDX_workflows_sub_service_id')
   subServiceId?: string | null;
 
   @ManyToOne(() => SubServiceEntity, { nullable: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'sub_service_id' })
+  @JoinColumn({
+    name: 'sub_service_id',
+    foreignKeyConstraintName: 'FK_workflows_sub_service',
+  })
   subService?: SubServiceEntity;
 
   /** Workflow thuộc về gói dịch vụ nào (nullable) */
   @Column({ name: 'package_id', type: 'uuid', nullable: true })
-  @Index()
+  @Index('IDX_workflows_package_id')
   packageId?: string | null;
 
   @ManyToOne(() => ServicePackageEntity, { nullable: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'package_id' })
+  @JoinColumn({
+    name: 'package_id',
+    foreignKeyConstraintName: 'FK_workflows_package',
+  })
   package?: ServicePackageEntity;
 
   @Column({ type: 'varchar', length: 200 })

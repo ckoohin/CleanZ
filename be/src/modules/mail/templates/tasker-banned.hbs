@@ -9,17 +9,35 @@
   >
     <h2 style='color: #1f2937; margin-top: 0;'>Xin chào, {{fullName}}!</h2>
     <div style='background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 4px; margin: 20px 0;'>
-      <p style='color: #991b1b; margin: 0; font-weight: bold;'>✗ Tài khoản tasker của bạn đã bị tạm khóa</p>
+      <p style='color: #991b1b; margin: 0; font-weight: bold;'>
+        {{#if isPermanent}}✗ Tài khoản tasker của bạn đã bị chấm dứt vĩnh viễn{{else}}✗ Tài khoản tasker của bạn đã bị tạm khóa{{/if}}
+      </p>
     </div>
     <p style='color: #4b5563; line-height: 1.6;'>
-      Tài khoản tasker của bạn đã bị tạm khóa vì lý do sau:
+      {{#if isPermanent}}Tài khoản tasker của bạn đã bị chấm dứt vĩnh viễn vì lý do sau:{{else}}Tài khoản tasker của bạn đã bị tạm khóa vì lý do sau:{{/if}}
     </p>
     <div style='background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;'>
       <p style='color: #1f2937; margin: 0; white-space: pre-wrap;'>{{reason}}</p>
     </div>
+    {{#if appealUrl}}
+    <p style='color: #4b5563; line-height: 1.6;'>
+      Nếu bạn cho rằng quyết định này là nhầm lẫn, bạn có thể gửi kháng cáo để chúng tôi xem xét lại. Vui lòng nhấn nút bên dưới và trình bày nội dung kháng cáo của bạn.
+    </p>
+    <div style='text-align: center; margin: 28px 0;'>
+      <a
+        href='{{appealUrl}}'
+        style='display: inline-block; background-color: #166534; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold;'
+      >Gửi kháng cáo</a>
+    </div>
+    <p style='color: #9ca3af; font-size: 12px; line-height: 1.6; word-break: break-all;'>
+      Nếu nút không hoạt động, hãy sao chép và dán liên kết sau vào trình duyệt:<br />
+      {{appealUrl}}
+    </p>
+    {{else}}
     <p style='color: #4b5563; line-height: 1.6;'>
       Nếu bạn cho rằng đây là nhầm lẫn, vui lòng liên hệ với bộ phận hỗ trợ của chúng tôi để được giải quyết.
     </p>
+    {{/if}}
     <hr style='border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;' />
     <p style='color: #9ca3af; font-size: 12px;'>
       Email này được gửi từ hệ thống KingOfService. Vui lòng không trả lời email này.

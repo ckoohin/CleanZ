@@ -21,6 +21,7 @@ export type {
   PaginationMeta,
   TicketAudience,
   MarkReadAdminInput,
+  InternalNote,
 } from "@/features/support-tickets/shared/ticket.types";
 
 import type {

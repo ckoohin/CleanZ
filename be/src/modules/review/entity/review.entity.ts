@@ -4,6 +4,7 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity('reviews')
@@ -15,7 +16,7 @@ export class ReviewEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'booking_id', type: 'uuid' })
+  @Column({ name: 'booking_id', type: 'uuid', unique: true })
   bookingId!: string;
 
   @Column({ name: 'customer_id', type: 'uuid' })
@@ -68,4 +69,7 @@ export class ReviewEntity {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  updatedAt!: Date;
 }

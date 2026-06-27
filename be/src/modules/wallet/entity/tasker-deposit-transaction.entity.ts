@@ -22,7 +22,10 @@ export class TaskerDepositTransactionEntity {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  @JoinColumn({ name: 'tasker_id' })
+  @JoinColumn({
+    name: 'tasker_id',
+    foreignKeyConstraintName: 'FK_tasker_deposit_transactions_tasker',
+  })
   tasker!: TaskerEntity;
 
   @ManyToOne(() => BookingEntity, {
@@ -30,7 +33,10 @@ export class TaskerDepositTransactionEntity {
     onDelete: 'SET NULL',
     onUpdate: 'CASCADE',
   })
-  @JoinColumn({ name: 'booking_id' })
+  @JoinColumn({
+    name: 'booking_id',
+    foreignKeyConstraintName: 'FK_tasker_deposit_transactions_booking',
+  })
   booking?: BookingEntity | null;
 
   @Column({

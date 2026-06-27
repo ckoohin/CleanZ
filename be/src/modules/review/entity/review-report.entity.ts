@@ -21,7 +21,11 @@ export class ReviewReportEntity {
   @Column({ name: 'reported_by', type: 'uuid' })
   reportedBy!: string;
 
-  @Column({ type: 'enum', enum: ReviewReportReason })
+  @Column({
+    type: 'enum',
+    enum: ReviewReportReason,
+    enumName: 'review_report_reason_enum',
+  })
   reason!: ReviewReportReason;
 
   @Column({ type: 'text', nullable: true })
@@ -30,6 +34,7 @@ export class ReviewReportEntity {
   @Column({
     type: 'enum',
     enum: ReviewReportStatus,
+    enumName: 'review_report_status_enum',
     default: ReviewReportStatus.PENDING,
   })
   status!: ReviewReportStatus;

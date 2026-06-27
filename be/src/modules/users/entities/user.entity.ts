@@ -42,6 +42,20 @@ export class User extends BaseEntity {
   @Column({ name: 'is_verified', type: 'boolean', default: false })
   isVerified!: boolean;
 
+  /**
+   * Bật khi tài khoản được admin tạo với mật khẩu tạm — buộc đổi mật khẩu ở
+   * lần đăng nhập đầu tiên. Tự gỡ về false sau khi đổi mật khẩu thành công.
+   */
+  @Column({ name: 'must_change_password', type: 'boolean', default: false })
+  mustChangePassword!: boolean;
+
+  /**
+   * Phiên bản token. Bump khi deactivate/xóa/đổi role → refresh token mang
+   * version cũ sẽ bị từ chối (vô hiệu phiên mà không cần đọc DB ở mỗi access).
+   */
+  @Column({ name: 'token_version', type: 'int', default: 0 })
+  tokenVersion!: number;
+
   @Column({ name: 'last_login', type: 'timestamp', nullable: true })
   lastLogin!: Date;
 

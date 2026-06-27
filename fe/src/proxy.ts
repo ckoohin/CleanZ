@@ -81,11 +81,13 @@ function redirectToLogin(req: NextRequest, pathname: string, searchParams: URLSe
   return NextResponse.redirect(loginUrl);
 }
 
+// Next.js 16: file đặc biệt tên `proxy.ts`, export function `proxy` + `config`.
+// (Đây là tên mới của "middleware" cũ — KHÔNG tạo thêm src/middleware.ts.)
 export const config = {
   matcher: [
     "/admin/:path*",
     "/tasker/:path*",
-    "/customer/:path*"
+    "/customer/:path*",
   ],
 };
-  
+
