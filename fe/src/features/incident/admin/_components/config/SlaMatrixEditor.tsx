@@ -95,11 +95,11 @@ export function SlaMatrixEditor({
   };
 
   return (
-    <div className="space-y-2 rounded-xl border border-border/40 p-3">
+    <div className="space-y-2 rounded-xl border border-[var(--c-line)] p-3">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="text-muted-foreground">
+            <tr className="text-[var(--c-muted)]">
               <th className="px-1 py-1 text-left font-semibold">Mức độ</th>
               {FIELDS.map((f) => (
                 <th key={f.key} className="px-1 py-1 text-center font-semibold">{f.label}</th>
@@ -128,7 +128,7 @@ export function SlaMatrixEditor({
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-[var(--c-muted)]">
         Đơn vị: <b>giờ</b>. Bỏ trống = dùng mặc định (giá trị mờ trong ô).
       </p>
     </div>

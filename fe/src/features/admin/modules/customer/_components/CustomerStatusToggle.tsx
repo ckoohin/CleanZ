@@ -56,12 +56,12 @@ export const CustomerStatusToggle: React.FC<CustomerStatusToggleProps> = ({
       />
 
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="sm:max-w-md rounded-[20px]">
+        <DialogContent className="cz-admin sm:max-w-md rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-[var(--c-ink)]">
               {isActive ? "Khóa tài khoản khách hàng" : "Mở khóa tài khoản khách hàng"}
             </DialogTitle>
-            <DialogDescription className="pt-2 text-sm text-muted-foreground">
+            <DialogDescription className="pt-2 text-sm text-[var(--c-muted)]">
               {isActive ? (
                 <span>
                   Bạn có chắc chắn muốn <strong>khóa</strong> tài khoản của khách hàng{" "}
@@ -80,15 +80,14 @@ export const CustomerStatusToggle: React.FC<CustomerStatusToggleProps> = ({
               variant="outline"
               onClick={() => setShowConfirm(false)}
               disabled={toggleMutation.isPending}
-              className="rounded-full"
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
             >
               Hủy
             </Button>
             <Button
-              variant={isActive ? "destructive" : "default"}
               onClick={handleConfirm}
               disabled={toggleMutation.isPending}
-              className="rounded-full"
+              className={`rounded-full text-white ${isActive ? "bg-[#E11D48] hover:bg-[#E11D48]/90" : "bg-[#0E9F6E] hover:bg-[#0E9F6E]/90"}`}
             >
               {toggleMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
             </Button>

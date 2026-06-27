@@ -1,22 +1,20 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { AdminCard, StatusBadge, type BadgeTone } from "@/components/admin";
 import { useBookingDetails } from "../../hooks/useDashboard";
 import { useDashboardStore } from "../../stores/dashboard.store";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 import { MoreHorizontal } from "lucide-react";
 
-const STATUS_STYLE: Record<string, string> = {
-  COMPLETED: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none",
-  CANCELLED: "bg-red-500/10 text-red-500 dark:text-red-400 border-none",
-  IN_PROGRESS: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-none",
-  POSTED: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-none",
-  CONFIRMED: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-none",
-  TASKER_ON_THE_WAY: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-none",
-  CHECKED_IN: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-none",
-  EXPIRED: "bg-red-500/10 text-red-500 dark:text-red-400 border-none",
+const STATUS_TONE: Record<string, BadgeTone> = {
+  COMPLETED: "success",
+  CANCELLED: "danger",
+  IN_PROGRESS: "warning",
+  POSTED: "neutral",
+  CONFIRMED: "info",
+  TASKER_ON_THE_WAY: "info",
+  CHECKED_IN: "warning",
+  EXPIRED: "danger",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -38,44 +36,44 @@ export function RecentBookingsWidget() {
   if (!data?.recent?.length) return null;
 
   return (
-    <Card className="border border-border bg-card shadow-sm rounded-2xl h-full flex flex-col justify-between">
-      <CardContent className="p-5 flex-1 flex flex-col justify-between">
+    <AdminCard className="h-full flex flex-col justify-between">
+      <div className="p-5 flex-1 flex flex-col justify-between">
         <div>
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h3 className="text-[15px] font-semibold text-foreground">Đơn hàng gần đây</h3>
+              <h3 className="text-[15px] font-bold text-[var(--c-ink)]">Đơn hàng gần đây</h3>
             </div>
-            <span className="text-xs text-primary font-medium cursor-pointer hover:underline">Xem tất cả</span>
+            <span className="text-xs text-[var(--c-primary)] font-medium cursor-pointer hover:underline">Xem tất cả</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13.5px]">
               <thead>
                 <tr>
-                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-muted-foreground/80 text-[11px] px-2.5">Code</th>
-                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-muted-foreground/80 text-[11px] px-2.5">Khách</th>
-                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-muted-foreground/80 text-[11px] px-2.5">Dịch vụ</th>
-                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-muted-foreground/80 text-[11px] px-2.5">Giá</th>
-                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-muted-foreground/80 text-[11px] px-2.5">Trạng thái</th>
+                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-2.5">Code</th>
+                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-2.5">Khách</th>
+                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-2.5">Dịch vụ</th>
+                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-2.5">Giá</th>
+                  <th className="pb-2.5 pt-1 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-2.5">Trạng thái</th>
                   <th className="pb-2.5 pt-1 px-2.5"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-[var(--c-line)]">
                 {data.recent.map((b) => (
-                  <tr key={b.bookingCode} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-2.5 px-2.5 font-semibold text-foreground">{b.bookingCode}</td>
-                    <td className="py-2.5 px-2.5 text-muted-foreground text-[12.5px] truncate max-w-[120px]">{b.customerName}</td>
-                    <td className="py-2.5 px-2.5 text-foreground">{b.serviceName ?? "Dọn dẹp nhà"}</td>
-                    <td className="py-2.5 px-2.5 font-medium text-foreground">
+                  <tr key={b.bookingCode} className="hover:bg-[var(--c-card-2)] transition-colors">
+                    <td className="py-2.5 px-2.5 font-semibold text-[var(--c-ink)] tabular-nums">{b.bookingCode}</td>
+                    <td className="py-2.5 px-2.5 text-[var(--c-muted)] text-[12.5px] truncate max-w-[120px]">{b.customerName}</td>
+                    <td className="py-2.5 px-2.5 text-[var(--c-ink)]">{b.serviceName ?? "Dọn dẹp nhà"}</td>
+                    <td className="py-2.5 px-2.5 font-medium text-[var(--c-ink)] tabular-nums">
                       {b.totalPrice >= 1000
                         ? `${(b.totalPrice / 1000).toFixed(0)}k`
                         : `${b.totalPrice}đ`}
                     </td>
                     <td className="py-2.5 px-2.5">
-                      <Badge className={cn("text-[11.5px] px-2 py-0.5 rounded font-semibold whitespace-nowrap shadow-none", STATUS_STYLE[b.status])}>
+                      <StatusBadge tone={STATUS_TONE[b.status] ?? "neutral"}>
                         {STATUS_LABELS[b.status] ?? b.status}
-                      </Badge>
+                      </StatusBadge>
                     </td>
-                    <td className="py-2.5 px-2.5 text-muted-foreground text-right">
+                    <td className="py-2.5 px-2.5 text-[var(--c-muted)] text-right">
                       <MoreHorizontal className="w-4 h-4 cursor-pointer inline-block" />
                     </td>
                   </tr>
@@ -84,7 +82,7 @@ export function RecentBookingsWidget() {
             </table>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </AdminCard>
   );
 }

@@ -44,10 +44,10 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
+      <DialogContent className="cz-admin sm:max-w-[425px] rounded-[2rem] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
-          <DialogDescription className="text-muted-foreground pt-2">
+          <DialogTitle className="text-xl font-bold text-[var(--c-ink)]">{title}</DialogTitle>
+          <DialogDescription className="text-[var(--c-muted)] pt-2">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -57,17 +57,17 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={1500}
-            className="min-h-[120px] rounded-2xl resize-none focus-visible:ring-primary"
+            className="min-h-[120px] rounded-2xl resize-none bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus-visible:ring-[var(--c-primary)]/30 focus-visible:border-[var(--c-primary)]/50"
           />
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} className="rounded-full">
+          <Button variant="ghost" onClick={onClose} className="rounded-full text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]">
             Hủy
           </Button>
-          <Button 
-            onClick={handleConfirm} 
+          <Button
+            onClick={handleConfirm}
             disabled={!notes.trim() || isLoading}
-            className="rounded-full bg-primary hover:bg-primary/90 min-w-[100px]"
+            className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90 min-w-[100px]"
           >
             {isLoading ? "Đang xử lý..." : "Xác nhận"}
           </Button>

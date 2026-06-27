@@ -6,7 +6,7 @@ import {
   type Column,
   type RowAction,
 } from "@/components/ui/base/base_table_list";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader, StatusBadge } from "@/components/admin";
 import {
   Select,
   SelectContent,
@@ -34,22 +34,25 @@ type OwnerFilter = WalletOwnerType | "ALL";
 
 const OWNER_CONFIG: Record<
   WalletOwnerType,
-  { label: string; className: string; icon: typeof UserRound }
+  { label: string; color: string; soft: string; icon: typeof UserRound }
 > = {
   CUSTOMER: {
     label: "Khách hàng",
     icon: UserRound,
-    className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    color: "#2563EB",
+    soft: "rgba(37,99,235,0.12)",
   },
   TASKER: {
     label: "Tasker",
     icon: ShieldCheck,
-    className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    color: "#D97706",
+    soft: "rgba(217,119,6,0.14)",
   },
   SYSTEM: {
     label: "Hệ thống",
     icon: Building2,
-    className: "bg-primary/10 text-primary border-primary/20",
+    color: "var(--c-primary-strong)",
+    soft: "var(--c-primary-soft)",
   },
 };
 
@@ -99,14 +102,17 @@ export function WalletManagement() {
 
         return (
           <div className="flex items-center gap-3">
-            <div className={`rounded-xl p-2.5 ${config.className}`}>
+            <div
+              className="rounded-xl p-2.5"
+              style={{ background: config.soft, color: config.color }}
+            >
               <Icon className="size-4" />
             </div>
             <div className="min-w-0">
-              <p className="max-w-[180px] truncate text-sm font-bold">
+              <p className="max-w-[180px] truncate text-sm font-bold text-[var(--c-ink)]">
                 {owner.name}
               </p>
-              <p className="max-w-[180px] truncate text-xs text-muted-foreground">
+              <p className="max-w-[180px] truncate text-xs text-[var(--c-muted)]">
                 {owner.email}
               </p>
             </div>
@@ -120,12 +126,13 @@ export function WalletManagement() {
       render: (wallet) => {
         const config = OWNER_CONFIG[wallet.ownerType];
         return (
-          <Badge
-            variant="outline"
-            className={`rounded-full text-[10px] font-bold uppercase ${config.className}`}
+          <StatusBadge
+            color={config.color}
+            soft={config.soft}
+            className="text-[10px] font-bold uppercase"
           >
             {config.label}
-          </Badge>
+          </StatusBadge>
         );
       },
     },
@@ -133,7 +140,7 @@ export function WalletManagement() {
       key: "balance",
       title: "Số dư khả dụng",
       render: (wallet) => (
-        <span className="font-black text-emerald-600 dark:text-emerald-400">
+        <span className="font-black text-[#0E9F6E]">
           {formatCurrency(wallet.balance)}
         </span>
       ),
@@ -144,8 +151,8 @@ export function WalletManagement() {
       hideOnMobile: true,
       render: (wallet) => (
         <div className="flex items-center gap-1.5 text-sm">
-          <LockKeyhole className="size-3.5 text-amber-500" />
-          <span className="font-semibold">
+          <LockKeyhole className="size-3.5 text-[#D97706]" />
+          <span className="font-semibold text-[var(--c-ink)]">
             {formatCurrency(wallet.holdBalance)}
           </span>
         </div>
@@ -156,7 +163,7 @@ export function WalletManagement() {
       title: "Cập nhật",
       hideOnMobile: true,
       render: (wallet) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {new Date(wallet.updatedAt).toLocaleString("vi-VN")}
         </span>
       ),
@@ -174,12 +181,10 @@ export function WalletManagement() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">Quản lý ví</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Theo dõi số dư, tiền đang giữ và biến động ví trong toàn hệ thống.
-        </p>
-      </div>
+      <PageHeader
+        title="Quản lý ví"
+        description="Theo dõi số dư, tiền đang giữ và biến động ví trong toàn hệ thống."
+      />
 
       <BaseTableList
         columns={columns}
@@ -210,11 +215,11 @@ export function WalletManagement() {
               }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[170px] rounded-full border-border/40 bg-background shadow-none">
-              <ListFilter className="size-4 text-muted-foreground" />
+            <SelectTrigger className="h-10 min-w-[170px] rounded-full border-[var(--c-line)] bg-[var(--c-card)] shadow-none">
+              <ListFilter className="size-4 text-[var(--c-muted)]" />
               <SelectValue placeholder="Loại ví" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl">
               <SelectItem value="ALL">Tất cả loại ví</SelectItem>
               <SelectItem value="CUSTOMER">Khách hàng</SelectItem>
               <SelectItem value="TASKER">Tasker</SelectItem>

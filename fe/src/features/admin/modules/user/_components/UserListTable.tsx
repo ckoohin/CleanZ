@@ -13,9 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import {
+  PageHeader,
+  AdminButton,
+  StatusBadge,
+  AdminAvatar,
+  type BadgeTone,
+} from "@/components/admin";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import {
   useAdminUsers,
@@ -33,7 +37,6 @@ import {
   ALL_PROVIDERS,
   ALL_ROLES,
   PROVIDER_LABELS,
-  ROLE_BADGE_STYLES,
   ROLE_LABELS,
 } from "../constants";
 import { formatUserDate } from "../user.helpers";
@@ -57,6 +60,13 @@ type StatusFilter = "ALL" | "ACTIVE" | "BLOCKED" | "DELETED";
 type RoleFilter = "ALL" | UserRole;
 type ProviderFilter = "ALL" | AdminAuthProvider;
 type VerifiedFilter = "ALL" | "VERIFIED" | "UNVERIFIED";
+
+/** Vai trò → tông màu pill (ADMIN tím · CUSTOMER xanh · TASKER vàng). */
+const ROLE_TONE: Record<string, BadgeTone> = {
+  ADMIN: "purple",
+  CUSTOMER: "info",
+  TASKER: "warning",
+};
 
 export const UserListTable: React.FC = () => {
   const { data: currentUser } = useAuth();
@@ -159,22 +169,17 @@ export const UserListTable: React.FC = () => {
       title: "Người dùng",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-            {row.avatarUrl ? (
-              <img
-                src={row.avatarUrl}
-                alt={row.fullName}
-                className="w-full h-full rounded-xl object-cover"
-              />
-            ) : (
-              row.fullName?.[0]?.toUpperCase() || "U"
-            )}
-          </div>
+          <AdminAvatar
+            src={row.avatarUrl}
+            name={row.fullName}
+            initials={row.fullName?.[0]?.toUpperCase() || "U"}
+            size="md"
+          />
           <div>
-            <p className="font-bold text-sm text-foreground/90">
+            <p className="font-bold text-sm text-[var(--c-ink)]">
               {row.fullName || "Chưa cập nhật"}
             </p>
-            <p className="text-xs text-muted-foreground">{row.email}</p>
+            <p className="text-xs text-[var(--c-muted)]">{row.email}</p>
           </div>
         </div>
       ),
@@ -184,7 +189,7 @@ export const UserListTable: React.FC = () => {
       title: "Số điện thoại",
       hideOnMobile: true,
       render: (row) => (
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className="font-mono text-sm text-[var(--c-muted)]">
           {row.phone || "—"}
         </span>
       ),
@@ -194,16 +199,10 @@ export const UserListTable: React.FC = () => {
       title: "Vai trò",
       render: (row) => (
         <div className="flex flex-col gap-1">
-          <Badge
-            variant="outline"
-            className={cn(
-              "w-fit text-[10px] font-bold uppercase rounded-md border px-2 py-0.5",
-              ROLE_BADGE_STYLES[row.role] || "bg-muted text-muted-foreground"
-            )}
-          >
+          <StatusBadge tone={ROLE_TONE[row.role] ?? "neutral"} className="w-fit uppercase">
             {ROLE_LABELS[row.role] || row.role}
-          </Badge>
-          <span className="text-[10px] font-semibold text-muted-foreground">
+          </StatusBadge>
+          <span className="text-[10px] font-semibold text-[var(--c-muted)]">
             {PROVIDER_LABELS[row.provider] || row.provider}
           </span>
         </div>
@@ -216,13 +215,13 @@ export const UserListTable: React.FC = () => {
       className: "text-center w-[110px]",
       render: (row) =>
         row.isVerified ? (
-          <Badge className="bg-emerald-500/10 text-emerald-600 border-none text-[10px] font-bold uppercase">
+          <StatusBadge tone="success" className="uppercase">
             Đã xác thực
-          </Badge>
+          </StatusBadge>
         ) : (
-          <Badge className="bg-muted text-muted-foreground border-none text-[10px] font-bold uppercase">
+          <StatusBadge tone="neutral" className="uppercase">
             Chưa
-          </Badge>
+          </StatusBadge>
         ),
     },
     {
@@ -230,7 +229,7 @@ export const UserListTable: React.FC = () => {
       title: "Ngày tham gia",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-muted-foreground">
+        <span className="text-xs font-semibold text-[var(--c-muted)]">
           {formatUserDate(row.createdAt)}
         </span>
       ),
@@ -241,25 +240,18 @@ export const UserListTable: React.FC = () => {
       render: (row) => {
         if (row.deletedAt) {
           return (
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] font-bold">
+            <StatusBadge tone="danger">
               <Trash className="w-3 h-3" />
               Đã xóa · {formatUserDate(row.deletedAt)}
-            </span>
+            </StatusBadge>
           );
         }
         // Không cho tự khóa/mở khóa tài khoản của chính mình — hiển thị nhãn tĩnh.
         if (currentUserId && row.id === currentUserId) {
           return (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-bold",
-                row.isActive
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
+            <StatusBadge tone={row.isActive ? "success" : "neutral"}>
               {row.isActive ? "Đang hoạt động" : "Đã khóa"}
-            </span>
+            </StatusBadge>
           );
         }
         return (
@@ -311,40 +303,40 @@ export const UserListTable: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-bold tracking-tight">Quản lý người dùng</h1>
-          <p className="text-xs text-muted-foreground">
-            Tìm kiếm, lọc theo vai trò/trạng thái và quản lý tài khoản.
-          </p>
-        </div>
-        <Button
-          onClick={openCreate}
-          aria-label="Thêm người dùng"
-          className="rounded-full gap-2 shrink-0"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span className="hidden sm:inline">Thêm người dùng</span>
-        </Button>
-      </div>
+      <PageHeader
+        title="Quản lý người dùng"
+        description="Tìm kiếm, lọc theo vai trò/trạng thái và quản lý tài khoản."
+        actions={
+          <AdminButton
+            variant="primary"
+            onClick={openCreate}
+            aria-label="Thêm người dùng"
+            icon={<UserPlus className="w-4 h-4" />}
+          >
+            <span className="hidden sm:inline">Thêm người dùng</span>
+          </AdminButton>
+        }
+      />
 
       {isError && !isLoading && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 px-4 py-3">
+        <div
+          className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+          style={{ borderColor: "rgba(225,29,72,0.3)", background: "rgba(225,29,72,0.06)" }}
+        >
           <div className="flex min-w-0 items-center gap-2.5">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
-            <p className="truncate text-xs font-semibold text-rose-600 dark:text-rose-400">
+            <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "#E11D48" }} />
+            <p className="truncate text-xs font-semibold" style={{ color: "#E11D48" }}>
               Không tải được danh sách người dùng. Vui lòng thử lại.
             </p>
           </div>
-          <Button
-            variant="outline"
+          <AdminButton
+            variant="secondary"
             size="sm"
             onClick={() => refetch()}
-            className="shrink-0 gap-1.5 rounded-full"
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
             Thử lại
-          </Button>
+          </AdminButton>
         </div>
       )}
 
@@ -379,13 +371,13 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, role: val as RoleFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[150px] rounded-full border-border/40 bg-background text-sm font-medium shadow-none">
+              <SelectTrigger className="h-10 min-w-[150px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Vai trò" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">
                   <div className="flex items-center gap-2">
-                    <ListFilter className="w-4 h-4 text-muted-foreground" />
+                    <ListFilter className="w-4 h-4 text-[var(--c-muted)]" />
                     Tất cả vai trò
                   </div>
                 </SelectItem>
@@ -403,10 +395,10 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, provider: val as ProviderFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-border/40 bg-background text-sm font-medium shadow-none">
+              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Phương thức" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả phương thức</SelectItem>
                 {ALL_PROVIDERS.map((p) => (
                   <SelectItem key={p} value={p}>
@@ -422,10 +414,10 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, verified: val as VerifiedFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[150px] rounded-full border-border/40 bg-background text-sm font-medium shadow-none">
+              <SelectTrigger className="h-10 min-w-[150px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Xác thực" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả xác thực</SelectItem>
                 <SelectItem value="VERIFIED">Đã xác thực</SelectItem>
                 <SelectItem value="UNVERIFIED">Chưa xác thực</SelectItem>
@@ -438,16 +430,16 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, status: val as StatusFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-border/40 bg-background text-sm font-medium shadow-none">
+              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
                 <SelectItem value="ACTIVE">Đang hoạt động</SelectItem>
                 <SelectItem value="BLOCKED">Đã bị khóa</SelectItem>
                 <SelectItem value="DELETED">
                   <div className="flex items-center gap-2">
-                    <Trash className="w-4 h-4 text-muted-foreground" />
+                    <Trash className="w-4 h-4 text-[var(--c-muted)]" />
                     Đã xóa
                   </div>
                 </SelectItem>

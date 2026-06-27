@@ -107,10 +107,10 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-6">
+      <SheetContent className="cz-admin w-full sm:max-w-xl overflow-y-auto p-6 bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
         <SheetHeader className="mb-6 p-0">
-          <SheetTitle>Tạo Đơn Hộ Khách Hàng</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="text-[var(--c-ink)]">Tạo Đơn Hộ Khách Hàng</SheetTitle>
+          <SheetDescription className="text-[var(--c-muted)]">
             Điền thông tin để tạo booking thủ công. Giá tiền sẽ được tự động tính theo cấu hình hiện hành.
           </SheetDescription>
         </SheetHeader>
@@ -132,8 +132,8 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                           variant="outline"
                           role="combobox"
                           className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
+                            "w-full justify-between bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]",
+                            !field.value && "text-[var(--c-muted)]"
                           )}
                         >
                           {field.value
@@ -143,8 +143,8 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0">
-                      <Command>
+                    <PopoverContent className="cz-admin w-[400px] p-0 bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
+                      <Command className="bg-transparent text-[var(--c-ink)]">
                         <CommandInput 
                           placeholder="Nhập tên hoặc số điện thoại..." 
                           value={customerSearch}
@@ -193,11 +193,11 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                     <FormLabel>Địa chỉ làm việc</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]">
                           <SelectValue placeholder={isLoadingDetail ? "Đang tải địa chỉ..." : "Chọn địa chỉ (mặc định lấy địa chỉ chính)"} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="cz-admin bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
                         {addresses.map((a: { id: string; fullAddress: string; isDefault: boolean }) => (
                           <SelectItem key={a.id} value={a.id}>
                             {a.fullAddress} {a.isDefault && "(Mặc định)"}
@@ -220,11 +220,11 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                   <FormLabel>Dịch vụ *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]">
                         <SelectValue placeholder="Chọn dịch vụ" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="cz-admin bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
                       {services.map((s: { id: string; name: string }) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.name}
@@ -251,8 +251,8 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                           <Button
                             variant={"outline"}
                             className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              "w-full pl-3 text-left font-normal bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]",
+                              !field.value && "text-[var(--c-muted)]"
                             )}
                           >
                             {field.value ? (
@@ -264,7 +264,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="cz-admin w-auto p-0 bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -288,7 +288,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                   <FormItem>
                     <FormLabel>Giờ làm việc *</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -305,11 +305,11 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                   <FormLabel>Phương thức thanh toán *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]">
                         <SelectValue placeholder="Chọn phương thức" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="cz-admin bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
                       <SelectItem value="CASH">Tiền mặt (CASH)</SelectItem>
                       <SelectItem value="VNPAY">VNPAY</SelectItem>
                     </SelectContent>
@@ -327,7 +327,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                 <FormItem>
                   <FormLabel>Lý do tạo hộ *</FormLabel>
                   <FormControl>
-                    <Input placeholder="VD: Tạo hộ khách hàng qua tổng đài" {...field} />
+                    <Input placeholder="VD: Tạo hộ khách hàng qua tổng đài" className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]" {...field} />
                   </FormControl>
                   <FormDescription>Lý do sẽ được ghi vào lịch sử (audit log).</FormDescription>
                   <FormMessage />
@@ -343,18 +343,18 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: AdminCreateBook
                 <FormItem>
                   <FormLabel>Ghi chú (Tùy chọn)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Ghi chú thêm cho Tasker..." {...field} />
+                    <Textarea placeholder="Ghi chú thêm cho Tasker..." className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="mr-3">
+            <div className="flex justify-end pt-4 border-t border-[var(--c-line)]">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="mr-3 bg-[var(--c-card)] border-[var(--c-line-strong)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]">
                 Hủy
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="text-white" style={{ background: "linear-gradient(180deg,#FFB300,#FF8F00)" }}>
                 {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Tạo Đơn Hàng
               </Button>

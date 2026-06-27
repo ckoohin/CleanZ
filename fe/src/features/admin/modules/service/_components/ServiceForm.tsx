@@ -130,16 +130,16 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
-            <TabsTrigger value="basic" className="rounded-lg py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-[var(--c-card-2)] p-1 rounded-xl h-auto">
+            <TabsTrigger value="basic" className="rounded-lg py-2.5 data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm">
               <FileText className="w-4 h-4 mr-2" />
               Thông tin chung
             </TabsTrigger>
-            <TabsTrigger value="media" className="rounded-lg py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="media" className="rounded-lg py-2.5 data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm">
               <ImageIcon className="w-4 h-4 mr-2" />
               Hình ảnh
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="rounded-lg py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="tasks" className="rounded-lg py-2.5 data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm">
               <ListChecks className="w-4 h-4 mr-2" />
               Chi tiết công việc
             </TabsTrigger>
@@ -152,7 +152,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                 name="name"
                 render={({ field }) => (
                   <FormItem className="col-span-1 md:col-span-2">
-                    <FormLabel className="font-bold">Tên dịch vụ <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel className="font-bold">Tên dịch vụ <span className="text-[#E11D48]">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Nhập tên dịch vụ (VD: Dọn dẹp nhà cơ bản)" {...field} />
                     </FormControl>
@@ -166,14 +166,14 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                 name="categoryId"
                 render={({ field }) => (
                   <FormItem className="col-span-1 md:col-span-2">
-                    <FormLabel className="font-bold">Danh mục <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel className="font-bold">Danh mục <span className="text-[#E11D48]">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Chọn danh mục cho dịch vụ" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="cz-admin">
                         {categories.map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
                             {cat.name}
@@ -200,7 +200,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                               <SelectValue placeholder="Chọn bảng giá cho dịch vụ (tuỳ chọn)" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="cz-admin">
                             <SelectItem value="none">-- Không chọn --</SelectItem>
                             {pricingConfigs?.map((config) => (
                               <SelectItem key={config.id} value={config.id}>
@@ -221,8 +221,8 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                       </BaseButton>
                     </div>
                     {field.value && field.value !== "none" && pricingConfigs?.find(c => c.id === field.value) && (
-                      <div className="mt-3 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
-                        <div className="text-sm font-semibold text-primary">Chi tiết bảng giá đã chọn:</div>
+                      <div className="mt-3 p-4 rounded-xl bg-[var(--c-primary-soft)] border border-[var(--c-primary)]/20 space-y-2">
+                        <div className="text-sm font-semibold text-[var(--c-primary-strong)]">Chi tiết bảng giá đã chọn:</div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           {(() => {
                             const selectedConfig = pricingConfigs.find(c => c.id === field.value);
@@ -230,24 +230,24 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                             return (
                               <>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Giá cơ bản:</span>
+                                  <span className="text-[var(--c-muted)]">Giá cơ bản:</span>
                                   <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.basePrice || 0)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Giá cao điểm:</span>
+                                  <span className="text-[var(--c-muted)]">Giá cao điểm:</span>
                                   <span className="font-medium">{selectedConfig.peakPrice ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.peakPrice) : "---"}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Phí thú cưng:</span>
+                                  <span className="text-[var(--c-muted)]">Phí thú cưng:</span>
                                   <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.petFee || 0)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Phí chờ (15p):</span>
+                                  <span className="text-[var(--c-muted)]">Phí chờ (15p):</span>
                                   <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.waitingFee || 0)}</span>
                                 </div>
-                                <div className="flex justify-between col-span-2 border-t border-primary/10 pt-2 mt-1">
-                                  <span className="text-muted-foreground">Chiết khấu nền tảng:</span>
-                                  <span className="font-medium text-destructive">{selectedConfig.platformCommissionRate || 0}%</span>
+                                <div className="flex justify-between col-span-2 border-t border-[var(--c-primary)]/10 pt-2 mt-1">
+                                  <span className="text-[var(--c-muted)]">Chiết khấu nền tảng:</span>
+                                  <span className="font-medium text-[#E11D48]">{selectedConfig.platformCommissionRate || 0}%</span>
                                 </div>
                               </>
                             );
@@ -307,7 +307,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                           <SelectValue placeholder="Chọn thời lượng..." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="cz-admin">
                         <SelectItem value="0.5">0.5 giờ (30 phút)</SelectItem>
                         <SelectItem value="1">1.0 giờ</SelectItem>
                         <SelectItem value="1.5">1.5 giờ (1h 30m)</SelectItem>
@@ -338,7 +338,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                           <SelectValue placeholder="Chọn khu vực hoạt động..." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="cz-admin">
                         <SelectItem value="Toàn quốc">Toàn quốc (Tất cả)</SelectItem>
                         <SelectItem value="Hà Nội">Hà Nội</SelectItem>
                         <SelectItem value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</SelectItem>
@@ -361,9 +361,9 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                 control={form.control}
                 name="isActive"
                 render={({ field }) => (
-                  <FormItem className="col-span-1 md:col-span-2 flex flex-row items-center justify-between rounded-xl border border-border p-4 shadow-sm bg-muted/20">
+                  <FormItem className="col-span-1 md:col-span-2 flex flex-row items-center justify-between rounded-xl border border-[var(--c-line)] p-4 shadow-sm bg-[var(--c-card-2)]">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base font-bold text-foreground">
+                      <FormLabel className="text-base font-bold text-[var(--c-ink)]">
                         Trạng thái hoạt động
                       </FormLabel>
                       <FormDescription>
@@ -404,7 +404,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
               )}
             />
 
-            <div className="h-px bg-border w-full my-6"></div>
+            <div className="h-px border-[var(--c-line)] w-full my-6"></div>
 
             <FormField
               control={form.control}
@@ -432,13 +432,13 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
               control={form.control}
               name="includedTasks"
               render={({ field }) => (
-                <FormItem className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
+                <FormItem className="rounded-2xl border border-[var(--c-primary)]/20 bg-[var(--c-primary-soft)] p-6 shadow-sm">
                   <div className="mb-6 flex flex-col gap-1.5">
-                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-primary">
+                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-[var(--c-primary-strong)]">
                       <CheckCircle2 className="w-6 h-6" />
                       Danh sách công việc BAO GỒM
                     </FormLabel>
-                    <FormDescription className="text-primary/70 text-base">
+                    <FormDescription className="text-[var(--c-primary-strong)]/70 text-base">
                       Các hạng mục công việc mà Tasker bắt buộc phải thực hiện trong gói dịch vụ này.
                     </FormDescription>
                   </div>
@@ -458,13 +458,13 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
               control={form.control}
               name="excludedTasks"
               render={({ field }) => (
-                <FormItem className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
+                <FormItem className="rounded-2xl border border-[#E11D48]/20 bg-[rgba(225,29,72,0.12)] p-6 shadow-sm">
                   <div className="mb-6 flex flex-col gap-1.5">
-                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-destructive">
+                    <FormLabel className="font-bold text-xl flex items-center gap-2 text-[#E11D48]">
                       <XCircle className="w-6 h-6" />
                       Danh sách công việc KHÔNG BAO GỒM
                     </FormLabel>
-                    <FormDescription className="text-destructive/70 text-base">
+                    <FormDescription className="text-[#E11D48] text-base">
                       Các yêu cầu ngoài phạm vi dịch vụ, Tasker có quyền từ chối thực hiện.
                     </FormDescription>
                   </div>
@@ -482,7 +482,7 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-4 pt-6 border-t border-border mt-8">
+        <div className="flex justify-end gap-4 pt-6 border-t border-[var(--c-line)] mt-8">
           <BaseButton
             type="submit"
             variant="primary"

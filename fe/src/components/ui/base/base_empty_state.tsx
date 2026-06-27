@@ -15,17 +15,15 @@ export default function BaseEmptyState({
   action,
 }: BaseEmptyStateProps) {
   return (
-    <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-border bg-card/30 backdrop-blur-sm">
-      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+    <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--c-line-strong)] bg-[var(--c-card-2)] px-4 py-16 text-center">
+      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)]">
         <Icon size={24} aria-hidden="true" />
       </div>
 
-      <h3 className="text-base font-semibold text-foreground tracking-tight">
-        {title}
-      </h3>
+      <h3 className="text-base font-bold tracking-tight text-[var(--c-ink)]">{title}</h3>
 
       {description && (
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm text-pretty mx-auto leading-relaxed">
+        <p className="mx-auto mt-1 max-w-sm text-pretty text-sm leading-relaxed text-[var(--c-muted)]">
           {description}
         </p>
       )}

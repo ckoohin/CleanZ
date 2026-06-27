@@ -97,7 +97,7 @@ function AdminThreadPanel({
         lockedHint="Ticket đã đóng — không thể gửi tin nhắn."
         hideScrollbar
         threadClassName="px-1 pb-2"
-        composerClassName="border-t border-border/40 bg-card pt-3"
+        composerClassName="border-t border-[var(--c-line)] bg-[var(--c-card)] pt-3"
       />
     </div>
   );
@@ -150,7 +150,7 @@ export const AdminTicketChat: React.FC<{ ticket: TicketAdminDetail }> = ({
   return (
     <div className="space-y-3">
       {/* Tab luồng */}
-      <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
+      <div className="flex gap-1 rounded-xl bg-[var(--c-card-2)] p-1">
         {tabs.map((t) => {
           const Icon = t.icon;
           return (
@@ -161,8 +161,8 @@ export const AdminTicketChat: React.FC<{ ticket: TicketAdminDetail }> = ({
               onClick={() => setActive(t.key)}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                 active === t.key
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
+                  ? "bg-[var(--c-card)] text-[var(--c-ink)] shadow-sm"
+                  : "text-[var(--c-muted)]"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />

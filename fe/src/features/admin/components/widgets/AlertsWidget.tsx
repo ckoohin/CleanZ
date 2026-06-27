@@ -2,7 +2,7 @@
 
 import { ShieldAlert, UserX, Headset, IdCard, Banknote, CheckCircle, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import { AdminCard } from "@/components/admin";
 import { cn } from "@/lib/utils";
 import { useAlerts } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
@@ -73,15 +73,15 @@ export function AlertsWidget() {
 
 
   return (
-    <Card className="border border-border bg-card shadow-sm rounded-2xl">
-      <CardContent className="p-5">
+    <AdminCard>
+      <div className="p-5">
         {live.length === 0 ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center gap-2 text-[14px] font-semibold text-[#0E9F6E]">
               <CheckCircle className="w-5 h-5 shrink-0" />
               <h2>Cần xử lý ngay</h2>
             </div>
-            <div className="flex items-center gap-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-medium p-4 rounded-xl">
+            <div className="flex items-center gap-2.5 bg-[rgba(14,159,110,0.12)] border border-[rgba(14,159,110,0.20)] text-[#0E9F6E] text-sm font-medium p-4 rounded-xl">
               <CheckCircle className="w-4 h-4 shrink-0" />
               Mọi việc đã xử lý xong.
             </div>
@@ -89,11 +89,11 @@ export function AlertsWidget() {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[14px] font-semibold text-red-600 dark:text-red-400">
+              <div className="flex items-center gap-2 text-[14px] font-semibold text-[#E11D48]">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
                 <h2>Cần xử lý ngay</h2>
               </div>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-[var(--c-muted)]">
                 {totalCount} mục · {live.length} loại
               </span>
             </div>
@@ -113,8 +113,8 @@ export function AlertsWidget() {
                   className={cn(
                     "rounded-xl p-3.5 cursor-pointer transition-all hover:-translate-y-0.5 border flex flex-col justify-between min-h-[105px]",
                     level === "crit"
-                      ? "bg-red-500/5 hover:bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
-                      : "bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
+                      ? "bg-[rgba(225,29,72,0.06)] hover:bg-[rgba(225,29,72,0.12)] border-[rgba(225,29,72,0.20)] text-[#E11D48]"
+                      : "bg-[rgba(217,119,6,0.08)] hover:bg-[rgba(217,119,6,0.14)] border-[rgba(217,119,6,0.22)] text-[#D97706]"
                   )}
                 >
                   <div className="flex items-center gap-1.5 text-xs font-semibold">
@@ -122,7 +122,7 @@ export function AlertsWidget() {
                     <span className="truncate">{label}</span>
                   </div>
                   <div className="mt-2">
-                    <div className="text-3xl font-bold leading-none">{count}</div>
+                    <div className="text-3xl font-bold leading-none tabular-nums">{count}</div>
                     <div className="text-[10.5px] mt-1 opacity-90 truncate leading-none">{hint}</div>
                   </div>
                 </div>
@@ -130,7 +130,7 @@ export function AlertsWidget() {
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </AdminCard>
   );
 }

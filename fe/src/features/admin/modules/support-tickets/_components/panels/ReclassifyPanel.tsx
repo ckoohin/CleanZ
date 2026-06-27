@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,15 +41,15 @@ export function ReclassifyPanel({ ticket }: { ticket: TicketAdminDetail }) {
 
   return (
     <section className="space-y-2" aria-labelledby="reclassify-panel-title">
-      <p id="reclassify-panel-title" className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+      <p id="reclassify-panel-title" className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">
         Phân loại lại
       </p>
 
       <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
-        <SelectTrigger className="h-9 rounded-lg text-sm w-full" aria-label="Loại ticket">
+        <SelectTrigger className="h-9 rounded-lg text-sm w-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-label="Loại ticket">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="cz-admin">
           {CATEGORY_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
@@ -63,14 +63,14 @@ export function ReclassifyPanel({ ticket }: { ticket: TicketAdminDetail }) {
           value={subtype}
           onChange={(e) => setSubtype(e.target.value)}
           placeholder="Subtype (tuỳ chọn)..."
-          className="h-9 rounded-lg text-sm flex-1"
+          className="h-9 rounded-lg text-sm flex-1 bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
           aria-label="Subtype"
         />
         <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
-          <SelectTrigger className="h-9 rounded-lg text-sm w-32" aria-label="Độ ưu tiên">
+          <SelectTrigger className="h-9 rounded-lg text-sm w-32 border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-label="Độ ưu tiên">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="cz-admin">
             {PRIORITY_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
@@ -80,16 +80,16 @@ export function ReclassifyPanel({ ticket }: { ticket: TicketAdminDetail }) {
         </Select>
       </div>
 
-      <Button
-        size="sm"
-        variant="outline"
-        className="w-full rounded-lg gap-1.5"
+      <AdminButton
+        size="md"
+        variant="secondary"
+        className="w-full rounded-lg"
+        icon={<Tag className="w-3.5 h-3.5" />}
         onClick={handleSubmit}
         disabled={reclassify.isPending}
       >
-        <Tag className="w-3.5 h-3.5" />
         {reclassify.isPending ? "Đang lưu..." : "Phân loại lại"}
-      </Button>
+      </AdminButton>
     </section>
   );
 }

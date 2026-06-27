@@ -1,16 +1,16 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { SectionCard, HorizontalBarChart } from "@/components/admin";
 import { useFinanceBreakdown } from "../../hooks/useDashboard";
 import { useDashboardStore } from "../../stores/dashboard.store";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 
 const METHOD_COLORS: Record<string, string> = {
-  CASH: "#888780",
-  MOMO: "#d4537e",
-  VNPAY: "#1d4ed8",
-  ZALOPAY: "#1d9e75",
-  VIETQR: "#b45309",
+  CASH: "#8A95A8",
+  MOMO: "#7C3AED",
+  VNPAY: "#2563EB",
+  ZALOPAY: "#0E9F6E",
+  VIETQR: "#D97706",
 };
 
 export function PaymentMixWidget() {
@@ -33,29 +33,17 @@ export function PaymentMixWidget() {
   });
 
   return (
-    <Card className="border border-border bg-card shadow-sm rounded-2xl h-full flex flex-col justify-between">
-      <CardContent className="p-5">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-[15px] font-semibold text-foreground">Cơ cấu thanh toán</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Theo phương thức · trong kỳ</p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2.5 mt-3">
-          {items.map((r) => (
-            <div key={r.label} className="flex items-center gap-3 text-[12.5px]">
-              <span className="w-[38%] text-muted-foreground truncate">{r.label}</span>
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${r.percent}%`, backgroundColor: r.color }}
-                />
-              </div>
-              <span className="w-[52px] text-right font-semibold text-foreground">{r.percent}%</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <SectionCard
+      title="Cơ cấu thanh toán"
+      hint="Theo phương thức · trong kỳ"
+      cardClassName="h-full"
+    >
+      <HorizontalBarChart
+        className="mt-3"
+        max={100}
+        formatValue={(v) => `${v}%`}
+        items={items.map((r) => ({ label: r.label, value: r.percent, color: r.color }))}
+      />
+    </SectionCard>
   );
 }

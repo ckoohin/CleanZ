@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -75,14 +75,14 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && (onClose(), reset())}>
-      <DialogContent className="sm:max-w-md rounded-2xl">
+      <DialogContent className="cz-admin sm:max-w-md rounded-2xl bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Tạo sự cố từ Ticket</DialogTitle>
+          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Tạo sự cố từ Ticket</DialogTitle>
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-3 overflow-y-auto py-1">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Ticket hư hỏng tài sản *</Label>
+            <Label className="text-xs font-semibold text-[var(--c-ink)]">Ticket hư hỏng tài sản *</Label>
             <LookupCombobox
               placeholder="Tìm ticket theo mã / tên khách / SĐT..."
               items={ticketLookup.data ?? []}
@@ -101,23 +101,23 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Tiêu đề *</Label>
+            <Label className="text-xs font-semibold text-[var(--c-ink)]">Tiêu đề *</Label>
             <Input value={title} maxLength={255} onChange={(e) => setTitle(e.target.value)} className="rounded-lg text-sm" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Mô tả *</Label>
+            <Label className="text-xs font-semibold text-[var(--c-ink)]">Mô tả *</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="resize-none rounded-lg text-sm" />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase text-muted-foreground">Hạng mục thiệt hại *</Label>
+            <Label className="text-xs font-semibold uppercase text-[var(--c-muted)]">Hạng mục thiệt hại *</Label>
             {items.map((it, i) => (
-              <div key={i} className="space-y-2 rounded-lg border border-border/40 p-2.5">
+              <div key={i} className="space-y-2 rounded-lg border border-[var(--c-line)] p-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-muted-foreground">Hạng mục {i + 1}</span>
+                  <span className="text-xs font-bold text-[var(--c-muted)]">Hạng mục {i + 1}</span>
                   {items.length > 1 && (
                     <button onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))} aria-label="Xoá">
-                      <Trash2 className="size-4 text-muted-foreground hover:text-red-500" />
+                      <Trash2 className="size-4 text-[var(--c-muted)] hover:text-[#E11D48]" />
                     </button>
                   )}
                 </div>
@@ -125,17 +125,17 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
                 <Input type="number" min={1} max={CLAIM_MAX} value={it.claimedAmount} onChange={(e) => setItem(i, { claimedAmount: e.target.value })} placeholder={`Số tiền (≤ ${formatVnd(CLAIM_MAX)})`} className="h-8 rounded-lg text-sm" />
               </div>
             ))}
-            <Button variant="outline" size="sm" className="w-full rounded-lg gap-1.5" onClick={() => setItems((p) => [...p, emptyItem()])}>
+            <AdminButton variant="secondary" size="sm" className="w-full rounded-lg gap-1.5" onClick={() => setItems((p) => [...p, emptyItem()])}>
               <Plus className="size-3.5" /> Thêm hạng mục
-            </Button>
+            </AdminButton>
           </div>
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={() => { onClose(); reset(); }}>Huỷ</Button>
-          <Button size="sm" className="rounded-full" onClick={handleSubmit} disabled={!canSubmit || create.isPending}>
+          <AdminButton variant="secondary" size="sm" className="rounded-full" onClick={() => { onClose(); reset(); }}>Huỷ</AdminButton>
+          <AdminButton variant="primary" size="sm" className="rounded-full" onClick={handleSubmit} disabled={!canSubmit || create.isPending}>
             {create.isPending ? "Đang tạo..." : "Tạo sự cố"}
-          </Button>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

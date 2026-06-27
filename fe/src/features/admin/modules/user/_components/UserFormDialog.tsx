@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { AdminButton, adminInputClass } from "@/components/admin";
 import {
   Select,
   SelectContent,
@@ -136,10 +136,10 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg rounded-[20px]">
+      <DialogContent className="cz-admin sm:max-w-lg rounded-[20px] bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Cập nhật người dùng" : "Thêm người dùng mới"}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-[var(--c-ink)]">{isEdit ? "Cập nhật người dùng" : "Thêm người dùng mới"}</DialogTitle>
+          <DialogDescription className="text-[var(--c-muted)]">
             {isEdit
               ? "Chỉnh sửa thông tin tài khoản. Để trống mật khẩu nếu không muốn thay đổi."
               : "Tạo tài khoản người dùng mới cho hệ thống."}
@@ -154,10 +154,11 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
         >
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="user-email">Email</Label>
+              <Label htmlFor="user-email" className="text-[var(--c-ink-soft)]">Email</Label>
               <Input
                 id="user-email"
                 type="email"
+                className={adminInputClass}
                 value={form.email}
                 onChange={(e) => setField("email", e.target.value)}
                 placeholder="user@example.com"
@@ -168,16 +169,17 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
                 aria-describedby={errors.email ? "user-email-error" : undefined}
               />
               {errors.email && (
-                <p id="user-email-error" className="text-xs text-destructive">
+                <p id="user-email-error" className="text-xs text-[#E11D48]">
                   {errors.email}
                 </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="user-fullName">Họ và tên</Label>
+              <Label htmlFor="user-fullName" className="text-[var(--c-ink-soft)]">Họ và tên</Label>
               <Input
                 id="user-fullName"
+                className={adminInputClass}
                 value={form.fullName}
                 onChange={(e) => setField("fullName", e.target.value)}
                 placeholder="Nguyễn Văn A"
@@ -185,7 +187,7 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
                 aria-describedby={errors.fullName ? "user-fullName-error" : undefined}
               />
               {errors.fullName && (
-                <p id="user-fullName-error" className="text-xs text-destructive">
+                <p id="user-fullName-error" className="text-xs text-[#E11D48]">
                   {errors.fullName}
                 </p>
               )}
@@ -193,9 +195,10 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="user-phone">Số điện thoại</Label>
+                <Label htmlFor="user-phone" className="text-[var(--c-ink-soft)]">Số điện thoại</Label>
                 <Input
                   id="user-phone"
+                  className={adminInputClass}
                   value={form.phone}
                   onChange={(e) => setField("phone", e.target.value)}
                   placeholder="0901234567"
@@ -203,28 +206,29 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
                   aria-describedby={errors.phone ? "user-phone-error" : undefined}
                 />
                 {errors.phone && (
-                  <p id="user-phone-error" className="text-xs text-destructive">
+                  <p id="user-phone-error" className="text-xs text-[#E11D48]">
                     {errors.phone}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="user-role">Vai trò</Label>
+                <Label htmlFor="user-role" className="text-[var(--c-ink-soft)]">Vai trò</Label>
                 {isEdit ? (
                   // Vai trò chỉ đổi qua flow chuyên biệt — read-only khi sửa.
                   <Input
                     id="user-role"
+                    className={adminInputClass}
                     value={ROLE_LABELS[form.role] || form.role}
                     disabled
                     readOnly
                   />
                 ) : (
                   <Select value={form.role} onValueChange={(val) => setField("role", val)}>
-                    <SelectTrigger id="user-role" className="w-full">
+                    <SelectTrigger id="user-role" className="w-full h-10 rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="cz-admin">
                       {CREATABLE_ROLES.map((role) => (
                         <SelectItem key={role} value={role}>
                           {ROLE_LABELS[role] || role}
@@ -237,12 +241,13 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="user-password">
+              <Label htmlFor="user-password" className="text-[var(--c-ink-soft)]">
                 {isEdit ? "Mật khẩu mới (tùy chọn)" : "Mật khẩu"}
               </Label>
               <Input
                 id="user-password"
                 type="password"
+                className={adminInputClass}
                 value={form.password}
                 onChange={(e) => setField("password", e.target.value)}
                 placeholder={isEdit ? "Để trống nếu không đổi" : "••••••••"}
@@ -250,32 +255,31 @@ export const UserFormDialog: React.FC<UserFormDialogProps> = ({
                 aria-describedby={errors.password ? "user-password-error" : undefined}
               />
               {errors.password && (
-                <p id="user-password-error" className="text-xs text-destructive">
+                <p id="user-password-error" className="text-xs text-[#E11D48]">
                   {errors.password}
                 </p>
               )}
             </div>
 
             {!isEdit && (
-              <p className="rounded-xl bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
+              <p className="rounded-xl bg-[var(--c-card-2)] px-3 py-2.5 text-xs text-[var(--c-muted)]">
                 Người dùng sẽ phải đổi mật khẩu ở lần đăng nhập đầu tiên.
               </p>
             )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
+            <AdminButton
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={onClose}
               disabled={isPending}
-              className="rounded-full"
             >
               Hủy
-            </Button>
-            <Button type="submit" disabled={isPending} className="rounded-full">
+            </AdminButton>
+            <AdminButton type="submit" variant="primary" disabled={isPending}>
               {isPending ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo người dùng"}
-            </Button>
+            </AdminButton>
           </DialogFooter>
         </form>
       </DialogContent>

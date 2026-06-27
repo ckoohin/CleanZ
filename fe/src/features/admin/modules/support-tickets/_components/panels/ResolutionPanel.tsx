@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -64,15 +64,15 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
 
   return (
     <section className="space-y-2" aria-labelledby="resolution-panel-title">
-      <p id="resolution-panel-title" className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+      <p id="resolution-panel-title" className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">
         Ghi nhận kết luận
       </p>
 
       <Select value={type} onValueChange={(v) => setType(v as ResolutionType)}>
-        <SelectTrigger className="h-9 rounded-lg text-sm w-full" aria-label="Loại kết luận">
+        <SelectTrigger className="h-9 rounded-lg text-sm w-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-label="Loại kết luận">
           <SelectValue placeholder="Loại kết luận..." />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="cz-admin">
           {RESOLUTION_TYPE.map((t) => (
             <SelectItem key={t} value={t}>
               {RESOLUTION_LABEL[t]}
@@ -88,7 +88,7 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="Số tiền (VND) — bắt buộc..."
-          className="h-9 rounded-lg text-sm"
+          className="h-9 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
           aria-label="Số tiền"
         />
       )}
@@ -97,7 +97,7 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
           value={voucherId}
           onChange={(e) => setVoucherId(e.target.value)}
           placeholder="Voucher ID (tuỳ chọn)..."
-          className="h-9 rounded-lg text-sm"
+          className="h-9 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
           aria-label="Voucher ID"
         />
       )}
@@ -106,44 +106,44 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
           value={recleanBookingId}
           onChange={(e) => setRecleanBookingId(e.target.value)}
           placeholder="Mã đơn làm lại (tuỳ chọn)..."
-          className="h-9 rounded-lg text-sm"
+          className="h-9 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
           aria-label="Mã đơn làm lại"
         />
       )}
 
       <Textarea
         placeholder="Ghi chú kết luận..."
-        className="text-sm resize-none rounded-lg"
+        className="text-sm resize-none rounded-lg bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
         rows={2}
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
 
-      <Button
-        size="sm"
-        variant="outline"
-        className="w-full rounded-lg gap-1.5"
+      <AdminButton
+        size="md"
+        variant="secondary"
+        className="w-full rounded-lg"
+        icon={<CheckCircle2 className="w-3.5 h-3.5" />}
         onClick={handleSubmit}
         disabled={disabled}
       >
-        <CheckCircle2 className="w-3.5 h-3.5" />
         {addResolution.isPending ? "Đang lưu..." : "Lưu kết luận"}
-      </Button>
+      </AdminButton>
 
       {ticket.resolutions.length > 0 && (
         <div className="space-y-1.5 pt-1">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">
             Kết luận đã ghi
           </p>
           {ticket.resolutions.map((r) => (
-            <div key={r.id} className="rounded-lg bg-muted/40 border border-border/30 p-2.5 text-xs">
-              <p className="font-semibold text-foreground/80">{RESOLUTION_LABEL[r.type] ?? r.type}</p>
-              {r.note && <p className="text-muted-foreground mt-0.5">{r.note}</p>}
+            <div key={r.id} className="rounded-lg bg-[var(--c-card-2)] border border-[var(--c-line)] p-2.5 text-xs">
+              <p className="font-semibold text-[var(--c-ink-soft)]">{RESOLUTION_LABEL[r.type] ?? r.type}</p>
+              {r.note && <p className="text-[var(--c-muted)] mt-0.5">{r.note}</p>}
               {r.amount && (
-                <p className="text-primary font-bold">
+                <p className="text-[var(--c-primary-strong)] font-bold">
                   +{Number(r.amount).toLocaleString("vi-VN")}đ{" "}
                   {!r.walletTransactionId && (
-                    <span className="font-normal text-muted-foreground">(chưa chuyển tiền)</span>
+                    <span className="font-normal text-[var(--c-muted)]">(chưa chuyển tiền)</span>
                   )}
                 </p>
               )}

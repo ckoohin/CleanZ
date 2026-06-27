@@ -35,7 +35,7 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
   if (isLoading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="w-8 h-8 text-[var(--c-primary-strong)] animate-spin" />
       </div>
     );
   }
@@ -66,16 +66,16 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
           <ArrowLeft className="w-4 h-4" />
         </BaseButton>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)]">
             Cập nhật dịch vụ
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Chỉnh sửa thông tin chi tiết của dịch vụ <span className="font-bold text-primary">{service.name}</span>
+          <p className="text-[var(--c-muted)] text-sm mt-1">
+            Chỉnh sửa thông tin chi tiết của dịch vụ <span className="font-bold text-[var(--c-primary-strong)]">{service.name}</span>
           </p>
         </div>
       </div>
 
-      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 shadow-sm rounded-3xl p-6 md:p-8">
         <ServiceForm 
           initialValues={service}
           onSubmit={handleSubmit} 

@@ -131,18 +131,18 @@ export default function AdminCategoriesPage() {
       title: "Gói dịch vụ",
       render: (row) => (
         <div className="flex items-center gap-4">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[var(--c-line)]/50 bg-[var(--c-card-2)]">
             {row.iconUrl ? (
               <Image src={row.iconUrl} alt={row.name} fill className="object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <div className="flex h-full w-full items-center justify-center text-[var(--c-muted)]">
                 <ImageIcon className="w-5 h-5 opacity-50" />
               </div>
             )}
           </div>
           <div className="flex flex-col gap-1">
-            <span className="font-bold text-base text-foreground">{row.name}</span>
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary w-fit">{row.packageCode}</span>
+            <span className="font-bold text-base text-[var(--c-ink)]">{row.name}</span>
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] w-fit">{row.packageCode}</span>
           </div>
         </div>
       ),
@@ -163,7 +163,7 @@ export default function AdminCategoriesPage() {
               updateMutation.mutate({ id: row.id, payload: { isActive: checked } });
             }}
           />
-          <span className={`text-xs font-medium ${row.isActive ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          <span className={`text-xs font-medium ${row.isActive ? 'text-[#0E9F6E]' : 'text-[var(--c-muted)]'}`}>
             {row.isActive ? "Bật" : "Tắt"}
           </span>
         </div>
@@ -173,7 +173,7 @@ export default function AdminCategoriesPage() {
       key: "createdAt",
       title: "Ngày tạo",
       render: (row) => (
-        <span className="text-muted-foreground text-sm">
+        <span className="text-[var(--c-muted)] text-sm">
           {format(new Date(row.createdAt), "dd/MM/yyyy")}
         </span>
       ),
@@ -197,10 +197,10 @@ export default function AdminCategoriesPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)]">
             Quản lý Gói Dịch Vụ
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-[var(--c-muted)] text-sm mt-1">
             Thiết lập các gói dịch vụ lớn (VD: Dọn dẹp nhà cửa, Tổng vệ sinh...) và cấu hình các loại phụ phí.
           </p>
         </div>
@@ -214,7 +214,7 @@ export default function AdminCategoriesPage() {
         </BaseButton>
       </div>
 
-      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 shadow-sm rounded-3xl p-6">
         <BaseTableList
           columns={columns}
           data={filteredPackages}
@@ -234,7 +234,7 @@ export default function AdminCategoriesPage() {
 
       {/* Delete Modal */}
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
-        <AlertDialogContent className="rounded-[2rem]">
+        <AlertDialogContent className="cz-admin rounded-[2rem]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold">Xác nhận xóa</AlertDialogTitle>
             <AlertDialogDescription>
@@ -244,7 +244,7 @@ export default function AdminCategoriesPage() {
           <AlertDialogFooter className="mt-4">
             <AlertDialogCancel className="h-11 rounded-xl font-bold">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 rounded-xl font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 rounded-xl font-bold bg-[#E11D48] text-white hover:bg-[#E11D48]"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
@@ -256,7 +256,7 @@ export default function AdminCategoriesPage() {
 
       {/* Create/Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="cz-admin sm:max-w-[600px] rounded-[2rem] max-h-[90vh] overflow-y-auto">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle className="text-xl font-bold">
@@ -270,7 +270,7 @@ export default function AdminCategoriesPage() {
             <div className="grid gap-4 py-4 text-sm">
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2 col-span-2">
-                  <Label htmlFor="name" className="font-bold">Tên gói dịch vụ <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="name" className="font-bold">Tên gói dịch vụ <span className="text-[#E11D48]">*</span></Label>
                   <Input
                     id="name"
                     placeholder="VD: Dọn dẹp nhà cửa"
@@ -304,7 +304,7 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
 
-              <div className="h-px bg-border/60 my-2" />
+              <div className="h-px border-[var(--c-line)]/60 my-2" />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
