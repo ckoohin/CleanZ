@@ -172,7 +172,7 @@ function PolicyPickerDialog({
         </div>
 
         {/* List */}
-        <ScrollArea className="flex-1 px-4 py-3">
+        <ScrollArea className="flex-1 min-h-0 px-4 py-3">
           {isLoading ? (
             <div className="flex justify-center py-10">
               <RefreshCw className="w-5 h-5 animate-spin text-primary" />

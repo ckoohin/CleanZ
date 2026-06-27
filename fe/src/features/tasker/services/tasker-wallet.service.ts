@@ -4,6 +4,7 @@ import type {
   TaskerDepositTransaction,
   TaskerWallet,
   TaskerWalletTransactionList,
+  TaskerWalletTransactionQuery,
   TaskerWithdrawalRequest,
 } from "../types/tasker-wallet.types";
 
@@ -13,9 +14,11 @@ export const taskerWalletApi = {
   getWallet: (): Promise<TaskerWallet> =>
     http.get<TaskerWallet>(BASE).then((response) => response.data),
 
-  getTransactions: (): Promise<TaskerWalletTransactionList> =>
+  getTransactions: (
+    params?: TaskerWalletTransactionQuery,
+  ): Promise<TaskerWalletTransactionList> =>
     http
-      .get<TaskerWalletTransactionList>(`${BASE}/transactions`)
+      .get<TaskerWalletTransactionList>(`${BASE}/transactions`, { params })
       .then((response) => response.data),
 
   getDepositTransactions: (): Promise<TaskerDepositTransaction[]> =>
