@@ -24,6 +24,8 @@ import { QueueBoardService } from './queue-board.service';
       { name: 'notificationQueue' },
       { name: 'paymentQueue' },
       { name: 'analyticsQueue' },
+      { name: 'mailQueue' },
+      { name: 'taskerQueue' },
     ),
   ],
   providers: [QueueBoardService],

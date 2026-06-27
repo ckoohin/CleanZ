@@ -25,6 +25,10 @@ export class Token {
   @Column({ name: 'is_used', default: false })
   isUsed: boolean;
 
+  // Số lần nhập sai (dùng cho OTP đăng nhập) — vô hiệu token sau N lần.
+  @Column({ type: 'int', default: 0 })
+  attempts: number;
+
   @ManyToOne(() => User, (user) => user.tokens, { onDelete: 'CASCADE' })
   user: User;
 

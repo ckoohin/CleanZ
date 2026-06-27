@@ -15,6 +15,7 @@ export const TICKET_CATEGORY = [
   'PROPERTY_DAMAGE',
   'PAYMENT_BILLING',
   'ACCOUNT_TECHNICAL',
+  'APPEAL',
   'OTHER',
 ] as const;
 export type TicketCategory = (typeof TICKET_CATEGORY)[number];
@@ -39,7 +40,12 @@ export const RESOLUTION_TYPE = [
 ] as const;
 export type ResolutionType = (typeof RESOLUTION_TYPE)[number];
 
-export const TICKET_SOURCE = ['CUSTOMER_APP', 'TASKER_APP', 'ADMIN'] as const;
+export const TICKET_SOURCE = [
+  'CUSTOMER_APP',
+  'TASKER_APP',
+  'TASKER_APPEAL',
+  'ADMIN',
+] as const;
 export type TicketSource = (typeof TICKET_SOURCE)[number];
 
 export const MONEY_RESOLUTION_TYPES: ResolutionType[] = [
@@ -50,5 +56,6 @@ export const MONEY_RESOLUTION_TYPES: ResolutionType[] = [
 
 export const NO_BOOKING_CATEGORIES: TicketCategory[] = [
   'ACCOUNT_TECHNICAL',
+  'APPEAL',
   'OTHER',
 ];

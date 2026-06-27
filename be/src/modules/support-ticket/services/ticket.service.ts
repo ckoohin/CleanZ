@@ -43,6 +43,7 @@ import { MessageCryptoService } from './message-crypto.service';
 
 const NO_BOOKING_CATEGORIES = [
   TicketCategory.ACCOUNT_TECHNICAL,
+  TicketCategory.APPEAL,
   TicketCategory.OTHER,
 ];
 

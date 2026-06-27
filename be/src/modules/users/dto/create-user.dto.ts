@@ -1,5 +1,6 @@
 import {
-  IsEnum,
+  IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -15,7 +16,7 @@ export class CreateUserDto {
     example: 'newuser@example.com',
     description: 'Email tài khoản',
   })
-  @IsString()
+  @IsEmail({}, { message: 'Email không hợp lệ' })
   @IsNotEmpty({ message: 'Email không được để trống' })
   email!: string;
 
@@ -25,7 +26,6 @@ export class CreateUserDto {
     description: 'Mật khẩu người dùng (bắt buộc với account local)',
   })
   @IsString()
-  @IsOptional()
   @IsNotEmpty({ message: 'Password không được để trống' })
   @MinLength(6, { message: 'Password phải có ít nhất 6 ký tự' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/, {
@@ -55,7 +55,10 @@ export class CreateUserDto {
   })
   phone?: string;
 
-  @IsEnum(UserRole, { message: 'Role phải là Tasker hoặc Customer' })
+  // Chặn tạo ADMIN qua API này — tài khoản admin quản lý qua kênh riêng (seed).
+  @IsIn([UserRole.CUSTOMER, UserRole.TASKER], {
+    message: 'Role chỉ được là Customer hoặc Tasker',
+  })
   @IsOptional()
   role?: UserRole;
 }

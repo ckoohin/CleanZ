@@ -12,6 +12,23 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
 
+/**
+ * Đọc boolean từ object GỐC (obj[key]) — vì ValidationPipe bật enableImplicitConversion
+ * nên "false" đã bị ép thành true TRƯỚC khi @Transform chạy. Đọc obj[key] để parse chuẩn.
+ */
+const toOptionalBoolean = ({
+  obj,
+  key,
+}: {
+  obj: Record<string, unknown>;
+  key: string;
+}) => {
+  const v = obj?.[key];
+  if (v === true || v === 'true') return true;
+  if (v === false || v === 'false') return false;
+  return undefined;
+};
+
 export class QueryUsersDto {
   @ApiPropertyOptional({ description: 'Search by email or fullName' })
   @IsOptional()
@@ -25,23 +42,22 @@ export class QueryUsersDto {
 
   @ApiPropertyOptional({ description: 'Filter by active status' })
   @IsOptional()
+  @Transform(toOptionalBoolean)
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
   isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Filter by email verification status' })
   @IsOptional()
+  @Transform(toOptionalBoolean)
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
   isVerified?: boolean;
+
+  /** true => chỉ lấy user đã bị xóa mềm (soft-deleted). */
+  @ApiPropertyOptional({ description: 'Chỉ lấy user đã xóa mềm' })
+  @IsOptional()
+  @Transform(toOptionalBoolean)
+  @IsBoolean()
+  deleted?: boolean;
 
   @ApiPropertyOptional({ enum: AuthProvider })
   @IsOptional()

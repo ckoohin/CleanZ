@@ -1,4 +1,4 @@
-import { Tasker360View } from "@/features/admin-tasker/_components/Tasker360View";
+import { Tasker360View } from "@/features/admin/modules/tasker/_components/Tasker360View";
 
 export default async function AdminTaskerDetailRoute({
   params,

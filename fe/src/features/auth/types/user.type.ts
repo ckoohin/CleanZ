@@ -12,6 +12,8 @@ export interface User {
   avatarUrl?: string | null;
   isActive: boolean;
   isVerified: boolean;
+  /** Bật khi tài khoản do admin tạo bằng mật khẩu tạm — buộc đổi ở lần đăng nhập đầu. */
+  mustChangePassword?: boolean;
   lastLogin?: string | null;
   createdAt: string;
   updatedAt: string;

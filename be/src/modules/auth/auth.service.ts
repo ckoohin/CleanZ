@@ -76,10 +76,11 @@ export class AuthService {
         verificationUrl,
       );
 
+      // Không trả `hash` (token xác thực email) trong response — chỉ gửi qua email
+      // link, tránh tự verify mà không cần truy cập hộp thư.
       return {
         message:
           'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
-        hash,
       };
     }, 'Lỗi khi đăng kí');
   }
@@ -141,10 +142,10 @@ export class AuthService {
         verificationUrl,
       );
 
+      // Không trả `hash` (token xác thực) trong response — chỉ qua email link.
       return {
         message:
           'Gửi lại email xác thực thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
-        hash,
       };
     }, 'Lỗi khi gửi lại email xác thực');
   }
@@ -190,15 +191,17 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
-      // [DEV] Log OTP để đăng nhập khi không có email thật. Gỡ trước khi lên production.
-      console.log(
-        `\n========== OTP đăng nhập (${user.email}): ${otp} ==========\n`,
-      );
+      // [DEV] Log OTP để đăng nhập khi không có email thật — CHỈ ngoài production,
+      // và TUYỆT ĐỐI không đưa OTP vào response body (sẽ bypass 2FA email).
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(
+          `\n========== [DEV] OTP đăng nhập (${user.email}): ${otp} ==========\n`,
+        );
+      }
 
       return {
         message: 'Mã OTP đã được gửi đến email của bạn.',
         userId: user.id,
-        otp,
       };
     }, 'Lỗi khi đăng nhập');
   }
@@ -221,7 +224,19 @@ export class AuthService {
       }
 
       if (!validToken) {
-        throw new BadRequestException('Mã OTP không đúng.');
+        // Đếm số lần sai trên token OTP đang hoạt động (chỉ có 1 do createOtpToken
+        // revoke-all trước khi tạo). Vô hiệu sau ngưỡng → chống brute-force.
+        const remaining = await this.tokenService.recordFailedOtpAttempt(
+          otpTokens[0].id,
+        );
+        if (remaining <= 0) {
+          throw new BadRequestException(
+            'Bạn đã nhập sai OTP quá số lần cho phép. Vui lòng đăng nhập lại để nhận mã mới.',
+          );
+        }
+        throw new BadRequestException(
+          `Mã OTP không đúng. Bạn còn ${remaining} lần thử.`,
+        );
       }
 
       await this.tokenService.markAsUsed(validToken.id);
@@ -277,6 +292,14 @@ export class AuthService {
       );
       if (!isCurrentPasswordValid) {
         throw new BadRequestException('Mật khẩu hiện tại không đúng');
+      }
+
+      // Buộc đổi MK lần đầu phải đổi sang mật khẩu KHÁC mật khẩu tạm — nếu không
+      // user có thể "đổi" lại đúng mật khẩu tạm và clear cờ mustChangePassword.
+      if (dto.newPassword === dto.currentPassword) {
+        throw new BadRequestException(
+          'Mật khẩu mới không được trùng với mật khẩu hiện tại',
+        );
       }
 
       await this.usersService.changePassword(userId, dto.newPassword);

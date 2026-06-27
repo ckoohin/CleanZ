@@ -48,6 +48,16 @@ export const authApi = {
     return http.post('/auth/reset-password', credentials).then((res) => res.data);
   },
 
+  changePassword: (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<{ message: string }> => {
+    return http
+      .patch<{ message: string }>('/auth/change-password', data)
+      .then((res) => res.data);
+  },
+
   updateProfile: (data: { fullName?: string; phone?: string; avatar?: File }): Promise<{ message: string; data: Profile }> => {
     const formData = new FormData();
     if (data.fullName) formData.append('fullName', data.fullName);

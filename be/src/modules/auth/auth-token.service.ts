@@ -21,6 +21,8 @@ export class AuthTokenService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      mustChangePassword: user.mustChangePassword ?? false,
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
