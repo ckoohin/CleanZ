@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -58,10 +58,10 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg overflow-hidden rounded-2xl p-0">
+      <DialogContent className="cz-admin sm:max-w-lg overflow-hidden rounded-2xl p-0 bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="text-base font-bold">Cấu hình Incident</DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Cấu hình Incident</DialogTitle>
+          <DialogDescription className="text-xs text-[var(--c-muted)]">
             Cửa sổ báo cáo, ngưỡng tiền, cooling, SLA, auto-close... (đổi runtime).
           </DialogDescription>
         </DialogHeader>
@@ -71,7 +71,7 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)
             ) : keys.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">Chưa có cấu hình</p>
+              <p className="py-6 text-center text-xs text-[var(--c-muted)]">Chưa có cấu hình</p>
             ) : (
               keys.map((k) => {
                 const meta = INCIDENT_CONFIG_META[k];
@@ -80,18 +80,18 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
                 return (
                   <div key={k} className="space-y-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <Label className="text-xs font-semibold">{meta?.label ?? k}</Label>
+                      <Label className="text-xs font-semibold text-[var(--c-ink)]">{meta?.label ?? k}</Label>
                       {structured ? (
                         <button
                           type="button"
                           onClick={() => setAdvanced((p) => ({ ...p, [k]: !p[k] }))}
-                          className="text-[10px] font-medium text-primary hover:underline"
+                          className="text-[10px] font-medium text-[var(--c-primary-strong)] hover:underline"
                         >
                           {advanced[k] ? "Dạng biểu mẫu" : "JSON nâng cao"}
                         </button>
                       ) : (
                         meta?.unit && (
-                          <span className="text-[10px] font-medium text-muted-foreground">{meta.unit}</span>
+                          <span className="text-[10px] font-medium text-[var(--c-muted)]">{meta.unit}</span>
                         )
                       )}
                     </div>
@@ -119,7 +119,7 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
                     )}
 
                     {meta?.hint && !structured && (
-                      <p className="text-[11px] text-muted-foreground">{meta.hint}</p>
+                      <p className="text-[11px] text-[var(--c-muted)]">{meta.hint}</p>
                     )}
                   </div>
                 );
@@ -129,10 +129,10 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         <DialogFooter className="gap-2 px-6 pb-6">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={onClose}>Huỷ</Button>
-          <Button size="sm" className="rounded-full" onClick={handleSubmit} disabled={isLoading || update.isPending}>
+          <AdminButton variant="secondary" size="sm" className="rounded-full" onClick={onClose}>Huỷ</AdminButton>
+          <AdminButton variant="primary" size="sm" className="rounded-full" onClick={handleSubmit} disabled={isLoading || update.isPending}>
             {update.isPending ? "Đang lưu..." : "Lưu cấu hình"}
-          </Button>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

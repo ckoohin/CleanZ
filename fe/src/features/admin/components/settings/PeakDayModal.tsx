@@ -115,7 +115,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] rounded-[2rem]">
+      <DialogContent className="cz-admin sm:max-w-[600px] rounded-[2rem] bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
             {isEditing ? "Cập nhật ngày cao điểm" : "Thêm mới ngày cao điểm"}
@@ -132,7 +132,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-bold">Tên cấu hình <span className="text-destructive">*</span></FormLabel>
+                  <FormLabel className="font-bold">Tên cấu hình <span className="text-[#E11D48]">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="VD: Tết Nguyên Đán 2026" {...field} />
                   </FormControl>
@@ -155,7 +155,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
                             variant="outline"
                             className={cn(
                               "h-11 justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              !field.value && "text-[var(--c-muted)]"
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -163,7 +163,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
                           </BaseButton>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="cz-admin w-auto p-0 bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value || undefined}
@@ -190,7 +190,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
                             variant="outline"
                             className={cn(
                               "h-11 justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              !field.value && "text-[var(--c-muted)]"
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -198,7 +198,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
                           </BaseButton>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="cz-admin w-auto p-0 bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value || undefined}
@@ -250,7 +250,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
                 name="peakRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-bold">Tỉ lệ phụ thu <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel className="font-bold">Tỉ lệ phụ thu <span className="text-[#E11D48]">*</span></FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
@@ -270,7 +270,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
                 control={form.control}
                 name="isActive"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-xl border border-border p-3 shadow-sm bg-muted/20">
+                  <FormItem className="flex flex-row items-center justify-between rounded-xl border border-[var(--c-line)] p-3 shadow-sm bg-[var(--c-card-2)]">
                     <div className="space-y-0.5">
                       <FormLabel className="font-bold">Hoạt động</FormLabel>
                     </div>
@@ -282,7 +282,7 @@ export function PeakDayModal({ open, onOpenChange, initialData }: PeakDayModalPr
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <div className="flex justify-end gap-3 pt-4 border-t border-[var(--c-line)]">
               <BaseButton type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</BaseButton>
               <BaseButton type="submit" variant="primary" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

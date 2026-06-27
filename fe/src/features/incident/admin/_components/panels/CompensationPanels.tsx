@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,18 +22,19 @@ export function ApproveCompensationPanel({ id }: { id: string }) {
   const approve = useApproveCompensation(id);
   return (
     <section className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Duyệt cấp 2 (maker-checker)</p>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Duyệt cấp 2 (maker-checker)</p>
+      <p className="text-[11px] text-[var(--c-muted)]">
         Khoản ≥ ngưỡng cần admin thứ hai duyệt (khác người điều tra). Sau duyệt sẽ vào thời gian cooling.
       </p>
-      <Button
+      <AdminButton
+        variant="primary"
         size="sm"
         className="w-full rounded-lg gap-1.5"
         onClick={() => approve.mutate({ confirm: true })}
         disabled={approve.isPending}
       >
         <BadgeCheck className="size-3.5" /> {approve.isPending ? "..." : "Xác nhận duyệt cấp 2"}
-      </Button>
+      </AdminButton>
     </section>
   );
 }
@@ -53,22 +54,22 @@ export function CompensatePanel({
 
   return (
     <section className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Thực thi bồi thường</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Thực thi bồi thường</p>
       {blockedReason ? (
-        <p className="flex items-start gap-1 rounded-lg bg-muted/40 border border-border/40 p-2.5 text-xs text-amber-600">
+        <p className="flex items-start gap-1 rounded-lg bg-[rgba(217,119,6,0.14)] border border-[var(--c-line)] p-2.5 text-xs text-[#D97706]">
           <AlertTriangle className="mt-px size-3.5 shrink-0" /> {blockedReason}
         </p>
       ) : (
         <AlertDialog open={open} onOpenChange={setOpen}>
           <AlertDialogTrigger asChild>
-            <Button size="sm" className="w-full rounded-lg gap-1.5" disabled={compensate.isPending}>
+            <AdminButton variant="primary" size="sm" className="w-full rounded-lg gap-1.5" disabled={compensate.isPending}>
               <Banknote className="size-3.5" /> Bồi thường {formatVnd(amount)}
-            </Button>
+            </AdminButton>
           </AlertDialogTrigger>
-          <AlertDialogContent className="rounded-2xl">
+          <AlertDialogContent className="cz-admin rounded-2xl bg-[var(--c-card)] text-[var(--c-ink)]">
             <AlertDialogHeader>
-              <AlertDialogTitle>Xác nhận bồi thường?</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-[var(--c-ink)]">Xác nhận bồi thường?</AlertDialogTitle>
+              <AlertDialogDescription className="text-[var(--c-muted)]">
                 Thao tác thực thi giao dịch tiền (trừ cọc Tasker, hoàn ví khách) và <b>không thể hoàn tác</b>.
                 Số tiền: <b>{formatVnd(amount)}</b>.
               </AlertDialogDescription>

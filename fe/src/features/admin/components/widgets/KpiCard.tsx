@@ -1,7 +1,7 @@
 "use client";
 
 import { Wallet, Coins, Receipt, Undo2, Package, TrendingDown, Users, UserPlus, Repeat, Star, TrendingUp, Minus } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { AdminCard } from "@/components/admin";
 import { cn } from "@/lib/utils";
 import { useKpis } from "../../hooks/useDashboard";
 import { useDashboardStore } from "../../stores/dashboard.store";
@@ -38,7 +38,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     getMeta: (d) => (
       <>
         {d.commission.change !== null && (
-          <span className={cn("font-semibold mr-1.5", d.commission.change >= 0 ? "text-emerald-500" : "text-red-500")}>
+          <span className={cn("font-semibold mr-1.5", d.commission.change >= 0 ? "text-[#0E9F6E]" : "text-[#E11D48]")}>
             {d.commission.change >= 0 ? "▲" : "▼"} {Math.abs(d.commission.change)}%
           </span>
         )}
@@ -56,7 +56,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     getMeta: (d) => (
       <>
         {d.gmv.change !== null && (
-          <span className={cn("font-semibold mr-1.5", d.gmv.change >= 0 ? "text-emerald-500" : "text-red-500")}>
+          <span className={cn("font-semibold mr-1.5", d.gmv.change >= 0 ? "text-[#0E9F6E]" : "text-[#E11D48]")}>
             {d.gmv.change >= 0 ? "▲" : "▼"} {Math.abs(d.gmv.change)}%
           </span>
         )}
@@ -89,7 +89,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     getMeta: (d) => (
       <>
         {d.totalOrders.change !== null && (
-          <span className={cn("font-semibold mr-1.5", d.totalOrders.change >= 0 ? "text-emerald-500" : "text-red-500")}>
+          <span className={cn("font-semibold mr-1.5", d.totalOrders.change >= 0 ? "text-[#0E9F6E]" : "text-[#E11D48]")}>
             {d.totalOrders.change >= 0 ? "▲" : "▼"} {Math.abs(d.totalOrders.change)}%
           </span>
         )}
@@ -105,7 +105,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     getMeta: (d) => (
       <>
         {d.cancelRate.change !== null && (
-          <span className={cn("font-semibold mr-1.5", d.cancelRate.change <= 0 ? "text-emerald-500" : "text-red-500")}>
+          <span className={cn("font-semibold mr-1.5", d.cancelRate.change <= 0 ? "text-[#0E9F6E]" : "text-[#E11D48]")}>
             {d.cancelRate.change <= 0 ? "▼" : "▲"} {Math.abs(d.cancelRate.change)}%
           </span>
         )}
@@ -129,7 +129,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     getMeta: (d) => (
       <>
         {d.newCustomers.change !== null && (
-          <span className={cn("font-semibold mr-1.5", d.newCustomers.change >= 0 ? "text-emerald-500" : "text-red-500")}>
+          <span className={cn("font-semibold mr-1.5", d.newCustomers.change >= 0 ? "text-[#0E9F6E]" : "text-[#E11D48]")}>
             {d.newCustomers.change >= 0 ? "▲" : "▼"} {Math.abs(d.newCustomers.change)}%
           </span>
         )}
@@ -172,9 +172,9 @@ export function KpiCard({ id }: { id: WidgetId }) {
       : rawValue;
 
   const statusColors = {
-    healthy: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    critical: "bg-red-500/10 text-red-600 dark:text-red-400",
+    healthy: "text-[#0E9F6E] bg-[rgba(14,159,110,0.12)]",
+    warning: "text-[#D97706] bg-[rgba(217,119,6,0.14)]",
+    critical: "text-[#E11D48] bg-[rgba(225,29,72,0.12)]",
   };
 
   const statusLabels = {
@@ -186,31 +186,31 @@ export function KpiCard({ id }: { id: WidgetId }) {
   const Icon = config.icon;
 
   const isDarkBorder = id === "kpiRevenue"
-    ? "border-indigo-600/50 dark:border-indigo-500/50 bg-gradient-to-b from-indigo-500/5 to-card"
-    : "border-border bg-card";
+    ? "border-[var(--c-primary)]/40 bg-gradient-to-b from-[var(--c-primary-soft)] to-[var(--c-card)]"
+    : "border-[var(--c-line)] bg-[var(--c-card)]";
 
   return (
-    <Card className={cn("shadow-sm rounded-2xl h-full relative overflow-hidden", isDarkBorder)}>
+    <AdminCard className={cn("h-full relative overflow-hidden", isDarkBorder)}>
       {!config.feature && (
         <span className={cn("absolute top-4 right-4 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5", statusColors[config.status])}>
           <span className="w-1.5 h-1.5 rounded-full bg-current" />
           {statusLabels[config.status]}
         </span>
       )}
-      <CardContent className="p-5 flex flex-col justify-between h-full">
+      <div className="p-5 flex flex-col justify-between h-full">
         <div className="space-y-1 mt-1">
-          <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <Icon className="w-4 h-4 text-muted-foreground/80" />
+          <div className="text-[var(--c-muted)] flex items-center gap-1.5 text-xs">
+            <Icon className="w-4 h-4 text-[var(--c-muted)]" />
             <span>{config.label}</span>
           </div>
-          <div className={cn("font-bold text-foreground tracking-tight py-1", config.feature ? "text-[34px]" : "text-[28px]")}>
+          <div className={cn("font-bold text-[var(--c-ink)] tracking-tight py-1 tabular-nums", config.feature ? "text-[34px]" : "text-[28px]")}>
             {formattedValue}
           </div>
-          <div className="text-[12px] text-muted-foreground mt-1.5 font-medium leading-none">
+          <div className="text-[12px] text-[var(--c-muted)] mt-1.5 font-medium leading-none">
             {config.getMeta(data)}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </AdminCard>
   );
 }

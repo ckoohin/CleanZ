@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -64,24 +64,24 @@ export function StatusChangePanel({ ticket }: { ticket: TicketAdminDetail }) {
 
   return (
     <section className="space-y-2" aria-labelledby="status-panel-title">
-      <p id="status-panel-title" className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+      <p id="status-panel-title" className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">
         Đổi trạng thái
       </p>
 
       {options.length === 0 ? (
-        <p className="text-xs text-muted-foreground rounded-lg bg-muted/40 border border-border/40 p-2.5">
+        <p className="text-xs text-[var(--c-muted)] rounded-lg bg-[var(--c-card-2)] border border-[var(--c-line)] p-2.5">
           Ticket đã đóng — không thể đổi trạng thái.
         </p>
       ) : (
         <>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-semibold">{STATUS_LABEL[ticket.status]}</span>
+          <div className="flex items-center gap-2 text-xs text-[var(--c-muted)]">
+            <span className="font-semibold text-[var(--c-ink-soft)]">{STATUS_LABEL[ticket.status]}</span>
             <ArrowRight className="w-3 h-3" />
             <Select value={target} onValueChange={(v) => setTarget(v as TicketStatus)}>
-              <SelectTrigger className="flex-1 h-9 rounded-lg text-sm" aria-label="Trạng thái đích">
+              <SelectTrigger className="flex-1 h-9 rounded-lg text-sm border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-label="Trạng thái đích">
                 <SelectValue placeholder="Chọn trạng thái mới..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="cz-admin">
                 {options.map((s) => (
                   <SelectItem key={s} value={s}>
                     {STATUS_LABEL[s]}
@@ -93,10 +93,10 @@ export function StatusChangePanel({ ticket }: { ticket: TicketAdminDetail }) {
 
           {needReason && (
             <Select value={pendingReason} onValueChange={(v) => setPendingReason(v as PendingReason)}>
-              <SelectTrigger className="h-9 rounded-lg text-sm w-full" aria-label="Lý do tạm chờ">
+              <SelectTrigger className="h-9 rounded-lg text-sm w-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-label="Lý do tạm chờ">
                 <SelectValue placeholder="Lý do tạm chờ (bắt buộc)..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="cz-admin">
                 {PENDING_REASON.map((r) => (
                   <SelectItem key={r} value={r}>
                     {PENDING_REASON_LABEL[r]}
@@ -107,7 +107,7 @@ export function StatusChangePanel({ ticket }: { ticket: TicketAdminDetail }) {
           )}
 
           {resolveBlocked && (
-            <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <p className="flex items-start gap-1.5 text-xs text-[#D97706]">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
               {resolveGate.reason}
             </p>
@@ -115,15 +115,15 @@ export function StatusChangePanel({ ticket }: { ticket: TicketAdminDetail }) {
 
           <Textarea
             placeholder="Ghi chú (tuỳ chọn)..."
-            className="text-sm resize-none rounded-lg"
+            className="text-sm resize-none rounded-lg bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
 
-          <Button size="sm" className="w-full rounded-lg" onClick={handleSubmit} disabled={disabled}>
+          <AdminButton variant="primary" size="md" className="w-full rounded-lg" onClick={handleSubmit} disabled={disabled}>
             {changeStatus.isPending ? "Đang cập nhật..." : "Cập nhật trạng thái"}
-          </Button>
+          </AdminButton>
         </>
       )}
     </section>

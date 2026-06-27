@@ -5,10 +5,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Clock, MapPin, User, Banknote, ShieldCheck, FileText, CheckCircle2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AdminButton, StatusBadge, BadgeTone } from "@/components/admin";
 import { toast } from "sonner";
 import { useCancelAdminBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 import { useState } from "react";
@@ -51,15 +50,15 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <Badge className="bg-emerald-500 hover:bg-emerald-600">Hoàn Thành</Badge>;
+        return <StatusBadge tone="success">Hoàn Thành</StatusBadge>;
       case 'POSTED':
-        return <Badge className="bg-amber-500 hover:bg-amber-600">Đang Tìm Thợ</Badge>;
+        return <StatusBadge tone="warning">Đang Tìm Thợ</StatusBadge>;
       case 'IN_PROGRESS':
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Đang Thực Hiện</Badge>;
+        return <StatusBadge tone="info">Đang Thực Hiện</StatusBadge>;
       case 'CANCELLED':
-        return <Badge className="bg-red-500 hover:bg-red-600">Đã Hủy</Badge>;
+        return <StatusBadge tone="danger">Đã Hủy</StatusBadge>;
       default:
-        return <Badge className="bg-indigo-500 hover:bg-indigo-600">{status}</Badge>;
+        return <StatusBadge tone="purple">{status}</StatusBadge>;
     }
   };
 
@@ -80,11 +79,11 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="cz-admin max-w-3xl max-h-[90vh] overflow-y-auto bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-2xl">
+          <DialogTitle className="flex items-center gap-3 text-2xl text-[var(--c-ink)]">
             Chi Tiết Booking
-            <span className="font-mono text-lg text-primary bg-primary/10 px-3 py-1 rounded-full">
+            <span className="font-mono text-lg text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)] px-3 py-1 rounded-full">
               {booking.bookingCode}
             </span>
           </DialogTitle>
@@ -92,83 +91,83 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           {/* Status & Price */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="bg-[var(--c-card-2)] rounded-xl p-5 border border-[var(--c-line)] space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-500 flex items-center gap-2">
+              <span className="text-sm font-semibold text-[var(--c-muted)] flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" /> Trạng Thái
               </span>
               {getStatusBadge(booking.status)}
             </div>
-            <Separator />
+            <Separator className="bg-[var(--c-line)]" />
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-500 flex items-center gap-2">
+              <span className="text-sm font-semibold text-[var(--c-muted)] flex items-center gap-2">
                 <Banknote className="w-4 h-4" /> Tổng Tiền
               </span>
-              <span className="text-xl font-bold text-slate-900 dark:text-white">
+              <span className="text-xl font-bold text-[var(--c-ink)]">
                 {formattedPrice}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">Phương thức:</span>
-              <Badge variant="outline">{booking.paymentMethod}</Badge>
+              <span className="text-xs text-[var(--c-muted)]">Phương thức:</span>
+              <StatusBadge tone="neutral">{booking.paymentMethod}</StatusBadge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">T/Thái TT:</span>
-              <Badge variant="outline" className={booking.paymentStatus === 'PAID' ? 'text-emerald-500' : 'text-amber-500'}>
+              <span className="text-xs text-[var(--c-muted)]">T/Thái TT:</span>
+              <StatusBadge tone={booking.paymentStatus === 'PAID' ? 'success' : 'warning'}>
                 {booking.paymentStatus}
-              </Badge>
+              </StatusBadge>
             </div>
           </div>
 
           {/* Schedule */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <Clock className="w-5 h-5 text-primary" /> Lịch Hẹn
+          <div className="bg-[var(--c-card-2)] rounded-xl p-5 border border-[var(--c-line)] space-y-4">
+            <h3 className="font-bold flex items-center gap-2 text-[var(--c-ink)] border-b border-[var(--c-line)] pb-2">
+              <Clock className="w-5 h-5 text-[var(--c-primary-strong)]" /> Lịch Hẹn
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Ngày làm việc</span>
-                <span className="font-semibold">{formattedDate}</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-1">Ngày làm việc</span>
+                <span className="font-semibold text-[var(--c-ink)]">{formattedDate}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Giờ làm việc</span>
-                <span className="font-semibold">{formattedTime}</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-1">Giờ làm việc</span>
+                <span className="font-semibold text-[var(--c-ink)]">{formattedTime}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Thời lượng</span>
-                <span className="font-semibold">{booking.durationHours} giờ</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-1">Thời lượng</span>
+                <span className="font-semibold text-[var(--c-ink)]">{booking.durationHours} giờ</span>
               </div>
             </div>
           </div>
 
           {/* Customer Info */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 md:col-span-2">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <User className="w-5 h-5 text-blue-500" /> Thông Tin Khách Hàng
+          <div className="bg-[var(--c-card-2)] rounded-xl p-5 border border-[var(--c-line)] space-y-4 md:col-span-2">
+            <h3 className="font-bold flex items-center gap-2 text-[var(--c-ink)] border-b border-[var(--c-line)] pb-2">
+              <User className="w-5 h-5 text-[#2563EB]" /> Thông Tin Khách Hàng
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Tên khách hàng</span>
-                <span className="font-semibold">{booking.customer?.fullName || 'N/A'}</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-1">Tên khách hàng</span>
+                <span className="font-semibold text-[var(--c-ink)]">{booking.customer?.fullName || 'N/A'}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Số điện thoại</span>
-                <span className="font-semibold">{booking.customer?.phone || 'N/A'}</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-1">Số điện thoại</span>
+                <span className="font-semibold text-[var(--c-ink)]">{booking.customer?.phone || 'N/A'}</span>
               </div>
               <div className="md:col-span-2">
-                <span className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                <span className="text-xs text-[var(--c-muted)] block mb-1 flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> Địa chỉ làm việc
                 </span>
-                <span className="font-medium text-sm block bg-white dark:bg-slate-800 p-3 rounded border">
+                <span className="font-medium text-sm block bg-[var(--c-card)] text-[var(--c-ink)] p-3 rounded border border-[var(--c-line)]">
                   {booking.address?.fullAddress || 'N/A'}
                 </span>
               </div>
               {booking.note && (
                 <div className="md:col-span-2">
-                  <span className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                  <span className="text-xs text-[var(--c-muted)] block mb-1 flex items-center gap-1">
                     <FileText className="w-3 h-3" /> Ghi chú
                   </span>
-                  <span className="font-medium text-sm block bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-200 p-3 rounded border border-amber-200 dark:border-amber-900/30">
+                  <span className="font-medium text-sm block p-3 rounded border" style={{ background: "rgba(217,119,6,0.14)", color: "#D97706", borderColor: "rgba(217,119,6,0.3)" }}>
                     {booking.note}
                   </span>
                 </div>
@@ -177,66 +176,69 @@ export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = (
           </div>
 
           {/* Tasker Info */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 md:col-span-2">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <User className="w-5 h-5 text-emerald-500" /> Thông Tin Nhân Viên (Tasker)
+          <div className="bg-[var(--c-card-2)] rounded-xl p-5 border border-[var(--c-line)] space-y-4 md:col-span-2">
+            <h3 className="font-bold flex items-center gap-2 text-[var(--c-ink)] border-b border-[var(--c-line)] pb-2">
+              <User className="w-5 h-5 text-[#0E9F6E]" /> Thông Tin Nhân Viên (Tasker)
             </h3>
             {booking.tasker ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-xs text-slate-500 block mb-1">Họ tên Tasker</span>
-                  <span className="font-semibold">{booking.tasker.fullName}</span>
+                  <span className="text-xs text-[var(--c-muted)] block mb-1">Họ tên Tasker</span>
+                  <span className="font-semibold text-[var(--c-ink)]">{booking.tasker.fullName}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 block mb-1">Số điện thoại</span>
-                  <span className="font-semibold">{booking.tasker.phone}</span>
+                  <span className="text-xs text-[var(--c-muted)] block mb-1">Số điện thoại</span>
+                  <span className="font-semibold text-[var(--c-ink)]">{booking.tasker.phone}</span>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-4 bg-white dark:bg-slate-800 rounded border border-dashed">
-                <span className="text-slate-500 text-sm italic">Chưa có nhân viên nhận đơn này.</span>
+              <div className="text-center py-4 bg-[var(--c-card)] rounded border border-dashed border-[var(--c-line-strong)]">
+                <span className="text-[var(--c-muted)] text-sm italic">Chưa có nhân viên nhận đơn này.</span>
               </div>
             )}
           </div>
           {/* Actions */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 md:col-span-2">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <CheckCircle2 className="w-5 h-5 text-indigo-500" /> Hành Động Xử Lý
+          <div className="bg-[var(--c-card-2)] rounded-xl p-5 border border-[var(--c-line)] space-y-4 md:col-span-2">
+            <h3 className="font-bold flex items-center gap-2 text-[var(--c-ink)] border-b border-[var(--c-line)] pb-2">
+              <CheckCircle2 className="w-5 h-5 text-[#7C3AED]" /> Hành Động Xử Lý
             </h3>
 
             <div className="flex flex-col md:flex-row gap-4 items-center">
               {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
                 <>
-                  <Button
+                  <AdminButton
+                    variant="primary"
                     onClick={() => setIsAssignOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 w-full md:w-auto"
+                    className="w-full md:w-auto"
+                    icon={<User className="w-4 h-4" />}
                   >
-                    <User className="w-4 h-4 mr-2" /> Gán / Đổi Tasker
-                  </Button>
+                    Gán / Đổi Tasker
+                  </AdminButton>
 
-                  <Button
+                  <AdminButton
                     onClick={() => setIsChangeStatusOpen(true)}
-                    variant="outline"
+                    variant="secondary"
                     className="w-full md:w-auto"
                   >
                     Cập nhật trạng thái
-                  </Button>
+                  </AdminButton>
 
                   <div className="flex-1 md:flex-none flex justify-end ml-auto">
-                    <Button
-                      variant="destructive"
+                    <AdminButton
+                      variant="danger"
                       onClick={handleCancel}
                       disabled={cancelMutation.isPending}
                       className="w-full md:w-auto"
+                      icon={<XCircle className="w-4 h-4" />}
                     >
-                      <XCircle className="w-4 h-4 mr-2" /> Hủy Đơn Gấp
-                    </Button>
+                      Hủy Đơn Gấp
+                    </AdminButton>
                   </div>
                 </>
               )}
             </div>
             {booking.status === 'COMPLETED' || booking.status === 'CANCELLED' ? (
-              <p className="text-sm text-slate-500 italic">Đơn hàng ở trạng thái {booking.status} không thể thực hiện thêm hành động.</p>
+              <p className="text-sm text-[var(--c-muted)] italic">Đơn hàng ở trạng thái {booking.status} không thể thực hiện thêm hành động.</p>
             ) : null}
           </div>
         </div>

@@ -41,13 +41,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../dropdown-menu";
-import { Badge } from "../badge";
 import BaseEmptyState from "./base_empty_state";
 import { cn } from "../utils";
+
+// Brand amber gradient (kept inline so this base component stays self-contained).
+const AMBER_GRADIENT = "linear-gradient(135deg, #FFB951 0%, #FF9800 100%)";
 
 // ─────────────────────────────────────────────
 //  Animations Variants
@@ -64,10 +65,10 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
-  show: { 
-    opacity: 1, 
-    y: 0, 
-    transition: { type: "spring" as const, stiffness: 100, damping: 15 } 
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 100, damping: 15 }
   }
 };
 
@@ -103,6 +104,8 @@ export interface RowAction<T> {
   /** Disable action theo điều kiện */
   disabled?: (row: T) => boolean;
   variant?: "default" | "destructive" | "warning";
+  /** Chèn 1 đường ngăn cách phía trên mục này trong menu (vd: tách nhóm "Xóa"). */
+  separatorBefore?: boolean;
 }
 
 export interface BulkAction<T> {
@@ -131,9 +134,9 @@ interface BaseTableListProps<T> {
   emptyDescription?: string;
   emptyIcon?: LucideIcon;
   className?: string;
-  /** Các hành động trên từng dòng */
+  /** Các hành động trên từng dòng — luôn gom vào menu "⋯" (design system §7). */
   rowActions?: RowAction<T>[];
-  /** Số action hiển thị trực tiếp (còn lại vào dropdown) */
+  /** @deprecated Không còn dùng — mọi action giờ nằm trong menu "⋯". Giữ để tương thích lời gọi cũ. */
   inlineActionCount?: number;
   /** Các hành động khi chọn nhiều dòng */
   bulkActions?: BulkAction<T>[];
@@ -191,7 +194,6 @@ export function BaseTableList<T>({
   emptyIcon = Inbox,
   className,
   rowActions = [],
-  inlineActionCount = 2,
   bulkActions = [],
   onSelectionChange,
 }: BaseTableListProps<T>) {
@@ -261,24 +263,24 @@ export function BaseTableList<T>({
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-    
+
     if (page <= 4) {
       return [1, 2, 3, 4, 5, "...", totalPages];
     }
-    
+
     if (page >= totalPages - 3) {
       return [
-        1, 
-        "...", 
+        1,
+        "...",
         totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages
       ];
     }
-    
+
     return [
-      1, 
-      "...", 
-      page - 1, page, page + 1, 
-      "...", 
+      1,
+      "...",
+      page - 1, page, page + 1,
+      "...",
       totalPages
     ];
   };
@@ -287,71 +289,63 @@ export function BaseTableList<T>({
   const hasSelection = bulkActions.length > 0 || onSelectionChange;
   const hasActions = rowActions.length > 0;
 
-  const inlineActions = rowActions.slice(0, inlineActionCount);
-  const dropdownActions = rowActions.slice(inlineActionCount);
-
   // ─────────────────────────────────────────────
   //  Render
   // ─────────────────────────────────────────────
   return (
     <div className={cn("space-y-3 w-full", className)}>
-      {/* ── Bulk Action Toolbar (nổi, fixed — không đẩy layout) ── */}
+      {/* ── Bulk Action Toolbar (nổi cố định giữa vùng nội dung — không đẩy layout) ── */}
       {selectedKeys.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex w-[calc(100vw-2rem)] max-w-2xl items-center gap-3 bg-card/95 backdrop-blur-md border border-primary/30 rounded-[20px] px-5 py-3.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <Badge
-            variant="secondary"
-            className="bg-primary/10 text-primary border-primary/20 font-semibold text-xs px-2.5 py-1 shrink-0"
+        <div
+          className="cz-bulkbar flex w-[calc(100vw-2rem)] max-w-2xl items-center gap-3 rounded-2xl border px-5 py-3.5 shadow-[0_16px_40px_-12px_rgba(15,27,51,0.4)]"
+          style={{ borderColor: "var(--c-line-strong)", background: "var(--c-card)" }}
+        >
+          <span
+            className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+            style={{ color: "var(--c-primary-strong)", background: "var(--c-primary-soft)" }}
           >
             {selectedKeys.size} đã chọn
-          </Badge>
+          </span>
 
-          <div className="flex items-center gap-2 flex-1 flex-wrap">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
             {bulkActions.map((action, i) => {
               const Icon = action.icon;
               return (
-                <Button
+                <button
                   key={i}
-                  size="sm"
-                  variant={
-                    action.variant === "destructive" ? "destructive" : "outline"
-                  }
-                  onClick={() => {
-                    action.onClick(selectedRows);
-                  }}
+                  onClick={() => action.onClick(selectedRows)}
                   className={cn(
-                    "h-8 text-[13px] font-medium gap-1.5 rounded-full transition-all shadow-none",
+                    "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors",
                     action.variant === "destructive"
-                      ? "border-transparent bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                      : "border-transparent bg-background hover:bg-muted text-foreground/80",
+                      ? "text-[#E11D48] hover:bg-[#E11D48]/10"
+                      : "text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]",
                   )}
                 >
                   {Icon && <Icon className="h-3.5 w-3.5" />}
                   {action.label}
-                </Button>
+                </button>
               );
             })}
           </div>
 
-          <Button
-            size="icon"
-            variant="ghost"
+          <button
             onClick={clearSelection}
-            className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+            className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
             aria-label="Bỏ chọn tất cả"
           >
             <X className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </div>
       )}
 
-      <div className="bg-card rounded-[24px] border border-border/40 shadow-sm flex flex-col overflow-hidden">
+      <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] shadow-[0_1px_2px_rgba(15,27,51,0.04),0_8px_24px_-14px_rgba(15,27,51,0.10)]">
         {/* ── Header: Search & Filter ── */}
         {(onKeywordChange || filters) && (
-          <div className="flex flex-col gap-3 border-b border-border/40 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
+          <div className="flex flex-col gap-3 border-b border-[var(--c-line)] p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
             {onKeywordChange && (
               <div className="relative w-full sm:max-w-sm sm:flex-1">
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60"
+                  className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--c-muted)]"
                   aria-hidden="true"
                 />
                 <Input
@@ -359,14 +353,14 @@ export function BaseTableList<T>({
                   value={keyword}
                   onChange={(e) => onKeywordChange(e.target.value)}
                   placeholder={placeholderSearch}
-                  className="h-8.5 w-full rounded-lg border border-border/50 bg-muted/30 pl-8.5 pr-8 text-[11px] font-medium shadow-none transition-colors hover:bg-muted/50 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-primary/15"
+                  className="h-9 w-full rounded-lg border border-[var(--c-line-strong)] bg-[var(--c-card-2)] pl-8.5 pr-8 text-[12.5px] font-medium text-[var(--c-ink)] shadow-none transition-colors placeholder:text-[var(--c-muted)] focus-visible:border-[var(--c-primary)]/50 focus-visible:ring-2 focus-visible:ring-[var(--c-primary)]/20"
                 />
                 {keyword && (
                   <button
                     type="button"
                     onClick={() => onKeywordChange("")}
                     aria-label="Xóa tìm kiếm"
-                    className="absolute right-2 top-1/2 flex size-5.5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+                    className="absolute right-2 top-1/2 flex size-5.5 -translate-y-1/2 items-center justify-center rounded-full text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
                   >
                     <X className="size-3" />
                   </button>
@@ -387,10 +381,10 @@ export function BaseTableList<T>({
         )}
 
         {/* ── Table ── */}
-        <div className="overflow-x-auto w-full">
+        <div className="cz-scroll overflow-x-auto w-full">
           <Table>
             <TableHeader className="bg-transparent">
-              <TableRow className="border-b border-border/40 hover:bg-transparent">
+              <TableRow className="border-b border-[var(--c-line)] hover:bg-transparent">
                 {/* Checkbox Select All */}
                 {hasSelection && (
                   <TableHead className="w-10 pl-4 pr-2">
@@ -409,7 +403,7 @@ export function BaseTableList<T>({
                       }}
                       onCheckedChange={handleSelectAll}
                       aria-label="Chọn tất cả"
-                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      className="data-[state=checked]:bg-[var(--c-primary)] data-[state=checked]:border-[var(--c-primary)]"
                     />
                   </TableHead>
                 )}
@@ -418,7 +412,7 @@ export function BaseTableList<T>({
                   <TableHead
                     key={String(col.key)}
                     className={cn(
-                      "h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 py-3",
+                      "h-11 py-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-muted)]",
                       col.hideOnMobile && "hidden sm:table-cell",
                       col.className,
                     )}
@@ -429,7 +423,7 @@ export function BaseTableList<T>({
 
                 {/* Actions header */}
                 {hasActions && (
-                  <TableHead className="w-[1%] whitespace-nowrap text-right pr-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <TableHead className="w-[1%] whitespace-nowrap pr-5 text-right text-[11px] font-semibold uppercase tracking-wider text-[var(--c-muted)]">
                     Hành động
                   </TableHead>
                 )}
@@ -447,11 +441,11 @@ export function BaseTableList<T>({
                 [...Array(limit)].map((_, rowIndex) => (
                   <TableRow
                     key={rowIndex}
-                    className="border-b border-border/30 hover:bg-transparent"
+                    className="border-b border-[var(--c-line)] hover:bg-transparent"
                   >
                     {hasSelection && (
                       <TableCell className="pl-4 pr-2 w-10">
-                        <Skeleton className="h-4 w-4 rounded" />
+                        <Skeleton className="h-4 w-4 rounded bg-[var(--c-card-2)]" />
                       </TableCell>
                     )}
                     {columns.map((col, colIndex) => (
@@ -462,14 +456,13 @@ export function BaseTableList<T>({
                           col.hideOnMobile && "hidden sm:table-cell",
                         )}
                       >
-                        <Skeleton className="h-5 w-3/4 rounded-md" />
+                        <Skeleton className="h-5 w-3/4 rounded-md bg-[var(--c-card-2)]" />
                       </TableCell>
                     ))}
                     {hasActions && (
                       <TableCell className="py-4 pr-4">
-                        <div className="flex justify-end gap-1.5">
-                          <Skeleton className="h-8 w-8 rounded-lg" />
-                          <Skeleton className="h-8 w-8 rounded-lg" />
+                        <div className="flex justify-end">
+                          <Skeleton className="h-8 w-8 rounded-lg bg-[var(--c-card-2)]" />
                         </div>
                       </TableCell>
                     )}
@@ -480,16 +473,19 @@ export function BaseTableList<T>({
                 data.map((row, rowIndex) => {
                   const key = getKey(row, rowIndex);
                   const isSelected = selectedKeys.has(key);
+                  const visibleActions = rowActions.filter(
+                    (action) => !action.hidden?.(row),
+                  );
 
                   return (
                     <motion.tr
                       key={key}
                       variants={itemVariants}
                       className={cn(
-                        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors duration-150",
+                        "border-b border-[var(--c-line)] transition-colors duration-150",
                         isSelected
-                          ? "bg-primary/5 hover:bg-primary/8"
-                          : "hover:bg-muted/30",
+                          ? "bg-[var(--c-primary-soft)]/50"
+                          : "hover:bg-[var(--c-card-2)]",
                       )}
                     >
                       {/* Checkbox */}
@@ -504,7 +500,7 @@ export function BaseTableList<T>({
                               handleSelectRow(row, rowIndex)
                             }
                             aria-label={`Chọn dòng ${rowIndex + 1}`}
-                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                            className="data-[state=checked]:bg-[var(--c-primary)] data-[state=checked]:border-[var(--c-primary)]"
                           />
                         </TableCell>
                       )}
@@ -514,7 +510,7 @@ export function BaseTableList<T>({
                         <TableCell
                           key={String(col.key)}
                           className={cn(
-                            "py-4 text-[13px] font-medium text-foreground/80",
+                            "py-4 text-[13px] font-medium text-[var(--c-ink-soft)]",
                             col.hideOnMobile && "hidden sm:table-cell",
                             col.className,
                           )}
@@ -525,123 +521,66 @@ export function BaseTableList<T>({
                         </TableCell>
                       ))}
 
-                      {/* Row Actions */}
+                      {/* Row Actions — menu "⋯" gọn (design system §7) */}
                       {hasActions && (
-                        <TableCell className="py-2.5 pr-4">
-                          <div className="flex justify-end">
-                            <div className="inline-flex items-center gap-0.5 bg-muted/40 border border-border/40 rounded-lg p-0.5 shadow-sm">
-                              {/* Inline actions */}
-                              {inlineActions.map((action, actionIdx) => {
-                                if (action.hidden?.(row)) return null;
-                                const Icon =
-                                  action.icon ??
-                                  (action.type
-                                    ? ACTION_ICON_MAP[action.type]
-                                    : undefined);
-                                const variant =
-                                  action.variant ??
-                                  (action.type
-                                    ? ACTION_VARIANT_MAP[action.type]
-                                    : "default");
-                                const isDisabled = action.disabled?.(row);
-
-                                return (
-                                  <Button
-                                    key={actionIdx}
-                                    variant="ghost"
-                                    size="icon"
-                                    disabled={isDisabled}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      action.onClick(row);
-                                    }}
-                                    title={action.label}
-                                    aria-label={action.label}
-                                    className={cn(
-                                      "h-6.5 w-6.5 rounded-md transition-all shadow-none",
-                                      variant === "destructive" &&
-                                        "text-destructive/80 hover:text-destructive hover:bg-destructive/15",
-                                      variant === "warning" &&
-                                        "text-amber-600/80 hover:text-amber-600 hover:bg-amber-500/10",
-                                      variant === "default" &&
-                                        "text-muted-foreground hover:text-foreground hover:bg-muted",
-                                    )}
+                        <TableCell
+                          className="py-2.5 pr-4 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {visibleActions.length > 0 && (
+                            <div className="flex justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    aria-label="Hành động"
+                                    className="grid size-8 place-items-center rounded-lg text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-primary)]/40"
                                   >
-                                    {Icon ? (
-                                      <Icon className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <span className="text-[10px] font-bold">
-                                        {action.label.charAt(0)}
-                                      </span>
-                                    )}
-                                  </Button>
-                                );
-                              })}
+                                    <MoreHorizontal className="size-4" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="cz-admin min-w-44 rounded-xl border-[var(--c-line)] shadow-lg"
+                                >
+                                  {visibleActions.map((action, actionIdx) => {
+                                    const Icon =
+                                      action.icon ??
+                                      (action.type
+                                        ? ACTION_ICON_MAP[action.type]
+                                        : undefined);
+                                    const variant =
+                                      action.variant ??
+                                      (action.type
+                                        ? ACTION_VARIANT_MAP[action.type]
+                                        : "default");
+                                    const isDisabled = action.disabled?.(row);
 
-                              {/* Dropdown for remaining actions */}
-                              {dropdownActions.length > 0 && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6.5 w-6.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-none"
-                                      aria-label="Thêm hành động"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MoreHorizontal className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent
-                                    align="end"
-                                    className="min-w-[9rem] w-auto rounded-xl border-border/50 shadow-lg"
-                                  >
-                                    <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                      Hành động khác
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {dropdownActions.map((action, actionIdx) => {
-                                      if (action.hidden?.(row)) return null;
-                                      const Icon =
-                                        action.icon ??
-                                        (action.type
-                                          ? ACTION_ICON_MAP[action.type]
-                                          : undefined);
-                                      const variant =
-                                        action.variant ??
-                                        (action.type
-                                          ? ACTION_VARIANT_MAP[action.type]
-                                          : "default");
-                                      const isDisabled = action.disabled?.(row);
-
-                                      return (
+                                    return (
+                                      <React.Fragment key={actionIdx}>
+                                        {action.separatorBefore && actionIdx > 0 && (
+                                          <DropdownMenuSeparator />
+                                        )}
                                         <DropdownMenuItem
-                                          key={actionIdx}
                                           disabled={isDisabled}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            action.onClick(row);
-                                          }}
+                                          onSelect={() => action.onClick(row)}
                                           className={cn(
-                                            "text-xs font-medium gap-2 cursor-pointer rounded-lg focus:outline-none py-1.5",
+                                            "cursor-pointer gap-2 rounded-lg py-1.5 text-[13px] font-medium focus:outline-none",
                                             variant === "destructive" &&
-                                              "text-destructive focus:bg-destructive/10 focus:text-destructive",
+                                              "text-[#E11D48] focus:bg-[#E11D48]/10 focus:text-[#E11D48]",
                                             variant === "warning" &&
-                                              "text-amber-600 focus:bg-amber-50 focus:text-amber-700 dark:focus:bg-amber-900/20",
+                                              "text-[#D97706] focus:bg-[#D97706]/10 focus:text-[#D97706]",
                                           )}
                                         >
-                                          {Icon && (
-                                            <Icon className="h-3.5 w-3.5 shrink-0" />
-                                          )}
+                                          {Icon && <Icon className="size-4 shrink-0" />}
                                           {action.label}
                                         </DropdownMenuItem>
-                                      );
-                                    })}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                          </div>
+                          )}
                         </TableCell>
                       )}
                     </motion.tr>
@@ -674,35 +613,35 @@ export function BaseTableList<T>({
 
         {/* ── Pagination Footer ── */}
         {!isLoading && totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-border/40 bg-transparent text-sm">
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-[var(--c-line)] bg-transparent px-5 py-3 text-sm sm:flex-row">
             {/* Total count */}
-            <p className="text-muted-foreground/90 font-medium text-[11px] text-center sm:text-left flex items-center justify-center sm:justify-start gap-1.5">
-              <span className="inline-block w-1 h-1 rounded-full bg-[#FFA000] shrink-0" />
+            <p className="flex items-center justify-center gap-1.5 text-center text-[12.5px] font-medium text-[var(--c-muted)] sm:justify-start sm:text-left">
+              <span className="inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--c-primary)]" />
               <span>
-                Hiển thị <span className="font-bold text-[#FFA000]">{startItem}–{endItem}</span> trong <span className="font-bold text-[#FFA000]">{totalItems}</span> bản ghi
+                Hiển thị <span className="font-bold text-[var(--c-primary-strong)]">{startItem}–{endItem}</span> trong <span className="font-bold text-[var(--c-primary-strong)]">{totalItems}</span> bản ghi
               </span>
               {selectedKeys.size > 0 && (
-                <span className="ml-1 text-primary font-bold">
+                <span className="ml-1 font-bold text-[var(--c-primary-strong)]">
                   ({selectedKeys.size} đã chọn)
                 </span>
               )}
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-col items-center gap-3 sm:flex-row">
               {/* Limit selector */}
               {onLimitChange && (
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--c-muted)]">
                     Hiển thị
                   </span>
                   <Select
                     value={String(limit)}
                     onValueChange={(val) => onLimitChange(Number(val))}
                   >
-                    <SelectTrigger className="!w-auto !h-6 rounded-md border-border/40 bg-transparent hover:bg-muted/50 !text-[10px] font-bold focus:ring-0 focus:ring-offset-0 shadow-none transition-all !py-0 !px-1.5 !gap-1 !inline-flex !justify-start !items-center [&_svg]:!size-2.5 [&_svg]:opacity-60 shrink-0">
+                    <SelectTrigger className="!inline-flex !h-6 !w-auto !items-center !justify-start !gap-1 !px-1.5 !py-0 rounded-md border-[var(--c-line-strong)] bg-transparent !text-[10px] font-bold shadow-none transition-all hover:bg-[var(--c-card-2)] focus:ring-0 focus:ring-offset-0 [&_svg]:!size-2.5 [&_svg]:opacity-60">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="rounded-lg">
+                    <SelectContent className="cz-admin rounded-lg">
                       {[5, 10, 20, 50, 100].map((size) => (
                         <SelectItem
                           key={size}
@@ -725,30 +664,31 @@ export function BaseTableList<T>({
                     size="icon"
                     onClick={() => onPageChange(page - 1)}
                     disabled={page === 1}
-                    className="h-6 w-6 rounded-md border-transparent hover:bg-muted/60 text-muted-foreground disabled:opacity-40 transition-all shadow-none"
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] shadow-none transition-colors hover:text-[var(--c-ink)] disabled:opacity-40"
                     aria-label="Trang trước"
                   >
-                    <ChevronLeft className="h-3 w-3" />
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
 
                   {getPageNumbers().map((num, index) =>
                     num === "..." ? (
                       <span
                         key={`ellipsis-${index}`}
-                        className="px-1 text-muted-foreground text-[9px] select-none"
+                        className="select-none px-1 text-[13px] text-[var(--c-muted)]"
                       >
                         ...
                       </span>
                     ) : (
                       <Button
                         key={num}
-                        variant={num === page ? "default" : "outline"}
+                        variant="outline"
                         onClick={() => onPageChange(Number(num))}
+                        style={num === page ? { background: AMBER_GRADIENT } : undefined}
                         className={cn(
-                          "h-6 w-6 text-[10px] rounded-md font-bold transition-all shadow-none",
+                          "h-9 w-9 rounded-lg text-[13px] font-semibold tabular-nums shadow-none transition-colors",
                           num === page
-                            ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-                            : "border-transparent hover:bg-muted/60 text-muted-foreground hover:text-foreground",
+                            ? "border-transparent text-white"
+                            : "border border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]",
                         )}
                       >
                         {num}
@@ -761,10 +701,10 @@ export function BaseTableList<T>({
                     size="icon"
                     onClick={() => onPageChange(page + 1)}
                     disabled={page === totalPages}
-                    className="h-6 w-6 rounded-md border-transparent hover:bg-muted/60 text-muted-foreground disabled:opacity-40 transition-all shadow-none"
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] shadow-none transition-colors hover:text-[var(--c-ink)] disabled:opacity-40"
                     aria-label="Trang sau"
                   >
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               )}

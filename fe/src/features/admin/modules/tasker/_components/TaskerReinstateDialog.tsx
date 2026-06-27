@@ -43,10 +43,10 @@ export const TaskerReinstateDialog: React.FC<TaskerReinstateDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md rounded-[20px]">
+      <DialogContent className="cz-admin sm:max-w-md rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle>Khôi phục tài khoản (sau kháng cáo)</DialogTitle>
-          <DialogDescription className="pt-1 text-sm text-muted-foreground">
+          <DialogTitle className="text-[var(--c-ink)]">Khôi phục tài khoản (sau kháng cáo)</DialogTitle>
+          <DialogDescription className="pt-1 text-sm text-[var(--c-muted)]">
             Khôi phục đối tác{" "}
             <strong>{tasker?.fullName || "này"}</strong> đã bị chấm dứt vĩnh viễn.
             Tài khoản sẽ hoạt động trở lại theo trạng thái hồ sơ.
@@ -54,7 +54,7 @@ export const TaskerReinstateDialog: React.FC<TaskerReinstateDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-1.5 py-1">
-          <Label htmlFor="reinstate-reason">Lý do chấp nhận kháng cáo (tùy chọn)</Label>
+          <Label htmlFor="reinstate-reason" className="text-[var(--c-ink-soft)]">Lý do chấp nhận kháng cáo (tùy chọn)</Label>
           <Textarea
             id="reinstate-reason"
             value={reason}
@@ -62,6 +62,7 @@ export const TaskerReinstateDialog: React.FC<TaskerReinstateDialogProps> = ({
             placeholder="VD: Kháng cáo hợp lệ — nhầm lẫn khi xử lý..."
             rows={3}
             maxLength={500}
+            className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
           />
         </div>
 
@@ -70,14 +71,14 @@ export const TaskerReinstateDialog: React.FC<TaskerReinstateDialogProps> = ({
             variant="outline"
             onClick={onClose}
             disabled={reinstate.isPending}
-            className="rounded-full"
+            className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
           >
             Hủy
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={reinstate.isPending}
-            className="rounded-full"
+            className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
           >
             {reinstate.isPending ? "Đang xử lý..." : "Khôi phục"}
           </Button>

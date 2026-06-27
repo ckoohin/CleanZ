@@ -77,13 +77,13 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent className="flex w-full flex-col p-0 sm:max-w-xl">
-        <SheetHeader className="border-b border-border/40 px-6 py-5">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <ReceiptText className="size-5 text-primary" />
+      <SheetContent className="cz-admin flex w-full flex-col bg-[var(--c-card)] p-0 sm:max-w-xl">
+        <SheetHeader className="border-b border-[var(--c-line)] px-6 py-5">
+          <SheetTitle className="flex items-center gap-2 text-base text-[var(--c-ink)]">
+            <ReceiptText className="size-5 text-[var(--c-primary-strong)]" />
             Chi tiết giao dịch
           </SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="text-[var(--c-muted)]">
             {TRANSACTION_LABELS[transaction.type]} · {walletOwner.name}
           </SheetDescription>
         </SheetHeader>
@@ -91,9 +91,8 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
         <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-5 p-6">
             <div
-              className={`rounded-[24px] p-5 ${
-                isCredit ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
-              }`}
+              className="rounded-[24px] p-5 text-white"
+              style={{ background: isCredit ? "#0E9F6E" : "#E11D48" }}
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold opacity-80">
@@ -123,8 +122,8 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
               />
             </div>
 
-            <section className="space-y-3 rounded-2xl border border-border/50 bg-card p-4">
-              <h3 className="text-sm font-bold">Thông tin tham chiếu</h3>
+            <section className="space-y-3 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
+              <h3 className="text-sm font-bold text-[var(--c-ink)]">Thông tin tham chiếu</h3>
               <DetailRow
                 icon={Link2}
                 label="Nguồn giao dịch"
@@ -147,8 +146,8 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
               />
             </section>
 
-            <section className="space-y-3 rounded-2xl border border-border/50 bg-card p-4">
-              <h3 className="text-sm font-bold">Nội dung ghi nhận</h3>
+            <section className="space-y-3 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
+              <h3 className="text-sm font-bold text-[var(--c-ink)]">Nội dung ghi nhận</h3>
               <DetailRow
                 icon={FileText}
                 label="Mô tả"
@@ -246,12 +245,12 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <Icon className="size-4 text-primary" />
+    <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold text-[var(--c-muted)]">
+        <Icon className="size-4 text-[var(--c-primary-strong)]" />
         {label}
       </div>
-      <p className="mt-2 text-sm font-bold">{value}</p>
+      <p className="mt-2 text-sm font-bold text-[var(--c-ink)]">{value}</p>
     </div>
   );
 }
@@ -268,12 +267,12 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-border/30 pb-3 last:border-0 last:pb-0">
-      <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+    <div className="flex items-start gap-3 border-b border-[var(--c-line)] pb-3 last:border-0 last:pb-0">
+      <Icon className="mt-0.5 size-4 shrink-0 text-[var(--c-primary-strong)]" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xs text-[var(--c-muted)]">{label}</p>
         <p
-          className={`mt-1 break-words text-sm font-semibold ${
+          className={`mt-1 break-words text-sm font-semibold text-[var(--c-ink)] ${
             mono ? "font-mono text-xs" : ""
           }`}
         >

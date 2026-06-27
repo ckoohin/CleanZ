@@ -59,11 +59,11 @@ export default function AdminPeakDaysPage() {
     <div className="space-y-6 w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <CalendarDays className="w-8 h-8 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)] flex items-center gap-3">
+            <CalendarDays className="w-8 h-8 text-[var(--c-primary-strong)]" />
             Cấu hình Ngày cao điểm
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-[var(--c-muted)] text-sm mt-1">
             Thiết lập phụ thu cho Lễ, Tết hoặc khung giờ cao điểm trên toàn hệ thống.
           </p>
         </div>
@@ -77,10 +77,10 @@ export default function AdminPeakDaysPage() {
         </BaseButton>
       </div>
 
-      <div className="bg-card border border-border/50 shadow-sm rounded-3xl overflow-hidden">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)] shadow-sm rounded-3xl overflow-hidden">
         {isLoading ? (
           <div className="flex h-[300px] items-center justify-center">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <Loader2 className="w-8 h-8 text-[var(--c-primary-strong)] animate-spin" />
           </div>
         ) : !peakDays || peakDays.length === 0 ? (
           <div className="py-20">
@@ -92,7 +92,7 @@ export default function AdminPeakDaysPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+              <thead className="text-xs text-[var(--c-muted)] uppercase bg-[var(--c-card-2)]">
                 <tr>
                   <th className="px-6 py-4 font-bold">Tên cấu hình</th>
                   <th className="px-6 py-4 font-bold">Thời gian áp dụng</th>
@@ -102,24 +102,24 @@ export default function AdminPeakDaysPage() {
                   <th className="px-6 py-4 font-bold text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/50">
+              <tbody className="divide-y divide-[var(--c-line)]">
                 {peakDays.map((item) => (
-                  <tr key={item.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-6 py-4 font-bold text-foreground">{item.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">
+                  <tr key={item.id} className="hover:bg-[var(--c-card-2)] transition-colors">
+                    <td className="px-6 py-4 font-bold text-[var(--c-ink)]">{item.name}</td>
+                    <td className="px-6 py-4 text-[var(--c-muted)]">
                       {item.startAt && item.endAt ? (
                         <>
-                          <span className="text-foreground font-medium">{format(new Date(item.startAt), "dd/MM/yyyy")}</span>
+                          <span className="text-[var(--c-ink)] font-medium">{format(new Date(item.startAt), "dd/MM/yyyy")}</span>
                           {" - "}
-                          <span className="text-foreground font-medium">{format(new Date(item.endAt), "dd/MM/yyyy")}</span>
+                          <span className="text-[var(--c-ink)] font-medium">{format(new Date(item.endAt), "dd/MM/yyyy")}</span>
                         </>
                       ) : (
                         <span className="italic">Không giới hạn ngày</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground">
+                    <td className="px-6 py-4 text-[var(--c-muted)]">
                       {item.startTime && item.endTime ? (
-                        <span className="font-mono bg-muted px-2 py-1 rounded text-foreground text-xs">
+                        <span className="font-mono bg-[var(--c-card-2)] px-2 py-1 rounded text-[var(--c-ink)] text-xs">
                           {item.startTime} - {item.endTime}
                         </span>
                       ) : (
@@ -127,7 +127,7 @@ export default function AdminPeakDaysPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[rgba(217,119,6,0.14)] text-[#D97706]">
                         + {(item.peakRate * 100).toFixed(0)}%
                       </span>
                     </td>
@@ -144,7 +144,7 @@ export default function AdminPeakDaysPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(item)}
-                          className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                          className="h-8 w-8 text-[var(--c-primary-strong)] hover:text-[var(--c-primary-strong)] hover:bg-[var(--c-primary-soft)]"
                         >
                           <Edit className="w-4 h-4" />
                         </BaseButton>
@@ -152,7 +152,7 @@ export default function AdminPeakDaysPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeletingId(item.id)}
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="h-8 w-8 text-[#E11D48] hover:text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)]"
                         >
                           <Trash2 className="w-4 h-4" />
                         </BaseButton>
@@ -173,17 +173,17 @@ export default function AdminPeakDaysPage() {
       />
 
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
-        <AlertDialogContent className="rounded-[2rem]">
+        <AlertDialogContent className="cz-admin rounded-[2rem] bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-bold">Xác nhận xóa</AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
+            <AlertDialogTitle className="text-xl font-bold text-[var(--c-ink)]">Xác nhận xóa</AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-[var(--c-muted)]">
               Bạn có chắc chắn muốn xóa cấu hình ngày cao điểm này? Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4">
-            <AlertDialogCancel className="h-11 rounded-xl font-bold">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="h-11 rounded-xl font-bold bg-[var(--c-card)] border-[var(--c-line-strong)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 rounded-xl font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 rounded-xl font-bold bg-[#E11D48] text-white hover:bg-[#be123c]"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >

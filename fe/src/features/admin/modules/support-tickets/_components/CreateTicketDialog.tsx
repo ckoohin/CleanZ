@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -121,14 +121,14 @@ export const CreateTicketDialog: React.FC<Props> = ({ open, onClose }) => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-md rounded-2xl">
+      <DialogContent className="cz-admin sm:max-w-md rounded-2xl bg-[var(--c-card)] border-[var(--c-line)]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Tạo ticket hộ khách hàng</DialogTitle>
+          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Tạo ticket hộ khách hàng</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Khách hàng *</Label>
+            <Label className="text-xs font-semibold text-[var(--c-ink-soft)]">Khách hàng *</Label>
             <LookupCombobox<CustomerLookupItem>
               placeholder="Tìm khách theo tên / SĐT / email..."
               searchPlaceholder="Nhập tên, SĐT hoặc email..."
@@ -151,29 +151,29 @@ export const CreateTicketDialog: React.FC<Props> = ({ open, onClose }) => {
               invalid={!!showError(errors.reporterUserId)}
             />
             {showError(errors.reporterUserId) && (
-              <p className="text-xs text-red-500">{errors.reporterUserId}</p>
+              <p className="text-xs text-[#E11D48]">{errors.reporterUserId}</p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="ct-subject" className="text-xs font-semibold">Tiêu đề *</Label>
+            <Label htmlFor="ct-subject" className="text-xs font-semibold text-[var(--c-ink-soft)]">Tiêu đề *</Label>
             <Input
               id="ct-subject"
               maxLength={255}
               placeholder="Mô tả ngắn vấn đề..."
               value={form.subject}
               onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
-              className="text-sm rounded-lg"
+              className="text-sm rounded-lg bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
               aria-invalid={!!showError(errors.subject)}
             />
             {showError(errors.subject) && (
-              <p className="text-xs text-red-500">{errors.subject}</p>
+              <p className="text-xs text-[#E11D48]">{errors.subject}</p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Loại ticket *</Label>
+              <Label className="text-xs font-semibold text-[var(--c-ink-soft)]">Loại ticket *</Label>
               <Select
                 value={form.category}
                 onValueChange={(v) => {
@@ -190,30 +190,30 @@ export const CreateTicketDialog: React.FC<Props> = ({ open, onClose }) => {
                   }
                 }}
               >
-                <SelectTrigger className="h-9 rounded-lg text-sm w-full" aria-invalid={!!showError(errors.category)}>
+                <SelectTrigger className="h-9 rounded-lg text-sm w-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-invalid={!!showError(errors.category)}>
                   <SelectValue placeholder="Chọn loại..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin">
                   {CATEGORY_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {showError(errors.category) && (
-                <p className="text-xs text-red-500">{errors.category}</p>
+                <p className="text-xs text-[#E11D48]">{errors.category}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Độ ưu tiên</Label>
+              <Label className="text-xs font-semibold text-[var(--c-ink-soft)]">Độ ưu tiên</Label>
               <Select
                 value={form.priority}
                 onValueChange={(v) => setForm((p) => ({ ...p, priority: v as TicketPriority }))}
               >
-                <SelectTrigger className="h-9 rounded-lg text-sm w-full">
+                <SelectTrigger className="h-9 rounded-lg text-sm w-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]">
                   <SelectValue placeholder="Tự động..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin">
                   {PRIORITY_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
@@ -223,25 +223,25 @@ export const CreateTicketDialog: React.FC<Props> = ({ open, onClose }) => {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="ct-desc" className="text-xs font-semibold">Mô tả chi tiết *</Label>
+            <Label htmlFor="ct-desc" className="text-xs font-semibold text-[var(--c-ink-soft)]">Mô tả chi tiết *</Label>
             <Textarea
               id="ct-desc"
               placeholder="Nội dung vấn đề..."
               value={form.description}
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
               rows={3}
-              className="text-sm rounded-lg resize-none"
+              className="text-sm rounded-lg resize-none bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
               aria-invalid={!!showError(errors.description)}
             />
             {showError(errors.description) && (
-              <p className="text-xs text-red-500">{errors.description}</p>
+              <p className="text-xs text-[#E11D48]">{errors.description}</p>
             )}
           </div>
 
           {/* bookingId chỉ hiển thị khi category yêu cầu (ẩn với ACCOUNT_TECHNICAL/OTHER) */}
           {requiresBooking && (
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Mã booking *</Label>
+              <Label className="text-xs font-semibold text-[var(--c-ink-soft)]">Mã booking *</Label>
               <LookupCombobox<BookingLookupItem>
                 placeholder="Tìm booking theo mã / tên khách..."
                 searchPlaceholder="Nhập mã booking hoặc tên khách..."
@@ -264,18 +264,18 @@ export const CreateTicketDialog: React.FC<Props> = ({ open, onClose }) => {
                 invalid={!!showError(errors.bookingId)}
               />
               {showError(errors.bookingId) && (
-                <p className="text-xs text-red-500">{errors.bookingId}</p>
+                <p className="text-xs text-[#E11D48]">{errors.bookingId}</p>
               )}
             </div>
           )}
 
           {/* Tự nhận xử lý (hotline): BE set NEW→IN_PROGRESS */}
-          <label className="flex items-center justify-between gap-2 rounded-lg border border-border/40 p-3 cursor-pointer">
-            <span className="flex items-center gap-2 text-sm">
-              <UserCheck className="w-4 h-4 text-primary" />
+          <label className="flex items-center justify-between gap-2 rounded-lg border border-[var(--c-line)] p-3 cursor-pointer">
+            <span className="flex items-center gap-2 text-sm text-[var(--c-ink)]">
+              <UserCheck className="w-4 h-4 text-[var(--c-primary-strong)]" />
               <span>
                 Tự nhận xử lý ngay
-                <span className="block text-xs text-muted-foreground">Chuyển ticket sang &quot;Đang xử lý&quot; và gán cho bạn.</span>
+                <span className="block text-xs text-[var(--c-muted)]">Chuyển ticket sang &quot;Đang xử lý&quot; và gán cho bạn.</span>
               </span>
             </span>
             <Switch
@@ -287,17 +287,18 @@ export const CreateTicketDialog: React.FC<Props> = ({ open, onClose }) => {
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={handleClose}>
+          <AdminButton variant="secondary" size="sm" className="rounded-full" onClick={handleClose}>
             Huỷ
-          </Button>
-          <Button
+          </AdminButton>
+          <AdminButton
+            variant="primary"
             size="sm"
             className="rounded-full"
             onClick={handleSubmit}
             disabled={(attempted && !isValid) || createTicket.isPending}
           >
             {createTicket.isPending ? "Đang tạo..." : "Tạo ticket"}
-          </Button>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

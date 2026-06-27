@@ -14,8 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { PageHeader, StatusBadge, type BadgeTone } from "@/components/admin";
 import { TaskerStatus } from "@/features/tasker/types/tasker.type";
 import {
   useAdminTasker,
@@ -26,11 +25,19 @@ import {
   ACCOUNT_STATUS_LABELS,
   ALL_ACCOUNT_STATUSES,
   ALL_DOC_STATUSES,
-  DOC_STATUS_BADGE_STYLES,
   DOC_STATUS_LABELS,
   formatDateVN,
   type AdminTaskerDocStatus,
 } from "../constants";
+
+// Map hồ sơ status (lowercase) → semantic badge tone (design system §2).
+const DOC_TONE: Record<string, BadgeTone> = {
+  pending: "warning",
+  approved: "success",
+  rejected: "danger",
+  need_info: "info",
+  expired: "neutral",
+};
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
 import { TaskerEditDialog } from "./TaskerEditDialog";
 import { TaskerReinstateDialog } from "./TaskerReinstateDialog";
@@ -94,7 +101,7 @@ export const TaskerListTable: React.FC = () => {
       title: "Đối tác",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0">
             {row.avatarUrl ? (
               <img
                 src={row.avatarUrl}
@@ -106,10 +113,10 @@ export const TaskerListTable: React.FC = () => {
             )}
           </div>
           <div>
-            <p className="font-bold text-sm text-foreground/90">
+            <p className="font-bold text-sm text-[var(--c-ink)]">
               {row.fullName || "Chưa cập nhật"}
             </p>
-            <p className="text-xs text-muted-foreground">{row.phone || "—"}</p>
+            <p className="text-xs text-[var(--c-muted)]">{row.phone || "—"}</p>
           </div>
         </div>
       ),
@@ -119,7 +126,7 @@ export const TaskerListTable: React.FC = () => {
       title: "Khu vực",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground max-w-[200px] truncate block">
+        <span className="text-xs text-[var(--c-muted)] max-w-[200px] truncate block">
           {row.workingAddress || "Chưa cập nhật"}
         </span>
       ),
@@ -130,10 +137,10 @@ export const TaskerListTable: React.FC = () => {
       hideOnMobile: true,
       render: (row) => (
         <div className="flex items-center gap-1">
-          <span className="font-bold text-amber-500 text-sm">
+          <span className="font-bold text-[var(--c-primary-strong)] text-sm">
             ★ {row.avgRating > 0 ? row.avgRating.toFixed(1) : "N/A"}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[10px] text-[var(--c-muted)]">
             ({row.totalJobs} ca)
           </span>
         </div>
@@ -143,16 +150,9 @@ export const TaskerListTable: React.FC = () => {
       key: "approvalStatus",
       title: "Hồ sơ",
       render: (row) => (
-        <Badge
-          variant="outline"
-          className={cn(
-            "text-[10px] font-bold uppercase rounded-md border px-2 py-0.5",
-            DOC_STATUS_BADGE_STYLES[row.approvalStatus] ||
-              "bg-muted text-muted-foreground"
-          )}
-        >
+        <StatusBadge tone={DOC_TONE[row.approvalStatus] ?? "neutral"}>
           {DOC_STATUS_LABELS[row.approvalStatus] || row.approvalStatus}
-        </Badge>
+        </StatusBadge>
       ),
     },
     {
@@ -173,7 +173,7 @@ export const TaskerListTable: React.FC = () => {
       title: "Ngày tham gia",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-muted-foreground">
+        <span className="text-xs font-semibold text-[var(--c-muted)]">
           {row.createdAt ? formatDateVN(row.createdAt) : "N/A"}
         </span>
       ),
@@ -184,11 +184,11 @@ export const TaskerListTable: React.FC = () => {
       hideOnMobile: true,
       render: (row) =>
         row.updatedBy ? (
-          <span className="text-xs font-semibold text-foreground/80 truncate">
+          <span className="text-xs font-semibold text-[var(--c-ink-soft)] truncate">
             {row.updatedByName || "Admin"}
           </span>
         ) : (
-          <span className="text-xs text-muted-foreground">—</span>
+          <span className="text-xs text-[var(--c-muted)]">—</span>
         ),
     },
   ];
@@ -237,12 +237,10 @@ export const TaskerListTable: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="min-w-0">
-        <h1 className="text-lg font-bold tracking-tight">Quản lý đối tác (Tasker)</h1>
-        <p className="text-xs text-muted-foreground">
-          Tìm kiếm, lọc theo trạng thái tài khoản / hồ sơ và quản lý hoạt động của tasker.
-        </p>
-      </div>
+      <PageHeader
+        title="Quản lý đối tác (Tasker)"
+        description="Tìm kiếm, lọc theo trạng thái tài khoản / hồ sơ và quản lý hoạt động của tasker."
+      />
 
       <BaseTableList
         columns={columns}
@@ -273,13 +271,13 @@ export const TaskerListTable: React.FC = () => {
                 }))
               }
             >
-              <SelectTrigger className="h-10 flex-1 rounded-full border-border/40 bg-background text-sm font-medium shadow-none sm:w-[160px] sm:flex-none">
+              <SelectTrigger className="h-10 flex-1 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none sm:w-[160px] sm:flex-none">
                 <SelectValue placeholder="Trạng thái tài khoản" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
                 <SelectItem value="ALL">
                   <div className="flex items-center gap-2">
-                    <ListFilter className="w-4 h-4 text-muted-foreground" />
+                    <ListFilter className="w-4 h-4 text-[var(--c-muted)]" />
                     Tất cả tài khoản
                   </div>
                 </SelectItem>
@@ -301,13 +299,13 @@ export const TaskerListTable: React.FC = () => {
                 }))
               }
             >
-              <SelectTrigger className="h-10 flex-1 rounded-full border-border/40 bg-background text-sm font-medium shadow-none sm:w-[150px] sm:flex-none">
+              <SelectTrigger className="h-10 flex-1 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none sm:w-[150px] sm:flex-none">
                 <SelectValue placeholder="Trạng thái hồ sơ" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
                 <SelectItem value="ALL">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+                    <AlertTriangle className="w-4 h-4 text-[var(--c-muted)]" />
                     Tất cả hồ sơ
                   </div>
                 </SelectItem>

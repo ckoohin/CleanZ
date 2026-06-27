@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Unlock } from "lucide-react";
 import { useUnlockReporter } from "../hooks/useAdminIncident";
 
@@ -9,15 +9,15 @@ import { useUnlockReporter } from "../hooks/useAdminIncident";
 export function UnlockReporterButton({ id }: { id: string }) {
   const unlock = useUnlockReporter(id);
   return (
-    <Button
+    <AdminButton
       size="sm"
-      variant="outline"
+      variant="secondary"
       className="w-full rounded-lg gap-1.5"
       onClick={() => unlock.mutate()}
       disabled={unlock.isPending}
     >
       <Unlock className="size-3.5" />
       {unlock.isPending ? "..." : "Gỡ khoá quyền báo cáo (khách)"}
-    </Button>
+    </AdminButton>
   );
 }

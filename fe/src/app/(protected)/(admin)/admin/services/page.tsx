@@ -202,7 +202,7 @@ export default function AdminServicesPage() {
         <PageHeader onAdd={() => router.push("/admin/services/create-package")} />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-64 rounded-2xl bg-muted/40 animate-pulse" />
+            <div key={i} className="h-64 rounded-2xl bg-[var(--c-card-2)] animate-pulse" />
           ))}
         </div>
       </div>
@@ -216,18 +216,18 @@ export default function AdminServicesPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Tổng gói dịch vụ", value: packages?.length ?? 0, icon: Package, color: "text-primary bg-primary/10" },
-          { label: "Đang hoạt động", value: packages?.filter((p) => p.isActive).length ?? 0, icon: TrendingUp, color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30" },
-          { label: "Đã tắt", value: packages?.filter((p) => !p.isActive).length ?? 0, icon: PowerOff, color: "text-rose-500 bg-rose-100 dark:bg-rose-900/30" },
-          { label: "Tổng dịch vụ con", value: packages?.reduce((s, p) => s + (p.packageSubServices?.length ?? 0), 0) ?? 0, icon: Grid3X3, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
+          { label: "Tổng gói dịch vụ", value: packages?.length ?? 0, icon: Package, color: "text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)]" },
+          { label: "Đang hoạt động", value: packages?.filter((p) => p.isActive).length ?? 0, icon: TrendingUp, color: "text-[#0E9F6E] bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]" },
+          { label: "Đã tắt", value: packages?.filter((p) => !p.isActive).length ?? 0, icon: PowerOff, color: "text-[#E11D48] bg-[rgba(225,29,72,0.12)] dark:bg-[rgba(225,29,72,0.12)]" },
+          { label: "Tổng dịch vụ con", value: packages?.reduce((s, p) => s + (p.packageSubServices?.length ?? 0), 0) ?? 0, icon: Grid3X3, color: "text-[#2563EB] bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)]" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-card border border-border/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+          <div key={stat.label} className="bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
             <div className={`p-2.5 rounded-xl ${stat.color}`}>
               <stat.icon className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              <p className="text-sm text-[var(--c-muted)] font-medium">{stat.label}</p>
+              <p className="text-2xl font-bold text-[var(--c-ink)]">{stat.value}</p>
             </div>
           </div>
         ))}
@@ -242,8 +242,8 @@ export default function AdminServicesPage() {
               onClick={() => setStatusFilter(btn.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 statusFilter === btn.key
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  ? "bg-[var(--c-primary)] text-white shadow-sm"
+                  : "bg-[var(--c-card-2)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"
               }`}
             >
               {btn.label}
@@ -253,51 +253,24 @@ export default function AdminServicesPage() {
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
-            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--c-muted)]" aria-hidden="true" />
             <Input
               placeholder="Tìm theo tên hoặc mã..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-9 rounded-xl bg-background text-sm"
+              className="pl-9 h-9 rounded-xl bg-[var(--c-card)] text-sm"
             />
           </div>
-
-          <BaseButton
-            variant="outline"
-            onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-            className={cn(
-              "h-9 px-3 rounded-xl gap-2 font-bold text-xs shrink-0 border-border/50",
-              (isFiltersExpanded || isAnyFilterActive) && "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
-            )}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Bộ lọc</span>
-            {isAnyFilterActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            )}
-          </BaseButton>
-
-          {isAnyFilterActive && (
-            <BaseButton
-              variant="ghost"
-              onClick={handleResetFilters}
-              className="h-9 px-2 rounded-xl text-xs font-bold gap-1 shrink-0 text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span className="hidden md:inline">Đặt lại</span>
-            </BaseButton>
-          )}
-
-          <div className="flex rounded-xl overflow-hidden border border-border/50 shrink-0">
+          <div className="flex rounded-xl overflow-hidden border border-[var(--c-line)]/50">
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-primary text-white" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-[var(--c-primary)] text-white" : "bg-[var(--c-card)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"}`}
             >
               <Grid3X3 className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 transition-colors ${viewMode === "list" ? "bg-primary text-white" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              className={`p-2 transition-colors ${viewMode === "list" ? "bg-[var(--c-primary)] text-white" : "bg-[var(--c-card)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"}`}
             >
               <List className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -406,10 +379,10 @@ export default function AdminServicesPage() {
 
       {/* Package Grid */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl bg-muted/10">
-          <Package className="w-16 h-16 text-muted-foreground/30 mb-4" />
-          <p className="text-lg font-semibold text-muted-foreground">Chưa có gói dịch vụ</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">Tạo gói dịch vụ mới để hiển thị ở đây</p>
+        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[var(--c-line)] rounded-2xl bg-[var(--c-card-2)]">
+          <Package className="w-16 h-16 text-[var(--c-muted)] mb-4" />
+          <p className="text-lg font-semibold text-[var(--c-muted)]">Chưa có gói dịch vụ</p>
+          <p className="text-sm text-[var(--c-muted)] mt-1">Tạo gói dịch vụ mới để hiển thị ở đây</p>
           <BaseButton variant="primary" className="mt-6" onClick={() => router.push("/admin/services/create")}>
             <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
             Tạo gói dịch vụ đầu tiên
@@ -430,8 +403,8 @@ export default function AdminServicesPage() {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {paginatedPackages.map((pkg) => (
+        <div className="border border-[var(--c-line)]/50 rounded-2xl overflow-hidden bg-[var(--c-card)] shadow-sm divide-y divide-[var(--c-line)]/50">
+          {filtered.map((pkg) => (
             <PackageListRow
               key={pkg.id}
               pkg={pkg}
@@ -525,7 +498,7 @@ export default function AdminServicesPage() {
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className="cz-admin rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold">Xác nhận xóa gói dịch vụ</AlertDialogTitle>
             <AlertDialogDescription className="text-base">
@@ -535,7 +508,7 @@ export default function AdminServicesPage() {
           <AlertDialogFooter className="mt-4">
             <AlertDialogCancel className="h-11 rounded-xl font-bold">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 rounded-xl font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 rounded-xl font-bold bg-[#E11D48] text-white hover:bg-[#E11D48]"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
@@ -554,10 +527,10 @@ function PageHeader({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)]">
           Quản lý Gói Dịch vụ
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <p className="text-[var(--c-muted)] text-sm mt-1">
           Thiết lập, quản lý bảng giá và thống kê cho từng gói dịch vụ.
         </p>
       </div>
@@ -593,143 +566,105 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
 
   return (
     <div
-      className="group bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+      className="group bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-[var(--c-primary)]/30 transition-all duration-300 cursor-pointer"
       onClick={onView}
     >
-      <div>
-        {/* Thumbnail */}
-        <div className="relative h-44 bg-gradient-to-br from-muted/60 to-muted/30 overflow-hidden">
-          {pkg.iconUrl ? (
-            <Image
-              src={pkg.iconUrl}
-              alt={pkg.name}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Package className="w-16 h-16 text-muted-foreground/20" aria-hidden="true" />
-            </div>
-          )}
-          {/* Status badge */}
-          <div className="absolute top-3 left-3">
-            <span
-              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                pkg.isActive
-                  ? "bg-emerald-500/90 text-white animate-pulse"
-                  : "bg-slate-500/80 text-white"
-              }`}
-            >
-              {pkg.isActive ? "Đang bật" : "Đã tắt"}
-            </span>
+      {/* Thumbnail */}
+      <div className="relative h-44 bg-gradient-to-br from-[var(--c-card-2)] to-[var(--c-card-2)] overflow-hidden">
+        {pkg.iconUrl ? (
+          <Image
+            src={pkg.iconUrl}
+            alt={pkg.name}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Package className="w-16 h-16 text-[var(--c-muted)]" aria-hidden="true" />
           </div>
-          {/* Action menu */}
-          <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-colors">
-                  <MoreVertical className="w-4 h-4" aria-hidden="true" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                <DropdownMenuItem onClick={onView} className="gap-2 rounded-lg">
-                  <Eye className="w-4 h-4" aria-hidden="true" /> Xem chi tiết
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onEdit} className="gap-2 rounded-lg">
-                  <Edit className="w-4 h-4" aria-hidden="true" /> Chỉnh sửa
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onToggle} className="gap-2 rounded-lg" disabled={isToggling}>
-                  {pkg.isActive ? (
-                    <><PowerOff className="w-4 h-4 text-amber-500" aria-hidden="true" /> Tắt gói</>
-                  ) : (
-                    <><Power className="w-4 h-4 text-emerald-500" aria-hidden="true" /> Bật gói</>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-destructive focus:text-destructive">
-                  <Trash2 className="w-4 h-4" aria-hidden="true" /> Xóa gói
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        )}
+        {/* Status badge */}
+        <div className="absolute top-3 left-3">
+          <span
+            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+              pkg.isActive
+                ? "bg-[#0E9F6E] text-white"
+                : "bg-[var(--c-muted)] text-white"
+            }`}
+          >
+            {pkg.isActive ? "Đang bật" : "Đã tắt"}
+          </span>
         </div>
-
-        {/* Info */}
-        <div className="p-4 space-y-3">
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-bold text-foreground text-base leading-tight group-hover:text-primary transition-colors line-clamp-1">{pkg.name}</h3>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0 uppercase">
-                {pkg.packageCode}
-              </span>
-            </div>
-            {pkg.policyDescription ? (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{pkg.policyDescription}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground/50 italic mt-1">Chưa cập nhật mô tả chính sách.</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 py-1.5 border-y border-border/30">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Settings className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-              <span className="truncate">{pricingModeText}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Briefcase className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-              <span>{subCount} dịch vụ con</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-              <span>{areaCount} quận/huyện</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
-              <span>4.8 (Thống kê)</span>
-            </div>
-          </div>
-
-          {/* Phụ phí */}
-          <div className="space-y-1">
-            <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">Cấu hình phụ phí</div>
-            <div className="flex flex-wrap gap-1">
-              {pkg.nightSurcharge > 0 && (
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-amber-500/5 border-amber-500/20 text-amber-600 font-bold flex items-center gap-1">
-                  <Moon className="w-3 h-3 text-amber-600 shrink-0" />
-                  <span>Phụ thu đêm: {vnd(pkg.nightSurcharge)}</span>
-                </Badge>
-              )}
-              {pkg.petSurcharge > 0 && (
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-orange-500/5 border-orange-500/20 text-orange-600 font-bold flex items-center gap-1">
-                  <PawPrint className="w-3 h-3 text-orange-600 shrink-0" />
-                  <span>Thú cưng: {vnd(pkg.petSurcharge)}</span>
-                </Badge>
-              )}
-              {pkg.toolFee > 0 && (
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-blue-500/5 border-blue-500/20 text-blue-600 font-bold flex items-center gap-1">
-                  <Wrench className="w-3 h-3 text-blue-600 shrink-0" />
-                  <span>Dụng cụ: {vnd(pkg.toolFee)}</span>
-                </Badge>
-              )}
-              {pkg.peakRatePercent > 0 && (
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-rose-500/5 border-rose-500/20 text-rose-600 font-bold flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-rose-600 shrink-0" />
-                  <span>Cao điểm: +{pkg.peakRatePercent}%</span>
-                </Badge>
-              )}
-              {pkg.nightSurcharge === 0 && pkg.petSurcharge === 0 && pkg.toolFee === 0 && pkg.peakRatePercent === 0 && (
-                <span className="text-[10px] text-muted-foreground/60 italic font-semibold">Miễn phụ phí</span>
-              )}
-            </div>
-          </div>
+        {/* Action menu */}
+        <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-colors">
+                <MoreVertical className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="cz-admin w-48 rounded-xl">
+              <DropdownMenuItem onClick={onView} className="gap-2 rounded-lg">
+                <Eye className="w-4 h-4" aria-hidden="true" /> Xem chi tiết
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEdit} className="gap-2 rounded-lg">
+                <Edit className="w-4 h-4" aria-hidden="true" /> Chỉnh sửa
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onToggle} className="gap-2 rounded-lg" disabled={isToggling}>
+                {pkg.isActive ? (
+                  <><PowerOff className="w-4 h-4 text-[#D97706]" aria-hidden="true" /> Tắt gói</>
+                ) : (
+                  <><Power className="w-4 h-4 text-[#0E9F6E]" aria-hidden="true" /> Bật gói</>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-[#E11D48] focus:text-[#E11D48]">
+                <Trash2 className="w-4 h-4" aria-hidden="true" /> Xóa gói
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      <div className="p-4 pt-0">
-        <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">
-            Thời lượng: <span className="font-bold text-foreground">Tối đa {pkg.maxHours}h</span>
+      {/* Info */}
+      <div className="p-4 space-y-3">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-[var(--c-ink)] text-base leading-tight line-clamp-1">{pkg.name}</h3>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-semibold shrink-0">
+              {pkg.packageCode}
+            </span>
+          </div>
+          {pkg.policyDescription && (
+            <p className="text-xs text-[var(--c-muted)] mt-1 line-clamp-2">{pkg.policyDescription}</p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1 text-xs text-[var(--c-muted)]">
+            <Package className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>{subCount} dịch vụ con</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-[var(--c-muted)]">
+            <Star className="w-3.5 h-3.5 fill-[#D97706] text-[#D97706]" aria-hidden="true" />
+            <span>4.8</span>
+          </div>
+          {pkg.nightSurcharge > 0 && (
+            <Badge variant="secondary" className="text-[9px] h-4 px-1.5">
+              🌙 Phụ thu đêm
+            </Badge>
+          )}
+          {pkg.petSurcharge > 0 && (
+            <Badge variant="secondary" className="text-[9px] h-4 px-1.5">
+              🐾 Thú cưng
+            </Badge>
+          )}
+        </div>
+
+        <div className="pt-2 border-t border-[var(--c-line)]/50 flex items-center justify-between">
+          <div className="text-xs text-[var(--c-muted)]">
+            Tối đa <span className="font-bold text-[var(--c-ink)]">{pkg.maxHours} giờ</span>
           </div>
           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             <Switch
@@ -767,141 +702,52 @@ function PackageListRow({ pkg, onView, onEdit, onDelete, onToggle, isToggling }:
 
   return (
     <div
-      className="group bg-card border border-border/40 rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 hover:shadow-md hover:border-primary/30 transition-all duration-300 cursor-pointer"
+      className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--c-card-2)] transition-colors cursor-pointer"
       onClick={onView}
     >
-      {/* Cột 1: Thumbnail & Thông tin cơ bản */}
-      <div className="flex items-center gap-4 min-w-0 flex-1">
-        <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-muted/40 shrink-0 border border-border/30">
-          {pkg.iconUrl ? (
-            <Image src={pkg.iconUrl} alt={pkg.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Package className="w-7 h-7 text-muted-foreground/30" aria-hidden="true" />
-            </div>
-          )}
-          {/* Badge STT */}
-          <div className="absolute bottom-0 right-0 bg-primary/95 text-white text-[8px] font-black px-1.5 py-0.5 rounded-tl-lg">
-            #{pkg.sortOrder}
+      <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--c-card-2)] shrink-0">
+        {pkg.iconUrl ? (
+          <Image src={pkg.iconUrl} alt={pkg.name} fill className="object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Package className="w-6 h-6 text-[var(--c-muted)]" aria-hidden="true" />
           </div>
-        </div>
+        )}
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-black text-foreground text-base group-hover:text-primary transition-colors leading-snug">{pkg.name}</span>
-            <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold tracking-wider shrink-0 uppercase">
-              {pkg.packageCode}
-            </span>
-            <span className={cn(
-              "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0",
-              pkg.isActive ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-500/10 text-slate-600"
-            )}>
-              {pkg.isActive ? "Đang bật" : "Đã tắt"}
-            </span>
-          </div>
-          {pkg.policyDescription ? (
-            <p className="text-xs text-muted-foreground mt-1.5 line-clamp-1 leading-relaxed max-w-xl">{pkg.policyDescription}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground/50 italic mt-1.5">Chưa cập nhật mô tả chính sách.</p>
-          )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-[var(--c-ink)] truncate">{pkg.name}</span>
+          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-semibold shrink-0">
+            {pkg.packageCode}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-xs text-[var(--c-muted)]">
+          <span>{subCount} dịch vụ con</span>
+          <span>•</span>
+          <span>Tối đa {pkg.maxHours}h</span>
+          {pkg.nightSurcharge > 0 && <><span>•</span><span>🌙 Phụ thu đêm</span></>}
         </div>
       </div>
 
-      {/* Cột 2: Cấu hình vận hành */}
-      <div className="flex items-center gap-6 shrink-0 flex-wrap lg:flex-nowrap border-t lg:border-t-0 lg:border-l border-border/30 pt-3 lg:pt-0 lg:pl-6">
-        <div className="space-y-1.5 min-w-[120px]">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
-            <Settings className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-            <span>{pricingModeText}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Briefcase className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-            <span>{subCount} dịch vụ con</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-            <span>{areaCount} quận/huyện</span>
-          </div>
-        </div>
-
-        {/* Cột 3: Phụ phí (nếu có) */}
-        <div className="flex flex-col gap-1 min-w-[140px]">
-          <div className="text-[10px] text-muted-foreground font-black uppercase tracking-wider mb-0.5">Phụ phí & Cấu hình</div>
-          <div className="flex flex-wrap gap-1.5 max-w-[180px]">
-            {pkg.nightSurcharge > 0 ? (
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-amber-500/5 border-amber-500/20 text-amber-600 font-bold flex items-center gap-0.5">
-                <Moon className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                <span>+{vnd(pkg.nightSurcharge).replace(" ₫", "")}</span>
-              </Badge>
-            ) : null}
-            {pkg.petSurcharge > 0 ? (
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-orange-500/5 border-orange-500/20 text-orange-600 font-bold flex items-center gap-0.5">
-                <PawPrint className="w-2.5 h-2.5 text-orange-600 shrink-0" />
-                <span>+{vnd(pkg.petSurcharge).replace(" ₫", "")}</span>
-              </Badge>
-            ) : null}
-            {pkg.toolFee > 0 ? (
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-blue-500/5 border-blue-500/20 text-blue-600 font-bold flex items-center gap-0.5">
-                <Wrench className="w-2.5 h-2.5 text-blue-600 shrink-0" />
-                <span>+{vnd(pkg.toolFee).replace(" ₫", "")}</span>
-              </Badge>
-            ) : null}
-            {pkg.peakRatePercent > 0 ? (
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-rose-500/5 border-rose-500/20 text-rose-600 font-bold flex items-center gap-0.5">
-                <Zap className="w-2.5 h-2.5 text-rose-600 shrink-0" />
-                <span>+{pkg.peakRatePercent}%</span>
-              </Badge>
-            ) : null}
-            {pkg.nightSurcharge === 0 && pkg.petSurcharge === 0 && pkg.toolFee === 0 && pkg.peakRatePercent === 0 ? (
-              <span className="text-[10px] text-muted-foreground/60 italic font-semibold">Miễn phụ phí</span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      {/* Cột 4: Nút hành động */}
-      <div className="flex items-center gap-3 shrink-0 justify-end border-t lg:border-t-0 lg:border-l border-border/30 pt-3 lg:pt-0 lg:pl-6 w-full lg:w-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1.5">
-          <Switch checked={pkg.isActive} onCheckedChange={onToggle} disabled={isToggling} className="scale-90" />
-          <span className="text-[10px] text-muted-foreground font-semibold select-none">{pkg.isActive ? "Bật" : "Tắt"}</span>
-        </div>
-        <div className="flex items-center gap-1.5 ml-2">
-          <button
-            type="button"
-            onClick={onView}
-            className="w-8 h-8 rounded-lg bg-muted/60 text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center transition-all"
-            title="Xem chi tiết"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="w-8 h-8 rounded-lg bg-muted/60 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 flex items-center justify-center transition-all"
-            title="Chỉnh sửa"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
-                <MoreVertical className="w-4 h-4" aria-hidden="true" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-xl">
-              <DropdownMenuItem onClick={onView} className="gap-2 rounded-lg">
-                <Eye className="w-4 h-4" aria-hidden="true" /> Xem chi tiết
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEdit} className="gap-2 rounded-lg">
-                <Edit className="w-4 h-4" aria-hidden="true" /> Chỉnh sửa
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-destructive focus:text-destructive">
-                <Trash2 className="w-4 h-4" aria-hidden="true" /> Xóa gói
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+        <Switch checked={pkg.isActive} onCheckedChange={onToggle} className="scale-90" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="w-8 h-8 rounded-lg border border-[var(--c-line)]/50 flex items-center justify-center hover:bg-[var(--c-card-2)] transition-colors">
+              <MoreVertical className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="cz-admin w-44 rounded-xl">
+            <DropdownMenuItem onClick={onView} className="gap-2 rounded-lg">
+              <Eye className="w-4 h-4" aria-hidden="true" /> Xem chi tiết
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-[#E11D48] focus:text-[#E11D48]">
+              <Trash2 className="w-4 h-4" aria-hidden="true" /> Xóa gói
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

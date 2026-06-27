@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Save } from 'lucide-react';
+import { Plus, Save, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { BaseButton } from '@/components/ui/base/base_button';
+import { AdminButton, StatusBadge, adminInputClass } from '@/components/admin';
 import { Separator } from '@/components/ui/separator';
 import {
   Policy,
@@ -96,13 +95,13 @@ function FormField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm font-semibold text-foreground flex items-center gap-1">
+      <Label className="text-sm font-semibold text-[var(--c-ink)] flex items-center gap-1">
         {label}
-        {required && <span className="text-destructive">*</span>}
+        {required && <span className="text-[#E11D48]">*</span>}
       </Label>
       {children}
-      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && !error && <p className="text-xs text-[var(--c-muted)]">{hint}</p>}
+      {error && <p className="text-xs text-[#E11D48]">{error}</p>}
     </div>
   );
 }
@@ -193,10 +192,10 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+      <DialogContent className="cz-admin max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0 bg-[var(--c-card)] border-[var(--c-line)]">
 
         {/* Header */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[var(--c-line)]">
           <div className="flex items-center gap-3">
             {CategoryIcon && (
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${POLICY_CATEGORY_META[form.category].bgColor}`}>
@@ -204,10 +203,10 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
               </div>
             )}
             <div>
-              <DialogTitle className="text-lg font-bold">
+              <DialogTitle className="text-lg font-bold text-[var(--c-ink)]">
                 {isEdit ? 'Cập nhật chính sách' : 'Tạo chính sách mới'}
               </DialogTitle>
-              <DialogDescription className="mt-0.5">
+              <DialogDescription className="mt-0.5 text-[var(--c-muted)]">
                 {isEdit
                   ? `Chỉnh sửa "${policy?.title}"`
                   : 'Thêm chính sách vào thư viện hệ thống CleanZ'}
@@ -225,7 +224,7 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
               value={form.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="VD: Chính sách bảo mật thông tin"
-              className={errors.title ? 'border-destructive' : ''}
+              className={`${adminInputClass} ${errors.title ? 'border-[#E11D48]' : ''}`}
             />
           </FormField>
 
@@ -237,14 +236,14 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
             hint="Dùng cho đường dẫn, ví dụ: privacy-policy"
           >
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--c-muted)] select-none z-10">
                 /policies/
               </span>
               <Input
                 value={form.slug}
                 onChange={(e) => set('slug', slugify(e.target.value))}
                 placeholder="privacy-policy"
-                className={`pl-[72px] font-mono text-sm ${errors.slug ? 'border-destructive' : ''}`}
+                className={`${adminInputClass} pl-[72px] font-mono text-sm ${errors.slug ? 'border-[#E11D48]' : ''}`}
               />
             </div>
           </FormField>
@@ -255,10 +254,10 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Loại chính sách" required>
               <Select value={form.category} onValueChange={(v) => set('category', v as PolicyCategory)}>
-                <SelectTrigger>
+                <SelectTrigger className={adminInputClass}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin bg-[var(--c-card)] border-[var(--c-line)]">
                   {(Object.keys(POLICY_CATEGORY_META) as PolicyCategory[]).map((key) => {
                     const meta = POLICY_CATEGORY_META[key];
                     const Icon = meta.icon;
@@ -277,10 +276,10 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
 
             <FormField label="Đối tượng áp dụng">
               <Select value={form.role} onValueChange={(v) => set('role', v as PolicyRole)}>
-                <SelectTrigger>
+                <SelectTrigger className={adminInputClass}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin bg-[var(--c-card)] border-[var(--c-line)]">
                   <SelectItem value="ALL">Tất cả</SelectItem>
                   <SelectItem value="CUSTOMER">Customer</SelectItem>
                   <SelectItem value="TASKER">Tasker</SelectItem>
@@ -298,31 +297,31 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
                 max={99}
                 value={form.sortOrder}
                 onChange={(e) => set('sortOrder', Number(e.target.value))}
-                className="text-center"
+                className={`${adminInputClass} text-center`}
               />
             </FormField>
 
             <FormField label="Mặc định" hint="Tự động gán vào gói mới">
-              <div className="flex items-center gap-3 h-9 px-3 rounded-md border border-input bg-background">
+              <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-[var(--c-line-strong)] bg-[var(--c-card-2)]">
                 <Switch
                   checked={form.isDefault}
                   onCheckedChange={(v) => set('isDefault', v)}
                 />
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-[var(--c-muted)]">
                   {form.isDefault ? 'Có' : 'Không'}
                 </span>
               </div>
             </FormField>
 
             <FormField label="Trạng thái">
-              <div className="flex items-center gap-3 h-9 px-3 rounded-md border border-input bg-background">
+              <div className="flex items-center gap-3 h-10 px-3 rounded-xl border border-[var(--c-line-strong)] bg-[var(--c-card-2)]">
                 <Switch
                   checked={form.isActive}
                   onCheckedChange={(v) => set('isActive', v)}
                 />
-                <Badge variant={form.isActive ? 'default' : 'secondary'} className="text-xs">
+                <StatusBadge tone={form.isActive ? 'success' : 'neutral'}>
                   {form.isActive ? 'Hoạt động' : 'Ẩn'}
-                </Badge>
+                </StatusBadge>
               </div>
             </FormField>
           </div>
@@ -341,24 +340,26 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
               onChange={(e) => set('content', e.target.value)}
               rows={12}
               placeholder="## Giới thiệu&#10;&#10;Nhập nội dung chính sách tại đây..."
-              className={`resize-none font-mono text-sm leading-relaxed ${errors.content ? 'border-destructive' : ''}`}
+              className={`resize-none font-mono text-sm leading-relaxed rounded-xl bg-[var(--c-card-2)] text-[var(--c-ink)] border-[var(--c-line-strong)] focus:border-[var(--c-primary)]/50 ${errors.content ? 'border-[#E11D48]' : ''}`}
             />
           </FormField>
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-6 py-4 border-t">
-          <BaseButton variant="outline" onClick={onClose} disabled={isSubmitting}>
+        <DialogFooter className="px-6 py-4 border-t border-[var(--c-line)]">
+          <AdminButton variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Hủy
-          </BaseButton>
-          <BaseButton
+          </AdminButton>
+          <AdminButton
             variant="primary"
             onClick={handleSubmit}
-            isLoading={isSubmitting}
+            disabled={isSubmitting}
+            icon={isSubmitting
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : (isEdit ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />)}
           >
-            {!isSubmitting && (isEdit ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />)}
             {isEdit ? 'Cập nhật' : 'Tạo chính sách'}
-          </BaseButton>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

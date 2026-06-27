@@ -143,13 +143,16 @@ export function WalletDetailDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-        <SheetContent className="flex w-full flex-col p-0 sm:max-w-xl">
-        <SheetHeader className="border-b border-border/40 px-6 py-5">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <WalletCards className="size-5 text-primary" />
+        <SheetContent className="cz-admin flex w-full flex-col bg-[var(--c-card)] p-0 sm:max-w-xl">
+        <SheetHeader className="border-b border-[var(--c-line)] px-6 py-5">
+          <SheetTitle className="flex items-center gap-2 text-base text-[var(--c-ink)]">
+            <WalletCards className="size-5 text-[var(--c-primary-strong)]" />
             Chi tiết ví
           </SheetTitle>
 
+          <SheetDescription className="font-mono text-xs text-[var(--c-muted)]">
+            {walletId}
+          </SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="flex-1 min-h-0">
@@ -161,7 +164,7 @@ export function WalletDetailDrawer({
             </div>
           ) : wallet ? (
             <div className="space-y-5 p-6">
-              <div className="rounded-[24px] bg-primary p-5 text-primary-foreground shadow-lg shadow-primary/15">
+              <div className="rounded-[24px] bg-[var(--c-primary)] p-5 text-white shadow-lg shadow-[var(--c-primary)]/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold opacity-80">
                     <CreditCard className="size-4" />
@@ -195,7 +198,7 @@ export function WalletDetailDrawer({
 
               <Button
                 variant="outline"
-                className="w-full rounded-xl border-primary/20 text-primary hover:bg-primary/5"
+                className="w-full rounded-xl border-[var(--c-primary)]/30 bg-[var(--c-card)] text-[var(--c-primary-strong)] hover:bg-[var(--c-primary-soft)]"
                 onClick={() => setAdjustmentOpen(true)}
               >
                 <SlidersHorizontal className="size-4 cursor-pointer" />
@@ -204,11 +207,19 @@ export function WalletDetailDrawer({
 
               <div>
                 <div className="mb-3 flex items-center justify-between">
-                  <h3 className="flex items-center gap-2 text-sm font-bold">
-                    <History className="size-4 text-primary" />
-                    Lịch sử giao dịch
-                  </h3>
-                  <Badge variant="outline" className="rounded-full">
+                  <div>
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--c-ink)]">
+                      <History className="size-4 text-[var(--c-primary-strong)]" />
+                      Giao dịch gần đây
+                    </h3>
+                    <p className="mt-0.5 text-xs text-[var(--c-muted)]">
+                      Tối đa 20 giao dịch mới nhất của ví.
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-[var(--c-line)] text-[var(--c-muted)]"
+                  >
                     {transactions?.total ?? 0} giao dịch
                   </Badge>
                 </div>
@@ -259,13 +270,13 @@ export function WalletDetailDrawer({
                       <TransactionItem key={transaction.id} transaction={transaction} />
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-border p-8 text-center">
-                      <CircleDollarSign className="mx-auto size-8 text-muted-foreground/50" />
-                      <p className="mt-2 text-sm font-semibold">
-                        {hasFilter ? "Không có giao dịch trong khoảng này" : "Chưa có giao dịch"}
+                    <div className="rounded-2xl border border-dashed border-[var(--c-line)] p-8 text-center">
+                      <CircleDollarSign className="mx-auto size-8 text-[var(--c-muted)]" />
+                      <p className="mt-2 text-sm font-semibold text-[var(--c-ink)]">
+                        Chưa có giao dịch
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {hasFilter ? "Thử chọn khoảng ngày khác." : "Các biến động số dư sẽ xuất hiện tại đây."}
+                      <p className="text-xs text-[var(--c-muted)]">
+                        Các biến động số dư sẽ xuất hiện tại đây.
                       </p>
                     </div>
                   )}
@@ -302,7 +313,7 @@ export function WalletDetailDrawer({
               </div>
             </div>
           ) : (
-            <div className="p-10 text-center text-sm text-muted-foreground">
+            <div className="p-10 text-center text-sm text-[var(--c-muted)]">
               Không tìm thấy ví.
             </div>
           )}
@@ -311,10 +322,12 @@ export function WalletDetailDrawer({
       </Sheet>
 
       <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
-        <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogContent className="cz-admin rounded-2xl bg-[var(--c-card)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Điều chỉnh số dư ví</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-[var(--c-ink)]">
+              Điều chỉnh số dư ví
+            </DialogTitle>
+            <DialogDescription className="text-[var(--c-muted)]">
               Nhập số dương để cộng tiền, số âm để trừ tiền. Mọi thay đổi đều
               được ghi vào lịch sử giao dịch.
             </DialogDescription>
@@ -322,7 +335,7 @@ export function WalletDetailDrawer({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label className="text-xs font-semibold text-[var(--c-muted)]">
                 Số tiền điều chỉnh
               </label>
               <Input
@@ -331,17 +344,17 @@ export function WalletDetailDrawer({
                 value={adjustmentAmount}
                 onChange={(event) => setAdjustmentAmount(event.target.value)}
                 placeholder="Ví dụ: 50000 hoặc -50000"
-                className="rounded-xl"
+                className="h-10 rounded-xl border-[var(--c-line-strong)] bg-[var(--c-card-2)] focus:border-[var(--c-primary)]/50"
               />
               {wallet && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[var(--c-muted)]">
                   Số dư hiện tại: {formatCurrency(wallet.balance)}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label className="text-xs font-semibold text-[var(--c-muted)]">
                 Lý do điều chỉnh
               </label>
               <Textarea
@@ -350,7 +363,7 @@ export function WalletDetailDrawer({
                 maxLength={500}
                 rows={3}
                 placeholder="Mô tả rõ nguyên nhân để phục vụ đối soát..."
-                className="rounded-xl"
+                className="rounded-xl border-[var(--c-line-strong)] bg-[var(--c-card-2)] focus:border-[var(--c-primary)]/50"
               />
             </div>
           </div>
@@ -358,13 +371,13 @@ export function WalletDetailDrawer({
           <DialogFooter>
             <Button
               variant="outline"
-              className="rounded-full"
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)]"
               onClick={() => setAdjustmentOpen(false)}
             >
               Hủy
             </Button>
             <Button
-              className="rounded-full"
+              className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary-strong)]"
               onClick={submitAdjustment}
               disabled={adjustMutation.isPending}
             >
@@ -401,12 +414,14 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <Icon className="size-4 text-primary" />
+    <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold text-[var(--c-muted)]">
+        <Icon className="size-4 text-[var(--c-primary-strong)]" />
         {label}
       </div>
-      <p className="mt-2 truncate text-sm font-bold">{value}</p>
+      <p className="mt-2 truncate text-sm font-bold text-[var(--c-ink)]">
+        {value}
+      </p>
     </div>
   );
 }
@@ -423,37 +438,38 @@ function TransactionItem({
   const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card p-3.5">
+    <div className="flex items-center gap-3 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-3.5">
       <div
-        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-          isCredit
-            ? "bg-emerald-500/10 text-emerald-600"
-            : "bg-red-500/10 text-red-600"
-        }`}
+        className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+        style={{
+          background: isCredit
+            ? "rgba(14,159,110,0.12)"
+            : "rgba(225,29,72,0.12)",
+          color: isCredit ? "#0E9F6E" : "#E11D48",
+        }}
       >
         <Icon className="size-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold">
+        <p className="truncate text-sm font-bold text-[var(--c-ink)]">
           {TRANSACTION_LABELS[transaction.type] ?? transaction.type}
         </p>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-xs text-[var(--c-muted)]">
           {transaction.description || "Không có mô tả"}
         </p>
-        <p className="mt-1 text-[10px] text-muted-foreground">
+        <p className="mt-1 text-[10px] text-[var(--c-muted)]">
           {new Date(transaction.createdAt).toLocaleString("vi-VN")}
         </p>
       </div>
       <div className="text-right">
         <p
-          className={`text-sm font-black ${
-            isCredit ? "text-emerald-600" : "text-red-600"
-          }`}
+          className="text-sm font-black"
+          style={{ color: isCredit ? "#0E9F6E" : "#E11D48" }}
         >
           {isCredit ? "+" : "-"}
           {formatCurrency(Math.abs(amount))}
         </p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-[10px] text-[var(--c-muted)]">
           Còn {formatCurrency(balanceAfter)}
         </p>
       </div>

@@ -45,7 +45,7 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
   if (isLoading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" aria-hidden="true" />
+        <Loader2 className="w-8 h-8 text-[var(--c-primary-strong)] animate-spin" aria-hidden="true" />
       </div>
     );
   }
@@ -77,8 +77,8 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
           <ArrowLeft className="w-4 h-4" aria-hidden="true" />
         </BaseButton>
         <div>
-          <p className="text-xs text-muted-foreground font-medium">Quản lý Gói Dịch vụ</p>
-          <h1 className="text-lg font-bold text-foreground leading-tight">{pkg.name}</h1>
+          <p className="text-xs text-[var(--c-muted)] font-medium">Quản lý Gói Dịch vụ</p>
+          <h1 className="text-lg font-bold text-[var(--c-ink)] leading-tight">{pkg.name}</h1>
         </div>
       </div>
 
@@ -91,16 +91,16 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
       />
 
       {/* Main tabs */}
-      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-5 md:p-8">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 shadow-sm rounded-3xl p-5 md:p-8">
         <Tabs defaultValue="overview" className="w-full">
           {/* Tab list - scrollable on mobile */}
           <div className="overflow-x-auto scrollbar-hide mb-8">
-            <TabsList className="inline-flex w-max min-w-full bg-muted/50 p-1.5 rounded-2xl h-auto gap-1">
+            <TabsList className="inline-flex w-max min-w-full bg-[var(--c-card-2)] p-1.5 rounded-2xl h-auto gap-1">
               {TABS.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="rounded-xl py-2.5 px-4 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-medium transition-all text-sm gap-1.5"
+                  className="rounded-xl py-2.5 px-4 whitespace-nowrap data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-md data-[state=active]:text-[var(--c-primary-strong)] font-medium transition-all text-sm gap-1.5"
                 >
                   <tab.icon className="w-4 h-4" aria-hidden="true" />
                   {tab.label}

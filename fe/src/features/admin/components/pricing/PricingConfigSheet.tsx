@@ -43,7 +43,7 @@ const NumberInput = ({
   errors: Partial<Record<keyof PricingConfigFormValues, string>>;
 }) => (
   <div className="space-y-1.5">
-    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+    <Label className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wider">
       {label}
     </Label>
     <div className="relative">
@@ -53,15 +53,15 @@ const NumberInput = ({
         value={form[field] as string}
         onChange={(e) => set(field, e.target.value)}
         placeholder={placeholder}
-        className="h-11 rounded-xl pr-8 bg-muted/30 border-border/50 text-sm font-medium focus-visible:ring-primary/20 focus-visible:border-primary/40"
+        className="h-11 rounded-xl pr-8 bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-sm font-medium focus-visible:ring-primary/20 focus-visible:border-primary/40"
       />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none">
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--c-muted)] font-medium pointer-events-none">
         {suffix}
       </span>
     </div>
-    {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    {hint && <p className="text-[11px] text-[var(--c-muted)]">{hint}</p>}
     {errors[field] && (
-      <p className="text-xs text-destructive font-medium">{errors[field]}</p>
+      <p className="text-xs text-[#E11D48] font-medium">{errors[field]}</p>
     )}
   </div>
 );
@@ -133,32 +133,32 @@ export function PricingConfigSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto p-6 sm:p-8">
-        <SheetHeader className="pb-6 border-b border-border/50 mb-6 text-left">
+      <SheetContent className="cz-admin w-full sm:max-w-md overflow-y-auto p-6 sm:p-8 bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]">
+        <SheetHeader className="pb-6 border-b border-[var(--c-line)] mb-6 text-left">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <DollarSign className="w-4 h-4 text-primary" />
+            <div className="w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] flex items-center justify-center shrink-0">
+              <DollarSign className="w-4 h-4 text-[var(--c-primary-strong)]" />
             </div>
-            <SheetTitle className="text-lg font-bold">Thêm bảng giá nhanh</SheetTitle>
+            <SheetTitle className="text-lg font-bold text-[var(--c-ink)]">Thêm bảng giá nhanh</SheetTitle>
           </div>
-          <SheetDescription className="text-xs text-muted-foreground">
+          <SheetDescription className="text-xs text-[var(--c-muted)]">
             Thiết lập một cấu hình giá mới để áp dụng ngay cho dịch vụ này.
           </SheetDescription>
         </SheetHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <Label className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wider">
               Tên Bảng Giá
             </Label>
             <Input
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="VD: Bảng giá dọn dẹp cơ bản"
-              className="h-11 rounded-xl bg-muted/30 border-border/50 text-sm focus-visible:ring-primary/20"
+              className="h-11 rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-sm focus-visible:ring-primary/20"
             />
             {errors.name && (
-              <p className="text-xs text-destructive font-medium">{errors.name}</p>
+              <p className="text-xs text-[#E11D48] font-medium">{errors.name}</p>
             )}
           </div>
 
@@ -186,15 +186,15 @@ export function PricingConfigSheet({
             form={form} set={set} errors={errors}
           />
 
-          <div className="flex items-center justify-between rounded-xl bg-muted/30 border border-border/40 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)] px-4 py-3">
             <div>
               <Label
                 htmlFor="sheet-config-active"
-                className="text-sm font-semibold cursor-pointer"
+                className="text-sm font-semibold cursor-pointer text-[var(--c-ink)]"
               >
                 Kích hoạt
               </Label>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-[var(--c-muted)] mt-0.5">
                 Bảng giá này có hiệu lực ngay
               </p>
             </div>
@@ -202,24 +202,24 @@ export function PricingConfigSheet({
               id="sheet-config-active"
               checked={form.isActive}
               onCheckedChange={(v) => set("isActive", v)}
-              className="data-[state=checked]:bg-primary"
+              className="data-[state=checked]:bg-[var(--c-primary)]"
             />
           </div>
 
-          <SheetFooter className="pt-6 border-t border-border/50 sm:justify-end gap-2">
+          <SheetFooter className="pt-6 border-t border-[var(--c-line)] sm:justify-end gap-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="rounded-xl font-semibold h-11"
+              className="rounded-xl font-semibold h-11 text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
             >
               Huỷ
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold h-11 px-6 gap-2 shadow-sm"
+              className="bg-[var(--c-primary)] hover:bg-[var(--c-primary)]/90 text-white rounded-xl font-semibold h-11 px-6 gap-2 shadow-sm"
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Lưu bảng giá

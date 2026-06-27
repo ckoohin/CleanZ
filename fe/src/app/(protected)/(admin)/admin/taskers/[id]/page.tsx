@@ -8,7 +8,7 @@ export default async function AdminTaskerDetailRoute({
   const { id } = await params;
 
   return (
-    <main className="min-h-screen bg-background py-6">
+    <main className="min-h-screen bg-[var(--c-canvas)] py-6">
       <div className="w-full">
         <Tasker360View taskerId={id} />
       </div>

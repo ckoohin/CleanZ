@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { StatusSwitch } from "@/components/ui/base/status_switch";
 import { useToggleUserStatus } from "../hooks/useAdminUser";
 
@@ -53,12 +53,12 @@ export const UserStatusToggle: React.FC<UserStatusToggleProps> = ({
       />
 
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="sm:max-w-md rounded-[20px]">
+        <DialogContent className="cz-admin sm:max-w-md rounded-[20px] bg-[var(--c-card)] text-[var(--c-ink)] border-[var(--c-line)]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-[var(--c-ink)]">
               {isActive ? "Khóa tài khoản người dùng" : "Mở khóa tài khoản người dùng"}
             </DialogTitle>
-            <DialogDescription className="pt-2 text-sm text-muted-foreground">
+            <DialogDescription className="pt-2 text-sm text-[var(--c-muted)]">
               {isActive ? (
                 <span>
                   Bạn có chắc chắn muốn <strong>khóa</strong> tài khoản của{" "}
@@ -73,22 +73,20 @@ export const UserStatusToggle: React.FC<UserStatusToggleProps> = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button
-              variant="outline"
+            <AdminButton
+              variant="secondary"
               onClick={() => setShowConfirm(false)}
               disabled={toggleMutation.isPending}
-              className="rounded-full"
             >
               Hủy
-            </Button>
-            <Button
-              variant={isActive ? "destructive" : "default"}
+            </AdminButton>
+            <AdminButton
+              variant={isActive ? "danger" : "primary"}
               onClick={handleConfirm}
               disabled={toggleMutation.isPending}
-              className="rounded-full"
             >
               {toggleMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
-            </Button>
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

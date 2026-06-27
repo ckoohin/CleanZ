@@ -25,7 +25,7 @@ export function ServiceBookingsTab({ serviceId }: ServiceBookingsTabProps) {
   if (isLoading) {
     return (
       <div className="flex h-[300px] items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="w-8 h-8 text-[var(--c-primary-strong)] animate-spin" />
       </div>
     );
   }
@@ -43,16 +43,16 @@ export function ServiceBookingsTab({ serviceId }: ServiceBookingsTabProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-bold text-foreground">Lịch sử đặt lịch ({data.total})</h3>
+        <h3 className="text-xl font-bold text-[var(--c-ink)]">Lịch sử đặt lịch ({data.total})</h3>
         <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Tìm kiếm mã đơn..." className="pl-9 bg-background/50 rounded-xl" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--c-muted)]" />
+          <Input placeholder="Tìm kiếm mã đơn..." className="pl-9 bg-[var(--c-card)] rounded-xl" />
         </div>
       </div>
 
-      <div className="border border-border/50 rounded-2xl overflow-hidden bg-card shadow-sm">
+      <div className="border border-[var(--c-line)]/50 rounded-2xl overflow-hidden bg-[var(--c-card)] shadow-sm">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-[var(--c-card-2)]">
             <TableRow>
               <TableHead className="font-bold">Mã đơn</TableHead>
               <TableHead className="font-bold">Khách hàng</TableHead>
@@ -65,37 +65,37 @@ export function ServiceBookingsTab({ serviceId }: ServiceBookingsTabProps) {
           <TableBody>
             {bookings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-32 text-center text-[var(--c-muted)]">
                   Chưa có đơn hàng nào cho dịch vụ này
                 </TableCell>
               </TableRow>
             ) : (
               bookings.map((booking) => (
-                <TableRow key={booking.id} className="hover:bg-muted/30 transition-colors">
+                <TableRow key={booking.id} className="hover:bg-[var(--c-card-2)] transition-colors">
                   <TableCell className="font-mono font-medium">{booking.bookingCode}</TableCell>
                   <TableCell>
-                    <div className="font-medium text-foreground">{booking.customerName}</div>
-                    <div className="text-xs text-muted-foreground">{booking.customerPhone}</div>
+                    <div className="font-medium text-[var(--c-ink)]">{booking.customerName}</div>
+                    <div className="text-xs text-[var(--c-muted)]">{booking.customerPhone}</div>
                   </TableCell>
                   <TableCell>
                     {booking.taskerName ? (
                       <>
-                        <div className="font-medium text-foreground">{booking.taskerName}</div>
-                        <div className="text-xs text-muted-foreground">{booking.taskerPhone}</div>
+                        <div className="font-medium text-[var(--c-ink)]">{booking.taskerName}</div>
+                        <div className="text-xs text-[var(--c-muted)]">{booking.taskerPhone}</div>
                       </>
                     ) : (
-                      <span className="text-muted-foreground italic text-sm">Chưa có</span>
+                      <span className="text-[var(--c-muted)] italic text-sm">Chưa có</span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {booking.scheduledStart ? format(new Date(booking.scheduledStart), "dd/MM/yyyy HH:mm", { locale: vi }) : "Chưa xếp lịch"}
                   </TableCell>
                   <TableCell>
-                    <span className="px-2.5 py-1 rounded-full bg-secondary/20 text-secondary-foreground text-xs font-bold uppercase">
+                    <span className="px-2.5 py-1 rounded-full bg-[var(--c-card-2)] text-[var(--c-ink-soft)] text-xs font-bold uppercase">
                       {booking.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right font-bold text-primary">
+                  <TableCell className="text-right font-bold text-[var(--c-primary-strong)]">
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.totalPrice)}
                   </TableCell>
                 </TableRow>
@@ -111,7 +111,7 @@ export function ServiceBookingsTab({ serviceId }: ServiceBookingsTabProps) {
           <button 
             disabled={page === 1}
             onClick={() => setPage(p => p - 1)}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50 text-sm font-medium hover:bg-muted"
+            className="px-4 py-2 border rounded-lg disabled:opacity-50 text-sm font-medium hover:bg-[var(--c-card-2)]"
           >
             Trang trước
           </button>
@@ -119,7 +119,7 @@ export function ServiceBookingsTab({ serviceId }: ServiceBookingsTabProps) {
           <button 
             disabled={page === data.totalPages}
             onClick={() => setPage(p => p + 1)}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50 text-sm font-medium hover:bg-muted"
+            className="px-4 py-2 border rounded-lg disabled:opacity-50 text-sm font-medium hover:bg-[var(--c-card-2)]"
           >
             Trang sau
           </button>

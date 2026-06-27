@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import {
   useInternalNotes,
   useAddInternalNote,
@@ -56,14 +56,14 @@ export const InternalNotesDrawer: React.FC<Props> = ({
 
   return (
     <Sheet open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="flex w-full flex-col p-0 sm:max-w-lg">
-        <SheetHeader className="border-b border-border/40 px-6 pb-4 pt-6">
-          <SheetTitle className="flex items-center gap-2 text-base font-bold">
-            <StickyNote className="h-4 w-4 text-amber-500" />
+      <SheetContent className="cz-admin flex w-full flex-col p-0 sm:max-w-lg bg-[var(--c-card)]">
+        <SheetHeader className="border-b border-[var(--c-line)] px-6 pb-4 pt-6">
+          <SheetTitle className="flex items-center gap-2 text-base font-bold text-[var(--c-ink)]">
+            <StickyNote className="h-4 w-4 text-[var(--c-primary)]" />
             Ghi chú nội bộ
           </SheetTitle>
           <SheetDescription asChild>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-xs text-[var(--c-muted)]">
               <Lock className="h-3 w-3" />
               Chỉ admin thấy · {ticketCode ?? "Ticket"}
             </span>
@@ -81,27 +81,27 @@ export const InternalNotesDrawer: React.FC<Props> = ({
               </div>
             ) : !notes || notes.length === 0 ? (
               <div className="py-12 text-center">
-                <StickyNote className="mx-auto mb-2 h-10 w-10 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">
+                <StickyNote className="mx-auto mb-2 h-10 w-10 text-[var(--c-muted)]/40" />
+                <p className="text-sm text-[var(--c-muted)]">
                   Chưa có ghi chú nội bộ nào
                 </p>
               </div>
             ) : (
-              <ol className="relative space-y-4 border-l border-border/50 pl-5">
+              <ol className="relative space-y-4 border-l border-[var(--c-line)] pl-5">
                 {notes.map((n) => (
                   <li key={n.id} className="relative">
-                    <span className="absolute -left-[1.55rem] top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-amber-400" />
-                    <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+                    <span className="absolute -left-[1.55rem] top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--c-card)] bg-[var(--c-primary)]" />
+                    <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-3">
                       <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                          <User className="h-3 w-3 text-muted-foreground" />
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-[var(--c-ink)]">
+                          <User className="h-3 w-3 text-[var(--c-muted)]" />
                           {n.authorName}
                         </span>
-                        <time className="shrink-0 text-[11px] text-muted-foreground">
+                        <time className="shrink-0 text-[11px] text-[var(--c-muted)]">
                           {fmtDateTime(n.createdAt)}
                         </time>
                       </div>
-                      <p className="whitespace-pre-wrap text-sm text-foreground/80">
+                      <p className="whitespace-pre-wrap text-sm text-[var(--c-ink-soft)]">
                         {n.body}
                       </p>
                     </div>
@@ -113,7 +113,7 @@ export const InternalNotesDrawer: React.FC<Props> = ({
         </ScrollArea>
 
         {/* ── Composer (text-only) ── */}
-        <div className="border-t border-border/40 bg-card p-4">
+        <div className="border-t border-[var(--c-line)] bg-[var(--c-card)] p-4">
           <div className="flex items-end gap-2">
             <textarea
               rows={2}
@@ -126,16 +126,17 @@ export const InternalNotesDrawer: React.FC<Props> = ({
                 }
               }}
               placeholder="Thêm ghi chú nội bộ... (Ctrl/⌘ + Enter để lưu)"
-              className="max-h-32 min-h-[2.5rem] flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="max-h-32 min-h-[2.5rem] flex-1 resize-none rounded-xl border border-[var(--c-line-strong)] bg-[var(--c-card-2)] px-3 py-2 text-sm text-[var(--c-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--c-primary)]/40"
             />
-            <Button
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-xl"
+            <AdminButton
+              variant="primary"
+              size="md"
+              className="h-10 w-10 shrink-0 rounded-xl px-0"
               disabled={!draft.trim() || addNote.isPending}
               onClick={submit}
             >
               <Send className="h-4 w-4" />
-            </Button>
+            </AdminButton>
           </div>
         </div>
       </SheetContent>

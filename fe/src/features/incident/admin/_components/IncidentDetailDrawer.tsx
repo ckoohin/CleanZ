@@ -36,8 +36,8 @@ function fmt(d: string | null | undefined) {
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="text-sm text-foreground/80">{children}</div>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-muted)]">{label}</p>
+      <div className="text-sm text-[var(--c-ink-soft)]">{children}</div>
     </div>
   );
 }
@@ -64,21 +64,21 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
 
   return (
     <Sheet open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="flex w-full flex-col p-0 sm:max-w-2xl">
-        <SheetHeader className="border-b border-border/40 px-6 pb-4 pt-6">
-          <SheetTitle className="flex items-center gap-2 text-base font-bold">
-            <FileText className="size-4 text-primary" />
+      <SheetContent className="cz-admin flex w-full flex-col p-0 sm:max-w-2xl bg-[var(--c-card)] text-[var(--c-ink)]">
+        <SheetHeader className="border-b border-[var(--c-line)] px-6 pb-4 pt-6">
+          <SheetTitle className="flex items-center gap-2 text-base font-bold text-[var(--c-ink)]">
+            <FileText className="size-4 text-[var(--c-primary-strong)]" />
             {isLoading ? <Skeleton className="h-5 w-32" /> : inc?.incidentCode ?? "Chi tiết sự cố"}
           </SheetTitle>
           <SheetDescription asChild>
-            <span className="line-clamp-1 text-xs text-muted-foreground">
+            <span className="line-clamp-1 text-xs text-[var(--c-muted)]">
               {isLoading ? <Skeleton className="mt-1 h-3 w-48" /> : inc?.title}
             </span>
           </SheetDescription>
         </SheetHeader>
 
         {isLoading ? (
-          <div className="space-y-3 p-6">
+          <div className="space-y-3 p-6 bg-[var(--c-card)]">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-8 w-full" />
             ))}
@@ -93,7 +93,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
               </div>
 
               <Tabs defaultValue="overview">
-                <TabsList className="w-full rounded-xl bg-muted/50">
+                <TabsList className="w-full rounded-xl bg-[var(--c-card-2)]">
                   <TabsTrigger value="overview" className="flex-1 text-xs">Tổng quan</TabsTrigger>
                   <TabsTrigger value="actions" className="flex-1 text-xs">Thẩm định</TabsTrigger>
                   <TabsTrigger value="statements" className="flex-1 text-xs">
@@ -114,27 +114,27 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                     <Item label="Cooling đến">{fmt(inc.coolingUntil)}</Item>
                   </div>
 
-                  <div className="rounded-xl border border-border/40 bg-muted/30 p-3 text-sm">
-                    <p className="mb-1 text-xs font-bold text-muted-foreground">Mô tả</p>
+                  <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-3 text-sm">
+                    <p className="mb-1 text-xs font-bold text-[var(--c-muted)]">Mô tả</p>
                     {inc.description}
                   </div>
 
                   {/* Damage items */}
                   <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Hạng mục thiệt hại</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Hạng mục thiệt hại</p>
                     {inc.damageItems.map((it) => (
-                      <div key={it.id} className="rounded-lg border border-border/40 p-2.5 text-sm">
+                      <div key={it.id} className="rounded-lg border border-[var(--c-line)] p-2.5 text-sm">
                         <p className="font-medium">{it.description}</p>
-                        <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                        <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-[var(--c-muted)]">
                           <span>Yêu cầu {formatVnd(it.claimedAmount)}</span>
                           {it.verifiedAmount != null && <span>Xác minh {formatVnd(it.verifiedAmount)}</span>}
-                          {it.approvedAmount != null && <span className="text-emerald-600">Duyệt {formatVnd(it.approvedAmount)}</span>}
+                          {it.approvedAmount != null && <span className="text-[#0E9F6E]">Duyệt {formatVnd(it.approvedAmount)}</span>}
                         </div>
                         {it.evidences.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {it.evidences.map((ev) => (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img key={ev.id} src={ev.url} alt="bằng chứng" className="size-12 rounded border border-border/40 object-cover" />
+                              <img key={ev.id} src={ev.url} alt="bằng chứng" className="size-12 rounded border border-[var(--c-line)] object-cover" />
                             ))}
                           </div>
                         )}
@@ -144,7 +144,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
 
                   {/* Allocation + deposit */}
                   {(inc.taskerBorneAmount != null || inc.platformBorneAmount != null) && (
-                    <div className="grid grid-cols-2 gap-3 rounded-xl border border-border/40 p-3 text-sm">
+                    <div className="grid grid-cols-2 gap-3 rounded-xl border border-[var(--c-line)] p-3 text-sm">
                       <Item label="Tasker chịu">{formatVnd(inc.taskerBorneAmount)}</Item>
                       <Item label="Quỹ chịu">{formatVnd(inc.platformBorneAmount)}</Item>
                       {inc.compensationSource && (
@@ -171,7 +171,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                     />
                   )}
                   {noAction && (
-                    <p className="rounded-lg border border-border/40 bg-muted/40 p-3 text-xs text-muted-foreground">
+                    <p className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-3 text-xs text-[var(--c-muted)]">
                       <Clock className="mr-1 inline size-3.5" /> Không có hành động khả dụng ở trạng thái hiện tại.
                     </p>
                   )}
@@ -188,7 +188,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             </div>
           </ScrollArea>
         ) : (
-          <div className="p-6 text-center text-sm text-muted-foreground">Không tìm thấy sự cố</div>
+          <div className="p-6 text-center text-sm text-[var(--c-muted)]">Không tìm thấy sự cố</div>
         )}
       </SheetContent>
     </Sheet>

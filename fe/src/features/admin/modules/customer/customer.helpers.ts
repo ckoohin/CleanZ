@@ -62,14 +62,14 @@ export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] =
 }));
 
 export const BOOKING_STATUS_STYLES: Record<string, string> = {
-  POSTED: "bg-muted text-muted-foreground border-border/50",
-  CONFIRMED: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  TASKER_ON_THE_WAY: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  CHECKED_IN: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  IN_PROGRESS: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  COMPLETED: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  CANCELLED: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
-  EXPIRED: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+  POSTED: "bg-[var(--c-chip)] text-[var(--c-muted)] border-[var(--c-line)]",
+  CONFIRMED: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] border-[rgba(37,99,235,0.2)]",
+  TASKER_ON_THE_WAY: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] border-[rgba(37,99,235,0.2)]",
+  CHECKED_IN: "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[rgba(217,119,6,0.24)]",
+  IN_PROGRESS: "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[rgba(217,119,6,0.24)]",
+  COMPLETED: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] border-[rgba(14,159,110,0.2)]",
+  CANCELLED: "bg-[rgba(225,29,72,0.12)] text-[#E11D48] border-[rgba(225,29,72,0.2)]",
+  EXPIRED: "bg-[rgba(225,29,72,0.12)] text-[#E11D48] border-[rgba(225,29,72,0.2)]",
 };
 
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
@@ -94,11 +94,11 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
 
 /** Màu chữ tương ứng từng trạng thái thanh toán; mặc định là muted. */
 export const PAYMENT_STATUS_TEXT_STYLES: Record<string, string> = {
-  PENDING: "text-amber-600 dark:text-amber-400",
-  PAID: "text-emerald-600 dark:text-emerald-400",
-  FAILED: "text-rose-600 dark:text-rose-400",
-  REFUNDED: "text-blue-600 dark:text-blue-400",
-  PARTIALLY_REFUNDED: "text-blue-600 dark:text-blue-400",
+  PENDING: "text-[#D97706]",
+  PAID: "text-[#0E9F6E]",
+  FAILED: "text-[#E11D48]",
+  REFUNDED: "text-[#2563EB]",
+  PARTIALLY_REFUNDED: "text-[#2563EB]",
 };
 
 /**
@@ -119,27 +119,27 @@ export const STAT_CARD_STYLES: Record<
   StatCardStyle
 > = {
   emerald: {
-    wrap: "bg-emerald-500/5 border-emerald-500/10",
-    label: "text-emerald-700 dark:text-emerald-400",
-    icon: "text-emerald-600 dark:text-emerald-400",
-    value: "text-emerald-700 dark:text-emerald-400",
+    wrap: "bg-[rgba(14,159,110,0.06)] border-[rgba(14,159,110,0.14)]",
+    label: "text-[#0E9F6E]",
+    icon: "text-[#0E9F6E]",
+    value: "text-[#0E9F6E]",
   },
   blue: {
-    wrap: "bg-blue-500/5 border-blue-500/10",
-    label: "text-blue-700 dark:text-blue-400",
-    icon: "text-blue-600 dark:text-blue-400",
-    value: "text-blue-700 dark:text-blue-400",
+    wrap: "bg-[rgba(37,99,235,0.06)] border-[rgba(37,99,235,0.14)]",
+    label: "text-[#2563EB]",
+    icon: "text-[#2563EB]",
+    value: "text-[#2563EB]",
   },
   red: {
-    wrap: "bg-red-500/5 border-red-500/10",
-    label: "text-red-700 dark:text-red-400",
-    icon: "text-red-600 dark:text-red-400",
-    value: "text-red-700 dark:text-red-400",
+    wrap: "bg-[rgba(225,29,72,0.06)] border-[rgba(225,29,72,0.14)]",
+    label: "text-[#E11D48]",
+    icon: "text-[#E11D48]",
+    value: "text-[#E11D48]",
   },
   amber: {
-    wrap: "bg-amber-500/5 border-amber-500/10",
-    label: "text-amber-700 dark:text-amber-400",
-    icon: "text-amber-600 dark:text-amber-400",
-    value: "text-amber-700 dark:text-amber-400",
+    wrap: "bg-[rgba(217,119,6,0.06)] border-[rgba(217,119,6,0.16)]",
+    label: "text-[#D97706]",
+    icon: "text-[#D97706]",
+    value: "text-[#D97706]",
   },
 };

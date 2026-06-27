@@ -23,11 +23,11 @@ export function PackageReviewsTab({ packageId }: PackageReviewsTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+          <h3 className="text-xl font-bold text-[var(--c-ink)] flex items-center gap-2">
+            <Star className="w-6 h-6 text-[#D97706] fill-[#D97706]" aria-hidden="true" />
             Đánh giá khách hàng
           </h3>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-[var(--c-muted)] mt-0.5">
             Tổng hợp phản hồi từ khách hàng đã sử dụng gói dịch vụ này
           </p>
         </div>

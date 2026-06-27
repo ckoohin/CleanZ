@@ -35,10 +35,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md rounded-[20px]">
+      {/* cz-admin so --c-* tokens resolve inside the Radix portal */}
+      <DialogContent className="cz-admin rounded-2xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="pt-2 text-sm text-muted-foreground">
+          <DialogTitle className="text-[var(--c-ink)]">{title}</DialogTitle>
+          <DialogDescription className="pt-2 text-sm text-[var(--c-muted)]">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -47,7 +48,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             variant="outline"
             onClick={onClose}
             disabled={isPending}
-            className="rounded-full"
+            className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
           >
             Hủy
           </Button>

@@ -170,13 +170,13 @@ export function WithdrawalReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl p-0 sm:max-w-xl">
-        <DialogHeader className="border-b border-border/40 px-6 py-5">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <WalletCards className="size-5 text-primary" />
+      <DialogContent className="cz-admin max-h-[90vh] overflow-y-auto rounded-2xl bg-[var(--c-card)] p-0 sm:max-w-xl">
+        <DialogHeader className="border-b border-[var(--c-line)] px-6 py-5">
+          <DialogTitle className="flex items-center gap-2 text-base text-[var(--c-ink)]">
+            <WalletCards className="size-5 text-[var(--c-primary-strong)]" />
             Chi tiết yêu cầu rút tiền
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[var(--c-muted)]">
             Kiểm tra thông tin ví và tài khoản nhận tiền trước khi xét duyệt.
           </DialogDescription>
         </DialogHeader>
@@ -192,10 +192,10 @@ export function WithdrawalReviewDialog({
             {/* Amount + Status */}
             <div className="flex items-center justify-between rounded-2xl border border-primary/15 bg-primary/5 p-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="text-xs font-medium text-[var(--c-muted)]">
                   Số tiền yêu cầu
                 </p>
-                <p className="mt-1 text-2xl font-black tracking-tight text-primary">
+                <p className="mt-1 text-2xl font-black tracking-tight text-[var(--c-primary-strong)]">
                   {formatCurrency(withdrawal.amount)}
                 </p>
               </div>
@@ -231,8 +231,7 @@ export function WithdrawalReviewDialog({
               />
             </div>
 
-            {/* Timeline + notes */}
-            <div className="rounded-2xl border border-border/50 bg-muted/20 p-4 space-y-3">
+            <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-4">
               <div className="grid gap-3 text-xs sm:grid-cols-2">
                 <TimelineItem
                   icon={Clock3}
@@ -248,11 +247,11 @@ export function WithdrawalReviewDialog({
 
               {/* Tasker note */}
               {withdrawal.note && (
-                <div className="border-t border-border/40 pt-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Ghi chú của Tasker
+                <div className="mt-4 border-t border-[var(--c-line)] pt-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--c-muted)]">
+                    Ghi chú
                   </p>
-                  <p className="mt-1 text-sm text-foreground/80">
+                  <p className="mt-1 text-sm text-[var(--c-ink-soft)]">
                     {withdrawal.note}
                   </p>
                 </div>
@@ -302,8 +301,7 @@ export function WithdrawalReviewDialog({
 
             {/* Review section (PENDING only) */}
             {isPending && (
-              <div className="space-y-4 rounded-2xl border border-border/50 p-4">
-                {/* Mode selector */}
+              <div className="space-y-3 rounded-2xl border border-[var(--c-line)] p-4">
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -341,7 +339,14 @@ export function WithdrawalReviewDialog({
                       )}
                     {mode === "APPROVED" &&
                       (!withdrawal.bankName || !withdrawal.bankAccount) && (
-                        <div className="flex gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+                        <div
+                          className="flex gap-2 rounded-xl border p-3 text-sm"
+                          style={{
+                            borderColor: "rgba(217,119,6,0.3)",
+                            background: "rgba(217,119,6,0.14)",
+                            color: "#D97706",
+                          }}
+                        >
                           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                           Yêu cầu chưa có đủ ngân hàng hoặc số tài khoản nên
                           không thể tạo QR chuyển khoản.
@@ -418,7 +423,7 @@ export function WithdrawalReviewDialog({
 
                     {/* Note / Admin note */}
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-muted-foreground">
+                      <label className="text-xs font-semibold text-[var(--c-muted)]">
                         {mode === "REJECTED"
                           ? "Lý do từ chối *"
                           : "Ghi chú Admin"}
@@ -437,7 +442,7 @@ export function WithdrawalReviewDialog({
                             ? "Nhập lý do để Tasker biết cần điều chỉnh gì..."
                             : "Ghi chú nội bộ sau khi đã chuyển khoản..."
                         }
-                        className="rounded-xl"
+                        className="rounded-xl border-[var(--c-line-strong)] bg-[var(--c-card-2)] focus:border-[var(--c-primary)]/50"
                       />
                       <p className="text-right text-[11px] text-muted-foreground">
                         {(mode === "REJECTED" ? note : adminNote).length}/500
@@ -458,7 +463,7 @@ export function WithdrawalReviewDialog({
             )}
           </div>
         ) : (
-          <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+          <div className="px-6 py-10 text-center text-sm text-[var(--c-muted)]">
             Không tìm thấy yêu cầu rút tiền.
           </div>
         )}
@@ -540,12 +545,16 @@ function TransferQr({
   const qrUrl = buildVietQrUrl({ bankName, bankAccount, amount });
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+    <div className="rounded-2xl border border-[var(--c-primary)]/20 bg-[var(--c-primary-soft)] p-4">
       <div className="mb-3 flex items-center gap-2">
-        <div className="rounded-lg bg-primary/10 p-2 text-primary">
+        <div className="rounded-lg bg-[var(--c-primary-soft)] p-2 text-[var(--c-primary-strong)]">
           <QrCode className="size-4" />
         </div>
-        <p className="text-sm font-bold">Quét QR để chuyển khoản</p>
+        <div>
+          <p className="text-sm font-bold text-[var(--c-ink)]">
+            Quét QR để chuyển khoản
+          </p>
+        </div>
       </div>
 
       <div className="grid items-center gap-4 sm:grid-cols-[210px_1fr]">
@@ -580,7 +589,7 @@ function TransferQr({
         </div>
       </div>
 
-      <p className="mt-3 text-center text-[11px] text-muted-foreground">
+      <p className="mt-3 text-center text-[11px] text-[var(--c-muted)]">
         Kiểm tra đúng tên người nhận trên ứng dụng ngân hàng trước khi chuyển.
       </p>
     </div>
@@ -598,11 +607,13 @@ function TransferItem({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-muted)]">
         {label}
       </p>
       <div className="mt-0.5 flex items-center gap-1">
-        <p className="min-w-0 flex-1 break-all font-bold">{value}</p>
+        <p className="min-w-0 flex-1 break-all font-bold text-[var(--c-ink)]">
+          {value}
+        </p>
         {onCopy && (
           <Button
             type="button"
@@ -632,15 +643,17 @@ function InfoCard({
   onCopy?: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-3.5">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4 text-primary" />
+    <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-3.5">
+      <div className="flex items-center gap-2 text-[var(--c-muted)]">
+        <Icon className="size-4 text-[var(--c-primary-strong)]" />
         <span className="text-[11px] font-bold uppercase tracking-wide">
           {label}
         </span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="truncate text-sm font-bold">{value}</span>
+        <span className="truncate text-sm font-bold text-[var(--c-ink)]">
+          {value}
+        </span>
         {onCopy && (
           <Button
             type="button"
@@ -669,10 +682,10 @@ function TimelineItem({
 }) {
   return (
     <div className="flex gap-2">
-      <Icon className="mt-0.5 size-4 text-primary" />
+      <Icon className="mt-0.5 size-4 text-[var(--c-primary-strong)]" />
       <div>
-        <p className="font-semibold text-muted-foreground">{label}</p>
-        <p className="mt-0.5 font-medium text-foreground">{value}</p>
+        <p className="font-semibold text-[var(--c-muted)]">{label}</p>
+        <p className="mt-0.5 font-medium text-[var(--c-ink)]">{value}</p>
       </div>
     </div>
   );

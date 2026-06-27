@@ -54,9 +54,9 @@ const vnd = (val: number | string | null | undefined) => {
 };
 
 const PRICING_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  FIXED:  { label: "Cố định",   color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
-  HOURLY: { label: "Theo giờ",  color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  CUSTOM: { label: "Tuỳ chỉnh", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  FIXED:  { label: "Cố định",   color: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)] dark:text-[#0E9F6E]" },
+  HOURLY: { label: "Theo giờ",  color: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)] dark:text-[#2563EB]" },
+  CUSTOM: { label: "Tuỳ chỉnh", color: "bg-[rgba(124,58,237,0.12)] text-[#7C3AED] dark:bg-[rgba(124,58,237,0.12)] dark:text-[#7C3AED]" },
 };
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -66,14 +66,14 @@ function StatCard({ icon: Icon, iconColor, bgColor, label, value, sub }: {
   label: string; value: string | number; sub?: string;
 }) {
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-5 flex items-center gap-4">
+    <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl p-5 flex items-center gap-4">
       <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", bgColor)}>
         <Icon className={cn("w-5 h-5", iconColor)} aria-hidden="true" />
       </div>
       <div>
-        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-black text-foreground leading-tight">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        <p className="text-xs text-[var(--c-muted)] font-semibold uppercase tracking-wide">{label}</p>
+        <p className="text-2xl font-black text-[var(--c-ink)] leading-tight">{value}</p>
+        {sub && <p className="text-xs text-[var(--c-muted)] mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -100,7 +100,7 @@ function PricingFormFields({
     const displayVal = raw === null || raw === undefined || raw === 0 ? "" : String(raw);
     return (
       <div className="space-y-1.5">
-        <label className="text-xs font-bold text-foreground">{label}</label>
+        <label className="text-xs font-bold text-[var(--c-ink)]">{label}</label>
         <Input
           inputMode="numeric"
           placeholder={placeholder}
@@ -113,7 +113,7 @@ function PricingFormFields({
           className="h-9 rounded-xl"
         />
         {typeof raw === "number" && raw > 0 && !key.includes("Rate") && (
-          <p className="text-xs text-emerald-600 font-bold">{vnd(raw)}</p>
+          <p className="text-xs text-[#0E9F6E] font-bold">{vnd(raw)}</p>
         )}
       </div>
     );
@@ -124,7 +124,7 @@ function PricingFormFields({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Tên bảng giá */}
         <div className="space-y-1.5 sm:col-span-2">
-          <label className="text-xs font-bold text-foreground">Tên bảng giá *</label>
+          <label className="text-xs font-bold text-[var(--c-ink)]">Tên bảng giá *</label>
           <Input
             value={form.name}
             onChange={e => onChange("name", e.target.value)}
@@ -140,7 +140,7 @@ function PricingFormFields({
         {numField("Hoa hồng nền tảng (%)", "platformCommissionRate", "20", 100)}
         {/* Đơn vị */}
         <div className="space-y-1.5">
-          <label className="text-xs font-bold text-foreground">Đơn vị tính</label>
+          <label className="text-xs font-bold text-[var(--c-ink)]">Đơn vị tính</label>
           <Input
             value={form.priceUnit || ""}
             placeholder="VND"
@@ -149,9 +149,9 @@ function PricingFormFields({
           />
         </div>
       </div>
-      <div className="flex items-center gap-3 p-3 bg-muted/20 border border-border/30 rounded-xl">
+      <div className="flex items-center gap-3 p-3 bg-[var(--c-card-2)] border border-[var(--c-line)]/30 rounded-xl">
         <Switch checked={form.isActive ?? true} onCheckedChange={v => onChange("isActive", v)} />
-        <span className={cn("text-sm font-semibold", form.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+        <span className={cn("text-sm font-semibold", form.isActive ? "text-[#0E9F6E]" : "text-[var(--c-muted)]")}>
           {form.isActive ? "Đang hoạt động" : "Tắt"}
         </span>
       </div>
@@ -229,13 +229,13 @@ function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
         {cfg ? (
           <>
             {/* Current config display */}
-            <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-2xl p-5">
+            <div className="bg-gradient-to-br from-[var(--c-primary-soft)] to-[var(--c-primary-soft)] border border-[var(--c-primary)]/20 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="font-black text-foreground text-base">{cfg.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">ID: <span className="font-mono">{cfg.id}</span></p>
+                  <p className="font-black text-[var(--c-ink)] text-base">{cfg.name}</p>
+                  <p className="text-xs text-[var(--c-muted)] mt-0.5">ID: <span className="font-mono">{cfg.id}</span></p>
                 </div>
-                <span className="text-[9px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                <span className="text-[9px] font-bold px-2 py-1 rounded-full bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]">
                   Đang liên kết
                 </span>
               </div>
@@ -248,9 +248,9 @@ function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
                   { label: "Phí thú cưng", value: cfg.petFee    ? vnd(cfg.petFee)    : "—",       highlight: false },
                   { label: "Phí chờ đợi",  value: cfg.waitingFee ? vnd(cfg.waitingFee) : "—",    highlight: false },
                 ].map(f => (
-                  <div key={f.label} className="bg-background/80 border border-border/30 rounded-xl p-3">
-                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">{f.label}</p>
-                    <p className={cn("text-sm font-black mt-0.5", f.highlight ? "text-primary text-base" : "text-foreground")}>
+                  <div key={f.label} className="bg-[var(--c-card)] border border-[var(--c-line)]/30 rounded-xl p-3">
+                    <p className="text-[9px] text-[var(--c-muted)] font-bold uppercase tracking-wide">{f.label}</p>
+                    <p className={cn("text-sm font-black mt-0.5", f.highlight ? "text-[var(--c-primary-strong)] text-base" : "text-[var(--c-ink)]")}>
                       {f.value}
                     </p>
                   </div>
@@ -261,31 +261,31 @@ function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
             {/* Actions — chỉ edit/create, không share config */}
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={startEdit}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--c-primary)] text-white text-xs font-bold hover:bg-[var(--c-primary)] transition-colors">
                 <Pencil className="w-3.5 h-3.5" aria-hidden="true" />Chỉnh sửa giá
               </button>
               <button type="button" onClick={startCreate}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:text-emerald-600 hover:border-emerald-300 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--c-line)]/50 text-xs font-semibold text-[var(--c-muted)] hover:text-[#0E9F6E] hover:border-[#0E9F6E] transition-colors">
                 <PlusCircle className="w-3.5 h-3.5" aria-hidden="true" />Tạo lại bảng giá mới
               </button>
             </div>
 
             {/* Note */}
-            <div className="flex items-start gap-2 p-3 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-200/50 rounded-xl">
-              <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" aria-hidden="true" />
-              <p className="text-[10px] text-blue-700 dark:text-blue-400">
+            <div className="flex items-start gap-2 p-3 bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)] border border-[#2563EB]/50 rounded-xl">
+              <Info className="w-3.5 h-3.5 text-[#2563EB] shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-[10px] text-[#2563EB] dark:text-[#2563EB]">
                 Bảng giá này dành riêng cho <strong>{svc.name}</strong>. Giá của gói dịch vụ sẽ được tính dựa trên giá gốc của từng dịch vụ con cộng với phụ phí gói.
               </p>
             </div>
           </>
         ) : (
           /* No config yet */
-          <div className="py-8 text-center border-2 border-dashed border-border/50 rounded-2xl">
-            <DollarSign className="w-10 h-10 mx-auto mb-3 text-muted-foreground/20" aria-hidden="true" />
-            <p className="text-sm font-semibold text-muted-foreground">Chưa thiết lập giá</p>
-            <p className="text-xs text-muted-foreground/60 mt-1 mb-4">Tạo bảng giá riêng cho <strong>{svc.name}</strong></p>
+          <div className="py-8 text-center border-2 border-dashed border-[var(--c-line)]/50 rounded-2xl">
+            <DollarSign className="w-10 h-10 mx-auto mb-3 text-[var(--c-muted)]" aria-hidden="true" />
+            <p className="text-sm font-semibold text-[var(--c-muted)]">Chưa thiết lập giá</p>
+            <p className="text-xs text-[var(--c-muted)] mt-1 mb-4">Tạo bảng giá riêng cho <strong>{svc.name}</strong></p>
             <button type="button" onClick={() => setMode("create")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors mx-auto">
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--c-primary)] text-white text-xs font-bold hover:bg-[var(--c-primary)] transition-colors mx-auto">
               <PlusCircle className="w-3.5 h-3.5" aria-hidden="true" />Tạo bảng giá
             </button>
           </div>
@@ -297,8 +297,8 @@ function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
   // ── EDIT mode ──
   if (mode === "edit") {
     return (
-      <div className="space-y-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/60 rounded-2xl p-5">
-        <p className="text-sm font-black text-blue-700 dark:text-blue-400 flex items-center gap-2">
+      <div className="space-y-4 bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)] border border-[#2563EB]/60 rounded-2xl p-5">
+        <p className="text-sm font-black text-[#2563EB] dark:text-[#2563EB] flex items-center gap-2">
           <Pencil className="w-4 h-4" aria-hidden="true" />Chỉnh sửa bảng giá
         </p>
         <PricingFormFields form={editForm} onChange={set} />
@@ -317,8 +317,8 @@ function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
   // ── CREATE mode ──
   if (mode === "create") {
     return (
-      <div className="space-y-4 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/60 rounded-2xl p-5">
-        <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+      <div className="space-y-4 bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)] border border-[#0E9F6E]/60 rounded-2xl p-5">
+        <p className="text-sm font-black text-[#0E9F6E] dark:text-[#0E9F6E] flex items-center gap-2">
           <PlusCircle className="w-4 h-4" aria-hidden="true" />Tạo bảng giá mới và liên kết
         </p>
         <PricingFormFields form={editForm} onChange={set} />
@@ -343,9 +343,9 @@ function InfoRow({ label, value, highlight = false }: {
   label: string; value: React.ReactNode; highlight?: boolean;
 }) {
   return (
-    <div className="flex justify-between items-start gap-3 py-2.5 px-4 border-b border-border/30 last:border-0">
-      <span className="text-xs text-muted-foreground shrink-0 pt-0.5">{label}</span>
-      <span className={cn("text-sm font-semibold text-right", highlight ? "text-primary" : "text-foreground")}>
+    <div className="flex justify-between items-start gap-3 py-2.5 px-4 border-b border-[var(--c-line)]/30 last:border-0">
+      <span className="text-xs text-[var(--c-muted)] shrink-0 pt-0.5">{label}</span>
+      <span className={cn("text-sm font-semibold text-right", highlight ? "text-[var(--c-primary-strong)]" : "text-[var(--c-ink)]")}>
         {value}
       </span>
     </div>
@@ -364,7 +364,7 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
   const [tab, setTab] = useState<"info" | "pricing">("info");
 
   if (!svc) return null;
-  const pt = PRICING_TYPE_LABELS[svc.pricingType] ?? { label: svc.pricingType, color: "bg-muted text-muted-foreground" };
+  const pt = PRICING_TYPE_LABELS[svc.pricingType] ?? { label: svc.pricingType, color: "bg-[var(--c-card-2)] text-[var(--c-muted)]" };
 
   const tabs = [
     { key: "info" as const,    label: "Thông tin" },
@@ -373,24 +373,24 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 overflow-y-auto flex flex-col">
+      <SheetContent side="right" className="cz-admin w-full sm:max-w-[560px] p-0 overflow-y-auto flex flex-col">
         {/* Header */}
-        <SheetHeader className="px-6 py-4 border-b border-border/50 bg-card sticky top-0 z-10">
+        <SheetHeader className="px-6 py-4 border-b border-[var(--c-line)]/50 bg-[var(--c-card)] sticky top-0 z-10">
           <div className="flex items-start gap-4">
-            <div className="relative h-14 w-14 rounded-xl overflow-hidden bg-muted/40 shrink-0 border border-border/40">
+            <div className="relative h-14 w-14 rounded-xl overflow-hidden bg-[var(--c-card-2)] shrink-0 border border-[var(--c-line)]/40">
               {svc.thumbnailUrl ? (
                 <Image src={svc.thumbnailUrl} alt={svc.name} fill className="object-cover" />
               ) : (
                 <div className="flex h-full items-center justify-center">
-                  <Package className="w-6 h-6 text-muted-foreground/30" aria-hidden="true" />
+                  <Package className="w-6 h-6 text-[var(--c-muted)]" aria-hidden="true" />
                 </div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <SheetTitle className="text-lg font-black text-foreground leading-tight">{svc.name}</SheetTitle>
+              <SheetTitle className="text-lg font-black text-[var(--c-ink)] leading-tight">{svc.name}</SheetTitle>
               <SheetDescription className="mt-1.5">
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-bold">
                     {svc.subServiceCode}
                   </span>
                   <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase", pt.color)}>
@@ -398,7 +398,7 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
                   </span>
                   <span className={cn(
                     "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase",
-                    svc.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
+                    svc.isActive ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]" : "bg-[rgba(225,29,72,0.12)] text-[#E11D48]",
                   )}>
                     {svc.isActive ? "Hoạt động" : "Tắt"}
                   </span>
@@ -406,21 +406,21 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
               </SheetDescription>
             </div>
             <button type="button" onClick={() => { onClose(); onEdit(svc); }}
-              className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0">
+              className="p-2 rounded-xl text-[var(--c-muted)] hover:text-[var(--c-primary-strong)] hover:bg-[var(--c-primary-soft)] transition-colors shrink-0">
               <Pencil className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
 
           {/* Tab switcher */}
-          <div className="flex gap-1 mt-3 bg-muted/40 p-1 rounded-xl">
+          <div className="flex gap-1 mt-3 bg-[var(--c-card-2)] p-1 rounded-xl">
             {tabs.map(t => (
               <button key={t.key} type="button"
                 onClick={() => setTab(t.key)}
                 className={cn(
                   "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all",
                   tab === t.key
-                    ? "bg-background text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-[var(--c-card)] text-[var(--c-primary-strong)] shadow-sm"
+                    : "text-[var(--c-muted)] hover:text-[var(--c-ink)]",
                 )}>
                 {t.label}
               </button>
@@ -435,22 +435,22 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
           {tab === "info" && (
             <>
               {/* Price summary */}
-              <div className="grid grid-cols-2 gap-3 p-4 border-b border-border/40">
+              <div className="grid grid-cols-2 gap-3 p-4 border-b border-[var(--c-line)]/40">
                 {[
-                  { label: "Giá gốc",      value: svc.pricingConfig?.basePrice ? vnd(svc.pricingConfig.basePrice) : "Chưa thiết lập", color: "text-primary" },
-                  { label: "Giá cao điểm", value: svc.pricingConfig?.peakPrice ? vnd(svc.pricingConfig.peakPrice) : "—",               color: "text-amber-600" },
-                  { label: "Phí thú cưng", value: svc.pricingConfig?.petFee ? vnd(svc.pricingConfig.petFee) : "—",                     color: "text-foreground" },
-                  { label: "Phí chờ đợi",  value: svc.pricingConfig?.waitingFee ? vnd(svc.pricingConfig.waitingFee) : "—",             color: "text-foreground" },
+                  { label: "Giá gốc",      value: svc.pricingConfig?.basePrice ? vnd(svc.pricingConfig.basePrice) : "Chưa thiết lập", color: "text-[var(--c-primary-strong)]" },
+                  { label: "Giá cao điểm", value: svc.pricingConfig?.peakPrice ? vnd(svc.pricingConfig.peakPrice) : "—",               color: "text-[#D97706]" },
+                  { label: "Phí thú cưng", value: svc.pricingConfig?.petFee ? vnd(svc.pricingConfig.petFee) : "—",                     color: "text-[var(--c-ink)]" },
+                  { label: "Phí chờ đợi",  value: svc.pricingConfig?.waitingFee ? vnd(svc.pricingConfig.waitingFee) : "—",             color: "text-[var(--c-ink)]" },
                 ].map(s => (
-                  <div key={s.label} className="bg-muted/30 rounded-xl p-3 border border-border/30">
-                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">{s.label}</p>
+                  <div key={s.label} className="bg-[var(--c-card-2)] rounded-xl p-3 border border-[var(--c-line)]/30">
+                    <p className="text-[9px] text-[var(--c-muted)] font-bold uppercase tracking-wide">{s.label}</p>
                     <p className={cn("text-sm font-black mt-0.5", s.color)}>{s.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Core fields */}
-              <div className="divide-y divide-border/30 mt-1">
+              <div className="divide-y divide-[var(--c-line)]/30 mt-1">
                 <InfoRow label="Mã dịch vụ" value={<span className="font-mono text-xs">{svc.subServiceCode}</span>} />
                 <InfoRow label="Loại tính giá" value={svc.pricingType} />
                 {svc.durationHours != null && (
@@ -466,23 +466,23 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
 
               {/* Descriptions */}
               {(svc.shortDescription || svc.description) && (
-                <div className="px-4 pt-5 pb-3 border-t border-border/40 space-y-4">
+                <div className="px-4 pt-5 pb-3 border-t border-[var(--c-line)]/40 space-y-4">
                   {svc.shortDescription && (
                     <div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <p className="text-[10px] font-black text-[var(--c-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
                         <FileText className="w-3 h-3" aria-hidden="true" />Mô tả ngắn
                       </p>
-                      <p className="text-sm leading-relaxed text-foreground bg-muted/20 p-3 rounded-xl border border-border/30">
+                      <p className="text-sm leading-relaxed text-[var(--c-ink)] bg-[var(--c-card-2)] p-3 rounded-xl border border-[var(--c-line)]/30">
                         {svc.shortDescription}
                       </p>
                     </div>
                   )}
                   {svc.description && (
                     <div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <p className="text-[10px] font-black text-[var(--c-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
                         <FileText className="w-3 h-3" aria-hidden="true" />Mô tả đầy đủ
                       </p>
-                      <p className="text-sm leading-relaxed text-muted-foreground bg-muted/20 p-3 rounded-xl border border-border/30 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                      <p className="text-sm leading-relaxed text-[var(--c-muted)] bg-[var(--c-card-2)] p-3 rounded-xl border border-[var(--c-line)]/30 whitespace-pre-wrap max-h-48 overflow-y-auto">
                         {svc.description}
                       </p>
                     </div>
@@ -492,18 +492,18 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
 
               {/* Tasks */}
               {((svc.includedTasks?.length ?? 0) > 0 || (svc.excludedTasks?.length ?? 0) > 0) && (
-                <div className="px-4 pt-4 pb-3 border-t border-border/40">
+                <div className="px-4 pt-4 pb-3 border-t border-[var(--c-line)]/40">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     {(svc.includedTasks?.length ?? 0) > 0 && (
                       <div>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <p className="text-[10px] font-black text-[#0E9F6E] uppercase tracking-wider mb-3 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
                           Bao gồm ({svc.includedTasks?.length})
                         </p>
                         <ul className="space-y-2">
                           {svc.includedTasks?.map((task, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm">
-                              <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
+                              <Check className="w-3.5 h-3.5 text-[#0E9F6E] shrink-0 mt-0.5" aria-hidden="true" />
                               <span>{task}</span>
                             </li>
                           ))}
@@ -512,14 +512,14 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
                     )}
                     {(svc.excludedTasks?.length ?? 0) > 0 && (
                       <div>
-                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <p className="text-[10px] font-black text-[#E11D48] uppercase tracking-wider mb-3 flex items-center gap-1">
                           <XCircle className="w-3 h-3" aria-hidden="true" />
                           Không gồm ({svc.excludedTasks?.length})
                         </p>
                         <ul className="space-y-2">
                           {svc.excludedTasks?.map((task, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <X className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" aria-hidden="true" />
+                            <li key={i} className="flex items-start gap-2 text-sm text-[var(--c-muted)]">
+                              <X className="w-3.5 h-3.5 text-[#E11D48] shrink-0 mt-0.5" aria-hidden="true" />
                               <span>{task}</span>
                             </li>
                           ))}
@@ -532,14 +532,14 @@ function ServiceDetailSheet({ svc, open, onClose, onEdit }: {
 
               {/* Gallery */}
               {(svc.galleryUrls?.length ?? 0) > 0 && (
-                <div className="px-4 pt-4 pb-3 border-t border-border/40">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1">
+                <div className="px-4 pt-4 pb-3 border-t border-[var(--c-line)]/40">
+                  <p className="text-[10px] font-black text-[var(--c-muted)] uppercase tracking-wider mb-3 flex items-center gap-1">
                     <ImageIcon className="w-3 h-3" aria-hidden="true" />
                     Ảnh dịch vụ ({svc.galleryUrls?.length})
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     {svc.galleryUrls?.map((url, i) => (
-                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border/40">
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-[var(--c-line)]/40">
                         <Image src={url} alt={`${svc.name} ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform" />
                       </div>
                     ))}
@@ -587,49 +587,49 @@ function EditServiceSheet({ svc, open, onClose }: {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full sm:max-w-[520px] p-0 overflow-y-auto flex flex-col">
-        <SheetHeader className="px-6 py-5 border-b border-border/50 bg-card sticky top-0 z-10">
+      <SheetContent side="right" className="cz-admin w-full sm:max-w-[520px] p-0 overflow-y-auto flex flex-col">
+        <SheetHeader className="px-6 py-5 border-b border-[var(--c-line)]/50 bg-[var(--c-card)] sticky top-0 z-10">
           <SheetTitle className="text-xl font-black flex items-center gap-2">
-            <Pencil className="w-5 h-5 text-primary" aria-hidden="true" />
+            <Pencil className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
             Chỉnh sửa dịch vụ con
           </SheetTitle>
           <SheetDescription>
-            <span className="font-mono text-xs text-primary">{svc.subServiceCode}</span> · {svc.name}
+            <span className="font-mono text-xs text-[var(--c-primary-strong)]">{svc.subServiceCode}</span> · {svc.name}
           </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">Tên dịch vụ *</label>
+            <label className="text-xs font-bold text-[var(--c-ink)]">Tên dịch vụ *</label>
             <Input value={form.name ?? ""} onChange={e => set("name", e.target.value)} className="h-10 rounded-xl" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">Mô tả ngắn</label>
+            <label className="text-xs font-bold text-[var(--c-ink)]">Mô tả ngắn</label>
             <Textarea value={form.shortDescription ?? ""} onChange={e => set("shortDescription", e.target.value)}
               rows={2} className="rounded-xl resize-none" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">Mô tả đầy đủ</label>
+            <label className="text-xs font-bold text-[var(--c-ink)]">Mô tả đầy đủ</label>
             <Textarea value={form.description ?? ""} onChange={e => set("description", e.target.value)}
               rows={4} className="rounded-xl resize-none" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">Khu vực phục vụ</label>
+            <label className="text-xs font-bold text-[var(--c-ink)]">Khu vực phục vụ</label>
             <Input value={form.coverageArea ?? ""} onChange={e => set("coverageArea", e.target.value)}
               placeholder="VD: Hà Nội, TP.HCM..." className="h-10 rounded-xl" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-foreground">Thời lượng (giờ)</label>
+              <label className="text-xs font-bold text-[var(--c-ink)]">Thời lượng (giờ)</label>
               <Input type="number" min={0} step={0.5}
                 value={form.durationHours ?? ""}
                 onChange={e => set("durationHours", e.target.value ? Number(e.target.value) : undefined)}
                 className="h-10 rounded-xl" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-foreground">Loại tính giá</label>
+              <label className="text-xs font-bold text-[var(--c-ink)]">Loại tính giá</label>
               <Select value={form.pricingType ?? "FIXED"} onValueChange={v => set("pricingType", v)}>
                 <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin">
                   <SelectItem value="FIXED">Cố định</SelectItem>
                   <SelectItem value="HOURLY">Theo giờ</SelectItem>
                   <SelectItem value="CUSTOM">Tuỳ chỉnh</SelectItem>
@@ -637,25 +637,25 @@ function EditServiceSheet({ svc, open, onClose }: {
               </Select>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-4 bg-muted/20 border border-border/40 rounded-xl">
+          <div className="flex items-center gap-3 p-4 bg-[var(--c-card-2)] border border-[var(--c-line)]/40 rounded-xl">
             <Switch checked={form.isActive ?? true} onCheckedChange={v => set("isActive", v)} />
             <div>
-              <p className={cn("text-sm font-bold", form.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+              <p className={cn("text-sm font-bold", form.isActive ? "text-[#0E9F6E]" : "text-[var(--c-muted)]")}>
                 {form.isActive ? "Đang hoạt động" : "Tắt"}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[var(--c-muted)]">
                 {form.isActive ? "Dịch vụ hiển thị cho khách hàng" : "Dịch vụ đang bị ẩn"}
               </p>
             </div>
           </div>
-          <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200/60 rounded-xl p-3 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+          <div className="bg-[rgba(217,119,6,0.14)] dark:bg-[rgba(217,119,6,0.14)] border border-[#D97706]/60 rounded-xl p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-xs text-[#D97706] dark:text-[#D97706]">
               Thay đổi tên/mô tả sẽ ảnh hưởng đến tất cả gói dịch vụ liên kết.
             </p>
           </div>
         </div>
-        <div className="border-t border-border/40 px-6 py-4 flex gap-3 justify-end bg-card">
+        <div className="border-t border-[var(--c-line)]/40 px-6 py-4 flex gap-3 justify-end bg-[var(--c-card)]">
           <BaseButton variant="outline" onClick={onClose} className="rounded-xl">Hủy</BaseButton>
           <BaseButton variant="primary" onClick={() => updateMutation.mutate({ id: svc.id, payload: form }, { onSuccess: onClose })}
             disabled={updateMutation.isPending || !form.name?.trim()} className="rounded-xl gap-2">
@@ -679,100 +679,66 @@ function ServiceRow({ svc, onViewDetail, onEdit, onDelete, onToggle, isToggling 
   isToggling: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const pt = PRICING_TYPE_LABELS[svc.pricingType] ?? { label: svc.pricingType, color: "bg-muted text-muted-foreground" };
+  const pt = PRICING_TYPE_LABELS[svc.pricingType] ?? { label: svc.pricingType, color: "bg-[var(--c-card-2)] text-[var(--c-muted)]" };
   const bp = svc.pricingConfig?.basePrice;
   const commission = svc.pricingConfig?.platformCommissionRate ?? 20;
 
   return (
     <div className={cn(
-      "border rounded-2xl overflow-hidden bg-card transition-all duration-200",
-      expanded ? "border-primary/40 shadow-lg" : "border-border/50 shadow-2xs hover:border-primary/25 hover:shadow-xs",
+      "border rounded-2xl overflow-hidden bg-[var(--c-card)] transition-all duration-200",
+      expanded ? "border-[var(--c-primary)]/40 shadow-lg" : "border-[var(--c-line)]/50 shadow-sm hover:border-[var(--c-primary)]/20 hover:shadow-md",
     )}>
       {/* Header row */}
-      <div className="flex flex-col md:flex-row md:items-center gap-4 p-4.5 justify-between">
-        {/* Cột 1: Thumbnail & Thông tin cơ bản */}
-        <div className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-          <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-muted/40 shrink-0 border border-border/40">
-            {svc.thumbnailUrl ? (
-              <Image src={svc.thumbnailUrl} alt={svc.name} fill className="object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <Package className="w-5 h-5 text-muted-foreground/30" aria-hidden="true" />
-              </div>
-            )}
-          </div>
-
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-foreground text-sm hover:text-primary transition-colors leading-snug">{svc.name}</span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">{svc.subServiceCode}</span>
+      <div className="flex items-center gap-3 p-3.5">
+        <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-[var(--c-card-2)] shrink-0 border border-[var(--c-line)]/40 cursor-pointer"
+          onClick={() => setExpanded(!expanded)}>
+          {svc.thumbnailUrl ? (
+            <Image src={svc.thumbnailUrl} alt={svc.name} fill className="object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Package className="w-5 h-5 text-[var(--c-muted)]" aria-hidden="true" />
             </div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase", pt.color)}>{pt.label}</span>
-              <span className={cn(
-                "px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase",
-                svc.isActive
-                  ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400"
-                  : "bg-rose-500/10 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400",
-              )}>{svc.isActive ? "Hoạt động" : "Tắt"}</span>
-            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-[var(--c-ink)] text-sm hover:text-[var(--c-primary-strong)] transition-colors">{svc.name}</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-bold hidden sm:inline">{svc.subServiceCode}</span>
+            <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase hidden sm:inline", pt.color)}>{pt.label}</span>
+            <span className={cn(
+              "px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase",
+              svc.isActive
+                ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)] dark:text-[#0E9F6E]"
+                : "bg-[rgba(225,29,72,0.12)] text-[#E11D48] dark:bg-[rgba(225,29,72,0.12)] dark:text-[#E11D48]",
+            )}>{svc.isActive ? "Hoạt động" : "Tắt"}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-[var(--c-muted)]">
+            {svc.durationHours && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" aria-hidden="true" />{svc.durationHours}h</span>}
+            {bp && <span className="flex items-center gap-0.5 text-[var(--c-primary-strong)] font-semibold"><DollarSign className="w-3 h-3" aria-hidden="true" />{vnd(bp)}</span>}
+            {svc.coverageArea && <span className="flex items-center gap-0.5 hidden sm:flex"><MapPin className="w-3 h-3" aria-hidden="true" />{svc.coverageArea}</span>}
+            {(svc.includedTasks?.length ?? 0) > 0 && <span className="flex items-center gap-0.5 text-[#0E9F6E]"><Check className="w-3 h-3" aria-hidden="true" />{svc.includedTasks?.length} tác vụ</span>}
           </div>
         </div>
 
-        {/* Cột 2: Cấu hình giá & Hoa hồng */}
-        <div className="flex flex-row md:flex-col md:items-start justify-between md:justify-center border-t md:border-t-0 border-border/20 pt-3 md:pt-0 min-w-[150px] cursor-pointer" onClick={() => setExpanded(!expanded)}>
-          <div>
-            <span className="text-[10px] text-muted-foreground font-semibold block md:hidden">Giá cơ bản:</span>
-            {bp ? (
-              <span className="text-sm font-black text-primary flex items-center gap-0.5">{vnd(bp)}</span>
-            ) : (
-              <span className="text-xs text-muted-foreground italic font-semibold">Chưa thiết lập giá</span>
-            )}
-          </div>
-          <div className="md:mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground font-bold">
-            <Percent className="w-3 h-3 text-muted-foreground/70" />
-            <span>Platform Commission: {commission}%</span>
-          </div>
-        </div>
-
-        {/* Cột 3: Thời lượng & Khu vực */}
-        <div className="flex flex-row md:flex-col md:items-start justify-between md:justify-center border-t md:border-t-0 border-border/20 pt-3 md:pt-0 min-w-[160px] cursor-pointer" onClick={() => setExpanded(!expanded)}>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-            <span>{svc.durationHours ? `${svc.durationHours} giờ` : "Chưa cấu hình giờ"}</span>
-          </div>
-          <div className="md:mt-1 flex items-center gap-1 text-xs text-muted-foreground truncate max-w-[150px]">
-            <MapPin className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-            <span className="truncate">{svc.coverageArea || "Mặc định (Toàn hệ thống)"}</span>
-          </div>
-        </div>
-
-        {/* Cột 4: Thao tác nhanh */}
-        <div className="flex items-center justify-end gap-1 border-t md:border-t-0 border-border/20 pt-3 md:pt-0 shrink-0" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center gap-1.5 mr-2 bg-muted/40 px-2 py-1 rounded-xl border border-border/30">
-            <Switch
-              checked={svc.isActive}
-              onCheckedChange={() => onToggle(svc)}
-              disabled={isToggling}
-              className="scale-75"
-            />
-            <span className="text-[10px] text-muted-foreground font-bold select-none">{svc.isActive ? "Bật" : "Tắt"}</span>
-          </div>
-          
-          <button type="button" title="Xem chi tiết" onClick={() => onViewDetail(svc)}
-            className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0">
-            <Eye className="w-4 h-4" aria-hidden="true" />
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button type="button" title={svc.isActive ? "Tắt" : "Bật"} onClick={e => { e.stopPropagation(); onToggle(svc); }} disabled={isToggling}
+            className={cn("p-2 rounded-xl transition-colors disabled:opacity-40", svc.isActive ? "text-[#0E9F6E] hover:bg-[rgba(14,159,110,0.12)] dark:hover:bg-[rgba(14,159,110,0.12)]" : "text-[var(--c-muted)] hover:bg-[var(--c-card-2)]")}>
+            <Power className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
-          <button type="button" title="Chỉnh sửa" onClick={() => onEdit(svc)}
-            className="p-2 rounded-xl text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors shrink-0">
-            <Pencil className="w-4 h-4" aria-hidden="true" />
+          <button type="button" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onViewDetail(svc); }}
+            className="p-2 rounded-xl text-[var(--c-muted)] hover:text-[var(--c-primary-strong)] hover:bg-[var(--c-primary-soft)] transition-colors">
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
-          <button type="button" title="Xóa" onClick={() => onDelete(svc)}
-            className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0">
-            <Trash2 className="w-4 h-4" aria-hidden="true" />
+          <button type="button" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(svc); }}
+            className="p-2 rounded-xl text-[var(--c-muted)] hover:text-[#2563EB] hover:bg-[rgba(37,99,235,0.12)] dark:hover:bg-[rgba(37,99,235,0.12)] transition-colors">
+            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => setExpanded(!expanded)} 
-            className="p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors shrink-0">
+          <button type="button" title="Xóa" onClick={e => { e.stopPropagation(); onDelete(svc); }}
+            className="p-2 rounded-xl text-[var(--c-muted)] hover:text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)] transition-colors">
+            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+          <button type="button" onClick={() => setExpanded(!expanded)} className="p-2 rounded-xl text-[var(--c-muted)] hover:bg-[var(--c-card-2)] transition-colors">
             <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", expanded && "rotate-180")} aria-hidden="true" />
           </button>
         </div>
@@ -780,44 +746,25 @@ function ServiceRow({ svc, onViewDetail, onEdit, onDelete, onToggle, isToggling 
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-border/40 bg-muted/10 p-5 animate-in fade-in-0 slide-in-from-top-1 duration-200 space-y-5">
-          {/* Hàng 1: Panel cấu hình giá & Mô tả ngắn */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* 1.1: Bảng giá chi tiết */}
-            <div className="bg-card border border-border/40 rounded-2xl p-4.5 space-y-3.5 shadow-3xs">
-              <p className="text-[10px] font-black text-primary uppercase tracking-wider flex items-center gap-1.5 border-b border-border/20 pb-2">
-                <DollarSign className="w-3.5 h-3.5 text-primary" />
-                Cấu hình giá chi tiết
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {[
-                  { label: "Giá gốc", value: bp ? vnd(bp) : "Chưa có", highlight: true, color: "text-primary text-sm font-black" },
-                  { label: "Giá cao điểm", value: svc.pricingConfig?.peakPrice ? vnd(svc.pricingConfig.peakPrice) : "Chưa thiết lập", highlight: false, color: "text-amber-600 font-bold" },
-                  { label: "Phí thú cưng", value: svc.pricingConfig?.petFee ? vnd(svc.pricingConfig.petFee) : "—", highlight: false, color: "text-foreground font-semibold" },
-                  { label: "Phí chờ đợi", value: svc.pricingConfig?.waitingFee ? `${vnd(svc.pricingConfig.waitingFee)}/15p` : "—", highlight: false, color: "text-foreground font-semibold" },
-                  { label: "Hoa hồng hệ thống", value: `${commission}%`, highlight: false, color: "text-foreground font-semibold" },
-                  { label: "Đơn vị", value: svc.pricingConfig?.priceUnit || "VND", highlight: false, color: "text-muted-foreground font-semibold" },
-                ].map(f => (
-                  <div key={f.label} className="bg-muted/30 border border-border/20 rounded-xl p-2.5">
-                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">{f.label}</p>
-                    <p className={cn("mt-0.5 text-xs truncate", f.color)}>
-                      {f.value}
-                    </p>
-                  </div>
-                ))}
+        <div className="border-t border-[var(--c-line)]/50 bg-[var(--c-card-2)] p-4 animate-in fade-in-0 slide-in-from-top-1 duration-200 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              { label: "Giá gốc", value: bp ? vnd(bp) : "Chưa thiết lập", color: "text-[var(--c-primary-strong)]", bg: "bg-[var(--c-primary-soft)]", icon: DollarSign },
+              { label: "Giá cao điểm", value: svc.pricingConfig?.peakPrice ? vnd(svc.pricingConfig.peakPrice) : "—", color: "text-[#D97706]", bg: "bg-[rgba(217,119,6,0.14)] dark:bg-[rgba(217,119,6,0.14)]", icon: TrendingUp },
+              { label: "Thời lượng", value: svc.durationHours ? `${svc.durationHours}h` : "—", color: "text-[#2563EB]", bg: "bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)]", icon: Clock },
+              { label: "Tasks bao gồm", value: `${svc.includedTasks?.length ?? 0} mục`, color: "text-[#0E9F6E]", bg: "bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]", icon: Check },
+            ].map(s => (
+              <div key={s.label} className="bg-[var(--c-card)] border border-[var(--c-line)]/40 rounded-xl p-3 flex items-center gap-2">
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", s.bg)}>
+                  <s.icon className={cn("w-3.5 h-3.5", s.color)} aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] text-[var(--c-muted)] font-bold uppercase tracking-wide">{s.label}</p>
+                  <p className="text-xs font-bold text-[var(--c-ink)] truncate">{s.value}</p>
+                </div>
               </div>
-              <div className="flex gap-2 pt-1 border-t border-border/10">
-                <button type="button" onClick={() => onViewDetail(svc)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary text-white text-[10px] font-bold hover:bg-primary/95 transition-colors">
-                  <Pencil className="w-3 h-3" /> Cấu hình giá
-                </button>
-                {svc.pricingConfig?.name && (
-                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center bg-muted/40 px-2.5 rounded-xl border border-border/30 max-w-[200px] truncate">
-                    Bảng giá: {svc.pricingConfig.name}
-                  </span>
-                )}
-              </div>
-            </div>
+            ))}
+          </div>
 
             {/* 1.2: Mô tả */}
             <div className="space-y-4">
@@ -844,62 +791,26 @@ function ServiceRow({ svc, onViewDetail, onEdit, onDelete, onToggle, isToggling 
                 </div>
               )}
             </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => onViewDetail(svc)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--c-primary)] text-white text-xs font-bold hover:bg-[var(--c-primary)] transition-colors">
+              <Eye className="w-3.5 h-3.5" aria-hidden="true" />Xem chi tiết & Cấu hình giá
+            </button>
+            <button type="button" onClick={() => onEdit(svc)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--c-line)]/50 text-xs font-semibold text-[var(--c-muted)] hover:text-[#2563EB] hover:border-[#2563EB] transition-colors">
+              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />Chỉnh sửa
+            </button>
+            <button type="button" onClick={() => onToggle(svc)} disabled={isToggling}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors disabled:opacity-40",
+                svc.isActive ? "border-[#E11D48] text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)]" : "border-[#0E9F6E] text-[#0E9F6E] hover:bg-[rgba(14,159,110,0.12)]")}>
+              <Power className="w-3.5 h-3.5" aria-hidden="true" />{svc.isActive ? "Tắt dịch vụ" : "Bật dịch vụ"}
+            </button>
+            <button type="button" onClick={() => onDelete(svc)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E11D48] text-xs font-semibold text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)] transition-colors">
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />Xóa
+            </button>
           </div>
-
-          {/* Grid 2 cột checklist đầu việc */}
-          {((svc.includedTasks?.length ?? 0) > 0 || (svc.excludedTasks?.length ?? 0) > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-border/20 pt-4.5">
-              {(svc.includedTasks?.length ?? 0) > 0 && (
-                <div className="space-y-3">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    Công việc bao gồm ({svc.includedTasks?.length})
-                  </p>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {svc.includedTasks?.map((task, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-xs text-foreground font-medium bg-card px-3 py-2 rounded-xl border border-border/30 shadow-3xs">
-                        <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                        <span>{task}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {(svc.excludedTasks?.length ?? 0) > 0 && (
-                <div className="space-y-3">
-                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                    Không bao gồm ({svc.excludedTasks?.length})
-                  </p>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {svc.excludedTasks?.map((task, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground font-medium bg-card px-3 py-2 rounded-xl border border-border/30 shadow-3xs">
-                        <X className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                        <span>{task}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Album ảnh phụ */}
-          {(svc.galleryUrls?.length ?? 0) > 0 && (
-            <div className="border-t border-border/20 pt-4.5 space-y-3">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-muted-foreground/75" />
-                Album ảnh dịch vụ ({svc.galleryUrls?.length})
-              </p>
-              <div className="flex flex-wrap gap-2.5">
-                {svc.galleryUrls?.map((url, i) => (
-                  <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-border/40 bg-card shadow-3xs">
-                    <Image src={url} alt={`${svc.name} ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform duration-300" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -1054,16 +965,16 @@ export default function SubServicesManagementPage() {
       />
       <EditServiceSheet key={editSvc?.id} svc={editSvc} open={!!editSvc} onClose={() => setEditSvc(null)} />
       <AlertDialog open={!!deleteSvc} onOpenChange={open => !open && setDeleteSvc(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="cz-admin">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-destructive" aria-hidden="true" />Xóa dịch vụ con
+              <Trash2 className="w-5 h-5 text-[#E11D48]" aria-hidden="true" />Xóa dịch vụ con
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>Xóa <strong>{deleteSvc?.name}</strong>? Thao tác không thể hoàn tác.</p>
-              <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200/60 rounded-xl p-3 flex items-start gap-2">
-                <Shield className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" aria-hidden="true" />
-                <p className="text-xs text-rose-700 dark:text-rose-400">
+              <div className="bg-[rgba(225,29,72,0.12)] dark:bg-[rgba(225,29,72,0.12)] border border-[#E11D48]/60 rounded-xl p-3 flex items-start gap-2">
+                <Shield className="w-4 h-4 text-[#E11D48] shrink-0 mt-0.5" aria-hidden="true" />
+                <p className="text-xs text-[#E11D48] dark:text-[#E11D48]">
                   Nếu dịch vụ đang có đơn hàng chưa hoàn thành, hệ thống sẽ từ chối xóa.
                 </p>
               </div>
@@ -1072,7 +983,7 @@ export default function SubServicesManagementPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleteMutation.isPending}
-              className="bg-destructive text-white hover:bg-destructive/90 gap-2">
+              className="bg-[#E11D48] text-white hover:bg-[#E11D48] gap-2">
               {deleteMutation.isPending
                 ? <><RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />Đang xóa...</>
                 : <><Trash2 className="w-4 h-4" aria-hidden="true" />Xóa dịch vụ</>}
@@ -1084,8 +995,8 @@ export default function SubServicesManagementPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-foreground">Quản lý Dịch vụ con</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-2xl font-black text-[var(--c-ink)]">Quản lý Dịch vụ con</h1>
+          <p className="text-sm text-[var(--c-muted)] mt-1">
             Danh sách đầy đủ các dịch vụ con với thông số phân tích và cấu hình giá chi tiết
           </p>
         </div>
@@ -1097,10 +1008,10 @@ export default function SubServicesManagementPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Layers}    iconColor="text-primary"     bgColor="bg-primary/10"                    label="Tổng dịch vụ"    value={total}         sub="trên hệ thống" />
-        <StatCard icon={Activity}  iconColor="text-emerald-500" bgColor="bg-emerald-50 dark:bg-emerald-900/20" label="Đang hoạt động" value={activeCount}   sub={`${total - activeCount} tắt`} />
-        <StatCard icon={Tag}       iconColor="text-blue-500"    bgColor="bg-blue-50 dark:bg-blue-900/20"   label="Có cấu hình giá" value={pricedCount}   sub="dịch vụ" />
-        <StatCard icon={BarChart3} iconColor="text-amber-500"   bgColor="bg-amber-50 dark:bg-amber-900/20" label="Giá TB"          value={vnd(Math.round(avgPrice))} sub="/ dịch vụ" />
+        <StatCard icon={Layers}    iconColor="text-[var(--c-primary-strong)]"     bgColor="bg-[var(--c-primary-soft)]"                    label="Tổng dịch vụ"    value={total}         sub="trên hệ thống" />
+        <StatCard icon={Activity}  iconColor="text-[#0E9F6E]" bgColor="bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]" label="Đang hoạt động" value={activeCount}   sub={`${total - activeCount} tắt`} />
+        <StatCard icon={Tag}       iconColor="text-[#2563EB]"    bgColor="bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)]"   label="Có cấu hình giá" value={pricedCount}   sub="dịch vụ" />
+        <StatCard icon={BarChart3} iconColor="text-[#D97706]"   bgColor="bg-[rgba(217,119,6,0.14)] dark:bg-[rgba(217,119,6,0.14)]" label="Giá TB"          value={vnd(Math.round(avgPrice))} sub="/ dịch vụ" />
       </div>
 
       {/* Filters Toolbar */}
@@ -1111,7 +1022,7 @@ export default function SubServicesManagementPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input placeholder="Tìm theo tên hoặc mã dịch vụ..."
               value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="pl-10 h-9 rounded-xl text-sm bg-background" />
+              className="pl-10 h-9 rounded-xl text-sm bg-[var(--c-card)]" />
           </div>
 
           {/* Toggle Advanced Filters Button */}
@@ -1223,7 +1134,7 @@ export default function SubServicesManagementPage() {
             <span className="text-xs text-primary font-semibold">
               Đang lọc theo gói: <strong>{packages.find(p => p.id === packageFilter)?.name}</strong>
             </span>
-            <button type="button" onClick={() => setPackageFilter("ALL")} className="ml-auto text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => setPackageFilter("ALL")} className="ml-auto text-[var(--c-muted)] hover:text-[var(--c-ink)]">
               <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
