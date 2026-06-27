@@ -24,6 +24,7 @@ import {
 import { CustomerQueryDto } from './dto/customer-query.dto';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { UpdateUserStatusDto } from 'src/modules/users/dto/update-user-status.dto';
 import { BookingSearchQueryDto } from './dto/booking-search-query.dto';
 import { AvailableTaskersQueryDto } from './dto/available-taskers-query.dto';
 import { AssignTaskerDto } from './dto/assign-tasker.dto';
@@ -239,8 +240,11 @@ export class AdminController {
   }
 
   @Post('customers')
-  createCustomer(@Body() dto: CreateCustomerDto) {
-    return this.customerRepo.createCustomer(dto);
+  createCustomer(
+    @Body() dto: CreateCustomerDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.customerRepo.createCustomer(dto, adminId);
   }
 
   @Get('customers/:id')
@@ -268,7 +272,8 @@ export class AdminController {
   @Patch('customers/:id/status')
   async updateCustomerStatus(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('isActive') isActive: boolean,
+    @Body() dto: UpdateUserStatusDto,
+    @CurrentUser('id') adminId: string,
   ) {
     // Get the customer to find associated userId
     const detail = await this.customerRepo.getCustomerDetail(id);
@@ -277,10 +282,12 @@ export class AdminController {
     }
     const user = await this.usersService.toggleUserActiveStatus(
       detail.userId,
-      isActive,
+      dto.isActive,
     );
+    // Ghi vết admin đã khóa/mở khóa.
+    await this.customerRepo.markUpdatedBy(id, adminId);
     return {
-      message: isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản',
+      message: dto.isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản',
       isActive: user.isActive,
     };
   }
@@ -289,12 +296,32 @@ export class AdminController {
   updateCustomer(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomerDto,
+    @CurrentUser('id') adminId: string,
   ) {
-    return this.customerRepo.updateCustomer(id, dto);
+    return this.customerRepo.updateCustomer(id, dto, adminId);
   }
 
   @Delete('customers/:id')
-  deleteCustomer(@Param('id', ParseUUIDPipe) id: string) {
-    return this.customerRepo.deleteCustomer(id);
+  deleteCustomer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.customerRepo.deleteCustomer(id, adminId);
+  }
+
+  @Patch('customers/:id/restore')
+  restoreCustomer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.customerRepo.restoreCustomer(id, adminId);
+  }
+
+  @Post('customers/:id/resend-temp-password')
+  resendCustomerTempPassword(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.customerRepo.resendTempPassword(id, adminId);
   }
 }

@@ -1,4 +1,4 @@
-import { TaskerApprovalDetail } from "@/features/admin-tasker/_components/TaskerApprovalDetail";
+import { TaskerApprovalDetail } from "@/features/admin/modules/tasker/_components/TaskerApprovalDetail";
 
 export default async function TaskerVerificationDetailPage({
   params,

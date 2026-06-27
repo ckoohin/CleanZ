@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,10 +31,15 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({
 }) => {
   const [notes, setNotes] = useState("");
 
+  // Chỉ xóa nội dung khi modal đóng. Parent chỉ đóng khi submit thành công, nên
+  // text được giữ lại nếu mutation lỗi (người dùng không phải gõ lại).
+  useEffect(() => {
+    if (!isOpen) setNotes("");
+  }, [isOpen]);
+
   const handleConfirm = () => {
     if (!notes.trim()) return;
     onConfirm(notes);
-    setNotes("");
   };
 
   return (
@@ -51,6 +56,7 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({
             placeholder="Nhập nội dung phản hồi cụ thể cho nhân viên..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            maxLength={1500}
             className="min-h-[120px] rounded-2xl resize-none focus-visible:ring-primary"
           />
         </div>

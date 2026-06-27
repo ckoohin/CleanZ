@@ -10,6 +10,7 @@ import type {
   AttachmentUploadResult,
   PublicMessage,
   MarkReadDto,
+  MessagePage,
 } from "../types/my-ticket.types";
 
 const EP = API_ENDPOINTS.SUPPORT_TICKETS;
@@ -47,6 +48,12 @@ export const myTicketApi = {
   /** Gửi tin nhắn công khai (trả message đầy đủ: senderRole + attachments) */
   sendMessage: (id: string, dto: SendMessageDto): Promise<PublicMessage> =>
     http.post<PublicMessage>(EP.MESSAGES(id), dto).then((r) => r.data),
+
+  /** Tải trang tin cũ hơn (cursor: before = id tin cũ nhất đang hiển thị) */
+  olderMessages: (id: string, before?: string): Promise<MessagePage> =>
+    http
+      .get<MessagePage>(EP.MESSAGES(id), { params: before ? { before } : {} })
+      .then((r) => r.data),
 
   /** Đánh dấu đã đọc luồng hội thoại của tôi */
   markRead: (id: string, dto: MarkReadDto = {}): Promise<unknown> =>

@@ -22,8 +22,9 @@ import type {
   TicketPriority,
   AdminTicketQueryParams,
 } from "../types/support-ticket.types";
-import { AlertTriangle, CheckCircle2, Eye, Plus, ListFilter, Settings, ArrowDownUp, Search, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, Plus, ListFilter, Settings, ArrowDownUp, Search, X, StickyNote } from "lucide-react";
 import { SupportTicketDetailDrawer } from "./SupportTicketDetailDrawer";
+import { InternalNotesDrawer } from "./InternalNotesDrawer";
 import { CreateTicketDialog } from "./CreateTicketDialog";
 import { TicketConfigForm } from "./config/TicketConfigForm";
 import { LookupCombobox } from "./LookupCombobox";
@@ -69,6 +70,7 @@ export const SupportTicketTable: React.FC = () => {
   const sp = useSearchParams();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notesTicket, setNotesTicket] = useState<TicketSummary | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
 
@@ -189,6 +191,11 @@ export const SupportTicketTable: React.FC = () => {
 
   const rowActions: RowAction<TicketSummary>[] = [
     { type: "view", label: "Xem chi tiết", icon: Eye, onClick: (row) => setSelectedId(row.id) },
+    {
+      label: "Ghi chú nội bộ",
+      icon: StickyNote,
+      onClick: (row) => setNotesTicket(row),
+    },
   ];
 
   return (
@@ -365,7 +372,7 @@ export const SupportTicketTable: React.FC = () => {
         emptyTitle="Chưa có ticket nào"
         emptyDescription="Chưa có yêu cầu hỗ trợ nào phù hợp với bộ lọc."
         rowActions={rowActions}
-        inlineActionCount={1}
+        inlineActionCount={2}
       />
 
       {selectedId && (
@@ -373,6 +380,14 @@ export const SupportTicketTable: React.FC = () => {
           ticketId={selectedId}
           isOpen={!!selectedId}
           onClose={() => setSelectedId(null)}
+        />
+      )}
+      {notesTicket && (
+        <InternalNotesDrawer
+          ticketId={notesTicket.id}
+          ticketCode={notesTicket.ticketCode}
+          isOpen={!!notesTicket}
+          onClose={() => setNotesTicket(null)}
         />
       )}
       <CreateTicketDialog open={showCreate} onClose={() => setShowCreate(false)} />

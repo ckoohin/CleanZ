@@ -27,6 +27,10 @@ export const API_ENDPOINTS = {
     VERIFY: "/taskers/verify",
     UPDATE_PRESENCE: "/tasker/me/presence",
   },
+  APPEALS: {
+    BASE: "/appeals",
+    VERIFY: "/appeals/verify",
+  },
   SERVICES: {
     BASE: "/services",
     CATEGORIES: "/services/categories",
@@ -68,6 +72,8 @@ export const API_ENDPOINTS = {
     ASSIGN: (id: string) => `/admin/support-tickets/${id}/assign`,
     STATUS: (id: string) => `/admin/support-tickets/${id}/status`,
     MESSAGES: (id: string) => `/admin/support-tickets/${id}/messages`,
+    INTERNAL_NOTES: (id: string) =>
+      `/admin/support-tickets/${id}/internal-notes`,
     READ: (id: string) => `/admin/support-tickets/${id}/read`,
     ATTACHMENTS: (id: string) => `/admin/support-tickets/${id}/attachments`,
     RESOLUTIONS: (id: string) => `/admin/support-tickets/${id}/resolutions`,
@@ -152,6 +158,9 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/admin/customers/${id}`,
     BOOKINGS: (id: string) => `/admin/customers/${id}/bookings`,
     STATUS: (id: string) => `/admin/customers/${id}/status`,
+    RESTORE: (id: string) => `/admin/customers/${id}/restore`,
+    RESEND_TEMP_PASSWORD: (id: string) =>
+      `/admin/customers/${id}/resend-temp-password`,
   },
   ADMIN_POLICIES: {
     BASE: "/policy",

@@ -20,6 +20,16 @@
     <p style='color: #4b5563; line-height: 1.6;'>
       Vui lòng đăng nhập vào hệ thống, cập nhật thông tin theo yêu cầu và nộp lại hồ sơ để được xét duyệt.
     </p>
+    {{#if kycResubmitUrl}}
+      <div style='text-align: center; margin: 32px 0;'>
+        <a
+          href='{{kycResubmitUrl}}'
+          style='background-color: #166534; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;'
+        >
+          Nộp lại hồ sơ ngay
+        </a>
+      </div>
+    {{/if}}
     <hr style='border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;' />
     <p style='color: #9ca3af; font-size: 12px;'>
       Email này được gửi từ hệ thống KingOfService. Vui lòng không trả lời email này.

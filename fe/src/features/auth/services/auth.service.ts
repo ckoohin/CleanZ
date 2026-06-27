@@ -86,6 +86,16 @@ export const authApi = {
     return res.data;
   },
 
+  changePassword: (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<{ message: string }> => {
+    return http
+      .patch<{ message: string }>('/auth/change-password', data)
+      .then((res) => res.data);
+  },
+
   updateProfile: async (data: {
     fullName?: string;
     phone?: string;

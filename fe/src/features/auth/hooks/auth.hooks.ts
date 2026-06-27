@@ -21,6 +21,7 @@ import type {
   VerifyOtpCredentials,
   VerifyOtpResponse,
 } from "@/features/auth/types/auth.type";
+import type { User } from "@/features/auth/types/user.type";
 import { toast } from "sonner";
 
 interface ApiErrorResponse {
@@ -104,9 +105,7 @@ export function useRegister() {
   return useMutation({
     mutationFn: (credentials: RegisterCredentials) =>
       authApi.register(credentials),
-    onSuccess: (res: RegisterResponse) => {
-      console.log(res);
-      // Giả định backend trả về thông báo thành công trong res, hoặc tùy chỉnh toast
+    onSuccess: (_res: RegisterResponse) => {
       toast.success("Đăng ký thành công!");
     },
     onError: (error: unknown) => {
@@ -183,15 +182,29 @@ export function useVerifyOtp() {
   return useMutation({
     mutationFn: (credentials: VerifyOtpCredentials) =>
       authApi.verifyOtp(credentials),
-    onSuccess: (res: VerifyOtpResponse, _variables, _context) => {
+    onSuccess: async (res: VerifyOtpResponse) => {
       toast.success(res.message);
 
       // Đọc redirect param từ URL hiện tại
       const searchParams = new URLSearchParams(window.location.search);
       const redirectUrl = searchParams.get("redirect") || ROUTES.HOME;
 
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
-      router.replace(redirectUrl);
+      // Lấy hồ sơ mới để biết có buộc đổi mật khẩu (tài khoản admin tạo) hay không.
+      let user: User | null = null;
+      try {
+        user = await queryClient.fetchQuery({
+          queryKey: queryKeys.auth.me(),
+          queryFn: authApi.me,
+        });
+      } catch {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+      }
+
+      if (user?.mustChangePassword) {
+        router.replace(ROUTES.AUTH.CHANGE_PASSWORD);
+      } else {
+        router.replace(redirectUrl);
+      }
     },
     onError: (error: unknown) => {
       console.error("Verify OTP error:", error);
@@ -228,6 +241,30 @@ export function useResetPassword() {
       // console.log(error.response);
       toast.error(getErrorMessage(error));
       return error;
+    },
+  });
+}
+
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return useMutation({
+    mutationFn: (data: {
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    }) => authApi.changePassword(data),
+    onSuccess: (res) => {
+      toast.success(
+        res.message || "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
+      );
+      // Backend đã thu hồi refresh token → buộc đăng nhập lại với mật khẩu mới.
+      queryClient.removeQueries({ queryKey: queryKeys.auth.me() });
+      queryClient.clear();
+      router.replace(ROUTES.AUTH.LOGIN);
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }

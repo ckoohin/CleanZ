@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -33,4 +34,12 @@ export class CreateAdminMessageDto extends CreateMessageDto {
   @IsOptional()
   @IsEnum(TicketMessageAudience)
   targetAudience?: TicketMessageAudience;
+}
+
+/** Ghi chú nội bộ (log) — chỉ text, bắt buộc nội dung. */
+export class CreateInternalNoteDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(5000)
+  body!: string;
 }

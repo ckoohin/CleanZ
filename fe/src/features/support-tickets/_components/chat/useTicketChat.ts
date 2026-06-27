@@ -25,6 +25,10 @@ export interface ChatApi {
   sendMessage: (dto: SendMessageDto) => Promise<PublicMessage>;
   uploadImage: (file: File) => Promise<TicketAttachment>;
   markRead?: (dto: MarkReadDto) => Promise<unknown>;
+  /** Tải trang tin CŨ HƠN (cursor = id tin cũ nhất đang có). */
+  loadOlder?: (
+    beforeId?: string,
+  ) => Promise<{ messages: PublicMessage[]; hasMore: boolean }>;
 }
 
 interface UseTicketChatArgs {
@@ -36,6 +40,8 @@ interface UseTicketChatArgs {
   audience?: TicketAudience;
   /** Khoá gửi (ticket CLOSED). */
   locked?: boolean;
+  /** Còn tin cũ hơn trang đầu (từ detail) → hiện nút "tải tin cũ hơn". */
+  initialHasMore?: boolean;
 }
 
 const TYPING_TIMEOUT = 3000;
@@ -55,10 +61,13 @@ export function useTicketChat({
   api,
   audience,
   locked,
+  initialHasMore,
 }: UseTicketChatArgs) {
   const socket = useSocket();
   const [messages, setMessages] = useState<PublicMessage[]>(initialMessages);
   const [sending, setSending] = useState(false);
+  const [hasMore, setHasMore] = useState(!!initialHasMore);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [typingFrom, setTypingFrom] = useState<string | null>(null);
   const [otherLastReadId, setOtherLastReadId] = useState<string | null>(null);
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,6 +78,26 @@ export function useTicketChat({
   useEffect(() => {
     setMessages((prev) => dedupeById([...prev, ...initialMessages]));
   }, [initialMessages]);
+
+  useEffect(() => {
+    setHasMore(!!initialHasMore);
+  }, [initialHasMore]);
+
+  // ─── Tải tin cũ hơn (prepend, giữ vị trí cuộn do ChatThread xử lý) ──────────
+  const loadOlder = useCallback(async () => {
+    if (!api.loadOlder || loadingOlder || !hasMore) return;
+    setLoadingOlder(true);
+    try {
+      const oldestId = messages[0]?.id;
+      const res = await api.loadOlder(oldestId);
+      setMessages((prev) => dedupeById([...res.messages, ...prev]));
+      setHasMore(res.hasMore);
+    } catch {
+      // im lặng — người dùng có thể bấm lại
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [api, hasMore, loadingOlder, messages]);
 
   const matchesThread = useCallback(
     (evtAudience: TicketAudience) => !audience || audience === evtAudience,
@@ -197,5 +226,8 @@ export function useTicketChat({
     otherLastReadId,
     send,
     notifyTyping,
+    hasMore,
+    loadingOlder,
+    loadOlder,
   };
 }

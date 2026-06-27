@@ -40,6 +40,10 @@ export class CustomerEntity {
   @Column({ name: 'reporting_locked_until', type: 'timestamp', nullable: true })
   reportingLockedUntil?: Date | null;
 
+  // Audit: admin (users.id) đã cập nhật hồ sơ gần nhất. NULL nếu chưa ai sửa.
+  @Column({ name: 'updated_by', type: 'uuid', nullable: true })
+  updatedBy?: string | null;
+
   @OneToMany(() => CustomerAddressEntity, (address) => address.customer)
   addresses?: CustomerAddressEntity[];
 

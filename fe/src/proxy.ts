@@ -44,7 +44,9 @@ export async function proxy(req: NextRequest) {
         const refreshRes = await fetch(`${baseURL}/auth/refresh`, {
           method: "POST",
           headers: {
-            Cookie: `refreshToken=${refreshTokenCookie}`,
+            // BE đọc cookie tên `refresh_token` (jwt-refresh.strategy) — phải khớp,
+            // nếu không refresh server-side luôn fail → redirect về login (loop).
+            Cookie: `refresh_token=${refreshTokenCookie}`,
             "Content-Type": "application/json",
           },
         });
@@ -112,11 +114,13 @@ function redirectToLogin(req: NextRequest, pathname: string, searchParams: URLSe
   return NextResponse.redirect(loginUrl);
 }
 
+// Next.js 16: file đặc biệt tên `proxy.ts`, export function `proxy` + `config`.
+// (Đây là tên mới của "middleware" cũ — KHÔNG tạo thêm src/middleware.ts.)
 export const config = {
   matcher: [
     "/admin/:path*",
     "/tasker/:path*",
-    "/customer/:path*"
+    "/customer/:path*",
   ],
 };
-  
+

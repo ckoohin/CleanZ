@@ -1,4 +1,4 @@
-import { UserListTable } from "@/features/admin-user/_components/UserListTable";
+import { UserListTable } from "@/features/admin/modules/user/_components/UserListTable";
 
 export default function AdminUsersPage() {
   return <UserListTable />;

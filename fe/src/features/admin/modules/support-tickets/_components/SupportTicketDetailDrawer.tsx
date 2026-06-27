@@ -157,7 +157,7 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                 <TabsList className="w-full rounded-xl bg-muted/50">
                   <TabsTrigger value="messages" className="flex-1 text-xs">
                     <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                    Tin nhắn ({ticket.messages.length})
+                    Tin nhắn ({ticket.messages.filter((m) => m.audience !== "INTERNAL").length})
                   </TabsTrigger>
                   <TabsTrigger value="actions" className="flex-1 text-xs">
                     <ArrowRight className="w-3.5 h-3.5 mr-1" />

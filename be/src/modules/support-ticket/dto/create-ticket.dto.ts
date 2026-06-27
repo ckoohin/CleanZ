@@ -13,6 +13,7 @@ import { TicketPriority } from 'src/common/enums/ticket-priority.enum';
 
 const NO_BOOKING_CATEGORIES = [
   TicketCategory.ACCOUNT_TECHNICAL,
+  TicketCategory.APPEAL,
   TicketCategory.OTHER,
 ];
 

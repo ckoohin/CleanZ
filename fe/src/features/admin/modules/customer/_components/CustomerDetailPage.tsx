@@ -7,6 +7,16 @@ import {
   useAdminCustomerBookings,
 } from "@/features/admin/modules/customer/hooks/useAdminCustomer";
 import { CustomerStatusToggle } from "@/features/admin/modules/customer/_components/CustomerStatusToggle";
+import {
+  formatVND,
+  formatDateTime,
+  formatDateTimeFull,
+  BOOKING_STATUS_STYLES,
+  BOOKING_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_TEXT_STYLES,
+  STAT_CARD_STYLES,
+} from "@/features/admin/modules/customer/customer.helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,59 +47,32 @@ import {
   TrendingUp,
   ShieldCheck,
   User,
+  History,
+  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 
 interface CustomerDetailPageProps {
   customerId: string;
 }
 
-const BOOKING_STATUS_STYLES: Record<string, string> = {
-  POSTED: "bg-muted text-muted-foreground border-border/50",
-  CONFIRMED: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  TASKER_ON_THE_WAY: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  CHECKED_IN: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  IN_PROGRESS: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  COMPLETED: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  CANCELLED: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
-  EXPIRED: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
-};
-
-const BOOKING_STATUS_LABELS: Record<string, string> = {
-  POSTED: "Đăng tải",
-  CONFIRMED: "Xác nhận",
-  TASKER_ON_THE_WAY: "Đang đến",
-  CHECKED_IN: "Đã đến",
-  IN_PROGRESS: "Đang làm việc",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã hủy",
-  EXPIRED: "Hết hạn",
-};
-
 export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customerId }) => {
   const router = useRouter();
   const [bookingPage, setBookingPage] = useState(1);
   const bookingLimit = 10;
 
-  const { data: customer, isLoading } = useAdminCustomerDetail(customerId);
+  const {
+    data: customer,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useAdminCustomerDetail(customerId);
   const { data: bookingsData, isLoading: isBookingsLoading } = useAdminCustomerBookings(
     customerId,
     bookingPage,
     bookingLimit
   );
-
-  const formatVND = (value: number) =>
-    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
-
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("vi-VN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const bookings = bookingsData?.data || [];
   const meta = bookingsData?.meta;
@@ -114,13 +97,40 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
     );
   }
 
+  const errorStatus = (error as { response?: { status?: number } })?.response?.status;
+  const isNotFound = errorStatus === 404;
+
+  // Lỗi thực sự (500/mạng), không phải 404 — cho phép người dùng thử lại.
+  if (isError && !isNotFound) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
+        <AlertTriangle className="w-16 h-16 text-muted-foreground/40" />
+        <h2 className="text-xl font-bold">Không tải được dữ liệu khách hàng</h2>
+        <p className="text-muted-foreground">
+          Đã có lỗi xảy ra khi tải thông tin khách hàng. Vui lòng thử lại.
+        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push("/admin/customers")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Quay lại
+          </Button>
+          <Button onClick={() => refetch()}>
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // 404 thật hoặc query thành công nhưng không có dữ liệu.
   if (!customer) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
         <User className="w-16 h-16 text-muted-foreground/40" />
         <h2 className="text-xl font-bold">Không tìm thấy khách hàng</h2>
         <p className="text-muted-foreground">Dữ liệu đã bị xóa hoặc ID không hợp lệ.</p>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.push("/admin/customers")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Quay lại
         </Button>
@@ -132,7 +142,7 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
     <div className="space-y-6">
       {/* Back Button */}
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push("/admin/customers")}
         className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -187,8 +197,17 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
               {[
                 { icon: Mail, label: "Email", value: customer.email },
                 { icon: Phone, label: "Điện thoại", value: customer.phone || "Chưa cập nhật" },
-                { icon: Calendar, label: "Ngày tham gia", value: formatDate(customer.createdAt) },
-                { icon: LogIn, label: "Đăng nhập cuối", value: formatDate(customer.lastLogin) },
+                { icon: Calendar, label: "Ngày tham gia", value: formatDateTime(customer.createdAt) },
+                { icon: LogIn, label: "Đăng nhập cuối", value: formatDateTime(customer.lastLogin) },
+                ...(customer.updatedBy
+                  ? [
+                      {
+                        icon: History,
+                        label: "Cập nhật bởi",
+                        value: `${customer.updatedByName ?? "Admin"} · ${formatDateTimeFull(customer.updatedAt)}`,
+                      },
+                    ]
+                  : []),
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -253,7 +272,7 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
               <TrendingUp className="w-4 h-4 text-primary" /> Thống kê giao dịch
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
+              {([
                 {
                   label: "Tổng chi tiêu",
                   value: formatVND(customer.stats.totalSpent),
@@ -278,15 +297,18 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
                   icon: CheckCircle,
                   color: "amber",
                 },
-              ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className={`bg-${color}-500/5 p-4 rounded-xl border border-${color}-500/10`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-[10px] font-bold text-${color}-700 dark:text-${color}-400 uppercase tracking-wider`}>{label}</span>
-                    <Icon className={`w-3.5 h-3.5 text-${color}-600 dark:text-${color}-400`} />
+              ] as const).map(({ label, value, icon: Icon, color }) => {
+                const style = STAT_CARD_STYLES[color];
+                return (
+                  <div key={label} className={`p-4 rounded-xl border ${style.wrap}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${style.label}`}>{label}</span>
+                      <Icon className={`w-3.5 h-3.5 ${style.icon}`} />
+                    </div>
+                    <p className={`text-sm font-black truncate ${style.value}`}>{value}</p>
                   </div>
-                  <p className={`text-sm font-black text-${color}-700 dark:text-${color}-400 truncate`}>{value}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -344,8 +366,8 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
                           </Badge>
                         </TableCell>
                         <TableCell className="py-3">
-                          <span className={`text-[10px] font-bold uppercase ${booking.paymentStatus === "PAID" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                            {booking.paymentStatus === "PAID" ? "Đã thanh toán" : "Chờ thanh toán"}
+                          <span className={`text-[10px] font-bold uppercase ${PAYMENT_STATUS_TEXT_STYLES[booking.paymentStatus] || "text-muted-foreground"}`}>
+                            {PAYMENT_STATUS_LABELS[booking.paymentStatus] || booking.paymentStatus}
                           </span>
                         </TableCell>
                       </TableRow>

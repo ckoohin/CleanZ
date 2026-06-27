@@ -19,12 +19,15 @@ import { TicketStatusLogEntity } from '../entity/ticket-status-log.entity';
 import { CreateTicketDto } from '../dto/create-ticket.dto';
 import { QueryTicketDto } from '../dto/query-ticket.dto';
 import {
+  MessagePage,
   PaginatedTickets,
   PublicMessage,
   TicketPublicView,
+  toPublicMessages,
   toPublicView,
   toTicketSummary,
 } from '../dto/ticket-response.dto';
+import { MESSAGE_PAGE_SIZE } from '../support-ticket.constants';
 import { CreateMessageDto } from '../dto/create-message.dto';
 import { TicketCodeService } from './ticket-code.service';
 import { TicketConfigService } from './ticket-config.service';
@@ -36,9 +39,11 @@ import { senderRoleOf } from '../dto/ticket-response.dto';
 import { TicketThreadReadEntity } from '../entity/ticket-thread-read.entity';
 import { TicketRealtimeService } from '../realtime/ticket-realtime.service';
 import { MarkReadDto } from '../dto/mark-read.dto';
+import { MessageCryptoService } from './message-crypto.service';
 
 const NO_BOOKING_CATEGORIES = [
   TicketCategory.ACCOUNT_TECHNICAL,
+  TicketCategory.APPEAL,
   TicketCategory.OTHER,
 ];
 
@@ -63,6 +68,7 @@ export class TicketService {
     private readonly realtime: TicketRealtimeService,
     @InjectRepository(TicketThreadReadEntity)
     private readonly threadReadRepo: Repository<TicketThreadReadEntity>,
+    private readonly crypto: MessageCryptoService,
   ) {}
 
   async create(
@@ -215,7 +221,8 @@ export class TicketService {
         this.messageRepo.create({
           ticket: { id: ticket.id },
           sender: { id: userId },
-          body,
+          // Lưu DB ở dạng mã hoá at-rest; biến `body` giữ plaintext để trả response.
+          body: this.crypto.encrypt(body),
           isInternal: false,
           audience,
         }),
@@ -263,7 +270,7 @@ export class TicketService {
         senderRole: senderRoleOf(
           isReporter ? ticket.reporter : ticket.counterparty,
         ),
-        body: msg.body,
+        body,
         attachments,
         createdAt: msg.createdAt,
       };
@@ -394,23 +401,101 @@ export class TicketService {
       // Chỉ trả message thuộc ĐÚNG luồng của người xem (admin trung gian):
       // reporter thấy luồng REPORTER, counterparty thấy COUNTERPARTY; không bao
       // giờ thấy INTERNAL hay luồng của bên kia (AD7/BR-8/FR-D2).
-      const viewerAudience =
-        ticket.reporter?.id === userId
-          ? TicketMessageAudience.REPORTER
-          : TicketMessageAudience.COUNTERPARTY;
-      const messages = await this.messageRepo.find({
-        where: { ticket: { id: ticketId }, audience: viewerAudience },
-        relations: ['sender'],
-        order: { createdAt: 'ASC' },
-      });
-      const attachments = messages.length
-        ? await this.attachmentRepo.find({
-            where: { message: { id: In(messages.map((m) => m.id)) } },
-            relations: ['message'],
-          })
-        : [];
-      return toPublicView(ticket, messages, attachments);
+      // Chỉ tải TRANG MỚI NHẤT (cursor pagination) để tránh ứ đọng ticket dài.
+      const viewerAudience = this.viewerAudience(ticket, userId);
+      const { messages, attachments, hasMore } = await this.loadMessagePage(
+        ticketId,
+        viewerAudience,
+      );
+      return toPublicView(ticket, messages, attachments, hasMore);
     }, 'Lỗi khi lấy chi tiết ticket');
+  }
+
+  /**
+   * "Tải tin cũ hơn" cho user — cursor là `beforeId` (id tin cũ nhất đang hiển
+   * thị). Trả 1 trang tin (ASC) thuộc luồng của người xem + cờ còn-tin-cũ-hơn.
+   */
+  async getUserMessagePage(
+    userId: string,
+    ticketId: string,
+    beforeId?: string,
+    limit = MESSAGE_PAGE_SIZE,
+  ): Promise<MessagePage> {
+    return asyncHandleOperation(async () => {
+      const ticket = await this.loadAccessible(ticketId, userId);
+      const viewerAudience = this.viewerAudience(ticket, userId);
+      const { messages, attachments, hasMore } = await this.loadMessagePage(
+        ticketId,
+        viewerAudience,
+        beforeId,
+        limit,
+      );
+      return { messages: toPublicMessages(messages, attachments), hasMore };
+    }, 'Lỗi khi tải tin nhắn');
+  }
+
+  private viewerAudience(
+    ticket: SupportTicketEntity,
+    userId: string,
+  ): TicketMessageAudience {
+    return ticket.reporter?.id === userId
+      ? TicketMessageAudience.REPORTER
+      : TicketMessageAudience.COUNTERPARTY;
+  }
+
+  /**
+   * Tải 1 TRANG tin của (ticket, audience) theo con trỏ `beforeId` (id tin cũ
+   * nhất đang có ở client). Lấy `limit+1` bản (DESC) để biết còn tin cũ hơn,
+   * cắt còn `limit`, ĐẢO về ASC, giải mã body, kèm attachments. Dùng chung cho
+   * cả user & admin → một nguồn sự thật cho phân trang.
+   */
+  async loadMessagePage(
+    ticketId: string,
+    audience: TicketMessageAudience,
+    beforeId?: string,
+    limit = MESSAGE_PAGE_SIZE,
+  ): Promise<{
+    messages: TicketMessageEntity[];
+    attachments: TicketAttachmentEntity[];
+    hasMore: boolean;
+  }> {
+    // Dùng tên PROPERTY (createdAt) cho orderBy + `.limit()` (không `.take()`):
+    // sender là quan hệ to-one nên limit không nhân dòng, tránh cơ chế distinct
+    // của TypeORM (đòi ánh xạ orderBy→metadata, vốn lỗi với cột DB thô).
+    const qb = this.messageRepo
+      .createQueryBuilder('m')
+      .leftJoinAndSelect('m.sender', 'sender')
+      .where('m.ticket_id = :tid', { tid: ticketId })
+      .andWhere('m.audience = :aud', { aud: audience })
+      .orderBy('m.createdAt', 'DESC')
+      .addOrderBy('m.id', 'DESC')
+      .limit(limit + 1);
+
+    if (beforeId) {
+      // Neo theo (created_at, id) của tin mốc → lấy các tin CŨ HƠN chặt chẽ.
+      const anchor = await this.messageRepo.findOne({
+        where: { id: beforeId },
+        select: { id: true, createdAt: true },
+      });
+      if (anchor) {
+        qb.andWhere(
+          '(m.createdAt < :ca OR (m.createdAt = :ca AND m.id < :bid))',
+          { ca: anchor.createdAt, bid: beforeId },
+        );
+      }
+    }
+
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const page = (hasMore ? rows.slice(0, limit) : rows).reverse(); // → ASC
+    this.crypto.decryptEntities(page);
+    const attachments = page.length
+      ? await this.attachmentRepo.find({
+          where: { message: { id: In(page.map((m) => m.id)) } },
+          relations: ['message'],
+        })
+      : [];
+    return { messages: page, attachments, hasMore };
   }
 
   async markThreadRead(

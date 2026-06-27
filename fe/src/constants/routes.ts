@@ -1,5 +1,6 @@
 export const ROUTES = {
   HOME: "/",
+  APPEAL: "/appeal",
   AUTH: {
     LOGIN: "/login",
     LOGIN_ADMIN: "/login-admin",
@@ -8,6 +9,7 @@ export const ROUTES = {
     FORGOT_PASSWORD: "/forgot-password",
     VERIFY_EMAIL: "/verify-email",
     OTP_VERIFY: "/otp-verify",
+    CHANGE_PASSWORD: "/change-password",
   },
   CUSTOMER: {
     DASHBOARD: "/customer",

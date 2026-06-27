@@ -62,7 +62,20 @@ export interface TicketPublicView extends TicketSummary {
   firstRespondedAt: Date | null;
   resolvedAt: Date | null;
   closedAt: Date | null;
+  /** Trang tin MỚI NHẤT (cursor pagination — mặc định 30). */
   messages: PublicMessage[];
+  /** Còn tin cũ hơn để "tải thêm" không. */
+  hasMoreMessages: boolean;
+}
+
+/** Một trang tin nhắn (cursor) — dùng cho endpoint "tải tin cũ hơn". */
+export interface MessagePage {
+  messages: PublicMessage[];
+  hasMore: boolean;
+}
+export interface AdminMessagePage {
+  messages: AdminMessage[];
+  hasMore: boolean;
 }
 
 export interface PaginationMeta {
@@ -136,36 +149,54 @@ function groupAttachmentsByMessage(
   return byMessage;
 }
 
+/** Map list message entity → PublicMessage[] (lọc INTERNAL — lớp chặn AD7/BR-8). */
+export function toPublicMessages(
+  messages: TicketMessageEntity[] = [],
+  attachments: TicketAttachmentEntity[] = [],
+): PublicMessage[] {
+  const byMessage = groupAttachmentsByMessage(attachments);
+  return messages
+    .filter((m) => m.audience !== TicketMessageAudience.INTERNAL)
+    .map((m) => ({
+      id: m.id,
+      senderUserId: m.sender?.id ?? null,
+      senderRole: senderRoleOf(m.sender),
+      body: m.body,
+      attachments: byMessage.get(m.id) ?? [],
+      createdAt: m.createdAt,
+    }));
+}
+
 export function toPublicView(
   t: SupportTicketEntity,
   messages: TicketMessageEntity[] = [],
   attachments: TicketAttachmentEntity[] = [],
+  hasMoreMessages = false,
 ): TicketPublicView {
-  const byMessage = groupAttachmentsByMessage(attachments);
   return {
     ...toTicketSummary(t),
     description: t.description ?? null,
     firstRespondedAt: t.firstRespondedAt ?? null,
     resolvedAt: t.resolvedAt ?? null,
     closedAt: t.closedAt ?? null,
-    // Phòng vệ: KHÔNG bao giờ lộ internal note cho user (service đã lọc theo
-    // audience của luồng, đây là lớp chặn thứ hai — AD7/BR-8).
-    messages: messages
-      .filter((m) => m.audience !== TicketMessageAudience.INTERNAL)
-      .map((m) => ({
-        id: m.id,
-        senderUserId: m.sender?.id ?? null,
-        senderRole: senderRoleOf(m.sender),
-        body: m.body,
-        attachments: byMessage.get(m.id) ?? [],
-        createdAt: m.createdAt,
-      })),
+    messages: toPublicMessages(messages, attachments),
+    hasMoreMessages,
   };
 }
 
 export interface AdminMessage extends PublicMessage {
   isInternal: boolean;
   audience: TicketMessageAudience;
+}
+
+/** 1 dòng ghi chú nội bộ (hiển thị dạng LOG/timeline, không phải bong bóng chat). */
+export interface InternalNoteView {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  authorRole: MessageSenderRole;
+  body: string;
+  createdAt: Date;
 }
 export interface StatusLogView {
   id: string;
@@ -200,11 +231,32 @@ export interface TicketAdminView extends TicketSummary {
   firstRespondedAt: Date | null;
   resolvedAt: Date | null;
   closedAt: Date | null;
+  /** Trang tin MỚI NHẤT của các luồng hội thoại (REPORTER+COUNTERPARTY). */
   messages: AdminMessage[];
+  /** Phân trang theo từng luồng (tổng số + còn tin cũ hơn). */
+  messagePaging: Record<'REPORTER' | 'COUNTERPARTY', { hasMore: boolean; total: number }>;
   statusLogs: StatusLogView[];
   resolutions: ResolutionView[];
   /** Ảnh đính kèm ở cấp ticket (không thuộc message nào). */
   attachments: AttachmentView[];
+}
+
+/** Map list message entity → AdminMessage[] (giữ nguyên audience + isInternal). */
+export function toAdminMessages(
+  messages: TicketMessageEntity[] = [],
+  attachments: TicketAttachmentEntity[] = [],
+): AdminMessage[] {
+  const byMessage = groupAttachmentsByMessage(attachments);
+  return messages.map((m) => ({
+    id: m.id,
+    senderUserId: m.sender?.id ?? null,
+    senderRole: senderRoleOf(m.sender),
+    body: m.body,
+    isInternal: m.isInternal,
+    audience: m.audience,
+    createdAt: m.createdAt,
+    attachments: byMessage.get(m.id) ?? [],
+  }));
 }
 
 export function toAdminView(
@@ -213,8 +265,11 @@ export function toAdminView(
   statusLogs: TicketStatusLogEntity[] = [],
   resolutions: TicketResolutionEntity[] = [],
   attachments: TicketAttachmentEntity[] = [],
+  messagePaging: TicketAdminView['messagePaging'] = {
+    REPORTER: { hasMore: false, total: 0 },
+    COUNTERPARTY: { hasMore: false, total: 0 },
+  },
 ): TicketAdminView {
-  const byMessage = groupAttachmentsByMessage(attachments);
   const ticketLevel: AttachmentView[] = attachments
     .filter((a) => !a.message?.id)
     .map((a) => ({ id: a.id, url: a.url }));
@@ -251,16 +306,8 @@ export function toAdminView(
     firstRespondedAt: t.firstRespondedAt ?? null,
     resolvedAt: t.resolvedAt ?? null,
     closedAt: t.closedAt ?? null,
-    messages: messages.map((m) => ({
-      id: m.id,
-      senderUserId: m.sender?.id ?? null,
-      senderRole: senderRoleOf(m.sender),
-      body: m.body,
-      isInternal: m.isInternal,
-      audience: m.audience,
-      createdAt: m.createdAt,
-      attachments: byMessage.get(m.id) ?? [],
-    })),
+    messages: toAdminMessages(messages, attachments),
+    messagePaging,
     attachments: ticketLevel,
     statusLogs: statusLogs.map((l) => ({
       id: l.id,
