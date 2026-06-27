@@ -22,7 +22,9 @@ export class CreateWorkflowStepDto {
   @MaxLength(200)
   title!: string;
 
-  @ApiPropertyOptional({ example: 'Kiểm tra và chuẩn bị đầy đủ dụng cụ vệ sinh' })
+  @ApiPropertyOptional({
+    example: 'Kiểm tra và chuẩn bị đầy đủ dụng cụ vệ sinh',
+  })
   @IsOptional()
   @IsString()
   description?: string;

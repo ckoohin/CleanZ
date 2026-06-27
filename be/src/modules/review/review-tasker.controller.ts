@@ -29,10 +29,18 @@ export class ReviewTaskerController {
     @CurrentUser('id') userId: string,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
-    @Query('minRating', new ParseIntPipe({ optional: true })) minRating?: number,
-    @Query('maxRating', new ParseIntPipe({ optional: true })) maxRating?: number,
+    @Query('minRating', new ParseIntPipe({ optional: true }))
+    minRating?: number,
+    @Query('maxRating', new ParseIntPipe({ optional: true }))
+    maxRating?: number,
   ) {
-    return this.reviewService.taskerGetMyReviews(userId, page, limit, minRating, maxRating);
+    return this.reviewService.taskerGetMyReviews(
+      userId,
+      page,
+      limit,
+      minRating,
+      maxRating,
+    );
   }
 
   @Post(':id/reply')

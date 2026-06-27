@@ -4,6 +4,11 @@ import { ServicePackageEntity } from './entity/service-package.entity';
 import { SubServiceEntity } from './entity/sub-service.entity';
 import { PackageSubServiceEntity } from './entity/package-sub-service.entity';
 import { CoverageAreaEntity } from './entity/coverage-area.entity';
+import { ServiceDurationEntity } from './entity/service-duration.entity';
+import { ServiceAddonEntity } from './entity/service-addon.entity';
+import { ServiceSubscriptionEntity } from './entity/service-subscription.entity';
+import { ServicePeakHourEntity } from './entity/service-peak-hour.entity';
+import { ServiceSubServiceEntity } from './entity/service-sub-service.entity';
 import { ServiceRepository } from './service.repository';
 import { SubServicesService } from './services/sub-services.service';
 import { SubServicesController } from './sub-services.controller';
@@ -20,6 +25,11 @@ import { CoverageAreasController } from './coverage-areas.controller';
       SubServiceEntity,
       PackageSubServiceEntity,
       CoverageAreaEntity,
+      ServiceDurationEntity,
+      ServiceAddonEntity,
+      ServiceSubscriptionEntity,
+      ServicePeakHourEntity,
+      ServiceSubServiceEntity,
     ]),
   ],
   controllers: [
@@ -28,8 +38,17 @@ import { CoverageAreasController } from './coverage-areas.controller';
     ServicePackagesController,
     CoverageAreasController,
   ],
-  providers: [SubServicesService, ServiceRepository, ServicePackagesService, CoverageAreasService],
-  exports: [SubServicesService, ServiceRepository, ServicePackagesService, CoverageAreasService],
+  providers: [
+    SubServicesService,
+    ServiceRepository,
+    ServicePackagesService,
+    CoverageAreasService,
+  ],
+  exports: [
+    SubServicesService,
+    ServiceRepository,
+    ServicePackagesService,
+    CoverageAreasService,
+  ],
 })
 export class ServicesModule {}
-

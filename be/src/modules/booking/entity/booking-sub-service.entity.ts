@@ -66,7 +66,13 @@ export class BookingSubServiceEntity {
   /**
    * Phụ phí riêng của dịch vụ con này (nếu có)
    */
-  @Column({ name: 'extra_fee', type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({
+    name: 'extra_fee',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
   extraFee!: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })

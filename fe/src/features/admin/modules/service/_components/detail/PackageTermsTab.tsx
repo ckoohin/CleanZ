@@ -303,17 +303,31 @@ function AssignedPolicyRow({ policy, packageId }: { policy: Policy; packageId: s
 
 interface TermItem { id: string; text: string; }
 
-function parseterms(raw: string | null | undefined): TermItem[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split("\n")
-    .map((l) => l.replace(/^\d+\.\s*/, "").trim())
-    .filter(Boolean)
-    .map((text, i) => ({ id: `t-${i}`, text }));
+function parseTermsAndPremium(raw: string | null | undefined): { standard: TermItem[], premium: TermItem[] } {
+  if (!raw?.trim()) return { standard: [], premium: [] };
+  const parts = raw.split(/---\s*PREMIUM\s*---/i);
+  const standardRaw = parts[0] || "";
+  const premiumRaw = parts[1] || "";
+  
+  const parseLines = (text: string, prefix: string): TermItem[] => {
+    return text
+      .split("\n")
+      .map((l) => l.replace(/^\d+\.\s*/, "").trim())
+      .filter(Boolean)
+      .map((text, i) => ({ id: `t-${prefix}-${i}-${Math.random()}`, text }));
+  };
+  
+  return {
+    standard: parseLines(standardRaw, "std"),
+    premium: parseLines(premiumRaw, "prem"),
+  };
 }
 
-function serializeTerms(items: TermItem[]) {
-  return items.map((t, i) => `${i + 1}. ${t.text}`).join("\n");
+function serializeTermsAndPremium(standard: TermItem[], premium: TermItem[]) {
+  const stdText = standard.map((t, i) => `${i + 1}. ${t.text}`).join("\n");
+  const premText = premium.map((t, i) => `${i + 1}. ${t.text}`).join("\n");
+  if (premium.length === 0) return stdText;
+  return `${stdText}\n--- PREMIUM ---\n${premText}`;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -338,21 +352,36 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
     return map;
   }, [assignedPolicies]);
 
-  const [terms, setTerms]       = useState<TermItem[]>(() => parseterms(pkg.termsAndConditions));
+  const parsed = useMemo(() => parseTermsAndPremium(pkg.termsAndConditions), [pkg.termsAndConditions]);
+  const [terms, setTerms] = useState<TermItem[]>(parsed.standard);
+  const [premiumTerms, setPremiumTerms] = useState<TermItem[]>(parsed.premium);
+  const [newPremiumTerm, setNewPremiumTerm] = useState("");
   const [policyDesc, setPolicyDesc] = useState(pkg.policyDescription ?? "");
   const updateMutation = useUpdateAdminPackage();
 
+  React.useEffect(() => {
+    const res = parseTermsAndPremium(pkg.termsAndConditions);
+    setTerms(res.standard);
+    setPremiumTerms(res.premium);
+  }, [pkg.termsAndConditions]);
+
   const handleSaveTerms = () => {
     updateMutation.mutate(
-      { id: pkg.id, payload: { termsAndConditions: serializeTerms(terms), policyDescription: policyDesc } },
-      { onSuccess: () => { toast.success("Đã lưu điều khoản!"); setIsEditingTerms(false); } }
+      { id: pkg.id, payload: { termsAndConditions: serializeTermsAndPremium(terms, premiumTerms), policyDescription: policyDesc } },
+      { onSuccess: () => { toast.success("Đã lưu điều khoản & cam kết Premium!"); setIsEditingTerms(false); } }
     );
   };
 
   const addTerm = () => {
     if (!newTerm.trim()) return;
-    setTerms((prev) => [...prev, { id: `t-${Date.now()}`, text: newTerm.trim() }]);
+    setTerms((prev) => [...prev, { id: `t-std-${Date.now()}`, text: newTerm.trim() }]);
     setNewTerm("");
+  };
+
+  const addPremiumTerm = () => {
+    if (!newPremiumTerm.trim()) return;
+    setPremiumTerms((prev) => [...prev, { id: `t-prem-${Date.now()}`, text: newPremiumTerm.trim() }]);
+    setNewPremiumTerm("");
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -368,8 +397,8 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
           </TabsTrigger>
           <TabsTrigger value="terms" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm data-[state=active]:text-[var(--c-primary-strong)]">
             <ScrollText className="w-4 h-4" />
-            Điều khoản
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{terms.length}</Badge>
+            Điều khoản & Quy chuẩn Premium
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{terms.length + premiumTerms.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="guarantees" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm data-[state=active]:text-[var(--c-primary-strong)]">
             <ShieldCheck className="w-4 h-4" />
@@ -474,9 +503,8 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
         <TabsContent value="terms" className="mt-5 space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-[#D97706]" />
-              Điều khoản tùy chỉnh
-              <Badge variant="secondary">{terms.length}</Badge>
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Điều khoản & Quy chuẩn chi tiết
             </h3>
             {!isEditingTerms ? (
               <BaseButton variant="outline" size="sm" onClick={() => setIsEditingTerms(true)} className="gap-2">
@@ -489,7 +517,9 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setTerms(parseterms(pkg.termsAndConditions));
+                    const res = parseTermsAndPremium(pkg.termsAndConditions);
+                    setTerms(res.standard);
+                    setPremiumTerms(res.premium);
                     setPolicyDesc(pkg.policyDescription ?? "");
                     setIsEditingTerms(false);
                   }}
@@ -510,21 +540,29 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
             )}
           </div>
 
-          {isEditingTerms && (
-            <div className="flex gap-2">
-              <Input
-                value={newTerm}
-                onChange={(e) => setNewTerm(e.target.value)}
-                placeholder="Nhập điều khoản mới..."
-                onKeyDown={(e) => e.key === "Enter" && addTerm()}
-                className="flex-1"
-              />
-              <BaseButton variant="outline" size="sm" onClick={addTerm} className="gap-1 shrink-0">
-                <Plus className="w-4 h-4" />
-                Thêm
-              </BaseButton>
-            </div>
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Standard Terms Section */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5 pb-2 border-b border-border/40">
+                <ScrollText className="w-4 h-4 text-slate-500" />
+                Điều khoản áp dụng chung (Gói Chuẩn)
+                <Badge variant="secondary" className="ml-auto">{terms.length}</Badge>
+              </h4>
+              
+              {isEditingTerms && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newTerm}
+                    onChange={(e) => setNewTerm(e.target.value)}
+                    placeholder="Nhập điều khoản chuẩn mới..."
+                    onKeyDown={(e) => e.key === "Enter" && addTerm()}
+                    className="flex-1 text-xs"
+                  />
+                  <BaseButton variant="outline" size="sm" onClick={addTerm} className="gap-1 shrink-0">
+                    <Plus className="w-4 h-4" /> Thêm
+                  </BaseButton>
+                </div>
+              )}
 
           {terms.length === 0 ? (
             <div className="py-10 text-center rounded-xl border border-dashed border-[var(--c-line)] bg-[var(--c-card-2)]">
@@ -579,20 +617,22 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
               <Textarea
                 value={policyDesc}
                 onChange={(e) => setPolicyDesc(e.target.value)}
-                rows={5}
-                className="resize-none"
+                rows={4}
+                className="resize-none text-xs"
                 placeholder="Ghi chú nội bộ cho gói dịch vụ này..."
               />
             ) : (
               <div className="rounded-xl border bg-[var(--c-card-2)] px-4 py-3 min-h-[80px]">
                 {policyDesc ? (
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{policyDesc}</p>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{policyDesc}</p>
                 ) : (
                   <p className="text-sm text-[var(--c-muted)] italic">Chưa có ghi chú.</p>
                 )}
               </div>
             )}
           </div>
+          </div>
+        </div>
         </TabsContent>
 
         {/* ── Guarantees Tab ───────────────────────────────────────────────── */}

@@ -285,7 +285,8 @@ export class PricingService {
 
       // Nếu truyền thẳng ID mức giá lên
       if (input.pricingTierId) {
-        matchedTier = activeTiers.find((t) => t.id === input.pricingTierId) ?? null;
+        matchedTier =
+          activeTiers.find((t) => t.id === input.pricingTierId) ?? null;
       }
 
       // Nếu không khớp hoặc không gửi, tự động tìm dựa trên Pricing Mode
@@ -293,24 +294,28 @@ export class PricingService {
         const mode = servicePackage.pricingMode ?? PricingMode.HOURLY;
         if (mode === PricingMode.HOURLY) {
           // Khớp khoảng giờ
-          matchedTier = activeTiers.find(
-            (t) =>
-              t.pricingMode === PricingMode.HOURLY &&
-              durationHours >= toNumber(t.minHours) &&
-              durationHours <= toNumber(t.maxHours),
-          ) ?? null;
+          matchedTier =
+            activeTiers.find(
+              (t) =>
+                t.pricingMode === PricingMode.HOURLY &&
+                durationHours >= toNumber(t.minHours) &&
+                durationHours <= toNumber(t.maxHours),
+            ) ?? null;
         } else if (mode === PricingMode.AREA_HOURLY) {
           // Khớp khoảng diện tích
           const area = input.areaM2 ?? 0;
-          matchedTier = activeTiers.find((t) => {
-            if (t.pricingMode !== PricingMode.AREA_HOURLY) return false;
-            const minArea = t.areaMinM2 ? toNumber(t.areaMinM2) : 0;
-            const maxArea = t.areaMaxM2 ? toNumber(t.areaMaxM2) : Infinity;
-            return area >= minArea && area <= maxArea;
-          }) ?? null;
+          matchedTier =
+            activeTiers.find((t) => {
+              if (t.pricingMode !== PricingMode.AREA_HOURLY) return false;
+              const minArea = t.areaMinM2 ? toNumber(t.areaMinM2) : 0;
+              const maxArea = t.areaMaxM2 ? toNumber(t.areaMaxM2) : Infinity;
+              return area >= minArea && area <= maxArea;
+            }) ?? null;
         } else if (mode === PricingMode.FIXED) {
           // Lấy cái đầu tiên hoạt động
-          matchedTier = activeTiers.find((t) => t.pricingMode === PricingMode.FIXED) ?? null;
+          matchedTier =
+            activeTiers.find((t) => t.pricingMode === PricingMode.FIXED) ??
+            null;
         }
       }
 
@@ -319,7 +324,10 @@ export class PricingService {
         if (matchedTier.pricingMode === PricingMode.HOURLY) {
           basePrice = toNumber(matchedTier.pricePerHour) * durationHours;
         } else if (matchedTier.pricingMode === PricingMode.AREA_HOURLY) {
-          basePrice = toNumber(matchedTier.pricePerM2) * (input.areaM2 ?? 0) * durationHours;
+          basePrice =
+            toNumber(matchedTier.pricePerM2) *
+            (input.areaM2 ?? 0) *
+            durationHours;
         } else if (matchedTier.pricingMode === PricingMode.FIXED) {
           basePrice = toNumber(matchedTier.fixedPrice);
         }
@@ -379,12 +387,16 @@ export class PricingService {
       });
 
       if (matchingPeakDays.length > 0) {
-        holidayPeakRate = Math.max(...matchingPeakDays.map((pd) => toNumber(pd.peakRate)), 0);
+        holidayPeakRate = Math.max(
+          ...matchingPeakDays.map((pd) => toNumber(pd.peakRate)),
+          0,
+        );
       }
     }
 
     const totalPeakRate = basePeakRate + holidayPeakRate;
-    const peakFee = totalPeakRate > 0 ? Math.round(basePrice * totalPeakRate) : 0;
+    const peakFee =
+      totalPeakRate > 0 ? Math.round(basePrice * totalPeakRate) : 0;
     const petFee = input.hasPet ? toNumber(servicePackage.petSurcharge) : 0;
     const waitingFee = 0;
     const subtotal = basePrice + addonPrice + peakFee + petFee + waitingFee;

@@ -89,7 +89,10 @@ export function PackageCustomerPreviewTab({ pkg }: PackageCustomerPreviewTabProp
     ...(pkg.iconUrl ? [pkg.iconUrl] : []),
     ...(subServices.flatMap(pss => pss.subService?.galleryUrls ?? [])),
   ].slice(0, 8);
-  const terms = (pkg.termsAndConditions ?? "").split("\n").filter(Boolean);
+  const rawTerms = pkg.termsAndConditions ?? "";
+  const parts = rawTerms.split(/---\s*PREMIUM\s*---/i);
+  const terms = (parts[0] ?? "").split("\n").filter(Boolean);
+  const premiumTerms = (parts[1] ?? "").split("\n").filter(Boolean);
   const includedTasks = subServices.flatMap(pss => pss.subService?.includedTasks ?? []).filter(Boolean);
   const excludedTasks = subServices.flatMap(pss => pss.subService?.excludedTasks ?? []).filter(Boolean);
 
@@ -457,6 +460,27 @@ export function PackageCustomerPreviewTab({ pkg }: PackageCustomerPreviewTabProp
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Premium Commitments Section */}
+          {premiumTerms.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/20 dark:bg-amber-950/10 p-5 space-y-3">
+              <h4 className="text-sm font-extrabold text-amber-800 dark:text-amber-500 flex items-center gap-1.5">
+                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                Đặc quyền dịch vụ Premium
+              </h4>
+              <p className="text-xs text-amber-700/90 dark:text-amber-400/90 leading-relaxed">
+                Khi đặt gói Premium, quý khách sẽ được áp dụng các quy chuẩn phục vụ đặc biệt sau:
+              </p>
+              <div className="space-y-2.5 mt-2">
+                {premiumTerms.map((term, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-900 dark:text-amber-300 font-extrabold leading-normal">{term}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

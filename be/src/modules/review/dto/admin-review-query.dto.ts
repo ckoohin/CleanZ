@@ -65,7 +65,9 @@ export class AdminReviewQueryDto {
   @IsUUID()
   taskerId?: string;
 
-  @ApiPropertyOptional({ description: 'Lọc theo trạng thái báo cáo: PENDING | APPROVED | REJECTED' })
+  @ApiPropertyOptional({
+    description: 'Lọc theo trạng thái báo cáo: PENDING | APPROVED | REJECTED',
+  })
   @IsOptional()
   @IsEnum(ReviewReportStatus)
   reportStatus?: ReviewReportStatus;

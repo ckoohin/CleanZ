@@ -9,7 +9,10 @@ import { ServiceWorkflowEntity } from './entity/service-workflow.entity';
 import { WorkflowStepEntity } from './entity/workflow-step.entity';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
-import { CreateWorkflowStepDto, UpdateWorkflowStepDto } from './dto/create-workflow-step.dto';
+import {
+  CreateWorkflowStepDto,
+  UpdateWorkflowStepDto,
+} from './dto/create-workflow-step.dto';
 
 @Injectable()
 export class WorkflowService {
@@ -167,17 +170,23 @@ export class WorkflowService {
       where: { id: stepId, workflowId },
     });
     if (!step) {
-      throw new NotFoundException(`Step #${stepId} không tồn tại trong workflow #${workflowId}`);
+      throw new NotFoundException(
+        `Step #${stepId} không tồn tại trong workflow #${workflowId}`,
+      );
     }
 
     Object.assign(step, {
       ...(dto.title !== undefined && { title: dto.title }),
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.stepOrder !== undefined && { stepOrder: dto.stepOrder }),
-      ...(dto.durationMinutes !== undefined && { durationMinutes: dto.durationMinutes }),
+      ...(dto.durationMinutes !== undefined && {
+        durationMinutes: dto.durationMinutes,
+      }),
       ...(dto.isRequired !== undefined && { isRequired: dto.isRequired }),
       ...(dto.icon !== undefined && { icon: dto.icon }),
-      ...(dto.checklistItems !== undefined && { checklistItems: dto.checklistItems }),
+      ...(dto.checklistItems !== undefined && {
+        checklistItems: dto.checklistItems,
+      }),
     });
 
     return this.stepRepo.save(step);
@@ -188,7 +197,9 @@ export class WorkflowService {
       where: { id: stepId, workflowId },
     });
     if (!step) {
-      throw new NotFoundException(`Step #${stepId} không tồn tại trong workflow #${workflowId}`);
+      throw new NotFoundException(
+        `Step #${stepId} không tồn tại trong workflow #${workflowId}`,
+      );
     }
     await this.stepRepo.remove(step);
   }

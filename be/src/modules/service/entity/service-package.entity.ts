@@ -16,6 +16,11 @@ import {
   PricingTierEntity,
   PricingMode,
 } from '../../pricing/entity/pricing-tier.entity';
+import { ServiceDurationEntity } from './service-duration.entity';
+import { ServiceAddonEntity } from './service-addon.entity';
+import { ServiceSubscriptionEntity } from './service-subscription.entity';
+import { ServicePeakHourEntity } from './service-peak-hour.entity';
+import { ServiceSubServiceEntity } from './service-sub-service.entity';
 
 @Entity('service_packages')
 export class ServicePackageEntity {
@@ -123,12 +128,57 @@ export class ServicePackageEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt!: Date;
 
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'base_hourly_rate',
+    default: 0.0,
+  })
+  baseHourlyRate!: number;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'premium_hourly_rate',
+    default: 0.0,
+  })
+  premiumHourlyRate!: number;
+
+  @Column({ type: 'boolean', default: false, name: 'allow_multiple_taskers' })
+  allowMultipleTaskers!: boolean;
+
+  @Column({ type: 'boolean', default: false, name: 'allow_subscription' })
+  allowSubscription!: boolean;
+
   @OneToMany(() => PackageSubServiceEntity, (pss) => pss.package)
   packageSubServices!: PackageSubServiceEntity[];
 
   /** Cấu hình mức giá theo m² / giờ / cố định */
   @OneToMany(() => PricingTierEntity, (tier) => tier.package, { cascade: true })
   pricingTiers!: PricingTierEntity[];
+
+  @OneToMany(() => ServiceDurationEntity, (sd) => sd.package, { cascade: true })
+  durations!: ServiceDurationEntity[];
+
+  @OneToMany(() => ServiceAddonEntity, (sa) => sa.package, { cascade: true })
+  addons!: ServiceAddonEntity[];
+
+  @OneToMany(() => ServiceSubscriptionEntity, (ss) => ss.package, {
+    cascade: true,
+  })
+  subscriptions!: ServiceSubscriptionEntity[];
+
+  @OneToMany(() => ServicePeakHourEntity, (sph) => sph.package, {
+    cascade: true,
+  })
+  peakHours!: ServicePeakHourEntity[];
+
+  @OneToMany(() => ServiceSubServiceEntity, (sss) => sss.package, {
+    cascade: true,
+  })
+  subServices!: ServiceSubServiceEntity[];
 
   @ManyToMany(() => CoverageAreaEntity, (area) => area.packages)
   @JoinTable({
