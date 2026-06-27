@@ -49,14 +49,14 @@ function SCard({ icon: Icon, title, description, action, children }: {
   action?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-border/40 bg-muted/20 flex items-center gap-3">
-        <div className="p-2 bg-primary/10 rounded-xl shrink-0">
-          <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
+    <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-6 py-4 border-b border-[var(--c-line)]/40 bg-[var(--c-card-2)] flex items-center gap-3">
+        <div className="p-2 bg-[var(--c-primary-soft)] rounded-xl shrink-0">
+          <Icon className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-foreground text-base">{title}</h3>
-          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+          <h3 className="font-bold text-[var(--c-ink)] text-base">{title}</h3>
+          {description && <p className="text-xs text-[var(--c-muted)] mt-0.5">{description}</p>}
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
@@ -74,11 +74,11 @@ interface SurchargeField {
 }
 
 const SURCHARGE_FIELDS: SurchargeField[] = [
-  { key: "nightSurcharge",   label: "Phụ thu giờ đêm",           icon: Moon,       color: "text-indigo-500", description: "Áp dụng cho ca làm việc sau 20h hoặc trước 7h sáng",         emoji: "🌙" },
-  { key: "petSurcharge",     label: "Phụ thu thú cưng",           icon: PawPrint,   color: "text-amber-500",  description: "Áp dụng khi khách hàng có thú cưng tại nhà",                emoji: "🐾" },
-  { key: "waitingSurcharge", label: "Phụ thu chờ đợi (15 phút)", icon: Clock,      color: "text-blue-500",   description: "Phụ phí nếu nhân viên phải chờ khách quá 15 phút",          emoji: "⏱️" },
-  { key: "toolFee",          label: "Phí dụng cụ mang theo",      icon: Wrench,     color: "text-emerald-500",description: "Phí dụng cụ và hóa chất vệ sinh nếu khách không chuẩn bị",  emoji: "🔧" },
-  { key: "peakRatePercent",  label: "Tỷ lệ giờ cao điểm (%)",    icon: TrendingUp, color: "text-rose-500",   description: "Phần trăm tăng thêm vào giá gốc trong giờ cao điểm",       emoji: "📈", isPercent: true },
+  { key: "nightSurcharge",   label: "Phụ thu giờ đêm",           icon: Moon,       color: "text-[#2563EB]", description: "Áp dụng cho ca làm việc sau 20h hoặc trước 7h sáng",         emoji: "🌙" },
+  { key: "petSurcharge",     label: "Phụ thu thú cưng",           icon: PawPrint,   color: "text-[#D97706]",  description: "Áp dụng khi khách hàng có thú cưng tại nhà",                emoji: "🐾" },
+  { key: "waitingSurcharge", label: "Phụ thu chờ đợi (15 phút)", icon: Clock,      color: "text-[#2563EB]",   description: "Phụ phí nếu nhân viên phải chờ khách quá 15 phút",          emoji: "⏱️" },
+  { key: "toolFee",          label: "Phí dụng cụ mang theo",      icon: Wrench,     color: "text-[#0E9F6E]",description: "Phí dụng cụ và hóa chất vệ sinh nếu khách không chuẩn bị",  emoji: "🔧" },
+  { key: "peakRatePercent",  label: "Tỷ lệ giờ cao điểm (%)",    icon: TrendingUp, color: "text-[#E11D48]",   description: "Phần trăm tăng thêm vào giá gốc trong giờ cao điểm",       emoji: "📈", isPercent: true },
 ];
 
 
@@ -92,24 +92,24 @@ function PeakDayRow({ peak, onEdit, onDelete, isDeleting }: {
 }) {
   return (
     <tr className={cn(
-      "border-b border-border/30 last:border-0 transition-colors group",
-      peak.isActive ? "hover:bg-muted/20" : "opacity-50 hover:bg-muted/10",
+      "border-b border-[var(--c-line)]/30 last:border-0 transition-colors group",
+      peak.isActive ? "hover:bg-[var(--c-card-2)]" : "opacity-50 hover:bg-[var(--c-card-2)]",
     )}>
       <td className="py-3 px-4">
-        <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{peak.name}</p>
+        <p className="font-bold text-sm text-[var(--c-ink)] group-hover:text-[var(--c-primary-strong)] transition-colors">{peak.name}</p>
       </td>
       <td className="py-3 px-4">
-        <span className="text-sm font-black text-rose-600">+{((peak.peakRate ?? 0) * 100).toFixed(0)}%</span>
+        <span className="text-sm font-black text-[#E11D48]">+{((peak.peakRate ?? 0) * 100).toFixed(0)}%</span>
       </td>
       <td className="py-3 px-4">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {fmtDateStr(peak.startAt)} {peak.startAt && peak.endAt ? "→" : ""} {fmtDateStr(peak.endAt)}
         </span>
       </td>
       <td className="py-3 px-4">
         <span className={cn(
           "text-xs font-mono font-semibold",
-          peak.startTime ? "text-indigo-600" : "text-muted-foreground",
+          peak.startTime ? "text-[#2563EB]" : "text-[var(--c-muted)]",
         )}>
           {peak.startTime && peak.endTime
             ? `${peak.startTime.slice(0, 5)} – ${peak.endTime.slice(0, 5)}`
@@ -119,22 +119,22 @@ function PeakDayRow({ peak, onEdit, onDelete, isDeleting }: {
       <td className="py-3 px-4">
         <span className={cn(
           "inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full",
-          peak.isActive ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground",
+          peak.isActive ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]" : "bg-[var(--c-card-2)] text-[var(--c-muted)]",
         )}>
           {peak.isActive
             ? <><CheckCircle2 className="w-2.5 h-2.5" />Hoạt động</>
             : <><XCircle className="w-2.5 h-2.5" />Tắt</>}
         </span>
       </td>
-      <td className="py-3 px-4 text-xs text-muted-foreground">{fmtDateStr(peak.createdAt)}</td>
+      <td className="py-3 px-4 text-xs text-[var(--c-muted)]">{fmtDateStr(peak.createdAt)}</td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button type="button" onClick={() => onEdit(peak)}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+            className="p-1.5 rounded-lg hover:bg-[var(--c-card-2)] transition-colors text-[var(--c-muted)] hover:text-[var(--c-ink)]">
             <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
           <button type="button" onClick={() => onDelete(peak.id)} disabled={isDeleting}
-            className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive disabled:opacity-30">
+            className="p-1.5 rounded-lg hover:bg-[rgba(225,29,72,0.12)] transition-colors text-[var(--c-muted)] hover:text-[#E11D48] disabled:opacity-30">
             <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
@@ -163,8 +163,8 @@ function PeakDayForm({ initial, onSave, onCancel, isSaving }: {
   const peakPercent = ((form.peakRate ?? 0) * 100).toFixed(0);
 
   return (
-    <div className="space-y-4 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/60 rounded-xl p-5">
-      <p className="text-sm font-black text-amber-700 dark:text-amber-400 flex items-center gap-2">
+    <div className="space-y-4 bg-[rgba(217,119,6,0.14)] dark:bg-[rgba(217,119,6,0.14)] border border-[#D97706]/60 rounded-xl p-5">
+      <p className="text-sm font-black text-[#D97706] dark:text-[#D97706] flex items-center gap-2">
         <Flame className="w-4 h-4" aria-hidden="true" />
         {form.id ? "Chỉnh sửa cấu hình cao điểm" : "Thêm khung giờ cao điểm mới"}
       </p>
@@ -190,10 +190,10 @@ function PeakDayForm({ initial, onSave, onCancel, isSaving }: {
               }}
               className="h-10 rounded-xl flex-1"
             />
-            <span className="text-sm font-bold text-muted-foreground">%</span>
+            <span className="text-sm font-bold text-[var(--c-muted)]">%</span>
           </div>
           {(form.peakRate ?? 0) > 0 && (
-            <p className="text-xs font-bold text-amber-600">
+            <p className="text-xs font-bold text-[#D97706]">
               → Giá 100.000đ + {peakPercent}% = {vnd(100000 * (1 + (form.peakRate ?? 0)))}
             </p>
           )}
@@ -203,7 +203,7 @@ function PeakDayForm({ initial, onSave, onCancel, isSaving }: {
           <label className="text-xs font-bold">Trạng thái</label>
           <div className="flex items-center gap-3 h-10">
             <Switch checked={form.isActive ?? true} onCheckedChange={v => set("isActive", v)} />
-            <span className={cn("text-sm font-semibold", form.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+            <span className={cn("text-sm font-semibold", form.isActive ? "text-[#0E9F6E]" : "text-[var(--c-muted)]")}>
               {form.isActive ? "Hoạt động" : "Tắt"}
             </span>
           </div>
@@ -213,14 +213,14 @@ function PeakDayForm({ initial, onSave, onCancel, isSaving }: {
       {/* Khung giờ */}
       <div className="space-y-1.5">
         <label className="text-xs font-bold">Khung giờ trong ngày</label>
-        <p className="text-[10px] text-muted-foreground">Để trống nếu áp dụng cả ngày</p>
+        <p className="text-[10px] text-[var(--c-muted)]">Để trống nếu áp dụng cả ngày</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground">Từ giờ</label>
+            <label className="text-xs text-[var(--c-muted)]">Từ giờ</label>
             <Input type="time" value={form.startTime ?? ""} onChange={e => set("startTime", e.target.value)} className="h-10 rounded-xl" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Đến giờ</label>
+            <label className="text-xs text-[var(--c-muted)]">Đến giờ</label>
             <Input type="time" value={form.endTime ?? ""} onChange={e => set("endTime", e.target.value)} className="h-10 rounded-xl" />
           </div>
         </div>
@@ -229,14 +229,14 @@ function PeakDayForm({ initial, onSave, onCancel, isSaving }: {
       {/* Ngày áp dụng */}
       <div className="space-y-1.5">
         <label className="text-xs font-bold">Khoảng ngày áp dụng</label>
-        <p className="text-[10px] text-muted-foreground">Để trống nếu áp dụng vô thời hạn</p>
+        <p className="text-[10px] text-[var(--c-muted)]">Để trống nếu áp dụng vô thời hạn</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground">Từ ngày</label>
+            <label className="text-xs text-[var(--c-muted)]">Từ ngày</label>
             <Input type="datetime-local" value={form.startAt ?? ""} onChange={e => set("startAt", e.target.value)} className="h-10 rounded-xl text-xs" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Đến ngày</label>
+            <label className="text-xs text-[var(--c-muted)]">Đến ngày</label>
             <Input type="datetime-local" value={form.endAt ?? ""} onChange={e => set("endAt", e.target.value)} className="h-10 rounded-xl text-xs" />
           </div>
         </div>
@@ -371,15 +371,15 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
       >
         <div className="space-y-5">
           {/* Max hours */}
-          <div className="flex items-center gap-4 bg-muted/20 border border-border/40 rounded-xl p-4">
+          <div className="flex items-center gap-4 bg-[var(--c-card-2)] border border-[var(--c-line)]/40 rounded-xl p-4">
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" aria-hidden="true" />
-                <p className="text-sm font-bold text-foreground">Thời lượng tối đa</p>
+                <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                <p className="text-sm font-bold text-[var(--c-ink)]">Thời lượng tối đa</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Số giờ tối đa cho một đơn hàng</p>
+              <p className="text-xs text-[var(--c-muted)] mt-0.5">Số giờ tối đa cho một đơn hàng</p>
               {(pkg.packageSubServices?.length ?? 0) > 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-[#D97706] dark:text-[#D97706] mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" aria-hidden="true" />
                   Áp dụng cho tất cả {pkg.packageSubServices?.length} dịch vụ con
                 </p>
@@ -398,10 +398,10 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                     }
                   }}
                   className="rounded-xl h-10 w-24 text-center" />
-                <span className="text-sm text-muted-foreground font-semibold">giờ</span>
+                <span className="text-sm text-[var(--c-muted)] font-semibold">giờ</span>
               </div>
             ) : (
-              <div className="text-2xl font-black text-primary shrink-0">{surchargeValues.maxHours} giờ</div>
+              <div className="text-2xl font-black text-[var(--c-primary-strong)] shrink-0">{surchargeValues.maxHours} giờ</div>
             )}
           </div>
 
@@ -412,13 +412,13 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
               return (
                 <div key={field.key} className={cn(
                   "rounded-2xl border p-5 space-y-3 transition-all",
-                  (val as number) > 0 ? "border-primary/30 bg-primary/5 shadow-sm" : "border-border/50 bg-card",
+                  (val as number) > 0 ? "border-[var(--c-primary)]/30 bg-[var(--c-primary-soft)] shadow-sm" : "border-[var(--c-line)]/50 bg-[var(--c-card)]",
                 )}>
                   <div className="flex items-start gap-2">
                     <span className="text-xl">{field.emoji}</span>
                     <div>
-                      <p className="text-sm font-bold text-foreground">{field.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{field.description}</p>
+                      <p className="text-sm font-bold text-[var(--c-ink)]">{field.label}</p>
+                      <p className="text-xs text-[var(--c-muted)] mt-0.5 leading-relaxed">{field.description}</p>
                     </div>
                   </div>
                   {isSurchargeEditing ? (
@@ -430,19 +430,19 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                           const digits = e.target.value.replace(/\D/g, "");
                           setSurchargeValues(prev => ({ ...prev, [field.key]: digits ? Number(digits) : 0 }));
                         }}
-                        className="w-full h-10 px-3 pr-12 rounded-xl border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full h-10 px-3 pr-12 rounded-xl border border-[var(--c-line)]/60 bg-[var(--c-card)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--c-primary)]/30"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--c-muted)] font-semibold">
                         {field.isPercent ? "%" : "₫"}
                       </span>
                     </div>
                   ) : (
-                    <div className={cn("text-xl font-bold", (val as number) > 0 ? "text-primary" : "text-muted-foreground/40")}>
+                    <div className={cn("text-xl font-bold", (val as number) > 0 ? "text-[var(--c-primary-strong)]" : "text-[var(--c-muted)]")}>
                       {field.isPercent ? `${val}%` : vnd(val as number)}
                     </div>
                   )}
                   {!isSurchargeEditing && (val as number) === 0 && (
-                    <p className="text-[10px] text-muted-foreground/60 italic">Chưa áp dụng</p>
+                    <p className="text-[10px] text-[var(--c-muted)] italic">Chưa áp dụng</p>
                   )}
                 </div>
               );
@@ -458,25 +458,25 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
         description="Giá gói được tính từ giá riêng của từng dịch vụ con cộng với phụ phí gói"
         action={
           <Link href="/admin/services/sub-services"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--c-line)]/50 text-xs font-semibold text-[var(--c-muted)] hover:text-[var(--c-primary-strong)] hover:border-[var(--c-primary)]/40 transition-colors">
             <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
             Quản lý dịch vụ con
           </Link>
         } 
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-2 p-3 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-200/50 rounded-xl">
-            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" aria-hidden="true" />
-            <p className="text-xs text-blue-700 dark:text-blue-400">
+          <div className="flex items-start gap-2 p-3 bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)] border border-[#2563EB]/50 rounded-xl">
+            <Info className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-xs text-[#2563EB] dark:text-[#2563EB]">
               Mỗi dịch vụ con có bảng giá riêng. Vào trang <strong>Quản lý dịch vụ con</strong>
               → mở chi tiết → tab <strong>Cấu hình giá</strong> để thiết lập giá riêng.
             </p>
           </div>
           {(pkg.packageSubServices?.length ?? 0) === 0 ? (
-            <div className="py-10 text-center border-2 border-dashed border-border/40 rounded-xl">
-              <Tag className="w-8 h-8 mx-auto mb-3 text-muted-foreground/30" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">Gói này chưa có dịch vụ con</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Thêm dịch vụ con trong tab <strong>Dịch vụ</strong></p>
+            <div className="py-10 text-center border-2 border-dashed border-[var(--c-line)]/40 rounded-xl">
+              <Tag className="w-8 h-8 mx-auto mb-3 text-[var(--c-muted)]" aria-hidden="true" />
+              <p className="text-sm text-[var(--c-muted)]">Gói này chưa có dịch vụ con</p>
+              <p className="text-xs text-[var(--c-muted)] mt-1">Thêm dịch vụ con trong tab <strong>Dịch vụ</strong></p>
             </div>
           ) : (
             <>
@@ -490,58 +490,58 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                   return (
                     <div key={pss.id} className={cn(
                       "rounded-2xl border p-4 space-y-3 transition-all",
-                      hasPricing ? "border-primary/30 bg-primary/5" : "border-amber-200/60 bg-amber-50/40 dark:bg-amber-900/10",
+                      hasPricing ? "border-[var(--c-primary)]/30 bg-[var(--c-primary-soft)]" : "border-[#D97706]/60 bg-[rgba(217,119,6,0.14)] dark:bg-[rgba(217,119,6,0.14)]",
                     )}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{svc.name}</p>
-                          <span className="text-[9px] font-mono text-muted-foreground">{svc.subServiceCode}</span>
+                          <p className="text-xs font-bold text-[var(--c-ink)] truncate">{svc.name}</p>
+                          <span className="text-[9px] font-mono text-[var(--c-muted)]">{svc.subServiceCode}</span>
                         </div>
                         {hasPricing
-                          ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">Có giá</span>
-                          : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Chưa có giá</span>}
+                          ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] shrink-0">Có giá</span>
+                          : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[rgba(217,119,6,0.14)] text-[#D97706] shrink-0">Chưa có giá</span>}
                       </div>
                       {hasPricing ? (
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-background/80 border border-border/30 rounded-lg p-2">
-                            <p className="text-[9px] text-muted-foreground">Giá gốc</p>
-                            <p className="text-base font-black text-primary">{vnd(Number(bp))}</p>
+                          <div className="bg-[var(--c-card)] border border-[var(--c-line)]/30 rounded-lg p-2">
+                            <p className="text-[9px] text-[var(--c-muted)]">Giá gốc</p>
+                            <p className="text-base font-black text-[var(--c-primary-strong)]">{vnd(Number(bp))}</p>
                           </div>
-                          <div className="bg-background/80 border border-border/30 rounded-lg p-2">
-                            <p className="text-[9px] text-muted-foreground">Giá cao điểm</p>
-                            <p className="text-base font-bold text-amber-600">{peakP ? vnd(Number(peakP)) : "—"}</p>
+                          <div className="bg-[var(--c-card)] border border-[var(--c-line)]/30 rounded-lg p-2">
+                            <p className="text-[9px] text-[var(--c-muted)]">Giá cao điểm</p>
+                            <p className="text-base font-bold text-[#D97706]">{peakP ? vnd(Number(peakP)) : "—"}</p>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-amber-600 italic">Chưa thiết lập giá riêng</p>
+                        <p className="text-xs text-[#D97706] italic">Chưa thiết lập giá riêng</p>
                       )}
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-2 text-[10px] text-[var(--c-muted)]">
                         {svc.durationHours && (
                           <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc.durationHours}h</span>
                         )}
-                        <span className="bg-muted/60 px-1.5 py-0.5 rounded font-semibold">{svc.pricingType}</span>
+                        <span className="bg-[var(--c-card-2)] px-1.5 py-0.5 rounded font-semibold">{svc.pricingType}</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
               {basePrice > 0 && (
-                <div className="bg-linear-to-r from-muted/30 to-muted/10 border border-border/40 rounded-xl p-4">
-                  <p className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <div className="bg-linear-to-r from-[var(--c-card-2)] to-[var(--c-card-2)] border border-[var(--c-line)]/40 rounded-xl p-4">
+                  <p className="text-xs font-black text-[var(--c-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <Calculator className="w-3.5 h-3.5" />Mô phỏng giá (dựa trên dịch vụ con đầu tiên)
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {scenarios.map(s => (
                       <div key={s.label} className={cn(
-                        "bg-background rounded-xl border p-3 text-center",
-                        s.highlight ? "border-primary/40 bg-primary/5" : "border-border/30",
+                        "bg-[var(--c-card)] rounded-xl border p-3 text-center",
+                        s.highlight ? "border-[var(--c-primary)]/40 bg-[var(--c-primary-soft)]" : "border-[var(--c-line)]/30",
                       )}>
                         <div className="text-lg mb-0.5">{s.emoji}</div>
-                        <p className="text-[9px] text-muted-foreground font-bold uppercase">{s.label}</p>
-                        <p className={cn("text-base font-black mt-0.5", s.highlight ? "text-primary" : "text-foreground")}>
+                        <p className="text-[9px] text-[var(--c-muted)] font-bold uppercase">{s.label}</p>
+                        <p className={cn("text-base font-black mt-0.5", s.highlight ? "text-[var(--c-primary-strong)]" : "text-[var(--c-ink)]")}>
                           {vnd(Math.round(s.total))}
                         </p>
-                        <p className="text-[9px] text-muted-foreground mt-0.5">{s.desc}</p>
+                        <p className="text-[9px] text-[var(--c-muted)] mt-0.5">{s.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -569,13 +569,13 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
           {/* Summary badges */}
           {!peakLoading && (peakDays?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-2">
-              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-bold">
+              <Badge className="bg-[rgba(217,119,6,0.14)] text-[#D97706] dark:bg-[rgba(217,119,6,0.14)] dark:text-[#D97706] text-xs font-bold">
                 🔥 {peakDays?.length} cấu hình
               </Badge>
-              <Badge className="bg-emerald-100 text-emerald-700 text-xs font-bold">
+              <Badge className="bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] text-xs font-bold">
                 ✅ {peakDays?.filter(p => p.isActive).length} đang hoạt động
               </Badge>
-              <Badge className="bg-rose-100 text-rose-700 text-xs font-bold">
+              <Badge className="bg-[rgba(225,29,72,0.12)] text-[#E11D48] text-xs font-bold">
                 📈 TB +{peakDays?.length
                   ? ((peakDays.reduce((sum, p) => sum + (p.peakRate ?? 0), 0) / peakDays.length) * 100).toFixed(0)
                   : 0}%
@@ -607,19 +607,19 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
 
           {/* Peak days table */}
           {peakLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Đang tải cấu hình cao điểm...</div>
+            <div className="py-8 text-center text-sm text-[var(--c-muted)]">Đang tải cấu hình cao điểm...</div>
           ) : (peakDays?.length ?? 0) === 0 ? (
-            <div className="py-10 text-center border-2 border-dashed border-border/40 rounded-xl">
-              <CalendarDays className="w-8 h-8 mx-auto mb-3 text-muted-foreground/30" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">Chưa có cấu hình giờ cao điểm nào</p>
+            <div className="py-10 text-center border-2 border-dashed border-[var(--c-line)]/40 rounded-xl">
+              <CalendarDays className="w-8 h-8 mx-auto mb-3 text-[var(--c-muted)]" aria-hidden="true" />
+              <p className="text-sm text-[var(--c-muted)]">Chưa có cấu hình giờ cao điểm nào</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border/50">
+            <div className="overflow-x-auto rounded-xl border border-[var(--c-line)]/50">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b border-border/50 bg-muted/30">
+                  <tr className="border-b border-[var(--c-line)]/50 bg-[var(--c-card-2)]">
                     {["Tên cấu hình", "Phụ thu", "Từ ngày → Đến ngày", "Khung giờ", "Trạng thái", "Ngày tạo", ""].map(h => (
-                      <th key={h} className="text-left py-2.5 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left py-2.5 px-4 text-[10px] font-black text-[var(--c-muted)] uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -635,9 +635,9 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                   ))}
                 </tbody>
               </table>
-              <div className="px-4 py-2.5 border-t border-border/30 bg-muted/10">
-                <p className="text-xs text-muted-foreground">
-                  Hiển thị <span className="font-bold text-foreground">1–{peakDays?.length ?? 0}</span> trong <span className="font-bold text-primary">{peakDays?.length ?? 0}</span> bản ghi
+              <div className="px-4 py-2.5 border-t border-[var(--c-line)]/30 bg-[var(--c-card-2)]">
+                <p className="text-xs text-[var(--c-muted)]">
+                  Hiển thị <span className="font-bold text-[var(--c-ink)]">1–{peakDays?.length ?? 0}</span> trong <span className="font-bold text-[var(--c-primary-strong)]">{peakDays?.length ?? 0}</span> bản ghi
                 </p>
               </div>
             </div>
@@ -649,26 +649,26 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
       {scenarios.length > 0 && (
         <SCard icon={Calculator} title="Mô phỏng tổng giá theo kịch bản"
           description={`Dựa trên giá khởi điểm ${vnd(basePrice)} của ${firstSvc?.name}`}>
-          <div className="overflow-x-auto rounded-xl border border-border/50">
+          <div className="overflow-x-auto rounded-xl border border-[var(--c-line)]/50">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-border/50 bg-muted/20">
-                  <th className="text-left py-2.5 px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Kịch bản</th>
-                  <th className="text-left py-2.5 px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Mô tả</th>
-                  <th className="text-right py-2.5 px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Ước tính</th>
+                <tr className="border-b border-[var(--c-line)]/50 bg-[var(--c-card-2)]">
+                  <th className="text-left py-2.5 px-4 text-xs font-bold text-[var(--c-muted)] uppercase tracking-wider">Kịch bản</th>
+                  <th className="text-left py-2.5 px-4 text-xs font-bold text-[var(--c-muted)] uppercase tracking-wider">Mô tả</th>
+                  <th className="text-right py-2.5 px-4 text-xs font-bold text-[var(--c-muted)] uppercase tracking-wider">Ước tính</th>
                 </tr>
               </thead>
               <tbody>
                 {scenarios.map(s => (
                   <tr key={s.label} className={cn(
-                    "border-b border-border/30 last:border-0 transition-colors",
-                    s.highlight ? "bg-primary/5" : "hover:bg-muted/20",
+                    "border-b border-[var(--c-line)]/30 last:border-0 transition-colors",
+                    s.highlight ? "bg-[var(--c-primary-soft)]" : "hover:bg-[var(--c-card-2)]",
                   )}>
                     <td className="py-3 px-4 font-semibold">
                       <span className="mr-1.5">{s.emoji}</span>{s.label}
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs">{s.desc}</td>
-                    <td className={cn("py-3 px-4 text-right font-bold", s.highlight ? "text-primary text-base" : "text-foreground")}>
+                    <td className="py-3 px-4 text-[var(--c-muted)] text-xs">{s.desc}</td>
+                    <td className={cn("py-3 px-4 text-right font-bold", s.highlight ? "text-[var(--c-primary-strong)] text-base" : "text-[var(--c-ink)]")}>
                       {vnd(Math.round(s.total))}
                     </td>
                   </tr>
@@ -676,7 +676,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
               </tbody>
             </table>
           </div>
-          <p className="text-[10px] text-muted-foreground/60 italic mt-2">
+          <p className="text-[10px] text-[var(--c-muted)] italic mt-2">
             * Giá mô phỏng chỉ mang tính tham khảo. Giá thực tế được tính qua API quote trước khi đặt đơn.
           </p>
         </SCard>
@@ -688,8 +688,8 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
         {pkg.packageSubServices?.[0]?.subService ? (
           <ServiceOptionsBuilder service={pkg.packageSubServices[0].subService} />
         ) : (
-          <div className="py-10 text-center border border-dashed border-border rounded-2xl bg-muted/10">
-            <p className="text-sm text-muted-foreground">Thêm dịch vụ con vào gói để cấu hình tuỳ chọn</p>
+          <div className="py-10 text-center border border-dashed border-[var(--c-line)] rounded-2xl bg-[var(--c-card-2)]">
+            <p className="text-sm text-[var(--c-muted)]">Thêm dịch vụ con vào gói để cấu hình tuỳ chọn</p>
           </div>
         )}
       </SCard>

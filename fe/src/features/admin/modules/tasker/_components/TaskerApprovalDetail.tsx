@@ -83,10 +83,10 @@ const DOC_GROUPS: DocGroup[] = [
 
 function StatusBadge({ status }: { status: TaskerStatus }) {
   const MAP = {
-    [TaskerStatus.PENDING]: { label: "Chờ duyệt", cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/30" },
-    [TaskerStatus.APPROVED]: { label: "Đã duyệt", cls: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
-    [TaskerStatus.REJECTED]: { label: "Từ chối", cls: "bg-red-500/10 text-red-700 border-red-500/30" },
-    [TaskerStatus.NEED_INFO]: { label: "Cần bổ sung", cls: "bg-blue-500/10 text-blue-700 border-blue-500/30" },
+    [TaskerStatus.PENDING]: { label: "Chờ duyệt", cls: "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[rgba(217,119,6,0.3)]" },
+    [TaskerStatus.APPROVED]: { label: "Đã duyệt", cls: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] border-[rgba(14,159,110,0.3)]" },
+    [TaskerStatus.REJECTED]: { label: "Từ chối", cls: "bg-[rgba(225,29,72,0.12)] text-[#E11D48] border-[rgba(225,29,72,0.3)]" },
+    [TaskerStatus.NEED_INFO]: { label: "Cần bổ sung", cls: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] border-[rgba(37,99,235,0.3)]" },
   };
   const cfg = MAP[status] ?? MAP[TaskerStatus.PENDING];
   return (
@@ -128,8 +128,8 @@ function ResendControl({
           className={cn(
             "h-8 rounded-lg text-xs font-semibold gap-1.5",
             flagged
-              ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500"
-              : "border-yellow-300 text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-950/30"
+              ? "bg-[#D97706] hover:bg-[#b45309] text-white border-[#D97706]"
+              : "border-[rgba(217,119,6,0.4)] text-[#D97706] hover:bg-[rgba(217,119,6,0.1)]"
           )}
         >
           {flagged ? (
@@ -145,8 +145,8 @@ function ResendControl({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-80 space-y-2.5">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-yellow-700 flex items-center gap-1.5">
+      <PopoverContent align="end" className="cz-admin w-80 space-y-2.5 border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[#D97706] flex items-center gap-1.5">
           <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Ghi chú cho ứng viên — cần cập nhật gì?
         </label>
         <Textarea
@@ -156,14 +156,14 @@ function ResendControl({
           rows={3}
           maxLength={500}
           placeholder={`VD: ${label} chưa đạt, vui lòng cập nhật lại...`}
-          className="rounded-lg resize-none text-sm bg-background"
+          className="rounded-lg resize-none text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
         />
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+            className="h-8 text-xs text-[#E11D48] hover:text-[#E11D48] hover:bg-[rgba(225,29,72,0.1)]"
             onClick={() => {
               onToggle();
               setOpen(false);
@@ -174,7 +174,7 @@ function ResendControl({
           <Button
             type="button"
             size="sm"
-            className="h-8 text-xs rounded-lg"
+            className="h-8 text-xs rounded-lg bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
             onClick={() => setOpen(false)}
           >
             Xong
@@ -197,8 +197,8 @@ function SectionCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-card p-5 transition-colors",
-        flagged ? "border-yellow-500/40 bg-yellow-500/5" : "border-border"
+        "rounded-2xl border bg-[var(--c-card)] p-5 transition-colors",
+        flagged ? "border-[rgba(217,119,6,0.4)] bg-[rgba(217,119,6,0.06)]" : "border-[var(--c-line)]"
       )}
     >
       {children}
@@ -306,18 +306,18 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
   if (isError && !isNotFound) {
     return (
       <div className="w-full max-w-6xl mx-auto px-4 py-20 text-center flex flex-col items-center gap-4">
-        <AlertTriangle className="w-12 h-12 text-muted-foreground/40" aria-hidden="true" />
+        <AlertTriangle className="w-12 h-12 text-[var(--c-muted)]/40" aria-hidden="true" />
         <div>
-          <p className="font-bold">Không tải được hồ sơ tasker</p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="font-bold text-[var(--c-ink)]">Không tải được hồ sơ tasker</p>
+          <p className="text-sm text-[var(--c-muted)] mt-1">
             Đã có lỗi xảy ra khi tải hồ sơ. Vui lòng thử lại.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={backToList} className="rounded-xl">
+          <Button variant="outline" onClick={backToList} className="rounded-xl border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]">
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Quay lại danh sách
           </Button>
-          <Button onClick={() => refetch()} className="rounded-xl">
+          <Button onClick={() => refetch()} className="rounded-xl bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90">
             <RotateCcw className="w-4 h-4 mr-1.5" /> Thử lại
           </Button>
         </div>
@@ -329,8 +329,8 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
   if (!tasker) {
     return (
       <div className="w-full max-w-6xl mx-auto px-4 py-20 text-center">
-        <p className="text-muted-foreground">Không tìm thấy hồ sơ tasker.</p>
-        <Button variant="outline" onClick={backToList} className="mt-4 rounded-xl">
+        <p className="text-[var(--c-muted)]">Không tìm thấy hồ sơ tasker.</p>
+        <Button variant="outline" onClick={backToList} className="mt-4 rounded-xl border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]">
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Quay lại danh sách
         </Button>
       </div>
@@ -364,24 +364,24 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* Back */}
-      <Button variant="ghost" onClick={backToList} className="rounded-xl -ml-2 text-muted-foreground">
+      <Button variant="ghost" onClick={backToList} className="rounded-xl -ml-2 text-[var(--c-muted)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]">
         <ArrowLeft className="w-4 h-4 mr-1.5" /> Danh sách chờ duyệt
       </Button>
 
       {/* Header */}
-      <div className="rounded-2xl border border-border bg-card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
         <Avatar className="w-16 h-16 rounded-2xl shrink-0">
           <AvatarImage src={tasker.avatarUrl ?? undefined} />
-          <AvatarFallback className="rounded-2xl bg-primary/10 text-primary text-2xl font-black">
+          <AvatarFallback className="rounded-2xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] text-2xl font-black">
             {initials}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-black tracking-tight">{tasker.fullName ?? "Đối tác"}</h1>
+            <h1 className="text-2xl font-black tracking-tight text-[var(--c-ink)]">{tasker.fullName ?? "Đối tác"}</h1>
             <StatusBadge status={tasker.approvalStatus} />
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[var(--c-muted)] mt-1">
             {tasker.phone ?? "Chưa có SĐT"}
             {tasker.createdAt && (
               <> • Đăng ký {formatDateVN(tasker.createdAt)}</>
@@ -393,7 +393,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
       <div className="space-y-8">
         {/* Giấy tờ */}
         <div className="space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--c-muted)] flex items-center gap-2">
             <ImageIcon className="w-4 h-4" /> Giấy tờ định danh & pháp lý
           </h2>
 
@@ -409,15 +409,15 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                 return (
                   <SectionCard key={group.id} flagged={isFlagged}>
                     <div className="mb-3">
-                      <p className="text-sm font-bold flex items-center gap-2">
-                        <group.icon className="w-4 h-4 text-primary" /> {group.label}
+                      <p className="text-sm font-bold flex items-center gap-2 text-[var(--c-ink)]">
+                        <group.icon className="w-4 h-4 text-[var(--c-primary-strong)]" /> {group.label}
                         {!group.required && (
-                          <span className="text-[10px] font-normal text-muted-foreground">(tuỳ chọn)</span>
+                          <span className="text-[10px] font-normal text-[var(--c-muted)]">(tuỳ chọn)</span>
                         )}
                       </p>
                       <p className={cn(
                         "text-xs mt-0.5 flex items-center gap-1",
-                        typeDocs.length > 0 ? "text-emerald-600" : group.required ? "text-red-500" : "text-muted-foreground"
+                        typeDocs.length > 0 ? "text-[#0E9F6E]" : group.required ? "text-[#E11D48]" : "text-[var(--c-muted)]"
                       )}>
                         {typeDocs.length > 0 ? (
                           <>
@@ -432,7 +432,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                             <Minus className="w-3.5 h-3.5" aria-hidden="true" /> Chưa nộp (không bắt buộc)
                           </>
                         )}
-                        {group.hint && typeDocs.length > 0 && <span className="text-muted-foreground"> • {group.hint}</span>}
+                        {group.hint && typeDocs.length > 0 && <span className="text-[var(--c-muted)]"> • {group.hint}</span>}
                       </p>
                     </div>
 
@@ -443,7 +443,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                             key={doc.id}
                             type="button"
                             onClick={() => setLightbox(doc.fileUrl)}
-                            className="group relative aspect-video rounded-xl border border-border overflow-hidden bg-muted"
+                            className="group relative aspect-video rounded-xl border border-[var(--c-line)] overflow-hidden bg-[var(--c-card-2)]"
                           >
                             <img
                               src={doc.fileUrl}
@@ -464,14 +464,14 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                         ))}
                       </div>
                     ) : (
-                      <div className="border border-dashed border-border rounded-xl py-8 flex flex-col items-center gap-2 text-center">
-                        <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
-                        <p className="text-xs text-muted-foreground">Ứng viên chưa tải lên</p>
+                      <div className="border border-dashed border-[var(--c-line-strong)] rounded-xl py-8 flex flex-col items-center gap-2 text-center">
+                        <ImageIcon className="w-8 h-8 text-[var(--c-muted)]/50" />
+                        <p className="text-xs text-[var(--c-muted)]">Ứng viên chưa tải lên</p>
                       </div>
                     )}
 
                     {canReview && (
-                      <div className="mt-4 pt-4 border-t border-border/60">
+                      <div className="mt-4 pt-4 border-t border-[var(--c-line)]">
                         <ResendControl
                           flagged={isFlagged}
                           comment={flagged[group.id] ?? ""}
@@ -490,7 +490,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
 
         {/* Thông tin khác */}
         <div className="space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--c-muted)] flex items-center gap-2">
               <Info className="w-4 h-4" /> Thông tin hồ sơ
             </h2>
             {infoItems.map((item) => {
@@ -499,15 +499,15 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
               return (
                 <SectionCard key={item.id} flagged={isFlagged}>
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <Icon className="w-4 h-4 text-muted-foreground" />
+                    <div className="w-9 h-9 rounded-lg bg-[var(--c-card-2)] flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-[var(--c-muted)]" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold">{item.label}</p>
+                      <p className="text-sm font-bold text-[var(--c-ink)]">{item.label}</p>
                       {item.value ? (
-                        <p className="text-sm text-foreground/80 mt-0.5 break-words">{item.value}</p>
+                        <p className="text-sm text-[var(--c-ink-soft)] mt-0.5 break-words">{item.value}</p>
                       ) : (
-                        <p className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
+                        <p className="text-xs text-[#E11D48] mt-0.5 flex items-center gap-1">
                           <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" /> Chưa cập nhật
                         </p>
                       )}
@@ -515,7 +515,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                   </div>
 
                   {canReview && (
-                    <div className="mt-4 pt-4 border-t border-border/60">
+                    <div className="mt-4 pt-4 border-t border-[var(--c-line)]">
                       <ResendControl
                         flagged={isFlagged}
                         comment={flagged[item.id] ?? ""}
@@ -531,65 +531,65 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
           </div>
 
         {/* Quyết định phê duyệt — full width, dưới cùng */}
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4 mt-4">
-          <h2 className="text-sm font-bold flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-primary" /> Quyết định phê duyệt
+        <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-5 space-y-4 mt-4">
+          <h2 className="text-sm font-bold flex items-center gap-2 text-[var(--c-ink)]">
+            <ShieldCheck className="w-4 h-4 text-[var(--c-primary-strong)]" /> Quyết định phê duyệt
           </h2>
 
             {/* Ghi chú lần trước — hiển thị rõ từng phần đã yêu cầu + lý do riêng */}
             {tasker.adminNotes && (
-              <div className="rounded-xl border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700">
+              <div className="rounded-xl border-l-4 border-[#2563EB] bg-[rgba(37,99,235,0.08)] p-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#2563EB]">
                   Đã yêu cầu lần trước
                 </p>
                 {priorParts.length > 0 && (
                   <ul className="space-y-1">
                     {priorParts.map((p) => (
-                      <li key={p.id} className="text-xs leading-relaxed flex gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
+                      <li key={p.id} className="text-xs leading-relaxed flex gap-1.5 text-[var(--c-ink)]">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#2563EB] shrink-0 mt-0.5" aria-hidden="true" />
                         <span>
                           <span className="font-semibold">{p.label}</span>
-                          {p.note && <span className="text-muted-foreground"> — {p.note}</span>}
+                          {p.note && <span className="text-[var(--c-muted)]"> — {p.note}</span>}
                         </span>
                       </li>
                     ))}
                   </ul>
                 )}
                 {parsedNotes?.note ? (
-                  <p className="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap text-[var(--c-muted)]">
                     {parsedNotes.note}
                   </p>
                 ) : !parsedNotes ? (
-                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{tasker.adminNotes}</p>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap text-[var(--c-ink)]">{tasker.adminNotes}</p>
                 ) : null}
               </div>
             )}
 
             {!canReview ? (
-              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+              <div className="rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)] p-4 text-center text-sm text-[var(--c-muted)] flex flex-col items-center gap-2">
                 {status === TaskerStatus.APPROVED ? (
                   <>
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                    <span className="font-semibold text-emerald-700">Hồ sơ đã được phê duyệt</span>
+                    <CheckCircle2 className="w-8 h-8 text-[#0E9F6E]" />
+                    <span className="font-semibold text-[#0E9F6E]">Hồ sơ đã được phê duyệt</span>
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-8 h-8 text-red-500" />
-                    <span className="font-semibold text-red-700">Hồ sơ đã bị từ chối</span>
+                    <XCircle className="w-8 h-8 text-[#E11D48]" />
+                    <span className="font-semibold text-[#E11D48]">Hồ sơ đã bị từ chối</span>
                   </>
                 )}
               </div>
             ) : (
               <>
                 {hasFlags ? (
-                  <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 px-3 py-2.5 text-sm text-yellow-700">
+                  <div className="rounded-xl bg-[rgba(217,119,6,0.14)] border border-[rgba(217,119,6,0.3)] px-3 py-2.5 text-sm text-[#D97706]">
                     <p className="font-semibold flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4" /> {flaggedIds.length} mục cần gửi lại
                     </p>
                     <p className="text-xs mt-1">Không thể duyệt khi còn mục yêu cầu gửi lại.</p>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <p className="text-xs text-[var(--c-muted)] flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" /> Kiểm tra ảnh & thông tin rồi ra quyết định.
                   </p>
                 )}
@@ -597,7 +597,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                 <div className="flex flex-col sm:flex-row gap-3 pt-1">
                   <Button
                     variant="outline"
-                    className="rounded-xl text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20"
+                    className="rounded-xl text-[#E11D48] border-[rgba(225,29,72,0.3)] hover:bg-[rgba(225,29,72,0.1)]"
                     onClick={() => setRejectOpen(true)}
                   >
                     <XCircle className="w-4 h-4 mr-1.5" /> Từ chối hồ sơ
@@ -605,7 +605,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
 
                   {hasFlags && (
                     <Button
-                      className="flex-1 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-white font-semibold"
+                      className="flex-1 rounded-xl bg-[#D97706] hover:bg-[#b45309] text-white font-semibold"
                       onClick={handleSendRequest}
                       disabled={requestInfoMutation.isPending}
                     >
@@ -615,7 +615,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                   )}
 
                   <Button
-                    className="flex-1 rounded-xl font-semibold shadow-md shadow-primary/20"
+                    className="flex-1 rounded-xl font-semibold shadow-md shadow-[var(--c-primary)]/20 bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
                     onClick={handleApprove}
                     disabled={hasFlags || approveMutation.isPending}
                     title={hasFlags ? "Bỏ các mục yêu cầu gửi lại trước khi phê duyệt" : undefined}
@@ -629,13 +629,13 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
 
             {/* Vùng nguy hiểm: xóa hồ sơ để buộc nộp lại từ đầu (chỉ khi chưa duyệt) */}
             {status !== TaskerStatus.APPROVED && (
-              <div className="pt-4 border-t border-dashed border-red-200 dark:border-red-900/40">
+              <div className="pt-4 border-t border-dashed border-[rgba(225,29,72,0.3)]">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-red-700 dark:text-red-400">
+                    <p className="text-sm font-bold text-[#E11D48]">
                       Xóa hồ sơ & yêu cầu nộp lại
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-[var(--c-muted)] mt-0.5">
                       Xóa toàn bộ thông tin và ảnh đã nộp. Ứng viên sẽ phải đăng ký lại từ đầu.
                     </p>
                   </div>
@@ -644,7 +644,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
                       <Button
                         variant="outline"
                         disabled={deleteMutation.isPending}
-                        className="rounded-xl text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0"
+                        className="rounded-xl text-[#E11D48] border-[rgba(225,29,72,0.3)] hover:bg-[rgba(225,29,72,0.1)] shrink-0"
                       >
                         <Trash2 className="w-4 h-4 mr-1.5" />
                         {deleteMutation.isPending ? "Đang xóa..." : "Xóa hồ sơ"}
@@ -664,7 +664,7 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
 
       {/* Lightbox */}
       <Dialog open={!!lightbox} onOpenChange={(o) => !o && setLightbox(null)}>
-        <DialogContent className="max-w-4xl w-[95vw] p-2 bg-black/95 border-none">
+        <DialogContent className="cz-admin max-w-4xl w-[95vw] p-2 bg-black/95 border-none">
 
           <DialogTitle className="sr-only">Xem ảnh giấy tờ</DialogTitle>
           {lightbox && (

@@ -97,7 +97,7 @@ export default function AdminServicesPage() {
         <PageHeader onAdd={() => router.push("/admin/services/create-package")} />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-64 rounded-2xl bg-muted/40 animate-pulse" />
+            <div key={i} className="h-64 rounded-2xl bg-[var(--c-card-2)] animate-pulse" />
           ))}
         </div>
       </div>
@@ -111,18 +111,18 @@ export default function AdminServicesPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Tổng gói dịch vụ", value: packages?.length ?? 0, icon: Package, color: "text-primary bg-primary/10" },
-          { label: "Đang hoạt động", value: packages?.filter((p) => p.isActive).length ?? 0, icon: TrendingUp, color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30" },
-          { label: "Đã tắt", value: packages?.filter((p) => !p.isActive).length ?? 0, icon: PowerOff, color: "text-rose-500 bg-rose-100 dark:bg-rose-900/30" },
-          { label: "Tổng dịch vụ con", value: packages?.reduce((s, p) => s + (p.packageSubServices?.length ?? 0), 0) ?? 0, icon: Grid3X3, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
+          { label: "Tổng gói dịch vụ", value: packages?.length ?? 0, icon: Package, color: "text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)]" },
+          { label: "Đang hoạt động", value: packages?.filter((p) => p.isActive).length ?? 0, icon: TrendingUp, color: "text-[#0E9F6E] bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]" },
+          { label: "Đã tắt", value: packages?.filter((p) => !p.isActive).length ?? 0, icon: PowerOff, color: "text-[#E11D48] bg-[rgba(225,29,72,0.12)] dark:bg-[rgba(225,29,72,0.12)]" },
+          { label: "Tổng dịch vụ con", value: packages?.reduce((s, p) => s + (p.packageSubServices?.length ?? 0), 0) ?? 0, icon: Grid3X3, color: "text-[#2563EB] bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)]" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-card border border-border/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+          <div key={stat.label} className="bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
             <div className={`p-2.5 rounded-xl ${stat.color}`}>
               <stat.icon className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              <p className="text-sm text-[var(--c-muted)] font-medium">{stat.label}</p>
+              <p className="text-2xl font-bold text-[var(--c-ink)]">{stat.value}</p>
             </div>
           </div>
         ))}
@@ -137,8 +137,8 @@ export default function AdminServicesPage() {
               onClick={() => setStatusFilter(btn.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 statusFilter === btn.key
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  ? "bg-[var(--c-primary)] text-white shadow-sm"
+                  : "bg-[var(--c-card-2)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"
               }`}
             >
               {btn.label}
@@ -148,24 +148,24 @@ export default function AdminServicesPage() {
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
-            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--c-muted)]" aria-hidden="true" />
             <Input
               placeholder="Tìm kiếm gói dịch vụ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-9 rounded-xl bg-background text-sm"
+              className="pl-9 h-9 rounded-xl bg-[var(--c-card)] text-sm"
             />
           </div>
-          <div className="flex rounded-xl overflow-hidden border border-border/50">
+          <div className="flex rounded-xl overflow-hidden border border-[var(--c-line)]/50">
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-primary text-white" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-[var(--c-primary)] text-white" : "bg-[var(--c-card)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"}`}
             >
               <Grid3X3 className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 transition-colors ${viewMode === "list" ? "bg-primary text-white" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              className={`p-2 transition-colors ${viewMode === "list" ? "bg-[var(--c-primary)] text-white" : "bg-[var(--c-card)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"}`}
             >
               <List className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -175,10 +175,10 @@ export default function AdminServicesPage() {
 
       {/* Package Grid */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-2xl bg-muted/10">
-          <Package className="w-16 h-16 text-muted-foreground/30 mb-4" />
-          <p className="text-lg font-semibold text-muted-foreground">Chưa có gói dịch vụ</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">Tạo gói dịch vụ mới để hiển thị ở đây</p>
+        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[var(--c-line)] rounded-2xl bg-[var(--c-card-2)]">
+          <Package className="w-16 h-16 text-[var(--c-muted)] mb-4" />
+          <p className="text-lg font-semibold text-[var(--c-muted)]">Chưa có gói dịch vụ</p>
+          <p className="text-sm text-[var(--c-muted)] mt-1">Tạo gói dịch vụ mới để hiển thị ở đây</p>
           <BaseButton variant="primary" className="mt-6" onClick={() => router.push("/admin/services/create")}>
             <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
             Tạo gói dịch vụ đầu tiên
@@ -199,7 +199,7 @@ export default function AdminServicesPage() {
           ))}
         </div>
       ) : (
-        <div className="border border-border/50 rounded-2xl overflow-hidden bg-card shadow-sm divide-y divide-border/50">
+        <div className="border border-[var(--c-line)]/50 rounded-2xl overflow-hidden bg-[var(--c-card)] shadow-sm divide-y divide-[var(--c-line)]/50">
           {filtered.map((pkg) => (
             <PackageListRow
               key={pkg.id}
@@ -214,7 +214,7 @@ export default function AdminServicesPage() {
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className="cz-admin rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold">Xác nhận xóa gói dịch vụ</AlertDialogTitle>
             <AlertDialogDescription className="text-base">
@@ -224,7 +224,7 @@ export default function AdminServicesPage() {
           <AlertDialogFooter className="mt-4">
             <AlertDialogCancel className="h-11 rounded-xl font-bold">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 rounded-xl font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 rounded-xl font-bold bg-[#E11D48] text-white hover:bg-[#E11D48]"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
@@ -243,10 +243,10 @@ function PageHeader({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)]">
           Quản lý Gói Dịch vụ
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <p className="text-[var(--c-muted)] text-sm mt-1">
           Thiết lập, quản lý bảng giá và thống kê cho từng gói dịch vụ.
         </p>
       </div>
@@ -276,11 +276,11 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
 
   return (
     <div
-      className="group bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 cursor-pointer"
+      className="group bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-[var(--c-primary)]/30 transition-all duration-300 cursor-pointer"
       onClick={onView}
     >
       {/* Thumbnail */}
-      <div className="relative h-44 bg-gradient-to-br from-muted/60 to-muted/30 overflow-hidden">
+      <div className="relative h-44 bg-gradient-to-br from-[var(--c-card-2)] to-[var(--c-card-2)] overflow-hidden">
         {pkg.iconUrl ? (
           <Image
             src={pkg.iconUrl}
@@ -290,7 +290,7 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <Package className="w-16 h-16 text-muted-foreground/20" aria-hidden="true" />
+            <Package className="w-16 h-16 text-[var(--c-muted)]" aria-hidden="true" />
           </div>
         )}
         {/* Status badge */}
@@ -298,8 +298,8 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
           <span
             className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
               pkg.isActive
-                ? "bg-emerald-500/90 text-white"
-                : "bg-slate-500/80 text-white"
+                ? "bg-[#0E9F6E] text-white"
+                : "bg-[var(--c-muted)] text-white"
             }`}
           >
             {pkg.isActive ? "Đang bật" : "Đã tắt"}
@@ -313,7 +313,7 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
                 <MoreVertical className="w-4 h-4" aria-hidden="true" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 rounded-xl">
+            <DropdownMenuContent align="end" className="cz-admin w-48 rounded-xl">
               <DropdownMenuItem onClick={onView} className="gap-2 rounded-lg">
                 <Eye className="w-4 h-4" aria-hidden="true" /> Xem chi tiết
               </DropdownMenuItem>
@@ -323,13 +323,13 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onToggle} className="gap-2 rounded-lg" disabled={isToggling}>
                 {pkg.isActive ? (
-                  <><PowerOff className="w-4 h-4 text-amber-500" aria-hidden="true" /> Tắt gói</>
+                  <><PowerOff className="w-4 h-4 text-[#D97706]" aria-hidden="true" /> Tắt gói</>
                 ) : (
-                  <><Power className="w-4 h-4 text-emerald-500" aria-hidden="true" /> Bật gói</>
+                  <><Power className="w-4 h-4 text-[#0E9F6E]" aria-hidden="true" /> Bật gói</>
                 )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-[#E11D48] focus:text-[#E11D48]">
                 <Trash2 className="w-4 h-4" aria-hidden="true" /> Xóa gói
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -341,23 +341,23 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
       <div className="p-4 space-y-3">
         <div>
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-foreground text-base leading-tight line-clamp-1">{pkg.name}</h3>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">
+            <h3 className="font-bold text-[var(--c-ink)] text-base leading-tight line-clamp-1">{pkg.name}</h3>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-semibold shrink-0">
               {pkg.packageCode}
             </span>
           </div>
           {pkg.policyDescription && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{pkg.policyDescription}</p>
+            <p className="text-xs text-[var(--c-muted)] mt-1 line-clamp-2">{pkg.policyDescription}</p>
           )}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1 text-xs text-[var(--c-muted)]">
             <Package className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{subCount} dịch vụ con</span>
           </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+          <div className="flex items-center gap-1 text-xs text-[var(--c-muted)]">
+            <Star className="w-3.5 h-3.5 fill-[#D97706] text-[#D97706]" aria-hidden="true" />
             <span>4.8</span>
           </div>
           {pkg.nightSurcharge > 0 && (
@@ -372,9 +372,9 @@ function PackageCard({ pkg, onView, onEdit, onDelete, onToggle, isToggling }: Pa
           )}
         </div>
 
-        <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">
-            Tối đa <span className="font-bold text-foreground">{pkg.maxHours} giờ</span>
+        <div className="pt-2 border-t border-[var(--c-line)]/50 flex items-center justify-between">
+          <div className="text-xs text-[var(--c-muted)]">
+            Tối đa <span className="font-bold text-[var(--c-ink)]">{pkg.maxHours} giờ</span>
           </div>
           <div onClick={(e) => e.stopPropagation()}>
             <Switch
@@ -402,27 +402,27 @@ function PackageListRow({ pkg, onView, onDelete, onToggle }: PackageListRowProps
 
   return (
     <div
-      className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+      className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--c-card-2)] transition-colors cursor-pointer"
       onClick={onView}
     >
-      <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-muted/40 shrink-0">
+      <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--c-card-2)] shrink-0">
         {pkg.iconUrl ? (
           <Image src={pkg.iconUrl} alt={pkg.name} fill className="object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <Package className="w-6 h-6 text-muted-foreground/30" aria-hidden="true" />
+            <Package className="w-6 h-6 text-[var(--c-muted)]" aria-hidden="true" />
           </div>
         )}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-foreground truncate">{pkg.name}</span>
-          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">
+          <span className="font-semibold text-[var(--c-ink)] truncate">{pkg.name}</span>
+          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-semibold shrink-0">
             {pkg.packageCode}
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 mt-1 text-xs text-[var(--c-muted)]">
           <span>{subCount} dịch vụ con</span>
           <span>•</span>
           <span>Tối đa {pkg.maxHours}h</span>
@@ -434,16 +434,16 @@ function PackageListRow({ pkg, onView, onDelete, onToggle }: PackageListRowProps
         <Switch checked={pkg.isActive} onCheckedChange={onToggle} className="scale-90" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center hover:bg-muted transition-colors">
+            <button className="w-8 h-8 rounded-lg border border-[var(--c-line)]/50 flex items-center justify-center hover:bg-[var(--c-card-2)] transition-colors">
               <MoreVertical className="w-4 h-4" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 rounded-xl">
+          <DropdownMenuContent align="end" className="cz-admin w-44 rounded-xl">
             <DropdownMenuItem onClick={onView} className="gap-2 rounded-lg">
               <Eye className="w-4 h-4" aria-hidden="true" /> Xem chi tiết
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-destructive focus:text-destructive">
+            <DropdownMenuItem onClick={onDelete} className="gap-2 rounded-lg text-[#E11D48] focus:text-[#E11D48]">
               <Trash2 className="w-4 h-4" aria-hidden="true" /> Xóa gói
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -8,7 +8,7 @@ export default async function TaskerVerificationDetailPage({
   const { id } = await params;
 
   return (
-    <main className="min-h-screen bg-background py-6">
+    <main className="min-h-screen bg-[var(--c-canvas)] py-6">
       <TaskerApprovalDetail taskerId={id} />
     </main>
   );

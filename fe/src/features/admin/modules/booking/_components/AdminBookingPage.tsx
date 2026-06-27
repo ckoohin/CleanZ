@@ -4,9 +4,7 @@ import * as React from "react"
 import { CheckCircle2, XCircle, RefreshCw } from "lucide-react"
 
 import { BaseTableList, Column, RowAction } from "@/components/ui/base/base_table_list"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { PageHeader, AdminButton, StatusBadge, BadgeTone } from "@/components/admin"
 import { toast } from "sonner"
 
 import { useAdminBookings } from "@/features/admin/modules/booking/hooks/useAdminBooking"
@@ -55,7 +53,7 @@ export function AdminBookingPage() {
       key: "bookingCode",
       title: "Mã Đơn",
       render: (row) => (
-        <span className="font-mono text-xs uppercase tracking-wider text-primary font-bold">
+        <span className="font-mono text-xs uppercase tracking-wider text-[var(--c-primary-strong)] font-bold">
           {row.bookingCode}
         </span>
       ),
@@ -65,8 +63,8 @@ export function AdminBookingPage() {
       title: "Khách hàng",
       render: (row) => (
         <div className="flex flex-col">
-          <span className="font-semibold">{row.customer?.fullName || 'N/A'}</span>
-          <span className="text-[10px] text-muted-foreground">{row.customer?.phone}</span>
+          <span className="font-semibold text-[var(--c-ink)]">{row.customer?.fullName || 'N/A'}</span>
+          <span className="text-[10px] text-[var(--c-muted)]">{row.customer?.phone}</span>
         </div>
       ),
     },
@@ -77,11 +75,11 @@ export function AdminBookingPage() {
         <div className="flex flex-col">
           {row.tasker ? (
             <>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{row.tasker.fullName}</span>
-              <span className="text-[10px] text-muted-foreground">{row.tasker.phone}</span>
+              <span className="font-semibold text-[#0E9F6E]">{row.tasker.fullName}</span>
+              <span className="text-[10px] text-[var(--c-muted)]">{row.tasker.phone}</span>
             </>
           ) : (
-            <span className="text-xs text-muted-foreground italic">Chưa nhận</span>
+            <span className="text-xs text-[var(--c-muted)] italic">Chưa nhận</span>
           )}
         </div>
       ),
@@ -90,12 +88,12 @@ export function AdminBookingPage() {
       key: "scheduledStart",
       title: "Lịch hẹn",
       render: (row) => {
-        if (!row.scheduledStart) return <span className="text-muted-foreground">N/A</span>
+        if (!row.scheduledStart) return <span className="text-[var(--c-muted)]">N/A</span>
         const date = new Date(row.scheduledStart)
         return (
           <div className="flex flex-col">
-            <span className="font-medium">{date.toLocaleDateString("vi-VN")}</span>
-            <span className="text-xs text-muted-foreground">{date.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="font-medium text-[var(--c-ink)]">{date.toLocaleDateString("vi-VN")}</span>
+            <span className="text-xs text-[var(--c-muted)]">{date.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         )
       },
@@ -108,24 +106,23 @@ export function AdminBookingPage() {
           style: "currency",
           currency: "VND",
         }).format(row.totalPrice)
-        return <span className="font-bold">{formatted}</span>
+        return <span className="font-bold text-[var(--c-ink)]">{formatted}</span>
       },
     },
     {
       key: "status",
       title: "Trạng thái",
       render: (row) => {
+        const tone: BadgeTone =
+          row.status === "COMPLETED" ? "success" :
+          row.status === "POSTED" ? "warning" :
+          row.status === "IN_PROGRESS" ? "info" :
+          row.status === "CANCELLED" ? "danger" :
+          "purple"
         return (
-          <Badge className={cn(
-            "px-3 py-1 rounded-full font-bold text-[10px] uppercase border-none",
-            row.status === "COMPLETED" ? "bg-emerald-500/10 text-emerald-500" :
-            row.status === "POSTED" ? "bg-amber-500/10 text-amber-500" :
-            row.status === "IN_PROGRESS" ? "bg-blue-500/10 text-blue-500" :
-            row.status === "CANCELLED" ? "bg-red-500/10 text-red-500" :
-            "bg-indigo-500/10 text-indigo-500"
-          )}>
+          <StatusBadge tone={tone} className="uppercase">
             {row.status}
-          </Badge>
+          </StatusBadge>
         )
       },
     },
@@ -155,24 +152,20 @@ export function AdminBookingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Quản lý Đơn hàng
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Theo dõi và can thiệp vào các Booking trên hệ thống.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleExpireOverdue} variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2">
-            <RefreshCw className="w-4 h-4" /> Kiểm tra đơn quá hạn
-          </Button>
-          <Button onClick={() => setIsCreateDrawerOpen(true)} className="bg-primary hover:bg-primary/90">
-            Tạo đơn hộ
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Quản lý Đơn hàng"
+        description="Theo dõi và can thiệp vào các Booking trên hệ thống."
+        actions={
+          <>
+            <AdminButton variant="secondary" onClick={handleExpireOverdue} icon={<RefreshCw className="w-4 h-4" />}>
+              Kiểm tra đơn quá hạn
+            </AdminButton>
+            <AdminButton variant="primary" onClick={() => setIsCreateDrawerOpen(true)}>
+              Tạo đơn hộ
+            </AdminButton>
+          </>
+        }
+      />
 
       <BaseTableList
         columns={columns}

@@ -103,10 +103,10 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg rounded-[20px]">
+      <DialogContent className="cz-admin sm:max-w-lg rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle>Cập nhật thông tin tasker</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-[var(--c-ink)]">Cập nhật thông tin tasker</DialogTitle>
+          <DialogDescription className="text-[var(--c-muted)]">
             Chỉnh sửa thông tin cơ bản của đối tác. Giấy tờ KYC không thay đổi.
           </DialogDescription>
         </DialogHeader>
@@ -120,7 +120,7 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="tasker-fullName">Họ và tên</Label>
+                <Label htmlFor="tasker-fullName" className="text-[var(--c-ink-soft)]">Họ và tên</Label>
                 <Input
                   id="tasker-fullName"
                   value={form.fullName}
@@ -130,16 +130,17 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
                   aria-describedby={
                     errors.fullName ? "tasker-fullName-error" : undefined
                   }
+                  className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
                 />
                 {errors.fullName && (
-                  <p id="tasker-fullName-error" className="text-xs text-destructive">
+                  <p id="tasker-fullName-error" className="text-xs text-[#E11D48]">
                     {errors.fullName}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="tasker-phone">Số điện thoại</Label>
+                <Label htmlFor="tasker-phone" className="text-[var(--c-ink-soft)]">Số điện thoại</Label>
                 <Input
                   id="tasker-phone"
                   value={form.phone}
@@ -147,9 +148,10 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
                   placeholder="0901234567"
                   aria-invalid={!!errors.phone}
                   aria-describedby={errors.phone ? "tasker-phone-error" : undefined}
+                  className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
                 />
                 {errors.phone && (
-                  <p id="tasker-phone-error" className="text-xs text-destructive">
+                  <p id="tasker-phone-error" className="text-xs text-[#E11D48]">
                     {errors.phone}
                   </p>
                 )}
@@ -157,65 +159,71 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="tasker-workingAddress">Khu vực hoạt động</Label>
+              <Label htmlFor="tasker-workingAddress" className="text-[var(--c-ink-soft)]">Khu vực hoạt động</Label>
               <Input
                 id="tasker-workingAddress"
                 value={form.workingAddress}
                 onChange={(e) => setField("workingAddress", e.target.value)}
                 placeholder="Quận 1, TP. Hồ Chí Minh"
+                className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="tasker-skills">Kỹ năng</Label>
+              <Label htmlFor="tasker-skills" className="text-[var(--c-ink-soft)]">Kỹ năng</Label>
               <Input
                 id="tasker-skills"
                 value={form.skills}
                 onChange={(e) => setField("skills", e.target.value)}
                 placeholder="Dọn nhà, Vệ sinh công nghiệp..."
+                className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="tasker-bio">Giới thiệu</Label>
+              <Label htmlFor="tasker-bio" className="text-[var(--c-ink-soft)]">Giới thiệu</Label>
               <Textarea
                 id="tasker-bio"
                 value={form.bio}
                 onChange={(e) => setField("bio", e.target.value)}
                 placeholder="Mô tả ngắn về đối tác..."
                 rows={3}
+                className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="tasker-bankName">Ngân hàng</Label>
+                <Label htmlFor="tasker-bankName" className="text-[var(--c-ink-soft)]">Ngân hàng</Label>
                 <Input
                   id="tasker-bankName"
                   value={form.bankName}
                   onChange={(e) => setField("bankName", e.target.value)}
                   placeholder="Vietcombank"
+                  className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="tasker-bankAccountNumber">Số tài khoản</Label>
+                <Label htmlFor="tasker-bankAccountNumber" className="text-[var(--c-ink-soft)]">Số tài khoản</Label>
                 <Input
                   id="tasker-bankAccountNumber"
                   value={form.bankAccountNumber}
                   onChange={(e) => setField("bankAccountNumber", e.target.value)}
                   placeholder="0123456789"
+                  className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="tasker-bankAccountName">Chủ tài khoản</Label>
+              <Label htmlFor="tasker-bankAccountName" className="text-[var(--c-ink-soft)]">Chủ tài khoản</Label>
               <Input
                 id="tasker-bankAccountName"
                 value={form.bankAccountName}
                 onChange={(e) => setField("bankAccountName", e.target.value)}
                 placeholder="NGUYEN VAN A"
+                className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               />
             </div>
           </div>
@@ -226,11 +234,11 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
               variant="outline"
               onClick={onClose}
               disabled={isPending}
-              className="rounded-full"
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={isPending} className="rounded-full">
+            <Button type="submit" disabled={isPending} className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90">
               {isPending ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </DialogFooter>

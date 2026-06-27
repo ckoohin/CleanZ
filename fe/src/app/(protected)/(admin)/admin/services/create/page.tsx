@@ -35,16 +35,16 @@ export default function CreateServicePage() {
           <ArrowLeft className="w-4 h-4" />
         </BaseButton>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)]">
             Thêm dịch vụ con mới
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-[var(--c-muted)] text-sm mt-1">
             Tạo mới một dịch vụ con độc lập và gán vào gói dịch vụ.
           </p>
         </div>
       </div>
 
-      <div className="bg-card border border-border/50 shadow-sm rounded-3xl p-6 md:p-8">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 shadow-sm rounded-3xl p-6 md:p-8">
         <ServiceForm 
           onSubmit={handleSubmit} 
           isSubmitting={createMutation.isPending}

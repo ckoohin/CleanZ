@@ -19,6 +19,7 @@ import { BaseButton } from "@/components/ui/base/base_button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/admin";
 
 import type {
   PricingConfig,
@@ -64,7 +65,7 @@ function StatCard({
   color: string;
 }) {
   return (
-    <Card className="border border-border/40 rounded-2xl shadow-sm bg-card">
+    <Card className="border border-[var(--c-line)] rounded-2xl shadow-sm bg-[var(--c-card)]">
       <CardContent className="p-5 flex items-center gap-4">
         <div
           className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${color}`}
@@ -72,14 +73,14 @@ function StatCard({
           <Icon className="w-5 h-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
+          <p className="text-[11px] font-semibold text-[var(--c-muted)] uppercase tracking-wider truncate">
             {label}
           </p>
-          <p className="text-xl font-bold text-foreground leading-tight">
+          <p className="text-xl font-bold text-[var(--c-ink)] leading-tight">
             {value}
           </p>
           {sub && (
-            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+            <p className="text-[11px] text-[var(--c-muted)] font-medium mt-0.5">
               {sub}
             </p>
           )}
@@ -307,7 +308,7 @@ export default function AdminPricingPage() {
       title: "Tên Bảng Giá",
       render: (row) => (
         <div className="min-w-0">
-          <p className="font-semibold text-foreground truncate max-w-[180px]">
+          <p className="font-semibold text-[var(--c-ink)] truncate max-w-[180px]">
             {row.name}
           </p>
         </div>
@@ -317,7 +318,7 @@ export default function AdminPricingPage() {
       key: "basePrice",
       title: "Giá cơ bản",
       render: (row) => (
-        <span className="font-bold text-foreground">{vnd(row.basePrice)}</span>
+        <span className="font-bold text-[var(--c-ink)]">{vnd(row.basePrice)}</span>
       ),
     },
     {
@@ -325,7 +326,7 @@ export default function AdminPricingPage() {
       title: "Giá cao điểm",
       hideOnMobile: true,
       render: (row) => (
-        <span className="font-semibold text-amber-500">
+        <span className="font-semibold text-[#D97706]">
           {vnd(row.peakPrice)}
         </span>
       ),
@@ -335,7 +336,7 @@ export default function AdminPricingPage() {
       title: "Phí thú cưng",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-muted-foreground">{vnd(row.petFee)}</span>
+        <span className="text-[var(--c-muted)]">{vnd(row.petFee)}</span>
       ),
     },
     {
@@ -344,7 +345,7 @@ export default function AdminPricingPage() {
       render: (row) => (
         <Badge
           variant="outline"
-          className="bg-primary/5 text-primary border-primary/20 font-bold text-[11px]"
+          className="bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] border-[var(--c-primary)]/20 font-bold text-[11px]"
         >
           {Number(row.platformCommissionRate).toFixed(1)}%
         </Badge>
@@ -355,18 +356,15 @@ export default function AdminPricingPage() {
       title: "Trạng thái",
       render: (row) =>
         row.isActive ? (
-          <Badge className="bg-emerald-500/10 text-emerald-600 border-none font-semibold text-[11px] gap-1">
+          <StatusBadge tone="success">
             <CircleCheck className="w-3 h-3" />
             Hoạt động
-          </Badge>
+          </StatusBadge>
         ) : (
-          <Badge
-            variant="secondary"
-            className="bg-muted text-muted-foreground border-none font-semibold text-[11px] gap-1"
-          >
+          <StatusBadge tone="neutral">
             <CircleX className="w-3 h-3" />
             Tạm ngưng
-          </Badge>
+          </StatusBadge>
         ),
     },
     {
@@ -374,7 +372,7 @@ export default function AdminPricingPage() {
       title: "Ngày tạo",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {fmtDate(row.createdAt)}
         </span>
       ),
@@ -406,16 +404,16 @@ export default function AdminPricingPage() {
       key: "name",
       title: "Tên cấu hình",
       render: (row) => (
-        <span className="font-semibold text-foreground">{row.name}</span>
+        <span className="font-semibold text-[var(--c-ink)]">{row.name}</span>
       ),
     },
     {
       key: "peakRate",
       title: "Phụ thu",
       render: (row) => (
-        <Badge className="bg-amber-500/10 text-amber-600 border-none font-bold text-[11px]">
+        <StatusBadge tone="warning" className="font-bold">
           +{(Number(row.peakRate) * 100).toFixed(0)}%
-        </Badge>
+        </StatusBadge>
       ),
     },
     {
@@ -423,7 +421,7 @@ export default function AdminPricingPage() {
       title: "Từ ngày",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {fmtDate(row.startAt)}
         </span>
       ),
@@ -433,7 +431,7 @@ export default function AdminPricingPage() {
       title: "Đến ngày",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {fmtDate(row.endAt)}
         </span>
       ),
@@ -444,11 +442,11 @@ export default function AdminPricingPage() {
       hideOnMobile: true,
       render: (row) =>
         row.startTime && row.endTime ? (
-          <span className="font-mono text-xs bg-muted/60 px-2 py-1 rounded-md text-foreground">
+          <span className="font-mono text-xs bg-[var(--c-card-2)] px-2 py-1 rounded-md text-[var(--c-ink)]">
             {row.startTime} – {row.endTime}
           </span>
         ) : (
-          <span className="text-muted-foreground text-xs">Cả ngày</span>
+          <span className="text-[var(--c-muted)] text-xs">Cả ngày</span>
         ),
     },
     {
@@ -456,18 +454,15 @@ export default function AdminPricingPage() {
       title: "Trạng thái",
       render: (row) =>
         row.isActive ? (
-          <Badge className="bg-emerald-500/10 text-emerald-600 border-none font-semibold text-[11px] gap-1">
+          <StatusBadge tone="success">
             <CircleCheck className="w-3 h-3" />
             Hoạt động
-          </Badge>
+          </StatusBadge>
         ) : (
-          <Badge
-            variant="secondary"
-            className="bg-muted text-muted-foreground border-none font-semibold text-[11px] gap-1"
-          >
+          <StatusBadge tone="neutral">
             <CircleX className="w-3 h-3" />
             Tạm ngưng
-          </Badge>
+          </StatusBadge>
         ),
     },
     {
@@ -475,7 +470,7 @@ export default function AdminPricingPage() {
       title: "Ngày tạo",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {fmtDate(row.createdAt)}
         </span>
       ),
@@ -500,10 +495,10 @@ export default function AdminPricingPage() {
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--c-ink)]">
             Quản lý Bảng giá
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-[var(--c-muted)] text-sm mt-1">
             Cấu hình giá dịch vụ và thiết lập phụ thu ngày cao điểm.
           </p>
         </div>
@@ -513,7 +508,7 @@ export default function AdminPricingPage() {
               fetchConfigs();
               fetchPeakDays();
             }}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-border/50 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all shadow-sm"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] hover:text-[var(--c-ink)] hover:bg-[var(--c-card-2)] transition-all shadow-sm"
             title="Tải lại"
           >
             <RefreshCw className="w-4 h-4" />
@@ -527,43 +522,43 @@ export default function AdminPricingPage() {
           value={configTotal}
           sub="Tổng dịch vụ có giá"
           icon={DollarSign}
-          color="bg-primary/10 text-primary"
+          color="bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)]"
         />
         <StatCard
           label="Đang hoạt động"
           value={activeConfigs}
           sub="Bảng giá live"
           icon={TrendingUp}
-          color="bg-emerald-500/10 text-emerald-600"
+          color="bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]"
         />
         <StatCard
           label="Ngày cao điểm"
           value={activePeakDays}
           sub={`Trong ${peakDays.length} cấu hình`}
           icon={Flame}
-          color="bg-amber-500/10 text-amber-500"
+          color="bg-[rgba(217,119,6,0.14)] text-[#D97706]"
         />
         <StatCard
           label="Hoa hồng TB"
           value={`${avgCommission}%`}
           sub="Trung bình toàn sàn"
           icon={Percent}
-          color="bg-indigo-500/10 text-indigo-500"
+          color="bg-[rgba(124,58,237,0.12)] text-[#7C3AED]"
         />
       </div>
 
       <Tabs defaultValue="configs" className="space-y-4">
-        <TabsList className="h-11 rounded-xl bg-muted/50 p-1 gap-1">
+        <TabsList className="h-11 rounded-xl bg-[var(--c-card-2)] p-1 gap-1">
           <TabsTrigger
             value="configs"
             id="tab-pricing-configs"
-            className="rounded-lg px-5 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+            className="rounded-lg px-5 text-sm font-semibold data-[state=active]:bg-[var(--c-card)] data-[state=active]:text-[var(--c-ink)] data-[state=active]:shadow-sm transition-all"
           >
             <DollarSign className="w-4 h-4 mr-2 opacity-70" />
             Cấu hình giá dịch vụ
             <Badge
               variant="secondary"
-              className="ml-2 text-[10px] font-bold bg-primary/10 text-primary border-none"
+              className="ml-2 text-[10px] font-bold bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] border-none"
             >
               {configTotal}
             </Badge>
@@ -571,13 +566,13 @@ export default function AdminPricingPage() {
           <TabsTrigger
             value="peakdays"
             id="tab-peak-days"
-            className="rounded-lg px-5 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+            className="rounded-lg px-5 text-sm font-semibold data-[state=active]:bg-[var(--c-card)] data-[state=active]:text-[var(--c-ink)] data-[state=active]:shadow-sm transition-all"
           >
             <Flame className="w-4 h-4 mr-2 opacity-70" />
             Ngày cao điểm
             <Badge
               variant="secondary"
-              className="ml-2 text-[10px] font-bold bg-amber-500/10 text-amber-600 border-none"
+              className="ml-2 text-[10px] font-bold bg-[rgba(217,119,6,0.14)] text-[#D97706] border-none"
             >
               {peakDays.length}
             </Badge>
@@ -586,16 +581,16 @@ export default function AdminPricingPage() {
 
         <TabsContent value="configs" className="mt-0">
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-primary/5 border border-primary/15 rounded-2xl px-5 py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--c-primary-soft)] border border-[var(--c-primary)]/20 rounded-2xl px-5 py-4">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <DollarSign className="w-4 h-4 text-primary" />
+                <div className="w-8 h-8 rounded-xl bg-[var(--c-primary-soft)] flex items-center justify-center shrink-0 mt-0.5">
+                  <DollarSign className="w-4 h-4 text-[var(--c-primary-strong)]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-[var(--c-ink)]">
                     Bảng giá dịch vụ
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-[var(--c-muted)] mt-0.5">
                     Mỗi dịch vụ chỉ có một cấu hình giá. Gồm giá cơ bản, giá
                     cao điểm, phí thú cưng, phí chờ và hoa hồng nền tảng.
                   </p>
@@ -645,16 +640,16 @@ export default function AdminPricingPage() {
 
         <TabsContent value="peakdays" className="mt-0">
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-amber-500/5 border border-amber-500/15 rounded-2xl px-5 py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[rgba(217,119,6,0.14)] border border-[#D97706]/30 rounded-2xl px-5 py-4">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Flame className="w-4 h-4 text-amber-500" />
+                <div className="w-8 h-8 rounded-xl bg-[rgba(217,119,6,0.14)] flex items-center justify-center shrink-0 mt-0.5">
+                  <Flame className="w-4 h-4 text-[#D97706]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-[var(--c-ink)]">
                     Cấu hình ngày cao điểm
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-[var(--c-muted)] mt-0.5">
                     Phụ thu tự động áp dụng khi booking rơi vào khoảng ngày /
                     khung giờ cao điểm. Tỷ lệ 0.1 = +10%.
                   </p>
@@ -663,7 +658,7 @@ export default function AdminPricingPage() {
               <BaseButton
                 id="btn-create-peak-day"
                 variant="primary"
-                className="rounded-xl shadow-lg shadow-amber-500/20 gap-2 h-10 px-5 shrink-0 bg-amber-500 hover:bg-amber-600 text-white"
+                className="rounded-xl shadow-lg shadow-[#D97706]/20 gap-2 h-10 px-5 shrink-0 bg-[#D97706] hover:bg-[#b45309] text-white"
                 onClick={() =>
                   setPeakDialog({ open: true, mode: "create", data: null })
                 }

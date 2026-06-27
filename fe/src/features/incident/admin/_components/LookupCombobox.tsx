@@ -54,15 +54,15 @@ export function LookupCombobox({
           variant="outline"
           role="combobox"
           className={cn(
-            "h-9 w-full justify-between rounded-lg text-sm font-normal",
-            !selectedLabel && "text-muted-foreground",
+            "h-9 w-full justify-between rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-normal text-[var(--c-ink)]",
+            !selectedLabel && "text-[var(--c-muted)]",
           )}
         >
           <span className="truncate">{selectedLabel ?? placeholder}</span>
           <span className="flex shrink-0 items-center gap-1">
             {selectedLabel && (
               <X
-                className="size-3.5 text-muted-foreground hover:text-foreground"
+                className="size-3.5 text-[var(--c-muted)] hover:text-[var(--c-ink)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   onClear();
@@ -73,12 +73,12 @@ export function LookupCombobox({
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="cz-admin w-[var(--radix-popover-trigger-width)] p-0 bg-[var(--c-card)] text-[var(--c-ink)]" align="start">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Nhập để tìm..." value={input} onValueChange={setInput} />
           <CommandList>
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 py-6 text-xs text-[var(--c-muted)]">
                 <Loader2 className="size-3.5 animate-spin" /> Đang tìm...
               </div>
             ) : items.length === 0 ? (
@@ -95,7 +95,7 @@ export function LookupCombobox({
                 >
                   <div className="flex flex-col">
                     <span className="text-sm">{it.label}</span>
-                    {it.sub && <span className="text-xs text-muted-foreground">{it.sub}</span>}
+                    {it.sub && <span className="text-xs text-[var(--c-muted)]">{it.sub}</span>}
                   </div>
                 </CommandItem>
               ))

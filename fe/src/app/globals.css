@@ -236,3 +236,98 @@
     0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CleanZ Admin Design System — SCOPED to .cz-admin (ADMIN ONLY).
+   Tokens / utilities live only inside the .cz-admin subtree, so they never
+   leak to customer / tasker / site (those areas never carry the class).
+   Mirror of fe/src/app/test/admin/page.tsx SCOPED_CSS. See ADMIN-DESIGN-SYSTEM.md.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cz-admin {
+    --sb-w: 260px;                      /* sidebar width — used to centre the floating bulk bar */
+    --c-canvas: #F4F6F9;               /* page background */
+    --c-card: #FFFFFF;                 /* card / sidebar background */
+    --c-card-2: #F6F8FB;              /* secondary: hover, input, sub-cells */
+    --c-ink: #0F1B33;                 /* primary text (navy) */
+    --c-ink-soft: #51607A;            /* secondary text */
+    --c-muted: #8A95A8;               /* muted / label / idle icon */
+    --c-line: #ECEEF3;                /* hairline border */
+    --c-line-strong: #DFE3EC;         /* stronger border (input, button) */
+    --c-chip: #EEF1F6;                /* neutral badge background */
+    --c-primary: #FFA000;             /* brand amber — the single accent */
+    --c-primary-strong: #B45309;      /* amber text on light surfaces (contrast) */
+    --c-primary-soft: #FFF3E0;        /* soft amber: active pill, tint */
+    --c-hero: #FFF7EA;                /* hero background (very light amber) */
+    --c-sidebar: #FFFFFF;
+    --c-topbar: rgba(255, 255, 255, 0.82); /* topbar w/ backdrop-blur */
+    --c-scroll: rgba(15, 27, 51, 0.20);
+    --c-scroll-hover: rgba(15, 27, 51, 0.34);
+}
+.cz-admin.cz-collapsed { --sb-w: 72px; } /* collapsed sidebar */
+
+.dark .cz-admin {
+    --c-canvas: #0A0E16;  --c-card: #111722;  --c-card-2: #161D2A;
+    --c-ink: #EAEEF6;     --c-ink-soft: #AEB9CC;  --c-muted: #6E7A92;
+    --c-line: rgba(255, 255, 255, 0.08);  --c-line-strong: rgba(255, 255, 255, 0.14);
+    --c-chip: rgba(255, 255, 255, 0.10);
+    --c-primary: #FFB300;  --c-primary-strong: #FFC24B;  --c-primary-soft: rgba(255, 179, 0, 0.14);
+    --c-hero: #141A26;  --c-sidebar: #0E131C;  --c-topbar: rgba(10, 14, 22, 0.82);
+    --c-scroll: rgba(255, 255, 255, 0.16);  --c-scroll-hover: rgba(255, 255, 255, 0.30);
+}
+
+/* ── shadcn → cz bridge ──────────────────────────────────────────────────────
+   Re-point shadcn theme tokens at the cz palette, SCOPED to .cz-admin. Because
+   these reference the --c-* vars (which already flip in .dark .cz-admin), they
+   auto-adapt to dark with no separate dark block. This lets shadcn components
+   (and shared base components like BaseButton) theme correctly INSIDE admin
+   without rewriting their classNames — and never leaks to customer/tasker/site
+   (those never carry .cz-admin, so they keep the global :root / .dark tokens).
+   Note: --radius and --chart-* are intentionally NOT remapped. */
+.cz-admin {
+    --background: var(--c-canvas);
+    --foreground: var(--c-ink);
+    --card: var(--c-card);
+    --card-foreground: var(--c-ink);
+    --popover: var(--c-card);
+    --popover-foreground: var(--c-ink);
+    --primary: var(--c-primary);
+    --primary-foreground: #ffffff;
+    --secondary: var(--c-card-2);
+    --secondary-foreground: var(--c-ink);
+    --accent: var(--c-card-2);
+    --accent-foreground: var(--c-ink);
+    --muted: var(--c-card-2);
+    --muted-foreground: var(--c-muted);
+    --border: var(--c-line);
+    --input: var(--c-line-strong);
+    --ring: var(--c-primary);
+    --destructive: #E11D48;
+    --destructive-foreground: #ffffff;
+}
+
+/* themed thin scrollbar — add class cz-scroll to any overflow region */
+.cz-scroll { scrollbar-width: thin; scrollbar-color: var(--c-scroll) transparent; }
+.cz-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.cz-scroll::-webkit-scrollbar-track { background: transparent; }
+.cz-scroll::-webkit-scrollbar-thumb { background-color: var(--c-scroll); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+.cz-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--c-scroll-hover); }
+
+/* floating bulk-action bar — fixed at bottom-centre of the content area */
+.cz-bulkbar { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 40; animation: cz-bar-in .22s ease-out both; transition: left .3s ease; }
+@media (min-width: 1024px) { .cz-bulkbar { left: calc(50% + var(--sb-w, 0px) / 2); } }
+@keyframes cz-bar-in { from { opacity: 0; transform: translateX(-50%) translateY(14px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+/* subtle entrance + live ping */
+@keyframes kos-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.kos-rise { animation: kos-rise .5s cubic-bezier(.19, 1, .22, 1) both; }
+@keyframes kos-ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+.kos-ping { animation: kos-ping 1.7s cubic-bezier(0, 0, .2, 1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+    .kos-rise, .kos-ping, .cz-bulkbar { animation: none; }
+}
+
+/* react-grid-layout overrides scoped to admin (the global .dashboard-grid block
+   above uses shadcn tokens; re-point them at cz-tokens inside .cz-admin) */
+.cz-admin .dashboard-grid .react-grid-placeholder { background: var(--c-primary) !important; opacity: 0.14; }
+.cz-admin .dashboard-grid .react-resizable-handle::after { border-right-color: var(--c-muted); border-bottom-color: var(--c-muted); }

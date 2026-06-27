@@ -14,6 +14,7 @@ import {
   type Column,
 } from "@/components/ui/base/base_table_list";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/admin";
 import {
   Select,
   SelectContent,
@@ -94,10 +95,10 @@ export default function AdminFinancesPage() {
       title: "Giao dịch",
       render: (transaction) => (
         <div>
-          <p className="font-mono text-xs font-bold text-primary">
+          <p className="font-mono text-xs font-bold text-[var(--c-primary-strong)]">
             #{shortId(transaction.id)}
           </p>
-          <p className="mt-0.5 max-w-60 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 max-w-60 truncate text-xs text-[var(--c-muted)]">
             {transaction.description || "Không có mô tả"}
           </p>
         </div>
@@ -108,7 +109,7 @@ export default function AdminFinancesPage() {
       title: "Loại giao dịch",
       hideOnMobile: true,
       render: (transaction) => (
-        <span className="text-xs font-semibold">
+        <span className="text-xs font-semibold text-[var(--c-ink)]">
           {TRANSACTION_LABELS[transaction.type]}
         </span>
       ),
@@ -123,11 +124,8 @@ export default function AdminFinancesPage() {
 
         return (
           <div
-            className={`flex items-center gap-1.5 font-black ${
-              isCredit
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400"
-            }`}
+            className="flex items-center gap-1.5 font-black"
+            style={{ color: isCredit ? "#0E9F6E" : "#E11D48" }}
           >
             <Icon className="size-4" />
             {isCredit ? "+" : "-"}
@@ -141,7 +139,7 @@ export default function AdminFinancesPage() {
       title: "Số dư sau",
       hideOnMobile: true,
       render: (transaction) => (
-        <span className="text-xs font-semibold">
+        <span className="text-xs font-semibold text-[var(--c-ink)]">
           {formatCurrency(transaction.balanceAfter)}
         </span>
       ),
@@ -154,10 +152,10 @@ export default function AdminFinancesPage() {
         const date = new Date(transaction.createdAt);
         return (
           <div>
-            <p className="text-xs font-semibold">
+            <p className="text-xs font-semibold text-[var(--c-ink)]">
               {date.toLocaleDateString("vi-VN")}
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-[var(--c-muted)]">
               {date.toLocaleTimeString("vi-VN", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -171,12 +169,10 @@ export default function AdminFinancesPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">Lịch sử giao dịch</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Theo dõi toàn bộ biến động số dư ví được ghi nhận trong hệ thống.
-        </p>
-      </div>
+      <PageHeader
+        title="Lịch sử giao dịch"
+        description="Theo dõi toàn bộ biến động số dư ví được ghi nhận trong hệ thống."
+      />
 
       <BaseTableList
         columns={columns}
@@ -201,11 +197,11 @@ export default function AdminFinancesPage() {
                 }))
               }
             >
-              <SelectTrigger className="h-10 w-full rounded-full border-border/40 bg-background shadow-none">
-                <ListFilter className="size-4 text-muted-foreground" />
+              <SelectTrigger className="h-10 w-full rounded-full border-[var(--c-line)] bg-[var(--c-card)] shadow-none">
+                <ListFilter className="size-4 text-[var(--c-muted)]" />
                 <SelectValue placeholder="Loại giao dịch" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả giao dịch</SelectItem>
                 {TRANSACTION_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
@@ -216,7 +212,7 @@ export default function AdminFinancesPage() {
             </Select>
 
             <div className="relative w-full">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--c-muted)]" />
               <Input
                 type="date"
                 value={filter.fromDate}
@@ -228,12 +224,12 @@ export default function AdminFinancesPage() {
                   }))
                 }
                 aria-label="Từ ngày"
-                className="h-10 w-full rounded-full border-border/40 bg-background pl-9 shadow-none"
+                className="h-10 w-full rounded-full border-[var(--c-line)] bg-[var(--c-card)] pl-9 shadow-none"
               />
             </div>
 
             <div className="relative w-full">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--c-muted)]" />
               <Input
                 type="date"
                 value={filter.toDate}
@@ -246,7 +242,7 @@ export default function AdminFinancesPage() {
                   }))
                 }
                 aria-label="Đến ngày"
-                className="h-10 w-full rounded-full border-border/40 bg-background pl-9 shadow-none"
+                className="h-10 w-full rounded-full border-[var(--c-line)] bg-[var(--c-card)] pl-9 shadow-none"
               />
             </div>
           </div>

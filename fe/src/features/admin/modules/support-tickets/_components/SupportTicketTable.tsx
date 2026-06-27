@@ -2,8 +2,6 @@
 
 import React, { useCallback, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -12,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AdminButton, StatusBadge as Pill, type BadgeTone } from "@/components/admin";
 import { BaseTableList, type Column, type RowAction } from "@/components/ui/base/base_table_list";
 import { useTicketList, useAdminTicketUnreadRealtime } from "../hooks/useSupportTicket";
 import { useAdminList, useCustomerLookup, useBookingLookup } from "../hooks/useAdminLookup";
@@ -39,23 +38,24 @@ import {
   PRIORITY_TONE,
   CATEGORY_LABEL,
   CATEGORY_OPTIONS,
-  TONE_BADGE_CLASS,
+  type Tone,
 } from "@/features/support-tickets/shared/ticket.labels";
 import { TICKET_STATUS, TICKET_PRIORITY } from "@/features/support-tickets/shared/ticket.enums";
 
+/** Map the shared ticket Tone → cz semantic StatusBadge tone. */
+const TONE_TO_CZ: Record<Tone, BadgeTone> = {
+  neutral: "neutral",
+  info: "info",
+  warning: "warning",
+  success: "success",
+  muted: "neutral",
+};
+
 function StatusBadge({ status }: { status: TicketStatus }) {
-  return (
-    <Badge variant="outline" className={`inline-flex items-center gap-1 text-xs font-semibold ${TONE_BADGE_CLASS[STATUS_TONE[status]]}`}>
-      {STATUS_LABEL[status]}
-    </Badge>
-  );
+  return <Pill tone={TONE_TO_CZ[STATUS_TONE[status]]}>{STATUS_LABEL[status]}</Pill>;
 }
 function PriorityBadge({ priority }: { priority: TicketPriority }) {
-  return (
-    <Badge className={`inline-flex items-center gap-1 text-xs ${TONE_BADGE_CLASS[PRIORITY_TONE[priority]]}`}>
-      {PRIORITY_LABEL[priority]}
-    </Badge>
-  );
+  return <Pill tone={TONE_TO_CZ[PRIORITY_TONE[priority]]}>{PRIORITY_LABEL[priority]}</Pill>;
 }
 
 const SORT_OPTIONS = [
@@ -128,15 +128,15 @@ export const SupportTicketTable: React.FC = () => {
         <div className="flex items-center gap-2">
           {!!row.unreadCount && row.unreadCount > 0 && (
             <span
-              className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white"
+              className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#E11D48] px-1.5 text-[11px] font-bold text-white"
               title={`${row.unreadCount} tin chưa đọc`}
             >
               {row.unreadCount > 9 ? "9+" : row.unreadCount}
             </span>
           )}
           <div>
-            <p className="font-bold text-xs text-primary">{row.ticketCode ?? "—"}</p>
-            <p className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">{row.subject}</p>
+            <p className="font-bold text-xs text-[var(--c-primary-strong)]">{row.ticketCode ?? "—"}</p>
+            <p className="text-xs text-[var(--c-muted)] line-clamp-1 max-w-[200px]">{row.subject}</p>
           </div>
         </div>
       ),
@@ -146,7 +146,7 @@ export const SupportTicketTable: React.FC = () => {
       title: "Loại",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-medium text-foreground/70">{CATEGORY_LABEL[row.category]}</span>
+        <span className="text-xs font-medium text-[var(--c-ink-soft)]">{CATEGORY_LABEL[row.category]}</span>
       ),
     },
     {
@@ -160,7 +160,7 @@ export const SupportTicketTable: React.FC = () => {
       title: "Phụ trách",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-foreground/70">{row.assignedAdmin?.fullName ?? "—"}</span>
+        <span className="text-xs text-[var(--c-ink-soft)]">{row.assignedAdmin?.fullName ?? "—"}</span>
       ),
     },
     {
@@ -170,9 +170,9 @@ export const SupportTicketTable: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <StatusBadge status={row.status} />
           {row.slaBreached && (
-            <Badge className="bg-red-500/10 text-red-600 text-[10px] px-1.5 inline-flex items-center gap-0.5">
+            <Pill tone="danger" className="text-[10px] px-1.5">
               <AlertTriangle className="w-2.5 h-2.5" /> SLA
-            </Badge>
+            </Pill>
           )}
         </div>
       ),
@@ -182,7 +182,7 @@ export const SupportTicketTable: React.FC = () => {
       title: "Ngày tạo",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {new Date(row.createdAt).toLocaleDateString("vi-VN")}
         </span>
       ),
@@ -205,31 +205,31 @@ export const SupportTicketTable: React.FC = () => {
         {/* Hàng 1: tìm kiếm + hành động */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--c-muted)]" />
             <Input
               value={get("q")}
               onChange={(e) => setParams({ q: e.target.value })}
               placeholder="Tìm theo mã ticket hoặc tiêu đề..."
-              className="h-10 rounded-full pl-9 pr-9 text-sm"
+              className="h-10 rounded-full pl-9 pr-9 text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
             />
             {get("q") && (
               <button
                 type="button"
                 aria-label="Xoá tìm kiếm"
                 onClick={() => setParams({ q: undefined })}
-                className="absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-muted hover:text-foreground"
+                className="absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-[var(--c-muted)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
               >
                 <X className="size-3.5" />
               </button>
             )}
           </div>
           <div className="flex gap-2 sm:ml-auto">
-            <Button size="sm" variant="outline" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowConfig(true)}>
-              <Settings className="w-3.5 h-3.5" /> Cấu hình
-            </Button>
-            <Button size="sm" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowCreate(true)}>
-              <Plus className="w-3.5 h-3.5" /> Tạo ticket hộ
-            </Button>
+            <AdminButton variant="secondary" size="sm" className="rounded-full" icon={<Settings className="w-3.5 h-3.5" />} onClick={() => setShowConfig(true)}>
+              Cấu hình
+            </AdminButton>
+            <AdminButton variant="primary" size="sm" className="rounded-full" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>
+              Tạo ticket hộ
+            </AdminButton>
           </div>
         </div>
 
@@ -238,11 +238,11 @@ export const SupportTicketTable: React.FC = () => {
           {/* Cụm trái: phân loại ticket */}
           <div className="grid grid-cols-2 gap-2">
             <Select value={sel("status")} onValueChange={(v) => setParams({ status: v })}>
-              <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
-                <ListFilter className="w-3.5 h-3.5 mr-1 shrink-0 text-muted-foreground" />
+              <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+                <ListFilter className="w-3.5 h-3.5 mr-1 shrink-0 text-[var(--c-muted)]" />
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
                 {TICKET_STATUS.map((s) => (
                   <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
@@ -251,10 +251,10 @@ export const SupportTicketTable: React.FC = () => {
             </Select>
 
             <Select value={sel("category")} onValueChange={(v) => setParams({ category: v })}>
-              <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Loại" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả loại</SelectItem>
                 {CATEGORY_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -263,10 +263,10 @@ export const SupportTicketTable: React.FC = () => {
             </Select>
 
             <Select value={sel("priority")} onValueChange={(v) => setParams({ priority: v })}>
-              <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Ưu tiên" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả ưu tiên</SelectItem>
                 {TICKET_PRIORITY.map((p) => (
                   <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>
@@ -275,16 +275,16 @@ export const SupportTicketTable: React.FC = () => {
             </Select>
 
             <Select value={sel("sla")} onValueChange={(v) => setParams({ sla: v })}>
-              <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="SLA" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả SLA</SelectItem>
                 <SelectItem value="true">
-                  <div className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-red-500" /> Vi phạm SLA</div>
+                  <div className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-[#E11D48]" /> Vi phạm SLA</div>
                 </SelectItem>
                 <SelectItem value="false">
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Trong hạn</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-[#0E9F6E]" /> Trong hạn</div>
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -293,10 +293,10 @@ export const SupportTicketTable: React.FC = () => {
           {/* Cụm phải: phụ trách / sắp xếp / tra cứu */}
           <div className="grid grid-cols-2 gap-2">
             <Select value={sel("assignee")} onValueChange={(v) => setParams({ assignee: v })}>
-              <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
                 <SelectValue placeholder="Phụ trách" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 <SelectItem value="ALL">Tất cả admin</SelectItem>
                 {(admins ?? []).map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.fullName}</SelectItem>
@@ -305,11 +305,11 @@ export const SupportTicketTable: React.FC = () => {
             </Select>
 
             <Select value={get("sort") || "createdAt"} onValueChange={(v) => setParams({ sort: v })}>
-              <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
-                <ArrowDownUp className="w-3.5 h-3.5 mr-1 shrink-0 text-muted-foreground" />
+              <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+                <ArrowDownUp className="w-3.5 h-3.5 mr-1 shrink-0 text-[var(--c-muted)]" />
                 <SelectValue placeholder="Sắp xếp" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="cz-admin rounded-xl">
                 {SORT_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}

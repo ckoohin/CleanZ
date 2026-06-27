@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Card, CardContent } from "@/components/ui/card";
+import { AdminCard } from "@/components/admin";
 import { useGmvChart } from "../../hooks/useDashboard";
 import { useDashboardStore } from "../../stores/dashboard.store";
 import { WidgetSkeleton } from "./WidgetSkeleton";
@@ -29,23 +29,23 @@ export function GmvChartWidget() {
   if (!data?.length) return null;
 
   return (
-    <Card className="border border-border bg-card shadow-sm rounded-2xl h-full flex flex-col justify-between">
-      <CardContent className="p-5 flex-1 flex flex-col justify-between">
+    <AdminCard className="h-full flex flex-col justify-between">
+      <div className="p-5 flex-1 flex flex-col justify-between">
         <div>
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h3 className="text-[15px] font-semibold text-foreground">GMV &amp; số đơn · 7 ngày</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <h3 className="text-[15px] font-bold text-[var(--c-ink)]">GMV &amp; số đơn · 7 ngày</h3>
+              <p className="text-[12.5px] text-[var(--c-muted)] mt-0.5">
                 Cột: GMV (tr đ) · Đường: số đơn
               </p>
             </div>
-            <div className="flex gap-4 text-xs text-muted-foreground font-medium mt-1">
+            <div className="flex gap-4 text-xs text-[var(--c-muted)] font-medium mt-1">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#1d9e75]" />
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#FFA000]" />
                 GMV
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#534ab7]" />
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#2563EB]" />
                 Đơn
               </span>
             </div>
@@ -58,7 +58,7 @@ export function GmvChartWidget() {
                   dataKey="label"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 11, fill: "#8A95A8" }}
                   dy={8}
                 />
                 <YAxis
@@ -66,7 +66,7 @@ export function GmvChartWidget() {
                   orientation="left"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 11, fill: "#8A95A8" }}
                   tickFormatter={fmtGmv}
                 />
                 <YAxis
@@ -74,7 +74,7 @@ export function GmvChartWidget() {
                   orientation="right"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tick={{ fontSize: 11, fill: "#8A95A8" }}
                 />
                 <Tooltip
                   formatter={(value, name) => [
@@ -83,16 +83,16 @@ export function GmvChartWidget() {
                   ]}
                   contentStyle={{
                     borderRadius: "0.75rem",
-                    border: "1px solid var(--border)",
-                    backgroundColor: "var(--background)",
+                    border: "1px solid var(--c-line)",
+                    backgroundColor: "var(--c-card)",
                     fontSize: 12,
-                    color: "var(--foreground)",
+                    color: "var(--c-ink)",
                   }}
                 />
                 <Bar
                   yAxisId="gmv"
                   dataKey="gmv"
-                  fill="#1d9e75"
+                  fill="#FFA000"
                   radius={[3, 3, 0, 0]}
                   maxBarSize={30}
                 />
@@ -100,16 +100,16 @@ export function GmvChartWidget() {
                   yAxisId="orders"
                   dataKey="orders"
                   type="monotone"
-                  stroke="#534ab7"
+                  stroke="#2563EB"
                   strokeWidth={2}
-                  dot={{ r: 3, fill: "#534ab7", strokeWidth: 0 }}
+                  dot={{ r: 3, fill: "#2563EB", strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </AdminCard>
   );
 }

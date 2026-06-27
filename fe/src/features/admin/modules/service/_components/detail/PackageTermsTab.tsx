@@ -108,12 +108,12 @@ function PolicyPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0">
+      <DialogContent className="cz-admin max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0">
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-primary" />
+            <div className="w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] flex items-center justify-center">
+              <Shield className="w-4 h-4 text-[var(--c-primary-strong)]" />
             </div>
             <div>
               <DialogTitle>Thêm chính sách</DialogTitle>
@@ -129,7 +129,7 @@ function PolicyPickerDialog({
         {/* Filters */}
         <div className="px-5 py-3 border-b space-y-3 shrink-0">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--c-muted)]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -143,8 +143,8 @@ function PolicyPickerDialog({
               className={cn(
                 "px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors",
                 !activeCategory
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:border-foreground/40"
+                  ? "bg-[var(--c-primary)] text-white border-[var(--c-primary)]"
+                  : "border-[var(--c-line)] text-[var(--c-muted)] hover:border-[var(--c-line)]"
               )}
             >
               Tất cả
@@ -159,8 +159,8 @@ function PolicyPickerDialog({
                   className={cn(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors",
                     activeCategory === key
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:border-foreground/40"
+                      ? "bg-[var(--c-primary)] text-white border-[var(--c-primary)]"
+                      : "border-[var(--c-line)] text-[var(--c-muted)] hover:border-[var(--c-line)]"
                   )}
                 >
                   <Icon className="w-3 h-3" />
@@ -175,10 +175,10 @@ function PolicyPickerDialog({
         <ScrollArea className="flex-1 px-4 py-3">
           {isLoading ? (
             <div className="flex justify-center py-10">
-              <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+              <RefreshCw className="w-5 h-5 animate-spin text-[var(--c-primary-strong)]" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
+            <div className="py-10 text-center text-sm text-[var(--c-muted)]">
               {allPolicies.filter((p) => !assignedIds.has(p.id)).length === 0
                 ? "Tất cả chính sách đã được gán."
                 : "Không tìm thấy chính sách phù hợp."}
@@ -196,20 +196,20 @@ function PolicyPickerDialog({
                     className={cn(
                       "w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
                       isSelected
-                        ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border/50 hover:border-border hover:bg-muted/20"
+                        ? "border-[var(--c-primary)]/50 bg-[var(--c-primary-soft)] ring-1 ring-[var(--c-primary)]/20"
+                        : "border-[var(--c-line)]/50 hover:border-[var(--c-line)] hover:bg-[var(--c-card-2)]"
                     )}
                   >
                     <div className="mt-0.5 shrink-0">
                       {isSelected
-                        ? <CheckSquare className="w-4 h-4 text-primary" />
-                        : <Square className="w-4 h-4 text-muted-foreground" />}
+                        ? <CheckSquare className="w-4 h-4 text-[var(--c-primary-strong)]" />
+                        : <Square className="w-4 h-4 text-[var(--c-muted)]" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-foreground truncate">{p.title}</p>
+                        <p className="text-sm font-semibold text-[var(--c-ink)] truncate">{p.title}</p>
                         {p.isDefault && (
-                          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                          <Star className="w-3.5 h-3.5 text-[#D97706] fill-[#D97706] shrink-0" />
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -217,7 +217,7 @@ function PolicyPickerDialog({
                           <Icon className="w-2.5 h-2.5" />
                           {meta.label}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] gap-1 text-[var(--c-muted)]">
                           <RoleIcon role={p.role} />
                           {roleLabel(p.role)}
                         </Badge>
@@ -264,11 +264,11 @@ function AssignedPolicyRow({ policy, packageId }: { policy: Policy; packageId: s
             <Icon className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-[var(--c-ink)] flex items-center gap-1.5">
               {policy.title}
-              {policy.isDefault && <Star className="w-3 h-3 text-amber-500 fill-amber-400" />}
+              {policy.isDefault && <Star className="w-3 h-3 text-[#D97706] fill-[#D97706]" />}
             </p>
-            <p className="text-xs font-mono text-muted-foreground">{policy.slug}</p>
+            <p className="text-xs font-mono text-[var(--c-muted)]">{policy.slug}</p>
           </div>
         </div>
       </TableCell>
@@ -279,7 +279,7 @@ function AssignedPolicyRow({ policy, packageId }: { policy: Policy; packageId: s
         </Badge>
       </TableCell>
       <TableCell className="py-3">
-        <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+        <Badge variant="outline" className="text-[10px] gap-1 text-[var(--c-muted)]">
           <RoleIcon role={policy.role} />
           {roleLabel(policy.role)}
         </Badge>
@@ -288,7 +288,7 @@ function AssignedPolicyRow({ policy, packageId }: { policy: Policy; packageId: s
         <BaseButton
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-7 w-7 p-0 text-[var(--c-muted)] hover:text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)] opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => removeMutation.mutate(policy.id)}
           isLoading={removeMutation.isPending}
         >
@@ -360,18 +360,18 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
   return (
     <div className="space-y-5">
       <Tabs defaultValue="policies" className="w-full">
-        <TabsList className="h-auto p-1 bg-muted/40 rounded-xl gap-0.5">
-          <TabsTrigger value="policies" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary">
+        <TabsList className="h-auto p-1 bg-[var(--c-card-2)] rounded-xl gap-0.5">
+          <TabsTrigger value="policies" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm data-[state=active]:text-[var(--c-primary-strong)]">
             <Shield className="w-4 h-4" />
             Chính sách
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{assignedPolicies.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="terms" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary">
+          <TabsTrigger value="terms" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm data-[state=active]:text-[var(--c-primary-strong)]">
             <ScrollText className="w-4 h-4" />
             Điều khoản
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{terms.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="guarantees" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary">
+          <TabsTrigger value="guarantees" className="rounded-lg gap-2 text-sm font-medium data-[state=active]:bg-[var(--c-card)] data-[state=active]:shadow-sm data-[state=active]:text-[var(--c-primary-strong)]">
             <ShieldCheck className="w-4 h-4" />
             Cam kết
           </TabsTrigger>
@@ -382,11 +382,11 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-base flex items-center gap-2">
-                <Shield className="w-4 h-4 text-primary" />
+                <Shield className="w-4 h-4 text-[var(--c-primary-strong)]" />
                 Chính sách áp dụng
                 <Badge variant="secondary">{assignedPolicies.length}</Badge>
               </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-[var(--c-muted)] mt-0.5">
                 Các chính sách hiển thị cho khách hàng khi đặt gói này
               </p>
             </div>
@@ -415,13 +415,13 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
 
           {policiesLoading ? (
             <div className="flex justify-center py-12">
-              <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+              <RefreshCw className="w-5 h-5 animate-spin text-[var(--c-primary-strong)]" />
             </div>
           ) : assignedPolicies.length === 0 ? (
-            <div className="py-14 text-center rounded-2xl border-2 border-dashed border-border/50 bg-muted/10">
-              <Shield className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="font-semibold text-sm text-muted-foreground">Chưa có chính sách nào</p>
-              <p className="text-xs text-muted-foreground/60 mt-1 mb-4 max-w-xs mx-auto">
+            <div className="py-14 text-center rounded-2xl border-2 border-dashed border-[var(--c-line)]/50 bg-[var(--c-card-2)]">
+              <Shield className="w-10 h-10 mx-auto mb-3 text-[var(--c-muted)]" />
+              <p className="font-semibold text-sm text-[var(--c-muted)]">Chưa có chính sách nào</p>
+              <p className="text-xs text-[var(--c-muted)] mt-1 mb-4 max-w-xs mx-auto">
                 Gán chính sách để khách hàng biết quyền lợi và nghĩa vụ khi đặt dịch vụ
               </p>
               <div className="flex gap-2 justify-center">
@@ -442,16 +442,16 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
               </div>
             </div>
           ) : (
-            <div className="space-y-4 rounded-xl border border-border/50 overflow-hidden">
+            <div className="space-y-4 rounded-xl border border-[var(--c-line)]/50 overflow-hidden">
               {Array.from(grouped.entries()).map(([cat, items], idx) => {
                 const meta = POLICY_CATEGORY_META[cat];
                 const CatIcon = meta.icon;
                 return (
                   <div key={cat}>
                     {idx > 0 && <Separator />}
-                    <div className="px-4 py-2.5 bg-muted/20 flex items-center gap-2">
+                    <div className="px-4 py-2.5 bg-[var(--c-card-2)] flex items-center gap-2">
                       <CatIcon className={`w-4 h-4 ${meta.color.split(' ')[0]}`} />
-                      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                      <span className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">
                         {meta.label}
                       </span>
                       <Badge variant="secondary" className="text-[10px] ml-auto">{items.length}</Badge>
@@ -474,7 +474,7 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
         <TabsContent value="terms" className="mt-5 space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <AlertTriangle className="w-4 h-4 text-[#D97706]" />
               Điều khoản tùy chỉnh
               <Badge variant="secondary">{terms.length}</Badge>
             </h3>
@@ -527,9 +527,9 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
           )}
 
           {terms.length === 0 ? (
-            <div className="py-10 text-center rounded-xl border border-dashed border-border bg-muted/10">
-              <ScrollText className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
+            <div className="py-10 text-center rounded-xl border border-dashed border-[var(--c-line)] bg-[var(--c-card-2)]">
+              <ScrollText className="w-8 h-8 text-[var(--c-muted)] mx-auto mb-2" />
+              <p className="text-sm text-[var(--c-muted)]">
                 Chưa có điều khoản. Nhấn <strong>Chỉnh sửa</strong> để thêm.
               </p>
             </div>
@@ -537,7 +537,7 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
             <ol className="space-y-2.5">
               {terms.map((term, idx) => (
                 <li key={term.id} className="flex items-start gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] text-xs font-bold flex items-center justify-center mt-0.5">
                     {idx + 1}
                   </span>
                   {isEditingTerms ? (
@@ -554,14 +554,14 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
                       <BaseButton
                         variant="ghost"
                         size="sm"
-                        className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="h-9 w-9 p-0 text-[var(--c-muted)] hover:text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)]"
                         onClick={() => setTerms((prev) => prev.filter((t) => t.id !== term.id))}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </BaseButton>
                     </div>
                   ) : (
-                    <p className="text-sm text-foreground leading-relaxed flex-1 pt-0.5">{term.text}</p>
+                    <p className="text-sm text-[var(--c-ink)] leading-relaxed flex-1 pt-0.5">{term.text}</p>
                   )}
                 </li>
               ))}
@@ -572,7 +572,7 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
 
           <div>
             <Label className="font-semibold flex items-center gap-2 mb-2">
-              <Info className="w-4 h-4 text-blue-500" />
+              <Info className="w-4 h-4 text-[#2563EB]" />
               Ghi chú nội bộ
             </Label>
             {isEditingTerms ? (
@@ -584,11 +584,11 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
                 placeholder="Ghi chú nội bộ cho gói dịch vụ này..."
               />
             ) : (
-              <div className="rounded-xl border bg-muted/10 px-4 py-3 min-h-[80px]">
+              <div className="rounded-xl border bg-[var(--c-card-2)] px-4 py-3 min-h-[80px]">
                 {policyDesc ? (
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{policyDesc}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Chưa có ghi chú.</p>
+                  <p className="text-sm text-[var(--c-muted)] italic">Chưa có ghi chú.</p>
                 )}
               </div>
             )}
@@ -598,24 +598,24 @@ export function PackageTermsTab({ pkg }: PackageTermsTabProps) {
         {/* ── Guarantees Tab ───────────────────────────────────────────────── */}
         <TabsContent value="guarantees" className="mt-5 space-y-4">
           <h3 className="font-bold text-base flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <ShieldCheck className="w-4 h-4 text-[#0E9F6E]" />
             Cam kết chất lượng CleanZ
           </h3>
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { icon: ShieldCheck, label: "Bảo hành 48h",          desc: "Làm lại miễn phí nếu chưa đạt",        cls: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" },
-              { icon: Star,        label: "Nhân viên chuyên nghiệp", desc: "Đào tạo bài bản, kiểm tra lý lịch",   cls: "bg-amber-50 text-amber-600 dark:bg-amber-900/20" },
-              { icon: FileText,   label: "Hóa chất an toàn",       desc: "An toàn cho gia đình và thú cưng",    cls: "bg-blue-50 text-blue-600 dark:bg-blue-900/20" },
+              { icon: ShieldCheck, label: "Bảo hành 48h",          desc: "Làm lại miễn phí nếu chưa đạt",        cls: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)]" },
+              { icon: Star,        label: "Nhân viên chuyên nghiệp", desc: "Đào tạo bài bản, kiểm tra lý lịch",   cls: "bg-[rgba(217,119,6,0.14)] text-[#D97706] dark:bg-[rgba(217,119,6,0.14)]" },
+              { icon: FileText,   label: "Hóa chất an toàn",       desc: "An toàn cho gia đình và thú cưng",    cls: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)]" },
             ].map(({ icon: Icon, label, desc, cls }) => (
-              <div key={label} className={`rounded-xl p-4 border border-border/40 ${cls}`}>
+              <div key={label} className={`rounded-xl p-4 border border-[var(--c-line)]/40 ${cls}`}>
                 <Icon className="w-6 h-6 mb-2" />
                 <p className="font-bold text-sm">{label}</p>
                 <p className="text-xs mt-1 opacity-80 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
-          <div className="rounded-xl bg-muted/20 border border-border/30 px-4 py-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+          <div className="rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)]/30 px-4 py-3">
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">
               <strong>Lưu ý:</strong> Các cam kết trên áp dụng chung cho tất cả gói dịch vụ.
               Tùy chỉnh điều khoản riêng ở tab <strong>Điều khoản</strong> hoặc gán thêm chính sách ở tab <strong>Chính sách</strong>.
             </p>

@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BaseTableList, type Column, type RowAction } from "@/components/ui/base/base_table_list";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Eye, ListFilter, ArrowDownUp, AlertTriangle, Settings, Plus } from "lucide-react";
 import { useAdminIncidents, useCustomerLookup, useTaskerLookup } from "../hooks/useAdminIncident";
 import { LookupCombobox } from "./LookupCombobox";
@@ -99,8 +99,8 @@ export function IncidentQueueTable() {
       title: "Sự cố",
       render: (r) => (
         <div>
-          <p className="font-mono text-xs font-bold text-primary">{r.incidentCode ?? "—"}</p>
-          <p className="line-clamp-1 max-w-[220px] text-xs text-muted-foreground">{r.title}</p>
+          <p className="font-mono text-xs font-bold text-[var(--c-primary-strong)]">{r.incidentCode ?? "—"}</p>
+          <p className="line-clamp-1 max-w-[220px] text-xs text-[var(--c-muted)]">{r.title}</p>
         </div>
       ),
     },
@@ -116,12 +116,12 @@ export function IncidentQueueTable() {
       ),
     },
     { key: "claimedAmount", title: "Yêu cầu", hideOnMobile: true, render: (r) => <span className="text-xs font-semibold">{formatVnd(r.claimedAmount)}</span> },
-    { key: "approvedAmount", title: "Duyệt", hideOnMobile: true, render: (r) => <span className="text-xs text-emerald-600">{formatVnd(r.approvedAmount)}</span> },
+    { key: "approvedAmount", title: "Duyệt", hideOnMobile: true, render: (r) => <span className="text-xs text-[#0E9F6E]">{formatVnd(r.approvedAmount)}</span> },
     {
       key: "reportedAt",
       title: "Báo cáo",
       hideOnMobile: true,
-      render: (r) => <span className="text-xs text-muted-foreground">{new Date(r.reportedAt).toLocaleDateString("vi-VN")}</span>,
+      render: (r) => <span className="text-xs text-[var(--c-muted)]">{new Date(r.reportedAt).toLocaleDateString("vi-VN")}</span>,
     },
   ];
 
@@ -137,23 +137,23 @@ export function IncidentQueueTable() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end gap-2">
-        <Button size="sm" variant="outline" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowConfig(true)}>
+        <AdminButton size="sm" variant="secondary" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowConfig(true)}>
           <Settings className="size-3.5" /> Cấu hình
-        </Button>
-        <Button size="sm" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowCreate(true)}>
+        </AdminButton>
+        <AdminButton size="sm" variant="primary" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowCreate(true)}>
           <Plus className="size-3.5" /> Tạo từ Ticket
-        </Button>
+        </AdminButton>
       </div>
 
       {/* Toolbar — 2 cụm filter đều nhau */}
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="grid grid-cols-2 gap-2">
           <Select value={sel("status")} onValueChange={(v) => setParams({ status: v })}>
-            <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
-              <ListFilter className="mr-1 size-3.5 shrink-0 text-muted-foreground" />
+            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
+              <ListFilter className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
               <SelectValue placeholder="Trạng thái" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
               {INCIDENT_STATUS.map((s) => (
                 <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
@@ -162,10 +162,10 @@ export function IncidentQueueTable() {
           </Select>
 
           <Select value={sel("comp")} onValueChange={(v) => setParams({ comp: v })}>
-            <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <SelectValue placeholder="Bồi thường" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả bồi thường</SelectItem>
               {COMPENSATION_STATUS.map((c) => (
                 <SelectItem key={c} value={c}>{COMP_STATUS_LABEL[c]}</SelectItem>
@@ -174,10 +174,10 @@ export function IncidentQueueTable() {
           </Select>
 
           <Select value={sel("severity")} onValueChange={(v) => setParams({ severity: v })}>
-            <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <SelectValue placeholder="Mức độ" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả mức độ</SelectItem>
               {SEVERITY.map((s) => (
                 <SelectItem key={s} value={s}>{SEVERITY_LABEL[s]}</SelectItem>
@@ -186,13 +186,13 @@ export function IncidentQueueTable() {
           </Select>
 
           <Select value={sel("overdue")} onValueChange={(v) => setParams({ overdue: v })}>
-            <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
+            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <SelectValue placeholder="Quá hạn" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả</SelectItem>
               <SelectItem value="true">
-                <div className="flex items-center gap-1.5"><AlertTriangle className="size-3.5 text-red-500" /> Quá hạn</div>
+                <div className="flex items-center gap-1.5"><AlertTriangle className="size-3.5 text-[#E11D48]" /> Quá hạn</div>
               </SelectItem>
               <SelectItem value="false">Trong hạn</SelectItem>
             </SelectContent>
@@ -201,11 +201,11 @@ export function IncidentQueueTable() {
 
         <div className="grid grid-cols-2 gap-2">
           <Select value={get("sort") || "reportedAt"} onValueChange={(v) => setParams({ sort: v })}>
-            <SelectTrigger className="h-9 w-full rounded-lg border-border/40 text-sm font-medium shadow-none">
-              <ArrowDownUp className="mr-1 size-3.5 shrink-0 text-muted-foreground" />
+            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
+              <ArrowDownUp className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
               <SelectValue placeholder="Sắp xếp" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               {SORT_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -72,23 +72,23 @@ export function DecisionPanel({ id, items }: { id: string; items: DamageItem[] }
 
   return (
     <section className="space-y-3">
-      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Quyết định</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Quyết định</p>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button size="sm" variant={mode === "APPROVE" ? "default" : "outline"} className="rounded-lg gap-1.5" onClick={() => setMode("APPROVE")}>
+        <AdminButton size="sm" variant={mode === "APPROVE" ? "primary" : "secondary"} className="rounded-lg gap-1.5" onClick={() => setMode("APPROVE")}>
           <Check className="size-3.5" /> Duyệt
-        </Button>
-        <Button size="sm" variant={mode === "REJECT" ? "destructive" : "outline"} className="rounded-lg gap-1.5" onClick={() => setMode("REJECT")}>
+        </AdminButton>
+        <AdminButton size="sm" variant={mode === "REJECT" ? "danger" : "secondary"} className="rounded-lg gap-1.5" onClick={() => setMode("REJECT")}>
           <X className="size-3.5" /> Từ chối
-        </Button>
+        </AdminButton>
       </div>
 
       {mode === "APPROVE" ? (
         <div className="space-y-2">
           {items.map((it) => (
-            <div key={it.id} className="rounded-lg border border-border/40 p-2.5">
+            <div key={it.id} className="rounded-lg border border-[var(--c-line)] p-2.5">
               <p className="text-sm">{it.description}</p>
-              <p className="mb-1 text-xs text-muted-foreground">
+              <p className="mb-1 text-xs text-[var(--c-muted)]">
                 Yêu cầu {formatVnd(it.claimedAmount)} · Xác minh {formatVnd(it.verifiedAmount)}
               </p>
               <Input
@@ -104,25 +104,25 @@ export function DecisionPanel({ id, items }: { id: string; items: DamageItem[] }
             </div>
           ))}
 
-          <div className="rounded-lg bg-muted/40 p-2.5 text-sm">
+          <div className="rounded-lg bg-[var(--c-card-2)] p-2.5 text-sm">
             Tổng duyệt: <b>{formatVnd(sumApproved)}</b>
             {overCap && (
-              <span className="ml-2 text-red-500">Vượt trần {formatVnd(POLICY_CAP)}</span>
+              <span className="ml-2 text-[#E11D48]">Vượt trần {formatVnd(POLICY_CAP)}</span>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Tasker chịu</Label>
+              <Label className="text-xs text-[var(--c-ink)]">Tasker chịu</Label>
               <Input type="number" min={0} value={taskerBorne} onChange={(e) => setTaskerBorne(e.target.value)} className="h-8 rounded-lg text-sm" placeholder="VND" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Quỹ chịu</Label>
+              <Label className="text-xs text-[var(--c-ink)]">Quỹ chịu</Label>
               <Input type="number" min={0} value={platformBorne} onChange={(e) => setPlatformBorne(e.target.value)} className="h-8 rounded-lg text-sm" placeholder="VND" />
             </div>
           </div>
           {!alloc.ok && (taskerBorne || platformBorne) && (
-            <p className="flex items-start gap-1 text-xs text-amber-600">
+            <p className="flex items-start gap-1 text-xs text-[#D97706]">
               <AlertTriangle className="mt-px size-3.5 shrink-0" /> {alloc.reason}
             </p>
           )}
@@ -136,9 +136,9 @@ export function DecisionPanel({ id, items }: { id: string; items: DamageItem[] }
             />
           )}
 
-          <Button size="sm" className="w-full rounded-lg" onClick={submitApprove} disabled={approveDisabled}>
+          <AdminButton variant="primary" size="sm" className="w-full rounded-lg" onClick={submitApprove} disabled={approveDisabled}>
             {decide.isPending ? "Đang gửi..." : "Duyệt bồi thường"}
-          </Button>
+          </AdminButton>
         </div>
       ) : (
         <div className="space-y-2">
@@ -149,15 +149,15 @@ export function DecisionPanel({ id, items }: { id: string; items: DamageItem[] }
             placeholder="Lý do từ chối (khách hàng sẽ thấy)..."
             className="resize-none rounded-lg text-sm"
           />
-          <label className="flex items-center justify-between gap-2 rounded-lg border border-border/40 p-2.5 text-sm">
+          <label className="flex items-center justify-between gap-2 rounded-lg border border-[var(--c-line)] p-2.5 text-sm">
             <span className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-red-500" /> Đánh dấu khai gian (+1 strike)
+              <AlertTriangle className="size-4 text-[#E11D48]" /> Đánh dấu khai gian (+1 strike)
             </span>
             <Switch checked={rejectAsFraud} onCheckedChange={setRejectAsFraud} aria-label="Khai gian" />
           </label>
-          <Button size="sm" variant="destructive" className="w-full rounded-lg" onClick={submitReject} disabled={!reason.trim() || decide.isPending}>
+          <AdminButton size="sm" variant="danger" className="w-full rounded-lg border border-[#E11D48]/30" onClick={submitReject} disabled={!reason.trim() || decide.isPending}>
             {decide.isPending ? "Đang gửi..." : "Từ chối"}
-          </Button>
+          </AdminButton>
         </div>
       )}
     </section>

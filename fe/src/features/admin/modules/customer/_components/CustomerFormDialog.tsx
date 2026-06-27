@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { adminInputClass } from "@/components/admin";
 import {
   useCreateCustomer,
   useUpdateCustomer,
@@ -131,10 +132,10 @@ export const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg rounded-[20px]">
+      <DialogContent className="cz-admin sm:max-w-lg rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Cập nhật khách hàng" : "Thêm khách hàng mới"}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-[var(--c-ink)]">{isEdit ? "Cập nhật khách hàng" : "Thêm khách hàng mới"}</DialogTitle>
+          <DialogDescription className="text-[var(--c-muted)]">
             {isEdit
               ? "Chỉnh sửa thông tin tài khoản khách hàng."
               : "Tạo tài khoản khách hàng mới cho hệ thống."}
@@ -150,18 +151,19 @@ export const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
           <div className="space-y-4 py-2">
             {!isEdit && (
               <div className="space-y-1.5">
-                <Label htmlFor="customer-email">Email</Label>
+                <Label htmlFor="customer-email" className="text-[var(--c-ink-soft)]">Email</Label>
               <Input
                 id="customer-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setField("email", e.target.value)}
                 placeholder="customer@example.com"
+                className={adminInputClass}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "customer-email-error" : undefined}
               />
               {errors.email && (
-                <p id="customer-email-error" className="text-xs text-destructive">
+                <p id="customer-email-error" className="text-xs text-[#E11D48]">
                   {errors.email}
                 </p>
               )}
@@ -169,17 +171,18 @@ export const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="customer-fullName">Họ và tên</Label>
+            <Label htmlFor="customer-fullName" className="text-[var(--c-ink-soft)]">Họ và tên</Label>
             <Input
               id="customer-fullName"
               value={form.fullName}
               onChange={(e) => setField("fullName", e.target.value)}
               placeholder="Nguyễn Văn A"
+              className={adminInputClass}
               aria-invalid={!!errors.fullName}
               aria-describedby={errors.fullName ? "customer-fullName-error" : undefined}
             />
             {errors.fullName && (
-              <p id="customer-fullName-error" className="text-xs text-destructive">
+              <p id="customer-fullName-error" className="text-xs text-[#E11D48]">
                 {errors.fullName}
               </p>
             )}
@@ -187,32 +190,33 @@ export const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="customer-phone">Số điện thoại</Label>
+              <Label htmlFor="customer-phone" className="text-[var(--c-ink-soft)]">Số điện thoại</Label>
               <Input
                 id="customer-phone"
                 value={form.phone}
                 onChange={(e) => setField("phone", e.target.value)}
                 placeholder="0901234567"
+                className={adminInputClass}
                 aria-invalid={!!errors.phone}
                 aria-describedby={errors.phone ? "customer-phone-error" : undefined}
               />
               {errors.phone && (
-                <p id="customer-phone-error" className="text-xs text-destructive">
+                <p id="customer-phone-error" className="text-xs text-[#E11D48]">
                   {errors.phone}
                 </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="customer-payment">Thanh toán mặc định</Label>
+              <Label htmlFor="customer-payment" className="text-[var(--c-ink-soft)]">Thanh toán mặc định</Label>
               <Select
                 value={form.defaultPaymentMethod}
                 onValueChange={(val) => setField("defaultPaymentMethod", val)}
               >
-                <SelectTrigger id="customer-payment" className="w-full">
+                <SelectTrigger id="customer-payment" className="w-full h-10 rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
                   {PAYMENT_METHOD_OPTIONS.map((m) => (
                     <SelectItem key={m.value} value={m.value}>
                       {m.label}
@@ -224,7 +228,7 @@ export const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
           </div>
 
           {!isEdit && (
-            <p className="rounded-xl bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
+            <p className="rounded-xl bg-[var(--c-card-2)] px-3 py-2.5 text-xs text-[var(--c-muted)]">
               Hệ thống sẽ tự sinh mật khẩu tạm và gửi vào email khách hàng. Khách
               sẽ được yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.
             </p>
@@ -237,11 +241,16 @@ export const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
               variant="outline"
               onClick={onClose}
               disabled={isPending}
-              className="rounded-full"
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={isPending} className="rounded-full">
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="rounded-full text-white shadow-[0_8px_18px_-8px_rgba(255,152,0,0.7)] hover:brightness-105"
+              style={{ background: "linear-gradient(180deg, #FFB300, #FF9800)" }}
+            >
               {isPending ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo khách hàng"}
             </Button>
           </DialogFooter>

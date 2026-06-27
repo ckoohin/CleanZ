@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminButton } from "@/components/admin";
 import { useAvailableTaskers, useAssignTaskerToBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 
 interface AssignTaskerDialogProps {
@@ -69,32 +69,32 @@ export function AssignTaskerDialog({ bookingId, open, onOpenChange, currentTaske
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="cz-admin max-w-md bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle>{currentTaskerId ? "Thay đổi Tasker" : "Gán Tasker vào đơn"}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-[var(--c-ink)]">{currentTaskerId ? "Thay đổi Tasker" : "Gán Tasker vào đơn"}</DialogTitle>
+          <DialogDescription className="text-[var(--c-muted)]">
             Tìm kiếm và chọn một Tasker phù hợp đang rảnh trong khung giờ của đơn hàng.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-[var(--c-muted)]" />
             <Input
               placeholder="Nhập tên hoặc số điện thoại..."
-              className="pl-8"
+              className="pl-8 bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
           </div>
 
-          <div className="border rounded-md max-h-60 overflow-y-auto space-y-1 p-1">
+          <div className="border border-[var(--c-line)] rounded-md max-h-60 overflow-y-auto space-y-1 p-1">
             {isLoading ? (
               <div className="flex justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-[var(--c-muted)]" />
               </div>
             ) : taskers.length === 0 ? (
-              <div className="text-center py-4 text-sm text-muted-foreground">
+              <div className="text-center py-4 text-sm text-[var(--c-muted)]">
                 Không tìm thấy Tasker phù hợp
               </div>
             ) : (
@@ -102,24 +102,25 @@ export function AssignTaskerDialog({ bookingId, open, onOpenChange, currentTaske
                 <div
                   key={t.id}
                   className={`flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors ${
-                    selectedTaskerId === t.id ? "bg-primary/10 border-primary border" : "hover:bg-slate-100 border border-transparent"
+                    selectedTaskerId === t.id ? "bg-[var(--c-primary-soft)] border-[var(--c-primary)] border" : "hover:bg-[var(--c-card-2)] border border-transparent"
                   }`}
                   onClick={() => setSelectedTaskerId(t.id)}
                 >
                   <div>
-                    <p className="font-semibold text-sm">{t.fullName}</p>
-                    <p className="text-xs text-muted-foreground">{t.phone || t.phoneNumber}</p>
+                    <p className="font-semibold text-sm text-[var(--c-ink)]">{t.fullName}</p>
+                    <p className="text-xs text-[var(--c-muted)]">{t.phone || t.phoneNumber}</p>
                   </div>
-                  {selectedTaskerId === t.id && <UserCheck className="h-5 w-5 text-primary" />}
+                  {selectedTaskerId === t.id && <UserCheck className="h-5 w-5 text-[var(--c-primary-strong)]" />}
                 </div>
               ))
             )}
           </div>
 
           <div>
-            <label className="text-sm font-semibold mb-1 block">Ghi chú cho Tasker (Tùy chọn)</label>
+            <label className="text-sm font-semibold mb-1 block text-[var(--c-ink)]">Ghi chú cho Tasker (Tùy chọn)</label>
             <Textarea
               placeholder="Nhập ghi chú hoặc lý do thay đổi..."
+              className="bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
@@ -127,13 +128,13 @@ export function AssignTaskerDialog({ bookingId, open, onOpenChange, currentTaske
         </div>
 
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <AdminButton variant="secondary" onClick={() => onOpenChange(false)}>
             Hủy
-          </Button>
-          <Button onClick={handleAssign} disabled={!selectedTaskerId || assignMutation.isPending}>
+          </AdminButton>
+          <AdminButton variant="primary" onClick={handleAssign} disabled={!selectedTaskerId || assignMutation.isPending}>
             {assignMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Xác nhận gán
-          </Button>
+          </AdminButton>
         </div>
       </DialogContent>
     </Dialog>

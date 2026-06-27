@@ -138,18 +138,18 @@ function TaskTagInput({
   return (
     <div className={cn(
       "rounded-2xl border-2 overflow-hidden transition-all",
-      isIncluded ? "border-emerald-200/70 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10"
-                 : "border-rose-200/70 dark:border-rose-800/50 bg-rose-50/50 dark:bg-rose-900/10",
+      isIncluded ? "border-[#0E9F6E]/70 dark:border-[#0E9F6E]/50 bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]"
+                 : "border-[#E11D48]/70 dark:border-[#E11D48]/50 bg-[rgba(225,29,72,0.12)] dark:bg-[rgba(225,29,72,0.12)]",
     )}>
       {/* Header */}
       <div className={cn(
         "flex items-center gap-2 px-4 py-3 border-b",
-        isIncluded ? "border-emerald-200/50 bg-emerald-100/40 dark:bg-emerald-900/20"
-                   : "border-rose-200/50 bg-rose-100/40 dark:bg-rose-900/20",
+        isIncluded ? "border-[#0E9F6E]/50 bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]"
+                   : "border-[#E11D48]/50 bg-[rgba(225,29,72,0.12)] dark:bg-[rgba(225,29,72,0.12)]",
       )}>
         <div className={cn(
           "w-5 h-5 rounded-full flex items-center justify-center shrink-0",
-          isIncluded ? "bg-emerald-500" : "bg-rose-500",
+          isIncluded ? "bg-[#0E9F6E]" : "bg-[#E11D48]",
         )}>
           {isIncluded
             ? <Check className="w-3 h-3 text-white" aria-hidden="true" />
@@ -157,13 +157,13 @@ function TaskTagInput({
         </div>
         <span className={cn(
           "text-xs font-black uppercase tracking-widest",
-          isIncluded ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+          isIncluded ? "text-[#0E9F6E] dark:text-[#0E9F6E]" : "text-[#E11D48] dark:text-[#E11D48]",
         )}>
           {isIncluded ? "Công việc bao gồm" : "Không bao gồm"}
         </span>
         <span className={cn(
           "ml-auto text-xs font-bold rounded-full px-2 py-0.5",
-          isIncluded ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-600",
+          isIncluded ? "bg-[#0E9F6E] text-[#0E9F6E]" : "bg-[#E11D48] text-[#E11D48]",
         )}>
           {value.length} mục
         </span>
@@ -178,8 +178,8 @@ function TaskTagInput({
           <span key={i} className={cn(
             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all group",
             isIncluded
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-300/50 hover:border-emerald-400"
-              : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-300/50 hover:border-rose-400",
+              ? "bg-[#0E9F6E] text-[#0E9F6E] dark:text-[#0E9F6E] border border-[#0E9F6E]/50 hover:border-[#0E9F6E]"
+              : "bg-[#E11D48] text-[#E11D48] dark:text-[#E11D48] border border-[#E11D48]/50 hover:border-[#E11D48]",
           )}>
             <GripVertical className="w-3 h-3 opacity-30" aria-hidden="true" />
             {tag}
@@ -188,7 +188,7 @@ function TaskTagInput({
               onClick={(e) => { e.stopPropagation(); remove(i); }}
               className={cn(
                 "rounded-full w-4 h-4 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity",
-                isIncluded ? "hover:bg-emerald-500/20" : "hover:bg-rose-500/20",
+                isIncluded ? "hover:bg-[#0E9F6E]" : "hover:bg-[#E11D48]",
               )}
             >
               <X className="w-2.5 h-2.5" aria-hidden="true" />
@@ -204,7 +204,7 @@ function TaskTagInput({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder={value.length === 0 ? placeholder : "Thêm mục..."}
-            className="flex-1 bg-transparent outline-none text-xs text-foreground placeholder:text-muted-foreground/50 py-1"
+            className="flex-1 bg-transparent outline-none text-xs text-[var(--c-ink)] placeholder:text-[var(--c-muted)] py-1"
           />
           {input.trim() && (
             <button
@@ -212,8 +212,8 @@ function TaskTagInput({
               onClick={add}
               className={cn(
                 "text-xs font-bold px-2 py-1 rounded-lg transition-colors shrink-0",
-                isIncluded ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-                           : "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20",
+                isIncluded ? "bg-[#0E9F6E] text-[#0E9F6E] hover:bg-[#0E9F6E]"
+                           : "bg-[#E11D48] text-[#E11D48] hover:bg-[#E11D48]",
               )}
             >
               + Thêm
@@ -224,7 +224,7 @@ function TaskTagInput({
 
       <div className={cn(
         "px-4 py-2 border-t text-[10px]",
-        isIncluded ? "border-emerald-200/40 text-emerald-600/60" : "border-rose-200/40 text-rose-500/60",
+        isIncluded ? "border-[#0E9F6E]/40 text-[#0E9F6E]" : "border-[#E11D48]/40 text-[#E11D48]",
       )}>
         Enter hoặc dấu phẩy để thêm · Backspace để xoá mục cuối
       </div>
@@ -238,14 +238,14 @@ function SectionCard({ icon: Icon, title, description, children }: {
   icon: React.ElementType; title: string; description?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-border/40 bg-muted/20 flex items-center gap-3">
-        <div className="p-2 bg-primary/10 rounded-xl">
-          <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
+    <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-6 py-4 border-b border-[var(--c-line)]/40 bg-[var(--c-card-2)] flex items-center gap-3">
+        <div className="p-2 bg-[var(--c-primary-soft)] rounded-xl">
+          <Icon className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
         </div>
         <div>
-          <h3 className="font-bold text-foreground text-base">{title}</h3>
-          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+          <h3 className="font-bold text-[var(--c-ink)] text-base">{title}</h3>
+          {description && <p className="text-xs text-[var(--c-muted)] mt-0.5">{description}</p>}
         </div>
       </div>
       <div className="p-6">{children}</div>
@@ -259,10 +259,10 @@ function Field({ label, required, hint, children }: {
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-bold">
-        {label}{required && <span className="text-destructive ml-0.5">*</span>}
+        {label}{required && <span className="text-[#E11D48] ml-0.5">*</span>}
       </Label>
       {children}
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs text-[var(--c-muted)]">{hint}</p>}
     </div>
   );
 }
@@ -280,12 +280,12 @@ function PricingTypeForm({
 
   if (pricingType === "FIXED") {
     return (
-      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/50 dark:bg-emerald-900/10 p-4 space-y-3">
+      <div className="rounded-xl border border-[#0E9F6E]/60 bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)] p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
-          <Zap className="w-4 h-4 text-emerald-600" aria-hidden="true" />
-          <span className="text-sm font-black text-emerald-700 dark:text-emerald-400">FIXED — Giá cố định</span>
+          <Zap className="w-4 h-4 text-[#0E9F6E]" aria-hidden="true" />
+          <span className="text-sm font-black text-[#0E9F6E] dark:text-[#0E9F6E]">FIXED — Giá cố định</span>
         </div>
-        <p className="text-xs text-muted-foreground">Khách hàng trả một mức giá cố định, không phụ thuộc vào thời gian thực tế.</p>
+        <p className="text-xs text-[var(--c-muted)]">Khách hàng trả một mức giá cố định, không phụ thuộc vào thời gian thực tế.</p>
         <Field label="Giá cố định" required hint="Giá niêm yết hiển thị cho khách hàng">
           <div className="flex items-center gap-2">
             <Input
@@ -294,10 +294,10 @@ function PricingTypeForm({
               onChange={(e) => set("fixedPrice", e.target.value.replace(/\D/g, ""))}
               className="h-10 rounded-xl flex-1"
             />
-            <span className="text-sm font-bold text-muted-foreground shrink-0">₫</span>
+            <span className="text-sm font-bold text-[var(--c-muted)] shrink-0">₫</span>
           </div>
           {value.fixedPrice && Number(value.fixedPrice) > 0 && (
-            <p className="text-xs font-bold text-emerald-600 mt-1">{vnd(Number(value.fixedPrice))}</p>
+            <p className="text-xs font-bold text-[#0E9F6E] mt-1">{vnd(Number(value.fixedPrice))}</p>
           )}
         </Field>
       </div>
@@ -306,12 +306,12 @@ function PricingTypeForm({
 
   if (pricingType === "HOURLY") {
     return (
-      <div className="rounded-xl border border-blue-200/60 bg-blue-50/50 dark:bg-blue-900/10 p-4 space-y-3">
+      <div className="rounded-xl border border-[#2563EB]/60 bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)] p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
-          <Clock className="w-4 h-4 text-blue-600" aria-hidden="true" />
-          <span className="text-sm font-black text-blue-700 dark:text-blue-400">HOURLY — Tính theo giờ</span>
+          <Clock className="w-4 h-4 text-[#2563EB]" aria-hidden="true" />
+          <span className="text-sm font-black text-[#2563EB] dark:text-[#2563EB]">HOURLY — Tính theo giờ</span>
         </div>
-        <p className="text-xs text-muted-foreground">Giá tính theo số giờ làm việc thực tế, nhân viên báo cáo giờ vào/ra.</p>
+        <p className="text-xs text-[var(--c-muted)]">Giá tính theo số giờ làm việc thực tế, nhân viên báo cáo giờ vào/ra.</p>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Giá mỗi giờ" required>
             <div className="flex items-center gap-2">
@@ -321,10 +321,10 @@ function PricingTypeForm({
                 onChange={(e) => set("hourlyRate", e.target.value.replace(/\D/g, ""))}
                 className="h-10 rounded-xl"
               />
-              <span className="text-sm font-bold text-muted-foreground shrink-0">₫/h</span>
+              <span className="text-sm font-bold text-[var(--c-muted)] shrink-0">₫/h</span>
             </div>
             {value.hourlyRate && Number(value.hourlyRate) > 0 && (
-              <p className="text-xs font-bold text-blue-600 mt-1">{vnd(Number(value.hourlyRate))}/giờ</p>
+              <p className="text-xs font-bold text-[#2563EB] mt-1">{vnd(Number(value.hourlyRate))}/giờ</p>
             )}
           </Field>
           <Field label="Số giờ tối thiểu" hint="Để 0 nếu không giới hạn">
@@ -338,12 +338,12 @@ function PricingTypeForm({
                 }}
                 className="h-10 rounded-xl"
               />
-              <span className="text-sm font-bold text-muted-foreground shrink-0">giờ</span>
+              <span className="text-sm font-bold text-[var(--c-muted)] shrink-0">giờ</span>
             </div>
           </Field>
         </div>
         {value.hourlyRate && value.minHours && Number(value.hourlyRate) > 0 && Number(value.minHours) > 0 && (
-          <div className="bg-blue-500/5 rounded-lg p-2.5 text-xs text-blue-700 dark:text-blue-300">
+          <div className="bg-[#2563EB] rounded-lg p-2.5 text-xs text-[#2563EB] dark:text-[#2563EB]">
             💡 Đơn tối thiểu: <strong>{vnd(Number(value.hourlyRate) * Number(value.minHours))}</strong>
             {" "}({value.minHours} giờ × {vnd(Number(value.hourlyRate))}/giờ)
           </div>
@@ -354,12 +354,12 @@ function PricingTypeForm({
 
   if (pricingType === "CUSTOM") {
     return (
-      <div className="rounded-xl border border-violet-200/60 bg-violet-50/50 dark:bg-violet-900/10 p-4 space-y-3">
+      <div className="rounded-xl border border-[#7C3AED]/60 bg-[rgba(124,58,237,0.12)] dark:bg-[rgba(124,58,237,0.12)] p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
-          <Shuffle className="w-4 h-4 text-violet-600" aria-hidden="true" />
-          <span className="text-sm font-black text-violet-700 dark:text-violet-400">CUSTOM — Tuỳ chỉnh</span>
+          <Shuffle className="w-4 h-4 text-[#7C3AED]" aria-hidden="true" />
+          <span className="text-sm font-black text-[#7C3AED] dark:text-[#7C3AED]">CUSTOM — Tuỳ chỉnh</span>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[var(--c-muted)]">
           Cấu trúc giá tùy chỉnh — VD: tính theo diện tích, số phòng, gói combo...
         </p>
         <Field label="Mô tả cấu trúc giá" hint="Nhân viên và khách hàng sẽ thấy mô tả này">
@@ -392,8 +392,8 @@ function SubServiceCard({ svc, isSelected, onToggle }: {
     <div className={cn(
       "rounded-xl border-2 transition-all duration-200 overflow-hidden",
       isSelected
-        ? "border-primary bg-primary/5 shadow-sm shadow-primary/20"
-        : "border-border/40 bg-card hover:border-primary/30",
+        ? "border-[var(--c-primary)] bg-[var(--c-primary-soft)] shadow-sm shadow-primary/20"
+        : "border-[var(--c-line)]/40 bg-[var(--c-card)] hover:border-[var(--c-primary)]/30",
     )}>
       {/* Main row */}
       <div className="flex items-center gap-3 p-3">
@@ -403,41 +403,41 @@ function SubServiceCard({ svc, isSelected, onToggle }: {
           onClick={onToggle}
           className={cn(
             "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
-            isSelected ? "border-primary bg-primary" : "border-muted-foreground/30",
+            isSelected ? "border-[var(--c-primary)] bg-[var(--c-primary)]" : "border-[var(--c-muted)]",
           )}
         >
           {isSelected && <Check className="w-3 h-3 text-white" aria-hidden="true" />}
         </button>
 
         {/* Thumbnail */}
-        <button type="button" onClick={onToggle} className="relative h-11 w-11 rounded-xl overflow-hidden bg-muted/40 border border-border/40 shrink-0">
+        <button type="button" onClick={onToggle} className="relative h-11 w-11 rounded-xl overflow-hidden bg-[var(--c-card-2)] border border-[var(--c-line)]/40 shrink-0">
           {svc.thumbnailUrl
             ? <img src={svc.thumbnailUrl} alt={svc.name} className="w-full h-full object-cover" />
-            : <div className="flex h-full items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground/30" /></div>}
+            : <div className="flex h-full items-center justify-center"><ImageIcon className="w-5 h-5 text-[var(--c-muted)]" /></div>}
         </button>
 
         {/* Info */}
         <button type="button" onClick={onToggle} className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-sm text-foreground truncate">{svc.name}</span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold shrink-0">
+            <span className="font-bold text-sm text-[var(--c-ink)] truncate">{svc.name}</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-bold shrink-0">
               {svc.subServiceCode}
             </span>
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             {svc.durationHours && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 text-xs text-[var(--c-muted)]">
                 <Clock className="w-3 h-3" aria-hidden="true" />{svc.durationHours}h
               </span>
             )}
             {svc.pricingConfig?.basePrice && (
-              <span className="text-xs text-primary font-bold">
+              <span className="text-xs text-[var(--c-primary-strong)] font-bold">
                 {vnd(Number(svc.pricingConfig.basePrice))}
               </span>
             )}
             <span className={cn(
               "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-              svc.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
+              svc.isActive ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]" : "bg-[rgba(225,29,72,0.12)] text-[#E11D48]",
             )}>
               {svc.isActive ? "Bật" : "Tắt"}
             </span>
@@ -450,7 +450,7 @@ function SubServiceCard({ svc, isSelected, onToggle }: {
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            className="p-1.5 rounded-lg hover:bg-[var(--c-card-2)] transition-colors text-[var(--c-muted)] hover:text-[var(--c-ink)]"
             title="Xem thông tin cơ bản"
           >
             {expanded ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
@@ -459,7 +459,7 @@ function SubServiceCard({ svc, isSelected, onToggle }: {
           <button
             type="button"
             onClick={() => router.push(`/admin/services/${svc.id}`)}
-            className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-muted-foreground hover:text-blue-600"
+            className="p-1.5 rounded-lg hover:bg-[rgba(37,99,235,0.12)] dark:hover:bg-[rgba(37,99,235,0.12)] transition-colors text-[var(--c-muted)] hover:text-[#2563EB]"
             title="Xem trang chi tiết"
           >
             <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
@@ -469,46 +469,46 @@ function SubServiceCard({ svc, isSelected, onToggle }: {
 
       {/* Expanded info panel */}
       {expanded && (
-        <div className="border-t border-border/30 bg-muted/10 px-4 py-3 space-y-2">
+        <div className="border-t border-[var(--c-line)]/30 bg-[var(--c-card-2)] px-4 py-3 space-y-2">
           {svc.shortDescription && (
-            <p className="text-xs text-muted-foreground leading-relaxed">{svc.shortDescription}</p>
+            <p className="text-xs text-[var(--c-muted)] leading-relaxed">{svc.shortDescription}</p>
           )}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             {svc.coverageArea && (
-              <span className="text-muted-foreground">🗺️ <strong>Khu vực:</strong> {svc.coverageArea}</span>
+              <span className="text-[var(--c-muted)]">🗺️ <strong>Khu vực:</strong> {svc.coverageArea}</span>
             )}
             {svc.pricingType && (
-              <span className="text-muted-foreground">💱 <strong>Loại giá:</strong> {svc.pricingType}</span>
+              <span className="text-[var(--c-muted)]">💱 <strong>Loại giá:</strong> {svc.pricingType}</span>
             )}
           </div>
           {((svc.includedTasks?.length ?? 0) > 0 || (svc.excludedTasks?.length ?? 0) > 0) && (
             <div className="grid grid-cols-2 gap-3 pt-1">
               {(svc.includedTasks?.length ?? 0) > 0 && (
                 <div>
-                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider mb-1">Bao gồm</p>
+                  <p className="text-[9px] font-black text-[#0E9F6E] uppercase tracking-wider mb-1">Bao gồm</p>
                   <ul className="space-y-0.5">
                     {(svc.includedTasks ?? []).slice(0, 3).map((t: string, i: number) => (
-                      <li key={i} className="flex items-start gap-1 text-xs text-emerald-700 dark:text-emerald-400">
+                      <li key={i} className="flex items-start gap-1 text-xs text-[#0E9F6E] dark:text-[#0E9F6E]">
                         <Check className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />{t}
                       </li>
                     ))}
                     {(svc.includedTasks?.length ?? 0) > 3 && (
-                      <li className="text-xs text-muted-foreground italic">+{(svc.includedTasks?.length ?? 0) - 3} nữa...</li>
+                      <li className="text-xs text-[var(--c-muted)] italic">+{(svc.includedTasks?.length ?? 0) - 3} nữa...</li>
                     )}
                   </ul>
                 </div>
               )}
               {(svc.excludedTasks?.length ?? 0) > 0 && (
                 <div>
-                  <p className="text-[9px] font-black text-rose-500 uppercase tracking-wider mb-1">Không gồm</p>
+                  <p className="text-[9px] font-black text-[#E11D48] uppercase tracking-wider mb-1">Không gồm</p>
                   <ul className="space-y-0.5">
                     {(svc.excludedTasks ?? []).slice(0, 3).map((t: string, i: number) => (
-                      <li key={i} className="flex items-start gap-1 text-xs text-rose-600 dark:text-rose-400">
+                      <li key={i} className="flex items-start gap-1 text-xs text-[#E11D48] dark:text-[#E11D48]">
                         <X className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />{t}
                       </li>
                     ))}
                     {(svc.excludedTasks?.length ?? 0) > 3 && (
-                      <li className="text-xs text-muted-foreground italic">+{(svc.excludedTasks?.length ?? 0) - 3} nữa...</li>
+                      <li className="text-xs text-[var(--c-muted)] italic">+{(svc.excludedTasks?.length ?? 0) - 3} nữa...</li>
                     )}
                   </ul>
                 </div>
@@ -533,23 +533,23 @@ function CustomSurchargeRow({
   const [showEmoji, setShowEmoji] = useState(false);
 
   return (
-    <div className="flex items-center gap-3 bg-card border border-border/50 rounded-xl p-3 group">
+    <div className="flex items-center gap-3 bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-xl p-3 group">
       {/* Emoji picker trigger */}
       <div className="relative">
         <button
           type="button"
           onClick={() => setShowEmoji(v => !v)}
-          className="w-9 h-9 rounded-xl border border-border/50 hover:border-primary/50 bg-muted/30 flex items-center justify-center text-lg transition-all"
+          className="w-9 h-9 rounded-xl border border-[var(--c-line)]/50 hover:border-[var(--c-primary)]/50 bg-[var(--c-card-2)] flex items-center justify-center text-lg transition-all"
         >
           {item.emoji || "➕"}
         </button>
         {showEmoji && (
-          <div className="absolute top-10 left-0 z-10 bg-card border border-border rounded-xl p-2 shadow-xl grid grid-cols-6 gap-1 w-44">
+          <div className="absolute top-10 left-0 z-10 bg-[var(--c-card)] border border-[var(--c-line)] rounded-xl p-2 shadow-xl grid grid-cols-6 gap-1 w-44">
             {DEFAULT_EMOJI_OPTIONS.map(e => (
               <button
                 key={e} type="button"
                 onClick={() => { onChange({ ...item, emoji: e }); setShowEmoji(false); }}
-                className="w-7 h-7 flex items-center justify-center text-base hover:bg-muted rounded-lg"
+                className="w-7 h-7 flex items-center justify-center text-base hover:bg-[var(--c-card-2)] rounded-lg"
               >
                 {e}
               </button>
@@ -583,11 +583,11 @@ function CustomSurchargeRow({
           }}
           className="h-9 rounded-xl text-sm w-28 text-right"
         />
-        <span className="text-xs text-muted-foreground font-semibold">₫</span>
+        <span className="text-xs text-[var(--c-muted)] font-semibold">₫</span>
         <button
           type="button"
           onClick={onRemove}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          className="p-1.5 rounded-lg text-[var(--c-muted)] hover:text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)] transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
@@ -621,7 +621,7 @@ function QuickCreateForm({
             <SelectTrigger className="h-10 rounded-xl">
               <SelectValue placeholder="Chọn thời lượng..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="cz-admin">
               {["0.5","1","1.5","2","2.5","3","4","5","6","8"].map(h => (
                 <SelectItem key={h} value={h}>{h} giờ</SelectItem>
               ))}
@@ -648,7 +648,7 @@ function QuickCreateForm({
           <SelectTrigger className="h-10 rounded-xl">
             <SelectValue placeholder="Chọn khu vực..." />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="cz-admin">
             {["Toàn quốc","Hà Nội","TP. Hồ Chí Minh","Đà Nẵng","Hải Phòng","Cần Thơ"].map(a => (
               <SelectItem key={a} value={a}>{a}</SelectItem>
             ))}
@@ -672,8 +672,8 @@ function QuickCreateForm({
                 className={cn(
                   "flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center",
                   value.pricingType === opt.v
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border/40 hover:border-primary/30 text-muted-foreground hover:text-foreground",
+                    ? "border-[var(--c-primary)] bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)]"
+                    : "border-[var(--c-line)]/40 hover:border-[var(--c-primary)]/30 text-[var(--c-muted)] hover:text-[var(--c-ink)]",
                 )}
               >
                 <opt.icon className="w-4 h-4" aria-hidden="true" />
@@ -694,7 +694,7 @@ function QuickCreateForm({
           <SelectTrigger className="h-10 rounded-xl">
             <SelectValue placeholder="Chọn bảng giá có sẵn..." />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="cz-admin">
             <SelectItem value="none">-- Không liên kết --</SelectItem>
             {pricingConfigs.map(c => (
               <SelectItem key={c.id} value={c.id}>
@@ -710,7 +710,7 @@ function QuickCreateForm({
         <div className="space-y-2">
           <Label className="text-sm font-bold">
             Ảnh đại diện
-            <span className="text-xs text-muted-foreground font-normal ml-2">Thumbnail card</span>
+            <span className="text-xs text-[var(--c-muted)] font-normal ml-2">Thumbnail card</span>
           </Label>
           <ImageUpload
             value={value.thumbnailUrl}
@@ -721,7 +721,7 @@ function QuickCreateForm({
         <div className="space-y-2">
           <Label className="text-sm font-bold">
             Ảnh gallery
-            <span className="text-xs text-muted-foreground font-normal ml-2">Nhiều ảnh trang chi tiết</span>
+            <span className="text-xs text-[var(--c-muted)] font-normal ml-2">Nhiều ảnh trang chi tiết</span>
           </Label>
           <MultipleImageUpload
             value={(value.galleryUrls ?? []).filter(Boolean)}
@@ -747,9 +747,9 @@ function QuickCreateForm({
       </div>
 
       {/* Active toggle */}
-      <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
+      <div className="flex items-center gap-3 p-3 bg-[var(--c-card-2)] rounded-xl border border-[var(--c-line)]/40">
         <Switch checked={value.isActive} onCheckedChange={(v) => set("isActive", v)} />
-        <span className={cn("text-sm font-semibold", value.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+        <span className={cn("text-sm font-semibold", value.isActive ? "text-[#0E9F6E]" : "text-[var(--c-muted)]")}>
           {value.isActive ? "Kích hoạt ngay sau khi tạo" : "Lưu nháp"}
         </span>
       </div>
@@ -773,21 +773,21 @@ function StepIndicator({ current, onStepClick }: { current: number; onStepClick:
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-xl transition-all",
                 isCurrent
-                  ? "bg-primary/10 text-primary cursor-default"
+                  ? "bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] cursor-default"
                   : isCompleted
-                    ? "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer"
-                    : "text-muted-foreground hover:bg-muted/50 cursor-pointer",
+                    ? "text-[#0E9F6E] hover:bg-[rgba(14,159,110,0.12)] dark:hover:bg-[rgba(14,159,110,0.12)] cursor-pointer"
+                    : "text-[var(--c-muted)] hover:bg-[var(--c-card-2)] cursor-pointer",
               )}
             >
               {isCompleted
                 ? <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                 : <step.icon className="w-4 h-4" aria-hidden="true" />}
-              <span className={cn("text-xs font-bold hidden sm:block", isCurrent ? "text-primary" : "")}>
+              <span className={cn("text-xs font-bold hidden sm:block", isCurrent ? "text-[var(--c-primary-strong)]" : "")}>
                 {step.label}
               </span>
             </button>
             {idx < STEPS.length - 1 && (
-              <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" aria-hidden="true" />
+              <ChevronRight className="w-3 h-3 text-[var(--c-muted)] shrink-0" aria-hidden="true" />
             )}
           </React.Fragment>
         );
@@ -798,26 +798,26 @@ function StepIndicator({ current, onStepClick }: { current: number; onStepClick:
 
 function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between items-center py-2.5 px-4 border-b border-border/30 last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold text-foreground text-right">{value || "—"}</span>
+    <div className="flex justify-between items-center py-2.5 px-4 border-b border-[var(--c-line)]/30 last:border-0">
+      <span className="text-sm text-[var(--c-muted)]">{label}</span>
+      <span className="text-sm font-semibold text-[var(--c-ink)] text-right">{value || "—"}</span>
     </div>
   );
 }
 
 // ─── SurchargeField ───────────────────────────────────────────────────────────
 
-function SurchargeField({ icon: Icon, label, hint, value, onChange, suffix = "VND", iconColor = "text-primary" }: {
+function SurchargeField({ icon: Icon, label, hint, value, onChange, suffix = "VND", iconColor = "text-[var(--c-primary-strong)]" }: {
   icon: React.ElementType; label: string; hint: string;
   value: number; onChange: (v: number) => void; suffix?: string; iconColor?: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 bg-muted/20 border border-border/40 rounded-xl p-4">
+    <div className="flex flex-col gap-2 bg-[var(--c-card-2)] border border-[var(--c-line)]/40 rounded-xl p-4">
       <div className="flex items-center gap-2">
         <Icon className={cn("w-4 h-4 shrink-0", iconColor)} aria-hidden="true" />
-        <span className="text-sm font-bold text-foreground">{label}</span>
+        <span className="text-sm font-bold text-[var(--c-ink)]">{label}</span>
       </div>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <p className="text-xs text-[var(--c-muted)]">{hint}</p>
       <div className="flex items-center gap-2 mt-1">
         <Input
           inputMode="numeric"
@@ -827,9 +827,9 @@ function SurchargeField({ icon: Icon, label, hint, value, onChange, suffix = "VN
             onChange(d ? Number(d) : 0);
           }}
           className="h-9 rounded-xl text-sm flex-1" />
-        <span className="text-xs text-muted-foreground font-semibold shrink-0">{suffix}</span>
+        <span className="text-xs text-[var(--c-muted)] font-semibold shrink-0">{suffix}</span>
       </div>
-      {value > 0 && <p className="text-xs font-bold text-primary">{vnd(value)}</p>}
+      {value > 0 && <p className="text-xs font-bold text-[var(--c-primary-strong)]">{vnd(value)}</p>}
     </div>
   );
 }
@@ -996,15 +996,15 @@ export default function CreatePackagePage() {
           <ArrowLeft className="w-4 h-4" aria-hidden="true" />
         </BaseButton>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground font-medium">Quản lý Gói Dịch vụ</p>
-          <h1 className="text-2xl font-black text-foreground leading-tight">Tạo gói dịch vụ mới</h1>
+          <p className="text-xs text-[var(--c-muted)] font-medium">Quản lý Gói Dịch vụ</p>
+          <h1 className="text-2xl font-black text-[var(--c-ink)] leading-tight">Tạo gói dịch vụ mới</h1>
         </div>
       </div>
 
       {/* Step Indicator */}
-      <div className="bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)]/50 rounded-2xl px-4 py-3 flex items-center justify-between flex-wrap gap-2">
         <StepIndicator current={step} onStepClick={setStep} />
-        <span className="text-xs text-muted-foreground font-semibold">Bước {step} / {STEPS.length}</span>
+        <span className="text-xs text-[var(--c-muted)] font-semibold">Bước {step} / {STEPS.length}</span>
       </div>
 
       {/* ═══════════ STEP 1: Thông tin cơ bản ═══════════ */}
@@ -1028,7 +1028,7 @@ export default function CreatePackagePage() {
               <div className="space-y-2">
                 <Label className="text-sm font-bold">
                   Ảnh đại diện gói
-                  <span className="text-xs text-muted-foreground font-normal ml-2">Thumbnail hiển thị trên card</span>
+                  <span className="text-xs text-[var(--c-muted)] font-normal ml-2">Thumbnail hiển thị trên card</span>
                 </Label>
                 <ImageUpload value={iconUrl} onChange={setIconUrl} onRemove={() => setIconUrl("")} />
               </div>
@@ -1036,7 +1036,7 @@ export default function CreatePackagePage() {
               <div className="space-y-2">
                 <Label className="text-sm font-bold">
                   Ảnh gallery phụ
-                  <span className="text-xs text-muted-foreground font-normal ml-2">Nhiều ảnh cho trang chi tiết</span>
+                  <span className="text-xs text-[var(--c-muted)] font-normal ml-2">Nhiều ảnh cho trang chi tiết</span>
                 </Label>
                 <MultipleImageUpload value={galleryUrls.filter(Boolean)} onChange={setGalleryUrls} />
               </div>
@@ -1061,7 +1061,7 @@ export default function CreatePackagePage() {
                 <Field label="Trạng thái khi tạo">
                   <div className="flex items-center gap-3 h-11">
                     <Switch checked={isActive} onCheckedChange={setIsActive} />
-                    <span className={cn("text-sm font-semibold", isActive ? "text-emerald-600" : "text-muted-foreground")}>
+                    <span className={cn("text-sm font-semibold", isActive ? "text-[#0E9F6E]" : "text-[var(--c-muted)]")}>
                       {isActive ? "Kích hoạt ngay" : "Lưu nháp"}
                     </span>
                   </div>
@@ -1097,7 +1097,7 @@ export default function CreatePackagePage() {
                       }
                     }}
                     className="h-11 rounded-xl flex-1" />
-                  <span className="text-sm text-muted-foreground font-semibold">giờ</span>
+                  <span className="text-sm text-[var(--c-muted)] font-semibold">giờ</span>
                 </div>
               </Field>
               <Field label="% Phụ phí giờ cao điểm" required hint="Tỷ lệ phần trăm tăng thêm so với giá gốc">
@@ -1110,10 +1110,10 @@ export default function CreatePackagePage() {
                       setPeakRatePercent(d ? Math.min(200, Number(d)) : 0);
                     }}
                     className="h-11 rounded-xl flex-1" />
-                  <span className="text-sm text-muted-foreground font-semibold">%</span>
+                  <span className="text-sm text-[var(--c-muted)] font-semibold">%</span>
                 </div>
                 {peakRatePercent > 0 && (
-                  <p className="text-xs text-amber-600 font-semibold mt-1">
+                  <p className="text-xs text-[#D97706] font-semibold mt-1">
                     → Giá 100.000đ + {peakRatePercent}% = {vnd(100000 * (1 + peakRatePercent / 100))}
                   </p>
                 )}
@@ -1127,22 +1127,22 @@ export default function CreatePackagePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SurchargeField icon={Moon} label="Phụ thu Đêm / Sáng sớm"
                   hint="22:00–06:00. Tính cộng thêm vào tổng tiền."
-                  value={nightSurcharge} onChange={setNightSurcharge} iconColor="text-indigo-500" />
+                  value={nightSurcharge} onChange={setNightSurcharge} iconColor="text-[#2563EB]" />
                 <SurchargeField icon={PawPrint} label="Phụ thu Thú cưng"
                   hint="Có chó/mèo tại địa chỉ. Gồm dọn lông, khử mùi."
-                  value={petSurcharge} onChange={setPetSurcharge} iconColor="text-amber-500" />
+                  value={petSurcharge} onChange={setPetSurcharge} iconColor="text-[#D97706]" />
                 <SurchargeField icon={Timer} label="Phụ thu Chờ đợi (mỗi 15p)"
                   hint="Tính thêm khi nhân viên phải chờ vào cửa, thang máy..."
-                  value={waitingSurcharge} onChange={setWaitingSurcharge} iconColor="text-rose-500" />
+                  value={waitingSurcharge} onChange={setWaitingSurcharge} iconColor="text-[#E11D48]" />
                 <SurchargeField icon={Hammer} label="Phí Công cụ mang theo"
                   hint="Đơn yêu cầu máy hút bụi, máy phun khử khuẩn chuyên biệt."
-                  value={toolFee} onChange={setToolFee} iconColor="text-slate-500" />
+                  value={toolFee} onChange={setToolFee} iconColor="text-[var(--c-muted)]" />
               </div>
 
               {/* Custom surcharges */}
               {customSurcharges.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Phụ phí tuỳ chỉnh</p>
+                  <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wider">Phụ phí tuỳ chỉnh</p>
                   {customSurcharges.map(cs => (
                     <CustomSurchargeRow
                       key={cs.id}
@@ -1158,27 +1158,27 @@ export default function CreatePackagePage() {
               <button
                 type="button"
                 onClick={addCustomSurcharge}
-                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-border/40 rounded-xl hover:border-primary/40 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary text-sm font-semibold"
+                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[var(--c-line)]/40 rounded-xl hover:border-[var(--c-primary)]/40 hover:bg-[var(--c-primary-soft)] transition-all text-[var(--c-muted)] hover:text-[var(--c-primary-strong)] text-sm font-semibold"
               >
                 <Plus className="w-4 h-4" aria-hidden="true" />
                 Thêm loại phụ phí tùy chỉnh
               </button>
 
               {/* Preview bar */}
-              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
+              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3 bg-[var(--c-primary-soft)] border border-[var(--c-primary)]/20 rounded-xl p-4">
                 {[
-                  { label: "Cao điểm", value: `+${peakRatePercent}%`, icon: TrendingUp, color: "text-amber-600" },
-                  { label: "Ban đêm", value: vnd(nightSurcharge), icon: Moon, color: "text-indigo-600" },
-                  { label: "Thú cưng", value: vnd(petSurcharge), icon: PawPrint, color: "text-amber-600" },
-                  { label: "Chờ 15p", value: vnd(waitingSurcharge), icon: Timer, color: "text-rose-600" },
+                  { label: "Cao điểm", value: `+${peakRatePercent}%`, icon: TrendingUp, color: "text-[#D97706]" },
+                  { label: "Ban đêm", value: vnd(nightSurcharge), icon: Moon, color: "text-[#2563EB]" },
+                  { label: "Thú cưng", value: vnd(petSurcharge), icon: PawPrint, color: "text-[#D97706]" },
+                  { label: "Chờ 15p", value: vnd(waitingSurcharge), icon: Timer, color: "text-[#E11D48]" },
                   ...customSurcharges.filter(cs => cs.label && cs.amount > 0).map(cs => ({
-                    label: cs.label, value: vnd(cs.amount), icon: Star, color: "text-violet-600",
+                    label: cs.label, value: vnd(cs.amount), icon: Star, color: "text-[#7C3AED]",
                   })),
                 ].map(item => (
                   <div key={item.label} className="text-center">
                     <item.icon className={cn("w-4 h-4 mx-auto mb-1", item.color)} aria-hidden="true" />
                     <p className={cn("text-sm font-black", item.color)}>{item.value}</p>
-                    <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">{item.label}</p>
                   </div>
                 ))}
               </div>
@@ -1202,7 +1202,7 @@ export default function CreatePackagePage() {
             description={`Chọn từ ${allSubServices.length} dịch vụ con hiện có · Đã chọn: ${selectedSubServices.length}`}>
             <div className="space-y-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--c-muted)]" aria-hidden="true" />
                 <Input
                   placeholder="Tìm kiếm dịch vụ con..."
                   value={searchSvc}
@@ -1212,7 +1212,7 @@ export default function CreatePackagePage() {
               </div>
 
               {filteredSvcs.length === 0 ? (
-                <div className="py-10 text-center text-muted-foreground text-sm">
+                <div className="py-10 text-center text-[var(--c-muted)] text-sm">
                   <Package className="w-8 h-8 mx-auto mb-3 opacity-30" aria-hidden="true" />
                   Không tìm thấy dịch vụ con nào
                 </div>
@@ -1238,24 +1238,24 @@ export default function CreatePackagePage() {
               <div className="space-y-3">
                 {selectedSubServices.map((s, idx) => (
                   <div key={s.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border border-border/40 rounded-xl bg-muted/10">
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border border-[var(--c-line)]/40 rounded-xl bg-[var(--c-card-2)]">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-foreground">{s.name}</p>
-                      <p className="text-xs text-muted-foreground">Vị trí #{idx + 1}</p>
+                      <p className="font-bold text-sm text-[var(--c-ink)]">{s.name}</p>
+                      <p className="text-xs text-[var(--c-muted)]">Vị trí #{idx + 1}</p>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <Switch checked={s.isRequired} onCheckedChange={(v) => updateSelected(s.id, { isRequired: v })} />
-                        <span className="text-xs font-semibold text-foreground">Bắt buộc</span>
+                        <span className="text-xs font-semibold text-[var(--c-ink)]">Bắt buộc</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <Switch checked={s.isDefault} onCheckedChange={(v) => updateSelected(s.id, { isDefault: v })} />
-                        <span className="text-xs font-semibold text-foreground">Mặc định</span>
+                        <span className="text-xs font-semibold text-[var(--c-ink)]">Mặc định</span>
                       </label>
                       <button
                         type="button"
                         onClick={() => removeSelected(s.id)}
-                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-[rgba(225,29,72,0.12)] text-[var(--c-muted)] hover:text-[#E11D48] transition-colors"
                       >
                         <X className="w-4 h-4" aria-hidden="true" />
                       </button>
@@ -1273,7 +1273,7 @@ export default function CreatePackagePage() {
               <button
                 type="button"
                 onClick={() => setShowQuickCreate(true)}
-                className="w-full flex items-center justify-center gap-3 py-8 border-2 border-dashed border-border/40 rounded-xl hover:border-primary/40 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary"
+                className="w-full flex items-center justify-center gap-3 py-8 border-2 border-dashed border-[var(--c-line)]/40 rounded-xl hover:border-[var(--c-primary)]/40 hover:bg-[var(--c-primary-soft)] transition-all text-[var(--c-muted)] hover:text-[var(--c-primary-strong)]"
               >
                 <Plus className="w-5 h-5" aria-hidden="true" />
                 <span className="font-semibold">Thêm dịch vụ con mới</span>
@@ -1281,11 +1281,11 @@ export default function CreatePackagePage() {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-bold text-foreground">Điền thông tin dịch vụ con</p>
+                  <p className="text-sm font-bold text-[var(--c-ink)]">Điền thông tin dịch vụ con</p>
                   <button
                     type="button"
                     onClick={() => { setShowQuickCreate(false); setQuickCreate(defaultQuickCreate); }}
-                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-[var(--c-card-2)] text-[var(--c-muted)] hover:text-[var(--c-ink)] transition-colors"
                   >
                     <X className="w-4 h-4" aria-hidden="true" />
                   </button>
@@ -1299,9 +1299,9 @@ export default function CreatePackagePage() {
                     basePrice: c.basePrice ? Number(c.basePrice) : undefined,
                   }))}
                 />
-                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 rounded-xl">
-                  <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" aria-hidden="true" />
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                <div className="flex items-start gap-3 p-3 bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)] border border-[#2563EB]/60 rounded-xl">
+                  <Info className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" aria-hidden="true" />
+                  <p className="text-xs text-[#2563EB] dark:text-[#2563EB]">
                     Dịch vụ này sẽ được tạo và tự động liên kết vào gói sau khi bấm <strong>Tạo gói dịch vụ</strong>.
                   </p>
                 </div>
@@ -1334,8 +1334,8 @@ export default function CreatePackagePage() {
                 />
               </Field>
               {termsAndConditions && (
-                <div className="bg-muted/20 border border-border/40 rounded-xl p-4">
-                  <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Xem trước</p>
+                <div className="bg-[var(--c-card-2)] border border-[var(--c-line)]/40 rounded-xl p-4">
+                  <p className="text-xs font-black text-[var(--c-muted)] uppercase tracking-widest mb-3">Xem trước</p>
                   <div className="space-y-1.5">
                     {termsAndConditions.split("\n").filter(Boolean).map((line, i) => (
                       <p key={i} className="text-sm">{line}</p>
@@ -1346,9 +1346,9 @@ export default function CreatePackagePage() {
             </div>
           </SectionCard>
 
-          <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200/60 rounded-2xl">
-            <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
-            <p className="text-sm text-amber-700 dark:text-amber-300">
+          <div className="flex items-start gap-3 p-4 bg-[rgba(217,119,6,0.14)] dark:bg-[rgba(217,119,6,0.14)] border border-[#D97706]/60 rounded-2xl">
+            <Info className="w-5 h-5 text-[#D97706] shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-sm text-[#D97706] dark:text-[#D97706]">
               Điều khoản có thể để trống và cập nhật sau trong tab <strong>Điều khoản</strong>.
             </p>
           </div>
@@ -1366,11 +1366,11 @@ export default function CreatePackagePage() {
       {step === 5 && (
         <div className="space-y-5">
           <SectionCard icon={Package} title="Xem lại — Thông tin gói">
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-[var(--c-line)]/30">
               <ReviewRow label="Tên gói" value={name} />
-              <ReviewRow label="Mã gói" value={<code className="text-primary text-xs bg-primary/10 px-2 py-0.5 rounded font-mono">{packageCode}</code>} />
+              <ReviewRow label="Mã gói" value={<code className="text-[var(--c-primary-strong)] text-xs bg-[var(--c-primary-soft)] px-2 py-0.5 rounded font-mono">{packageCode}</code>} />
               <ReviewRow label="Trạng thái" value={
-                <Badge className={isActive ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}>
+                <Badge className={isActive ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]" : "bg-[var(--c-card-2)] text-[var(--c-muted)]"}>
                   {isActive ? "Kích hoạt ngay" : "Lưu nháp"}
                 </Badge>
               } />
@@ -1380,7 +1380,7 @@ export default function CreatePackagePage() {
           </SectionCard>
 
           <SectionCard icon={DollarSign} title="Xem lại — Cấu hình giá & Phụ phí">
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-[var(--c-line)]/30">
               <ReviewRow label="Giờ tối đa" value={`${maxHours} giờ`} />
               <ReviewRow label="Giờ cao điểm" value={`+${peakRatePercent}%`} />
               <ReviewRow label="Phụ thu ban đêm" value={vnd(nightSurcharge)} />
@@ -1395,18 +1395,18 @@ export default function CreatePackagePage() {
 
           {(selectedSubServices.length > 0 || quickCreate.name.trim()) && (
             <SectionCard icon={Wrench} title="Xem lại — Dịch vụ con">
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-[var(--c-line)]/30">
                 {selectedSubServices.map(s => (
                   <ReviewRow key={s.id} label={s.name} value={
                     <div className="flex gap-1">
-                      {s.isRequired && <Badge className="text-[9px] bg-rose-100 text-rose-700">Bắt buộc</Badge>}
-                      {s.isDefault && <Badge className="text-[9px] bg-blue-100 text-blue-700">Mặc định</Badge>}
+                      {s.isRequired && <Badge className="text-[9px] bg-[rgba(225,29,72,0.12)] text-[#E11D48]">Bắt buộc</Badge>}
+                      {s.isDefault && <Badge className="text-[9px] bg-[rgba(37,99,235,0.12)] text-[#2563EB]">Mặc định</Badge>}
                     </div>
                   } />
                 ))}
                 {quickCreate.name.trim() && (
                   <ReviewRow label={`🆕 ${quickCreate.name}`} value={
-                    <Badge className="text-[9px] bg-emerald-100 text-emerald-700">Sẽ tạo mới</Badge>
+                    <Badge className="text-[9px] bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]">Sẽ tạo mới</Badge>
                   } />
                 )}
               </div>
@@ -1415,12 +1415,12 @@ export default function CreatePackagePage() {
 
           {termsAndConditions && (
             <SectionCard icon={ScrollText} title="Xem lại — Điều khoản">
-              <div className="text-sm text-muted-foreground space-y-1">
+              <div className="text-sm text-[var(--c-muted)] space-y-1">
                 {termsAndConditions.split("\n").slice(0, 3).filter(Boolean).map((line, i) => (
                   <p key={i}>{line}</p>
                 ))}
                 {termsAndConditions.split("\n").filter(Boolean).length > 3 && (
-                  <p className="text-primary font-semibold">
+                  <p className="text-[var(--c-primary-strong)] font-semibold">
                     +{termsAndConditions.split("\n").filter(Boolean).length - 3} điều khoản khác...
                   </p>
                 )}
