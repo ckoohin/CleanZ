@@ -131,14 +131,21 @@ http.interceptors.response.use(
     }
 
     if (originalRequest._retry) {
-      // onUnauthenticated?.();
+      onUnauthenticated?.();
       return Promise.reject(error);
     }
 
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         failedQueue.push({
-          resolve: () => resolve(http(originalRequest)),
+          // Đánh dấu _retry trước khi phát lại: nếu request đã phát lại mà vẫn
+          // 401 thì nó rơi vào nhánh guard ở trên (reject) thay vì tự khởi tạo
+          // một lượt refresh mới → tránh gọi /auth/refresh trùng lặp gây đua
+          // (race) làm xoay vòng/huỷ token chéo nhau.
+          resolve: () => {
+            originalRequest._retry = true;
+            resolve(http(originalRequest));
+          },
           reject,
         });
       });
@@ -147,20 +154,23 @@ http.interceptors.response.use(
     originalRequest._retry = true;
     isRefreshing = true;
 
-    const refreshed = await refreshToken();
+    try {
+      const refreshed = await refreshToken();
 
-    if (refreshed) {
-      processQueue(null);
+      if (refreshed) {
+        processQueue(null);
+        return http(originalRequest);
+      }
+
+      processQueue(error);
+      onUnauthenticated?.();
+
+      return Promise.reject(error);
+    } finally {
+      // Luôn nhả cờ refresh dù thành công, thất bại hay lỗi bất ngờ — tránh kẹt
+      // isRefreshing=true khiến mọi 401 sau đó bị xếp hàng vĩnh viễn (treo loading).
       isRefreshing = false;
-      return http(originalRequest);
     }
-
-    processQueue(error);
-    isRefreshing = false;
-
-    // onUnauthenticated?.();
-
-    return Promise.reject(error);
   }
 );
 

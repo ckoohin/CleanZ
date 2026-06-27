@@ -53,6 +53,24 @@ export class MailService {
     });
   }
 
+  async sendTempPasswordEmail(
+    email: string,
+    fullName: string,
+    tempPassword: string,
+    loginUrl: string,
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Tài khoản KingOfService của bạn đã được tạo',
+      template: 'temp-password',
+      context: {
+        fullName,
+        tempPassword,
+        loginUrl,
+      },
+    });
+  }
+
   async sendTaskerApprovedEmail(
     email: string,
     fullName: string,
@@ -70,6 +88,7 @@ export class MailService {
   async sendTaskerRejectedEmail(
     email: string,
     fullName: string,
+    notes?: string,
   ): Promise<void> {
     await this.mailerService.sendMail({
       to: email,
@@ -77,6 +96,7 @@ export class MailService {
       template: 'tasker-rejected',
       context: {
         fullName,
+        notes: notes?.trim() || null,
       },
     });
   }
@@ -117,12 +137,22 @@ export class MailService {
     email: string,
     fullName: string,
     reason: string,
+    options?: { isPermanent?: boolean; appealUrl?: string },
   ): Promise<void> {
+    const isPermanent = options?.isPermanent ?? false;
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Tài khoản tasker của bạn đã bị tạm khóa',
+      subject: isPermanent
+        ? 'Tài khoản tasker của bạn đã bị chấm dứt'
+        : 'Tài khoản tasker của bạn đã bị tạm khóa',
       template: 'tasker-banned',
-      context: { fullName, reason },
+      context: {
+        fullName,
+        reason,
+        isPermanent,
+        // Chỉ ban vĩnh viễn mới hiện nút kháng cáo.
+        appealUrl: isPermanent ? options?.appealUrl : undefined,
+      },
     });
   }
 

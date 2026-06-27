@@ -10,6 +10,7 @@ import {
   Res,
 } from '@nestjs/common';
 
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtRefreshGuard } from './guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
@@ -24,6 +25,7 @@ import {
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Auth } from './decorators/auth.decorator';
 import { Public } from './decorators/public.decorator';
+import { AllowDuringPasswordChange } from './decorators/allow-password-change.decorator';
 import { CookieHelper } from 'src/common/helpers/cookie.helper';
 import type { Response } from 'express';
 import {
@@ -85,6 +87,8 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng nhập bằng email và mật khẩu' })
@@ -98,6 +102,8 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
   @Post('verify-login-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Xác thực OTP sau khi đăng nhập' })
@@ -138,6 +144,7 @@ export class AuthController {
   }
 
   @Auth()
+  @AllowDuringPasswordChange()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng xuất khỏi hệ thống' })
@@ -153,18 +160,22 @@ export class AuthController {
   }
 
   @Auth()
+  @AllowDuringPasswordChange()
   @Get('me')
-  @ApiOperation({ summary: 'Lấy thông tin người dùng hiện tại từ token' })
+  @ApiOperation({ summary: 'Lấy thông tin người dùng hiện tại (đọc từ DB)' })
   @ApiBearerAuth('access-token')
   @ApiOkResponse({
     description: 'Lấy thông tin người dùng hiện tại thành công',
   })
   @ApiUnauthorizedResponse({ description: 'Token không hợp lệ' })
-  getMe(@CurrentUser() user: string) {
-    return user;
+  getMe(@CurrentUser('id') userId: string) {
+    // Đọc từ DB (không phải JWT payload) để các cờ động như mustChangePassword /
+    // isActive / isVerified luôn phản ánh đúng thực tế cho FE (RoleGuard, ép đổi MK...).
+    return this.authService.getProfile(userId);
   }
 
   @Auth()
+  @AllowDuringPasswordChange()
   @Get('profile')
   @ApiOperation({ summary: 'Lấy hồ sơ tài khoản hiện tại' })
   @ApiBearerAuth('access-token')
@@ -175,6 +186,7 @@ export class AuthController {
   }
 
   @Auth()
+  @AllowDuringPasswordChange()
   @Patch('change-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đổi mật khẩu tài khoản hiện tại' })
@@ -185,11 +197,16 @@ export class AuthController {
     description: 'Mật khẩu mới không hợp lệ hoặc không khớp xác nhận',
   })
   @ApiUnauthorizedResponse({ description: 'Token không hợp lệ' })
-  changePassword(
+  async changePassword(
     @CurrentUser('id') userId: string,
     @Body() dto: ChangePasswordDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.changePassword(userId, dto);
+    const result = await this.authService.changePassword(userId, dto);
+    // Đổi mật khẩu xong → xóa cookie access/refresh để phiên hiện tại chết ngay,
+    // buộc đăng nhập lại (service đã revoke refresh token).
+    this.cookieHelper.clearTokenCookies(res);
+    return result;
   }
 
   @Public()

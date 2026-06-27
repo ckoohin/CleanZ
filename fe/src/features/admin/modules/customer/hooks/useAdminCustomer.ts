@@ -1,7 +1,27 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { adminCustomerApi } from '../services/admin-customer.service';
-import type { CustomerQueryFilter } from '../types/customer.types';
+import type {
+  CustomerQueryFilter,
+  CreateCustomerPayload,
+  UpdateCustomerPayload,
+} from '../types/customer.types';
 import { toast } from 'sonner';
+
+/** Pull a human-friendly message off an axios error, falling back to a default. */
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  const message = (error as { response?: { data?: { message?: unknown } } })?.response
+    ?.data?.message;
+  return Array.isArray(message)
+    ? String(message[0])
+    : typeof message === 'string'
+      ? message
+      : fallback;
+};
 
 export const adminCustomerKeys = {
   all: ['admin-customer'] as const,
@@ -17,6 +37,8 @@ export function useAdminCustomers(filter: CustomerQueryFilter) {
   return useQuery({
     queryKey: adminCustomerKeys.list(filter),
     queryFn: () => adminCustomerApi.getCustomers(filter),
+    // Giữ dữ liệu trang trước khi đổi page/filter/keyword để không nháy skeleton.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -33,6 +55,7 @@ export function useAdminCustomerBookings(id: string, page: number = 1, limit: nu
     queryKey: adminCustomerKeys.bookings(id, page, limit),
     queryFn: () => adminCustomerApi.getCustomerBookings(id, page, limit),
     enabled: !!id,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -45,10 +68,77 @@ export function useToggleCustomerStatus() {
       queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
       toast.success(data.message || 'Cập nhật trạng thái khách hàng thành công!');
     },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái khách hàng!',
-      );
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Có lỗi xảy ra khi cập nhật trạng thái khách hàng!'));
+    },
+  });
+}
+
+export function useCreateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateCustomerPayload) => adminCustomerApi.createCustomer(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success('Đã tạo khách hàng. Mật khẩu tạm đã được gửi tới email khách hàng.');
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Có lỗi xảy ra khi tạo khách hàng!'));
+    },
+  });
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateCustomerPayload }) =>
+      adminCustomerApi.updateCustomer(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success('Cập nhật khách hàng thành công!');
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Có lỗi xảy ra khi cập nhật khách hàng!'));
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminCustomerApi.deleteCustomer(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success(data.message || 'Đã xóa khách hàng!');
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Có lỗi xảy ra khi xóa khách hàng!'));
+    },
+  });
+}
+
+export function useRestoreCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminCustomerApi.restoreCustomer(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminCustomerKeys.all });
+      toast.success(data.message || 'Đã khôi phục khách hàng!');
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Có lỗi xảy ra khi khôi phục khách hàng!'));
+    },
+  });
+}
+
+export function useResendTempPassword() {
+  return useMutation({
+    mutationFn: (id: string) => adminCustomerApi.resendTempPassword(id),
+    onSuccess: (data) => {
+      toast.success(data.message || 'Đã gửi lại mật khẩu tạm cho khách hàng!');
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Có lỗi xảy ra khi gửi lại mật khẩu tạm!'));
     },
   });
 }

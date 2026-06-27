@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { StatusSwitch } from "@/components/ui/base/status_switch";
 import { useToggleCustomerStatus } from "@/features/admin/modules/customer/hooks/useAdminCustomer";
 
 interface CustomerStatusToggleProps {
@@ -46,16 +46,14 @@ export const CustomerStatusToggle: React.FC<CustomerStatusToggleProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-2" onClick={handleToggleClick}>
-        <Switch
-          checked={isActive}
-          disabled={toggleMutation.isPending}
-          className="data-[state=checked]:bg-emerald-500"
-        />
-        <span className={`text-xs font-semibold ${isActive ? "text-emerald-600" : "text-muted-foreground"}`}>
-          {isActive ? "Đang hoạt động" : "Bị khóa"}
-        </span>
-      </div>
+      <StatusSwitch
+        checked={isActive}
+        disabled={toggleMutation.isPending}
+        onClick={handleToggleClick}
+        ariaLabel={`${isActive ? "Khóa" : "Mở khóa"} tài khoản ${fullName}`}
+        activeLabel="Đang hoạt động"
+        inactiveLabel="Bị khóa"
+      />
 
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
         <DialogContent className="sm:max-w-md rounded-[20px]">

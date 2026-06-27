@@ -5,7 +5,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -20,6 +20,7 @@ import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { AppException } from 'src/common/exceptions/app.exception';
 import { AuthProvider } from 'src/common/enums/auth-provider.enum';
+import { UserRole } from 'src/common/enums/user-role.enum';
 import { CreateOAuthUserDto } from './dto/create-oauth-user.dto';
 import { StringValue } from 'ms';
 
@@ -35,28 +36,46 @@ export class UsersService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(dto: CreateUserDto): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const existingUser = await this.findByEmail(dto.email);
-
       if (existingUser) {
         throw new ConflictException('Email đã tồn tại');
       }
 
       const hashedPassword = await this.hashPassword(dto.password);
+      const role = dto.role ?? UserRole.CUSTOMER;
 
-      const user = this.userRepository.create({
-        email: dto.email,
-        fullName: dto.fullName,
-        phone: dto.phone,
-        password: hashedPassword,
-        provider: AuthProvider.LOCAL,
-        role: dto.role,
+      return this.dataSource.transaction(async (manager) => {
+        const userRepo = manager.getRepository(UserEntity);
+        const user = await userRepo.save(
+          userRepo.create({
+            email: dto.email,
+            fullName: dto.fullName,
+            phone: dto.phone,
+            password: hashedPassword,
+            provider: AuthProvider.LOCAL,
+            role,
+            // Tài khoản admin tạo: đã xác thực sẵn để đăng nhập được, và buộc đổi
+            // mật khẩu admin đặt ở lần đăng nhập đầu.
+            isVerified: true,
+            mustChangePassword: true,
+          }),
+        );
+
+        // Đồng bộ profile 1:1 — CUSTOMER cần customer profile để dùng các luồng
+        // khách hàng. TASKER vẫn phải onboarding/KYC nên không tạo profile rỗng.
+        if (role === UserRole.CUSTOMER) {
+          await manager
+            .getRepository(CustomerEntity)
+            .save(manager.getRepository(CustomerEntity).create({ user }));
+        }
+
+        return user;
       });
-
-      return await this.userRepository.save(user);
     }, 'Lỗi khi tạo người dùng');
   }
 
@@ -68,11 +87,17 @@ export class UsersService {
         isActive,
         isVerified,
         provider,
+        deleted,
         page = 1,
         limit = 10,
       } = query;
       const safeLimit = Math.min(limit, 100);
       const qb = this.userRepository.createQueryBuilder('user');
+
+      if (deleted) {
+        // Chỉ user đã xóa mềm.
+        qb.withDeleted().andWhere('user.deletedAt IS NOT NULL');
+      }
 
       if (keyword) {
         qb.andWhere(
@@ -165,19 +190,28 @@ export class UsersService {
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       }
 
+      // CHỈ cho sửa fullName/phone (+ password tùy chọn). role/email/provider
+      // KHÔNG đổi qua API này: role chỉ đổi qua flow chuyên biệt (duyệt tasker) để
+      // không lệch profile; email là định danh (tránh phức tạp unique/verify-reset).
+      const patch: Partial<UserEntity> = {};
+      if (updateUserDto.fullName !== undefined) {
+        patch.fullName = updateUserDto.fullName;
+      }
+      if (updateUserDto.phone !== undefined) {
+        patch.phone = updateUserDto.phone;
+      }
       if (updateUserDto.password) {
-        updateUserDto.password = await this.hashPassword(
-          updateUserDto.password,
-        );
+        patch.password = await this.hashPassword(updateUserDto.password);
       }
 
-      await this.userRepository.update(id, updateUserDto);
-      const updatedUser = await this.userRepository.findOneBy({ id });
+      if (Object.keys(patch).length > 0) {
+        await this.userRepository.update(id, patch);
+      }
 
+      const updatedUser = await this.userRepository.findOneBy({ id });
       if (!updatedUser) {
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
       }
-
       return updatedUser;
     }, 'Lỗi khi cập nhật người dùng');
   }
@@ -201,7 +235,11 @@ export class UsersService {
   async changePassword(id: string, password: string): Promise<void> {
     return asyncHandleOperation(async () => {
       const passwordHash = await this.hashPassword(password);
-      await this.userRepository.update(id, { password: passwordHash });
+      // Đổi mật khẩu xong thì gỡ luôn cờ buộc-đổi (nếu có).
+      await this.userRepository.update(id, {
+        password: passwordHash,
+        mustChangePassword: false,
+      });
     }, 'Lỗi khi thay đổi mật khẩu');
   }
 
@@ -226,7 +264,13 @@ export class UsersService {
       const user = await this.userRepository.findOneBy({ id });
       if (!user)
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      // Không khóa admin cuối cùng đang hoạt động (tránh khóa toàn bộ quản trị).
+      if (!isActive) await this.assertNotLastActiveAdmin(user);
       await this.userRepository.update(id, { isActive });
+      // Khóa tài khoản → bump tokenVersion để vô hiệu refresh token đang có.
+      if (!isActive) {
+        await this.userRepository.increment({ id }, 'tokenVersion', 1);
+      }
       return { ...user, isActive };
     }, 'Lỗi khi cập nhật trạng thái người dùng');
   }
@@ -242,7 +286,10 @@ export class UsersService {
       const user = await this.userRepository.findOneBy({ id });
       if (!user)
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      await this.assertNotLastActiveAdmin(user);
       await this.userRepository.softDelete(id);
+      // Xóa mềm → bump tokenVersion để vô hiệu refresh token đang có.
+      await this.userRepository.increment({ id }, 'tokenVersion', 1);
       return ResponseHelper.success(null, 'User deleted');
     }, 'Lỗi khi xóa người dùng');
   }
@@ -269,6 +316,18 @@ export class UsersService {
       const user = await this.userRepository.findOneBy({ id });
       if (!user)
         throw new NotFoundException(`Không tìm thấy user với id ${id}`);
+      if (user.provider !== AuthProvider.LOCAL) {
+        throw new AppException(
+          'Tài khoản đăng nhập qua mạng xã hội — không dùng mật khẩu để đặt lại.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      if (!user.isActive) {
+        throw new AppException(
+          'Tài khoản đang bị khóa — không gửi email đặt lại mật khẩu.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
       const token = this.jwtService.sign(
         { sub: user.id, email: user.email },
@@ -280,7 +339,7 @@ export class UsersService {
         },
       );
 
-      const resetUrl = `${this.configService.get<string>('FRONTEND_URL')}/reset-password?token=${token}`;
+      const resetUrl = `${this.configService.get<string>('FRONTEND_URL')}/auth/reset-password?token=${token}`;
       await this.mailService.sendResetPasswordEmail(
         user.email,
         user.fullName,
@@ -304,6 +363,20 @@ export class UsersService {
 
       return await this.userRepository.save(user);
     }, 'Lỗi khi tạo người dùng Facebook');
+  }
+
+  /** Chặn khóa/xóa admin cuối cùng đang hoạt động (tránh mất toàn bộ quản trị). */
+  private async assertNotLastActiveAdmin(target: UserEntity): Promise<void> {
+    if (target.role !== UserRole.ADMIN) return;
+    const activeAdmins = await this.userRepository.count({
+      where: { role: UserRole.ADMIN, isActive: true },
+    });
+    if (activeAdmins <= 1) {
+      throw new AppException(
+        'Không thể khóa/xóa admin cuối cùng đang hoạt động.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
   }
 
   private async hashPassword(password: string): Promise<string> {

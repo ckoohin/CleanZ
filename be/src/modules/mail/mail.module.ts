@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { MailService } from './mail.service';
+import { MailProcessor } from './mail.processor';
+import { MailQueueService } from './mail-queue.service';
+import { MAIL_QUEUE } from './mail.constants';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { join } from 'path';
 
 @Module({
   imports: [
+    BullModule.registerQueue({ name: MAIL_QUEUE }),
     MailerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -30,7 +35,7 @@ import { join } from 'path';
       }),
     }),
   ],
-  providers: [MailService],
-  exports: [MailerModule, MailService],
+  providers: [MailService, MailProcessor, MailQueueService],
+  exports: [MailerModule, MailService, MailQueueService],
 })
 export class MailModule {}

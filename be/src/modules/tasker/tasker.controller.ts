@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -28,6 +29,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types/AuthRequest';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
+import { AdminUpdateTaskerDto } from './dto/admin-update-tasker.dto';
+import { ReinstateTaskerDto } from './dto/reinstate-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { UpdatePresenceDto } from './dto/update-presence.dto';
@@ -220,48 +223,92 @@ export class TaskerController {
   @AdminOnly()
   @ApiOperation({ summary: 'Admin xem chi tiết một tasker' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  getTaskerDetail(@Param('id') id: string) {
+  getTaskerDetail(@Param('id', ParseUUIDPipe) id: string) {
     return this.taskerService.getTaskerDetail(id);
+  }
+
+  @Patch('admin/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin sửa thông tin cơ bản của tasker' })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  updateTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminUpdateTaskerDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.updateTaskerByAdmin(id, dto, adminId);
   }
 
   @Patch('admin/:id/approve')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin duyệt tasker — chuyển sang ACTIVE' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  approveTasker(@Param('id') id: string) {
-    return this.taskerService.approveTasker(id);
+  approveTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.approveTasker(id, adminId);
   }
 
   @Patch('admin/:id/reject')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin từ chối hồ sơ tasker' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  rejectTasker(@Param('id') id: string, @Body() dto: AdminReviewTaskerDto) {
-    return this.taskerService.rejectTasker(id, dto);
+  rejectTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminReviewTaskerDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.rejectTasker(id, dto, adminId);
   }
 
   @Patch('admin/:id/request-info')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin yêu cầu tasker bổ sung thông tin' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  requestMoreInfo(@Param('id') id: string, @Body() dto: AdminReviewTaskerDto) {
-    return this.taskerService.requestMoreInfo(id, dto);
+  requestMoreInfo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminReviewTaskerDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.requestMoreInfo(id, dto, adminId);
   }
 
   @Post('admin/:id/ban')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin khóa tài khoản tasker' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  banTasker(@Param('id') id: string, @Body() dto: AdminBanTaskerDto) {
-    return this.taskerService.banTasker(id, dto);
+  banTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminBanTaskerDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.banTasker(id, dto, adminId);
   }
 
   @Post('admin/:id/unban')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin mở khóa tài khoản tasker' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  unbanTasker(@Param('id') id: string) {
-    return this.taskerService.unbanTasker(id);
+  unbanTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.unbanTasker(id, adminId);
+  }
+
+  @Patch('admin/:id/reinstate')
+  @AdminOnly()
+  @ApiOperation({
+    summary: 'Khôi phục tasker bị chấm dứt vĩnh viễn (sau kháng cáo)',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  reinstateTasker(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReinstateTaskerDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.reinstateTasker(id, adminId, dto.reason);
   }
 
   @Delete('admin/:id')
@@ -272,7 +319,7 @@ export class TaskerController {
       'Xóa hẳn hồ sơ tasker (kèm toàn bộ thông tin & ảnh giấy tờ đã nộp) để ứng viên phải đăng ký lại từ đầu. Chỉ áp dụng cho hồ sơ CHƯA được duyệt — hồ sơ đã APPROVED không thể xóa (dùng khóa tài khoản nếu cần).',
   })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  deleteTaskerProfile(@Param('id') id: string) {
+  deleteTaskerProfile(@Param('id', ParseUUIDPipe) id: string) {
     return this.taskerService.deleteProfile(id);
   }
 
@@ -280,7 +327,7 @@ export class TaskerController {
   @AdminOnly()
   @ApiOperation({ summary: 'Lịch sử vi phạm của tasker (placeholder)' })
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
-  getPenalties(@Param('id') id: string) {
+  getPenalties(@Param('id', ParseUUIDPipe) id: string) {
     return this.taskerService.getPenalties(id);
   }
 }

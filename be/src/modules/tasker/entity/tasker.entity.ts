@@ -143,6 +143,18 @@ export class TaskerEntity {
   @Column({ name: 'ban_reason', type: 'varchar', length: 500, nullable: true })
   banReason?: string | null;
 
+  /** Hạn mở khóa cho ban có thời hạn (TEMPORARY). NULL = không hạn (hoặc TERMINATED). */
+  @Column({ name: 'ban_ends_at', type: 'timestamp', nullable: true })
+  banEndsAt?: Date | null;
+
+  // Audit: admin (users.id) đã DUYỆT/xử lý hồ sơ gần nhất (approve/reject/request-info).
+  @Column({ name: 'doc_reviewed_by', type: 'uuid', nullable: true })
+  docReviewedBy?: string | null;
+
+  // Audit: admin (users.id) đã tác động gần nhất (duyệt/khóa/sửa...).
+  @Column({ name: 'updated_by', type: 'uuid', nullable: true })
+  updatedBy?: string | null;
+
   // Hạn nạp bổ sung cọc sau khi cọc < tối thiểu (Phase 2 — FR-E4). NULL = không cần nạp.
   @Column({ name: 'deposit_topup_due', type: 'timestamp', nullable: true })
   depositTopupDue?: Date | null;

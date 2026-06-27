@@ -14,6 +14,12 @@
     <p style='color: #4b5563; line-height: 1.6;'>
       Xin lỗi, hồ sơ tasker của bạn đã bị từ chối bởi quản trị viên.
     </p>
+    {{#if notes}}
+    <div style='background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;'>
+      <p style='color: #374151; margin: 0 0 6px; font-weight: bold;'>Lý do cụ thể từ quản trị viên:</p>
+      <p style='color: #4b5563; line-height: 1.6; margin: 0; white-space: pre-line;'>{{notes}}</p>
+    </div>
+    {{else}}
     <p style='color: #4b5563; line-height: 1.6;'>
       Các lý do có thể bao gồm:
     </p>
@@ -22,6 +28,7 @@
       <li>Thông tin hồ sơ không đầy đủ (Số điện thoại,...)</li>
       <li>Không đáp ứng các yêu cầu của dịch vụ</li>
     </ul>
+    {{/if}}
     <p style='color: #4b5563; line-height: 1.6;'>
       Bạn có thể cập nhật hồ sơ và gửi lại đơn xin phê duyệt. Nếu bạn có câu hỏi, vui lòng liên hệ với quản trị viên.
     </p>

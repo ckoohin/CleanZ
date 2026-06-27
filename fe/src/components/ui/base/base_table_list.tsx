@@ -429,7 +429,7 @@ export function BaseTableList<T>({
 
                 {/* Actions header */}
                 {hasActions && (
-                  <TableHead className="w-auto text-right pr-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <TableHead className="w-[1%] whitespace-nowrap text-right pr-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                     Hành động
                   </TableHead>
                 )}
@@ -594,7 +594,7 @@ export function BaseTableList<T>({
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
                                     align="end"
-                                    className="w-44 rounded-xl border-border/50 shadow-lg"
+                                    className="min-w-[9rem] w-auto rounded-xl border-border/50 shadow-lg"
                                   >
                                     <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                                       Hành động khác
@@ -623,7 +623,7 @@ export function BaseTableList<T>({
                                             action.onClick(row);
                                           }}
                                           className={cn(
-                                            "text-xs font-medium gap-2 cursor-pointer rounded-lg mx-1 focus:outline-none py-1.5",
+                                            "text-xs font-medium gap-2 cursor-pointer rounded-lg focus:outline-none py-1.5",
                                             variant === "destructive" &&
                                               "text-destructive focus:bg-destructive/10 focus:text-destructive",
                                             variant === "warning" &&

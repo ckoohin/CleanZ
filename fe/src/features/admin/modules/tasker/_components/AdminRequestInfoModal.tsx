@@ -15,33 +15,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertTriangle, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  MISSING_ITEM_OPTIONS,
+  serializeAdminNotes,
+  parseAdminNotes,
+  buildReviewParts,
+  getReviewPartMap,
+} from "@/lib/kyc/review-notes";
+import type { MissingItem, AdminNotesData, ReviewPart } from "@/lib/kyc/review-notes";
 
-// ─── Danh sách mục có thể yêu cầu bổ sung ─────────────────────────────────
-
-export interface MissingItem {
-  id: string;
-  label: string;
-  category: "Giấy tờ" | "Thông tin cá nhân" | "Thanh toán" | "Nghề nghiệp";
-  description?: string;
-}
-
-export const MISSING_ITEM_OPTIONS: MissingItem[] = [
-  // Giấy tờ
-  { id: "citizenCard", label: "Ảnh CCCD (2 mặt)", category: "Giấy tờ", description: "Cần rõ nét, không bị mờ" },
-  { id: "idWithSelfie", label: "Ảnh selfie cầm CCCD", category: "Giấy tờ", description: "Nhìn thẳng, rõ mặt" },
-  { id: "criminalRecord", label: "Lý lịch tư pháp", category: "Giấy tờ", description: "Còn hiệu lực trong 6 tháng" },
-  { id: "healthCertificate", label: "Giấy khám sức khoẻ", category: "Giấy tờ", description: "Còn hiệu lực trong 12 tháng" },
-  { id: "certificate", label: "Chứng chỉ nghề nghiệp", category: "Giấy tờ", description: "Liên quan đến dịch vụ đăng ký" },
-  // Thông tin cá nhân
-  { id: "phone", label: "Số điện thoại", category: "Thông tin cá nhân" },
-  { id: "address", label: "Địa chỉ hiện tại", category: "Thông tin cá nhân" },
-  // Thanh toán
-  { id: "bankInfo", label: "Thông tin ngân hàng", category: "Thanh toán", description: "Tên ngân hàng, số tài khoản, chủ tài khoản" },
-  // Nghề nghiệp
-  { id: "experience", label: "Kinh nghiệm làm việc", category: "Nghề nghiệp" },
-  { id: "skills", label: "Kỹ năng cụ thể", category: "Nghề nghiệp" },
-  { id: "bio", label: "Giới thiệu bản thân", category: "Nghề nghiệp" },
-];
+// Contract serialize/parse được giữ tập trung ở "@/lib/kyc/review-notes".
+// Re-export để các import cũ (parseAdminNotes, serializeAdminNotes, ...) vẫn hoạt động.
+export {
+  MISSING_ITEM_OPTIONS,
+  serializeAdminNotes,
+  parseAdminNotes,
+  buildReviewParts,
+  getReviewPartMap,
+};
+export type { MissingItem, AdminNotesData, ReviewPart };
 
 const CATEGORY_ORDER = ["Giấy tờ", "Thông tin cá nhân", "Thanh toán", "Nghề nghiệp"] as const;
 
@@ -51,33 +43,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Thanh toán": "bg-emerald-500/10 border-emerald-500/20 text-emerald-700",
   "Nghề nghiệp": "bg-purple-500/10 border-purple-500/20 text-purple-700",
 };
-
-// ─── Serialize / Deserialize ────────────────────────────────────────────────
-
-export interface AdminNotesData {
-  v: 2;
-  items: string[];
-  itemLabels: string[];
-  note: string;
-}
-
-export function serializeAdminNotes(items: string[], note: string): string {
-  const itemLabels = items.map(
-    (id) => MISSING_ITEM_OPTIONS.find((o) => o.id === id)?.label ?? id
-  );
-  return JSON.stringify({ v: 2, items, itemLabels, note } satisfies AdminNotesData);
-}
-
-export function parseAdminNotes(raw: string | undefined): AdminNotesData | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed.v === 2) return parsed as AdminNotesData;
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 // ─── Modal Component ─────────────────────────────────────────────────────────
 

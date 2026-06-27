@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  ParseUUIDPipe,
   Delete,
   Query,
   HttpCode,
@@ -83,7 +84,7 @@ export class UsersController {
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })
   @ApiOkResponse({ description: 'Lấy thông tin người dùng thành công' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy user' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOneWithProfile(id);
   }
 
@@ -93,7 +94,10 @@ export class UsersController {
   @ApiBody({ type: UpdateUserDto })
   @ApiOkResponse({ description: 'Cập nhật người dùng thành công' })
   @ApiBadRequestResponse({ description: 'Payload hoặc ID không hợp lệ' })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -105,7 +109,7 @@ export class UsersController {
   @ApiForbiddenResponse({ description: 'Không thể tự deactivate chính mình' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy user' })
   updateStatus(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserStatusDto,
     @CurrentUser('id') currentUserId: string,
   ) {
@@ -122,7 +126,7 @@ export class UsersController {
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })
   @ApiOkResponse({ description: 'Email reset mật khẩu đã được gửi' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy user' })
-  resetPassword(@Param('id') id: string) {
+  resetPassword(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.sendPasswordResetEmail(id);
   }
 
@@ -132,7 +136,10 @@ export class UsersController {
   @ApiOkResponse({ description: 'Xóa người dùng thành công (soft delete)' })
   @ApiForbiddenResponse({ description: 'Không thể tự xóa tài khoản của mình' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy user' })
-  remove(@Param('id') id: string, @CurrentUser('id') currentUserId: string) {
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') currentUserId: string,
+  ) {
     return this.usersService.softRemove(id, currentUserId);
   }
 
@@ -142,7 +149,7 @@ export class UsersController {
   @ApiOkResponse({ description: 'Khôi phục người dùng thành công' })
   @ApiBadRequestResponse({ description: 'User chưa bị xóa' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy user' })
-  restore(@Param('id') id: string) {
+  restore(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.restore(id);
   }
 }

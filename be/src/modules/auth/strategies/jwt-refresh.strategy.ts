@@ -57,6 +57,13 @@ export class JwtRefreshStrategy extends PassportStrategy(
       throw new UnauthorizedException('Phiên đăng nhập đã hết hạn');
     }
 
+    // Vô hiệu phiên cũ: token mang version khác DB (do deactivate/đổi role/xóa
+    // đã bump) thì từ chối làm mới — buộc đăng nhập lại.
+    if ((payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+      this.cookieHelper.clearTokenCookies(req.res!);
+      throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi');
+    }
+
     const validToken = await this.tokenService.validateRefreshToken(
       refreshToken,
       user.id,

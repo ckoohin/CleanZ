@@ -43,6 +43,7 @@ export const CATEGORY_LABEL: Record<TicketCategory, string> = {
   PROPERTY_DAMAGE: 'Hư hỏng tài sản',
   PAYMENT_BILLING: 'Thanh toán',
   ACCOUNT_TECHNICAL: 'Tài khoản / Kỹ thuật',
+  APPEAL: 'Kháng cáo khóa tài khoản',
   OTHER: 'Khác',
 };
 
