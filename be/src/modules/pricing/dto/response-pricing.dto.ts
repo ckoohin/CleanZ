@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class PricingConfigResponseDto {
   @ApiProperty() id!: string;
-  @ApiProperty() serviceId!: string;
   @ApiProperty() basePrice!: number;
   @ApiProperty() peakPrice!: number | null;
   @ApiProperty() petFee!: number;
