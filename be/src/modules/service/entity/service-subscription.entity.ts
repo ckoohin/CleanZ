@@ -38,6 +38,24 @@ export class ServiceSubscriptionEntity {
   })
   discountPercent!: number;
 
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'billing_cycle', default: 'monthly' })
+  billingCycle?: string;
+
+  @Column({ type: 'integer', nullable: true, name: 'sessions_per_cycle' })
+  sessionsPerCycle?: number | null;
+
+  @Column({ type: 'integer', nullable: true, name: 'commitment_months' })
+  commitmentMonths?: number | null;
+
+  @Column({ type: 'text', nullable: true, name: 'bonus_description' })
+  bonusDescription?: string | null;
+
+  @Column({ type: 'boolean', default: false, name: 'is_popular' })
+  isPopular!: boolean;
+
+  @Column({ type: 'integer', default: 0, name: 'sort_order' })
+  sortOrder!: number;
+
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive!: boolean;
 

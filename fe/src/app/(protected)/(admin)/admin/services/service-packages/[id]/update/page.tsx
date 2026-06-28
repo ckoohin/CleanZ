@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useRef, KeyboardEvent, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Package, DollarSign, ScrollText, Wrench,
@@ -10,7 +11,7 @@ import {
   AlertCircle, Image as ImageIcon,
   Trash2, Zap, Layers, MapPin, BarChart3,
   Edit, Eye, CheckSquare, ExternalLink, Shield, Sparkles, Heart, Star,
-  Percent, Calendar, HelpCircle
+  Percent, Calendar, HelpCircle, Users, Home, TrendingUp, TrendingDown
 } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
@@ -31,7 +32,7 @@ import { adminPricingApi } from "@/features/admin/services/admin-pricing.service
 import { adminServicesApi } from "@/features/admin/modules/service/services/admin-services.service";
 import {
   UpdateAdminPackageDto, CreateAdminPackageDto, AdminServiceEntity, CoverageAreaEntity, PricingMode,
-  ServiceDurationEntity, ServiceAddonEntity, ServiceSubscriptionEntity, ServicePeakHourEntity, ServiceSubServiceEntity
+  ServiceDurationEntity, ServiceAddonEntity, AddonPriceUnit, ServiceSubscriptionEntity, SubscriptionBillingCycle, ServicePeakHourEntity, ServiceSubServiceEntity
 } from "@/features/admin/modules/service/services/admin-services.service";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -707,8 +708,30 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
     title: "",
     description: "",
   });
-  const [newAddon, setNewAddon] = useState({ name: "", description: "", price: "", isActive: true });
-  const [newSubscription, setNewSubscription] = useState({ name: "", description: "", discountPercent: "", isActive: true });
+  const [newAddon, setNewAddon] = useState({
+    name: "",
+    description: "",
+    price: "",
+    priceUnit: "per_item" as AddonPriceUnit,
+    durationMinutes: "",
+    maxQuantity: "",
+    sortOrder: "",
+    isActive: true,
+  });
+  const [editingAddonIndex, setEditingAddonIndex] = useState<number | null>(null);
+  const [newSubscription, setNewSubscription] = useState({
+    name: "",
+    description: "",
+    bonusDescription: "",
+    discountPercent: "",
+    billingCycle: "monthly" as SubscriptionBillingCycle,
+    sessionsPerCycle: "",
+    commitmentMonths: "",
+    isPopular: false,
+    sortOrder: "",
+    isActive: true,
+  });
+  const [editingSubscriptionIndex, setEditingSubscriptionIndex] = useState<number | null>(null);
   const [newPeakHour, setNewPeakHour] = useState({ dayOfWeek: "1", startHour: "08:00", endHour: "22:00", multiplier: "1.1", startDate: "", endDate: "", isActive: true });
 
   // Dropdown visibility states for searchable select inputs
@@ -716,16 +739,29 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
   const [isOpenHoursDropdown, setIsOpenHoursDropdown] = useState(false);
   const [isOpenAdjustmentDropdown, setIsOpenAdjustmentDropdown] = useState(false);
 
-  // States for duration custom meta dialog modal
+  // States for duration full-edit modal
   const [isOpenMetaModal, setIsOpenMetaModal] = useState(false);
+  const [editingDurationIndex, setEditingDurationIndex] = useState<number | null>(null);
   const [tempTitle, setTempTitle] = useState("");
   const [tempDescription, setTempDescription] = useState("");
-  const [editingDurationIndex, setEditingDurationIndex] = useState<number | null>(null);
+  const [tempHours, setTempHours] = useState("");
+  const [tempArea, setTempArea] = useState("");
+  const [tempAdjustment, setTempAdjustment] = useState("0");
+  const [tempIsPopular, setTempIsPopular] = useState(false);
+  const [tempIsActive, setTempIsActive] = useState(true);
+  const [tempTaskerCount, setTempTaskerCount] = useState("1");
+  const [isOpenTempHoursDropdown, setIsOpenTempHoursDropdown] = useState(false);
+  const [isOpenTempAreaDropdown, setIsOpenTempAreaDropdown] = useState(false);
   const [inlineEditingCell, setInlineEditingCell] = useState<{ rowIndex: number; field: 'hours' | 'area' | 'taskerCount' | 'adjustment' } | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [isOpenInlineHoursDropdown, setIsOpenInlineHoursDropdown] = useState(false);
   const [isOpenInlineAreaDropdown, setIsOpenInlineAreaDropdown] = useState(false);
   const [isOpenInlineAdjustmentDropdown, setIsOpenInlineAdjustmentDropdown] = useState(false);
+  const [inlineDdRect, setInlineDdRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const captureInlineRect = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setInlineDdRect({ top: r.bottom, left: r.left, width: r.width });
+  }, []);
   const [viewingDuration, setViewingDuration] = useState<ServiceDurationEntity | null>(null);
   const [oldWorkflowId, setOldWorkflowId] = useState<string | null>(null);
 
@@ -785,6 +821,10 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
           name: a.name,
           description: a.description || "",
           price: Number(a.price),
+          priceUnit: a.priceUnit ?? "per_item",
+          durationMinutes: a.durationMinutes ?? null,
+          maxQuantity: a.maxQuantity ?? null,
+          sortOrder: a.sortOrder ?? undefined,
           isActive: !!a.isActive,
         })));
       }
@@ -795,7 +835,13 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
           id: s.id,
           name: s.name,
           description: s.description || "",
+          bonusDescription: s.bonusDescription ?? "",
           discountPercent: Number(s.discountPercent),
+          billingCycle: s.billingCycle ?? "monthly",
+          sessionsPerCycle: s.sessionsPerCycle ?? null,
+          commitmentMonths: s.commitmentMonths ?? null,
+          isPopular: s.isPopular ?? false,
+          sortOrder: s.sortOrder ?? 0,
           isActive: !!s.isActive,
         })));
       }
@@ -938,15 +984,12 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
     return opts;
   }, []);
 
-  // Price adjustment options: sorted intuitively (0% first, then discounts -5% to -50%, then premiums +5% to +50%)
   const adjustmentOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: "0", label: "Giá gốc (0%)" }];
-    // Add discounts from -5% down to -50%
-    for (let val = -5; val >= -50; val -= 5) {
+    for (let val = -1; val >= -50; val -= 1) {
       opts.push({ value: val.toString(), label: `Giảm ${Math.abs(val)}% (${val}%)` });
     }
-    // Add premiums from +5% up to +50%
-    for (let val = 5; val <= 50; val += 5) {
+    for (let val = 1; val <= 50; val += 1) {
       opts.push({ value: val.toString(), label: `Tăng ${val}% (+${val}%)` });
     }
     return opts;
@@ -1233,6 +1276,19 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
     toast.success("Đã thêm thời lượng mới");
   };
 
+  const ADDON_PRICE_UNIT_LABELS: Record<AddonPriceUnit, string> = {
+    per_item: "Theo dịch vụ",
+    per_room: "Theo phòng",
+    per_m2: "Theo m²",
+    per_session: "Theo buổi",
+    fixed: "Cố định",
+  };
+
+  const resetNewAddon = () => setNewAddon({
+    name: "", description: "", price: "", priceUnit: "per_item",
+    durationMinutes: "", maxQuantity: "", sortOrder: "", isActive: true,
+  });
+
   const handleSaveAddon = () => {
     if (!newAddon.name.trim()) {
       toast.error("Vui lòng nhập tên dịch vụ thêm");
@@ -1243,17 +1299,74 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
       toast.error("Đơn giá không hợp lệ");
       return;
     }
+    const durationVal = newAddon.durationMinutes ? Number(newAddon.durationMinutes) : null;
+    if (newAddon.durationMinutes && (isNaN(durationVal!) || durationVal! < 0)) {
+      toast.error("Thời gian thực hiện không hợp lệ");
+      return;
+    }
+    const maxQtyVal = newAddon.maxQuantity ? Number(newAddon.maxQuantity) : null;
+    if (newAddon.maxQuantity && (isNaN(maxQtyVal!) || maxQtyVal! < 1)) {
+      toast.error("Số lượng tối đa phải từ 1 trở lên");
+      return;
+    }
 
-    setAddons(prev => [...prev, {
+    const addonEntry: ServiceAddonEntity = {
       name: newAddon.name.trim(),
       description: newAddon.description.trim() || undefined,
       price: priceVal,
+      priceUnit: newAddon.priceUnit,
+      durationMinutes: durationVal,
+      maxQuantity: maxQtyVal,
+      sortOrder: newAddon.sortOrder ? Number(newAddon.sortOrder) : undefined,
       isActive: newAddon.isActive,
-    }]);
+    };
 
-    setNewAddon({ name: "", description: "", price: "", isActive: true });
-    toast.success("Đã thêm dịch vụ thêm");
+    if (editingAddonIndex !== null) {
+      setAddons(prev => prev.map((a, i) => i === editingAddonIndex ? { ...a, ...addonEntry } : a));
+      setEditingAddonIndex(null);
+      toast.success("Đã cập nhật dịch vụ thêm");
+    } else {
+      setAddons(prev => [...prev, addonEntry]);
+      toast.success("Đã thêm dịch vụ thêm");
+    }
+    resetNewAddon();
   };
+
+  const handleEditAddon = (i: number) => {
+    const a = addons[i];
+    setNewAddon({
+      name: a.name,
+      description: a.description ?? "",
+      price: String(a.price),
+      priceUnit: a.priceUnit ?? "per_item",
+      durationMinutes: a.durationMinutes != null ? String(a.durationMinutes) : "",
+      maxQuantity: a.maxQuantity != null ? String(a.maxQuantity) : "",
+      sortOrder: a.sortOrder != null ? String(a.sortOrder) : "",
+      isActive: a.isActive,
+    });
+    setEditingAddonIndex(i);
+  };
+
+  const BILLING_CYCLE_LABELS: Record<SubscriptionBillingCycle, string> = {
+    weekly: "Hàng tuần",
+    biweekly: "2 tuần/lần",
+    monthly: "Hàng tháng",
+    quarterly: "Hàng quý",
+    yearly: "Hàng năm",
+  };
+
+  const SUBSCRIPTION_PRESETS: { label: string; data: Partial<typeof newSubscription> }[] = [
+    { label: "Gói tuần", data: { name: "Gói tuần (4 buổi/tháng)", billingCycle: "weekly", sessionsPerCycle: "4", commitmentMonths: "1", discountPercent: "5", description: "Tiết kiệm 5% khi đặt theo tuần" } },
+    { label: "Gói tháng", data: { name: "Gói tháng (4 buổi)", billingCycle: "monthly", sessionsPerCycle: "4", commitmentMonths: "1", discountPercent: "10", description: "Tiết kiệm 10% khi đăng ký gói tháng" } },
+    { label: "Gói quý", data: { name: "Gói quý (12 buổi)", billingCycle: "quarterly", sessionsPerCycle: "12", commitmentMonths: "3", discountPercent: "15", description: "Tiết kiệm 15% khi cam kết 3 tháng", isPopular: true } },
+    { label: "Gói năm", data: { name: "Gói năm (48 buổi)", billingCycle: "yearly", sessionsPerCycle: "48", commitmentMonths: "12", discountPercent: "20", description: "Tiết kiệm 20% khi cam kết cả năm", bonusDescription: "Tặng 2 buổi dọn sâu miễn phí/năm" } },
+  ];
+
+  const resetNewSubscription = () => setNewSubscription({
+    name: "", description: "", bonusDescription: "", discountPercent: "",
+    billingCycle: "monthly", sessionsPerCycle: "", commitmentMonths: "",
+    isPopular: false, sortOrder: "", isActive: true,
+  });
 
   const handleSaveSubscription = () => {
     if (!newSubscription.name.trim()) {
@@ -1266,15 +1379,45 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
       return;
     }
 
-    setSubscriptions(prev => [...prev, {
+    const entry: ServiceSubscriptionEntity = {
       name: newSubscription.name.trim(),
       description: newSubscription.description.trim() || undefined,
+      bonusDescription: newSubscription.bonusDescription.trim() || undefined,
       discountPercent: discount,
+      billingCycle: newSubscription.billingCycle,
+      sessionsPerCycle: newSubscription.sessionsPerCycle ? Number(newSubscription.sessionsPerCycle) : null,
+      commitmentMonths: newSubscription.commitmentMonths ? Number(newSubscription.commitmentMonths) : null,
+      isPopular: newSubscription.isPopular,
+      sortOrder: newSubscription.sortOrder ? Number(newSubscription.sortOrder) : 0,
       isActive: newSubscription.isActive,
-    }]);
+    };
 
-    setNewSubscription({ name: "", description: "", discountPercent: "", isActive: true });
-    toast.success("Đã thêm cấu hình gói tháng");
+    if (editingSubscriptionIndex !== null) {
+      setSubscriptions(prev => prev.map((s, i) => i === editingSubscriptionIndex ? { ...s, ...entry } : s));
+      setEditingSubscriptionIndex(null);
+      toast.success("Đã cập nhật gói tháng");
+    } else {
+      setSubscriptions(prev => [...prev, entry]);
+      toast.success("Đã thêm cấu hình gói tháng");
+    }
+    resetNewSubscription();
+  };
+
+  const handleEditSubscription = (i: number) => {
+    const s = subscriptions[i];
+    setNewSubscription({
+      name: s.name,
+      description: s.description ?? "",
+      bonusDescription: s.bonusDescription ?? "",
+      discountPercent: String(s.discountPercent),
+      billingCycle: s.billingCycle ?? "monthly",
+      sessionsPerCycle: s.sessionsPerCycle != null ? String(s.sessionsPerCycle) : "",
+      commitmentMonths: s.commitmentMonths != null ? String(s.commitmentMonths) : "",
+      isPopular: s.isPopular ?? false,
+      sortOrder: s.sortOrder != null ? String(s.sortOrder) : "",
+      isActive: s.isActive,
+    });
+    setEditingSubscriptionIndex(i);
   };
 
   const handleSavePeakHour = () => {
@@ -1358,13 +1501,23 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
           name: a.name,
           description: a.description,
           price: a.price,
+          priceUnit: a.priceUnit,
+          durationMinutes: a.durationMinutes,
+          maxQuantity: a.maxQuantity,
+          sortOrder: a.sortOrder,
           isActive: a.isActive,
         })),
         
         subscriptions: subscriptions.map(s => ({
           name: s.name,
           description: s.description,
+          bonusDescription: s.bonusDescription,
           discountPercent: s.discountPercent,
+          billingCycle: s.billingCycle,
+          sessionsPerCycle: s.sessionsPerCycle,
+          commitmentMonths: s.commitmentMonths,
+          isPopular: s.isPopular,
+          sortOrder: s.sortOrder,
           isActive: s.isActive,
         })),
         
@@ -1608,7 +1761,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                 hint="Giá mỗi giờ của ca làm việc thường"
                 tooltip="Giá tiền mặc định cho mỗi giờ làm việc của một thợ trong ca thường. Được dùng làm đơn giá cốt lõi để nhân với số giờ của mốc dịch vụ khi tính giá cơ bản cho khách hàng."
               >
-                <Input type="number" value={baseHourlyRate} onChange={e => setBaseHourlyRate(Number(e.target.value))} className="h-10 rounded-lg border-slate-300 font-bold" />
+                <Input inputMode="numeric" value={baseHourlyRate === 0 ? "" : String(baseHourlyRate)} onChange={e => { const d = e.target.value.replace(/\D/g, ""); setBaseHourlyRate(d ? Number(d) : 0); }} className="h-10 rounded-lg border-slate-300 font-bold" />
                 {baseHourlyRate > 0 && <p className="text-sm font-black text-slate-900 mt-1">{vnd(baseHourlyRate)} / giờ</p>}
               </Field>
               <Field
@@ -1617,7 +1770,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                 hint="Giá giờ cho dịch vụ cao cấp / làm gấp"
                 tooltip="Đơn giá áp dụng khi khách hàng chọn dịch vụ Cao cấp (Premium) hoặc ca đặc biệt. Giá trị mang lại: (1) Chất lượng thợ tối ưu: Chỉ thợ xuất sắc (sao từ 4.8★ trở lên, thâm niên cao, ít hủy ca) mới được nhận việc; (2) VIP Matching: Đơn được đẩy lên ưu tiên hiển thị trước để thợ nhận ngay, đảm bảo 100% có người làm; (3) Làm gấp & Ngoài giờ: Áp dụng khi đặt sát giờ (dưới 2h) hoặc sáng sớm/tối muộn; (4) Dụng cụ nâng cấp: Thợ mang theo hóa chất sinh học chuyên dụng cao cấp."
               >
-                <Input type="number" value={premiumHourlyRate} onChange={e => setPremiumHourlyRate(Number(e.target.value))} className="h-10 rounded-lg border-slate-300 font-bold" />
+                <Input inputMode="numeric" value={premiumHourlyRate === 0 ? "" : String(premiumHourlyRate)} onChange={e => { const d = e.target.value.replace(/\D/g, ""); setPremiumHourlyRate(d ? Number(d) : 0); }} className="h-10 rounded-lg border-slate-300 font-bold" />
                 {premiumHourlyRate > 0 && <p className="text-sm font-black text-slate-900 mt-1">{vnd(premiumHourlyRate)} / giờ</p>}
               </Field>
               <div className="flex flex-col gap-2.5 p-3.5 bg-muted/20 border border-border/40 rounded-xl justify-center">
@@ -1723,26 +1876,24 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                     >
                       <div className="relative">
                         <Input
-                          type="number"
-                          step="0.1"
-                          max={24}
+                          inputMode="decimal"
                           placeholder="2"
                           value={newDuration.durationHours}
                           onChange={e => {
-                            const val = Number(e.target.value);
-                            if (val <= 24) {
-                              setNewDuration(p => ({ ...p, durationHours: e.target.value }));
+                            const v = e.target.value;
+                            if (/^\d*\.?\d*$/.test(v)) {
+                              setNewDuration(p => ({ ...p, durationHours: v }));
                             }
                           }}
                           onFocus={() => setIsOpenHoursDropdown(true)}
                           onBlur={() => setTimeout(() => setIsOpenHoursDropdown(false), 200)}
-                          className="h-10 rounded-lg pr-8 font-bold placeholder:text-slate-400/60 placeholder:font-normal"
+                          className={cn("h-10 pr-8 font-bold placeholder:text-slate-400/60 placeholder:font-normal", isOpenHoursDropdown ? "rounded-t-lg rounded-b-none border-b-transparent" : "rounded-lg")}
                         />
                         <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                           <Search className="w-3.5 h-3.5" />
                         </div>
                         {isOpenHoursDropdown && (
-                          <div className="absolute z-50 w-full mt-1 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                          <div className="absolute z-50 w-full max-h-80 overflow-y-auto bg-white border border-slate-200 border-t-slate-100 rounded-b-lg shadow-lg">
                             {hourOptions
                               .filter(opt => opt.toString().includes(newDuration.durationHours || ""))
                               .map(opt => (
@@ -1780,25 +1931,22 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                     >
                       <div className="relative">
                         <Input
-                          type="number"
+                          inputMode="numeric"
                           placeholder="55"
-                          max={1500}
                           value={newDuration.suggestedArea}
                           onChange={e => {
-                            const val = Number(e.target.value);
-                            if (val <= 1500) {
-                              setNewDuration(p => ({ ...p, suggestedArea: e.target.value }));
-                            }
+                            const v = e.target.value.replace(/\D/g, "");
+                            setNewDuration(p => ({ ...p, suggestedArea: v }));
                           }}
                           onFocus={() => setIsOpenAreaDropdown(true)}
                           onBlur={() => setTimeout(() => setIsOpenAreaDropdown(false), 200)}
-                          className="h-10 rounded-lg pr-8 font-bold placeholder:text-slate-400/60 placeholder:font-normal"
+                          className={cn("h-10 pr-8 font-bold placeholder:text-slate-400/60 placeholder:font-normal", isOpenAreaDropdown ? "rounded-t-lg rounded-b-none border-b-transparent" : "rounded-lg")}
                         />
                         <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                           <Search className="w-3.5 h-3.5" />
                         </div>
                         {isOpenAreaDropdown && (
-                          <div className="absolute z-50 w-full mt-1 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                          <div className="absolute z-50 w-full max-h-80 overflow-y-auto bg-white border border-slate-200 border-t-slate-100 rounded-b-lg shadow-lg">
                             {areaOptions
                               .filter(opt => opt.toString().includes(newDuration.suggestedArea || ""))
                               .map(opt => (
@@ -2006,7 +2154,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                           <th className="py-3.5 px-4">Số giờ làm việc</th>
                           {allowMultipleTaskers && <th className="py-3.5 px-4 text-center">Số lượng thợ</th>}
                           <th className="py-3.5 px-4 text-center">Diện tích mặc định</th>
-                          <th className="py-3.5 px-4 text-center">Đơn giá mốc (Ước tính)</th>
+                          <th className="py-3.5 px-4 text-center">Đơn giá ước tính</th>
                           <th className="py-3.5 px-4 text-center">Điều chỉnh giá</th>
                           <th className="py-3.5 px-4 text-center">Phổ biến</th>
                           <th className="py-3.5 px-4 text-center">Trạng thái</th>
@@ -2028,7 +2176,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                     max={24}
                                     value={inlineEditValue}
                                     onChange={e => setInlineEditValue(e.target.value)}
-                                    onFocus={() => setIsOpenInlineHoursDropdown(true)}
+                                    onFocus={e => { captureInlineRect(e); setIsOpenInlineHoursDropdown(true); }}
                                     onBlur={() => setTimeout(() => setIsOpenInlineHoursDropdown(false), 200)}
                                     onKeyDown={e => {
                                       if (e.key === 'Enter') handleInlineSave(i, 'hours', inlineEditValue);
@@ -2040,24 +2188,6 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                   <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                     <Search className="w-3 h-3" />
                                   </div>
-                                  {isOpenInlineHoursDropdown && (
-                                    <div className="absolute z-50 w-32 left-0 mt-1 max-h-40 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
-                                      {hourOptions
-                                        .filter(opt => opt.toString().includes(inlineEditValue || ""))
-                                        .map(opt => (
-                                          <button
-                                            key={opt}
-                                            type="button"
-                                            onMouseDown={() => {
-                                              handleInlineSave(i, 'hours', opt.toString());
-                                            }}
-                                            className="w-full text-left px-2 py-1 text-[10px] hover:bg-slate-100 font-semibold text-slate-700"
-                                          >
-                                            {opt} giờ
-                                          </button>
-                                        ))}
-                                    </div>
-                                  )}
                                 </div>
                               ) : (
                                 <div className="cursor-pointer group flex items-center gap-1" title="Nhấp đúp chuột để sửa nhanh">
@@ -2117,7 +2247,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                     max={1500}
                                     value={inlineEditValue}
                                     onChange={e => setInlineEditValue(e.target.value)}
-                                    onFocus={() => setIsOpenInlineAreaDropdown(true)}
+                                    onFocus={e => { captureInlineRect(e); setIsOpenInlineAreaDropdown(true); }}
                                     onBlur={() => setTimeout(() => setIsOpenInlineAreaDropdown(false), 200)}
                                     onKeyDown={e => {
                                       if (e.key === 'Enter') handleInlineSave(i, 'area', inlineEditValue);
@@ -2129,24 +2259,6 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                   <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                     <Search className="w-3 h-3" />
                                   </div>
-                                  {isOpenInlineAreaDropdown && (
-                                    <div className="absolute z-50 w-32 left-1/2 -translate-x-1/2 mt-1 max-h-40 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
-                                      {areaOptions
-                                        .filter(opt => opt.toString().includes(inlineEditValue || ""))
-                                        .map(opt => (
-                                          <button
-                                            key={opt}
-                                            type="button"
-                                            onMouseDown={() => {
-                                              handleInlineSave(i, 'area', opt.toString());
-                                            }}
-                                            className="w-full text-left px-2 py-1 text-[10px] hover:bg-slate-100 font-semibold text-slate-700"
-                                          >
-                                            {opt} m²
-                                          </button>
-                                        ))}
-                                    </div>
-                                  )}
                                 </div>
                               ) : (
                                 <div className="cursor-pointer group flex items-center justify-center gap-1" title="Nhấp đúp chuột để sửa nhanh">
@@ -2155,8 +2267,9 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                 </div>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-center font-black text-slate-700">
-                              {vnd(d.durationHours * baseHourlyRate * d.priceMultiplier)}
+                            <td className="py-3 px-4 text-center">
+                              <p className="font-black text-slate-700 text-xs">{vnd(d.durationHours * baseHourlyRate * d.priceMultiplier)}</p>
+                              <p className="text-[10px] text-primary font-bold mt-0.5">{vnd(d.durationHours * premiumHourlyRate * d.priceMultiplier)} <span className="text-primary/60 font-semibold">Premium</span></p>
                             </td>
                             <td className="py-3 px-4 text-center select-none min-w-[150px]" onDoubleClick={() => {
                               setInlineEditingCell({ rowIndex: i, field: 'adjustment' });
@@ -2175,7 +2288,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                       const val = e.target.value.replace(/[^0-9.-]/g, "");
                                       setInlineEditValue(val);
                                     }}
-                                    onFocus={() => setIsOpenInlineAdjustmentDropdown(true)}
+                                    onFocus={e => { captureInlineRect(e); setIsOpenInlineAdjustmentDropdown(true); }}
                                     onBlur={() => setTimeout(() => setIsOpenInlineAdjustmentDropdown(false), 200)}
                                     onKeyDown={e => {
                                       if (e.key === 'Enter') handleInlineSave(i, 'adjustment', inlineEditValue);
@@ -2187,27 +2300,6 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                   <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                     <Search className="w-3 h-3" />
                                   </div>
-                                  {isOpenInlineAdjustmentDropdown && (
-                                    <div className="absolute z-50 w-44 left-1/2 -translate-x-1/2 mt-1 max-h-40 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
-                                      {adjustmentOptions
-                                        .filter(opt =>
-                                          opt.label.toLowerCase().includes((inlineEditValue || "").toLowerCase()) ||
-                                          opt.value.includes(inlineEditValue || "")
-                                        )
-                                        .map(opt => (
-                                          <button
-                                            key={opt.value}
-                                            type="button"
-                                            onMouseDown={() => {
-                                              handleInlineSave(i, 'adjustment', opt.value);
-                                            }}
-                                            className="w-full text-left px-2 py-1 text-[10px] hover:bg-slate-100 font-semibold text-slate-700"
-                                          >
-                                            {opt.label}
-                                          </button>
-                                        ))}
-                                    </div>
-                                  )}
                                 </div>
                               ) : (
                                 <div className="cursor-pointer group flex items-center justify-center gap-1" title="Nhấp đúp chuột để sửa nhanh">
@@ -2244,12 +2336,18 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                                    type="button"
                                    onClick={() => {
                                      setEditingDurationIndex(i);
+                                     setTempHours(d.durationHours.toString());
+                                     setTempArea(d.suggestedArea ? d.suggestedArea.toString() : "");
+                                     setTempAdjustment(Math.round((d.priceMultiplier - 1) * 100).toString());
+                                     setTempIsPopular(d.isPopular || false);
+                                     setTempIsActive(d.isActive ?? true);
+                                     setTempTaskerCount(d.taskerCount ? d.taskerCount.toString() : "1");
                                      setTempTitle(d.title || "");
                                      setTempDescription(d.description || "");
                                      setIsOpenMetaModal(true);
                                     }}
                                    className="p-1.5 rounded-lg hover:bg-primary/10 text-slate-500 hover:text-primary transition-colors"
-                                   title="Chỉnh sửa tiêu đề & mô tả"
+                                   title="Chỉnh sửa mốc thời lượng"
                                  >
                                    <Edit className="w-3.5 h-3.5" />
                                  </button>
@@ -2269,59 +2367,154 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
 
               {/* TAB 2: ADDONS */}
               <TabsContent value="addons" className="space-y-4">
-                <div className="p-4 bg-muted/10 border border-border/30 rounded-2xl space-y-4">
-                  <p className="text-xs font-bold text-foreground">Thêm dịch vụ đi kèm / Dịch vụ thêm (Ví dụ: Lau kính ngoài, Vệ sinh tủ lạnh)</p>
+                {/* Form thêm / chỉnh sửa addon */}
+                <div className={cn("p-4 border rounded-2xl space-y-4 transition-colors",
+                  editingAddonIndex !== null
+                    ? "bg-amber-50/50 border-amber-300/60 dark:bg-amber-900/10 dark:border-amber-700/40"
+                    : "bg-muted/10 border-border/30")}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-foreground">
+                      {editingAddonIndex !== null
+                        ? `Đang chỉnh sửa: ${addons[editingAddonIndex]?.name}`
+                        : "Thêm dịch vụ thêm mới (Ví dụ: Lau kính ngoài, Vệ sinh tủ lạnh, Dọn thêm phòng)"}
+                    </p>
+                    {editingAddonIndex !== null && (
+                      <button type="button" onClick={() => { setEditingAddonIndex(null); resetNewAddon(); }}
+                        className="text-xs font-bold px-3 py-1 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground">
+                        Huỷ sửa
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Row 1: Thông tin chính */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <Field label="Tên dịch vụ thêm" required>
                       <Input placeholder="Lau kính ban công" value={newAddon.name}
                         onChange={e => setNewAddon(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-xl" />
                     </Field>
-                    <Field label="Đơn giá phụ thu" required>
+                    <Field label="Đơn giá phụ thu (₫)" required>
                       <Input type="number" placeholder="50000" value={newAddon.price}
                         onChange={e => setNewAddon(p => ({ ...p, price: e.target.value }))} className="h-10 rounded-xl" />
                     </Field>
-                    <Field label="Mô tả dịch vụ thêm">
-                      <Input placeholder="Thực hiện lau chùi kính toàn bộ khu vực ban công..." value={newAddon.description}
-                        onChange={e => setNewAddon(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
+                    <Field label="Đơn vị tính" tooltip="Cách tính giá khi khách chọn addon này">
+                      <Select value={newAddon.priceUnit} onValueChange={v => setNewAddon(p => ({ ...p, priceUnit: v as AddonPriceUnit }))}>
+                        <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="per_item">Theo dịch vụ (mỗi lần)</SelectItem>
+                          <SelectItem value="per_room">Theo phòng</SelectItem>
+                          <SelectItem value="per_m2">Theo m²</SelectItem>
+                          <SelectItem value="per_session">Theo buổi</SelectItem>
+                          <SelectItem value="fixed">Cố định</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Field>
                   </div>
+
+                  {/* Row 2: Cấu hình bổ sung */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <Field label="Thời gian thêm (phút)" tooltip="Thời gian phát sinh thêm khi khách chọn addon này">
+                      <Input type="number" placeholder="30" value={newAddon.durationMinutes}
+                        onChange={e => setNewAddon(p => ({ ...p, durationMinutes: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Số lượng tối đa" tooltip="Giới hạn khách có thể chọn tối đa bao nhiêu đơn vị. Để trống = không giới hạn">
+                      <Input type="number" placeholder="Không giới hạn" value={newAddon.maxQuantity}
+                        onChange={e => setNewAddon(p => ({ ...p, maxQuantity: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Thứ tự hiển thị" tooltip="Số nhỏ hơn hiển thị trước">
+                      <Input type="number" placeholder="0" value={newAddon.sortOrder}
+                        onChange={e => setNewAddon(p => ({ ...p, sortOrder: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Trạng thái">
+                      <div className="flex items-center gap-2 h-10">
+                        <Switch checked={newAddon.isActive} onCheckedChange={v => setNewAddon(p => ({ ...p, isActive: v }))} />
+                        <span className="text-xs font-semibold">{newAddon.isActive ? "Đang bật" : "Đã tắt"}</span>
+                      </div>
+                    </Field>
+                  </div>
+
+                  {/* Row 3: Mô tả full width */}
+                  <Field label="Mô tả chi tiết">
+                    <Input placeholder="Thực hiện lau chùi kính toàn bộ khu vực ban công, loại bỏ vết bẩn cứng đầu..." value={newAddon.description}
+                      onChange={e => setNewAddon(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
+                  </Field>
+
                   <div className="flex justify-end">
-                    <BaseButton type="button" onClick={handleSaveAddon} className="h-10 rounded-xl font-bold bg-primary text-white px-6">
-                      + Thêm dịch vụ thêm
+                    <BaseButton type="button" onClick={handleSaveAddon}
+                      className={cn("h-10 rounded-xl font-bold text-white px-6",
+                        editingAddonIndex !== null ? "bg-amber-500 hover:bg-amber-600" : "bg-primary")}>
+                      {editingAddonIndex !== null ? "Lưu thay đổi" : "+ Thêm dịch vụ thêm"}
                     </BaseButton>
                   </div>
                 </div>
 
+                {/* Bảng danh sách addons */}
                 {addons.length === 0 ? (
                   <div className="py-8 text-center text-muted-foreground text-xs bg-muted/5 border border-dashed border-border/40 rounded-2xl">
-                    Chưa có cấu hình dịch vụ thêm nào.
+                    Chưa có dịch vụ thêm nào. Thêm ở form bên trên.
                   </div>
                 ) : (
-                  <div className="border border-border/30 rounded-lg overflow-hidden bg-card shadow-2xs">
+                  <div className="border border-border/30 rounded-xl overflow-hidden bg-card shadow-2xs">
+                    <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wide">
+                        {addons.length} dịch vụ thêm
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {addons.filter(a => a.isActive).length} đang bật · {addons.filter(a => !a.isActive).length} đã tắt
+                      </span>
+                    </div>
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-muted/40 border-b border-border/30 text-slate-800 uppercase font-extrabold tracking-wider text-[11px]">
-                          <th className="py-3.5 px-4 font-bold">Tên dịch vụ</th>
-                          <th className="py-3.5 px-4 font-bold">Mô tả</th>
-                          <th className="py-3.5 px-4 font-bold text-center">Đơn giá</th>
-                          <th className="py-3.5 px-4 font-bold text-center">Trạng thái</th>
-                          <th className="py-3.5 px-4 font-bold text-right">Thao tác</th>
+                        <tr className="bg-muted/20 border-b border-border/30 text-slate-700 uppercase font-extrabold tracking-wider text-[10px]">
+                          <th className="py-3 px-4">Tên dịch vụ</th>
+                          <th className="py-3 px-4">Mô tả</th>
+                          <th className="py-3 px-4 text-right">Đơn giá</th>
+                          <th className="py-3 px-4 text-center">Đơn vị</th>
+                          <th className="py-3 px-4 text-center">T.Gian</th>
+                          <th className="py-3 px-4 text-center">Tối đa</th>
+                          <th className="py-3 px-4 text-center">Thứ tự</th>
+                          <th className="py-3 px-4 text-center">Bật/Tắt</th>
+                          <th className="py-3 px-4 text-right">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/20">
                         {addons.map((a, i) => (
-                          <tr key={i} className="hover:bg-muted/10 transition-colors">
+                          <tr key={i} className={cn("transition-colors",
+                            editingAddonIndex === i ? "bg-amber-50/60 dark:bg-amber-900/10" : "hover:bg-muted/10")}>
                             <td className="py-3 px-4 font-bold text-foreground">{a.name}</td>
-                            <td className="py-3 px-4 text-muted-foreground">{a.description || "—"}</td>
-                            <td className="py-3 px-4 text-center font-semibold text-primary">{vnd(a.price)}</td>
+                            <td className="py-3 px-4 text-muted-foreground max-w-[180px] truncate">{a.description || "—"}</td>
+                            <td className="py-3 px-4 text-right font-semibold text-primary whitespace-nowrap">{vnd(a.price)}</td>
                             <td className="py-3 px-4 text-center">
-                              <Switch checked={a.isActive} onCheckedChange={v => setAddons(prev => prev.map((x, idx) => idx === i ? { ...x, isActive: v } : x))} />
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary whitespace-nowrap">
+                                {ADDON_PRICE_UNIT_LABELS[a.priceUnit ?? "per_item"]}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-muted-foreground">
+                              {a.durationMinutes ? `${a.durationMinutes} phút` : "—"}
+                            </td>
+                            <td className="py-3 px-4 text-center text-muted-foreground">
+                              {a.maxQuantity ?? "∞"}
+                            </td>
+                            <td className="py-3 px-4 text-center text-muted-foreground">
+                              {a.sortOrder ?? "—"}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Switch checked={a.isActive}
+                                onCheckedChange={v => setAddons(prev => prev.map((x, idx) => idx === i ? { ...x, isActive: v } : x))} />
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <button type="button" onClick={() => setAddons(prev => prev.filter((_, idx) => idx !== i))}
-                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1 justify-end">
+                                <button type="button" onClick={() => handleEditAddon(i)}
+                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600">
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button type="button" onClick={() => {
+                                  setAddons(prev => prev.filter((_, idx) => idx !== i));
+                                  if (editingAddonIndex === i) { setEditingAddonIndex(null); resetNewAddon(); }
+                                }}
+                                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -2413,59 +2606,181 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
 
               {/* TAB 4: SUBSCRIPTIONS */}
               <TabsContent value="subscriptions" className="space-y-4">
-                <div className="p-4 bg-muted/10 border border-border/30 rounded-2xl space-y-4">
-                  <p className="text-xs font-bold text-foreground">Thêm thiết lập chiết khấu cho khách đăng ký định kỳ (Gói tháng/Gói định kỳ)</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Field label="Tên cấu hình" required>
-                      <Input placeholder="Gói 3 tháng (12 buổi)" value={newSubscription.name}
+                {/* Quick presets */}
+                <div className="flex flex-wrap gap-2 p-3 bg-emerald-50/60 border border-emerald-200/50 rounded-xl">
+                  <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wide self-center mr-1">Thêm nhanh:</span>
+                  {SUBSCRIPTION_PRESETS.map(preset => (
+                    <button key={preset.label} type="button"
+                      onClick={() => setNewSubscription(p => ({ ...p, ...preset.data }))}
+                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors shadow-xs">
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Form */}
+                <div className={cn("p-4 border rounded-2xl space-y-4 transition-colors",
+                  editingSubscriptionIndex !== null
+                    ? "bg-amber-50/50 border-amber-300/60"
+                    : "bg-muted/10 border-border/30")}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-foreground">
+                      {editingSubscriptionIndex !== null
+                        ? `Đang chỉnh sửa: ${subscriptions[editingSubscriptionIndex]?.name}`
+                        : "Thêm cấu hình gói định kỳ mới"}
+                    </p>
+                    {editingSubscriptionIndex !== null && (
+                      <button type="button" onClick={() => { setEditingSubscriptionIndex(null); resetNewSubscription(); }}
+                        className="text-xs font-bold px-3 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80">
+                        Huỷ sửa
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <Field label="Tên gói định kỳ" required>
+                      <Input placeholder="Gói quý (12 buổi)" value={newSubscription.name}
                         onChange={e => setNewSubscription(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-xl" />
                     </Field>
-                    <Field label="Phần trăm giảm giá (%)" required>
-                      <Input type="number" max="100" placeholder="15" value={newSubscription.discountPercent}
-                        onChange={e => setNewSubscription(p => ({ ...p, discountPercent: e.target.value }))} className="h-10 rounded-xl" />
+                    <Field label="Chu kỳ thanh toán" tooltip="Khách sẽ được lập hóa đơn theo chu kỳ này">
+                      <Select value={newSubscription.billingCycle} onValueChange={v => setNewSubscription(p => ({ ...p, billingCycle: v as SubscriptionBillingCycle }))}>
+                        <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Hàng tuần</SelectItem>
+                          <SelectItem value="biweekly">2 tuần/lần</SelectItem>
+                          <SelectItem value="monthly">Hàng tháng</SelectItem>
+                          <SelectItem value="quarterly">Hàng quý (3 tháng)</SelectItem>
+                          <SelectItem value="yearly">Hàng năm</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Field>
-                    <Field label="Mô tả ưu đãi">
-                      <Input placeholder="Tiết kiệm 15% tổng chi phí dọn dẹp định kỳ..." value={newSubscription.description}
-                        onChange={e => setNewSubscription(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
+                    <Field label="Số buổi/chu kỳ" tooltip="Tổng buổi dọn được gồm trong 1 chu kỳ">
+                      <Input type="number" placeholder="12" value={newSubscription.sessionsPerCycle}
+                        onChange={e => setNewSubscription(p => ({ ...p, sessionsPerCycle: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Cam kết tối thiểu (tháng)" tooltip="Số tháng khách phải duy trì gói">
+                      <Input type="number" placeholder="3" value={newSubscription.commitmentMonths}
+                        onChange={e => setNewSubscription(p => ({ ...p, commitmentMonths: e.target.value }))} className="h-10 rounded-xl" />
                     </Field>
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <Field label="Giảm giá (%)" required>
+                      <Input type="number" min="0" max="100" placeholder="15" value={newSubscription.discountPercent}
+                        onChange={e => setNewSubscription(p => ({ ...p, discountPercent: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Thứ tự hiển thị">
+                      <Input type="number" placeholder="0" value={newSubscription.sortOrder}
+                        onChange={e => setNewSubscription(p => ({ ...p, sortOrder: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Phổ biến">
+                      <div className="flex items-center gap-2 h-10">
+                        <Switch checked={newSubscription.isPopular} onCheckedChange={v => setNewSubscription(p => ({ ...p, isPopular: v }))} />
+                        <span className="text-xs font-semibold">{newSubscription.isPopular ? "Hiện badge Phổ biến" : "Không"}</span>
+                      </div>
+                    </Field>
+                    <Field label="Trạng thái">
+                      <div className="flex items-center gap-2 h-10">
+                        <Switch checked={newSubscription.isActive} onCheckedChange={v => setNewSubscription(p => ({ ...p, isActive: v }))} />
+                        <span className="text-xs font-semibold">{newSubscription.isActive ? "Đang bật" : "Đã tắt"}</span>
+                      </div>
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Field label="Mô tả ưu đãi">
+                      <Input placeholder="Tiết kiệm 15% khi cam kết 3 tháng dọn dẹp định kỳ..." value={newSubscription.description}
+                        onChange={e => setNewSubscription(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                    <Field label="Ưu đãi thêm (Bonus)" tooltip="Ví dụ: Tặng 1 buổi dọn sâu miễn phí mỗi quý">
+                      <Input placeholder="Tặng 2 buổi dọn sâu miễn phí/năm..." value={newSubscription.bonusDescription}
+                        onChange={e => setNewSubscription(p => ({ ...p, bonusDescription: e.target.value }))} className="h-10 rounded-xl" />
+                    </Field>
+                  </div>
+
                   <div className="flex justify-end">
-                    <BaseButton type="button" onClick={handleSaveSubscription} className="h-10 rounded-xl font-bold bg-primary text-white px-6">
-                      + Thêm gói định kỳ
+                    <BaseButton type="button" onClick={handleSaveSubscription}
+                      className={cn("h-10 rounded-xl font-bold text-white px-6",
+                        editingSubscriptionIndex !== null ? "bg-amber-500 hover:bg-amber-600" : "bg-primary")}>
+                      {editingSubscriptionIndex !== null ? "Lưu thay đổi" : "+ Thêm gói định kỳ"}
                     </BaseButton>
                   </div>
                 </div>
 
                 {subscriptions.length === 0 ? (
                   <div className="py-8 text-center text-muted-foreground text-xs bg-muted/5 border border-dashed border-border/40 rounded-2xl">
-                    Chưa có cấu hình gói tháng nào được thêm.
+                    Chưa có cấu hình gói tháng nào. Dùng nút thêm nhanh hoặc điền form ở trên.
                   </div>
                 ) : (
-                  <div className="border border-border/30 rounded-lg overflow-hidden bg-card shadow-2xs">
+                  <div className="border border-border/30 rounded-xl overflow-hidden bg-card shadow-2xs">
+                    <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wide">{subscriptions.length} gói định kỳ</span>
+                      <span className="text-[10px] text-muted-foreground">{subscriptions.filter(s => s.isActive).length} đang bật</span>
+                    </div>
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-muted/40 border-b border-border/30 text-slate-800 uppercase font-extrabold tracking-wider text-[11px]">
-                          <th className="py-3.5 px-4 font-bold">Tên gói định kỳ</th>
-                          <th className="py-3.5 px-4 font-bold">Mô tả</th>
-                          <th className="py-3.5 px-4 font-bold text-center">Tỷ lệ giảm giá</th>
-                          <th className="py-3.5 px-4 font-bold text-center">Trạng thái</th>
-                          <th className="py-3.5 px-4 font-bold text-right">Thao tác</th>
+                        <tr className="bg-muted/20 border-b border-border/30 text-slate-700 uppercase font-extrabold tracking-wider text-[10px]">
+                          <th className="py-3 px-4">Tên gói</th>
+                          <th className="py-3 px-4 text-center">Chu kỳ</th>
+                          <th className="py-3 px-4 text-center">Số buổi</th>
+                          <th className="py-3 px-4 text-center">Cam kết</th>
+                          <th className="py-3 px-4 text-center">Giảm giá</th>
+                          <th className="py-3 px-4">Mô tả / Bonus</th>
+                          <th className="py-3 px-4 text-center">Bật/Tắt</th>
+                          <th className="py-3 px-4 text-right">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/20">
                         {subscriptions.map((s, i) => (
-                          <tr key={i} className="hover:bg-muted/10 transition-colors">
-                            <td className="py-3 px-4 font-bold text-foreground">{s.name}</td>
-                            <td className="py-3 px-4 text-muted-foreground">{s.description || "—"}</td>
-                            <td className="py-3 px-4 text-center font-extrabold text-emerald-600">-{s.discountPercent}%</td>
+                          <tr key={i} className={cn("transition-colors",
+                            editingSubscriptionIndex === i ? "bg-amber-50/60" : "hover:bg-muted/10")}>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-foreground">{s.name}</span>
+                                {s.isPopular && (
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-700 border border-amber-300">
+                                    Phổ biến
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="py-3 px-4 text-center">
-                              <Switch checked={s.isActive} onCheckedChange={v => setSubscriptions(prev => prev.map((x, idx) => idx === i ? { ...x, isActive: v } : x))} />
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                                {BILLING_CYCLE_LABELS[s.billingCycle ?? "monthly"]}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-muted-foreground">
+                              {s.sessionsPerCycle ? `${s.sessionsPerCycle} buổi` : "—"}
+                            </td>
+                            <td className="py-3 px-4 text-center text-muted-foreground">
+                              {s.commitmentMonths ? `${s.commitmentMonths} tháng` : "—"}
+                            </td>
+                            <td className="py-3 px-4 text-center font-extrabold text-emerald-600">
+                              -{s.discountPercent}%
+                            </td>
+                            <td className="py-3 px-4 max-w-[200px]">
+                              <p className="text-muted-foreground truncate">{s.description || "—"}</p>
+                              {s.bonusDescription && (
+                                <p className="text-[10px] text-amber-600 font-semibold truncate mt-0.5">🎁 {s.bonusDescription}</p>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Switch checked={s.isActive}
+                                onCheckedChange={v => setSubscriptions(prev => prev.map((x, idx) => idx === i ? { ...x, isActive: v } : x))} />
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <button type="button" onClick={() => setSubscriptions(prev => prev.filter((_, idx) => idx !== i))}
-                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1 justify-end">
+                                <button type="button" onClick={() => handleEditSubscription(i)}
+                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600">
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button type="button" onClick={() => {
+                                  setSubscriptions(prev => prev.filter((_, idx) => idx !== i));
+                                  if (editingSubscriptionIndex === i) { setEditingSubscriptionIndex(null); resetNewSubscription(); }
+                                }} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -3133,52 +3448,165 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Cấu hình Tiêu đề & Mô tả mốc thời lượng */}
+      {/* Dialog Chỉnh sửa toàn bộ mốc thời lượng */}
       <Dialog open={isOpenMetaModal} onOpenChange={(open) => {
         setIsOpenMetaModal(open);
         if (!open) setEditingDurationIndex(null);
       }}>
-        <DialogContent className="w-full sm:max-w-[480px] rounded-2xl p-6 bg-card border border-border">
+        <DialogContent className="w-full sm:max-w-[560px] rounded-2xl p-6 bg-card border border-border">
           <DialogHeader>
             <DialogTitle className="text-base font-extrabold flex items-center gap-2 text-slate-800">
-              <ScrollText className="w-4 h-4 text-primary" />
-              Cấu hình hiển thị chi tiết mốc
+              <Edit className="w-4 h-4 text-primary" />
+              Chỉnh sửa mốc thời lượng
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
-              Thiết lập tiêu đề và mô tả hiển thị cho khách hàng trên ứng dụng.
+              Cập nhật toàn bộ thông tin cấu hình cho mốc thời lượng này.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 border-t border-b border-border/30 my-2">
+          <div className="space-y-4 py-3 border-t border-b border-border/30 my-2 max-h-[65vh] overflow-y-auto pr-1">
+            {/* Row 1: Số giờ + Diện tích */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-black text-slate-800 flex items-center gap-1">
+                  Số giờ <span className="text-rose-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    inputMode="decimal"
+                    placeholder="2"
+                    value={tempHours}
+                    onChange={e => { if (/^\d*\.?\d*$/.test(e.target.value)) setTempHours(e.target.value); }}
+                    onFocus={() => setIsOpenTempHoursDropdown(true)}
+                    onBlur={() => setTimeout(() => setIsOpenTempHoursDropdown(false), 200)}
+                    className={cn("h-10 text-sm font-bold pr-8", isOpenTempHoursDropdown ? "rounded-t-xl rounded-b-none border-b-transparent" : "rounded-xl")}
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <Search className="w-3.5 h-3.5" />
+                  </div>
+                  {isOpenTempHoursDropdown && (
+                    <div className="absolute z-50 w-full max-h-52 overflow-y-auto bg-white border border-slate-200 border-t-slate-100 rounded-b-xl shadow-lg">
+                      {hourOptions.filter(opt => opt.toString().includes(tempHours || "")).map(opt => (
+                        <button key={opt} type="button"
+                          onMouseDown={() => { setTempHours(opt.toString()); setIsOpenTempHoursDropdown(false); }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 font-semibold text-slate-700"
+                        >
+                          {opt} giờ ({opt * 60} phút)
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {tempHours && <p className="text-[10px] text-primary font-bold">{formatHoursToMinutes(tempHours)}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-black text-slate-800">Diện tích mặc định (m²)</Label>
+                <div className="relative">
+                  <Input
+                    inputMode="numeric"
+                    placeholder="55"
+                    value={tempArea}
+                    onChange={e => setTempArea(e.target.value.replace(/\D/g, ""))}
+                    onFocus={() => setIsOpenTempAreaDropdown(true)}
+                    onBlur={() => setTimeout(() => setIsOpenTempAreaDropdown(false), 200)}
+                    className={cn("h-10 text-sm font-bold pr-8", isOpenTempAreaDropdown ? "rounded-t-xl rounded-b-none border-b-transparent" : "rounded-xl")}
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <Search className="w-3.5 h-3.5" />
+                  </div>
+                  {isOpenTempAreaDropdown && (
+                    <div className="absolute z-50 w-full max-h-52 overflow-y-auto bg-white border border-slate-200 border-t-slate-100 rounded-b-xl shadow-lg">
+                      {areaOptions.filter(opt => opt.toString().includes(tempArea || "")).map(opt => (
+                        <button key={opt} type="button"
+                          onMouseDown={() => { setTempArea(opt.toString()); setIsOpenTempAreaDropdown(false); }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 font-semibold text-slate-700"
+                        >
+                          {opt} m²
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {tempArea && <p className="text-[10px] text-slate-500 font-semibold">{tempArea} m²</p>}
+              </div>
+            </div>
+
+            {/* Row 2: Điều chỉnh giá */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-black text-slate-800 flex items-center gap-1">
-                Tiêu đề mốc <span className="text-rose-500 font-bold">*</span>
-              </Label>
+              <Label className="text-xs font-black text-slate-800">Điều chỉnh giá (%)</Label>
+              <Select value={tempAdjustment} onValueChange={setTempAdjustment}>
+                <SelectTrigger className="h-10 rounded-xl text-sm font-bold bg-white border-slate-300">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white max-h-60">
+                  {adjustmentOptions.map(o => (
+                    <SelectItem key={o.value} value={o.value} className="text-xs font-semibold cursor-pointer">
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {baseHourlyRate > 0 && tempHours && (
+                <p className="text-[10px] text-primary font-bold">
+                  Ước tính: {vnd(Number(tempHours) * baseHourlyRate * (1 + Number(tempAdjustment) / 100))}
+                </p>
+              )}
+            </div>
+
+            {/* Row 3: Số thợ (nếu allowMultipleTaskers) */}
+            {allowMultipleTaskers && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-black text-slate-800">Số lượng thợ</Label>
+                <Select value={tempTaskerCount} onValueChange={setTempTaskerCount}>
+                  <SelectTrigger className="h-10 rounded-xl text-sm font-bold bg-white border-slate-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(n => (
+                      <SelectItem key={n} value={n.toString()} className="text-xs font-semibold cursor-pointer">{n} thợ</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Row 4: Phổ biến + Trạng thái */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 p-3 bg-muted/20 border border-border/30 rounded-xl">
+                <Switch checked={tempIsPopular} onCheckedChange={setTempIsPopular} />
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Phổ biến</p>
+                  <p className="text-[10px] text-slate-500">Hiển thị nhãn nổi bật</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/20 border border-border/30 rounded-xl">
+                <Switch checked={tempIsActive} onCheckedChange={setTempIsActive} />
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Hoạt động</p>
+                  <p className="text-[10px] text-slate-500">Hiển thị với khách hàng</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 5: Tiêu đề + Mô tả */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-black text-slate-800">Tiêu đề mốc (Tùy chọn)</Label>
               <Input
                 placeholder="Ví dụ: Căn hộ nhỏ, Dọn dẹp cơ bản..."
                 value={tempTitle}
                 onChange={e => setTempTitle(e.target.value)}
                 className="h-10 rounded-xl text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal"
               />
-              <p className="text-[10px] text-slate-400 font-medium leading-normal">
-                Bắt buộc nhập. Tên hiển thị đại diện cho mốc thời lượng này.
-              </p>
             </div>
-
             <div className="space-y-1.5">
-              <Label className="text-xs font-black text-slate-800">
-                Mô tả chi tiết (Tùy chọn)
-              </Label>
+              <Label className="text-xs font-black text-slate-800">Mô tả chi tiết (Tùy chọn)</Label>
               <textarea
                 placeholder="Ví dụ: Thích hợp phòng trọ, căn hộ nhỏ 1 phòng ngủ..."
                 value={tempDescription}
                 onChange={e => setTempDescription(e.target.value)}
                 rows={3}
-                className="w-full min-h-[80px] text-xs font-semibold rounded-xl border border-slate-200 bg-background px-3 py-2 placeholder:text-slate-400 placeholder:font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full min-h-[72px] text-xs font-semibold rounded-xl border border-slate-200 bg-background px-3 py-2 placeholder:text-slate-400 placeholder:font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0 resize-none"
               />
-              <p className="text-[10px] text-slate-400 font-medium leading-normal">
-                Không bắt buộc. Chi tiết phụ trợ bổ sung giúp khách hàng dễ hình dung dịch vụ.
-              </p>
             </div>
           </div>
 
@@ -3186,10 +3614,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
             <BaseButton
               type="button"
               variant="outline"
-              onClick={() => {
-                setIsOpenMetaModal(false);
-                setEditingDurationIndex(null);
-              }}
+              onClick={() => { setIsOpenMetaModal(false); setEditingDurationIndex(null); }}
               className="py-2.5 px-4 rounded-xl text-xs font-bold h-10 flex-1 sm:flex-none"
             >
               Hủy
@@ -3198,40 +3623,32 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
               type="button"
               variant="primary"
               onClick={() => {
-                if (tempDescription.trim() && !tempTitle.trim()) {
-                  toast.error("Tiêu đề là bắt buộc nhập khi có mô tả chi tiết!");
+                const hours = parseFloat(tempHours);
+                if (isNaN(hours) || hours <= 0 || hours > 24) {
+                  toast.error("Số giờ phải từ 0.1 đến 24!");
                   return;
                 }
-                if (!tempTitle.trim() && !tempDescription.trim()) {
-                  if (editingDurationIndex !== null) {
-                    setDurations(prev => prev.map((x, idx) => idx === editingDurationIndex ? { ...x, title: "", description: "" } : x));
-                  } else {
-                    setNewDuration(p => ({ ...p, title: "", description: "" }));
-                  }
-                  setIsOpenMetaModal(false);
-                  setEditingDurationIndex(null);
-                  return;
-                }
-                if (!tempTitle.trim()) {
-                  toast.error("Vui lòng điền tiêu đề mốc thời lượng!");
-                  return;
-                }
-                
                 if (editingDurationIndex !== null) {
-                  setDurations(prev => prev.map((x, idx) => idx === editingDurationIndex ? { ...x, title: tempTitle.trim(), description: tempDescription.trim() } : x));
-                } else {
-                  setNewDuration(p => ({
-                    ...p,
-                    title: tempTitle.trim(),
-                    description: tempDescription.trim()
-                  }));
+                  const adj = parseFloat(tempAdjustment) || 0;
+                  setDurations(prev => prev.map((x, idx) => idx === editingDurationIndex ? {
+                    ...x,
+                    durationHours: hours,
+                    suggestedArea: tempArea ? Number(tempArea) : null,
+                    priceMultiplier: 1 + adj / 100,
+                    isPopular: tempIsPopular,
+                    isActive: tempIsActive,
+                    taskerCount: allowMultipleTaskers ? Number(tempTaskerCount) : x.taskerCount,
+                    title: tempTitle.trim() || undefined,
+                    description: tempDescription.trim() || undefined,
+                  } : tempIsPopular ? { ...x, isPopular: false } : x));
                 }
                 setIsOpenMetaModal(false);
                 setEditingDurationIndex(null);
+                toast.success("Đã cập nhật mốc thời lượng!");
               }}
               className="py-2.5 px-5 rounded-xl text-xs font-bold h-10 flex-1 sm:flex-none"
             >
-              Xác nhận
+              Lưu thay đổi
             </BaseButton>
           </DialogFooter>
         </DialogContent>
@@ -3239,76 +3656,75 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
 
       {/* Dialog Xem chi tiết mốc thời lượng */}
       <Dialog open={!!viewingDuration} onOpenChange={(open) => !open && setViewingDuration(null)}>
-        <DialogContent className="w-full sm:max-w-[480px] rounded-2xl p-6 bg-card border border-border">
-          <DialogHeader>
-            <DialogTitle className="text-base font-extrabold flex items-center gap-2 text-slate-800">
-              <Clock className="w-4 h-4 text-primary" />
-              Chi tiết mốc thời lượng
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 font-medium">
-              Thông tin chi tiết cấu hình của mốc thời lượng này.
-            </DialogDescription>
+        <DialogContent className="w-full sm:max-w-[500px] rounded-2xl p-6 bg-card border border-border">
+          <DialogHeader className="mb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <DialogTitle className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  {viewingDuration?.title || "—"}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 font-medium mt-1">
+                  Mốc thời lượng dịch vụ
+                </DialogDescription>
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                {viewingDuration?.isPopular && (
+                  <Badge className="bg-orange-500 text-white text-[9px] px-2 py-0.5 font-bold">Phổ biến</Badge>
+                )}
+                <Badge className={cn("text-[9px] px-2 py-0.5 font-bold", viewingDuration?.isActive ? "bg-emerald-500 text-white" : "bg-slate-300 text-slate-600")}>
+                  {viewingDuration?.isActive ? "Hoạt động" : "Ngưng"}
+                </Badge>
+              </div>
+            </div>
           </DialogHeader>
 
           {viewingDuration && (
-            <div className="space-y-4 py-4 border-t border-b border-border/30 my-2 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-2.5">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
-                  <span className="font-bold text-slate-500">Tiêu đề hiển thị:</span>
-                  <span className="font-extrabold text-primary text-sm">{viewingDuration.title || "—"}</span>
-                </div>
-                <div className="flex flex-col gap-1 pb-2 border-b border-slate-200/50">
-                  <span className="font-bold text-slate-500">Mô tả chi tiết:</span>
-                  <p className="font-semibold text-slate-700 leading-relaxed whitespace-pre-line text-[11px] bg-white p-2 rounded-lg border border-slate-100">
-                    {viewingDuration.description || "Chưa có mô tả chi tiết."}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-1">
-                  <div className="space-y-1">
-                    <span className="font-bold text-slate-500">Số giờ làm việc:</span>
-                    <p className="font-extrabold text-slate-800 text-sm">{viewingDuration.durationHours} giờ</p>
+            <div className="space-y-3">
+              {/* Stat grid 2x2 */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Số giờ làm việc", value: `${viewingDuration.durationHours} giờ`, sub: `${viewingDuration.durationHours * 60} phút` },
+                  { label: "Diện tích mặc định", value: viewingDuration.suggestedArea ? `${viewingDuration.suggestedArea} m²` : "—", sub: "Diện tích gợi ý" },
+                  { label: "Số lượng thợ", value: `${viewingDuration.taskerCount || 1} người`, sub: "Tasker thực hiện" },
+                  {
+                    label: "Điều chỉnh giá",
+                    value: viewingDuration.priceMultiplier === 1.0 ? "Giá gốc" : viewingDuration.priceMultiplier < 1.0 ? `−${Math.round((1 - viewingDuration.priceMultiplier) * 100)}%` : `+${Math.round((viewingDuration.priceMultiplier - 1) * 100)}%`,
+                    sub: viewingDuration.priceMultiplier === 1.0 ? "Không điều chỉnh" : "So với giá chuẩn",
+                    valueColor: viewingDuration.priceMultiplier === 1.0 ? "text-slate-600" : viewingDuration.priceMultiplier < 1.0 ? "text-emerald-600" : "text-rose-600",
+                  },
+                ].map(item => (
+                  <div key={item.label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-[10px] text-slate-400 font-semibold mb-1">{item.label}</p>
+                    <p className={cn("text-base font-extrabold text-slate-800", item.valueColor)}>{item.value}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{item.sub}</p>
                   </div>
-                  <div className="space-y-1">
-                    <span className="font-bold text-slate-500">Diện tích mặc định:</span>
-                    <p className="font-extrabold text-slate-800 text-sm">{viewingDuration.suggestedArea ? `${viewingDuration.suggestedArea} m²` : "—"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-bold text-slate-500">Số lượng thợ:</span>
-                    <p className="font-extrabold text-slate-800 text-sm">{viewingDuration.taskerCount || 1} thợ</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-bold text-slate-500">Điều chỉnh giá:</span>
-                    <div>
-                      {viewingDuration.priceMultiplier === 1.0 ? (
-                        <span className="text-slate-500 font-extrabold">Giá gốc</span>
-                      ) : viewingDuration.priceMultiplier < 1.0 ? (
-                        <span className="text-emerald-600 font-black">Giảm {Math.round((1 - viewingDuration.priceMultiplier) * 100)}%</span>
-                      ) : (
-                        <span className="text-amber-600 font-black">Tăng {Math.round((viewingDuration.priceMultiplier - 1) * 100)}%</span>
-                      )}
-                    </div>
-                  </div>
+                ))}
+              </div>
+
+              {/* Đơn giá ước tính */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Đơn giá Chuẩn</p>
+                  <p className="text-sm font-extrabold text-slate-800">{vnd(viewingDuration.durationHours * baseHourlyRate * viewingDuration.priceMultiplier)}</p>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200/50">
-                  <span className="font-bold text-slate-500">Đơn giá ước tính:</span>
-                  <span className="font-black text-rose-600 text-sm">{vnd(viewingDuration.durationHours * baseHourlyRate * viewingDuration.priceMultiplier)}</span>
+                <div className="bg-primary/5 rounded-xl px-4 py-3 border border-primary/15">
+                  <p className="text-[10px] text-primary/70 font-semibold mb-1">Đơn giá Premium</p>
+                  <p className="text-sm font-extrabold text-primary">{vnd(viewingDuration.durationHours * premiumHourlyRate * viewingDuration.priceMultiplier)}</p>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200/50">
-                  <span className="font-bold text-slate-500">Đặc trưng / Trạng thái:</span>
-                  <div className="flex gap-1.5">
-                    {viewingDuration.isPopular && (
-                      <Badge className="bg-orange-500 text-white text-[9px] rounded-md px-2 py-0.5 font-bold">Phổ biến</Badge>
-                    )}
-                    <Badge className={cn("text-[9px] rounded-md px-2 py-0.5 font-bold", viewingDuration.isActive ? "bg-emerald-500 text-white" : "bg-slate-400 text-white")}>
-                      {viewingDuration.isActive ? "Đang hoạt động" : "Ngưng hoạt động"}
-                    </Badge>
-                  </div>
-                </div>
+              </div>
+
+              {/* Mô tả */}
+              <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+                <p className="text-[10px] text-slate-400 font-semibold mb-1.5">Mô tả chi tiết</p>
+                <p className="text-xs font-semibold text-slate-600 leading-relaxed whitespace-pre-line">
+                  {viewingDuration.description || <span className="italic text-slate-400">Chưa có mô tả.</span>}
+                </p>
               </div>
             </div>
           )}
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-4">
             <BaseButton
               type="button"
               variant="primary"
@@ -3395,6 +3811,62 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
           )}
         </SheetContent>
       </Sheet>
+
+      {/* ── Inline table dropdowns rendered via portal to escape overflow:hidden ── */}
+      {typeof window !== "undefined" && inlineDdRect && (
+        <>
+          {isOpenInlineHoursDropdown && createPortal(
+            <div style={{ position: "fixed", top: inlineDdRect.top + 4, left: inlineDdRect.left, minWidth: 140, zIndex: 9999 }}
+              className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl"
+            >
+              {hourOptions.filter(opt => opt.toString().includes(inlineEditValue || "")).map(opt => (
+                <button key={opt} type="button"
+                  onMouseDown={() => inlineEditingCell && handleInlineSave(inlineEditingCell.rowIndex, 'hours', opt.toString())}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
+                >
+                  {opt} giờ ({opt * 60} phút)
+                </button>
+              ))}
+            </div>,
+            document.body
+          )}
+          {isOpenInlineAreaDropdown && createPortal(
+            <div style={{ position: "fixed", top: inlineDdRect.top + 4, left: inlineDdRect.left, minWidth: 140, zIndex: 9999 }}
+              className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl"
+            >
+              {areaOptions.filter(opt => opt.toString().includes(inlineEditValue || "")).map(opt => (
+                <button key={opt} type="button"
+                  onMouseDown={() => inlineEditingCell && handleInlineSave(inlineEditingCell.rowIndex, 'area', opt.toString())}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
+                >
+                  {opt} m²
+                </button>
+              ))}
+            </div>,
+            document.body
+          )}
+          {isOpenInlineAdjustmentDropdown && createPortal(
+            <div style={{ position: "fixed", top: inlineDdRect.top + 4, left: inlineDdRect.left, minWidth: 176, zIndex: 9999 }}
+              className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl"
+            >
+              {adjustmentOptions
+                .filter(opt =>
+                  opt.label.toLowerCase().includes((inlineEditValue || "").toLowerCase()) ||
+                  opt.value.includes(inlineEditValue || "")
+                )
+                .map(opt => (
+                  <button key={opt.value} type="button"
+                    onMouseDown={() => inlineEditingCell && handleInlineSave(inlineEditingCell.rowIndex, 'adjustment', opt.value)}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+            </div>,
+            document.body
+          )}
+        </>
+      )}
     </div>
   );
 }

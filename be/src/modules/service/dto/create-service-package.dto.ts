@@ -192,8 +192,28 @@ export class ServiceAddonDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsString()
+  iconUrl?: string;
+
   @IsNumber()
   price!: number;
+
+  @IsOptional()
+  @IsString()
+  priceUnit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  durationMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  maxQuantity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -208,8 +228,32 @@ export class ServiceSubscriptionDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsString()
+  bonusDescription?: string;
+
   @IsNumber()
   discountPercent!: number;
+
+  @IsOptional()
+  @IsString()
+  billingCycle?: string;
+
+  @IsOptional()
+  @IsNumber()
+  sessionsPerCycle?: number;
+
+  @IsOptional()
+  @IsNumber()
+  commitmentMonths?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
 
   @IsOptional()
   @IsBoolean()
