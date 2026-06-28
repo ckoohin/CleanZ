@@ -4,9 +4,11 @@ import * as React from "react"
 import {
   Bell,
   CalendarCheck,
+  FileText,
   HeadphonesIcon,
   LayoutDashboard,
   Settings2,
+  TicketPercent,
   Users,
   UserCog,
   Wallet,
@@ -87,6 +89,15 @@ const operationsNav = [
     ],
   },
   {
+    title: "Voucher & Khuyến mãi",
+    url: ROUTES.ADMIN.VOUCHERS.BASE,
+    icon: <TicketPercent />,
+    items: [
+      { title: "Danh sách voucher", url: ROUTES.ADMIN.VOUCHERS.BASE },
+      { title: "Tạo voucher mới", url: ROUTES.ADMIN.VOUCHERS.CREATE },
+    ],
+  },
+  {
     title: "Hỗ trợ khách hàng",
     url: "/admin/support-tickets",
     icon: <HeadphonesIcon />,
@@ -112,6 +123,15 @@ const systemNav = [
     items: [
       { title: "Cài đặt chung", url: "/admin/settings" },
       { title: "Ngày cao điểm", url: "/admin/settings/peak-days" },
+    ],
+  },
+  {
+    title: "Quản lý chính sách",
+    url: ROUTES.ADMIN.POLICIES.BASE,
+    icon: <FileText />,
+    items: [
+      { title: "Danh sách chính sách", url: ROUTES.ADMIN.POLICIES.BASE },
+      { title: "Chính sách mặc định", url: ROUTES.ADMIN.POLICIES.DEFAULTS },
     ],
   },
   {
