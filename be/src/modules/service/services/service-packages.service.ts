@@ -182,9 +182,18 @@ export class ServicePackagesService {
       .leftJoinAndSelect('pkg.packageSubServices', 'pss')
       .leftJoinAndSelect('pss.subService', 'sub', 'sub.isActive = true')
       .leftJoinAndSelect('sub.pricingConfig', 'pricing')
+      .leftJoinAndSelect('pkg.pricingTiers', 'tier', 'tier.isActive = true')
+      .leftJoinAndSelect('pkg.durations', 'duration', 'duration.isActive = true')
+      .leftJoinAndSelect('pkg.addons', 'addon', 'addon.isActive = true')
+      .leftJoinAndSelect('pkg.peakHours', 'peakHour', 'peakHour.isActive = true')
       .where('pkg.isActive = true')
       .orderBy('pkg.sortOrder', 'ASC')
-      .addOrderBy('pkg.createdAt', 'DESC');
+      .addOrderBy('pkg.createdAt', 'DESC')
+      .addOrderBy('tier.sortOrder', 'ASC')
+      .addOrderBy('duration.durationHours', 'ASC')
+      .addOrderBy('addon.createdAt', 'ASC')
+      .addOrderBy('peakHour.dayOfWeek', 'ASC')
+      .addOrderBy('peakHour.startHour', 'ASC');
 
     if (search?.trim()) {
       qb.andWhere(

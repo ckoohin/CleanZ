@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   Bell,
   Settings,
+  Star,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 
@@ -93,6 +94,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: "Sự cố", href: A.INCIDENTS, icon: TriangleAlert },
       { title: "Hỗ trợ khách hàng", href: A.SUPPORT_TICKETS.BASE, icon: LifeBuoy },
+      { title: "Đánh giá", href: A.REVIEWS, icon: Star },
       { title: "Thông báo", href: A.NOTIFICATIONS, icon: Bell },
     ],
   },

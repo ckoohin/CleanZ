@@ -48,6 +48,7 @@ import { BookingTrackingMap } from "./BookingTrackingMap";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type { BookingStatusUpdatedPayload } from "@/features/booking/types/tracking.types";
+import { useMyReview } from "@/features/customer/history/hooks/useReview";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -461,6 +462,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   const queryClient = useQueryClient();
   const socket = useTrackingSocket();
   const { data: booking, isLoading, refetch } = useBookingDetail(bookingId);
+  const { data: myReview, isLoading: isReviewLoading } = useMyReview(bookingId);
   const trackingEnabled = booking?.status === "TASKER_ON_THE_WAY";
   const {
     tracking,
@@ -495,15 +497,8 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   const displayTaskerLat = taskerLocation?.latitude ?? (isDestCoordsValid ? destLat + 0.003 : null);
   const displayTaskerLng = taskerLocation?.longitude ?? (isDestCoordsValid ? destLng + 0.003 : null);
 
-  const isTaskerCoordsValid =
-    displayTaskerLat !== null &&
-    displayTaskerLng !== null &&
-    !isNaN(displayTaskerLat) &&
-    !isNaN(displayTaskerLng) &&
-    displayTaskerLat >= -90 &&
-    displayTaskerLat <= 90 &&
-    displayTaskerLng >= -180 &&
-    displayTaskerLng <= 180;
+  const isCompleted = booking?.status === "COMPLETED";
+  const hasReviewed = !!myReview?.review;
 
 
 
@@ -516,7 +511,10 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       return () => clearTimeout(timer);
     }
 
-    setIsMapFullscreen(false);
+    const timer = setTimeout(() => {
+      setIsMapFullscreen(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [booking?.status]);
 
   // Lắng nghe socket realtime
@@ -796,6 +794,45 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                 </div>
               )}
             </div>
+
+            {/* Đánh giá sau khi hoàn thành */}
+            {isCompleted && (
+              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                    <Star className="h-5 w-5 fill-amber-400 text-amber-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold text-foreground">
+                      {hasReviewed ? "Bạn đã đánh giá đơn này" : "Đánh giá trải nghiệm dịch vụ"}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {hasReviewed
+                        ? "Cảm ơn bạn đã gửi phản hồi. Bạn có thể xem lại nội dung đánh giá của mình."
+                        : "Chia sẻ cảm nhận của bạn để CleanZ cải thiện chất lượng và hỗ trợ Tasker tốt hơn."}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => router.push(`/customer/history/review/${booking.id}`)}
+                  disabled={isReviewLoading}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-60"
+                >
+                  {isReviewLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang kiểm tra đánh giá...
+                    </>
+                  ) : (
+                    <>
+                      <Star className="h-4 w-4 fill-current" />
+                      {hasReviewed ? "Xem đánh giá" : "Đánh giá ngay"}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* Nút báo cáo sự cố khi đơn đã kết thúc */}
             {(booking.status === "COMPLETED" || booking.status === "CANCELLED") && (

@@ -21,6 +21,7 @@ import { UpdatePeakDayConfigDto } from '../dto/update-peak-day.dto';
 import { EntityManager, In, Repository } from 'typeorm';
 import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
+import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
@@ -29,6 +30,7 @@ import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 export interface CalculateBookingPriceInput {
   packageId?: string;
   subServiceIds?: string[];
+  addonIds?: string[];
   durationHours?: number;
   areaM2?: number;
   pricingTierId?: string;
@@ -47,6 +49,7 @@ export interface ServiceSummary {
 export interface BookingPriceResult {
   package: ServicePackageEntity;
   subServices: SubServiceEntity[];
+  addons: ServiceAddonEntity[];
   durationHours: number;
   basePrice: number;
   addonPrice: number;
@@ -233,10 +236,11 @@ export class PricingService {
 
     const packageRepository = manager.getRepository(ServicePackageEntity);
     const subServiceRepository = manager.getRepository(SubServiceEntity);
+    const addonRepository = manager.getRepository(ServiceAddonEntity);
 
     const servicePackage = await packageRepository.findOne({
       where: { id: input.packageId, isActive: true },
-      relations: ['coverageAreas'],
+      relations: ['coverageAreas', 'peakHours'],
     });
 
     if (!servicePackage) {
@@ -253,22 +257,33 @@ export class PricingService {
       });
     }
 
-    if (subServices.length === 0) {
-      throw new BadRequestException(
-        'Vui lòng chọn ít nhất một dịch vụ con hợp lệ',
-      );
+    let addons: ServiceAddonEntity[] = [];
+    if (input.addonIds && input.addonIds.length > 0) {
+      const uniqueAddonIds = [...new Set(input.addonIds)];
+      addons = await addonRepository.find({
+        where: uniqueAddonIds.map((id) => ({
+          id,
+          packageId: servicePackage.id,
+          isActive: true,
+        })),
+      });
+
+      if (addons.length !== uniqueAddonIds.length) {
+        throw new BadRequestException(
+          'Một hoặc nhiều dịch vụ thêm không hợp lệ hoặc không thuộc gói dịch vụ đã chọn',
+        );
+      }
     }
 
-    const durationHours = subServices.reduce(
+    let durationHours =
+      input.durationHours && input.durationHours > 0
+        ? toNumber(input.durationHours)
+        : 0;
+    const subServicesDurationHours = subServices.reduce(
       (sum, sub) => sum + toNumber(sub.durationHours),
       0,
     );
-
-    if (durationHours > toNumber(servicePackage.maxHours)) {
-      throw new BadRequestException(
-        `Tổng thời lượng công việc (${durationHours}h) vượt quá số giờ tối đa cho phép của gói (${servicePackage.maxHours}h)`,
-      );
-    }
+    if (durationHours <= 0) durationHours = subServicesDurationHours;
 
     let basePrice = 0;
     let matchedTierId: string | undefined;
@@ -321,9 +336,29 @@ export class PricingService {
 
       if (matchedTier) {
         matchedTierId = matchedTier.id;
+        if (durationHours <= 0) {
+          durationHours =
+            toNumber(matchedTier.defaultHours) ||
+            toNumber(matchedTier.minHours) ||
+            1;
+        }
+        if (
+          matchedTier.pricingMode === PricingMode.HOURLY &&
+          (durationHours < toNumber(matchedTier.minHours) ||
+            durationHours > toNumber(matchedTier.maxHours))
+        ) {
+          throw new BadRequestException(
+            `Số giờ làm việc (${durationHours}h) không nằm trong gói giờ ${matchedTier.name}`,
+          );
+        }
         if (matchedTier.pricingMode === PricingMode.HOURLY) {
           basePrice = toNumber(matchedTier.pricePerHour) * durationHours;
         } else if (matchedTier.pricingMode === PricingMode.AREA_HOURLY) {
+          if (!input.areaM2 || input.areaM2 <= 0) {
+            throw new BadRequestException(
+              'Vui lòng nhập diện tích nhà để tính giá gói này',
+            );
+          }
           basePrice =
             toNumber(matchedTier.pricePerM2) *
             (input.areaM2 ?? 0) *
@@ -336,19 +371,45 @@ export class PricingService {
 
     // Fallback: Nếu không tìm thấy Pricing Tier, tính theo tổng giá trị mặc định của subServices như cũ
     if (basePrice === 0) {
+      if (durationHours > 0 && toNumber(servicePackage.baseHourlyRate) > 0) {
+        basePrice = toNumber(servicePackage.baseHourlyRate) * durationHours;
+      } else if (subServices.length === 0) {
+        throw new BadRequestException(
+          'Vui lòng chọn gói giờ hoặc ít nhất một dịch vụ con hợp lệ',
+        );
+      } else {
+        for (const sub of subServices) {
+          const pricing = sub.pricingConfig;
+          if (!pricing || !pricing.isActive) {
+            throw new NotFoundException(
+              `Không tìm thấy cấu hình giá hoạt động cho dịch vụ con ${sub.name}`,
+            );
+          }
+          basePrice += toNumber(pricing.basePrice);
+        }
+      }
+    }
+
+    if (durationHours > toNumber(servicePackage.maxHours)) {
+      throw new BadRequestException(
+        `Tổng thời lượng công việc (${durationHours}h) vượt quá số giờ tối đa cho phép của gói (${servicePackage.maxHours}h)`,
+      );
+    }
+
+    // Dịch vụ thêm / phụ phí đêm/sớm
+    let addonPrice = toNumber(servicePackage.toolFee);
+    addonPrice += addons.reduce((sum, addon) => sum + toNumber(addon.price), 0);
+    if (matchedTierId || (durationHours > 0 && toNumber(servicePackage.baseHourlyRate) > 0)) {
       for (const sub of subServices) {
         const pricing = sub.pricingConfig;
         if (!pricing || !pricing.isActive) {
           throw new NotFoundException(
-            `Không tìm thấy cấu hình giá hoạt động cho dịch vụ con ${sub.name}`,
+            `Không tìm thấy cấu hình giá hoạt động cho dịch vụ thêm ${sub.name}`,
           );
         }
-        basePrice += toNumber(pricing.basePrice);
+        addonPrice += toNumber(pricing.basePrice);
       }
     }
-
-    // Phụ phí đêm/sớm
-    let addonPrice = toNumber(servicePackage.toolFee);
     const startTime = input.scheduledStartTime;
     if (startTime) {
       const hour = parseInt(startTime.split(':')[0], 10);
@@ -358,7 +419,53 @@ export class PricingService {
     }
 
     // 2. Tính tỷ lệ cao điểm & ngày lễ tết (Peak Days)
-    const basePeakRate = toNumber(servicePackage.peakRatePercent) / 100;
+    let servicePeakRate = 0;
+    const packagePeakHours = (servicePackage.peakHours || []).filter(
+      (peakHour) => peakHour.isActive,
+    );
+    if (packagePeakHours.length > 0 && input.scheduledStart) {
+      const bookingDate = new Date(input.scheduledStart);
+      const bookingDayOfWeek = bookingDate.getDay();
+      const bookingTimeStr = input.scheduledStartTime?.slice(0, 5);
+
+      const matchingPackagePeakHours = packagePeakHours.filter((peakHour) => {
+        if (
+          peakHour.dayOfWeek !== 7 &&
+          peakHour.dayOfWeek !== bookingDayOfWeek
+        ) {
+          return false;
+        }
+
+        if (peakHour.startDate && bookingDate < new Date(peakHour.startDate)) {
+          return false;
+        }
+        if (peakHour.endDate && bookingDate > new Date(peakHour.endDate)) {
+          return false;
+        }
+
+        if (!bookingTimeStr) return true;
+
+        const time = this.timeToMinutes(bookingTimeStr);
+        const start = this.timeToMinutes(peakHour.startHour);
+        const end = this.timeToMinutes(peakHour.endHour);
+
+        if (start <= end) {
+          return time >= start && time < end;
+        }
+
+        return time >= start || time < end;
+      });
+
+      if (matchingPackagePeakHours.length > 0) {
+        servicePeakRate = Math.max(
+          ...matchingPackagePeakHours.map((peakHour) =>
+            Math.max(toNumber(peakHour.multiplier) - 1, 0),
+          ),
+          0,
+        );
+      }
+    }
+
     let holidayPeakRate = 0;
     const peakDays = await this.peakDayRepo.findAll(true);
 
@@ -394,7 +501,7 @@ export class PricingService {
       }
     }
 
-    const totalPeakRate = basePeakRate + holidayPeakRate;
+    const totalPeakRate = servicePeakRate + holidayPeakRate;
     const peakFee =
       totalPeakRate > 0 ? Math.round(basePrice * totalPeakRate) : 0;
     const petFee = input.hasPet ? toNumber(servicePackage.petSurcharge) : 0;
@@ -417,6 +524,7 @@ export class PricingService {
     return {
       package: servicePackage,
       subServices,
+      addons,
       durationHours,
       basePrice,
       addonPrice,
@@ -581,12 +689,8 @@ export class PricingService {
     return value.length === 5 ? `${value}:00` : value;
   }
 
-  private isDefaultPeakHour(scheduledStartTime: string): boolean {
-    const [hour, minute = 0] = scheduledStartTime.split(':').map(Number);
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
-      return false;
-    }
-
-    return hour * 60 + minute >= 18 * 60;
+  private timeToMinutes(time: string): number {
+    const [hour = '0', minute = '0'] = time.slice(0, 5).split(':');
+    return Number(hour) * 60 + Number(minute);
   }
 }

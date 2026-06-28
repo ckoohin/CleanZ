@@ -40,6 +40,14 @@ export interface CreatePricingConfigDto {
 
 export type UpdatePricingConfigDto = Partial<CreatePricingConfigDto>;
 
+const sanitizePricingConfigPayload = (
+  payload: CreatePricingConfigDto | UpdatePricingConfigDto,
+): Omit<CreatePricingConfigDto, 'priceUnit'> | Partial<Omit<CreatePricingConfigDto, 'priceUnit'>> => {
+  const sanitizedPayload = { ...payload };
+  delete sanitizedPayload.priceUnit;
+  return sanitizedPayload;
+};
+
 export interface CreatePeakDayConfigDto {
   name: string;
   startTime?: string;
@@ -151,7 +159,7 @@ export const adminPricingApi = {
   createPricingConfig: async (payload: CreatePricingConfigDto) => {
     const { data } = await http.post<ApiResponse<PricingConfigEntity>>(
       API_ENDPOINTS.ADMIN_PRICING.CONFIGS,
-      payload
+      sanitizePricingConfigPayload(payload)
     );
     return data.data;
   },
@@ -159,7 +167,7 @@ export const adminPricingApi = {
   updatePricingConfig: async ({ id, payload }: { id: string; payload: UpdatePricingConfigDto }) => {
     const { data } = await http.patch<ApiResponse<PricingConfigEntity>>(
       API_ENDPOINTS.ADMIN_PRICING.CONFIG_DETAIL(id),
-      payload
+      sanitizePricingConfigPayload(payload)
     );
     return data.data;
   },

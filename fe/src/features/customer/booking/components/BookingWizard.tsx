@@ -13,6 +13,9 @@ import {
   Calendar,
   MapPinned,
   Search,
+  Package,
+  Sparkles,
+  PawPrint,
 } from "lucide-react";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
@@ -27,6 +30,13 @@ import type {
   PaymentMethod,
 } from "@/features/booking/types/booking.types";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
+import type {
+  PublicAddon,
+  PublicDuration,
+  PublicPeakHour,
+  PublicPricingTier,
+  PublicService,
+} from "@/features/services/types/public-service.type";
 import {
   useCreateCustomerAddress,
   useCustomerAddresses,
@@ -47,9 +57,11 @@ interface ServiceOption {
   id: string;
   name: string;
   description?: string | null;
-  baseDurationHours?: number | null;
   basePrice: number;
-  subServiceIds: string[];  // IDs của SubService thuộc Package này
+  baseHourlyRate: number;
+  pricingTiers: PublicPricingTier[];
+  durations: PublicDuration[];
+  addons: PublicAddon[];
 }
 
 // 0=Dịch vụ, 1=Địa chỉ, 2=Lịch, 3=Thanh toán, 4=Xác nhận, 5=Thành công
@@ -57,12 +69,16 @@ type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface WizardState {
   serviceId: string;        // ServicePackage ID
-  subServiceIds: string[];  // SubService IDs thuộc package đã chọn
+  pricingTierId: string;
+  durationHours: number | null;
+  areaM2: number | null;
+  addonIds: string[];  // Option/dịch vụ thêm IDs chọn thêm
   // Địa chỉ
   addressId: string;
   selectedAddress: string; // địa chỉ hiển thị
   selectedLat: number | null;
   selectedLng: number | null;
+  hasPet: boolean;
   // Lịch
   scheduledDate: string;
   scheduledTime: string;
@@ -74,11 +90,15 @@ interface WizardState {
 
 const INIT_STATE: WizardState = {
   serviceId: "",
-  subServiceIds: [],
+  pricingTierId: "",
+  durationHours: null,
+  areaM2: null,
+  addonIds: [],
   addressId: "",
   selectedAddress: "",
   selectedLat: null,
   selectedLng: null,
+  hasPet: false,
   scheduledDate: "",
   scheduledTime: "",
   note: "",
@@ -148,26 +168,126 @@ function isPastDate(date: string): boolean {
   return date < formatVietnamDate(new Date());
 }
 
+function isConfiguredAddon(addon: PublicAddon): boolean {
+  const price = Number(addon.price);
+  return (
+    !!addon.id &&
+    !!addon.name?.trim() &&
+    Number.isFinite(price) &&
+    price >= 0
+  );
+}
+
+function timeToMinutes(time: string): number {
+  const [hour = "0", minute = "0"] = time.slice(0, 5).split(":");
+  return Number(hour) * 60 + Number(minute);
+}
+
+function isPeakTimeSlot(
+  date: string,
+  time: string,
+  peakHours: PublicPeakHour[] = [],
+): boolean {
+  if (!date || peakHours.length === 0) return false;
+
+  const selectedDate = new Date(`${date}T${time}:00+07:00`);
+  if (Number.isNaN(selectedDate.getTime())) return false;
+
+  const dayOfWeek = selectedDate.getDay();
+  const currentMinutes = timeToMinutes(time);
+
+  return peakHours.some((peak) => {
+    if (peak.dayOfWeek !== 7 && peak.dayOfWeek !== dayOfWeek) return false;
+
+    if (peak.startDate && selectedDate < new Date(peak.startDate)) {
+      return false;
+    }
+    if (peak.endDate && selectedDate > new Date(peak.endDate)) {
+      return false;
+    }
+
+    const startMinutes = timeToMinutes(peak.startHour);
+    const endMinutes = timeToMinutes(peak.endHour);
+
+    if (startMinutes <= endMinutes) {
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    }
+
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  });
+}
+
 // ─── Components ───────────────────────────────────────────────────────────────
 
-// Step 0: Chọn dịch vụ
+// Step 0: Chọn gói dịch vụ + gói giờ + dịch vụ thêm
 function StepService({
   form,
   onChange,
+  lockedServiceId,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
+  lockedServiceId?: string;
 }) {
   const { data, isLoading } = usePublicServices();
   const services: ServiceOption[] =
-    data?.data.map((service) => ({
+    data?.data.map((service: PublicService) => ({
       id: service.id,
       name: service.name,
-      description: service.shortDescription || service.description,
-      baseDurationHours: service.baseDurationHours,
-      basePrice: service.pricing?.basePrice ?? 0,
-      subServiceIds: (service.subServices ?? []).map((s) => s.id),
+      description: service.shortDescription || service.policyDescription,
+      basePrice:
+        (service.durations?.[0]?.durationHours ?? 0) *
+          (service.baseHourlyRate ?? 0) ||
+        (service.pricingTiers?.[0]?.fixedPrice ??
+          (service.pricingTiers?.[0]?.pricePerHour ?? 0) *
+            (service.pricingTiers?.[0]?.defaultHours ??
+              service.pricingTiers?.[0]?.minHours ??
+              1)),
+      baseHourlyRate: service.baseHourlyRate ?? 0,
+      pricingTiers: service.pricingTiers ?? [],
+      durations: service.durations ?? [],
+      addons: (service.addons ?? []).filter(isConfiguredAddon),
     })) ?? [];
+  const visibleServices = lockedServiceId
+    ? services.filter((service) => service.id === lockedServiceId)
+    : services;
+  const selectedService = services.find((svc) => svc.id === form.serviceId);
+  const selectedTier = selectedService?.pricingTiers.find(
+    (tier) => tier.id === form.pricingTierId,
+  );
+
+  const handleSelectPackage = (svc: ServiceOption) => {
+    const defaultTier = svc.pricingTiers[0];
+    const defaultDuration = svc.durations.find((duration) => duration.isPopular) ?? svc.durations[0];
+    onChange({
+      serviceId: svc.id,
+      pricingTierId: defaultTier?.id ?? "",
+      durationHours:
+        defaultDuration?.durationHours ??
+        defaultTier?.defaultHours ??
+        defaultTier?.minHours ??
+        null,
+      areaM2: defaultDuration?.suggestedArea ?? defaultTier?.areaMinM2 ?? null,
+      addonIds: [],
+    });
+  };
+
+  const handleSelectTier = (tier: PublicPricingTier) => {
+    onChange({
+      pricingTierId: tier.id,
+      durationHours: tier.defaultHours ?? tier.minHours ?? form.durationHours,
+      areaM2: tier.areaMinM2 ?? form.areaM2,
+    });
+  };
+
+  const toggleAddon = (addonId: string) => {
+    const exists = form.addonIds.includes(addonId);
+    onChange({
+      addonIds: exists
+        ? form.addonIds.filter((id) => id !== addonId)
+        : [...form.addonIds, addonId],
+    });
+  };
 
   if (isLoading) {
     return (
@@ -179,16 +299,19 @@ function StepService({
   }
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-bold text-foreground">Chọn dịch vụ</h2>
-      {services.map((svc) => {
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-foreground">Chọn gói dịch vụ</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Chọn gói chính, sau đó chọn gói giờ đã setup sẵn và dịch vụ thêm nếu cần.
+        </p>
+      </div>
+      {visibleServices.map((svc) => {
         const selected = form.serviceId === svc.id;
         return (
           <button
             key={svc.id}
-            onClick={() =>
-              onChange({ serviceId: svc.id, subServiceIds: svc.subServiceIds })
-            }
+            onClick={() => handleSelectPackage(svc)}
             className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
               selected
                 ? "border-primary bg-primary/5"
@@ -203,13 +326,8 @@ function StepService({
                     {svc.description}
                   </p>
                 )}
-                {svc.baseDurationHours && (
-                  <p className="text-xs text-primary mt-1 flex items-center gap-0.5">
-                    <Clock className="w-3 h-3" /> {svc.baseDurationHours}h
-                  </p>
-                )}
                 <p className="mt-2 text-sm font-black text-primary">
-                  {fmtCurrency(svc.basePrice)}
+                  Từ {fmtCurrency(svc.basePrice)}
                 </p>
               </div>
               {selected && (
@@ -219,6 +337,207 @@ function StepService({
           </button>
         );
       })}
+
+      {lockedServiceId && visibleServices.length === 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+          Không tìm thấy gói dịch vụ đã chọn. Vui lòng quay lại danh sách dịch vụ và thử lại.
+        </div>
+      )}
+
+      {selectedService && (
+        <div className="space-y-5 rounded-3xl border border-primary/20 bg-primary/5 p-4">
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-black text-foreground">
+              <Package className="size-4 text-primary" />
+              Chọn gói giờ
+            </h3>
+
+            {selectedService.durations.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {selectedService.durations.map((duration) => {
+                  const selected = form.durationHours === duration.durationHours;
+                  const price =
+                    duration.durationHours *
+                    selectedService.baseHourlyRate *
+                    duration.priceMultiplier;
+
+                  return (
+                    <button
+                      key={duration.id}
+                      type="button"
+                      onClick={() =>
+                        onChange({
+                          durationHours: duration.durationHours,
+                          areaM2: duration.suggestedArea ?? form.areaM2,
+                        })
+                      }
+                      className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                        selected
+                          ? "border-primary bg-background shadow-sm"
+                          : "border-border/50 bg-background/70 hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-black text-foreground">
+                            {duration.title || `${duration.durationHours} giờ`}
+                          </p>
+                          {duration.description && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {duration.description}
+                            </p>
+                          )}
+                          <p className="mt-2 text-xs font-semibold text-primary">
+                            <Clock className="mr-1 inline size-3" />
+                            {duration.durationHours} giờ
+                            {duration.suggestedArea ? ` · ${duration.suggestedArea}m²` : ""}
+                          </p>
+                        </div>
+                        {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
+                      </div>
+                      {price > 0 && (
+                        <p className="mt-3 text-sm font-black text-primary">
+                          {fmtCurrency(price)}
+                        </p>
+                      )}
+                      {duration.isPopular && (
+                        <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-1 text-[10px] font-black uppercase text-primary">
+                          Phổ biến
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : selectedService.pricingTiers.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {selectedService.pricingTiers.map((tier) => {
+                  const selected = form.pricingTierId === tier.id;
+                  const hours = tier.defaultHours ?? tier.minHours ?? form.durationHours ?? 1;
+                  const price =
+                    tier.fixedPrice ??
+                    (tier.pricePerHour ? tier.pricePerHour * hours : 0);
+
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      onClick={() => handleSelectTier(tier)}
+                      className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                        selected
+                          ? "border-primary bg-background shadow-sm"
+                          : "border-border/50 bg-background/70 hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-black text-foreground">{tier.name}</p>
+                          {tier.description && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {tier.description}
+                            </p>
+                          )}
+                          <p className="mt-2 text-xs font-semibold text-primary">
+                            <Clock className="mr-1 inline size-3" />
+                            {hours} giờ
+                          </p>
+                        </div>
+                        {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
+                      </div>
+                      {price > 0 && (
+                        <p className="mt-3 text-sm font-black text-primary">
+                          {fmtCurrency(price)}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+                Gói này chưa có gói giờ setup sẵn, hệ thống sẽ tính theo dịch vụ con được chọn.
+              </p>
+            )}
+
+            {selectedTier?.pricingMode === "AREA_HOURLY" && (
+              <div className="rounded-2xl border border-border/50 bg-background/70 p-4">
+                <label className="text-xs font-black uppercase text-muted-foreground">
+                  Diện tích nhà (m²)
+                </label>
+                <input
+                  type="number"
+                  min={selectedTier.areaMinM2 ?? 1}
+                  max={selectedTier.areaMaxM2 ?? undefined}
+                  value={form.areaM2 ?? ""}
+                  onChange={(event) =>
+                    onChange({
+                      areaM2: event.target.value
+                        ? Number(event.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="Nhập diện tích nhà"
+                  className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Gói này tính giá theo diện tích, vui lòng nhập đúng m² để báo giá chính xác.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-black text-foreground">
+              <Sparkles className="size-4 text-primary" />
+              Dịch vụ thêm
+            </h3>
+            {selectedService.addons.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {selectedService.addons.map((addon) => {
+                  const selected = form.addonIds.includes(addon.id);
+                  return (
+                    <button
+                      key={addon.id}
+                      type="button"
+                      onClick={() => toggleAddon(addon.id)}
+                      className={`rounded-2xl border p-3 text-left transition-all ${
+                        selected
+                          ? "border-primary bg-background"
+                          : "border-border/50 bg-background/70 hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{addon.name}</p>
+                          {addon.description && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {addon.description}
+                            </p>
+                          )}
+                          {addon.price > 0 && (
+                            <p className="mt-2 text-xs font-black text-primary">
+                              +{fmtCurrency(addon.price)}
+                            </p>
+                          )}
+                        </div>
+                        <div
+                          className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
+                            selected ? "border-primary bg-primary text-white" : "border-border"
+                          }`}
+                        >
+                          {selected && <CheckCircle2 className="size-3.5" />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Gói này không có dịch vụ thêm.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -244,6 +563,7 @@ function StepAddress({
       selectedAddress: address.fullAddress,
       selectedLat: address.latitude,
       selectedLng: address.longitude,
+      hasPet: address.hasPet,
     });
     setIsMapOpen(false);
   };
@@ -296,6 +616,7 @@ function StepAddress({
         fullAddress: form.selectedAddress,
         latitude: form.selectedLat,
         longitude: form.selectedLng,
+        hasPet: form.hasPet,
       });
       onChange({
         addressId: createdAddress.id,
@@ -378,6 +699,24 @@ function StepAddress({
         <span>{isMapOpen ? "Đóng" : "Mở"}</span>
       </button>
 
+      <button
+        type="button"
+        onClick={() => onChange({ hasPet: !form.hasPet })}
+        className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${
+          form.hasPet
+            ? "border-primary bg-primary/5 text-primary"
+            : "border-border/50 text-muted-foreground hover:border-primary/30"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <PawPrint className="size-4" />
+          Nhà có thú cưng
+        </span>
+        <span className="text-xs font-black uppercase">
+          {form.hasPet ? "Có" : "Không"}
+        </span>
+      </button>
+
       {isMapOpen && (
         <div className="space-y-3 rounded-2xl border border-border/50 bg-card p-3">
           <GoongAutocomplete
@@ -442,6 +781,11 @@ function StepSchedule({
   onChange: (s: Partial<WizardState>) => void;
 }) {
   const days = getNext7Days();
+  const { data: publicServicesData } = usePublicServices();
+  const selectedPackage = publicServicesData?.data.find(
+    (pkg) => pkg.id === form.serviceId,
+  );
+  const peakHours = selectedPackage?.peakHours ?? [];
 
   const handleDateSelect = (date: string) => {
     if (isPastDate(date)) {
@@ -515,20 +859,35 @@ function StepSchedule({
             const past =
               !!form.scheduledDate &&
               isPastSchedule(form.scheduledDate, t);
+            const peak = isPeakTimeSlot(form.scheduledDate, t, peakHours);
             return (
               <button
                 key={t}
                 onClick={() => handleTimeSelect(t)}
                 aria-disabled={past}
-                className={`py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                title={peak ? "Khung giờ cao điểm" : undefined}
+                className={`relative py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
                   selected
-                    ? "border-primary bg-primary text-white"
+                    ? peak
+                      ? "border-amber-500 bg-primary text-white shadow-md shadow-amber-500/20"
+                      : "border-primary bg-primary text-white"
                     : past
                       ? "cursor-not-allowed border-border/30 bg-muted/40 text-muted-foreground/50 line-through"
-                    : "border-border/50 text-muted-foreground hover:border-primary/40"
+                    : peak
+                      ? "border-amber-300 bg-amber-50 text-amber-700 shadow-sm hover:border-amber-400"
+                      : "border-border/50 text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                {t}
+                <span>{t}</span>
+                {peak && !past && (
+                  <span
+                    className={`mt-1 block text-[9px] font-black uppercase leading-none ${
+                      selected ? "text-white/85" : "text-amber-500"
+                    }`}
+                  >
+                    Cao điểm
+                  </span>
+                )}
               </button>
             );
           })}
@@ -675,6 +1034,14 @@ function StepConfirm({
           <span className="text-muted-foreground">Thời lượng</span>
           <span className="font-semibold">{quote.schedule.durationHours}h</span>
         </div>
+        {quote.addons && quote.addons.length > 0 && (
+          <div className="flex justify-between gap-4 text-sm">
+            <span className="text-muted-foreground">Dịch vụ thêm</span>
+            <span className="max-w-[60%] text-right font-semibold">
+              {quote.addons.map((addon) => addon.name).join(", ")}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Địa chỉ</span>
           <span className="font-semibold text-right max-w-[60%] line-clamp-2">
@@ -743,7 +1110,7 @@ export const BookingWizard = ({
   serviceId?: string;
 }) => {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(initialServiceId ? 1 : 0);
+  const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<WizardState>({
     ...INIT_STATE,
     serviceId: initialServiceId ?? "",
@@ -756,28 +1123,63 @@ export const BookingWizard = ({
 
   const parentPackage = useMemo(() => {
     if (!initialServiceId || !publicServicesData?.data) return null;
-    return publicServicesData.data.find((pkg) =>
-      (pkg.subServices || []).some((sub) => sub.id === initialServiceId)
+    return (
+      publicServicesData.data.find((pkg) => pkg.id === initialServiceId) ??
+      null
     );
   }, [initialServiceId, publicServicesData]);
 
-  if (parentPackage && resolvedServiceId !== parentPackage.id) {
-    setResolvedServiceId(parentPackage.id);
-    setForm((prev) => ({
-      ...prev,
-      serviceId: parentPackage.id,
-      subServiceIds: [initialServiceId!],
-    }));
-  }
+  useEffect(() => {
+    if (!parentPackage || resolvedServiceId === parentPackage.id) return;
+
+    const defaultTier = parentPackage.pricingTiers?.[0];
+    const defaultDuration =
+      parentPackage.durations?.find((duration) => duration.isPopular) ??
+      parentPackage.durations?.[0];
+
+    const timeoutId = window.setTimeout(() => {
+      setResolvedServiceId(parentPackage.id);
+      setForm((prev) => ({
+        ...prev,
+        serviceId: parentPackage.id,
+        pricingTierId: defaultTier?.id ?? "",
+        durationHours:
+          defaultDuration?.durationHours ??
+          defaultTier?.defaultHours ??
+          defaultTier?.minHours ??
+          prev.durationHours,
+        areaM2: defaultDuration?.suggestedArea ?? defaultTier?.areaMinM2 ?? prev.areaM2,
+        addonIds: [],
+      }));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [initialServiceId, parentPackage, resolvedServiceId]);
 
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
+  const selectedBookingPackage = publicServicesData?.data.find(
+    (pkg) => pkg.id === form.serviceId,
+  );
+  const selectedBookingTier = selectedBookingPackage?.pricingTiers?.find(
+    (tier) => tier.id === form.pricingTierId,
+  );
+  const selectedBookingDuration = selectedBookingPackage?.durations?.find(
+    (duration) => duration.durationHours === form.durationHours,
+  );
 
   const update = (partial: Partial<WizardState>) =>
     setForm((prev) => ({ ...prev, ...partial }));
 
   const canProceed = (): boolean => {
-    if (step === 0) return !!form.serviceId;
+    if (step === 0)
+      return (
+        !!form.serviceId &&
+        ((form.durationHours ?? 0) > 0 || !!form.pricingTierId) &&
+        (selectedBookingTier?.pricingMode !== "AREA_HOURLY" ||
+          !!form.areaM2 ||
+          !!selectedBookingDuration?.suggestedArea)
+      );
     if (step === 1) return !!form.addressId;
     if (step === 2)
       return (
@@ -806,12 +1208,16 @@ export const BookingWizard = ({
       try {
         const result = await quoteQuery.mutateAsync({
           packageId: form.serviceId || undefined,
-          subServiceIds: form.subServiceIds.length > 0 ? form.subServiceIds : undefined,
+          addonIds: form.addonIds.length > 0 ? form.addonIds : undefined,
           addressId: form.addressId || undefined,
           scheduledDate: form.scheduledDate,
           scheduledTime: form.scheduledTime,
           note: form.note || undefined,
           voucherCode: form.voucherCode || undefined,
+          pricingTierId: form.pricingTierId || undefined,
+          durationHours: form.durationHours ?? undefined,
+          areaM2: form.areaM2 ?? undefined,
+          hasPet: form.hasPet,
         });
         setQuote(result);
         setStep(4);
@@ -825,13 +1231,17 @@ export const BookingWizard = ({
     if (step === 4) {
       const dto: CreateBookingDto = {
         packageId: form.serviceId || undefined,
-        subServiceIds: form.subServiceIds.length > 0 ? form.subServiceIds : undefined,
+        addonIds: form.addonIds.length > 0 ? form.addonIds : undefined,
         addressId: form.addressId || undefined,
         scheduledDate: form.scheduledDate,
         scheduledTime: form.scheduledTime,
         note: form.note || undefined,
         paymentMethod: form.paymentMethod,
         voucherCode: form.voucherCode || undefined,
+        pricingTierId: form.pricingTierId || undefined,
+        durationHours: form.durationHours ?? undefined,
+        areaM2: form.areaM2 ?? undefined,
+        hasPet: form.hasPet,
       };
       try {
         const result = await createMutation.mutateAsync(dto);
@@ -864,7 +1274,7 @@ export const BookingWizard = ({
   };
 
   const STEP_TITLES = [
-    "Chọn Dịch vụ",
+    "Chọn gói dịch vụ",
     "Vị trí làm việc",
     "Lịch & Ghi chú",
     "Thanh toán",
@@ -873,7 +1283,7 @@ export const BookingWizard = ({
   ];
 
   const STEP_BAR_LABELS = [
-    "Dịch vụ",
+    "Gói",
     "Địa chỉ",
     "Lịch",
     "Thanh toán",
@@ -885,7 +1295,7 @@ export const BookingWizard = ({
     (step === 3 && quoteQuery.isPending) ||
     (step === 4 && createMutation.isPending);
 
-  const isResolvingPackage = !!initialServiceId && form.subServiceIds.length === 0;
+  const isResolvingPackage = !!initialServiceId && !form.serviceId;
 
   if (initialServiceId && (isServicesLoading || isResolvingPackage)) {
     return (
@@ -942,7 +1352,11 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepService form={form} onChange={update} />
+              <StepService
+                form={form}
+                onChange={update}
+                lockedServiceId={initialServiceId}
+              />
             </motion.div>
           )}
           {step === 1 && (

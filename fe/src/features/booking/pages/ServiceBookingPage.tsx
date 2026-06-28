@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { 
   ArrowLeft, 
@@ -24,7 +24,8 @@ import {
   Smartphone,
   Wallet,
   Building2,
-  Loader2
+  Loader2,
+  PawPrint,
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -57,6 +58,15 @@ import { useMyAddresses } from '@/features/customer/hooks/useCustomerAddress';
 import type { CustomerAddress } from '@/features/customer/services/address.service';
 import type { PublicSubService } from '@/features/services/types/public-service.type';
 
+
+// Format date as YYYY-MM-DD using local timezone (avoid UTC shift)
+function formatLocalDate(d: Date): string {
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
+}
 
 // Helper to convert to slug
 function toSlug(str: string): string {
@@ -158,6 +168,7 @@ export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
   const [selectedPayment, setSelectedPayment] = useState<'CASH' | 'WALLET' | 'ONLINE'>('CASH');
   const [voucher, setVoucher] = useState("");
   const [note, setNote] = useState("");
+  const [hasPet, setHasPet] = useState(false);
 
   // Tự động tính toán các dịch vụ con đang được chọn (State Derivation)
   const selectedSubServiceIds = useMemo(() => {
@@ -206,22 +217,33 @@ export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
       subServiceIds: selectedSubServiceIds,
       addressId: selectedAddressId || undefined,
       address: !selectedAddressId ? addressInput : undefined,
-      scheduledDate: date ? date.toISOString().split('T')[0] : "",
+      scheduledDate: date ? formatLocalDate(date) : "",
       scheduledTime: selectedTime,
       voucherCode: voucher || undefined,
       areaM2: currentPackage.pricingMode === 'AREA_HOURLY' ? Number(areaM2) : undefined,
+      hasPet,
     };
-  }, [currentPackage, selectedSubServiceIds, selectedAddressId, addressInput, date, selectedTime, voucher, areaM2]);
+  }, [currentPackage, selectedSubServiceIds, selectedAddressId, addressInput, date, selectedTime, voucher, areaM2, hasPet]);
 
-  // Gọi API Báo giá Realtime (Query tự động kích hoạt khi có thay đổi)
-  const { 
-    data: quoteData, 
-    isLoading: isLoadingQuote, 
+  // Debounce 500ms để tránh gọi API liên tục khi user đang chọn
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedPayload, setDebouncedPayload] = useState(quotePayload);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedPayload(quotePayload), 500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [quotePayload]);
+
+  // Quote chỉ bật khi đã có đủ: package + sub-services + ngày + giờ + địa chỉ
+  const hasAddress = !!(selectedAddressId || customAddressInput.trim());
+  const {
+    data: quoteData,
+    isLoading: isLoadingQuote,
     isFetching: isFetchingQuote,
-    error: quoteError 
+    error: quoteError
   } = useBookingQuoteQuery(
-    quotePayload || { scheduledDate: "", scheduledTime: "" },
-    !!currentPackage && selectedSubServiceIds.length > 0 && !!selectedTime && !!date
+    debouncedPayload || { scheduledDate: "", scheduledTime: "" },
+    !!debouncedPayload && !!currentPackage && selectedSubServiceIds.length > 0 && !!selectedTime && !!date && hasAddress
   );
 
   // Mutation Tạo đơn hàng
@@ -247,11 +269,12 @@ export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
       subServiceIds: selectedSubServiceIds,
       addressId: selectedAddressId || undefined,
       address: !selectedAddressId ? addressInput : undefined,
-      scheduledDate: date.toISOString().split('T')[0],
+      scheduledDate: formatLocalDate(date),
       scheduledTime: selectedTime,
       note: note || undefined,
       voucherCode: voucher || undefined,
       areaM2: currentPackage.pricingMode === 'AREA_HOURLY' ? Number(areaM2) : undefined,
+      hasPet,
       paymentMethod: selectedPayment,
     }, {
       onSuccess: () => {
@@ -483,6 +506,35 @@ export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
                           );
                        })}
                     </div>
+                 </section>
+
+                 {/* Pet toggle */}
+                 <section className="space-y-4">
+                    <h4 className="flex items-center gap-3 font-bold text-lg">
+                       <PawPrint className="w-5 h-5 text-amber-500" /> Tuỳ chọn thú cưng
+                    </h4>
+                    <button
+                       type="button"
+                       onClick={() => setHasPet((v) => !v)}
+                       className={`w-full flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${
+                         hasPet
+                           ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/20 ring-1 ring-amber-400/30'
+                           : 'border-border/60 bg-card hover:border-amber-400/40'
+                       }`}
+                    >
+                       <div className="flex items-center gap-3 text-left">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasPet ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-muted'}`}>
+                             <PawPrint className={`w-5 h-5 ${hasPet ? 'text-amber-600' : 'text-muted-foreground'}`} />
+                          </div>
+                          <div>
+                             <p className="text-sm font-bold">Nhà có thú cưng</p>
+                             <p className="text-xs text-muted-foreground">Tasker mang dụng cụ phù hợp, có thể phát sinh phụ phí.</p>
+                          </div>
+                       </div>
+                       <div className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${hasPet ? 'bg-amber-400' : 'bg-muted-foreground/20'}`}>
+                          <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${hasPet ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                       </div>
+                    </button>
                  </section>
 
                  {/* Inclusions & Exclusions */}

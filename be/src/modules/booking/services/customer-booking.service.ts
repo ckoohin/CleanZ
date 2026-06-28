@@ -39,6 +39,7 @@ import {
 import { BookingLocationPolicyService } from './booking-location-policy.service';
 import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
+import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
@@ -46,6 +47,7 @@ interface BookingPricingContext {
   customer: CustomerEntity;
   package: ServicePackageEntity;
   subServices: SubServiceEntity[];
+  addons: ServiceAddonEntity[];
   addressRef: CustomerAddressEntity | null;
   bookingAddress: string;
   scheduledStart: Date;
@@ -63,6 +65,7 @@ interface BookingPricingContext {
   subtotal: number;
   discountAmount: number;
   totalPrice: number;
+  hasPet: boolean;
   voucher?: VoucherEntity | null;
   areaM2?: number;
   pricingTierId?: string;
@@ -116,10 +119,15 @@ export class CustomerBookingService {
           id: sub.id,
           name: sub.name,
         })),
+        addons: context.addons.map((addon) => ({
+          id: addon.id,
+          name: addon.name,
+          price: toNumber(addon.price),
+        })),
         address: {
           id: context.addressRef?.id ?? null,
           fullAddress: context.bookingAddress,
-          hasPet: context.addressRef?.hasPet ?? false,
+          hasPet: context.hasPet,
         },
         schedule: {
           scheduledStartDate: context.scheduledStartDate,
@@ -200,6 +208,16 @@ export class CustomerBookingService {
           isRecurring: false,
           recurringRule: null,
         });
+        if (
+          context.addressRef &&
+          typeof dto.hasPet === 'boolean' &&
+          context.addressRef.hasPet !== dto.hasPet
+        ) {
+          context.addressRef.hasPet = dto.hasPet;
+          await manager
+            .getRepository(CustomerAddressEntity)
+            .save(context.addressRef);
+        }
         const savedBooking = await bookingRepository.save(booking);
 
         const bookingSubServiceRepository = manager.getRepository(
@@ -754,12 +772,13 @@ export class CustomerBookingService {
     const price = await this.pricingService.calculateBookingPrice(manager, {
       packageId: dto.packageId,
       subServiceIds: dto.subServiceIds,
+      addonIds: dto.addonIds,
       durationHours: dto.durationHours,
       areaM2: dto.areaM2,
       pricingTierId: dto.pricingTierId,
       scheduledStart: scheduleStart.scheduledStart,
       scheduledStartTime: scheduleStart.scheduledStartTime,
-      hasPet: addressRef?.hasPet ?? false,
+      hasPet: dto.hasPet ?? addressRef?.hasPet ?? false,
       voucherCode: dto.voucherCode,
     });
     const schedule = this.bookingScheduleService.buildSchedule(
@@ -771,6 +790,7 @@ export class CustomerBookingService {
       customer,
       package: price.package,
       subServices: price.subServices,
+      addons: price.addons,
       addressRef,
       bookingAddress,
       scheduledStart: schedule.scheduledStart,
@@ -788,6 +808,7 @@ export class CustomerBookingService {
       subtotal: price.subtotal,
       discountAmount: price.discountAmount,
       totalPrice: price.totalPrice,
+      hasPet: dto.hasPet ?? addressRef?.hasPet ?? false,
       voucher: price.voucher,
       areaM2: dto.areaM2,
       pricingTierId: price.pricingTierId,
@@ -833,6 +854,11 @@ export class CustomerBookingService {
         id: sub.id,
         name: sub.name,
       })),
+      addons: context.addons.map((addon) => ({
+        id: addon.id,
+        name: addon.name,
+        price: toNumber(addon.price),
+      })),
       address: {
         id: context.addressRef?.id ?? null,
         label: context.addressRef?.label ?? null,
@@ -840,7 +866,7 @@ export class CustomerBookingService {
         wardDetail: context.addressRef?.wardDetail ?? null,
         latitude: context.addressRef?.latitude ?? null,
         longitude: context.addressRef?.longitude ?? null,
-        hasPet: context.addressRef?.hasPet ?? false,
+        hasPet: context.hasPet,
       },
       schedule: {
         scheduledStartDate: context.scheduledStartDate,

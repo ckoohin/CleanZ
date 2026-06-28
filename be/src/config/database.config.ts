@@ -29,7 +29,7 @@ export const getDatabaseConfig = (
     migrationsTableName: 'migrations',
     migrationsRun, // <- npm start sẽ tự áp mọi migration pending
 
-    logging: isDev,
+    logging: false,
     // ssl: { rejectUnauthorized: false },
   };
 };

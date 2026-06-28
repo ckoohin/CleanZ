@@ -81,6 +81,7 @@ export const ROUTES = {
       BASE: "/admin/tracking",
       ROUTES: "/admin/tracking/routes",
     },
+    REVIEWS: "/admin/reviews",
     NOTIFICATIONS: "/admin/notifications",
     FINANCES: {
       BASE: "/admin/finances",

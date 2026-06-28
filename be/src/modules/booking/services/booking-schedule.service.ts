@@ -12,6 +12,7 @@ import { BookingEntity } from '../entity/booking.entity';
 export interface BookingScheduleDraft {
   packageId?: string;
   subServiceIds?: string[];
+  addonIds?: string[];
   addressId?: string;
   address?: string;
   provinceCode?: string;
@@ -22,6 +23,7 @@ export interface BookingScheduleDraft {
   voucherCode?: string;
   areaM2?: number;
   pricingTierId?: string;
+  hasPet?: boolean;
 }
 
 export interface BookingScheduleStartContext {

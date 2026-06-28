@@ -73,29 +73,56 @@ export const useCatalog = () => {
 
   // ── Fetch ──
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["sub-services"],
+    queryKey: ["service-packages", "catalog"],
     queryFn: catalogApi.findAll,
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Map raw API → ServiceGridItem ──
+  // ── Map public service packages → ServiceGridItem ──
   const allServices: ServiceGridItem[] = useMemo(() => {
-    if (!data?.items) return [];
-    return data.items
-      .filter((s) => s.isActive)
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.shortDescription || s.description || "Chưa có mô tả",
-        imageUrl: s.thumbnailUrl,
-        basePrice:    Number(s.pricingConfig?.basePrice ?? 0),
-        peakPrice:    s.pricingConfig?.peakPrice ? Number(s.pricingConfig.peakPrice) : null,
-        durationHours: Number(s.durationHours),
-        coverageArea: s.coverageArea || "Hà Nội",
-        pricingType: s.pricingType,
-        hasPetFee:   s.pricingConfig !== null && Number(s.pricingConfig.petFee) > 0,
-        hasPeakPrice: s.pricingConfig !== null && s.pricingConfig.peakPrice !== null,
-      }));
+    if (!data?.data) return [];
+    return data.data
+      .map((pkg) => {
+        const popularDuration =
+          pkg.durations?.find((duration) => duration.isPopular) ??
+          pkg.durations?.[0];
+        const durationHours = Number(
+          popularDuration?.durationHours ??
+            pkg.pricingTiers?.[0]?.defaultHours ??
+            pkg.pricingTiers?.[0]?.minHours ??
+            0,
+        );
+        const durationMultiplier = Number(popularDuration?.priceMultiplier ?? 1);
+        const tier = pkg.pricingTiers?.[0];
+        const basePrice =
+          durationHours > 0 && Number(pkg.baseHourlyRate ?? 0) > 0
+            ? durationHours * Number(pkg.baseHourlyRate) * durationMultiplier
+            : Number(
+                tier?.fixedPrice ??
+                  (tier?.pricePerHour
+                    ? Number(tier.pricePerHour) *
+                      (Number(tier.defaultHours ?? tier.minHours ?? 1))
+                    : 0),
+              );
+
+        return {
+          id: pkg.id,
+          name: pkg.name,
+          description:
+            pkg.policyDescription ||
+            pkg.termsAndConditions ||
+            "Gói dịch vụ CleanZ được cấu hình sẵn theo nhu cầu đặt lịch.",
+          imageUrl: pkg.iconUrl || "/placeholder.jpg",
+          basePrice,
+          peakPrice: null,
+          durationHours,
+          coverageArea:
+            pkg.coverageAreas?.map((area) => area.name).join(", ") || "Hà Nội",
+          pricingType: "PACKAGE",
+          hasPetFee: Number(pkg.petSurcharge ?? 0) > 0,
+          hasPeakPrice: (pkg.peakHours?.length ?? 0) > 0,
+        };
+      });
   }, [data]);
 
   // ── Apply filters ──

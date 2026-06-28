@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
@@ -30,6 +30,8 @@ import { ServicePackageEntity } from 'src/modules/service/entity/service-package
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 
+const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
+
 interface TaskerPostedBookingItem {
   id: string;
   bookingCode: string;
@@ -52,6 +54,7 @@ interface TaskerPostedBookingItem {
   price: {
     totalPrice: number;
     basePrice: number;
+    addonPrice: number;
     peakFee: number;
     petFee: number;
     discountAmount: number;
@@ -80,6 +83,7 @@ export interface TaskerPostedBookingDetailResponse {
   price: {
     totalPrice: number;
     basePrice: number;
+    addonPrice: number;
     peakFee: number;
     petFee: number;
     discountAmount: number;
@@ -151,6 +155,7 @@ export interface TaskerAssignedBookingDetailResponse {
   price: {
     totalPrice: number;
     basePrice: number;
+    addonPrice: number;
     peakFee: number;
     petFee: number;
     discountAmount: number;
@@ -398,6 +403,7 @@ export class TaskerBookingService {
         price: {
           totalPrice: toNumber(booking.totalPrice),
           basePrice: toNumber(booking.basePrice),
+          addonPrice: toNumber(booking.addonPrice),
           peakFee: toNumber(booking.peakFee),
           petFee: toNumber(booking.petFee),
           discountAmount: toNumber(booking.discountAmount),
@@ -445,17 +451,10 @@ export class TaskerBookingService {
         }
 
         if (booking.paymentMethod === PaymentMethod.CASH) {
-          const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-          if (!subServiceId) {
-            throw new ConflictException(
-              'Booking không chứa dịch vụ con nào để tính hoa hồng',
-            );
-          }
-          const commissionRate =
-            await this.pricingService.getPlatformCommissionRateByServiceId(
-              manager,
-              subServiceId,
-            );
+          const commissionRate = await this.resolvePlatformCommissionRate(
+            manager,
+            booking,
+          );
           const platformFee = Math.round(
             (toNumber(booking.totalPrice) * commissionRate) / 100,
           );
@@ -876,17 +875,10 @@ export class TaskerBookingService {
         const savedBooking = await bookingRepository.save(booking);
 
         const totalPrice = toNumber(savedBooking.totalPrice);
-        const subServiceId = savedBooking.bookingSubServices?.[0]?.subServiceId;
-        if (!subServiceId) {
-          throw new ConflictException(
-            'Booking không chứa dịch vụ con nào để tính hoa hồng',
-          );
-        }
-        const commissionRate =
-          await this.pricingService.getPlatformCommissionRateByServiceId(
-            manager,
-            subServiceId,
-          );
+        const commissionRate = await this.resolvePlatformCommissionRate(
+          manager,
+          savedBooking,
+        );
         const platformFee = Math.round((totalPrice * commissionRate) / 100);
         const taskerEarning = Math.max(totalPrice - platformFee, 0);
 
@@ -1037,6 +1029,7 @@ export class TaskerBookingService {
       price: {
         totalPrice: toNumber(booking.totalPrice),
         basePrice: toNumber(booking.basePrice),
+        addonPrice: toNumber(booking.addonPrice),
         peakFee: toNumber(booking.peakFee),
         petFee: toNumber(booking.petFee),
         discountAmount: toNumber(booking.discountAmount),
@@ -1095,6 +1088,7 @@ export class TaskerBookingService {
       price: {
         totalPrice: toNumber(booking.totalPrice),
         basePrice: toNumber(booking.basePrice),
+        addonPrice: toNumber(booking.addonPrice),
         peakFee: toNumber(booking.peakFee),
         petFee: toNumber(booking.petFee),
         discountAmount: toNumber(booking.discountAmount),
@@ -1286,5 +1280,28 @@ export class TaskerBookingService {
       name: pkg?.name || 'Gói dịch vụ',
       description: pkg?.policyDescription || null,
     };
+  }
+
+  private async resolvePlatformCommissionRate(
+    manager: EntityManager,
+    booking: BookingEntity,
+  ): Promise<number> {
+    const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
+    if (!subServiceId) {
+      return DEFAULT_PLATFORM_COMMISSION_RATE;
+    }
+
+    try {
+      return await this.pricingService.getPlatformCommissionRateByServiceId(
+        manager,
+        subServiceId,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Cannot resolve sub-service commission for booking ${booking.id}, fallback ${DEFAULT_PLATFORM_COMMISSION_RATE}%`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return DEFAULT_PLATFORM_COMMISSION_RATE;
+    }
   }
 }

@@ -156,7 +156,7 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
               <p className="text-xs text-muted-foreground italic">Ẩn danh</p>
             )}
             {r.comment && (
-              <p className="text-sm text-foreground/80 italic">"{r.comment}"</p>
+              <p className="text-sm text-foreground/80 italic">&ldquo;{r.comment}&rdquo;</p>
             )}
             {r.images && r.images.length > 0 && (
               <div className="flex gap-2 flex-wrap mt-1">

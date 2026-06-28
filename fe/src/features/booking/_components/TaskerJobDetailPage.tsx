@@ -168,6 +168,7 @@ function PostedDetailView({
         <h3 className="font-bold text-foreground text-sm mb-2">Giá đơn hàng</h3>
         {[
           { label: "Giá cơ bản", value: data.price.basePrice },
+          { label: "Dịch vụ thêm", value: data.price.addonPrice ?? 0 },
           { label: "Phí cao điểm", value: data.price.peakFee },
           { label: "Phí thú cưng", value: data.price.petFee },
           { label: "Giảm giá", value: -data.price.discountAmount },

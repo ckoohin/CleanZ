@@ -24,13 +24,8 @@ const PRICING_TYPE_LABEL: Record<string, string> = {
   HOURLY: "Theo giờ",
   FIXED:  "Gói cố định",
   AREA:   "Theo m²",
+  PACKAGE: "Gói dịch vụ",
 };
-
-// Kiểm tra giờ cao điểm 17h–20h
-function isPeakHourNow(): boolean {
-  const h = new Date().getHours();
-  return h >= 17 && h < 20;
-}
 
 export const ServiceCard = ({
   id,
@@ -38,7 +33,6 @@ export const ServiceCard = ({
   description,
   imageUrl,
   basePrice,
-  peakPrice,
   durationHours,
   coverageArea,
   pricingType,
@@ -46,9 +40,7 @@ export const ServiceCard = ({
   hasPeakPrice,
   onSelect,
 }: ServiceCardProps) => {
-  const isPeak = hasPeakPrice && peakPrice != null && isPeakHourNow();
-  const displayPrice = isPeak && peakPrice != null ? peakPrice : basePrice;
-  const peakDiff = peakPrice != null ? peakPrice - basePrice : 0;
+  const displayPrice = basePrice;
 
   const fmtPrice = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
   const pricingLabel = pricingType
@@ -79,12 +71,7 @@ export const ServiceCard = ({
 
         {/* Badges top-right */}
         <div className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 items-end">
-          {isPeak && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-md animate-pulse">
-              <Zap className="h-3 w-3" /> Giờ cao điểm
-            </span>
-          )}
-          {!isPeak && hasPeakPrice && (
+          {hasPeakPrice && (
             <span className="inline-flex items-center gap-1 rounded-full bg-card/90 backdrop-blur-sm px-2 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm">
               <Zap className="h-3 w-3 text-amber-500" /> Có giá cao điểm
             </span>
@@ -127,32 +114,18 @@ export const ServiceCard = ({
         {/* Price + CTA */}
         <div className="mt-auto pt-3 border-t border-border/40 flex items-end justify-between gap-2">
           <div>
-            {/* Giá gốc (gạch ngang nếu đang peak) */}
-            {isPeak && (
-              <p className="text-[10px] text-muted-foreground/60 line-through leading-none mb-0.5">
-                {fmtPrice(basePrice)}đ
-              </p>
-            )}
-            {!isPeak && (
-              <p className="text-[10px] text-muted-foreground/70 mb-0.5 uppercase tracking-wide">
-                Giá từ
-              </p>
-            )}
+            <p className="text-[10px] text-muted-foreground/70 mb-0.5 uppercase tracking-wide">
+              Giá từ
+            </p>
             <p className={cn(
               "text-lg font-black leading-none",
-              isPeak ? "text-amber-600 dark:text-amber-400" : "text-primary"
+              "text-primary"
             )}>
               {fmtPrice(displayPrice)}
               <span className="text-xs font-normal text-muted-foreground ml-0.5">đ</span>
             </p>
-            {isPeak && peakDiff > 0 && (
-              <p className="text-[10px] text-amber-500 mt-0.5 flex items-center gap-0.5">
-                <Zap className="w-2.5 h-2.5" />+{fmtPrice(peakDiff)}đ cao điểm
-              </p>
-            )}
           </div>
 
-          {/* Nút "Xem chi tiết" thay vì "Đặt ngay" */}
           <button
             className={cn(
               "shrink-0 inline-flex h-9 items-center gap-1 rounded-xl px-3",
@@ -164,9 +137,9 @@ export const ServiceCard = ({
               e.stopPropagation();
               onSelect(id);
             }}
-            aria-label={`Xem chi tiết ${name}`}
+            aria-label={`Đặt gói ${name}`}
           >
-            Xem chi tiết
+            Đặt gói
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
