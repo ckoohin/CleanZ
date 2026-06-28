@@ -237,7 +237,7 @@ export class VouchersService {
           cv.customerId = customerId;
           cv.voucherId = voucherId;
           cv.isUsed = false;
-          cv.usedAt = null;
+      
           return cv;
         });
         await queryRunner.manager.save(CustomerVoucherEntity, records);

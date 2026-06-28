@@ -56,6 +56,7 @@ export const ROUTES = {
     SCHEDULE: "/tasker/schedule",
     SETTINGS: "/tasker/settings",
     ONBOARDING: "/tasker/onboarding",
+    POLICIES: "/tasker/policies",
     JOBS: "/tasker/jobs",
     JOB_DETAIL: (id: string) => `/tasker/jobs/${id}`,
     JOB_POSTED_DETAIL: (id: string) => `/tasker/jobs/${id}?mode=posted`,

@@ -56,7 +56,6 @@ export class WalletEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Index('idx_wallets_owner_type')
   @Column({ type: 'enum', enum: WalletOwnerType, name: 'owner_type' })
   ownerType!: WalletOwnerType;
 

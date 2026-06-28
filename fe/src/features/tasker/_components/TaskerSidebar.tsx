@@ -17,6 +17,7 @@ import {
   Settings,
   WalletCards,
   LifeBuoy,
+  ScrollText,
 } from "lucide-react";
 import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const ALL_NAV_ITEMS = [
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
   { href: "/tasker/support-tickets", label: "Hỗ trợ",  icon: LifeBuoy },
+  { href: "/tasker/policies",        label: "Chính sách", icon: ScrollText },
 ];
 
 // Bottom nav: 2 bên FAB center (giữ index 0,1,3,4 — không gồm "Thu nhập"/"Hỗ trợ")
