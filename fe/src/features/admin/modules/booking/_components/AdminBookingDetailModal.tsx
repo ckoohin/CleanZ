@@ -1,248 +1,392 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Clock, MapPin, User, Banknote, ShieldCheck, FileText, CheckCircle2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Clock,
+  MapPin,
+  User,
+  Banknote,
+  ShieldCheck,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  PawPrint,
+  TrendingUp,
+  ArrowRight,
+} from "lucide-react";
+import { AdminButton, StatusBadge, BadgeTone } from "@/components/admin";
 import { toast } from "sonner";
 import { useCancelAdminBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
-import { useState } from "react";
 import { AssignTaskerDialog } from "@/features/admin/modules/booking/_components/AssignTaskerDialog";
 import { ChangeBookingStatusDialog } from "@/features/admin/modules/booking/_components/ChangeBookingStatusDialog";
-import { AdminBookingDetail } from "@/features/admin/modules/booking/types/booking.types";
+import { AdminBookingDetail, AdminBookingTimelineEntry } from "@/features/admin/modules/booking/types/booking.types";
 
-interface AdminBookingDetailModalProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: AdminBookingDetail | null;
 }
 
-export const AdminBookingDetailModal: React.FC<AdminBookingDetailModalProps> = ({
-  open,
-  onOpenChange,
-  booking,
-}) => {
-  const cancelMutation = useCancelAdminBooking();
+const STATUS_MAP: Record<string, { label: string; tone: BadgeTone }> = {
+  POSTED:            { label: "Đang tìm kiếm nhân viên",   tone: "warning" },
+  CONFIRMED:         { label: "Đã nhận đơn",     tone: "info" },
+  TASKER_ON_THE_WAY: { label: "Nhân viên đang đến",   tone: "info" },
+  CHECKED_IN:        { label: "Đã đến nơi",      tone: "info" },
+  IN_PROGRESS:       { label: "Đang thực hiện",  tone: "purple" },
+  COMPLETED:         { label: "Hoàn thành",      tone: "success" },
+  CANCELLED:         { label: "Đã hủy",          tone: "danger" },
+  EXPIRED:           { label: "Đã hết hạn",      tone: "neutral" },
+};
 
+function fmtPrice(n: number) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+}
+
+function fmtDateTime(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
+}
+
+function PriceRow({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+  if (value === 0) return null;
+  return (
+    <div className={`flex justify-between text-sm ${highlight ? "border-t border-[var(--c-line)] pt-2 mt-1" : ""}`}>
+      <span className="text-[var(--c-muted)]">{label}</span>
+      <span className={`font-semibold ${highlight ? "text-[var(--c-primary-strong)] text-base" : "text-[var(--c-ink)]"}`}>
+        {fmtPrice(value)}
+      </span>
+    </div>
+  );
+}
+
+function TimelineRow({ entry }: { entry: AdminBookingTimelineEntry }) {
+  const meta = STATUS_MAP[entry.newStatus] ?? { label: entry.newStatus, tone: "neutral" as BadgeTone };
+  return (
+    <div className="flex items-start gap-3 py-2">
+      <div className="mt-1 w-2 h-2 rounded-full bg-[var(--c-primary-strong)] shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          {entry.oldStatus && (
+            <>
+              <StatusBadge tone={(STATUS_MAP[entry.oldStatus]?.tone ?? "neutral") as BadgeTone} className="text-[10px]">
+                {STATUS_MAP[entry.oldStatus]?.label ?? entry.oldStatus}
+              </StatusBadge>
+              <ArrowRight className="w-3 h-3 text-[var(--c-muted)]" />
+            </>
+          )}
+          <StatusBadge tone={meta.tone} className="text-[10px]">{meta.label}</StatusBadge>
+        </div>
+        {entry.note && <p className="text-xs text-[var(--c-muted)] mt-0.5 truncate">{entry.note}</p>}
+        {entry.cancelReason && <p className="text-xs text-red-500 mt-0.5">Lý do: {entry.cancelReason}</p>}
+        <p className="text-[10px] text-[var(--c-muted)] mt-0.5">
+          {fmtDateTime(entry.createdAt)}
+          {entry.changedBy && ` · ${entry.changedBy.fullName}`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, booking }) => {
+  const cancelMutation = useCancelAdminBooking();
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   if (!booking) return null;
 
+  const status = booking.status ?? "";
+  const statusMeta = STATUS_MAP[status] ?? { label: status, tone: "neutral" as BadgeTone };
+  const isClosed = status === "COMPLETED" || status === "CANCELLED" || status === "EXPIRED";
+
+  const schedule = booking.schedule;
+  const price = booking.price;
+  const operation = booking.operation;
+  const payment = booking.payment;
+
   const handleCancel = () => {
-    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
-    cancelMutation.mutate({ id: booking.id, reason: "Hủy đơn qua Admin Portal" }, {
-      onSuccess: () => {
-        toast.success("Hủy đơn thành công");
-        onOpenChange(false);
-      },
-      onError: (err: unknown) => {
-        const error = err as { response?: { data?: { message?: string } } };
-        toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi hủy đơn");
+    cancelMutation.mutate(
+      { id: booking.id, reason: "Hệ thống đã hủy đơn" },
+      {
+        onSuccess: () => {
+          toast.success("Hủy đơn thành công");
+          setConfirmCancel(false);
+          onOpenChange(false);
+        },
+        onError: (err: unknown) => {
+          const error = err as { response?: { data?: { message?: string } } };
+          toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi hủy đơn");
+        },
       }
-    });
+    );
   };
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return <Badge className="bg-emerald-500 hover:bg-emerald-600">Hoàn Thành</Badge>;
-      case 'POSTED':
-        return <Badge className="bg-amber-500 hover:bg-amber-600">Đang Tìm Thợ</Badge>;
-      case 'IN_PROGRESS':
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Đang Thực Hiện</Badge>;
-      case 'CANCELLED':
-        return <Badge className="bg-red-500 hover:bg-red-600">Đã Hủy</Badge>;
-      default:
-        return <Badge className="bg-indigo-500 hover:bg-indigo-600">{status}</Badge>;
-    }
-  };
-
-  const formattedPrice = new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(booking.totalPrice || 0);
-
-  const formattedDate = booking.scheduledStart
-    ? new Date(booking.scheduledStart).toLocaleDateString("vi-VN")
-    : "N/A";
-  const formattedTime = booking.scheduledStart
-    ? new Date(booking.scheduledStart).toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "N/A";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="cz-admin w-[calc(100vw-2rem)] !max-w-6xl sm:!max-w-6xl max-h-none overflow-visible bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-2xl">
-            Chi Tiết Booking
-            <span className="font-mono text-lg text-primary bg-primary/10 px-3 py-1 rounded-full">
+          <DialogTitle className="flex items-center gap-3 text-xl text-[var(--c-ink)]">
+            Chi Tiết Đơn Hàng
+            <span className="font-mono text-base text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)] px-3 py-1 rounded-full">
               {booking.bookingCode}
             </span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          {/* Status & Price */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-500 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> Trạng Thái
-              </span>
-              {getStatusBadge(booking.status)}
+        <div className="mt-2 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+          <div className="space-y-4 min-w-0">
+
+          {/* Row 1: Status + Schedule */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Status & Payment */}
+            <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)] space-y-3">
+              <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)]">
+                <ShieldCheck className="w-4 h-4 text-[var(--c-primary-strong)]" /> Trạng thái & Thanh toán
+              </h3>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--c-muted)]">Trạng thái đơn</span>
+                <StatusBadge tone={statusMeta.tone}>{statusMeta.label}</StatusBadge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--c-muted)]">Phương thức TT</span>
+                <StatusBadge tone="neutral">{payment?.method ?? "—"}</StatusBadge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--c-muted)]">Trạng thái TT</span>
+                <StatusBadge tone={payment?.status === "PAID" ? "success" : "warning"}>
+                  {payment?.status === "PAID" ? "Đã thanh toán" : payment?.status ?? "—"}
+                </StatusBadge>
+              </div>
+              {payment?.voucher && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--c-muted)]">Voucher</span>
+                  <span className="text-xs font-mono font-bold text-emerald-600">{payment.voucher.code}</span>
+                </div>
+              )}
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-500 flex items-center gap-2">
-                <Banknote className="w-4 h-4" /> Tổng Tiền
-              </span>
-              <span className="text-xl font-bold text-slate-900 dark:text-white">
-                {formattedPrice}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">Phương thức:</span>
-              <Badge variant="outline">{booking.paymentMethod}</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">T/Thái TT:</span>
-              <Badge variant="outline" className={booking.paymentStatus === 'PAID' ? 'text-emerald-500' : 'text-amber-500'}>
-                {booking.paymentStatus}
-              </Badge>
+
+            {/* Schedule */}
+            <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)] space-y-3">
+              <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)]">
+                <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" /> Lịch Hẹn
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Ngày làm việc</span>
+                  <span className="font-semibold text-sm">{schedule?.scheduledStartDate ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Giờ bắt đầu</span>
+                  <span className="font-semibold text-sm">{schedule?.scheduledStartTime ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Thời lượng</span>
+                  <span className="font-semibold text-sm">{schedule?.durationHours ?? "—"} giờ</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Dịch vụ</span>
+                  <span className="font-semibold text-sm text-[var(--c-primary-strong)]">{booking.service?.name ?? "—"}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Schedule */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <Clock className="w-5 h-5 text-primary" /> Lịch Hẹn
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-xs text-slate-500 block mb-1">Ngày làm việc</span>
-                <span className="font-semibold">{formattedDate}</span>
+          {/* Row 2: Price breakdown */}
+          {price && (
+            <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
+              <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
+                <Banknote className="w-4 h-4 text-[var(--c-primary-strong)]" /> Chi Tiết Giá
+              </h3>
+              <div className="space-y-1.5">
+                <PriceRow label="Giá cơ bản" value={price.basePrice} />
+                <PriceRow label="Dịch vụ thêm" value={price.addonPrice} />
+                <PriceRow label="Phí cao điểm" value={price.peakFee} />
+                <PriceRow label="Phí thú cưng" value={price.petFee} />
+                <PriceRow label="Phí chờ" value={price.waitingFee} />
+                {price.discountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[var(--c-muted)]">Giảm giá voucher</span>
+                    <span className="font-semibold text-emerald-600">-{fmtPrice(price.discountAmount)}</span>
+                  </div>
+                )}
+                <PriceRow label="Tổng thanh toán" value={price.totalPrice} highlight />
               </div>
-              <div>
-                <span className="text-xs text-slate-500 block mb-1">Giờ làm việc</span>
-                <span className="font-semibold">{formattedTime}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500 block mb-1">Thời lượng</span>
-                <span className="font-semibold">{booking.durationHours} giờ</span>
-              </div>
+              {payment && payment.commissionRate !== null && (
+                <div className="mt-3 pt-3 border-t border-[var(--c-line)] grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <span className="text-[10px] text-[var(--c-muted)] block">Hoa hồng</span>
+                    <span className="text-xs font-bold text-[var(--c-ink)]">
+                      {payment.commissionRate}%{payment.isEstimated ? " *" : ""}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--c-muted)] block">Phí nền tảng</span>
+                    <span className="text-xs font-bold text-red-500">
+                      {payment.platformFee != null ? fmtPrice(payment.platformFee) : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--c-muted)] block">Tasker nhận</span>
+                    <span className="text-xs font-bold text-emerald-600">
+                      {payment.taskerIncome != null ? fmtPrice(payment.taskerIncome) : "—"}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Customer Info */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 md:col-span-2">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <User className="w-5 h-5 text-blue-500" /> Thông Tin Khách Hàng
+          {/* Row 3: Customer + Address */}
+          <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
+            <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
+              <User className="w-4 h-4 text-blue-500" /> Khách Hàng & Địa Chỉ
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Tên khách hàng</span>
-                <span className="font-semibold">{booking.customer?.fullName || 'N/A'}</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-0.5">Họ tên</span>
+                <span className="font-semibold text-sm">{booking.customer?.fullName ?? "N/A"}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-500 block mb-1">Số điện thoại</span>
-                <span className="font-semibold">{booking.customer?.phone || 'N/A'}</span>
+                <span className="text-xs text-[var(--c-muted)] block mb-0.5">Số điện thoại</span>
+                <span className="font-semibold text-sm">{booking.customer?.phone ?? "N/A"}</span>
               </div>
               <div className="md:col-span-2">
-                <span className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                <span className="text-xs text-[var(--c-muted)] mb-0.5 flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> Địa chỉ làm việc
                 </span>
-                <span className="font-medium text-sm block bg-white dark:bg-slate-800 p-3 rounded border">
-                  {booking.address?.fullAddress || 'N/A'}
-                </span>
+                <div className="flex items-start gap-2 mt-1">
+                  <span className="text-sm bg-[var(--c-card)] p-2 rounded border border-[var(--c-line)] flex-1">
+                    {booking.address?.fullAddress ?? "N/A"}
+                  </span>
+                  {booking.address?.hasPet && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg shrink-0">
+                      <PawPrint className="w-3 h-3" /> Có thú cưng
+                    </span>
+                  )}
+                </div>
               </div>
               {booking.note && (
                 <div className="md:col-span-2">
-                  <span className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                  <span className="text-xs text-[var(--c-muted)] mb-0.5 flex items-center gap-1">
                     <FileText className="w-3 h-3" /> Ghi chú
                   </span>
-                  <span className="font-medium text-sm block bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-200 p-3 rounded border border-amber-200 dark:border-amber-900/30">
+                  <p className="text-sm p-2 rounded border mt-1" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706", borderColor: "rgba(217,119,6,0.3)" }}>
                     {booking.note}
-                  </span>
+                  </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Tasker Info */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 md:col-span-2">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <User className="w-5 h-5 text-emerald-500" /> Thông Tin Nhân Viên (Tasker)
+          {/* Row 4: Tasker */}
+          <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
+            <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
+              <User className="w-4 h-4 text-emerald-500" /> Nhân Viên (Tasker)
             </h3>
             {booking.tasker ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="text-xs text-slate-500 block mb-1">Họ tên Tasker</span>
-                  <span className="font-semibold">{booking.tasker.fullName}</span>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Họ tên</span>
+                  <span className="font-semibold text-sm">{booking.tasker.fullName}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 block mb-1">Số điện thoại</span>
-                  <span className="font-semibold">{booking.tasker.phone}</span>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Số điện thoại</span>
+                  <span className="font-semibold text-sm">{booking.tasker.phone ?? "N/A"}</span>
+                </div>
+                {booking.tasker.ratingAvg !== undefined && (
+                  <div>
+                    <span className="text-xs text-[var(--c-muted)] block mb-0.5">Đánh giá</span>
+                    <span className="font-semibold text-sm text-amber-500">★ {booking.tasker.ratingAvg.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--c-muted)] italic text-center py-2">Chưa có nhân viên nhận đơn này.</p>
+            )}
+          </div>
+
+          </div>
+
+          <div className="space-y-4 min-w-0">
+            {/* Row 5: Timeline */}
+            {operation && operation.timeline.length > 0 && (
+              <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
+                <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-2">
+                  <TrendingUp className="w-4 h-4 text-purple-500" /> Lịch Sử Trạng Thái
+                </h3>
+                <div className="space-y-1 pl-1">
+                  {operation.timeline.map((entry) => (
+                    <TimelineRow key={entry.id} entry={entry} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          {/* Row 6: Actions */}
+          <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
+            <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
+              <CheckCircle2 className="w-4 h-4 text-purple-500" /> Hành Động
+            </h3>
+
+            {isClosed ? (
+              <p className="text-sm text-[var(--c-muted)] italic">
+                Đơn hàng ở trạng thái <strong>{statusMeta.label}</strong> — không thể thực hiện thêm thao tác.
+              </p>
+            ) : confirmCancel ? (
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-red-600">Xác nhận hủy đơn <span className="font-mono">{booking.bookingCode}</span>?</p>
+                <p className="text-xs text-[var(--c-muted)]">Thao tác này không thể hoàn tác. Khách hàng sẽ nhận được thông báo.</p>
+                <div className="flex gap-2">
+                  <AdminButton variant="secondary" onClick={() => setConfirmCancel(false)} className="flex-1">
+                    Quay lại
+                  </AdminButton>
+                  <AdminButton
+                    variant="danger"
+                    onClick={handleCancel}
+                    disabled={cancelMutation.isPending}
+                    className="flex-1"
+                    icon={<XCircle className="w-4 h-4" />}
+                  >
+                    {cancelMutation.isPending ? "Đang hủy..." : "Xác nhận hủy"}
+                  </AdminButton>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-4 bg-white dark:bg-slate-800 rounded border border-dashed">
-                <span className="text-slate-500 text-sm italic">Chưa có nhân viên nhận đơn này.</span>
+              <div className="flex flex-wrap gap-3">
+                <AdminButton
+                  variant="primary"
+                  onClick={() => setIsAssignOpen(true)}
+                  icon={<User className="w-4 h-4" />}
+                >
+                  {booking.tasker ? "Thay Tasker" : "Gán Tasker"}
+                </AdminButton>
+                <AdminButton variant="secondary" onClick={() => setIsChangeStatusOpen(true)}>
+                  Đổi trạng thái
+                </AdminButton>
+                <div className="ml-auto">
+                  <AdminButton
+                    variant="danger"
+                    onClick={() => setConfirmCancel(true)}
+                    icon={<XCircle className="w-4 h-4" />}
+                  >
+                    Hủy đơn
+                  </AdminButton>
+                </div>
               </div>
             )}
           </div>
-          {/* Actions */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 md:col-span-2">
-            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white border-b pb-2">
-              <CheckCircle2 className="w-5 h-5 text-indigo-500" /> Hành Động Xử Lý
-            </h3>
-
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
-                <>
-                  <Button
-                    onClick={() => setIsAssignOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 w-full md:w-auto"
-                  >
-                    <User className="w-4 h-4 mr-2" /> Gán / Đổi Tasker
-                  </Button>
-
-                  <Button
-                    onClick={() => setIsChangeStatusOpen(true)}
-                    variant="outline"
-                    className="w-full md:w-auto"
-                  >
-                    Cập nhật trạng thái
-                  </Button>
-
-                  <div className="flex-1 md:flex-none flex justify-end ml-auto">
-                    <Button
-                      variant="destructive"
-                      onClick={handleCancel}
-                      disabled={cancelMutation.isPending}
-                      className="w-full md:w-auto"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" /> Hủy Đơn Gấp
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-            {booking.status === 'COMPLETED' || booking.status === 'CANCELLED' ? (
-              <p className="text-sm text-slate-500 italic">Đơn hàng ở trạng thái {booking.status} không thể thực hiện thêm hành động.</p>
-            ) : null}
           </div>
         </div>
       </DialogContent>
 
-      {/* Nested Dialogs for Actions */}
       <AssignTaskerDialog
         bookingId={booking.id}
         open={isAssignOpen}

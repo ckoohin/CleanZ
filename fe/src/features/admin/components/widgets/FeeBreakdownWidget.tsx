@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { SectionCard } from "@/components/admin";
 import { useFinanceBreakdown } from "../../hooks/useDashboard";
 import { useDashboardStore } from "../../stores/dashboard.store";
 import { WidgetSkeleton } from "./WidgetSkeleton";
@@ -40,29 +40,25 @@ export function FeeBreakdownWidget() {
     .reduce((sum, f) => sum + f.value, 0);
 
   return (
-    <Card className="border border-border bg-card shadow-sm rounded-2xl h-full flex flex-col justify-between">
-      <CardContent className="p-5">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-[15px] font-semibold text-foreground">Phân tích phụ phí</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Tổng phụ phí +{fmtFee(totalAddons)} trong kỳ
-            </p>
+    <SectionCard
+      title="Phân tích phụ phí"
+      hint={`Tổng phụ phí +${fmtFee(totalAddons)} trong kỳ`}
+      cardClassName="h-full"
+      bodyClassName="grid grid-cols-2 gap-3 mt-3"
+    >
+      {fees.map((f) => (
+        <div key={f.label} className="rounded-xl bg-[var(--c-card-2)] p-3">
+          <div className="truncate text-[11.5px] font-medium text-[var(--c-muted)]">
+            {f.label}
+          </div>
+          <div
+            className="mt-1 text-lg font-bold tabular-nums"
+            style={{ color: f.value < 0 ? "#E11D48" : "var(--c-ink)" }}
+          >
+            {fmtFee(f.value)}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          {fees.map((f) => (
-            <div key={f.label} className="bg-muted/40 rounded-xl p-3">
-              <div className="text-[11.5px] text-muted-foreground truncate font-medium">
-                {f.label}
-              </div>
-              <div className="text-lg font-bold text-foreground mt-1">
-                {fmtFee(f.value)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+      ))}
+    </SectionCard>
   );
 }

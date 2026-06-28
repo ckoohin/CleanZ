@@ -11,6 +11,12 @@ import {
 } from '../services/admin-services.service';
 import { toast } from 'sonner';
 
+// ─── COVERAGE AREAS KEYS ─────────────────────────────────────────────────────
+export const ADMIN_COVERAGE_AREAS_KEYS = {
+  all: ['admin-coverage-areas'] as const,
+  list: (city?: string) => [...ADMIN_COVERAGE_AREAS_KEYS.all, city ?? 'all'] as const,
+};
+
 // ─── KEYS FOR REACT QUERY ────────────────────────────────────────────────────
 export const ADMIN_SERVICES_KEYS = {
   all: ['admin-services'] as const,
@@ -200,6 +206,31 @@ export const useRemoveSubServiceFromPackage = () => {
     onSuccess: (_, variables) => {
       toast.success('Đã gỡ dịch vụ con!');
       queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.detail(variables.packageId) });
+    },
+  });
+};
+
+// ─── COVERAGE AREAS HOOKS ─────────────────────────────────────────────────────
+export const useCoverageAreas = (city?: string) => {
+  return useQuery({
+    queryKey: ADMIN_COVERAGE_AREAS_KEYS.list(city),
+    queryFn: () => adminServicesApi.getCoverageAreas(city),
+    staleTime: 10 * 60 * 1000, // 10 phút — data ít thay đổi
+  });
+};
+
+export const useUpdateCoverageArea = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, transportFee }: { id: string; transportFee: number }) =>
+      adminServicesApi.updateCoverageArea(id, transportFee),
+    onSuccess: () => {
+      toast.success('Cập nhật phí vận chuyển thành công!');
+      queryClient.invalidateQueries({ queryKey: ADMIN_COVERAGE_AREAS_KEYS.all });
+    },
+    onError: (error: unknown) => {
+      const err = error as AxiosError<{ message?: string }>;
+      toast.error(err.response?.data?.message || 'Không thể cập nhật phí vận chuyển!');
     },
   });
 };

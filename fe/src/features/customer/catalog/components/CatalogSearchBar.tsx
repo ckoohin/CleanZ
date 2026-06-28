@@ -56,7 +56,7 @@ export const CatalogSearchBar = ({
           type="search"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Tìm dịch vụ..."
+          placeholder="Tìm gói dịch vụ..."
           className={cn(
             "w-full h-10 pl-9 pr-9 rounded-xl text-sm",
             "bg-muted/50 border border-border/40",
@@ -152,7 +152,7 @@ export const CatalogSearchBar = ({
           </>
         ) : (
           <>
-            <span className="font-semibold">{totalResults}</span> dịch vụ
+            <span className="font-semibold">{totalResults}</span> gói dịch vụ
           </>
         )}
       </p>

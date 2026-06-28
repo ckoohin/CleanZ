@@ -2,30 +2,24 @@
 
 import React from "react";
 import { NotificationAdminPanel } from "@/features/admin/modules/notifications/_components/NotificationAdminPanel";
-import { Bell, Sparkles } from "lucide-react";
+import { PageHeader } from "@/components/admin";
+import { Bell } from "lucide-react";
 
 export default function AdminNotificationsPage() {
   return (
-    <main className="min-h-screen bg-background py-6">
+    <main className="min-h-screen bg-[var(--c-card)] py-6">
       <div className="w-full space-y-6">
-        <div className="space-y-2 pl-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
-            <Bell size={14} /> Thông báo hệ thống
-          </div>
-          <h1 className="text-3xl font-black text-balance leading-tight tracking-tight flex items-center gap-2">
-            Quản lý Thông báo <Sparkles className="w-6 h-6 text-primary animate-pulse" />
-          </h1>
-          <p className="text-muted-foreground text-sm max-w-2xl leading-relaxed">
-            Xem lịch sử thông báo và broadcast hàng loạt đến khách hàng hoặc Tasker.
-          </p>
-        </div>
+        <PageHeader
+          title="Quản lý Thông báo"
+          description="Xem lịch sử thông báo và broadcast hàng loạt đến khách hàng hoặc Tasker."
+        />
 
-        <div className="bg-card border-y sm:border sm:border-border/50 sm:rounded-2xl shadow-sm p-3 sm:p-4 w-full">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner shrink-0">
+        <div className="bg-[var(--c-card)] border-y sm:border sm:border-[var(--c-line)] sm:rounded-2xl shadow-sm p-3 sm:p-4 w-full">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[var(--c-line)]">
+            <div className="w-10 h-10 rounded-xl bg-[var(--c-primary-soft)] flex items-center justify-center text-[var(--c-primary-strong)] shadow-inner shrink-0">
               <Bell className="w-5 h-5" />
             </div>
-            <h2 className="text-xl font-bold">Lịch sử thông báo</h2>
+            <h2 className="text-xl font-bold text-[var(--c-ink)]">Lịch sử thông báo</h2>
           </div>
           <NotificationAdminPanel />
         </div>

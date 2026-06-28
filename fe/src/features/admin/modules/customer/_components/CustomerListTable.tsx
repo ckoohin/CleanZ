@@ -9,15 +9,8 @@ import {
   type RowAction,
   type BulkAction,
 } from "@/components/ui/base/base_table_list";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { PageHeader, AdminButton, StatusBadge, StatCard, FilterTabs } from "@/components/admin";
 import {
   useAdminCustomers,
   useDeleteCustomer,
@@ -37,9 +30,10 @@ import {
 } from "@/features/admin/modules/customer/customer.helpers";
 import {
   Eye,
+  Bell,
   Pencil,
   ShieldAlert,
-  ListFilter,
+  Users,
   UserCheck,
   CheckCircle2,
   PauseCircle,
@@ -126,6 +120,19 @@ export const CustomerListTable: React.FC = () => {
   const displayData = response?.data || [];
   const totalItems = response?.meta?.total || 0;
 
+  // Bộ đếm cho stat card + tab trạng thái (mỗi query limit:1, chỉ đọc meta.total;
+  // không kèm keyword → luôn là tổng thể, được react-query cache theo filter).
+  const { data: allCountRes } = useAdminCustomers({ page: 1, limit: 1 });
+  const { data: activeCountRes } = useAdminCustomers({ isActive: true, page: 1, limit: 1 });
+  const { data: blockedCountRes } = useAdminCustomers({ isActive: false, page: 1, limit: 1 });
+  const { data: deletedCountRes } = useAdminCustomers({ deleted: true, page: 1, limit: 1 });
+  const counts = {
+    all: allCountRes?.meta?.total ?? 0,
+    active: activeCountRes?.meta?.total ?? 0,
+    blocked: blockedCountRes?.meta?.total ?? 0,
+    deleted: deletedCountRes?.meta?.total ?? 0,
+  };
+
   const goToDetail = (id: string) => router.push(`/admin/customers/${id}`);
 
   const handleConfirmDelete = () => {
@@ -187,7 +194,7 @@ export const CustomerListTable: React.FC = () => {
       title: "Khách hàng",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+          <div className="w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
             {row.avatarUrl ? (
               <img
                 src={row.avatarUrl}
@@ -200,14 +207,14 @@ export const CustomerListTable: React.FC = () => {
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="font-bold text-sm text-foreground/90 truncate">
+              <p className="font-bold text-sm text-[var(--c-ink)] truncate">
                 {row.fullName || "Chưa cập nhật"}
               </p>
               {row.isVerified && (
-                <BadgeCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <BadgeCheck className="w-3.5 h-3.5 text-[#0E9F6E] shrink-0" />
               )}
             </div>
-            <p className="text-xs text-muted-foreground truncate">{row.email}</p>
+            <p className="text-xs text-[var(--c-muted)] truncate">{row.email}</p>
           </div>
         </div>
       ),
@@ -217,7 +224,7 @@ export const CustomerListTable: React.FC = () => {
       title: "Số điện thoại",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-foreground/70">
+        <span className="text-xs font-semibold text-[var(--c-ink-soft)]">
           {row.phone || "Chưa cập nhật"}
         </span>
       ),
@@ -229,11 +236,11 @@ export const CustomerListTable: React.FC = () => {
       className: "w-[130px]",
       render: (row) => (
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-bold text-foreground/90">
+          <span className="text-xs font-bold text-[var(--c-ink)]">
             {row.totalBookings} đơn
           </span>
           {row.totalCancelled > 0 && (
-            <span className="text-[11px] font-semibold text-rose-500">
+            <span className="text-[11px] font-semibold text-[#E11D48]">
               {row.totalCancelled} đã hủy
             </span>
           )}
@@ -245,7 +252,7 @@ export const CustomerListTable: React.FC = () => {
       title: "Tổng chi tiêu",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+        <span className="text-xs font-bold text-[#0E9F6E]">
           {formatVND(row.totalSpent)}
         </span>
       ),
@@ -255,7 +262,7 @@ export const CustomerListTable: React.FC = () => {
       title: "Thanh toán",
       hideOnMobile: true,
       render: (row) => (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-foreground/70 text-[11px] font-bold">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--c-card-2)] text-[var(--c-ink-soft)] text-[11px] font-bold">
           <Wallet className="w-3 h-3" />
           {PAYMENT_METHOD_LABELS[row.defaultPaymentMethod ?? ""] ||
             row.defaultPaymentMethod ||
@@ -268,7 +275,7 @@ export const CustomerListTable: React.FC = () => {
       title: "Tham gia",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-muted-foreground">
+        <span className="text-xs font-semibold text-[var(--c-muted)]">
           {formatDate(row.createdAt)}
         </span>
       ),
@@ -279,11 +286,11 @@ export const CustomerListTable: React.FC = () => {
       hideOnMobile: true,
       render: (row) =>
         row.updatedBy ? (
-          <span className="text-xs font-semibold text-foreground/80 truncate">
+          <span className="text-xs font-semibold text-[var(--c-ink-soft)] truncate">
             {row.updatedByName || "Admin"}
           </span>
         ) : (
-          <span className="text-xs text-muted-foreground">—</span>
+          <span className="text-xs text-[var(--c-muted)]">—</span>
         ),
     },
     {
@@ -291,10 +298,10 @@ export const CustomerListTable: React.FC = () => {
       title: "Trạng thái",
       render: (row) =>
         row.deletedAt ? (
-          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] font-bold">
+          <StatusBadge tone="danger" className="text-[11px]">
             <Trash className="w-3 h-3" />
             Đã xóa · {formatDate(row.deletedAt)}
-          </span>
+          </StatusBadge>
         ) : (
           <div onClick={(e) => e.stopPropagation()}>
             <CustomerStatusToggle
@@ -307,7 +314,7 @@ export const CustomerListTable: React.FC = () => {
     },
   ];
 
-  // Row actions — ẩn/hiện theo trạng thái xóa của từng dòng.
+  // Row actions — BaseTableList tự render thành menu "⋯" gọn (design system §7).
   const rowActions: RowAction<CustomerListItem>[] = [
     {
       type: "view",
@@ -324,6 +331,16 @@ export const CustomerListTable: React.FC = () => {
       hidden: (row) => !!row.deletedAt,
     },
     {
+      // Placeholder — chức năng gửi thông báo sẽ làm sau.
+      label: "Gửi thông báo",
+      icon: Bell,
+      onClick: (row) =>
+        toast.info(
+          `Gửi thông báo tới ${row.fullName || "khách hàng"}: tính năng đang được phát triển.`,
+        ),
+      hidden: (row) => !!row.deletedAt,
+    },
+    {
       label: "Gửi lại mật khẩu tạm",
       icon: KeyRound,
       onClick: (row) => resendMutation.mutate(row.id),
@@ -331,9 +348,10 @@ export const CustomerListTable: React.FC = () => {
     },
     {
       type: "delete",
-      label: "Xóa",
+      label: "Xóa tài khoản",
       icon: Trash2,
       variant: "destructive",
+      separatorBefore: true,
       onClick: (row) => setDeleteTarget(row),
       hidden: (row) => !!row.deletedAt,
     },
@@ -347,40 +365,55 @@ export const CustomerListTable: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-bold tracking-tight">Quản lý khách hàng</h1>
-          <p className="text-xs text-muted-foreground">
-            Tìm kiếm, lọc theo trạng thái và quản lý tài khoản khách hàng.
-          </p>
-        </div>
-        <Button
-          onClick={() => setFormCustomer(undefined)}
-          className="rounded-full shrink-0 gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Thêm khách hàng
-        </Button>
+    <div className="space-y-5 kos-rise">
+      <PageHeader
+        title="Quản lý khách hàng"
+        description="Theo dõi, tìm kiếm và quản lý tài khoản khách hàng CleanZ."
+        actions={
+          <>
+            <AdminButton
+              variant="secondary"
+              icon={<Download className="w-4 h-4" />}
+              onClick={() => toast.info("Đang xuất danh sách khách hàng…")}
+            >
+              Xuất Excel
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => setFormCustomer(undefined)}
+            >
+              Thêm khách hàng
+            </AdminButton>
+          </>
+        }
+      />
+
+      {/* Stat cards — số liệu thật từ meta.total của từng bộ lọc */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard icon={Users} label="Tổng khách hàng" value={counts.all.toLocaleString("vi-VN")} tint="#2563EB" />
+        <StatCard icon={UserCheck} label="Đang hoạt động" value={counts.active.toLocaleString("vi-VN")} tint="#0E9F6E" />
+        <StatCard icon={ShieldAlert} label="Đã bị khóa" value={counts.blocked.toLocaleString("vi-VN")} tint="#D97706" />
+        <StatCard icon={Trash} label="Đã xóa" value={counts.deleted.toLocaleString("vi-VN")} tint="#E11D48" />
       </div>
 
       {isError && !isLoading && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 px-4 py-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(225,29,72,0.3)] bg-[rgba(225,29,72,0.06)] px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
-            <p className="truncate text-xs font-semibold text-rose-600 dark:text-rose-400">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-[#E11D48]" />
+            <p className="truncate text-xs font-semibold text-[#E11D48]">
               Không tải được danh sách khách hàng. Vui lòng thử lại.
             </p>
           </div>
-          <Button
-            variant="outline"
+          <AdminButton
+            variant="secondary"
             size="sm"
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
             onClick={() => refetch()}
-            className="shrink-0 gap-1.5 rounded-full"
+            className="shrink-0"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
             Thử lại
-          </Button>
+          </AdminButton>
         </div>
       )}
 
@@ -406,49 +439,20 @@ export const CustomerListTable: React.FC = () => {
             : "Không có khách hàng nào khớp với tìm kiếm hoặc bộ lọc của bạn."
         }
         rowActions={rowActions}
-        inlineActionCount={1}
         bulkActions={isDeletedView ? undefined : bulkActions}
         filters={
-          <Select
+          <FilterTabs
+            tabs={[
+              { key: "ALL", label: "Tất cả", count: counts.all },
+              { key: "ACTIVE", label: "Hoạt động", count: counts.active },
+              { key: "BLOCKED", label: "Đã khóa", count: counts.blocked },
+              { key: "DELETED", label: "Đã xóa", count: counts.deleted },
+            ]}
             value={filter.isActive}
-            onValueChange={(val) =>
-              setFilter((prev) => ({
-                ...prev,
-                isActive: val as StatusFilter,
-                page: 1,
-              }))
+            onChange={(val) =>
+              setFilter((prev) => ({ ...prev, isActive: val as StatusFilter, page: 1 }))
             }
-          >
-            <SelectTrigger className="h-11 w-[180px] rounded-xl border border-border/50 bg-muted/30 text-[13px] font-medium shadow-none transition-colors hover:bg-muted/50 focus:ring-2 focus:ring-primary/15 focus:ring-offset-0">
-              <SelectValue placeholder="Lọc trạng thái" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-                <SelectItem value="ALL">
-                  <div className="flex items-center gap-2">
-                    <ListFilter className="w-4 h-4 text-muted-foreground" />
-                    Tất cả trạng thái
-                  </div>
-                </SelectItem>
-                <SelectItem value="ACTIVE">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-emerald-500" />
-                    Đang hoạt động
-                  </div>
-                </SelectItem>
-                <SelectItem value="BLOCKED">
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-rose-500" />
-                    Đã bị khóa
-                  </div>
-                </SelectItem>
-                <SelectItem value="DELETED">
-                  <div className="flex items-center gap-2">
-                    <Trash className="w-4 h-4 text-muted-foreground" />
-                    Đã xóa
-                  </div>
-                </SelectItem>
-            </SelectContent>
-          </Select>
+          />
         }
       />
 

@@ -25,6 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   CreditCard,
   History,
@@ -33,6 +36,7 @@ import {
   SlidersHorizontal,
   UserRound,
   WalletCards,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -87,10 +91,24 @@ export function WalletDetailDrawer({
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [adjustmentNote, setAdjustmentNote] = useState("");
+  const [txPage, setTxPage] = useState(1);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const hasFilter = Boolean(fromDate || toDate);
+
   const { data: wallet, isLoading } = useAdminWalletDetail(walletId);
   const { data: transactions, isLoading: isTransactionsLoading } =
-    useWalletTransactions({ walletId, page: 1, limit: 20 });
+    useWalletTransactions({
+      walletId,
+      page: txPage,
+      limit: 10,
+      ...(fromDate && { fromDate }),
+      ...(toDate && { toDate }),
+    });
   const adjustMutation = useAdjustWallet();
+
+  const totalPages = transactions?.totalPages ?? 1;
 
   const owner = getOwner(wallet);
 
@@ -125,18 +143,15 @@ export function WalletDetailDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-        <SheetContent className="flex w-full flex-col p-0 sm:max-w-xl">
-        <SheetHeader className="border-b border-border/40 px-6 py-5">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <WalletCards className="size-5 text-primary" />
+        <SheetContent className="cz-admin flex w-full flex-col bg-(--c-card) p-0 sm:max-w-xl">
+        <SheetHeader className="border-b border-(--c-line) px-6 py-5">
+          <SheetTitle className="flex items-center gap-2 text-base text-(--c-ink)">
+            <WalletCards className="size-5 text-(--c-primary-strong)" />
             Chi tiết ví
           </SheetTitle>
-          <SheetDescription className="font-mono text-xs">
-            {walletId}
-          </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {isLoading ? (
             <div className="space-y-3 p-6">
               <Skeleton className="h-28 rounded-2xl" />
@@ -145,7 +160,7 @@ export function WalletDetailDrawer({
             </div>
           ) : wallet ? (
             <div className="space-y-5 p-6">
-              <div className="rounded-[24px] bg-primary p-5 text-primary-foreground shadow-lg shadow-primary/15">
+              <div className="rounded-[24px] bg-(--c-primary) p-5 text-white shadow-lg shadow-(--c-primary)/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold opacity-80">
                     <CreditCard className="size-4" />
@@ -179,60 +194,114 @@ export function WalletDetailDrawer({
 
               <Button
                 variant="outline"
-                className="w-full rounded-xl border-primary/20 text-primary hover:bg-primary/5"
+                className="w-full rounded-xl border-(--c-primary)/30 bg-(--c-card) text-(--c-primary-strong) hover:bg-(--c-primary-soft)"
                 onClick={() => setAdjustmentOpen(true)}
               >
-                <SlidersHorizontal className="size-4" />
+                <SlidersHorizontal className="size-4 cursor-pointer" />
                 Điều chỉnh số dư
               </Button>
 
               <div>
                 <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <h3 className="flex items-center gap-2 text-sm font-bold">
-                      <History className="size-4 text-primary" />
-                      Giao dịch gần đây
-                    </h3>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Tối đa 20 giao dịch mới nhất của ví.
-                    </p>
-                  </div>
+                  <h3 className="flex items-center gap-2 text-sm font-bold">
+                    <History className="size-4 text-primary" />
+                    Lịch sử giao dịch
+                  </h3>
                   <Badge variant="outline" className="rounded-full">
                     {transactions?.total ?? 0} giao dịch
                   </Badge>
                 </div>
 
+                {/* Date filter */}
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-[120px]">
+                    <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => { setFromDate(e.target.value); setTxPage(1); }}
+                      className="h-8 rounded-lg pl-8 text-xs"
+                      aria-label="Từ ngày"
+                    />
+                  </div>
+                  <div className="relative flex-1 min-w-[120px]">
+                    <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={toDate}
+                      min={fromDate || undefined}
+                      onChange={(e) => { setToDate(e.target.value); setTxPage(1); }}
+                      className="h-8 rounded-lg pl-8 text-xs"
+                      aria-label="Đến ngày"
+                    />
+                  </div>
+                  {hasFilter && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 rounded-lg"
+                      onClick={() => { setFromDate(""); setToDate(""); setTxPage(1); }}
+                      aria-label="Xóa bộ lọc"
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   {isTransactionsLoading ? (
                     Array.from({ length: 4 }).map((_, index) => (
-                      <Skeleton
-                        key={index}
-                        className="h-20 w-full rounded-2xl"
-                      />
+                      <Skeleton key={index} className="h-20 w-full rounded-2xl" />
                     ))
                   ) : transactions?.items.length ? (
                     transactions.items.map((transaction) => (
-                      <TransactionItem
-                        key={transaction.id}
-                        transaction={transaction}
-                      />
+                      <TransactionItem key={transaction.id} transaction={transaction} />
                     ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border p-8 text-center">
                       <CircleDollarSign className="mx-auto size-8 text-muted-foreground/50" />
                       <p className="mt-2 text-sm font-semibold">
-                        Chưa có giao dịch
+                        {hasFilter ? "Không có giao dịch trong khoảng này" : "Chưa có giao dịch"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Các biến động số dư sẽ xuất hiện tại đây.
+                        {hasFilter ? "Thử chọn khoảng ngày khác." : "Các biến động số dư sẽ xuất hiện tại đây."}
                       </p>
                     </div>
                   )}
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg px-2.5 text-xs"
+                      disabled={txPage <= 1}
+                      onClick={() => setTxPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="size-3.5" />
+                      Trước
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {txPage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg px-2.5 text-xs"
+                      disabled={txPage >= totalPages}
+                      onClick={() => setTxPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Tiếp
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
-            <div className="p-10 text-center text-sm text-muted-foreground">
+            <div className="p-10 text-center text-sm text-(--c-muted)">
               Không tìm thấy ví.
             </div>
           )}
@@ -241,10 +310,12 @@ export function WalletDetailDrawer({
       </Sheet>
 
       <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
-        <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogContent className="cz-admin rounded-2xl bg-(--c-card) sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Điều chỉnh số dư ví</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-(--c-ink)">
+              Điều chỉnh số dư ví
+            </DialogTitle>
+            <DialogDescription className="text-(--c-muted)">
               Nhập số dương để cộng tiền, số âm để trừ tiền. Mọi thay đổi đều
               được ghi vào lịch sử giao dịch.
             </DialogDescription>
@@ -252,7 +323,7 @@ export function WalletDetailDrawer({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label className="text-xs font-semibold text-(--c-muted)">
                 Số tiền điều chỉnh
               </label>
               <Input
@@ -261,17 +332,17 @@ export function WalletDetailDrawer({
                 value={adjustmentAmount}
                 onChange={(event) => setAdjustmentAmount(event.target.value)}
                 placeholder="Ví dụ: 50000 hoặc -50000"
-                className="rounded-xl"
+                className="h-10 rounded-xl border-(--c-line-strong) bg-(--c-card-2) focus:border-(--c-primary)/50"
               />
               {wallet && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-(--c-muted)">
                   Số dư hiện tại: {formatCurrency(wallet.balance)}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label className="text-xs font-semibold text-(--c-muted)">
                 Lý do điều chỉnh
               </label>
               <Textarea
@@ -280,7 +351,7 @@ export function WalletDetailDrawer({
                 maxLength={500}
                 rows={3}
                 placeholder="Mô tả rõ nguyên nhân để phục vụ đối soát..."
-                className="rounded-xl"
+                className="rounded-xl border-(--c-line-strong) bg-(--c-card-2) focus:border-(--c-primary)/50"
               />
             </div>
           </div>
@@ -288,13 +359,13 @@ export function WalletDetailDrawer({
           <DialogFooter>
             <Button
               variant="outline"
-              className="rounded-full"
+              className="rounded-full border-(--c-line-strong) bg-(--c-card) text-(--c-ink) hover:bg-(--c-card-2)"
               onClick={() => setAdjustmentOpen(false)}
             >
               Hủy
             </Button>
             <Button
-              className="rounded-full"
+              className="rounded-full bg-(--c-primary) text-white hover:bg-(--c-primary-strong)"
               onClick={submitAdjustment}
               disabled={adjustMutation.isPending}
             >
@@ -331,12 +402,14 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <Icon className="size-4 text-primary" />
+    <div className="rounded-2xl border border-(--c-line) bg-(--c-card) p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold text-(--c-muted)">
+        <Icon className="size-4 text-(--c-primary-strong)" />
         {label}
       </div>
-      <p className="mt-2 truncate text-sm font-bold">{value}</p>
+      <p className="mt-2 truncate text-sm font-bold text-(--c-ink)">
+        {value}
+      </p>
     </div>
   );
 }
@@ -353,37 +426,38 @@ function TransactionItem({
   const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card p-3.5">
+    <div className="flex items-center gap-3 rounded-2xl border border-(--c-line) bg-(--c-card) p-3.5">
       <div
-        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-          isCredit
-            ? "bg-emerald-500/10 text-emerald-600"
-            : "bg-red-500/10 text-red-600"
-        }`}
+        className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+        style={{
+          background: isCredit
+            ? "rgba(14,159,110,0.12)"
+            : "rgba(225,29,72,0.12)",
+          color: isCredit ? "#0E9F6E" : "#E11D48",
+        }}
       >
         <Icon className="size-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold">
+        <p className="truncate text-sm font-bold text-(--c-ink)">
           {TRANSACTION_LABELS[transaction.type] ?? transaction.type}
         </p>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-xs text-(--c-muted)">
           {transaction.description || "Không có mô tả"}
         </p>
-        <p className="mt-1 text-[10px] text-muted-foreground">
+        <p className="mt-1 text-[10px] text-(--c-muted)">
           {new Date(transaction.createdAt).toLocaleString("vi-VN")}
         </p>
       </div>
       <div className="text-right">
         <p
-          className={`text-sm font-black ${
-            isCredit ? "text-emerald-600" : "text-red-600"
-          }`}
+          className="text-sm font-black"
+          style={{ color: isCredit ? "#0E9F6E" : "#E11D48" }}
         >
           {isCredit ? "+" : "-"}
           {formatCurrency(Math.abs(amount))}
         </p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-[10px] text-(--c-muted)">
           Còn {formatCurrency(balanceAfter)}
         </p>
       </div>

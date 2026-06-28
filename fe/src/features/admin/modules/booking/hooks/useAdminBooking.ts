@@ -2,7 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminBookingService } from '../services/admin-booking.service';
 import { AssignTaskerDto, ChangeBookingStatusDto, CreateAdminBookingDto } from '../types/booking.types';
 
-export const useAdminBookings = (params: { page?: number; limit?: number; keyword?: string; status?: string }) => {
+export const useAdminBookings = (params: {
+  page?: number;
+  limit?: number;
+  keyword?: string;
+  status?: string;
+  paymentStatus?: string;
+  customerId?: string;
+  taskerId?: string;
+  fromDate?: string;
+  toDate?: string;
+}) => {
   const queryInfo = useQuery({
     queryKey: ['/admin/bookings', params],
     queryFn: () => adminBookingService.getAdminBookings(params),

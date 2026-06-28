@@ -7,6 +7,7 @@ import {
   type RowAction,
 } from "@/components/ui/base/base_table_list";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/admin";
 import {
   Select,
   SelectContent,
@@ -95,10 +96,10 @@ export function WithdrawalManagement() {
       title: "Tasker",
       render: (row) => (
         <div>
-          <p className="text-sm font-bold text-foreground">
+          <p className="text-sm font-bold text-[var(--c-ink)]">
             {row.tasker?.user?.fullName || "-"}
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-[var(--c-muted)]">
             {row.tasker?.user?.email || shortId(row.taskerId)}
           </p>
         </div>
@@ -108,7 +109,7 @@ export function WithdrawalManagement() {
       key: "amount",
       title: "Số tiền rút",
       render: (row) => (
-        <span className="font-black text-amber-600 dark:text-amber-400">
+        <span className="font-black text-[#D97706]">
           {formatCurrency(row.amount)}
         </span>
       ),
@@ -119,10 +120,10 @@ export function WithdrawalManagement() {
       hideOnMobile: true,
       render: (row) => (
         <div className="max-w-55">
-          <p className="truncate text-sm font-semibold">
+          <p className="truncate text-sm font-semibold text-[var(--c-ink)]">
             {row.bankName || "Chưa cung cấp ngân hàng"}
           </p>
-          <p className="truncate font-mono text-xs text-muted-foreground">
+          <p className="truncate font-mono text-xs text-[var(--c-muted)]">
             {row.bankAccount || "—"}
           </p>
         </div>
@@ -136,10 +137,10 @@ export function WithdrawalManagement() {
         const date = new Date(row.createdAt);
         return (
           <div>
-            <p className="text-xs font-semibold">
+            <p className="text-xs font-semibold text-[var(--c-ink)]">
               {date.toLocaleDateString("vi-VN")}
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-[var(--c-muted)]">
               {date.toLocaleTimeString("vi-VN", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -181,12 +182,10 @@ export function WithdrawalManagement() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">Yêu cầu rút tiền</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Kiểm tra số dư, thông tin ngân hàng và xét duyệt yêu cầu của Tasker.
-        </p>
-      </div>
+      <PageHeader
+        title="Yêu cầu rút tiền"
+        description="Kiểm tra số dư, thông tin ngân hàng và xét duyệt yêu cầu của Tasker."
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
@@ -241,11 +240,11 @@ export function WithdrawalManagement() {
               }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[180px] rounded-full border-border/40 bg-background shadow-none">
-              <ListFilter className="size-4 text-muted-foreground" />
+            <SelectTrigger className="h-10 min-w-[180px] rounded-full border-[var(--c-line)] bg-[var(--c-card)] shadow-none">
+              <ListFilter className="size-4 text-[var(--c-muted)]" />
               <SelectValue placeholder="Trạng thái" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl">
               {STATUS_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -291,31 +290,34 @@ function OverviewCard({
   loading: boolean;
   tone: "primary" | "blue" | "amber" | "emerald";
 }) {
-  const tones = {
-    primary: "bg-primary/10 text-primary",
-    blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  const tones: Record<typeof tone, { color: string; soft: string }> = {
+    primary: { color: "var(--c-primary-strong)", soft: "var(--c-primary-soft)" },
+    blue: { color: "#2563EB", soft: "rgba(37,99,235,0.12)" },
+    amber: { color: "#D97706", soft: "rgba(217,119,6,0.14)" },
+    emerald: { color: "#0E9F6E", soft: "rgba(14,159,110,0.12)" },
   };
 
   return (
-    <div className="rounded-[20px] border border-border/40 bg-card p-4 shadow-sm">
+    <div className="rounded-[20px] border border-[var(--c-line)] bg-[var(--c-card)] p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <div className={`rounded-xl p-2.5 ${tones[tone]}`}>
+        <div
+          className="rounded-xl p-2.5"
+          style={{ background: tones[tone].soft, color: tones[tone].color }}
+        >
           <Icon className="size-5" />
         </div>
         <Badge
           variant="outline"
-          className="rounded-full border-border/40 text-[10px] text-muted-foreground"
+          className="rounded-full border-[var(--c-line)] text-[10px] text-[var(--c-muted)]"
         >
           Hiện tại
         </Badge>
       </div>
-      <p className="mt-4 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-4 text-xs font-medium text-[var(--c-muted)]">{label}</p>
       {loading ? (
-        <div className="mt-2 h-7 w-28 animate-pulse rounded-lg bg-muted" />
+        <div className="mt-2 h-7 w-28 animate-pulse rounded-lg bg-[var(--c-card-2)]" />
       ) : (
-        <p className="mt-1 truncate text-xl font-black tracking-tight">
+        <p className="mt-1 truncate text-xl font-black tracking-tight text-[var(--c-ink)]">
           {value}
         </p>
       )}

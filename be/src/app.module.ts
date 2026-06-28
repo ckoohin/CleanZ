@@ -27,6 +27,8 @@ import { ServicesModule } from './modules/service/services.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
+import { WorkflowModule } from './modules/workflow/workflow.module';
+import { ReviewModule } from './modules/review/review.module';
 import { AppealModule } from './modules/appeal/appeal.module';
 
 @Module({
@@ -64,6 +66,8 @@ import { AppealModule } from './modules/appeal/appeal.module';
     PricingModule,
     VoucherModule,
     FinanceModule,
+    WorkflowModule,
+    ReviewModule,
     AppealModule,
   ],
   controllers: [AppController],

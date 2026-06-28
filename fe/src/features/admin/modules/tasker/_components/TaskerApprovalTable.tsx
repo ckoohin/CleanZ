@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PageHeader, StatusBadge, type BadgeTone } from "@/components/admin";
 import { useAdminTasker, adminTaskerKeys } from "../hooks/admin-tasker.hooks";
 import { adminTaskerApi } from "../services/admin-tasker.service";
 import { TaskerStatus } from "@/features/tasker/types/tasker.type";
@@ -71,7 +72,7 @@ export const TaskerApprovalTable: React.FC = () => {
       title: "Ứng viên",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0">
             {row.avatarUrl ? (
               <img
                 src={row.avatarUrl}
@@ -83,10 +84,10 @@ export const TaskerApprovalTable: React.FC = () => {
             )}
           </div>
           <div>
-            <p className="font-bold text-sm text-foreground/90">
+            <p className="font-bold text-sm text-[var(--c-ink)]">
               {row.fullName || "Chưa cập nhật"}
             </p>
-            <p className="text-xs text-muted-foreground">{row.phone || "N/A"}</p>
+            <p className="text-xs text-[var(--c-muted)]">{row.phone || "N/A"}</p>
           </div>
         </div>
       ),
@@ -96,7 +97,7 @@ export const TaskerApprovalTable: React.FC = () => {
       title: "Khu vực",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-foreground/80 max-w-[200px] truncate block">
+        <span className="text-xs font-semibold text-[var(--c-ink-soft)] max-w-[200px] truncate block">
           {row.workingAddress || "Chưa cập nhật"}
         </span>
       ),
@@ -106,7 +107,7 @@ export const TaskerApprovalTable: React.FC = () => {
       title: "Ngày đăng ký",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs font-semibold text-muted-foreground">
+        <span className="text-xs font-semibold text-[var(--c-muted)]">
           {row.createdAt ? formatDateVN(row.createdAt) : "N/A"}
         </span>
       ),
@@ -115,17 +116,17 @@ export const TaskerApprovalTable: React.FC = () => {
       key: "approvalStatus",
       title: "Trạng thái",
       render: (row) => {
-        const styleMap: Record<string, string> = {
-          [TaskerStatus.APPROVED]: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-          [TaskerStatus.PENDING]: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
-          [TaskerStatus.NEED_INFO]: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-          [TaskerStatus.REJECTED]: "bg-red-500/10 text-red-700 border-red-500/20",
+        const toneMap: Record<string, BadgeTone> = {
+          [TaskerStatus.APPROVED]: "success",
+          [TaskerStatus.PENDING]: "warning",
+          [TaskerStatus.NEED_INFO]: "info",
+          [TaskerStatus.REJECTED]: "danger",
         };
         const iconMap: Record<string, React.ReactNode> = {
-          [TaskerStatus.APPROVED]: <CheckCircle className="w-3 h-3 mr-1" />,
-          [TaskerStatus.PENDING]: <Clock className="w-3 h-3 mr-1" />,
-          [TaskerStatus.NEED_INFO]: <Info className="w-3 h-3 mr-1" />,
-          [TaskerStatus.REJECTED]: <XCircle className="w-3 h-3 mr-1" />,
+          [TaskerStatus.APPROVED]: <CheckCircle className="w-3 h-3" />,
+          [TaskerStatus.PENDING]: <Clock className="w-3 h-3" />,
+          [TaskerStatus.NEED_INFO]: <Info className="w-3 h-3" />,
+          [TaskerStatus.REJECTED]: <XCircle className="w-3 h-3" />,
         };
         const labelMap: Record<string, string> = {
           [TaskerStatus.APPROVED]: "Đã duyệt",
@@ -134,14 +135,10 @@ export const TaskerApprovalTable: React.FC = () => {
           [TaskerStatus.REJECTED]: "Từ chối",
         };
         return (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${
-              styleMap[row.approvalStatus] || styleMap[TaskerStatus.PENDING]
-            }`}
-          >
-            {iconMap[row.approvalStatus] || <Clock className="w-3 h-3 mr-1" />}
+          <StatusBadge tone={toneMap[row.approvalStatus] || "warning"}>
+            {iconMap[row.approvalStatus] || <Clock className="w-3 h-3" />}
             {labelMap[row.approvalStatus] || "Chưa rõ"}
-          </span>
+          </StatusBadge>
         );
       },
     },
@@ -201,14 +198,10 @@ export const TaskerApprovalTable: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-bold tracking-tight">Xác minh hồ sơ nhân viên</h1>
-          <p className="text-xs text-muted-foreground">
-            Kiểm tra, lọc theo trạng thái và phê duyệt các yêu cầu trở thành đối tác.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Xác minh hồ sơ nhân viên"
+        description="Kiểm tra, lọc theo trạng thái và phê duyệt các yêu cầu trở thành đối tác."
+      />
 
       <BaseTableList
         columns={columns}
@@ -236,10 +229,10 @@ export const TaskerApprovalTable: React.FC = () => {
               setFilter((prev) => ({ ...prev, status: val as DocFilter, page: 1 }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-border/40 bg-background text-sm font-medium shadow-none">
+            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
               <SelectValue placeholder="Lọc trạng thái" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">
                 <div className="flex items-center gap-2">
                   <ListFilter className="w-4 h-4 opacity-70" /> Tất cả trạng thái

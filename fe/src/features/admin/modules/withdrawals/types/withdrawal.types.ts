@@ -20,6 +20,8 @@ export interface WithdrawalRequest {
   bankAccount: string | null;
   bankName: string | null;
   note: string | null;
+  adminNote: string | null;
+  proofImageUrl: string | null;
   reviewedAt: string | null;
   processedAt: string | null;
   createdAt: string;
@@ -55,6 +57,8 @@ export interface PaginatedWithdrawals {
 export interface ReviewWithdrawalPayload {
   status: "APPROVED" | "REJECTED";
   note?: string;
+  adminNote?: string;
+  proofImageUrl?: string;
 }
 
 export interface FinancialOverview {

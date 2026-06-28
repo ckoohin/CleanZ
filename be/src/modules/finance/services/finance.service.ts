@@ -66,18 +66,6 @@ export class FinanceService {
       throw new BadRequestException('WITHDRAWAL_TASKER_NOT_FOUND');
     }
 
-    const weeklyCount = await this.withdrawalRepo.countWeeklyWithdrawals(
-      withdrawal.taskerId,
-    );
-    if (
-      dto.status === WithdrawalStatus.APPROVED &&
-      weeklyCount > MAX_WEEKLY_WITHDRAWALS
-    ) {
-      throw new BadRequestException(
-        `WEEKLY_LIMIT_EXCEEDED: Tasker has already reached ${MAX_WEEKLY_WITHDRAWALS} withdrawals this week`,
-      );
-    }
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -115,7 +103,10 @@ export class FinanceService {
 
       await queryRunner.manager.update(WithdrawalRequestEntity, id, {
         status: dto.status,
-        note: dto.note ?? withdrawal.note,
+        // note gốc của tasker giữ nguyên, chỉ lưu adminNote và proof riêng
+        ...(dto.note !== undefined ? { note: dto.note } : {}),
+        ...(dto.adminNote !== undefined ? { adminNote: dto.adminNote } : {}),
+        ...(dto.proofImageUrl !== undefined ? { proofImageUrl: dto.proofImageUrl } : {}),
         reviewedAt: new Date(),
         ...(dto.status === WithdrawalStatus.APPROVED
           ? { processedAt: new Date() }

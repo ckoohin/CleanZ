@@ -110,9 +110,9 @@ export const CatalogPage = () => {
     resetFilters,
   } = useCatalog();
 
-  // Bấm card → vào trang chi tiết, không phải vào booking wizard ngay
+  // Bấm card package → vào booking wizard với packageId
   const handleSelectService = (id: string) => {
-    router.push(`${ROUTES.CUSTOMER.CATALOG}/${id}`);
+    router.push(`${ROUTES.CUSTOMER.BOOKING_WIZARD}?serviceId=${encodeURIComponent(id)}`);
   };
 
   return (

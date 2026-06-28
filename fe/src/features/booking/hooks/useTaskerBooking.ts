@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskerBookingApi } from "../services/booking.service";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
 
 const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
@@ -20,10 +21,14 @@ function getErrorMsg(err: unknown): string {
 
 /** 04. Danh sách đơn đang chờ nhận */
 export function usePostedBookingList() {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isTaskerReady = !isAuthLoading && user?.role === "TASKER";
+
   return useQuery({
     queryKey: TASKER_KEYS.postedList,
     queryFn: () => taskerBookingApi.findPostedList(),
-    refetchInterval: 15_000, // poll 15s để cập nhật đơn mới
+    enabled: isTaskerReady,
+    refetchInterval: isTaskerReady ? 15_000 : false, // poll 15s để cập nhật đơn mới
   });
 }
 
@@ -33,10 +38,14 @@ export function usePostedBookingDetail(
   location?: { currentLatitude?: number; currentLongitude?: number },
   enabled = true,
 ) {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isTaskerReady = !isAuthLoading && user?.role === "TASKER";
+
   return useQuery({
     queryKey: [...TASKER_KEYS.postedDetail(id), location],
     queryFn: () => taskerBookingApi.findPostedDetail(id, location),
     enabled:
+      isTaskerReady &&
       enabled &&
       !!id &&
       Number.isFinite(location?.currentLatitude) &&
@@ -64,20 +73,27 @@ export function useAssignedBookingDetail(
   location?: { currentLatitude?: number; currentLongitude?: number },
   enabled = true,
 ) {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isTaskerReady = !isAuthLoading && user?.role === "TASKER";
+
   return useQuery({
     queryKey: [...TASKER_KEYS.assigned(id), location],
     queryFn: () => taskerBookingApi.findAssigned(id, location),
-    enabled: enabled && !!id,
-    refetchInterval: 10_000,
+    enabled: isTaskerReady && enabled && !!id,
+    refetchInterval: isTaskerReady && enabled && !!id ? 10_000 : false,
   });
 }
 
 /** 07A. Lấy đơn hàng đang hoạt động hiện tại */
 export function useTaskerActiveBooking() {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isTaskerReady = !isAuthLoading && user?.role === "TASKER";
+
   return useQuery({
     queryKey: TASKER_KEYS.active,
     queryFn: () => taskerBookingApi.findActive(),
-    refetchInterval: 10_000, // poll mỗi 10s
+    enabled: isTaskerReady,
+    refetchInterval: isTaskerReady ? 10_000 : false, // poll mỗi 10s
   });
 }
 

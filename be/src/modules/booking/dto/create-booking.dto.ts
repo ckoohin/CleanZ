@@ -2,6 +2,7 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -27,12 +28,24 @@ export class CreateBookingDto {
   @ApiPropertyOptional({
     type: [String],
     example: ['6224bfaf-ed46-4770-88c0-ff1a645cc279'],
-    description: 'Danh sách ID các dịch vụ con (SubService) được chọn.',
+    description:
+      'Legacy: danh sách ID các dịch vụ con (SubService). Luồng booking mới ưu tiên addonIds.',
   })
   @IsOptional()
   @IsArray()
   @IsUUID(undefined, { each: true })
   subServiceIds?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['6224bfaf-ed46-4770-88c0-ff1a645cc279'],
+    description:
+      'Danh sách ID option/dịch vụ thêm (ServiceAddon) được chọn trong gói dịch vụ.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  addonIds?: string[];
 
   @ApiPropertyOptional({
     example: '6d625675-7d12-458f-af83-2db2e8eb7db8',
@@ -105,6 +118,32 @@ export class CreateBookingDto {
   @IsNumber()
   @Min(0.5)
   durationHours?: number;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Nhà có thú cưng hay không. Nếu không gửi, hệ thống dùng cấu hình của địa chỉ đã lưu.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  hasPet?: boolean;
+
+  @ApiPropertyOptional({
+    example: 55.5,
+    description: 'Diện tích căn hộ (m²), dùng khi tính giá theo m²',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  areaM2?: number;
+
+  @ApiPropertyOptional({
+    example: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
+    description: 'ID mức giá (pricing tier) cụ thể được chọn',
+  })
+  @IsOptional()
+  @IsUUID()
+  pricingTierId?: string;
 
   @ApiPropertyOptional({
     example: 'Nhà có mèo, vui lòng gọi trước khi tới.',

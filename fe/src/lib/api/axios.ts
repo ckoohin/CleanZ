@@ -1,9 +1,10 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError, AxiosResponse } from 'axios';
 import { ROUTES } from '@/constants/routes';
+import { getApiBaseUrl } from "@/lib/api/base-url";
 
 // Base API configuration
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', // Đã trỏ về Backend NestJS cổng 5000
+  baseURL: getApiBaseUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

@@ -19,6 +19,12 @@ export interface BookingService {
   description?: string | null;
 }
 
+export interface BookingAddon {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface BookingSchedule {
   scheduledStartDate: string | null;
   scheduledStartTime: string | null;
@@ -77,7 +83,8 @@ export interface StatusLog {
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
 export interface CreateBookingDto {
   packageId?: string;        // ID ServicePackage (bắt buộc trên BE)
-  subServiceIds?: string[];  // Danh sách ID SubService (bắt buộc trên BE)
+  subServiceIds?: string[];  // Legacy: tạm không dùng trong luồng booking mới
+  addonIds?: string[];       // Danh sách ID option/dịch vụ thêm
   addressId?: string;
   address?: string;          // Địa chỉ nhập tay
   provinceCode?: string;
@@ -86,11 +93,16 @@ export interface CreateBookingDto {
   note?: string;
   paymentMethod?: PaymentMethod;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
+  durationHours?: number;
+  hasPet?: boolean;
 }
 
 export interface QuoteBookingDto {
   packageId?: string;
   subServiceIds?: string[];
+  addonIds?: string[];
   addressId?: string;
   address?: string;
   provinceCode?: string;
@@ -98,6 +110,10 @@ export interface QuoteBookingDto {
   scheduledTime: string;
   note?: string;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
+  durationHours?: number;
+  hasPet?: boolean;
 }
 
 export interface CancelBookingDto {
@@ -116,7 +132,8 @@ export interface UpdateBookingScheduleDto {
 export interface BookingFormState {
   serviceId: string;        // ServicePackage ID (alias cho dễ đọc)
   packageId?: string;       // ServicePackage ID (field gửi lên BE)
-  subServiceIds?: string[]; // SubService IDs gửi lên BE
+  subServiceIds?: string[]; // Legacy: tạm không dùng trong luồng booking mới
+  addonIds?: string[];      // Addon IDs gửi lên BE
   addressId: string;
   address: string;
   provinceCode?: string;
@@ -125,11 +142,16 @@ export interface BookingFormState {
   note?: string;
   paymentMethod: PaymentMethod;
   voucherCode?: string;
+  areaM2?: number;
+  pricingTierId?: string;
+  durationHours?: number;
+  hasPet?: boolean;
 }
 
 // ─── Customer Responses ───────────────────────────────────────────────────────
 export interface BookingQuoteResponse {
   service: BookingService;
+  addons?: BookingAddon[];
   address: BookingAddress;
   schedule: BookingSchedule;
   price: BookingPrice;
@@ -151,6 +173,8 @@ export interface CustomerBookingDetail {
   note?: string | null;
   createdAt: string;
   updatedAt: string;
+  checkedInAt?: string | null;
+  completedAt?: string | null;
 }
 
 export interface CustomerActiveBookingResponse {
@@ -173,6 +197,7 @@ export interface TaskerPostedBookingItem {
   price: {
     totalPrice: number;
     basePrice: number;
+    addonPrice?: number;
     peakFee: number;
     petFee: number;
     discountAmount: number;
@@ -192,9 +217,13 @@ export interface TaskerPostedBookingDetail {
   price: {
     totalPrice: number;
     basePrice: number;
+    addonPrice?: number;
     peakFee: number;
     petFee: number;
     discountAmount: number;
+    platformCommissionRate?: number;
+    platformFee?: number;
+    taskerIncome?: number;
   };
   schedule: BookingSchedule;
 }
@@ -236,6 +265,7 @@ export interface TaskerAssignedBookingDetail {
   price: {
     totalPrice: number;
     basePrice: number;
+    addonPrice?: number;
     peakFee: number;
     petFee: number;
     discountAmount: number;

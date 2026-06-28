@@ -6,10 +6,12 @@ import {
   IsInt,
   IsNumber,
   IsArray,
+  IsEnum,
   Min,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PricingMode } from '../../pricing/entity/pricing-tier.entity';
 
 export class CreateServicePackageDto {
   @ApiProperty({ example: 'Dọn dẹp nhà cửa' })
@@ -87,9 +89,211 @@ export class CreateServicePackageDto {
   @Min(0)
   peakRatePercent?: number;
 
+  @ApiPropertyOptional({ enum: PricingMode, example: PricingMode.HOURLY })
+  @IsOptional()
+  @IsEnum(PricingMode)
+  pricingMode?: PricingMode;
+
   @ApiPropertyOptional({ example: ['uuid-area-1', 'uuid-area-2'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   coverageAreaIds?: string[];
+
+  @ApiPropertyOptional({ example: ['https://cdn.example.com/img1.jpg'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  galleryUrls?: string[];
+
+  @ApiPropertyOptional({ example: 100000 })
+  @IsOptional()
+  @IsNumber()
+  baseHourlyRate?: number;
+
+  @ApiPropertyOptional({ example: 120000 })
+  @IsOptional()
+  @IsNumber()
+  premiumHourlyRate?: number;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  allowMultipleTaskers?: boolean;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  allowSubscription?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  durations?: ServiceDurationDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  addons?: ServiceAddonDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  subscriptions?: ServiceSubscriptionDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  peakHours?: ServicePeakHourDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  subServices?: ServiceSubServiceDto[];
+}
+
+export class ServiceDurationDto {
+  @IsNumber()
+  durationHours!: number;
+
+  @IsNumber()
+  priceMultiplier!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  suggestedArea?: number;
+
+  @IsOptional()
+  @IsNumber()
+  taskerCount?: number;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class ServiceAddonDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  iconUrl?: string;
+
+  @IsNumber()
+  price!: number;
+
+  @IsOptional()
+  @IsString()
+  priceUnit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  durationMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  maxQuantity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ServiceSubscriptionDto {
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  bonusDescription?: string;
+
+  @IsNumber()
+  discountPercent!: number;
+
+  @IsOptional()
+  @IsString()
+  billingCycle?: string;
+
+  @IsOptional()
+  @IsNumber()
+  sessionsPerCycle?: number;
+
+  @IsOptional()
+  @IsNumber()
+  commitmentMonths?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ServicePeakHourDto {
+  @IsInt()
+  dayOfWeek!: number;
+
+  @IsString()
+  startHour!: string;
+
+  @IsString()
+  endHour!: string;
+
+  @IsNumber()
+  multiplier!: number;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ServiceSubServiceDto {
+  @IsString()
+  subServiceId!: string;
+
+  @IsNumber()
+  price!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

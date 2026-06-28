@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -10,8 +10,8 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
-import { BaseButton } from '@/components/ui/base/base_button';
 import { Badge } from '@/components/ui/badge';
+import { AdminButton, StatusBadge } from '@/components/admin';
 import { POLICY_CATEGORY_META, Policy } from '../types/policy.type';
 import { useDeletePolicy } from '../hooks/useDeletePolicy';
 
@@ -40,58 +40,56 @@ export function DeletePolicyDialog({ open, onClose, policy }: DeletePolicyDialog
 
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="cz-admin max-w-md bg-[var(--c-card)] border-[var(--c-line)]">
         <AlertDialogHeader>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+            <div className="w-10 h-10 rounded-xl bg-[rgba(225,29,72,0.12)] flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-[#E11D48]" />
             </div>
-            <AlertDialogTitle className="text-lg font-bold">Xóa chính sách</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg font-bold text-[var(--c-ink)]">Xóa chính sách</AlertDialogTitle>
           </div>
-          <AlertDialogDescription>
+          <AlertDialogDescription className="text-[var(--c-muted)]">
             Hành động này không thể hoàn tác. Chính sách sẽ bị xóa khỏi hệ thống
             và gỡ khỏi tất cả gói dịch vụ đang dùng.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         {/* Policy preview card */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex items-start gap-3">
+        <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-4 flex items-start gap-3">
           <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${meta.bgColor}`}>
             <CategoryIcon className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-sm text-foreground truncate">{policy.title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono">{policy.slug}</p>
+            <p className="font-semibold text-sm text-[var(--c-ink)] truncate">{policy.title}</p>
+            <p className="text-xs text-[var(--c-muted)] mt-0.5 font-mono">{policy.slug}</p>
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               <Badge variant="secondary" className={`text-[10px] font-semibold ${meta.color}`}>
                 <CategoryIcon className="w-3 h-3 mr-1" />
                 {meta.label}
               </Badge>
               {policy.isDefault && (
-                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
-                  Mặc định
-                </Badge>
+                <StatusBadge tone="warning">Mặc định</StatusBadge>
               )}
             </div>
           </div>
         </div>
 
         <AlertDialogFooter>
-          <BaseButton
-            variant="outline"
+          <AdminButton
+            variant="secondary"
             onClick={onClose}
             disabled={deleteMutation.isPending}
           >
             Hủy
-          </BaseButton>
-          <BaseButton
-            variant="destructive"
+          </AdminButton>
+          <AdminButton
+            variant="danger"
             onClick={handleDelete}
-            isLoading={deleteMutation.isPending}
+            disabled={deleteMutation.isPending}
+            icon={deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           >
-            {!deleteMutation.isPending && <Trash2 className="w-4 h-4" />}
             Xóa chính sách
-          </BaseButton>
+          </AdminButton>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

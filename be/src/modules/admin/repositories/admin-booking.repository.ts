@@ -725,9 +725,9 @@ export class AdminBookingRepository {
         'taskerUser.fullName AS "taskerName"',
         'taskerUser.email AS "taskerEmail"',
         'taskerUser.phone AS "taskerPhone"',
-        'booking.serviceId AS "serviceId"',
-        'service.serviceCode AS "serviceCode"',
-        'service.name AS "serviceName"',
+        'booking.packageId AS "serviceId"',
+        'package.packageCode AS "serviceCode"',
+        'package.name AS "serviceName"',
         'booking.address AS "address"',
         'booking.scheduledStart AS "scheduledStart"',
         'booking.scheduledEnd AS "scheduledEnd"',
@@ -1559,16 +1559,18 @@ export class AdminBookingRepository {
       });
       subServiceId = bss?.subServiceId || '';
     }
-    if (!subServiceId) {
-      throw new ConflictException(
-        'Booking không chứa dịch vụ con nào để tính hoa hồng',
-      );
+    let commissionRate = 20; // default for new package-based bookings
+    if (subServiceId) {
+      try {
+        commissionRate =
+          await this.pricingService.getPlatformCommissionRateByServiceId(
+            manager,
+            subServiceId,
+          );
+      } catch {
+        // sub-service config not found → keep default
+      }
     }
-    const commissionRate =
-      await this.pricingService.getPlatformCommissionRateByServiceId(
-        manager,
-        subServiceId,
-      );
     const platformFee = Math.round((totalPrice * commissionRate) / 100);
     const taskerIncome = Math.max(totalPrice - platformFee, 0);
 
@@ -1772,16 +1774,18 @@ export class AdminBookingRepository {
       });
       subServiceId = bss?.subServiceId || '';
     }
-    if (!subServiceId) {
-      throw new ConflictException(
-        'Booking không chứa dịch vụ con nào để tính hoa hồng',
-      );
+    let commissionRate = 20; // default for new package-based bookings
+    if (subServiceId) {
+      try {
+        commissionRate =
+          await this.pricingService.getPlatformCommissionRateByServiceId(
+            manager,
+            subServiceId,
+          );
+      } catch {
+        // sub-service config not found → keep default
+      }
     }
-    const commissionRate =
-      await this.pricingService.getPlatformCommissionRateByServiceId(
-        manager,
-        subServiceId,
-      );
     return Math.round((Number(booking.totalPrice) * commissionRate) / 100);
   }
 

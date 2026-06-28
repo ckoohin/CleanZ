@@ -39,9 +39,9 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Dịch vụ con trong gói</h3>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Tổng cộng <span className="font-bold text-primary">{subServices.length}</span> dịch vụ được liên kết
+          <h3 className="text-xl font-bold text-(--c-ink)">Dịch vụ con trong gói</h3>
+          <p className="text-sm text-(--c-muted) mt-0.5">
+            Tổng cộng <span className="font-bold text-(--c-primary-strong)">{subServices.length}</span> dịch vụ được liên kết
           </p>
         </div>
       </div>
@@ -56,8 +56,8 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
           return (
             <div
               key={pss.id}
-              className={`border rounded-2xl overflow-hidden bg-card transition-all duration-300 ${
-                isExpanded ? "border-primary/40 shadow-md" : "border-border/50 shadow-sm hover:border-primary/20 hover:shadow-md"
+              className={`border rounded-2xl overflow-hidden bg-(--c-card) transition-all duration-300 ${
+                isExpanded ? "border-(--c-primary)/40 shadow-md" : "border-(--c-line)/50 shadow-sm hover:border-(--c-primary)/20 hover:shadow-md"
               }`}
             >
               {/* Row header */}
@@ -66,12 +66,12 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                 onClick={() => setExpandedId(isExpanded ? null : pss.id)}
               >
                 {/* Thumbnail */}
-                <div className="relative h-14 w-14 rounded-xl overflow-hidden bg-muted/40 shrink-0 border border-border/40">
+                <div className="relative h-14 w-14 rounded-xl overflow-hidden bg-(--c-card-2) shrink-0 border border-(--c-line)/40">
                   {svc.thumbnailUrl ? (
                     <Image src={svc.thumbnailUrl} alt={svc.name} fill className="object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center">
-                      <Package className="w-6 h-6 text-muted-foreground/30" aria-hidden="true" />
+                      <Package className="w-6 h-6 text-(--c-muted)" aria-hidden="true" />
                     </div>
                   )}
                 </div>
@@ -79,21 +79,21 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-foreground text-base">{svc.name}</span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                    <span className="font-bold text-(--c-ink) text-base">{svc.name}</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-(--c-primary-soft) text-(--c-primary-strong) font-bold">
                       {svc.subServiceCode}
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                         svc.isActive
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+                          ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)] dark:text-[#0E9F6E]"
+                          : "bg-[rgba(225,29,72,0.12)] text-[#E11D48] dark:bg-[rgba(225,29,72,0.12)] dark:text-[#E11D48]"
                       }`}
                     >
                       {svc.isActive ? "Bật" : "Tắt"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-1 text-xs text-(--c-muted)">
                     {svc.durationHours && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" aria-hidden="true" />
@@ -101,13 +101,13 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                       </span>
                     )}
                     {svc.pricingConfig?.basePrice && (
-                      <span className="flex items-center gap-1 text-primary font-semibold">
+                      <span className="flex items-center gap-1 text-(--c-primary-strong) font-semibold">
                         <DollarSign className="w-3 h-3" aria-hidden="true" />
                         {vnd(svc.pricingConfig.basePrice)}
                       </span>
                     )}
                     {svc.includedTasks && svc.includedTasks.length > 0 && (
-                      <span className="flex items-center gap-1 text-emerald-600">
+                      <span className="flex items-center gap-1 text-[#0E9F6E]">
                         <Check className="w-3 h-3" aria-hidden="true" />
                         {svc.includedTasks.length} tác vụ
                       </span>
@@ -120,15 +120,15 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/admin/services/${svc.id}`);
+                      window.open(`/admin/services/sub-services?openId=${svc.id}`, '_blank');
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-(--c-line)/50 text-xs font-semibold text-(--c-muted) hover:text-(--c-primary-strong) hover:border-(--c-primary)/40 transition-colors"
                   >
                     <Eye className="w-3.5 h-3.5" aria-hidden="true" />
                     Xem chi tiết
                   </button>
                   <ChevronRight
-                    className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isExpanded ? "rotate-90" : ""}`}
+                    className={`w-4 h-4 text-(--c-muted) transition-transform duration-300 ${isExpanded ? "rotate-90" : ""}`}
                     aria-hidden="true"
                   />
                 </div>
@@ -136,22 +136,22 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
 
               {/* Expanded detail */}
               {isExpanded && (
-                <div className="border-t border-border/50 bg-muted/10 p-6 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                <div className="border-t border-(--c-line)/50 bg-(--c-card-2) p-6 animate-in fade-in-0 slide-in-from-top-2 duration-300">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Short & Full Description */}
                     <div className="space-y-4">
                       {svc.shortDescription && (
                         <div>
-                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Mô tả ngắn</p>
-                          <p className="text-sm text-foreground leading-relaxed bg-background/60 p-3 rounded-xl border border-border/40">
+                          <p className="text-xs font-bold text-(--c-muted) uppercase tracking-wider mb-2">Mô tả ngắn</p>
+                          <p className="text-sm text-(--c-ink) leading-relaxed bg-(--c-card) p-3 rounded-xl border border-(--c-line)/40">
                             {svc.shortDescription}
                           </p>
                         </div>
                       )}
                       {svc.description && (
                         <div>
-                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Mô tả đầy đủ</p>
-                          <p className="text-sm text-muted-foreground leading-relaxed bg-background/60 p-3 rounded-xl border border-border/40 whitespace-pre-wrap">
+                          <p className="text-xs font-bold text-(--c-muted) uppercase tracking-wider mb-2">Mô tả đầy đủ</p>
+                          <p className="text-sm text-(--c-muted) leading-relaxed bg-(--c-card) p-3 rounded-xl border border-(--c-line)/40 whitespace-pre-wrap">
                             {svc.description}
                           </p>
                         </div>
@@ -162,14 +162,14 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                     <div className="space-y-4">
                       {svc.includedTasks && svc.includedTasks.length > 0 && (
                         <div>
-                          <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <p className="text-xs font-bold text-[#0E9F6E] uppercase tracking-wider mb-2 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                             Bao gồm ({svc.includedTasks.length})
                           </p>
                           <ul className="space-y-1.5">
                             {svc.includedTasks.map((task, i) => (
                               <li key={i} className="flex items-start gap-2 text-sm">
-                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
+                                <Check className="w-3.5 h-3.5 text-[#0E9F6E] shrink-0 mt-0.5" aria-hidden="true" />
                                 <span>{task}</span>
                               </li>
                             ))}
@@ -178,14 +178,14 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                       )}
                       {svc.excludedTasks && svc.excludedTasks.length > 0 && (
                         <div>
-                          <p className="text-xs font-bold text-rose-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <p className="text-xs font-bold text-[#E11D48] uppercase tracking-wider mb-2 flex items-center gap-1">
                             <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
                             Không bao gồm ({svc.excludedTasks.length})
                           </p>
                           <ul className="space-y-1.5">
                             {svc.excludedTasks.map((task, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                                <X className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" aria-hidden="true" />
+                              <li key={i} className="flex items-start gap-2 text-sm text-(--c-muted)">
+                                <X className="w-3.5 h-3.5 text-[#E11D48] shrink-0 mt-0.5" aria-hidden="true" />
                                 <span>{task}</span>
                               </li>
                             ))}
@@ -197,13 +197,13 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
 
                   {/* Gallery mini */}
                   {svc.galleryUrls && svc.galleryUrls.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-border/40">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                    <div className="mt-5 pt-5 border-t border-(--c-line)/40">
+                      <p className="text-xs font-bold text-(--c-muted) uppercase tracking-wider mb-3">
                         Ảnh dịch vụ ({svc.galleryUrls.length})
                       </p>
                       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {svc.galleryUrls.map((url, i) => (
-                          <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-border/40 shrink-0">
+                          <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-(--c-line)/40 shrink-0">
                             <Image src={url} alt={`${svc.name} ${i + 1}`} fill className="object-cover" />
                           </div>
                         ))}
@@ -214,7 +214,7 @@ export function PackageSubServicesTab({ pkg }: PackageSubServicesTabProps) {
                   {/* View detail button */}
                   <div className="mt-5 flex justify-end">
                     <button
-                      onClick={() => router.push(`/admin/services/${svc.id}`)}
+                      onClick={() => window.open(`/admin/services/sub-services?openId=${svc.id}`, '_blank')}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
                     >
                       <Eye className="w-4 h-4" aria-hidden="true" />

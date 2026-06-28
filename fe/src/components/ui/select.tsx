@@ -147,12 +147,12 @@ function SelectScrollUpButton({
     <SelectPrimitive.ScrollUpButton
       data-slot="select-scroll-up-button"
       className={cn(
-        "flex cursor-default items-center justify-center py-1",
+        "flex cursor-pointer items-center justify-center py-1.5 bg-popover hover:bg-accent transition-colors border-b border-border/40 group",
         className,
       )}
       {...props}
     >
-      <ChevronUpIcon className="size-4" />
+      <ChevronUpIcon className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
     </SelectPrimitive.ScrollUpButton>
   );
 }
@@ -165,12 +165,12 @@ function SelectScrollDownButton({
     <SelectPrimitive.ScrollDownButton
       data-slot="select-scroll-down-button"
       className={cn(
-        "flex cursor-default items-center justify-center py-1",
+        "flex cursor-pointer items-center justify-center py-1.5 bg-popover hover:bg-accent transition-colors border-t border-border/40 group",
         className,
       )}
       {...props}
     >
-      <ChevronDownIcon className="size-4" />
+      <ChevronDownIcon className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
     </SelectPrimitive.ScrollDownButton>
   );
 }

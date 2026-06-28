@@ -71,9 +71,7 @@ const runTypeormCli = (args: string[]): number => {
 const detectDrift = async (): Promise<string[]> => {
   await dataSource.initialize();
   try {
-    const sqlInMemory = await dataSource.driver
-      .createSchemaBuilder()
-      .log();
+    const sqlInMemory = await dataSource.driver.createSchemaBuilder().log();
     return sqlInMemory.upQueries.map((q) => q.query);
   } finally {
     await dataSource.destroy();

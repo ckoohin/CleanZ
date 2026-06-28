@@ -76,17 +76,17 @@ const fmtDate = (d: string | null | undefined) => {
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { label: string; className: string; dot: string }> = {
-  PENDING:     { label: "Chờ nhận",   className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",    dot: "bg-amber-500" },
-  POSTED:      { label: "Chờ nhận",   className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",    dot: "bg-amber-500" },
-  CONFIRMED:   { label: "Đã xác nhận",className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",        dot: "bg-blue-500" },
-  ACCEPTED:    { label: "Đã nhận",    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",        dot: "bg-blue-500" },
-  ON_THE_WAY:  { label: "Đang đến",   className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",dot: "bg-indigo-500" },
-  TASKER_ON_THE_WAY: { label: "Đang đến", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400", dot: "bg-indigo-500" },
-  CHECKED_IN:  { label: "Đã check-in",className: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",       dot: "bg-cyan-500" },
-  IN_PROGRESS: { label: "Đang làm",   className: "bg-primary/10 text-primary",                                              dot: "bg-primary" },
-  COMPLETED:   { label: "Hoàn thành", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", dot: "bg-emerald-500" },
-  CANCELLED:   { label: "Đã hủy",     className: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",       dot: "bg-rose-500" },
-  EXPIRED:     { label: "Hết hạn",    className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",      dot: "bg-slate-400" },
+  PENDING:     { label: "Chờ nhận",   className: "bg-[rgba(217,119,6,0.14)] text-[#D97706] dark:bg-[rgba(217,119,6,0.14)] dark:text-[#D97706]",    dot: "bg-[#D97706]" },
+  POSTED:      { label: "Chờ nhận",   className: "bg-[rgba(217,119,6,0.14)] text-[#D97706] dark:bg-[rgba(217,119,6,0.14)] dark:text-[#D97706]",    dot: "bg-[#D97706]" },
+  CONFIRMED:   { label: "Đã xác nhận",className: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)] dark:text-[#2563EB]",        dot: "bg-[#2563EB]" },
+  ACCEPTED:    { label: "Đã nhận",    className: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)] dark:text-[#2563EB]",        dot: "bg-[#2563EB]" },
+  ON_THE_WAY:  { label: "Đang đến",   className: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)] dark:text-[#2563EB]",dot: "bg-[#2563EB]" },
+  TASKER_ON_THE_WAY: { label: "Đang đến", className: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)] dark:text-[#2563EB]", dot: "bg-[#2563EB]" },
+  CHECKED_IN:  { label: "Đã check-in",className: "bg-[rgba(37,99,235,0.12)] text-[#2563EB] dark:bg-[rgba(37,99,235,0.12)] dark:text-[#2563EB]",       dot: "bg-[#2563EB]" },
+  IN_PROGRESS: { label: "Đang làm",   className: "bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)]",                                              dot: "bg-[var(--c-primary)]" },
+  COMPLETED:   { label: "Hoàn thành", className: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)] dark:text-[#0E9F6E]", dot: "bg-[#0E9F6E]" },
+  CANCELLED:   { label: "Đã hủy",     className: "bg-[rgba(225,29,72,0.12)] text-[#E11D48] dark:bg-[rgba(225,29,72,0.12)] dark:text-[#E11D48]",       dot: "bg-[#E11D48]" },
+  EXPIRED:     { label: "Hết hạn",    className: "bg-[var(--c-card-2)] text-[var(--c-muted)] dark:bg-[var(--c-card-2)] dark:text-[var(--c-muted)]",      dot: "bg-[var(--c-muted)]" },
 };
 
 const PAYMENT_METHOD_CFG: Record<string, { label: string; icon: React.ElementType }> = {
@@ -96,21 +96,21 @@ const PAYMENT_METHOD_CFG: Record<string, { label: string; icon: React.ElementTyp
 };
 
 const PAYMENT_STATUS_CFG: Record<string, { label: string; className: string }> = {
-  PENDING:  { label: "Chờ thanh toán", className: "bg-amber-100 text-amber-700" },
-  PAID:     { label: "Đã thanh toán",  className: "bg-emerald-100 text-emerald-700" },
-  REFUNDED: { label: "Đã hoàn tiền",   className: "bg-blue-100 text-blue-700" },
-  FAILED:   { label: "Thất bại",       className: "bg-rose-100 text-rose-700" },
+  PENDING:  { label: "Chờ thanh toán", className: "bg-[rgba(217,119,6,0.14)] text-[#D97706]" },
+  PAID:     { label: "Đã thanh toán",  className: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]" },
+  REFUNDED: { label: "Đã hoàn tiền",   className: "bg-[rgba(37,99,235,0.12)] text-[#2563EB]" },
+  FAILED:   { label: "Thất bại",       className: "bg-[rgba(225,29,72,0.12)] text-[#E11D48]" },
 };
 
 const PRESENCE_CFG: Record<string, { label: string; className: string }> = {
-  ONLINE:  { label: "● Online",  className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
-  OFFLINE: { label: "● Offline", className: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400" },
+  ONLINE:  { label: "● Online",  className: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)] dark:text-[#0E9F6E]" },
+  OFFLINE: { label: "● Offline", className: "bg-[var(--c-card-2)] text-[var(--c-muted)] dark:bg-[var(--c-card-2)] dark:text-[var(--c-muted)]" },
 };
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CFG[status] ?? { label: status, className: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" };
+  const cfg = STATUS_CFG[status] ?? { label: status, className: "bg-[var(--c-card-2)] text-[var(--c-muted)]", dot: "bg-[var(--c-muted)]" };
   return (
     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap", cfg.className)}>
       <span className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
@@ -134,10 +134,10 @@ function InfoRow({
 }) {
   return (
     <div className="flex justify-between items-start gap-3 py-3 px-4">
-      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      <span className="text-sm text-[var(--c-muted)] shrink-0">{label}</span>
       <span className={cn(
         "text-sm font-semibold text-right",
-        highlight ? "text-primary text-base" : "text-foreground",
+        highlight ? "text-[var(--c-primary-strong)] text-base" : "text-[var(--c-ink)]",
         mono ? "font-mono" : "",
       )}>
         {value}
@@ -150,9 +150,9 @@ function InfoRow({
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/40 border-y border-border/40 mt-2">
-      <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-      <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{title}</span>
+    <div className="flex items-center gap-2 px-4 py-2.5 bg-[var(--c-card-2)] border-y border-[var(--c-line)]/40 mt-2">
+      <Icon className="w-3.5 h-3.5 text-[var(--c-primary-strong)]" aria-hidden="true" />
+      <span className="text-[10px] font-black text-[var(--c-ink)] uppercase tracking-widest">{title}</span>
     </div>
   );
 }
@@ -176,13 +176,13 @@ function ActionButton({
       className={cn(
         "flex items-center gap-2 w-full px-4 py-3 text-sm font-semibold transition-colors",
         variant === "danger"
-          ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-          : "text-foreground hover:bg-muted/60",
+          ? "text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)] dark:hover:bg-[rgba(225,29,72,0.12)]"
+          : "text-[var(--c-ink)] hover:bg-[var(--c-card-2)]",
       )}
     >
-      <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+      <Icon className="w-4 h-4 text-[var(--c-muted)]" aria-hidden="true" />
       {label}
-      <ArrowUpRight className="w-3.5 h-3.5 ml-auto text-muted-foreground/50" aria-hidden="true" />
+      <ArrowUpRight className="w-3.5 h-3.5 ml-auto text-[var(--c-muted)]" aria-hidden="true" />
     </button>
   );
 }
@@ -201,23 +201,23 @@ function BookingDetailSheet({
   const router = useRouter();
   if (!booking) return null;
 
-  const status = STATUS_CFG[booking.status] ?? { label: booking.status, className: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" };
+  const status = STATUS_CFG[booking.status] ?? { label: booking.status, className: "bg-[var(--c-card-2)] text-[var(--c-muted)]", dot: "bg-[var(--c-muted)]" };
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[480px] p-0 overflow-y-auto flex flex-col"
+        className="cz-admin w-full sm:max-w-[480px] p-0 overflow-y-auto flex flex-col"
       >
         {/* Header */}
-        <SheetHeader className="px-6 py-5 border-b border-border/50 bg-card sticky top-0 z-10">
+        <SheetHeader className="px-6 py-5 border-b border-[var(--c-line)]/50 bg-[var(--c-card)] sticky top-0 z-10">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <SheetTitle className="text-xl font-black text-foreground flex items-center gap-2">
-                <ListOrdered className="w-5 h-5 text-primary" aria-hidden="true" />
+              <SheetTitle className="text-xl font-black text-[var(--c-ink)] flex items-center gap-2">
+                <ListOrdered className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
                 Chi tiết đơn hàng
               </SheetTitle>
-              <p className="text-sm font-mono text-primary mt-1 font-bold">
+              <p className="text-sm font-mono text-[var(--c-primary-strong)] mt-1 font-bold">
                 #{booking.bookingCode}
               </p>
             </div>
@@ -230,14 +230,14 @@ function BookingDetailSheet({
 
           {/* ─── Khách hàng ─── */}
           <SectionHeader icon={Users} title="Thông tin khách hàng" />
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-[var(--c-line)]/30">
             <InfoRow label="Họ tên" value={booking.customerName} />
             <InfoRow label="Số điện thoại" value={booking.customerPhone} mono />
-            <InfoRow label="Mã khách hàng" value={<span className="text-xs text-muted-foreground">{booking.customerId}</span>} />
+            <InfoRow label="Mã khách hàng" value={<span className="text-xs text-[var(--c-muted)]">{booking.customerId}</span>} />
           </div>
 
           {/* Navigate to customer */}
-          <div className="px-3 py-2 border-b border-border/30">
+          <div className="px-3 py-2 border-b border-[var(--c-line)]/30">
             <ActionButton
               icon={ArrowUpRight}
               label="Xem chi tiết khách hàng"
@@ -250,15 +250,15 @@ function BookingDetailSheet({
 
           {/* ─── Nhân viên ─── */}
           <SectionHeader icon={Briefcase} title="Nhân viên thực hiện" />
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-[var(--c-line)]/30">
             {booking.taskerName ? (
               <>
                 <InfoRow label="Họ tên" value={booking.taskerName} />
                 <InfoRow label="Số điện thoại" value={booking.taskerPhone ?? "—"} mono />
-                <InfoRow label="Mã nhân viên" value={<span className="text-xs text-muted-foreground">{booking.taskerId}</span>} />
+                <InfoRow label="Mã nhân viên" value={<span className="text-xs text-[var(--c-muted)]">{booking.taskerId}</span>} />
               </>
             ) : (
-              <div className="px-4 py-4 text-sm text-muted-foreground italic flex items-center gap-2">
+              <div className="px-4 py-4 text-sm text-[var(--c-muted)] italic flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" aria-hidden="true" />
                 Chưa có nhân viên nhận đơn
               </div>
@@ -267,7 +267,7 @@ function BookingDetailSheet({
 
           {/* Navigate to tasker */}
           {booking.taskerId && (
-            <div className="px-3 py-2 border-b border-border/30">
+            <div className="px-3 py-2 border-b border-[var(--c-line)]/30">
               <ActionButton
                 icon={ArrowUpRight}
                 label="Xem chi tiết nhân sự"
@@ -281,7 +281,7 @@ function BookingDetailSheet({
 
           {/* ─── Lịch hẹn ─── */}
           <SectionHeader icon={Calendar} title="Lịch hẹn & Thời gian" />
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-[var(--c-line)]/30">
             <InfoRow
               label="Ngày tạo đơn"
               value={fmtDate(booking.createdAt)}
@@ -299,12 +299,12 @@ function BookingDetailSheet({
 
           {/* ─── Tài chính ─── */}
           <SectionHeader icon={DollarSign} title="Tài chính & Thanh toán" />
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-[var(--c-line)]/30">
             <InfoRow label="Tổng tiền" value={vnd(booking.totalPrice)} highlight />
           </div>
 
           {/* Navigate to booking full page */}
-          <div className="px-3 py-2 border-b border-border/30">
+          <div className="px-3 py-2 border-b border-[var(--c-line)]/30">
             <ActionButton
               icon={Receipt}
               label="Xem chi tiết giao dịch"
@@ -317,7 +317,7 @@ function BookingDetailSheet({
 
           {/* ─── Quick actions ─── */}
           <SectionHeader icon={SlidersHorizontal} title="Hành động" />
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-[var(--c-line)]/30">
             <ActionButton
               icon={ArrowUpRight}
               label="Xem toàn bộ chi tiết booking"
@@ -349,19 +349,19 @@ function TaskerDetailSheet({
 
   const presence = PRESENCE_CFG[tasker.presenceStatus] ?? {
     label: tasker.presenceStatus,
-    className: "bg-muted text-muted-foreground",
+    className: "bg-[var(--c-card-2)] text-[var(--c-muted)]",
   };
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[480px] p-0 overflow-y-auto flex flex-col"
+        className="cz-admin w-full sm:max-w-[480px] p-0 overflow-y-auto flex flex-col"
       >
         {/* Header */}
-        <SheetHeader className="px-6 py-5 border-b border-border/50 bg-card sticky top-0 z-10">
-          <SheetTitle className="text-xl font-black text-foreground flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" aria-hidden="true" />
+        <SheetHeader className="px-6 py-5 border-b border-[var(--c-line)]/50 bg-[var(--c-card)] sticky top-0 z-10">
+          <SheetTitle className="text-xl font-black text-[var(--c-ink)] flex items-center gap-2">
+            <Users className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
             Chi tiết nhân sự
           </SheetTitle>
         </SheetHeader>
@@ -369,21 +369,21 @@ function TaskerDetailSheet({
         {/* Body */}
         <div className="flex-1 overflow-y-auto pb-8">
           {/* Avatar + Name */}
-          <div className="flex flex-col items-center gap-4 px-6 py-8 border-b border-border/50">
-            <Avatar className="w-24 h-24 border-4 border-background shadow-lg ring-2 ring-border">
+          <div className="flex flex-col items-center gap-4 px-6 py-8 border-b border-[var(--c-line)]/50">
+            <Avatar className="w-24 h-24 border-4 border-[var(--c-card)] shadow-lg ring-2 border-[var(--c-line)]">
               <AvatarImage src={tasker.avatarUrl} />
-              <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
+              <AvatarFallback className="bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] text-3xl font-black">
                 {tasker.fullName?.charAt(0) ?? "T"}
               </AvatarFallback>
             </Avatar>
             <div className="text-center">
-              <p className="text-2xl font-black text-foreground">{tasker.fullName}</p>
-              <p className="text-sm text-muted-foreground mt-0.5">{tasker.phoneNumber}</p>
+              <p className="text-2xl font-black text-[var(--c-ink)]">{tasker.fullName}</p>
+              <p className="text-sm text-[var(--c-muted)] mt-0.5">{tasker.phoneNumber}</p>
               <div className="mt-3 flex items-center justify-center gap-2">
                 <span className={cn("px-3 py-1 rounded-full text-xs font-bold", presence.className)}>
                   {presence.label}
                 </span>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-[var(--c-card-2)] text-[var(--c-muted)]">
                   {tasker.status ?? "—"}
                 </span>
               </div>
@@ -391,23 +391,23 @@ function TaskerDetailSheet({
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 px-5 py-5 border-b border-border/50">
+          <div className="grid grid-cols-3 gap-3 px-5 py-5 border-b border-[var(--c-line)]/50">
             {[
-              { label: "Đánh giá", value: tasker.ratingAvg != null ? Number(tasker.ratingAvg).toFixed(1) : "—", sub: "/ 5 ★", color: "text-amber-500", icon: Star },
-              { label: "Tổng đơn", value: String(tasker.totalCompletedJobs ?? 0), sub: "đơn", color: "text-emerald-500", icon: CheckCircle2 },
-              { label: "Gói này", value: String(tasker.jobsForThisService ?? 0), sub: "đơn", color: "text-primary", icon: Activity },
+              { label: "Đánh giá", value: tasker.ratingAvg != null ? Number(tasker.ratingAvg).toFixed(1) : "—", sub: "/ 5 ★", color: "text-[#D97706]", icon: Star },
+              { label: "Tổng đơn", value: String(tasker.totalCompletedJobs ?? 0), sub: "đơn", color: "text-[#0E9F6E]", icon: CheckCircle2 },
+              { label: "Gói này", value: String(tasker.jobsForThisService ?? 0), sub: "đơn", color: "text-[var(--c-primary-strong)]", icon: Activity },
             ].map((stat) => (
-              <div key={stat.label} className="bg-muted/20 border border-border/40 rounded-2xl p-4 text-center">
+              <div key={stat.label} className="bg-[var(--c-card-2)] border border-[var(--c-line)]/40 rounded-2xl p-4 text-center">
                 <stat.icon className={cn("w-5 h-5 mx-auto mb-1.5", stat.color)} aria-hidden="true" />
-                <p className="text-2xl font-black text-foreground leading-none">{stat.value}</p>
-                <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mt-1">{stat.label}</p>
+                <p className="text-2xl font-black text-[var(--c-ink)] leading-none">{stat.value}</p>
+                <p className="text-[9px] text-[var(--c-muted)] font-semibold uppercase tracking-wider mt-1">{stat.label}</p>
               </div>
             ))}
           </div>
 
           {/* Info */}
           <SectionHeader icon={Briefcase} title="Thông tin chi tiết" />
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-[var(--c-line)]/30">
             <InfoRow label="Số điện thoại" value={tasker.phoneNumber} mono />
             <InfoRow label="Trạng thái tài khoản" value={tasker.status ?? "—"} />
             <InfoRow
@@ -458,11 +458,11 @@ function FilterBar({
     <div className="flex flex-wrap gap-2">
       {mode === "bookings" && (
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[160px] rounded-xl text-xs font-semibold border-border/60 bg-background">
-            <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" aria-hidden="true" />
+          <SelectTrigger className="h-9 w-[160px] rounded-xl text-xs font-semibold border-[var(--c-line)]/60 bg-[var(--c-card)]">
+            <Filter className="w-3.5 h-3.5 mr-1.5 text-[var(--c-muted)]" aria-hidden="true" />
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="cz-admin">
             <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
             <SelectItem value="PENDING">Chờ nhận</SelectItem>
             <SelectItem value="POSTED">Đã đăng</SelectItem>
@@ -477,11 +477,11 @@ function FilterBar({
 
       {mode === "taskers" && (
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[150px] rounded-xl text-xs font-semibold border-border/60 bg-background">
-            <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" aria-hidden="true" />
+          <SelectTrigger className="h-9 w-[150px] rounded-xl text-xs font-semibold border-[var(--c-line)]/60 bg-[var(--c-card)]">
+            <Filter className="w-3.5 h-3.5 mr-1.5 text-[var(--c-muted)]" aria-hidden="true" />
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="cz-admin">
             <SelectItem value="ALL">Tất cả</SelectItem>
             <SelectItem value="ONLINE">Online</SelectItem>
             <SelectItem value="OFFLINE">Offline</SelectItem>
@@ -490,11 +490,11 @@ function FilterBar({
       )}
 
       <Select value={sortBy} onValueChange={setSortBy}>
-        <SelectTrigger className="h-9 w-[150px] rounded-xl text-xs font-semibold border-border/60 bg-background">
-          <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" aria-hidden="true" />
+        <SelectTrigger className="h-9 w-[150px] rounded-xl text-xs font-semibold border-[var(--c-line)]/60 bg-[var(--c-card)]">
+          <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-[var(--c-muted)]" aria-hidden="true" />
           <SelectValue placeholder="Sắp xếp" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="cz-admin">
           {mode === "bookings" ? (
             <>
               <SelectItem value="newest">Mới nhất</SelectItem>
@@ -527,16 +527,16 @@ function BookingsTable({
   if (items.length === 0) {
     return (
       <div className="py-16 text-center">
-        <ListOrdered className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">Không có đơn hàng nào</p>
+        <ListOrdered className="w-10 h-10 text-[var(--c-muted)] mx-auto mb-3" aria-hidden="true" />
+        <p className="text-sm text-[var(--c-muted)]">Không có đơn hàng nào</p>
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-border/40">
+    <div className="divide-y divide-[var(--c-line)]/40">
       {/* Header */}
-      <div className="hidden md:grid grid-cols-[1.8fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-muted/30 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+      <div className="hidden md:grid grid-cols-[1.8fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-[var(--c-card-2)] text-[10px] font-black text-[var(--c-muted)] uppercase tracking-widest">
         <span>Khách hàng</span>
         <span>Tasker</span>
         <span>Lịch hẹn</span>
@@ -548,45 +548,45 @@ function BookingsTable({
         <div
           key={booking.id}
           onClick={() => onSelect(booking)}
-          className="grid grid-cols-1 md:grid-cols-[1.8fr_1.5fr_1fr_1fr_auto] gap-2 md:gap-4 px-6 py-4 hover:bg-muted/20 cursor-pointer transition-all duration-150 group border-l-2 border-l-transparent hover:border-l-primary"
+          className="grid grid-cols-1 md:grid-cols-[1.8fr_1.5fr_1fr_1fr_auto] gap-2 md:gap-4 px-6 py-4 hover:bg-[var(--c-card-2)] cursor-pointer transition-all duration-150 group border-l-2 border-l-transparent hover:border-l-[var(--c-primary)]"
         >
           {/* Customer */}
           <div className="flex flex-col gap-0.5">
-            <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">
+            <p className="font-bold text-[var(--c-ink)] text-sm group-hover:text-[var(--c-primary-strong)] transition-colors">
               {booking.customerName}
             </p>
-            <p className="text-xs text-muted-foreground font-mono">{booking.customerPhone}</p>
-            <p className="text-[10px] font-mono text-primary/60">#{booking.bookingCode}</p>
+            <p className="text-xs text-[var(--c-muted)] font-mono">{booking.customerPhone}</p>
+            <p className="text-[10px] font-mono text-[var(--c-primary-strong)]/60">#{booking.bookingCode}</p>
           </div>
 
           {/* Tasker */}
           <div className="flex flex-col gap-0.5">
             {booking.taskerName ? (
               <>
-                <p className="font-semibold text-foreground text-sm">{booking.taskerName}</p>
-                <p className="text-xs text-muted-foreground font-mono">{booking.taskerPhone}</p>
+                <p className="font-semibold text-[var(--c-ink)] text-sm">{booking.taskerName}</p>
+                <p className="text-xs text-[var(--c-muted)] font-mono">{booking.taskerPhone}</p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground italic">Chưa có</p>
+              <p className="text-sm text-[var(--c-muted)] italic">Chưa có</p>
             )}
           </div>
 
           {/* Schedule */}
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-[var(--c-muted)]">
             {booking.scheduledStart
               ? format(new Date(booking.scheduledStart), "dd/MM HH:mm", { locale: vi })
               : <span className="italic text-xs">Chưa xếp</span>}
           </div>
 
           {/* Price */}
-          <div className="font-black text-primary text-sm">
+          <div className="font-black text-[var(--c-primary-strong)] text-sm">
             {vnd(booking.totalPrice)}
           </div>
 
           {/* Status + arrow */}
           <div className="flex items-center gap-2">
             <StatusBadge status={booking.status} />
-            <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" aria-hidden="true" />
+            <ChevronRight className="w-4 h-4 text-[var(--c-muted)] group-hover:text-[var(--c-primary-strong)] transition-colors shrink-0" aria-hidden="true" />
           </div>
         </div>
       ))}
@@ -606,23 +606,23 @@ function TaskersTable({
   if (items.length === 0) {
     return (
       <div className="py-16 text-center">
-        <Users className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">Không có nhân sự nào</p>
+        <Users className="w-10 h-10 text-[var(--c-muted)] mx-auto mb-3" aria-hidden="true" />
+        <p className="text-sm text-[var(--c-muted)]">Không có nhân sự nào</p>
       </div>
     );
   }
 
   const MEDALS = ["🥇", "🥈", "🥉"];
   const MEDAL_COLORS = [
-    "bg-amber-50 text-amber-700 border-amber-200",
-    "bg-slate-50 text-slate-600 border-slate-200",
-    "bg-orange-50 text-orange-600 border-orange-200",
+    "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[#D97706]",
+    "bg-[var(--c-card-2)] text-[var(--c-muted)] border-[var(--c-line)]",
+    "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[#D97706]",
   ];
 
   return (
-    <div className="divide-y divide-border/40">
+    <div className="divide-y divide-[var(--c-line)]/40">
       {/* Header */}
-      <div className="hidden md:grid grid-cols-[2.2fr_1fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-muted/30 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+      <div className="hidden md:grid grid-cols-[2.2fr_1fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-[var(--c-card-2)] text-[10px] font-black text-[var(--c-muted)] uppercase tracking-widest">
         <span>Nhân viên</span>
         <span>Đánh giá ★</span>
         <span>Tổng đơn</span>
@@ -631,55 +631,55 @@ function TaskersTable({
       </div>
 
       {items.map((tasker, idx) => {
-        const presence = PRESENCE_CFG[tasker.presenceStatus] ?? { label: tasker.presenceStatus, className: "bg-muted text-muted-foreground" };
+        const presence = PRESENCE_CFG[tasker.presenceStatus] ?? { label: tasker.presenceStatus, className: "bg-[var(--c-card-2)] text-[var(--c-muted)]" };
 
         return (
           <div
             key={tasker.id}
             onClick={() => onSelect(tasker)}
-            className="grid grid-cols-1 md:grid-cols-[2.2fr_1fr_1fr_1fr_auto] gap-2 md:gap-4 px-6 py-4 hover:bg-muted/20 cursor-pointer transition-all duration-150 group border-l-2 border-l-transparent hover:border-l-primary"
+            className="grid grid-cols-1 md:grid-cols-[2.2fr_1fr_1fr_1fr_auto] gap-2 md:gap-4 px-6 py-4 hover:bg-[var(--c-card-2)] cursor-pointer transition-all duration-150 group border-l-2 border-l-transparent hover:border-l-[var(--c-primary)]"
           >
             {/* Name + avatar */}
             <div className="flex items-center gap-3">
               {/* Medal / rank */}
               <div className={cn(
                 "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 border",
-                idx < 3 ? MEDAL_COLORS[idx] : "bg-muted text-muted-foreground border-border text-xs",
+                idx < 3 ? MEDAL_COLORS[idx] : "bg-[var(--c-card-2)] text-[var(--c-muted)] border-[var(--c-line)] text-xs",
               )}>
                 {idx < 3 ? MEDALS[idx] : `#${idx + 1}`}
               </div>
 
-              <Avatar className="w-10 h-10 shrink-0 border border-border/50">
+              <Avatar className="w-10 h-10 shrink-0 border border-[var(--c-line)]/50">
                 <AvatarImage src={tasker.avatarUrl} />
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-black">
+                <AvatarFallback className="bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] text-xs font-black">
                   {tasker.fullName?.charAt(0) ?? "T"}
                 </AvatarFallback>
               </Avatar>
 
               <div className="min-w-0">
-                <p className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                <p className="font-bold text-[var(--c-ink)] text-sm truncate group-hover:text-[var(--c-primary-strong)] transition-colors">
                   {tasker.fullName}
                 </p>
-                <p className="text-xs text-muted-foreground font-mono">{tasker.phoneNumber}</p>
+                <p className="text-xs text-[var(--c-muted)] font-mono">{tasker.phoneNumber}</p>
               </div>
             </div>
 
             {/* Rating */}
-            <div className="flex items-center gap-1.5 text-sm font-black text-amber-600">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+            <div className="flex items-center gap-1.5 text-sm font-black text-[#D97706]">
+              <Star className="w-3.5 h-3.5 fill-[#D97706] text-[#D97706]" aria-hidden="true" />
               {tasker.ratingAvg != null ? Number(tasker.ratingAvg).toFixed(1) : "—"}
             </div>
 
             {/* Total jobs */}
-            <div className="text-sm font-bold text-foreground">
+            <div className="text-sm font-bold text-[var(--c-ink)]">
               {tasker.totalCompletedJobs ?? 0}
-              <span className="text-xs text-muted-foreground font-normal ml-1">đơn</span>
+              <span className="text-xs text-[var(--c-muted)] font-normal ml-1">đơn</span>
             </div>
 
             {/* Jobs for this package */}
-            <div className="text-sm font-bold text-primary">
+            <div className="text-sm font-bold text-[var(--c-primary-strong)]">
               {tasker.jobsForThisService ?? 0}
-              <span className="text-xs text-muted-foreground font-normal ml-1">đơn</span>
+              <span className="text-xs text-[var(--c-muted)] font-normal ml-1">đơn</span>
             </div>
 
             {/* Status + arrow */}
@@ -687,7 +687,7 @@ function TaskersTable({
               <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold", presence.className)}>
                 {presence.label}
               </span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" aria-hidden="true" />
+              <ChevronRight className="w-4 h-4 text-[var(--c-muted)] group-hover:text-[var(--c-primary-strong)] transition-colors shrink-0" aria-hidden="true" />
             </div>
           </div>
         );
@@ -716,7 +716,7 @@ function Pagination({
       <button
         disabled={current === 1}
         onClick={() => onChange(current - 1)}
-        className="px-4 py-2 border border-border/50 rounded-xl text-sm font-bold disabled:opacity-30 hover:bg-muted transition-colors disabled:cursor-not-allowed"
+        className="px-4 py-2 border border-[var(--c-line)]/50 rounded-xl text-sm font-bold disabled:opacity-30 hover:bg-[var(--c-card-2)] transition-colors disabled:cursor-not-allowed"
       >
         ← Trước
       </button>
@@ -728,8 +728,8 @@ function Pagination({
           className={cn(
             "w-9 h-9 rounded-xl text-sm font-bold transition-all",
             p === current
-              ? "bg-primary text-white shadow-sm shadow-primary/30 scale-105"
-              : "border border-border/50 hover:bg-muted text-muted-foreground hover:text-foreground",
+              ? "bg-[var(--c-primary)] text-white shadow-sm shadow-primary/30 scale-105"
+              : "border border-[var(--c-line)]/50 hover:bg-[var(--c-card-2)] text-[var(--c-muted)] hover:text-[var(--c-ink)]",
           )}
         >
           {p}
@@ -738,12 +738,12 @@ function Pagination({
 
       {total > 7 && (
         <>
-          <span className="text-muted-foreground text-sm font-bold">…</span>
+          <span className="text-[var(--c-muted)] text-sm font-bold">…</span>
           <button
             onClick={() => onChange(total)}
             className={cn(
-              "w-9 h-9 rounded-xl text-sm font-bold border border-border/50 hover:bg-muted text-muted-foreground",
-              current === total && "bg-primary text-white border-primary",
+              "w-9 h-9 rounded-xl text-sm font-bold border border-[var(--c-line)]/50 hover:bg-[var(--c-card-2)] text-[var(--c-muted)]",
+              current === total && "bg-[var(--c-primary)] text-white border-[var(--c-primary)]",
             )}
           >
             {total}
@@ -754,7 +754,7 @@ function Pagination({
       <button
         disabled={current === total}
         onClick={() => onChange(current + 1)}
-        className="px-4 py-2 border border-border/50 rounded-xl text-sm font-bold disabled:opacity-30 hover:bg-muted transition-colors disabled:cursor-not-allowed"
+        className="px-4 py-2 border border-[var(--c-line)]/50 rounded-xl text-sm font-bold disabled:opacity-30 hover:bg-[var(--c-card-2)] transition-colors disabled:cursor-not-allowed"
       >
         Sau →
       </button>
@@ -853,15 +853,15 @@ export function PackageOperationsTab({ pkg }: PackageOperationsTabProps) {
       {/* ─── Header ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black text-foreground">Vận hành</h3>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            <span className="font-bold text-foreground">{totalItems.toLocaleString()}</span>
+          <h3 className="text-xl font-black text-[var(--c-ink)]">Vận hành</h3>
+          <p className="text-sm text-[var(--c-muted)] mt-0.5">
+            <span className="font-bold text-[var(--c-ink)]">{totalItems.toLocaleString()}</span>
             {" "}{mode === "bookings" ? "đơn hàng" : "nhân sự"} trong gói
           </p>
         </div>
 
         {/* Mode toggle pills */}
-        <div className="flex rounded-2xl bg-muted/50 p-1.5 gap-1 border border-border/50 self-start sm:self-auto">
+        <div className="flex rounded-2xl bg-[var(--c-card-2)] p-1.5 gap-1 border border-[var(--c-line)]/50 self-start sm:self-auto">
           {([
             { key: "bookings" as ViewMode, label: "Lịch sử đặt lịch", icon: ListOrdered },
             { key: "taskers"  as ViewMode, label: "Nhân sự",          icon: Users },
@@ -877,8 +877,8 @@ export function PackageOperationsTab({ pkg }: PackageOperationsTabProps) {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
                 mode === btn.key
-                  ? "bg-primary text-white shadow-sm shadow-primary/30"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                  ? "bg-[var(--c-primary)] text-white shadow-sm shadow-primary/30"
+                  : "text-[var(--c-muted)] hover:text-[var(--c-ink)] hover:bg-[var(--c-card-2)]",
               )}
             >
               <btn.icon className="w-4 h-4" aria-hidden="true" />
@@ -893,7 +893,7 @@ export function PackageOperationsTab({ pkg }: PackageOperationsTabProps) {
         {/* Search */}
         <div className="relative flex-1">
           <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--c-muted)]"
             aria-hidden="true"
           />
           <Input
@@ -904,7 +904,7 @@ export function PackageOperationsTab({ pkg }: PackageOperationsTabProps) {
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-9 rounded-xl bg-background text-sm"
+            className="pl-10 h-9 rounded-xl bg-[var(--c-card)] text-sm"
           />
         </div>
 
@@ -919,10 +919,10 @@ export function PackageOperationsTab({ pkg }: PackageOperationsTabProps) {
       </div>
 
       {/* ─── Table ─── */}
-      <div className="border border-border/50 rounded-2xl overflow-hidden bg-card shadow-sm">
+      <div className="border border-[var(--c-line)]/50 rounded-2xl overflow-hidden bg-[var(--c-card)] shadow-sm">
         {isLoading ? (
           <div className="flex items-center justify-center h-52">
-            <Loader2 className="w-7 h-7 text-primary animate-spin" aria-hidden="true" />
+            <Loader2 className="w-7 h-7 text-[var(--c-primary-strong)] animate-spin" aria-hidden="true" />
           </div>
         ) : mode === "bookings" ? (
           <BookingsTable items={filteredBookings} onSelect={setSelectedBooking} />

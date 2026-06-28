@@ -106,10 +106,20 @@ END $$;
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "package_policies"`);
-    await queryRunner.query(`ALTER TABLE "policies" DROP COLUMN IF EXISTS "sort_order"`);
-    await queryRunner.query(`ALTER TABLE "policies" DROP COLUMN IF EXISTS "is_default"`);
-    await queryRunner.query(`ALTER TABLE "policies" DROP COLUMN IF EXISTS "icon_emoji"`);
-    await queryRunner.query(`ALTER TABLE "policies" DROP COLUMN IF EXISTS "category"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "public"."policies_category_enum"`);
+    await queryRunner.query(
+      `ALTER TABLE "policies" DROP COLUMN IF EXISTS "sort_order"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "policies" DROP COLUMN IF EXISTS "is_default"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "policies" DROP COLUMN IF EXISTS "icon_emoji"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "policies" DROP COLUMN IF EXISTS "category"`,
+    );
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."policies_category_enum"`,
+    );
   }
 }

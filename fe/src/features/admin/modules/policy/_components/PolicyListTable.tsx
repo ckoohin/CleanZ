@@ -3,15 +3,12 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  BadgeCheck,
   Download,
   Eye,
   FileText,
   Loader2,
   Pencil,
   Plus,
-  ShieldAlert,
-  Sparkles,
   Star,
   Trash2,
   User,
@@ -27,8 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { BaseButton } from '@/components/ui/base/base_button';
-import { Separator } from '@/components/ui/separator';
+import { AdminButton, StatusBadge, PageHeader } from '@/components/admin';
 import { useAdminPolicies, useSeedPolicies } from '@/features/admin/modules/policy/hooks/useAdminPolicies';
 import { Policy, POLICY_CATEGORY_META } from '@/features/admin/modules/policy/types/policy.type';
 import { PolicyFormModal } from './PolicyFormModal';
@@ -67,7 +63,7 @@ function PolicyRow({
   const RoleIcon = roleMeta.Icon;
 
   return (
-    <TableRow className="group">
+    <TableRow className="group border-[var(--c-line)] hover:bg-[var(--c-card-2)]">
       {/* Title / Slug */}
       <TableCell className="align-top py-3.5">
         <div className="flex items-start gap-3">
@@ -75,13 +71,13 @@ function PolicyRow({
             <CatIcon className="w-4 h-4" />
           </div>
           <div>
-            <p className="font-semibold text-sm text-foreground leading-tight flex items-center gap-1.5">
+            <p className="font-semibold text-sm text-[var(--c-ink)] leading-tight flex items-center gap-1.5">
               {policy.title}
               {policy.isDefault && (
-                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                <Star className="w-3.5 h-3.5 text-[var(--c-primary)] fill-[var(--c-primary)] shrink-0" />
               )}
             </p>
-            <p className="text-xs font-mono text-muted-foreground mt-0.5">{policy.slug}</p>
+            <p className="text-xs font-mono text-[var(--c-muted)] mt-0.5">{policy.slug}</p>
           </div>
         </div>
       </TableCell>
@@ -96,7 +92,7 @@ function PolicyRow({
 
       {/* Role */}
       <TableCell className="align-top py-3.5">
-        <Badge variant="outline" className="text-[11px] gap-1 text-muted-foreground">
+        <Badge variant="outline" className="text-[11px] gap-1 text-[var(--c-muted)] border-[var(--c-line)]">
           <RoleIcon className="w-3 h-3" />
           {roleMeta.label}
         </Badge>
@@ -105,17 +101,14 @@ function PolicyRow({
       {/* Status */}
       <TableCell className="align-top py-3.5">
         {policy.isActive ? (
-          <Badge className="text-[11px] gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100">
-            <BadgeCheck className="w-3 h-3" />
-            Hoạt động
-          </Badge>
+          <StatusBadge tone="success" dot>Hoạt động</StatusBadge>
         ) : (
-          <Badge variant="secondary" className="text-[11px]">Tạm ẩn</Badge>
+          <StatusBadge tone="neutral">Tạm ẩn</StatusBadge>
         )}
       </TableCell>
 
       {/* Created */}
-      <TableCell className="align-top py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+      <TableCell className="align-top py-3.5 text-xs text-[var(--c-muted)] whitespace-nowrap">
         {formatDate(policy.createdAt)}
       </TableCell>
 
@@ -123,28 +116,26 @@ function PolicyRow({
       <TableCell className="align-top py-3.5">
         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <Link href={`/admin/policies/${policy.id}`}>
-            <BaseButton variant="outline" size="sm" className="h-7 px-2 text-xs gap-1">
-              <Eye className="w-3.5 h-3.5" />
+            <AdminButton variant="secondary" size="sm" className="gap-1" icon={<Eye className="w-3.5 h-3.5" />}>
               Xem
-            </BaseButton>
+            </AdminButton>
           </Link>
-          <BaseButton
-            variant="outline"
+          <AdminButton
+            variant="secondary"
             size="sm"
-            className="h-7 px-2 text-xs gap-1"
+            className="gap-1"
             onClick={() => onEdit(policy)}
+            icon={<Pencil className="w-3.5 h-3.5" />}
           >
-            <Pencil className="w-3.5 h-3.5" />
             Sửa
-          </BaseButton>
-          <BaseButton
-            variant="destructive"
+          </AdminButton>
+          <AdminButton
+            variant="danger"
             size="sm"
-            className="h-7 px-2 text-xs gap-1"
+            className="px-2"
             onClick={() => onDelete(policy)}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </BaseButton>
+            icon={<Trash2 className="w-3.5 h-3.5" />}
+          />
         </div>
       </TableCell>
     </TableRow>
@@ -167,7 +158,7 @@ export function PolicyListTable() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
+      <div className="flex items-center justify-center py-20 text-[var(--c-muted)] gap-2">
         <Loader2 className="w-5 h-5 animate-spin" />
         <span className="text-sm">Đang tải danh sách chính sách...</span>
       </div>
@@ -176,7 +167,7 @@ export function PolicyListTable() {
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-6 text-sm text-destructive text-center">
+      <div className="rounded-xl border border-[rgba(225,29,72,0.3)] bg-[rgba(225,29,72,0.08)] px-4 py-6 text-sm text-[#E11D48] text-center">
         Không thể tải danh sách. Vui lòng thử lại.
       </div>
     );
@@ -187,85 +178,72 @@ export function PolicyListTable() {
   return (
     <>
       {/* Page header */}
-      <div className="space-y-2 pl-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-          <ShieldAlert className="w-3.5 h-3.5" />
-          Hệ thống quản trị
-        </div>
-        <h1 className="text-3xl font-black leading-tight tracking-tight flex items-center gap-2">
-          Quản lý chính sách
-          <Sparkles className="w-6 h-6 text-primary animate-pulse" />
-        </h1>
-        <p className="text-muted-foreground text-sm max-w-2xl leading-relaxed">
-          Thư viện chính sách hiển thị cho khách hàng, tasker và hệ thống CleanZ.
-        </p>
-      </div>
+      <PageHeader
+        title="Quản lý chính sách"
+        description="Thư viện chính sách hiển thị cho khách hàng, tasker và hệ thống CleanZ."
+      />
 
       {/* Card */}
-      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl shadow-sm overflow-hidden">
 
         {/* Card header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--c-line)]">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-bold">Danh sách chính sách</h2>
+            <FileText className="w-5 h-5 text-[var(--c-primary-strong)]" />
+            <h2 className="text-base font-bold text-[var(--c-ink)]">Danh sách chính sách</h2>
             <Badge variant="secondary" className="text-xs">{policies.length}</Badge>
           </div>
           <div className="flex items-center gap-2">
-            <BaseButton
-              variant="outline"
+            <AdminButton
+              variant="secondary"
               size="sm"
               onClick={() => seedMutation.mutate()}
-              isLoading={seedMutation.isPending}
-              className="gap-2"
+              disabled={seedMutation.isPending}
+              icon={seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             >
-              {!seedMutation.isPending && <Download className="w-4 h-4" />}
               Seed mặc định
-            </BaseButton>
-            <BaseButton
+            </AdminButton>
+            <AdminButton
               variant="primary"
               size="sm"
               onClick={() => setOpenCreate(true)}
-              className="gap-2"
+              icon={<Plus className="w-4 h-4" />}
             >
-              <Plus className="w-4 h-4" />
               Thêm chính sách
-            </BaseButton>
+            </AdminButton>
           </div>
         </div>
 
         {/* Empty state */}
         {policies.length === 0 ? (
           <div className="py-20 text-center">
-            <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <FileText className="w-7 h-7 text-primary" />
+            <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-[var(--c-primary-soft)] flex items-center justify-center">
+              <FileText className="w-7 h-7 text-[var(--c-primary-strong)]" />
             </div>
-            <h3 className="text-base font-semibold mb-1">Chưa có chính sách nào</h3>
-            <p className="text-sm text-muted-foreground mb-5 max-w-xs mx-auto">
+            <h3 className="text-base font-semibold mb-1 text-[var(--c-ink)]">Chưa có chính sách nào</h3>
+            <p className="text-sm text-[var(--c-muted)] mb-5 max-w-xs mx-auto">
               Nhấn "Seed mặc định" để tạo bộ chính sách chuẩn, hoặc tạo mới thủ công.
             </p>
             <div className="flex justify-center gap-2">
-              <BaseButton
-                variant="outline"
+              <AdminButton
+                variant="secondary"
                 size="sm"
                 onClick={() => seedMutation.mutate()}
-                isLoading={seedMutation.isPending}
-                className="gap-2"
+                disabled={seedMutation.isPending}
+                icon={seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               >
-                {!seedMutation.isPending && <Download className="w-4 h-4" />}
                 Seed mặc định
-              </BaseButton>
-              <BaseButton variant="primary" size="sm" onClick={() => setOpenCreate(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
+              </AdminButton>
+              <AdminButton variant="primary" size="sm" onClick={() => setOpenCreate(true)} icon={<Plus className="w-4 h-4" />}>
                 Tạo mới
-              </BaseButton>
+              </AdminButton>
             </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
+                <TableRow className="hover:bg-transparent border-[var(--c-line)] [&>th]:text-[var(--c-muted)] [&>th]:text-xs [&>th]:font-semibold">
                   <TableHead className="min-w-[260px]">Tiêu đề</TableHead>
                   <TableHead className="min-w-[150px]">Loại</TableHead>
                   <TableHead className="min-w-[100px]">Đối tượng</TableHead>

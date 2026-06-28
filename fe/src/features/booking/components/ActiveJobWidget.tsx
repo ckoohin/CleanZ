@@ -86,7 +86,7 @@ export function ActiveJobWidget() {
         exit={{ opacity: 0, y: 50, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 260, damping: 20 }}
         onClick={() => setShowSheet(true)}
-        className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:w-80 z-40 bg-gradient-to-r from-orange-600 to-amber-500 text-white p-4 rounded-2xl flex items-center justify-between gap-3 shadow-lg shadow-orange-600/20 cursor-pointer hover:shadow-xl hover:shadow-orange-600/30 transition-all border border-white/10 select-none group"
+        className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:w-80 z-40 bg-gradient-to-r from-orange-600 to-amber-500 text-white p-3 sm:p-4 rounded-2xl flex items-center justify-between gap-2 sm:gap-3 shadow-lg shadow-orange-600/20 cursor-pointer hover:shadow-xl hover:shadow-orange-600/30 transition-all border border-white/10 select-none group"
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {booking.customer ? (
@@ -107,48 +107,44 @@ export function ActiveJobWidget() {
             </div>
           )}
           
-          <div className="flex flex-row items-center justify-between flex-1 min-w-0 gap-3">
-            {/* Cột trái: Trạng thái & Tên dịch vụ */}
-            <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-              {/* Dòng 1: Trạng thái */}
-              <span className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-1.5 leading-none drop-shadow-sm">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] font-black uppercase leading-none tracking-wider text-white drop-shadow-sm sm:text-xs sm:tracking-widest">
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                 </span>
-                {statusLabel}
+                <span className="truncate">{statusLabel}</span>
               </span>
-              
-              {/* Dòng 2: Tên dịch vụ */}
-              <span className="text-base font-black truncate text-white leading-tight drop-shadow-md">
-                {booking.service.name}
+              <span className="hidden shrink-0 items-center text-[11px] font-bold text-white/95 drop-shadow-sm sm:flex">
+                Check nhanh <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
               </span>
             </div>
 
-            {/* Cột phải: Khách hàng & Lịch + Giá tiền */}
-            <div className="flex flex-col items-end shrink-0 text-right gap-1 min-w-0 max-w-[55%] font-bold">
-              {/* Khách hàng */}
+            <span className="truncate text-sm font-black leading-tight text-white drop-shadow-md sm:text-base">
+              {booking.service.name}
+            </span>
+
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-black leading-none text-orange-100 drop-shadow-sm sm:text-xs">
               {customerFullName && (
-                <span className="text-xs font-black text-white flex items-center justify-end gap-1.5 leading-none drop-shadow-sm">
+                <span className="flex min-w-0 max-w-[45%] items-center gap-1 text-white">
                   <User className="w-3.5 h-3.5 text-orange-200 shrink-0" />
-                  <span className="truncate max-w-[125px]">{customerFullName}</span>
+                  <span className="truncate">{customerFullName}</span>
                 </span>
               )}
-              
-              {/* Lịch làm việc & Thu nhập */}
-              <span className="text-xs font-black text-orange-100 flex items-center justify-end gap-1.5 truncate drop-shadow-sm">
+              <span className="flex shrink-0 items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-orange-200 shrink-0" />
                 <span>{startTimeFormatted}-{dateFormatted}</span>
-                <span className="text-white/40">•</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1 text-white">
+                <Coins className="w-3.5 h-3.5 text-orange-200 shrink-0" />
                 <span>{priceFormatted}</span>
               </span>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-xs font-bold text-white/95 group-hover:translate-x-0.5 transition-transform flex items-center drop-shadow-sm">
-            Check nhanh <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-          </span>
+        <div className="flex items-center gap-1 shrink-0 sm:hidden">
+          <ChevronRight className="w-4 h-4 text-white/90" />
         </div>
       </motion.div>
 
@@ -326,7 +322,7 @@ export function ActiveJobWidget() {
                 <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 flex items-start gap-3">
                   <ShieldCheck className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                    Theo chính sách bảo mật, số điện thoại của khách hàng chỉ hiển thị từ trạng thái "Đang di chuyển tới" (TASKER_ON_THE_WAY).
+                    Theo chính sách bảo mật, số điện thoại của khách hàng chỉ hiển thị từ trạng thái &ldquo;Đang di chuyển tới&rdquo; (TASKER_ON_THE_WAY).
                   </p>
                 </div>
               ) : (

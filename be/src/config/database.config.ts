@@ -29,7 +29,7 @@ export const getDatabaseConfig = (
     migrationsTableName: 'migrations',
     migrationsRun,
 
-    logging: isDev,
+    logging: false,
     // ssl: { rejectUnauthorized: false },
   };
 };

@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,10 +101,10 @@ export function TicketConfigForm({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg rounded-2xl p-0">
+      <DialogContent className="cz-admin sm:max-w-lg rounded-2xl p-0 bg-[var(--c-card)] border-[var(--c-line)]">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="text-base font-bold">Cấu hình Support Ticket</DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Cấu hình Support Ticket</DialogTitle>
+          <DialogDescription className="text-xs text-[var(--c-muted)]">
             SLA theo độ ưu tiên, độ ưu tiên mặc định theo loại, và quy tắc tự đóng / cửa sổ khiếu nại.
           </DialogDescription>
         </DialogHeader>
@@ -120,20 +120,20 @@ export function TicketConfigForm({ open, onClose }: Props) {
             <div className="px-6 py-4 space-y-6">
               {/* SLA matrix */}
               <section className="space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">
                   SLA theo độ ưu tiên (phút)
                 </p>
                 <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center text-xs">
                   <span />
-                  <span className="text-center text-muted-foreground font-semibold w-24">Phản hồi</span>
-                  <span className="text-center text-muted-foreground font-semibold w-24">Giải quyết</span>
+                  <span className="text-center text-[var(--c-muted)] font-semibold w-24">Phản hồi</span>
+                  <span className="text-center text-[var(--c-muted)] font-semibold w-24">Giải quyết</span>
                   {TICKET_PRIORITY.map((p) => (
                     <React.Fragment key={p}>
-                      <span className="font-medium">{PRIORITY_LABEL[p]}</span>
+                      <span className="font-medium text-[var(--c-ink-soft)]">{PRIORITY_LABEL[p]}</span>
                       <Input
                         type="number"
                         min={0}
-                        className="h-8 w-24 rounded-lg text-sm"
+                        className="h-8 w-24 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
                         value={sla[p].responseMins}
                         onChange={(e) => setSlaField(p, "responseMins", Number(e.target.value) || 0)}
                         aria-label={`Phút phản hồi - ${PRIORITY_LABEL[p]}`}
@@ -141,7 +141,7 @@ export function TicketConfigForm({ open, onClose }: Props) {
                       <Input
                         type="number"
                         min={0}
-                        className="h-8 w-24 rounded-lg text-sm"
+                        className="h-8 w-24 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
                         value={sla[p].resolutionMins}
                         onChange={(e) => setSlaField(p, "resolutionMins", Number(e.target.value) || 0)}
                         aria-label={`Phút giải quyết - ${PRIORITY_LABEL[p]}`}
@@ -153,21 +153,21 @@ export function TicketConfigForm({ open, onClose }: Props) {
 
               {/* Category → priority */}
               <section className="space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">
                   Độ ưu tiên mặc định theo loại
                 </p>
                 <div className="space-y-2">
                   {TICKET_CATEGORY.map((c) => (
                     <div key={c} className="flex items-center justify-between gap-2">
-                      <span className="text-sm text-foreground/80">{CATEGORY_LABEL[c]}</span>
+                      <span className="text-sm text-[var(--c-ink-soft)]">{CATEGORY_LABEL[c]}</span>
                       <Select
                         value={catPri[c]}
                         onValueChange={(v) => setCatPri((prev) => ({ ...prev, [c]: v as TicketPriority }))}
                       >
-                        <SelectTrigger className="h-8 w-36 rounded-lg text-sm" aria-label={`Ưu tiên - ${CATEGORY_LABEL[c]}`}>
+                        <SelectTrigger className="h-8 w-36 rounded-lg text-sm border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]" aria-label={`Ưu tiên - ${CATEGORY_LABEL[c]}`}>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="cz-admin">
                           {TICKET_PRIORITY.map((p) => (
                             <SelectItem key={p} value={p}>
                               {PRIORITY_LABEL[p]}
@@ -183,22 +183,22 @@ export function TicketConfigForm({ open, onClose }: Props) {
               {/* Auto-close & complaint window */}
               <section className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Tự đóng sau (giờ)</Label>
+                  <Label className="text-xs font-semibold text-[var(--c-ink-soft)]">Tự đóng sau (giờ)</Label>
                   <Input
                     type="number"
                     min={1}
-                    className="h-9 rounded-lg text-sm"
+                    className="h-9 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
                     value={autoCloseHours}
                     onChange={(e) => setAutoCloseHours(Number(e.target.value) || 1)}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Cửa sổ khiếu nại (ngày)</Label>
+                  <Label className="text-xs font-semibold text-[var(--c-ink-soft)]">Cửa sổ khiếu nại (ngày)</Label>
                   <Input
                     type="number"
                     min={1}
                     max={365}
-                    className="h-9 rounded-lg text-sm"
+                    className="h-9 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
                     value={complaintWindowDays}
                     onChange={(e) => setComplaintWindowDays(Number(e.target.value) || 1)}
                   />
@@ -209,12 +209,12 @@ export function TicketConfigForm({ open, onClose }: Props) {
         </ScrollArea>
 
         <DialogFooter className="px-6 pb-6 gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={onClose}>
+          <AdminButton variant="secondary" size="sm" className="rounded-full" onClick={onClose}>
             Huỷ
-          </Button>
-          <Button size="sm" className="rounded-full" onClick={handleSubmit} disabled={isLoading || update.isPending}>
+          </AdminButton>
+          <AdminButton variant="primary" size="sm" className="rounded-full" onClick={handleSubmit} disabled={isLoading || update.isPending}>
             {update.isPending ? "Đang lưu..." : "Lưu cấu hình"}
-          </Button>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

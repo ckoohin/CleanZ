@@ -18,6 +18,7 @@ import {
   PawPrint,
   AlertTriangle,
   Route,
+  Loader2,
 } from "lucide-react";
 import {
   usePostedBookingDetail,
@@ -34,6 +35,9 @@ import type {
   TaskerAssignedBookingDetail,
   TaskerPostedBookingDetail,
 } from "@/features/booking/types/booking.types";
+import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTracking";
+import { BookingTrackingMap } from "./BookingTrackingMap";
+import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -53,6 +57,15 @@ const STATUS_CONFIG: Record<
   CANCELLED: { label: "Đã hủy", color: "text-slate-500", bg: "bg-slate-100" },
   EXPIRED: { label: "Hết hạn", color: "text-slate-500", bg: "bg-slate-100" },
 };
+
+type LocationErrorKind =
+  | "permission-denied"
+  | "location-disabled"
+  | "timeout"
+  | "inaccurate"
+  | "insecure-context"
+  | "unsupported"
+  | null;
 
 // ─── Action Button ─────────────────────────────────────────────────────────────
 function ActionButton({
@@ -103,6 +116,10 @@ function PostedDetailView({
   onAccepted: () => void;
 }) {
   const accept = useAcceptBooking();
+  const platformCommissionRate = data.price.platformCommissionRate ?? 20;
+  const platformFee =
+    data.price.platformFee ?? Math.round((data.price.totalPrice * platformCommissionRate) / 100);
+  const taskerIncome = data.price.taskerIncome ?? Math.max(data.price.totalPrice - platformFee, 0);
 
   const handleAccept = async () => {
     try {
@@ -155,6 +172,7 @@ function PostedDetailView({
         <h3 className="font-bold text-foreground text-sm mb-2">Giá đơn hàng</h3>
         {[
           { label: "Giá cơ bản", value: data.price.basePrice },
+          { label: "Dịch vụ thêm", value: data.price.addonPrice ?? 0 },
           { label: "Phí cao điểm", value: data.price.peakFee },
           { label: "Phí thú cưng", value: data.price.petFee },
           { label: "Giảm giá", value: -data.price.discountAmount },
@@ -169,11 +187,20 @@ function PostedDetailView({
               </span>
             </div>
           ))}
-        <div className="flex justify-between pt-2 border-t border-border/40">
-          <span className="font-bold text-sm">Bạn nhận được (ước tính)</span>
-          <span className="font-black text-primary">{fmtCurrency(data.price.totalPrice)}</span>
+        <div className="space-y-2 pt-2 border-t border-border/40">
+          <div className="flex justify-between text-sm">
+            <span className="font-bold">Tổng tiền của đơn</span>
+            <span className="font-black text-foreground">{fmtCurrency(data.price.totalPrice)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Phí nền tảng</span>
+            <span className="font-semibold text-red-500">-{fmtCurrency(platformFee)}</span>
+          </div>
+          <div className="flex justify-between pt-2 border-t border-border/40">
+            <span className="font-bold text-sm">Thu nhập của bạn</span>
+            <span className="font-black text-primary">{fmtCurrency(taskerIncome)}</span>
+          </div>
         </div>
-        <p className="text-[10px] text-muted-foreground">* Sau khi trừ phí nền tảng</p>
       </div>
 
       {/* Accept button */}
@@ -264,6 +291,15 @@ function AssignedDetailView({
   const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
+  const {
+    tracking,
+    isConnected: isTrackingConnected,
+    error: trackingError,
+    locationAccuracy,
+  } = useTaskerLocationTracking(
+    bookingId,
+    data.status === "TASKER_ON_THE_WAY",
+  );
 
   const [showConfirmComplete, setShowConfirmComplete] = useState(false);
 
@@ -278,6 +314,179 @@ function AssignedDetailView({
       },
     });
   };
+
+  if (data.status === "TASKER_ON_THE_WAY") {
+    const customerName =
+      data.address?.contactName || data.customer?.fullName || "Khách hàng";
+    const customerPhone = data.address?.contactPhone || data.customer?.phone;
+    const destinationAddress = data.address?.fullAddress || "Địa chỉ khách hàng";
+    const isGpsOnline =
+      isTrackingConnected &&
+      !trackingError &&
+      locationAccuracy !== null &&
+      locationAccuracy <= 100;
+    const routeSummary = tracking
+      ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
+      : "Đang tính tuyến đường";
+
+    return (
+      <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
+        <div className="relative min-h-[calc(100svh-88px)] overflow-hidden bg-background md:rounded-3xl md:border md:border-border/50 md:shadow-md">
+          <BookingTrackingMap
+            viewer="tasker"
+            tracking={tracking}
+            mobileFull
+            grabFull
+            isConnected={isGpsOnline}
+            error={trackingError}
+            fallbackDestination={{
+              latitude: data.address?.latitude,
+              longitude: data.address?.longitude,
+              address: data.address?.fullAddress,
+            }}
+          />
+
+          <div className="relative z-20 -mt-28 rounded-t-[32px] border-t border-border/50 bg-card px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-14px_44px_rgba(15,23,42,0.16)] md:mx-4 md:mb-4 md:rounded-[28px] md:border md:px-5 md:shadow-lg">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/20 md:hidden" />
+
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                    isGpsOnline ? "bg-emerald-500" : "bg-amber-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-black uppercase tracking-wider text-foreground">
+                    Đang di chuyển tới khách hàng
+                  </p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {isGpsOnline
+                      ? `GPS đang chia sẻ${locationAccuracy ? ` · sai số ${Math.round(locationAccuracy)}m` : ""}`
+                      : "Đang chờ GPS ổn định"}
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-primary">
+                Realtime GPS
+              </span>
+            </div>
+
+            <div className="mb-3 grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-foreground">
+                        {customerName}
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold text-primary">
+                        Khách hàng đang chờ bạn đến
+                      </p>
+                    </div>
+                  </div>
+                  {customerPhone && (
+                    <a
+                      href={`tel:${customerPhone}`}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95"
+                      aria-label="Gọi khách hàng"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
+
+                <div className="rounded-xl bg-white/80 p-3">
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                    Điểm đến
+                  </p>
+                  <p className="text-sm font-bold leading-relaxed text-foreground">
+                    {destinationAddress}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
+                <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-primary">
+                    Dự kiến còn lại
+                  </p>
+                  <p className="mt-2 text-base font-black text-primary">
+                    {routeSummary}
+                  </p>
+                </div>
+
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-primary px-4 py-3 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.98]"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Mở chỉ đường
+                </a>
+              </div>
+            </div>
+
+            {trackingError && (
+              <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <p className="text-sm font-bold text-red-700">
+                    Chưa thể chia sẻ vị trí
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-red-600">{trackingError}</p>
+              </div>
+            )}
+
+            <div className="mb-4 rounded-2xl border border-border/50 bg-muted/20 p-4">
+              <p className="mb-4 text-[10px] font-black uppercase tracking-wider text-primary">
+                Tiến trình chuyến đi
+              </p>
+              <BookingStatusStepper currentStatus={data.status} />
+            </div>
+
+            <ActionButton
+              label="Check-in — Tôi đã đến nơi"
+              icon={MapPin}
+              onClick={() => markCheckedIn.mutate()}
+              isPending={markCheckedIn.isPending}
+              color="amber"
+            />
+
+            {process.env.NODE_ENV === "development" && (
+              <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-dashed border-primary/40 bg-card p-4 shadow-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-wider text-primary">
+                    Bộ giả lập GPS di chuyển
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
+                    {isSimulating
+                      ? `Đang gửi tọa độ: Chặng ${simulationStep}/10`
+                      : "Giả lập GPS chạy xe tới nhà khách hàng"}
+                  </p>
+                </div>
+                <button
+                  onClick={handleToggleSimulation}
+                  className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider shadow-sm transition-all select-none ${
+                    isSimulating
+                      ? "bg-red-500 text-white shadow-red-200 hover:bg-red-600"
+                      : "bg-primary text-white shadow-primary/20 hover:bg-primary/95"
+                  }`}
+                >
+                  {isSimulating ? "Dừng" : "Giả lập"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -350,7 +559,7 @@ function AssignedDetailView({
                 </span>
               )}
             </div>
-            {(data.status === "CONFIRMED" || data.status === "TASKER_ON_THE_WAY") && (
+            {data.status === "CONFIRMED" && (
               <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(data.address.fullAddress)}`}
                 target="_blank"
@@ -412,43 +621,8 @@ function AssignedDetailView({
           color="amber"
         />
       )}
-      {data.status === "TASKER_ON_THE_WAY" && (
-        <div className="space-y-3">
-          <ActionButton
-            label="Check-in — Tôi đã đến nơi"
-            icon={MapPin}
-            onClick={() => markCheckedIn.mutate()}
-            isPending={markCheckedIn.isPending}
-            color="amber"
-          />
-
-          {/* GPS Simulator Button cho Tasker (chỉ hiện ở dev mode) */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="bg-card rounded-2xl border border-dashed border-primary/40 p-4 shadow-sm flex items-center justify-between gap-4 animate-in fade-in duration-300">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-black uppercase text-primary tracking-wider">Bộ giả lập GPS di chuyển</p>
-                <p className="text-[10px] font-semibold text-muted-foreground mt-1">
-                  {isSimulating 
-                    ? `Đang gửi tọa độ: Chặng ${simulationStep}/10` 
-                    : "Giả lập GPS chạy xe tới nhà khách hàng"}
-                </p>
-              </div>
-              <button
-                onClick={handleToggleSimulation}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-sm ${
-                  isSimulating
-                    ? "bg-red-500 hover:bg-red-600 text-white shadow-red-200"
-                    : "bg-primary hover:bg-primary/95 text-white shadow-primary/20"
-                }`}
-              >
-                {isSimulating ? "Dừng giả lập" : "Bắt đầu di chuyển"}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
       {data.status === "CHECKED_IN" && (
-        <ActionButton
+          <ActionButton
           label="Bắt đầu làm việc"
           icon={PlayCircle}
           onClick={() => markStart.mutate()}
@@ -551,17 +725,34 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   }>({});
   const [locationResolved, setLocationResolved] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationErrorKind, setLocationErrorKind] =
+    useState<LocationErrorKind>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
 
 
   const requestCurrentLocation = () => {
     setLocationResolved(false);
     setLocationError(null);
+    setLocationErrorKind(null);
     setLocation({});
+    setIsRequestingLocation(true);
+
+    if (!window.isSecureContext) {
+      setLocationError(
+        "Trình duyệt chỉ cho phép yêu cầu GPS qua HTTPS. Hãy mở ứng dụng bằng HTTPS rồi thử lại.",
+      );
+      setLocationErrorKind("insecure-context");
+      setLocationResolved(true);
+      setIsRequestingLocation(false);
+      return;
+    }
 
     if (!navigator.geolocation) {
       setLocationError("Trình duyệt không hỗ trợ định vị.");
+      setLocationErrorKind("unsupported");
       setLocationResolved(true);
+      setIsRequestingLocation(false);
       return;
     }
 
@@ -571,7 +762,9 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
           setLocationError(
             `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
           );
+          setLocationErrorKind("inaccurate");
           setLocationResolved(true);
+          setIsRequestingLocation(false);
           return;
         }
 
@@ -580,19 +773,32 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
           currentLongitude: position.coords.longitude,
         });
         setLocationResolved(true);
+        setIsRequestingLocation(false);
       },
       (error) => {
-        const message =
-          error.code === error.PERMISSION_DENIED
-            ? "Bạn chưa cấp quyền truy cập vị trí cho trình duyệt."
-            : "Không thể xác định vị trí chính xác. Vui lòng thử lại.";
+        let message =
+          "Không thể xác định vị trí. Hãy bật GPS rồi thử lại.";
+        let errorKind: LocationErrorKind = "location-disabled";
+
+        if (error.code === error.PERMISSION_DENIED) {
+          message =
+            "Quyền vị trí đang bị chặn. Hãy mở cài đặt trang của trình duyệt, chọn Vị trí → Cho phép rồi thử lại.";
+          errorKind = "permission-denied";
+        } else if (error.code === error.TIMEOUT) {
+          message =
+            "Chưa nhận được tín hiệu GPS. Hãy bật Vị trí chính xác, ra nơi thoáng và thử lại.";
+          errorKind = "timeout";
+        }
+
         setLocationError(message);
+        setLocationErrorKind(errorKind);
         setLocationResolved(true);
+        setIsRequestingLocation(false);
       },
       {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 10_000,
+        timeout: 15_000,
       },
     );
   };
@@ -686,7 +892,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             )}
           </div>
         </div>
-        
+
         {locationError && (
           <div className="mt-3 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] px-3 py-2 rounded-lg flex gap-2 items-start">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
@@ -707,12 +913,27 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
               {locationError ??
                 "Hãy cho phép trình duyệt dùng vị trí để tính khoảng cách tới đơn."}
             </p>
+            {locationErrorKind === "permission-denied" && (
+              <p className="mx-auto mt-2 max-w-sm text-[11px] text-muted-foreground">
+                Android: biểu tượng ổ khóa cạnh địa chỉ → Quyền → Vị trí.
+                iPhone: Cài đặt → Safari/Chrome → Vị trí → Khi dùng ứng dụng.
+              </p>
+            )}
             <button
               type="button"
               onClick={requestCurrentLocation}
-              className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white"
+              disabled={isRequestingLocation}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Thử lấy lại vị trí
+              {isRequestingLocation && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              )}
+              {isRequestingLocation
+                ? "Đang yêu cầu vị trí..."
+                : locationErrorKind === "permission-denied" ||
+                    locationErrorKind === "location-disabled"
+                  ? "Bật định vị và thử lại"
+                  : "Thử lấy lại vị trí"}
             </button>
           </div>
         ) : isLoading ? (

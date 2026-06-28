@@ -28,14 +28,14 @@ export const CatalogEmptyState = ({
 
       <h3 className="text-base font-semibold text-foreground">
         {searchQuery
-          ? `Không tìm thấy dịch vụ cho "${searchQuery}"`
-          : "Chưa có dịch vụ nào"}
+          ? `Không tìm thấy gói dịch vụ cho "${searchQuery}"`
+          : "Chưa có gói dịch vụ nào"}
       </h3>
 
       <p className="mt-1.5 text-sm text-muted-foreground max-w-xs">
         {hasActiveFilters
           ? "Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm để xem thêm kết quả."
-          : "Hãy quay lại sau, chúng tôi sẽ cập nhật dịch vụ sớm nhất."}
+          : "Hãy quay lại sau, chúng tôi sẽ cập nhật gói dịch vụ sớm nhất."}
       </p>
 
       {hasActiveFilters && (

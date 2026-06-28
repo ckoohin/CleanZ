@@ -38,10 +38,10 @@ export type { MissingItem, AdminNotesData, ReviewPart };
 const CATEGORY_ORDER = ["Giấy tờ", "Thông tin cá nhân", "Thanh toán", "Nghề nghiệp"] as const;
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Giấy tờ": "bg-orange-500/10 border-orange-500/20 text-orange-700",
-  "Thông tin cá nhân": "bg-blue-500/10 border-blue-500/20 text-blue-700",
-  "Thanh toán": "bg-emerald-500/10 border-emerald-500/20 text-emerald-700",
-  "Nghề nghiệp": "bg-purple-500/10 border-purple-500/20 text-purple-700",
+  "Giấy tờ": "bg-[rgba(217,119,6,0.14)] border-[rgba(217,119,6,0.3)] text-[#D97706]",
+  "Thông tin cá nhân": "bg-[rgba(37,99,235,0.12)] border-[rgba(37,99,235,0.3)] text-[#2563EB]",
+  "Thanh toán": "bg-[rgba(14,159,110,0.12)] border-[rgba(14,159,110,0.3)] text-[#0E9F6E]",
+  "Nghề nghiệp": "bg-[rgba(124,58,237,0.12)] border-[rgba(124,58,237,0.3)] text-[#7C3AED]",
 };
 
 // ─── Modal Component ─────────────────────────────────────────────────────────
@@ -98,13 +98,13 @@ export const AdminRequestInfoModal: React.FC<AdminRequestInfoModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+      <DialogContent className="cz-admin sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-blue-600" aria-hidden="true" />
+          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-[var(--c-ink)]">
+            <AlertTriangle className="w-5 h-5 text-[#2563EB]" aria-hidden="true" />
             Yêu cầu bổ sung thông tin
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[var(--c-muted)]">
             Chọn các mục nhân viên cần bổ sung. Danh sách này sẽ hiển thị trực tiếp trên giao diện của họ.
           </DialogDescription>
         </DialogHeader>
@@ -123,13 +123,13 @@ export const AdminRequestInfoModal: React.FC<AdminRequestInfoModalProps> = ({
                   className="flex items-center gap-2 w-full text-left"
                 >
                   {allChecked ? (
-                    <CheckSquare className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                    <CheckSquare className="w-4 h-4 text-[var(--c-primary-strong)] shrink-0" aria-hidden="true" />
                   ) : someChecked ? (
-                    <CheckSquare className="w-4 h-4 text-primary/50 shrink-0" aria-hidden="true" />
+                    <CheckSquare className="w-4 h-4 text-[var(--c-primary-strong)]/50 shrink-0" aria-hidden="true" />
                   ) : (
-                    <Square className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                    <Square className="w-4 h-4 text-[var(--c-muted)] shrink-0" aria-hidden="true" />
                   )}
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--c-muted)]">
                     {category}
                   </span>
                 </button>
@@ -147,13 +147,13 @@ export const AdminRequestInfoModal: React.FC<AdminRequestInfoModalProps> = ({
                           "flex items-start gap-3 px-3 py-2.5 rounded-xl border text-left transition-all text-sm",
                           isChecked
                             ? cn(CATEGORY_COLORS[category], "shadow-sm")
-                            : "border-border bg-background hover:bg-muted/50"
+                            : "border-[var(--c-line)] bg-[var(--c-card)] hover:bg-[var(--c-card-2)]"
                         )}
                       >
                         {isChecked ? (
                           <CheckSquare className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
                         ) : (
-                          <Square className="w-4 h-4 shrink-0 mt-0.5 text-muted-foreground" aria-hidden="true" />
+                          <Square className="w-4 h-4 shrink-0 mt-0.5 text-[var(--c-muted)]" aria-hidden="true" />
                         )}
                         <div>
                           <p className="font-semibold leading-tight">{item.label}</p>
@@ -178,15 +178,15 @@ export const AdminRequestInfoModal: React.FC<AdminRequestInfoModalProps> = ({
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-widest text-primary">
+                <div className="rounded-xl border border-[var(--c-primary)]/20 bg-[var(--c-primary-soft)] p-3 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--c-primary-strong)]">
                     Đã chọn {selected.size} mục
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {[...selected].map((id) => {
                       const item = MISSING_ITEM_OPTIONS.find((o) => o.id === id);
                       return (
-                        <Badge key={id} variant="outline" className="text-xs bg-background">
+                        <Badge key={id} variant="outline" className="text-xs bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink-soft)]">
                           {item?.label ?? id}
                         </Badge>
                       );
@@ -199,7 +199,7 @@ export const AdminRequestInfoModal: React.FC<AdminRequestInfoModalProps> = ({
 
           {/* Additional notes */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <label className="text-xs font-bold uppercase tracking-widest text-[var(--c-muted)]">
               Ghi chú thêm <span className="font-normal normal-case">(tùy chọn)</span>
             </label>
             <Textarea
@@ -207,19 +207,19 @@ export const AdminRequestInfoModal: React.FC<AdminRequestInfoModalProps> = ({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
-              className="rounded-xl resize-none text-sm"
+              className="rounded-xl resize-none text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
             />
           </div>
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose} className="rounded-xl">
+          <Button variant="ghost" onClick={onClose} className="rounded-xl text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]">
             Hủy
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={!canConfirm || isLoading}
-            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
+            className="rounded-xl bg-[#2563EB] hover:bg-[#1e54c9] text-white min-w-[120px]"
           >
             {isLoading ? (
               <><Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" />Đang gửi...</>

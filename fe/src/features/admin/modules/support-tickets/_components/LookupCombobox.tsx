@@ -67,15 +67,15 @@ export function LookupCombobox<T>({
           aria-expanded={open}
           aria-invalid={invalid}
           className={cn(
-            "h-9 w-full justify-between rounded-lg text-sm font-normal",
-            !selectedLabel && "text-muted-foreground",
+            "h-9 w-full justify-between rounded-lg text-sm font-normal border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)]",
+            !selectedLabel && "text-[var(--c-muted)]",
           )}
         >
           <span className="truncate">{selectedLabel ?? placeholder}</span>
           <span className="flex items-center gap-1 shrink-0">
             {selectedLabel && (
               <X
-                className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground"
+                className="h-3.5 w-3.5 text-[var(--c-muted)] hover:text-[var(--c-ink)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   onClear();
@@ -86,7 +86,7 @@ export function LookupCombobox<T>({
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="cz-admin w-[var(--radix-popover-trigger-width)] p-0" align="start">
         {/* shouldFilter=false: lọc phía server, không lọc lại ở client */}
         <Command shouldFilter={false}>
           <CommandInput
@@ -96,7 +96,7 @@ export function LookupCombobox<T>({
           />
           <CommandList>
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 py-6 text-xs text-[var(--c-muted)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tìm...
               </div>
             ) : items.length === 0 ? (
@@ -118,7 +118,7 @@ export function LookupCombobox<T>({
                     <div className="flex flex-col">
                       <span className="text-sm">{getLabel(item)}</span>
                       {getSub && (
-                        <span className="text-xs text-muted-foreground">{getSub(item)}</span>
+                        <span className="text-xs text-[var(--c-muted)]">{getSub(item)}</span>
                       )}
                     </div>
                     {selectedKey === key && <Check className="ml-auto h-4 w-4" />}

@@ -5,13 +5,17 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BanknoteArrowDown,
+  CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   CreditCard,
   History,
   LockKeyhole,
   ShieldCheck,
   WalletCards,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -60,15 +64,37 @@ const formatCurrency = (value: number | undefined) =>
     maximumFractionDigits: 0,
   }).format(value ?? 0);
 
+const TX_LIMIT = 10;
+
 export default function TaskerEarningsPage() {
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [recentRequest, setRecentRequest] =
     useState<TaskerWithdrawalRequest | null>(null);
+  const [txPage, setTxPage] = useState(1);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const txQuery = {
+    page: txPage,
+    limit: TX_LIMIT,
+    ...(fromDate && { fromDate }),
+    ...(toDate && { toDate }),
+  };
+
   const { data: wallet, isLoading: walletLoading } = useTaskerWallet();
   const { data: transactions, isLoading: transactionsLoading } =
-    useTaskerWalletTransactions();
+    useTaskerWalletTransactions(txQuery);
   const { data: depositTransactions, isLoading: depositTransactionsLoading } =
     useTaskerDepositTransactions();
+
+  const totalPages = transactions?.totalPages ?? 1;
+  const hasFilter = Boolean(fromDate || toDate);
+
+  const resetFilter = () => {
+    setFromDate("");
+    setToDate("");
+    setTxPage(1);
+  };
 
   const totalIncome = useMemo(
     () =>
@@ -207,13 +233,46 @@ export default function TaskerEarningsPage() {
               <History className="size-5 text-primary" />
               Lịch sử ví thu nhập
             </h2>
-            <p className="text-xs text-muted-foreground">
-              Tối đa 50 giao dịch gần nhất từ hệ thống.
-            </p>
           </div>
           <Badge variant="outline" className="rounded-full">
             {transactions?.total ?? 0} giao dịch
           </Badge>
+        </div>
+
+        {/* Date filter */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[140px]">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => { setFromDate(e.target.value); setTxPage(1); }}
+              className="h-9 rounded-full pl-9 text-sm"
+              aria-label="Từ ngày"
+            />
+          </div>
+          <div className="relative flex-1 min-w-[140px]">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => { setToDate(e.target.value); setTxPage(1); }}
+              className="h-9 rounded-full pl-9 text-sm"
+              aria-label="Đến ngày"
+            />
+          </div>
+          {hasFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 rounded-full px-3 text-muted-foreground"
+              onClick={resetFilter}
+            >
+              <X className="size-4" />
+              Xóa
+            </Button>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -228,13 +287,44 @@ export default function TaskerEarningsPage() {
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 text-center">
               <CreditCard className="mx-auto size-9 text-muted-foreground/50" />
-              <p className="mt-3 font-bold">Chưa có giao dịch</p>
+              <p className="mt-3 font-bold">
+                {hasFilter ? "Không có giao dịch trong khoảng này" : "Chưa có giao dịch"}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Thu nhập từ các booking online sẽ xuất hiện tại đây.
+                {hasFilter ? "Thử chọn khoảng ngày khác." : "Thu nhập từ các booking online sẽ xuất hiện tại đây."}
               </p>
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={txPage <= 1}
+              onClick={() => setTxPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="size-4" />
+              Trước
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Trang {txPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={txPage >= totalPages}
+              onClick={() => setTxPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Tiếp
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        )}
       </section>
 
       <section>

@@ -1,12 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -15,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BaseTableList, type Column } from "@/components/ui/base/base_table_list";
+import { AdminButton, StatusBadge, type BadgeTone } from "@/components/admin";
 import {
   useNotificationHistory,
   useBroadcastNotification,
@@ -25,10 +23,7 @@ import type {
   BroadcastSegment,
 } from "../types/notification.types";
 import {
-  Bell,
   Megaphone,
-  Users,
-  Sparkles,
   Send,
   ListFilter,
 } from "lucide-react";
@@ -40,15 +35,26 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const TYPE_LABELS: Record<string, { label: string; className: string }> = {
-  BOOKING: { label: "Đặt lịch", className: "bg-blue-500/10 text-blue-600" },
-  PAYMENT: { label: "Thanh toán", className: "bg-emerald-500/10 text-emerald-600" },
-  SYSTEM: { label: "Hệ thống", className: "bg-slate-500/10 text-slate-600" },
-  PROMOTION: { label: "Khuyến mãi", className: "bg-primary/10 text-primary" },
-  SUPPORT_TICKET: { label: "Hỗ trợ", className: "bg-amber-500/10 text-amber-600" },
-  WALLET: { label: "Ví", className: "bg-purple-500/10 text-purple-600" },
-  WITHDRAWAL: { label: "Rút tiền", className: "bg-rose-500/10 text-rose-600" },
+const TYPE_LABELS: Record<
+  string,
+  { label: string; tone: BadgeTone; color?: string; soft?: string }
+> = {
+  BOOKING: { label: "Đặt lịch", tone: "info" },
+  PAYMENT: { label: "Thanh toán", tone: "success" },
+  SYSTEM: { label: "Hệ thống", tone: "neutral" },
+  PROMOTION: {
+    label: "Khuyến mãi",
+    tone: "neutral",
+    color: "var(--c-primary-strong)",
+    soft: "var(--c-primary-soft)",
+  },
+  SUPPORT_TICKET: { label: "Hỗ trợ", tone: "warning" },
+  WALLET: { label: "Ví", tone: "purple" },
+  WITHDRAWAL: { label: "Rút tiền", tone: "danger" },
 };
+
+const inputClass =
+  "text-sm rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] focus:border-[var(--c-primary)]/50";
 
 // ─── Broadcast Dialog ─────────────────────────────────────────────────────────
 function BroadcastDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -70,34 +76,34 @@ function BroadcastDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md rounded-2xl">
+      <DialogContent className="cz-admin sm:max-w-md rounded-2xl bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            <Megaphone className="w-4 h-4 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--c-ink)]">
+            <Megaphone className="w-4 h-4 text-[var(--c-primary-strong)]" />
             Broadcast thông báo
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Loại thông báo</Label>
+              <Label className="text-xs font-semibold text-[var(--c-ink)]">Loại thông báo</Label>
               <Select value={form.type} onValueChange={(v) => setForm((p) => ({ ...p, type: v as "PROMOTION" | "SYSTEM" }))}>
-                <SelectTrigger className="h-9 rounded-lg text-sm">
+                <SelectTrigger className="h-9 rounded-xl text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin">
                   <SelectItem value="SYSTEM">Hệ thống</SelectItem>
                   <SelectItem value="PROMOTION">Khuyến mãi</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Đối tượng</Label>
+              <Label className="text-xs font-semibold text-[var(--c-ink)]">Đối tượng</Label>
               <Select value={form.segment} onValueChange={(v) => setForm((p) => ({ ...p, segment: v as BroadcastSegment }))}>
-                <SelectTrigger className="h-9 rounded-lg text-sm">
+                <SelectTrigger className="h-9 rounded-xl text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="cz-admin">
                   <SelectItem value="ALL">Tất cả</SelectItem>
                   <SelectItem value="CUSTOMER">Khách hàng</SelectItem>
                   <SelectItem value="TASKER">Tasker</SelectItem>
@@ -106,37 +112,37 @@ function BroadcastDialog({ open, onClose }: { open: boolean; onClose: () => void
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Tiêu đề *</Label>
+            <Label className="text-xs font-semibold text-[var(--c-ink)]">Tiêu đề *</Label>
             <Input
               placeholder="Tiêu đề thông báo..."
               value={form.title}
               onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-              className="text-sm rounded-lg"
+              className={inputClass}
               maxLength={255}
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Nội dung</Label>
+            <Label className="text-xs font-semibold text-[var(--c-ink)]">Nội dung</Label>
             <Textarea
               placeholder="Nội dung thông báo (tuỳ chọn)..."
               value={form.content}
               onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
               rows={3}
-              className="text-sm rounded-lg resize-none"
+              className={`${inputClass} resize-none`}
             />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={onClose}>Huỷ</Button>
-          <Button
+          <AdminButton variant="secondary" size="sm" onClick={onClose}>Huỷ</AdminButton>
+          <AdminButton
+            variant="primary"
             size="sm"
-            className="rounded-full gap-1.5"
+            icon={<Send className="w-3.5 h-3.5" />}
             onClick={handleSubmit}
             disabled={!form.title.trim() || broadcast.isPending}
           >
-            <Send className="w-3.5 h-3.5" />
             {broadcast.isPending ? "Đang gửi..." : "Broadcast"}
-          </Button>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -164,9 +170,9 @@ export const NotificationAdminPanel: React.FC = () => {
       title: "Tiêu đề",
       render: (row) => (
         <div>
-          <p className="font-semibold text-sm text-foreground/90 line-clamp-1">{row.title}</p>
+          <p className="font-semibold text-sm text-[var(--c-ink)] line-clamp-1">{row.title}</p>
           {row.content && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{row.content}</p>
+            <p className="text-xs text-[var(--c-muted)] line-clamp-1 mt-0.5">{row.content}</p>
           )}
         </div>
       ),
@@ -177,7 +183,9 @@ export const NotificationAdminPanel: React.FC = () => {
       render: (row) => {
         const t = TYPE_LABELS[row.type];
         return (
-          <Badge className={`text-xs ${t?.className ?? ""}`}>{t?.label ?? row.type}</Badge>
+          <StatusBadge tone={t?.tone ?? "neutral"} color={t?.color} soft={t?.soft}>
+            {t?.label ?? row.type}
+          </StatusBadge>
         );
       },
     },
@@ -187,9 +195,9 @@ export const NotificationAdminPanel: React.FC = () => {
       hideOnMobile: true,
       render: (row) =>
         row.isRead ? (
-          <span className="text-xs text-muted-foreground">Đã đọc</span>
+          <span className="text-xs text-[var(--c-muted)]">Đã đọc</span>
         ) : (
-          <span className="text-xs font-bold text-primary">Chưa đọc</span>
+          <span className="text-xs font-bold text-[var(--c-primary-strong)]">Chưa đọc</span>
         ),
     },
     {
@@ -197,7 +205,7 @@ export const NotificationAdminPanel: React.FC = () => {
       title: "Thời gian",
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-[var(--c-muted)]">
           {new Date(row.createdAt).toLocaleString("vi-VN")}
         </span>
       ),
@@ -208,14 +216,14 @@ export const NotificationAdminPanel: React.FC = () => {
     <>
       <div className="flex items-center justify-between mb-4">
         <div />
-        <Button
+        <AdminButton
+          variant="primary"
           size="sm"
-          className="rounded-full gap-1.5 text-xs font-semibold"
+          icon={<Megaphone className="w-3.5 h-3.5" />}
           onClick={() => setShowBroadcast(true)}
         >
-          <Megaphone className="w-3.5 h-3.5" />
           Broadcast thông báo
-        </Button>
+        </AdminButton>
       </div>
 
       <BaseTableList
@@ -239,11 +247,11 @@ export const NotificationAdminPanel: React.FC = () => {
               setFilter((p) => ({ ...p, type: v as NotificationType | "ALL", page: 1 }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-border/40 text-sm font-medium shadow-none">
-              <ListFilter className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line)] text-sm font-medium shadow-none">
+              <ListFilter className="w-3.5 h-3.5 mr-1 text-[var(--c-muted)]" />
               <SelectValue placeholder="Loại thông báo" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="cz-admin rounded-xl">
               <SelectItem value="ALL">Tất cả loại</SelectItem>
               {Object.entries(TYPE_LABELS).map(([val, { label }]) => (
                 <SelectItem key={val} value={val}>{label}</SelectItem>

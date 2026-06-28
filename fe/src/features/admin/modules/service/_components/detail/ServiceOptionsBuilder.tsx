@@ -109,12 +109,12 @@ export function ServiceOptionsBuilder({ service }: Props) {
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
         <h3 className="text-xl font-bold">Quản lý Lựa chọn (Option Động)</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--c-muted)]">
           Thêm các câu hỏi hoặc tùy chọn để khách hàng chọn khi đặt dịch vụ (Ví dụ: Bạn có thú cưng không?).
         </p>
       </div>
 
-      <div className="bg-muted/30 p-6 rounded-2xl border border-border/50">
+      <div className="bg-[var(--c-card-2)] p-6 rounded-2xl border border-[var(--c-line)]/50">
         <div className="grid gap-4 mb-4">
           <div>
             <Label className="font-bold">Tên câu hỏi (Option)</Label>
@@ -152,17 +152,17 @@ export function ServiceOptionsBuilder({ service }: Props) {
       {options.length > 0 && (
         <Accordion type="multiple" className="w-full space-y-4">
           {options.map((option) => (
-            <AccordionItem key={option.id} value={option.id} className="border bg-card rounded-2xl overflow-hidden shadow-sm px-2">
+            <AccordionItem key={option.id} value={option.id} className="border bg-[var(--c-card)] rounded-2xl overflow-hidden shadow-sm px-2">
               <AccordionTrigger className="hover:no-underline px-4 py-4">
                 <div className="flex items-center gap-4 text-left">
-                  <AlignJustify className="w-5 h-5 text-muted-foreground" />
+                  <AlignJustify className="w-5 h-5 text-[var(--c-muted)]" />
                   <div>
                     <h4 className="font-bold text-lg">{option.name}</h4>
-                    {option.description && <p className="text-sm text-muted-foreground">{option.description}</p>}
+                    {option.description && <p className="text-sm text-[var(--c-muted)]">{option.description}</p>}
                   </div>
                   <div className="ml-4 flex gap-2">
-                    {option.isRequired && <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-md font-bold">Bắt buộc</span>}
-                    {option.isMultiple && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-md font-bold">Nhiều lựa chọn</span>}
+                    {option.isRequired && <span className="text-xs bg-[rgba(225,29,72,0.12)] text-[#E11D48] px-2 py-1 rounded-md font-bold">Bắt buộc</span>}
+                    {option.isMultiple && <span className="text-xs bg-[rgba(37,99,235,0.12)] text-[#2563EB] px-2 py-1 rounded-md font-bold">Nhiều lựa chọn</span>}
                   </div>
                 </div>
               </AccordionTrigger>
@@ -172,17 +172,17 @@ export function ServiceOptionsBuilder({ service }: Props) {
                   {option.choices && option.choices.length > 0 && (
                     <div className="space-y-3 mt-4">
                       {option.choices.map((choice: ServiceOptionChoiceEntity) => (
-                        <div key={choice.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/10">
+                        <div key={choice.id} className="flex items-center justify-between p-4 rounded-xl border border-[var(--c-line)]/50 bg-[var(--c-card-2)]">
                           <div className="flex flex-col">
                             <span className="font-bold">{choice.name}</span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-[var(--c-muted)]">
                               {choice.priceType === PriceType.FIXED_ADD ? `Cộng thêm: ${choice.priceValue} VNĐ` :
                                choice.priceType === PriceType.MULTIPLY ? `Nhân hệ số: x${choice.priceValue}` :
                                `Giá trị: ${choice.priceValue}`} 
                               {choice.durationValue > 0 && ` | +${choice.durationValue} phút`}
                             </span>
                           </div>
-                          <BaseButton variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => deleteChoice.mutate(choice.id)}>
+                          <BaseButton variant="ghost" className="text-[#E11D48] hover:bg-[rgba(225,29,72,0.12)] hover:text-[#E11D48]" onClick={() => deleteChoice.mutate(choice.id)}>
                             <Trash2 className="w-4 h-4" />
                           </BaseButton>
                         </div>
@@ -192,7 +192,7 @@ export function ServiceOptionsBuilder({ service }: Props) {
 
                   {/* Add Choice Form */}
                   <div className="mt-6 border-t pt-4">
-                    <h5 className="font-bold text-sm mb-3 text-primary flex items-center gap-2">
+                    <h5 className="font-bold text-sm mb-3 text-[var(--c-primary-strong)] flex items-center gap-2">
                       <PlusCircle className="w-4 h-4" />
                       Thêm Câu trả lời (Lựa chọn)
                     </h5>
@@ -211,7 +211,7 @@ export function ServiceOptionsBuilder({ service }: Props) {
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="cz-admin">
                             <SelectItem value={PriceType.FIXED_ADD}>Cộng thêm (VNĐ)</SelectItem>
                             <SelectItem value={PriceType.MULTIPLY}>Nhân hệ số (x)</SelectItem>
                             <SelectItem value={PriceType.NONE}>Không tính phí</SelectItem>
@@ -241,7 +241,7 @@ export function ServiceOptionsBuilder({ service }: Props) {
                       <BaseButton 
                         variant="outline" 
                         onClick={() => deleteOption.mutate(option.id)}
-                        className="text-destructive border-destructive hover:bg-destructive/10"
+                        className="text-[#E11D48] border-[#E11D48] hover:bg-[rgba(225,29,72,0.12)]"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Xóa Option này

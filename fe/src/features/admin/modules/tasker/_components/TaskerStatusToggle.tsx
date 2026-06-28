@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type BadgeTone } from "@/components/admin";
 import {
   Dialog,
   DialogContent,
@@ -22,10 +22,19 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusSwitch } from "@/components/ui/base/status_switch";
-import { cn } from "@/lib/utils";
 import { useBanTasker, useUnbanTasker } from "../hooks/admin-tasker.hooks";
-import { ACCOUNT_STATUS_BADGE_STYLES, ACCOUNT_STATUS_LABELS } from "../constants";
+import { ACCOUNT_STATUS_LABELS } from "../constants";
 import type { BanType, TaskerAccountStatus } from "../types/admin-tasker.types";
+
+// Account status → semantic badge tone (design system §2).
+const ACCOUNT_STATUS_TONE: Record<string, BadgeTone> = {
+  PENDING: "warning",
+  TRAINING: "info",
+  ACTIVE: "success",
+  SUSPENDED: "warning",
+  REJECTED: "danger",
+  TERMINATED: "danger",
+};
 
 interface TaskerStatusToggleProps {
   taskerId: string;
@@ -50,15 +59,9 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
 
   if (status !== "ACTIVE" && status !== "SUSPENDED") {
     return (
-      <Badge
-        variant="outline"
-        className={cn(
-          "text-[10px] font-bold uppercase rounded-md border px-2 py-0.5",
-          ACCOUNT_STATUS_BADGE_STYLES[status] || "bg-muted text-muted-foreground"
-        )}
-      >
+      <StatusBadge tone={ACCOUNT_STATUS_TONE[status] ?? "neutral"}>
         {ACCOUNT_STATUS_LABELS[status] || status}
-      </Badge>
+      </StatusBadge>
     );
   }
 
@@ -106,22 +109,22 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
       />
 
       <Dialog open={banOpen} onOpenChange={setBanOpen}>
-        <DialogContent className="sm:max-w-md rounded-[20px]">
+        <DialogContent className="cz-admin sm:max-w-md rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
           <DialogHeader>
-            <DialogTitle>Đình chỉ / Khóa tài khoản tasker</DialogTitle>
-            <DialogDescription className="pt-1 text-sm text-muted-foreground">
+            <DialogTitle className="text-[var(--c-ink)]">Đình chỉ / Khóa tài khoản tasker</DialogTitle>
+            <DialogDescription className="pt-1 text-sm text-[var(--c-muted)]">
               Bạn đang khóa tài khoản của <strong>{fullName}</strong>. Chọn hình thức và
               nêu rõ lý do.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Hình thức</Label>
+              <Label className="text-[var(--c-ink-soft)]">Hình thức</Label>
               <Select value={banType} onValueChange={(v) => setBanType(v as BanType)}>
-                <SelectTrigger className="rounded-xl">
+                <SelectTrigger className="rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]">
                   <SelectValue placeholder="Chọn hình thức" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl">
+                <SelectContent className="cz-admin rounded-xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
                   <SelectItem value="TEMPORARY">Đình chỉ tạm thời</SelectItem>
                   <SelectItem value="PERMANENT">Khóa vĩnh viễn</SelectItem>
                 </SelectContent>
@@ -129,7 +132,7 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
             </div>
             {banType === "TEMPORARY" && (
               <div className="space-y-2">
-                <Label>Số ngày khóa</Label>
+                <Label className="text-[var(--c-ink-soft)]">Số ngày khóa</Label>
                 <Input
                   type="number"
                   min={1}
@@ -140,20 +143,20 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
                     if (Number.isNaN(v)) return;
                     setDurationDays(Math.min(365, Math.max(1, Math.floor(v))));
                   }}
-                  className="rounded-xl"
+                  className="rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[var(--c-muted)]">
                   Tài khoản sẽ tự mở khóa sau {durationDays} ngày (1–365).
                 </p>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Lý do</Label>
+              <Label className="text-[var(--c-ink-soft)]">Lý do</Label>
               <Textarea
                 placeholder="Nhập lý do cụ thể..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="min-h-[100px] rounded-xl resize-none"
+                className="min-h-[100px] rounded-xl resize-none bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)]"
               />
             </div>
           </div>
@@ -162,7 +165,7 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
               variant="outline"
               onClick={() => setBanOpen(false)}
               disabled={banMutation.isPending}
-              className="rounded-full"
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
             >
               Hủy
             </Button>
@@ -179,10 +182,10 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
       </Dialog>
 
       <Dialog open={unbanOpen} onOpenChange={setUnbanOpen}>
-        <DialogContent className="sm:max-w-md rounded-[20px]">
+        <DialogContent className="cz-admin sm:max-w-md rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
           <DialogHeader>
-            <DialogTitle>Gỡ khóa tài khoản tasker</DialogTitle>
-            <DialogDescription className="pt-1 text-sm text-muted-foreground">
+            <DialogTitle className="text-[var(--c-ink)]">Gỡ khóa tài khoản tasker</DialogTitle>
+            <DialogDescription className="pt-1 text-sm text-[var(--c-muted)]">
               Khôi phục hoạt động cho <strong>{fullName}</strong>? Tasker sẽ được nhận việc
               trở lại.
             </DialogDescription>
@@ -192,14 +195,14 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
               variant="outline"
               onClick={() => setUnbanOpen(false)}
               disabled={unbanMutation.isPending}
-              className="rounded-full"
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
             >
               Hủy
             </Button>
             <Button
               onClick={handleUnban}
               disabled={unbanMutation.isPending}
-              className="rounded-full"
+              className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
             >
               {unbanMutation.isPending ? "Đang xử lý..." : "Gỡ khóa"}
             </Button>

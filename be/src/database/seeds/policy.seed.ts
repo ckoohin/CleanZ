@@ -3,7 +3,10 @@
  * Chạy bằng: npx ts-node src/database/seeds/policy.seed.ts
  * Hoặc gọi endpoint POST /api/v1/policy/seed (xem PolicyController)
  */
-import { PolicyCategory, PolicyRole } from '../../modules/policy/entity/policy.entity';
+import {
+  PolicyCategory,
+  PolicyRole,
+} from '../../modules/policy/entity/policy.entity';
 
 export const DEFAULT_POLICIES: Array<{
   title: string;

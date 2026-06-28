@@ -39,11 +39,16 @@ import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
 import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import type {
   BookingStatus,
+  CustomerBookingDetail,
   StatusLog,
   UpdateBookingScheduleDto,
 } from "@/features/booking/types/booking.types";
+import { useCustomerBookingTracking } from "@/features/booking/hooks/useBookingTracking";
+import { BookingTrackingMap } from "./BookingTrackingMap";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTrackingSocket } from "@/hooks/use-socket";
+import type { BookingStatusUpdatedPayload } from "@/features/booking/types/tracking.types";
+import { useMyReview } from "@/features/customer/history/hooks/useReview";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -456,8 +461,14 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   const router = useRouter();
   const queryClient = useQueryClient();
   const socket = useTrackingSocket();
-  const { data: booking, isLoading } = useBookingDetail(bookingId);
-
+  const { data: booking, isLoading, refetch } = useBookingDetail(bookingId);
+  const { data: myReview, isLoading: isReviewLoading } = useMyReview(bookingId);
+  const trackingEnabled = booking?.status === "TASKER_ON_THE_WAY";
+  const {
+    tracking,
+    isConnected: isTrackingConnected,
+    error: trackingError,
+  } = useCustomerBookingTracking(bookingId, trackingEnabled);
   const [showCancel, setShowCancel] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
@@ -472,11 +483,11 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 
   const destLat = booking?.address?.latitude ? Number(booking.address.latitude) : null;
   const destLng = booking?.address?.longitude ? Number(booking.address.longitude) : null;
-  
-  const isDestCoordsValid = 
-    destLat !== null && 
-    destLng !== null && 
-    !isNaN(destLat) && 
+
+  const isDestCoordsValid =
+    destLat !== null &&
+    destLng !== null &&
+    !isNaN(destLat) &&
     !isNaN(destLng) &&
     destLat >= -90 &&
     destLat <= 90 &&
@@ -486,15 +497,8 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   const displayTaskerLat = taskerLocation?.latitude ?? (isDestCoordsValid ? destLat + 0.003 : null);
   const displayTaskerLng = taskerLocation?.longitude ?? (isDestCoordsValid ? destLng + 0.003 : null);
 
-  const isTaskerCoordsValid = 
-    displayTaskerLat !== null && 
-    displayTaskerLng !== null && 
-    !isNaN(displayTaskerLat) && 
-    !isNaN(displayTaskerLng) &&
-    displayTaskerLat >= -90 &&
-    displayTaskerLat <= 90 &&
-    displayTaskerLng >= -180 &&
-    displayTaskerLng <= 180;
+  const isCompleted = booking?.status === "COMPLETED";
+  const hasReviewed = !!myReview?.review;
 
 
 
@@ -506,18 +510,64 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       }, 0);
       return () => clearTimeout(timer);
     }
+
+    const timer = setTimeout(() => {
+      setIsMapFullscreen(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [booking?.status]);
 
   // Lắng nghe socket realtime
   useEffect(() => {
     if (!bookingId || !socket) return;
 
-    socket.emit("booking:join", { bookingId });
+    const joinBookingRoom = () => {
+      socket.emit("booking:join", { bookingId });
+    };
 
-    const handleRefresh = () => {
+    const refreshBooking = () => {
       void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-list"] });
+      void refetch();
+    };
+
+    const handleRefresh = (payload?: { bookingId?: string }) => {
+      if (payload?.bookingId && payload.bookingId !== bookingId) return;
+      refreshBooking();
+    };
+
+    const applyStatusToCache = (
+      payload: {
+        bookingId?: string;
+        status?: BookingStatus;
+        changedAt?: string;
+        checkedInAt?: string | null;
+        completedAt?: string | null;
+        paymentStatus?: CustomerBookingDetail["payment"]["status"] | null;
+      },
+    ) => {
+      if (!payload?.bookingId || payload.bookingId !== bookingId) return;
+
+      queryClient.setQueryData<CustomerBookingDetail | undefined>(
+        ["booking", bookingId],
+        (current) => {
+          if (!current || !payload.status) return current;
+
+          return {
+            ...current,
+            status: payload.status,
+            payment: payload.paymentStatus
+              ? { ...current.payment, status: payload.paymentStatus }
+              : current.payment,
+            checkedInAt: payload.checkedInAt ?? current.checkedInAt,
+            completedAt: payload.completedAt ?? current.completedAt,
+            updatedAt: payload.changedAt ?? current.updatedAt,
+          };
+        },
+      );
+
+      refreshBooking();
     };
 
     interface TaskerLocationPayload {
@@ -536,22 +586,40 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       }
     };
 
-    socket.on("booking:status_changed", handleRefresh);
-    socket.on("tasker:arrived", handleRefresh);
-    socket.on("booking:in_progress", handleRefresh);
-    socket.on("booking:completed", handleRefresh);
+    const handleStatusChanged = (payload: { bookingId?: string; status?: BookingStatus }) => {
+      applyStatusToCache(payload);
+    };
+
+    const handleStatusUpdated = (payload: BookingStatusUpdatedPayload) => {
+      applyStatusToCache(payload);
+    };
+
+    socket.on("connect", joinBookingRoom);
+    socket.on("booking:status_changed", handleStatusChanged);
+    socket.on("booking:status_updated", handleStatusUpdated);
+    socket.on("tasker:arrived", handleStatusChanged);
+    socket.on("booking:in_progress", handleStatusChanged);
+    socket.on("booking:completed", handleStatusChanged);
     socket.on("customer:notification", handleRefresh);
     socket.on("tasker:location:updated", handleLocationUpdated);
 
+    if (socket.connected) {
+      joinBookingRoom();
+    } else {
+      socket.connect();
+    }
+
     return () => {
-      socket.off("booking:status_changed", handleRefresh);
-      socket.off("tasker:arrived", handleRefresh);
-      socket.off("booking:in_progress", handleRefresh);
-      socket.off("booking:completed", handleRefresh);
+      socket.off("connect", joinBookingRoom);
+      socket.off("booking:status_changed", handleStatusChanged);
+      socket.off("booking:status_updated", handleStatusUpdated);
+      socket.off("tasker:arrived", handleStatusChanged);
+      socket.off("booking:in_progress", handleStatusChanged);
+      socket.off("booking:completed", handleStatusChanged);
       socket.off("customer:notification", handleRefresh);
       socket.off("tasker:location:updated", handleLocationUpdated);
     };
-  }, [bookingId, socket, queryClient]);
+  }, [bookingId, socket, queryClient, refetch]);
 
   const REPORT_OPTIONS = [
     { category: "SERVICE_QUALITY", icon: Sparkles, label: "Chất lượng dọn dẹp chưa sạch", desc: "Không đạt yêu cầu vệ sinh cam kết" },
@@ -652,37 +720,24 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
             </p>
           </div>
         )}
-        {/* Realtime Tracking Map */}
-        {booking.status === "TASKER_ON_THE_WAY" &&
-          isDestCoordsValid &&
-          isTaskerCoordsValid && (
-            <div className="space-y-3">
-              {/* Bản đồ hiển thị sẵn trên trang chi tiết đơn hàng */}
-              <div 
-                onClick={() => setIsMapFullscreen(true)}
-                className="relative group cursor-pointer overflow-hidden rounded-3xl border border-border shadow-sm active:scale-[0.99] transition-transform duration-200"
-              >
-                <TaskerTrackingMap
-                  destLat={destLat as number}
-                  destLng={destLng as number}
-                  taskerLat={displayTaskerLat as number}
-                  taskerLng={displayTaskerLng as number}
-                  taskerAvatar={booking.tasker?.avatarUrl}
-                  taskerName={booking.tasker?.fullName}
-                />
-                <div className="absolute bottom-4 right-4 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-border/50 text-[10px] font-black uppercase text-primary tracking-wider shadow-sm flex items-center gap-1.5 pointer-events-none group-hover:scale-105 transition-transform duration-200">
-                  <Navigation className="w-3 h-3 rotate-45 animate-pulse text-primary fill-primary" />
-                  Xem chi tiết bản đồ
-                </div>
-              </div>
-
-            </div>
-          )}
+        {/* Realtime Tracking Map — ưu tiên full map trên mobile giống Grab */}
+        {booking.status === "TASKER_ON_THE_WAY" && (
+          <BookingTrackingMap
+            tracking={tracking}
+            isConnected={isTrackingConnected}
+            error={trackingError}
+            fallbackDestination={{
+              latitude: booking.address.latitude,
+              longitude: booking.address.longitude,
+              address: booking.address.fullAddress,
+            }}
+          />
+        )}
 
         {/* Tasker card */}
         {booking.tasker ? (
           <div className="space-y-2">
-            <div 
+            <div
               onClick={() => setShowTaskerModal(true)}
               className="bg-card rounded-2xl border border-border/50 p-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:bg-muted/10 transition-colors"
             >
@@ -739,7 +794,46 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                 </div>
               )}
             </div>
-            
+
+            {/* Đánh giá sau khi hoàn thành */}
+            {isCompleted && (
+              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                    <Star className="h-5 w-5 fill-amber-400 text-amber-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold text-foreground">
+                      {hasReviewed ? "Bạn đã đánh giá đơn này" : "Đánh giá trải nghiệm dịch vụ"}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {hasReviewed
+                        ? "Cảm ơn bạn đã gửi phản hồi. Bạn có thể xem lại nội dung đánh giá của mình."
+                        : "Chia sẻ cảm nhận của bạn để CleanZ cải thiện chất lượng và hỗ trợ Tasker tốt hơn."}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => router.push(`/customer/history/review/${booking.id}`)}
+                  disabled={isReviewLoading}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-60"
+                >
+                  {isReviewLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang kiểm tra đánh giá...
+                    </>
+                  ) : (
+                    <>
+                      <Star className="h-4 w-4 fill-current" />
+                      {hasReviewed ? "Xem đánh giá" : "Đánh giá ngay"}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             {/* Nút báo cáo sự cố khi đơn đã kết thúc */}
             {(booking.status === "COMPLETED" || booking.status === "CANCELLED") && (
               <button
@@ -853,7 +947,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => router.push("/customer/home")}
+              onClick={() => router.push("/customer")}
               className="py-3 bg-muted hover:bg-muted/80 text-foreground font-bold text-xs rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
             >
               <span>Về Trang chủ</span>
@@ -989,9 +1083,9 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl overflow-y-auto max-h-[85vh] p-6 space-y-6 shadow-2xl border-t border-border/40 pb-10"
             >
               <div className="w-10 h-1 bg-border rounded-full mx-auto" />
-              
+
               <div className="flex flex-col items-center text-center space-y-3">
-                <div 
+                <div
                   onClick={() => booking.tasker?.avatarUrl && setShowAvatarZoom(true)}
                   className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-primary/20 shadow-sm shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
                 >
@@ -1020,7 +1114,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Đánh giá</span>
                 </div>
-                
+
                 <div className="flex flex-col items-center justify-center text-center p-2">
                   <div className="flex items-center gap-1 text-primary font-extrabold text-base">
                     <Briefcase className="w-4 h-4" />
@@ -1058,7 +1152,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                       <Phone className="w-4 h-4 fill-primary-foreground" />
                       <span>Gọi điện ngay</span>
                     </a>
-                    
+
                     <button
                       disabled
                       className="w-full py-4 border border-border bg-background text-muted-foreground/60 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 cursor-not-allowed opacity-80"
@@ -1086,7 +1180,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 
       {/* Modal Bản đồ Full Screen với Bottom Sheet trượt từ dưới lên (Grab/Uber Style) */}
       <AnimatePresence>
-        {isMapFullscreen && booking && (
+        {isMapFullscreen && booking.status === "TASKER_ON_THE_WAY" && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -1125,7 +1219,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               >
                 {/* Handle kéo kéo trang trí */}
                 <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mx-auto my-3.5" />
-                
+
                 <div className="px-5 space-y-4">
                   {/* Trạng thái di chuyển */}
                   <div className="flex items-center justify-between">
@@ -1168,7 +1262,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                           </p>
                         </div>
                       </div>
-                      
+
                       {booking.tasker.phone && (
                         <div className="shrink-0 flex gap-2">
                           <a
@@ -1185,7 +1279,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                   {/* Bảng tiến trình stepper check đơn giản */}
                   <div className="bg-muted/20 border border-border/30 rounded-2xl p-4 space-y-4">
                     <p className="text-[10px] font-black uppercase text-muted-foreground/80 tracking-wider">Tiến trình di chuyển</p>
-                    
+
                     <div className="relative pl-6 space-y-4 before:absolute before:left-[9px] before:top-2 before:bottom-2 before:w-0.5 before:bg-border/60">
                       {/* Step 1: Xác nhận đơn */}
                       <div className="relative flex items-start gap-3">

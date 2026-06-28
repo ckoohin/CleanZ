@@ -57,10 +57,10 @@ export function SevereCriteriaEditor({
   const invalid = !!major && !!severe && severeNum <= majorNum;
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/40 p-3">
+    <div className="space-y-3 rounded-xl border border-[var(--c-line)] p-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label className="text-xs font-semibold">Ngưỡng &quot;Lớn&quot; (≥)</Label>
+          <Label className="text-xs font-semibold text-[var(--c-ink)]">Ngưỡng &quot;Lớn&quot; (≥)</Label>
           <Input
             type="number"
             min={0}
@@ -74,7 +74,7 @@ export function SevereCriteriaEditor({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs font-semibold">Ngưỡng &quot;Nghiêm trọng&quot; (≥)</Label>
+          <Label className="text-xs font-semibold text-[var(--c-ink)]">Ngưỡng &quot;Nghiêm trọng&quot; (≥)</Label>
           <Input
             type="number"
             min={0}
@@ -91,24 +91,24 @@ export function SevereCriteriaEditor({
       </div>
 
       {invalid && (
-        <p className="flex items-center gap-1 text-xs text-amber-600">
+        <p className="flex items-center gap-1 text-xs text-[#D97706]">
           <AlertTriangle className="size-3.5" /> Ngưỡng &quot;Nghiêm trọng&quot; phải lớn hơn &quot;Lớn&quot;.
         </p>
       )}
 
       {/* Dải minh hoạ 3 bậc */}
-      <div className="flex items-stretch overflow-hidden rounded-lg border border-border/40 text-center text-[11px]">
-        <div className="flex-1 bg-muted/40 px-2 py-1.5">
-          <p className="font-semibold">Nhỏ</p>
-          <p className="text-muted-foreground">&lt; {formatVnd(majorNum)}</p>
+      <div className="flex items-stretch overflow-hidden rounded-lg border border-[var(--c-line)] text-center text-[11px]">
+        <div className="flex-1 bg-[var(--c-card-2)] px-2 py-1.5">
+          <p className="font-semibold text-[var(--c-ink)]">Nhỏ</p>
+          <p className="text-[var(--c-muted)]">&lt; {formatVnd(majorNum)}</p>
         </div>
-        <div className="flex-1 bg-amber-500/10 px-2 py-1.5">
-          <p className="font-semibold text-amber-700 dark:text-amber-400">Lớn</p>
-          <p className="text-muted-foreground">{formatVnd(majorNum)} – {formatVnd(severeNum)}</p>
+        <div className="flex-1 bg-[rgba(217,119,6,0.14)] px-2 py-1.5">
+          <p className="font-semibold text-[#D97706]">Lớn</p>
+          <p className="text-[var(--c-muted)]">{formatVnd(majorNum)} – {formatVnd(severeNum)}</p>
         </div>
-        <div className="flex-1 bg-red-500/10 px-2 py-1.5">
-          <p className="font-semibold text-red-600">Nghiêm trọng</p>
-          <p className="text-muted-foreground">≥ {formatVnd(severeNum)}</p>
+        <div className="flex-1 bg-[rgba(225,29,72,0.12)] px-2 py-1.5">
+          <p className="font-semibold text-[#E11D48]">Nghiêm trọng</p>
+          <p className="text-[var(--c-muted)]">≥ {formatVnd(severeNum)}</p>
         </div>
       </div>
     </div>

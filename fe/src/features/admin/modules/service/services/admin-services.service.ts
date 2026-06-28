@@ -2,6 +2,16 @@ import http from '@/lib/api/http';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import type { ServiceOptionEntity } from '@/features/admin/services/admin-options.service';
 
+export type PricingMode = 'HOURLY' | 'AREA_HOURLY' | 'FIXED';
+
+export interface CoverageAreaEntity {
+  id: string;
+  name: string;
+  city: string;
+  transportFee: number;
+  isActive: boolean;
+}
+
 export interface PaginatedData<T> {
   items: T[];
   total: number;
@@ -39,6 +49,8 @@ export interface AdminServiceEntity {
     peakPrice?: number | string | null;
     petFee?: number | string;
     waitingFee?: number | string;
+    priceUnit?: string;
+    platformCommissionRate?: number;
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -70,14 +82,78 @@ export interface CreateAdminServiceDto {
 export type UpdateAdminServiceDto = Partial<CreateAdminServiceDto>;
 
 // ─── ServicePackage Interface ───────────────────────────────────────────────
+export interface ServiceDurationEntity {
+  id?: string;
+  durationHours: number;
+  priceMultiplier: number;
+  isPopular: boolean;
+  isActive: boolean;
+  suggestedArea?: number | null;
+  taskerCount?: number;
+  title?: string;
+  description?: string;
+}
+
+export type AddonPriceUnit = 'per_item' | 'per_room' | 'per_m2' | 'per_session' | 'fixed';
+
+export interface ServiceAddonEntity {
+  id?: string;
+  name: string;
+  description?: string;
+  iconUrl?: string | null;
+  price: number;
+  priceUnit?: AddonPriceUnit;
+  durationMinutes?: number | null;
+  maxQuantity?: number | null;
+  sortOrder?: number;
+  isActive: boolean;
+}
+
+export type SubscriptionBillingCycle = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+
+export interface ServiceSubscriptionEntity {
+  id?: string;
+  name: string;
+  description?: string;
+  bonusDescription?: string | null;
+  discountPercent: number;
+  billingCycle?: SubscriptionBillingCycle;
+  sessionsPerCycle?: number | null;
+  commitmentMonths?: number | null;
+  isPopular?: boolean;
+  sortOrder?: number;
+  isActive: boolean;
+}
+
+export interface ServicePeakHourEntity {
+  id?: string;
+  dayOfWeek: number;
+  startHour: string;
+  endHour: string;
+  multiplier: number;
+  isActive: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface ServiceSubServiceEntity {
+  id?: string;
+  subServiceId: string;
+  subService?: AdminServiceEntity;
+  price: number;
+  isActive: boolean;
+}
+
 export interface AdminServicePackageEntity {
   id: string;
   packageCode: string;
   name: string;
   iconUrl?: string | null;
+  galleryUrls?: string[] | null;
   sortOrder: number;
   isActive: boolean;
   maxHours: number;
+  pricingMode?: PricingMode | null;
   termsAndConditions?: string | null;
   policyDescription?: string | null;
   nightSurcharge: number;
@@ -86,11 +162,25 @@ export interface AdminServicePackageEntity {
   toolFee: number;
   peakRatePercent: number;
   coverageAreaIds?: string[];
-  coverageAreas?: { id: string; name: string }[];
+  coverageAreas?: CoverageAreaEntity[];
   packageSubServices?: {
     id: string;
     subService: AdminServiceEntity;
+    isRequired?: boolean;
+    isDefault?: boolean;
+    sortOrder?: number;
+    price?: number;
+    isActive?: boolean;
   }[];
+  baseHourlyRate?: number;
+  premiumHourlyRate?: number;
+  allowMultipleTaskers?: boolean;
+  allowSubscription?: boolean;
+  durations?: ServiceDurationEntity[];
+  addons?: ServiceAddonEntity[];
+  subscriptions?: ServiceSubscriptionEntity[];
+  peakHours?: ServicePeakHourEntity[];
+  subServices?: ServiceSubServiceEntity[];
   createdAt: string;
   updatedAt: string;
 }
@@ -99,9 +189,11 @@ export interface CreateAdminPackageDto {
   name: string;
   packageCode?: string;
   iconUrl?: string;
+  galleryUrls?: string[];
   sortOrder?: number;
   isActive?: boolean;
   maxHours?: number;
+  pricingMode?: PricingMode;
   termsAndConditions?: string;
   policyDescription?: string;
   nightSurcharge?: number;
@@ -110,6 +202,15 @@ export interface CreateAdminPackageDto {
   toolFee?: number;
   peakRatePercent?: number;
   coverageAreaIds?: string[];
+  baseHourlyRate?: number;
+  premiumHourlyRate?: number;
+  allowMultipleTaskers?: boolean;
+  allowSubscription?: boolean;
+  durations?: ServiceDurationEntity[];
+  addons?: ServiceAddonEntity[];
+  subscriptions?: ServiceSubscriptionEntity[];
+  peakHours?: ServicePeakHourEntity[];
+  subServices?: ServiceSubServiceEntity[];
 }
 
 export type UpdateAdminPackageDto = Partial<CreateAdminPackageDto>;
@@ -235,6 +336,30 @@ export const adminServicesApi = {
 
   getPackageAnalytics: async (id: string) => {
     const { data } = await http.get<ApiResponse<AdminPackageAnalytics>>(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.ANALYTICS(id));
+    return data.data;
+  },
+
+  // ─── COVERAGE AREAS API ───
+  getCoverageAreas: async (city?: string) => {
+    const { data } = await http.get<ApiResponse<CoverageAreaEntity[]>>(
+      API_ENDPOINTS.ADMIN_COVERAGE_AREAS.BASE,
+      { params: city ? { city } : undefined },
+    );
+    return data.data;
+  },
+
+  seedCoverageAreas: async () => {
+    const { data } = await http.post<ApiResponse<{ seeded: number; skipped: number }>>(
+      API_ENDPOINTS.ADMIN_COVERAGE_AREAS.SEED,
+    );
+    return data.data;
+  },
+
+  updateCoverageArea: async (id: string, transportFee: number) => {
+    const { data } = await http.patch<ApiResponse<CoverageAreaEntity>>(
+      `${API_ENDPOINTS.ADMIN_COVERAGE_AREAS.BASE}/${id}`,
+      { transportFee },
+    );
     return data.data;
   },
 };
