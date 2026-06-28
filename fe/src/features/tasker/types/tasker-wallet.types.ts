@@ -40,7 +40,17 @@ export interface TaskerWalletTransaction {
 
 export interface TaskerWalletTransactionList {
   total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
   items: TaskerWalletTransaction[];
+}
+
+export interface TaskerWalletTransactionQuery {
+  page?: number;
+  limit?: number;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface TaskerDepositTransaction {

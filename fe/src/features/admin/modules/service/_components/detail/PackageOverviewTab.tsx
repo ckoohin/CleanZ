@@ -10,18 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface PackageOverviewTabProps {
   pkg: AdminServicePackageEntity;
 }
 
 export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [name, setName] = useState(pkg.name);
   const [description, setDescription] = useState(pkg.policyDescription ?? "");
   const [iconUrl, setIconUrl] = useState(pkg.iconUrl ?? "");
   const [galleryInput, setGalleryInput] = useState("");
-  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(pkg.galleryUrls || []);
   const [maxHours, setMaxHours] = useState(pkg.maxHours);
   const [sortOrder, setSortOrder] = useState(pkg.sortOrder);
 
@@ -29,7 +32,7 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
 
   const handleSave = () => {
     updateMutation.mutate(
-      { id: pkg.id, payload: { name, policyDescription: description, iconUrl, maxHours, sortOrder } },
+      { id: pkg.id, payload: { name, policyDescription: description, iconUrl, galleryUrls: galleryUrls.filter(Boolean), maxHours, sortOrder } },
       {
         onSuccess: () => {
           toast.success("Đã lưu thông tin gói dịch vụ!");
@@ -43,6 +46,7 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
     setName(pkg.name);
     setDescription(pkg.policyDescription ?? "");
     setIconUrl(pkg.iconUrl ?? "");
+    setGalleryUrls(pkg.galleryUrls || []);
     setMaxHours(pkg.maxHours);
     setSortOrder(pkg.sortOrder);
     setIsEditing(false);
@@ -68,40 +72,27 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
       {/* Section header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-[var(--c-ink)]">Thông tin tổng quan</h3>
-          <p className="text-sm text-[var(--c-muted)] mt-0.5">Hình ảnh, mô tả và các thông số cơ bản của gói</p>
+          <h3 className="text-xl font-bold text-(--c-ink)">Thông tin tổng quan</h3>
+          <p className="text-sm text-(--c-muted) mt-0.5">Hình ảnh, mô tả và các thông số cơ bản của gói</p>
         </div>
-        {!isEditing ? (
-          <BaseButton variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2 rounded-xl">
-            <Edit3 className="w-4 h-4" aria-hidden="true" />
-            Chỉnh sửa
-          </BaseButton>
-        ) : (
-          <div className="flex gap-2">
-            <BaseButton variant="outline" size="sm" onClick={handleCancel} className="gap-2 rounded-xl" disabled={updateMutation.isPending}>
-              <XIcon className="w-4 h-4" aria-hidden="true" />
-              Hủy
-            </BaseButton>
-            <BaseButton variant="primary" size="sm" onClick={handleSave} className="gap-2 rounded-xl" disabled={updateMutation.isPending}>
-              <Save className="w-4 h-4" aria-hidden="true" />
-              {updateMutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}
-            </BaseButton>
-          </div>
-        )}
+        <BaseButton variant="outline" size="sm" onClick={() => router.push(`/admin/services/${pkg.id}/edit`)} className="gap-2 rounded-xl">
+          <Edit3 className="w-4 h-4" aria-hidden="true" />
+          Chỉnh sửa
+        </BaseButton>
       </div>
 
       {/* Main info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Thumbnail */}
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-[var(--c-ink)]">Ảnh đại diện</p>
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-[var(--c-card-2)] border-2 border-dashed border-[var(--c-line)] group">
+          <p className="text-sm font-semibold text-(--c-ink)">Ảnh đại diện</p>
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-(--c-card-2) border-2 border-dashed border-(--c-line) group">
             {iconUrl ? (
               <Image src={iconUrl} alt={pkg.name} fill className="object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center flex-col gap-2">
-                <ImageIcon className="w-10 h-10 text-[var(--c-muted)]" aria-hidden="true" />
-                <span className="text-xs text-[var(--c-muted)]">Chưa có ảnh</span>
+                <ImageIcon className="w-10 h-10 text-(--c-muted)" aria-hidden="true" />
+                <span className="text-xs text-(--c-muted)">Chưa có ảnh</span>
               </div>
             )}
           </div>
@@ -118,16 +109,16 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
         {/* Basic fields */}
         <div className="md:col-span-2 space-y-5">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-[var(--c-ink)]">Tên gói dịch vụ</label>
+            <label className="text-sm font-semibold text-(--c-ink)">Tên gói dịch vụ</label>
             {isEditing ? (
               <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl h-11" />
             ) : (
-              <p className="text-base font-medium text-[var(--c-ink)] bg-[var(--c-card-2)] px-4 py-3 rounded-xl border border-[var(--c-line)]/40">{pkg.name}</p>
+              <p className="text-base font-medium text-(--c-ink) bg-(--c-card-2) px-4 py-3 rounded-xl border border-(--c-line)/40">{pkg.name}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-[var(--c-ink)]">Mô tả / Chính sách</label>
+            <label className="text-sm font-semibold text-(--c-ink)">Mô tả / Chính sách</label>
             {isEditing ? (
               <Textarea
                 value={description}
@@ -137,30 +128,43 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
                 placeholder="Mô tả dịch vụ, chính sách áp dụng..."
               />
             ) : (
-              <p className="text-sm text-[var(--c-muted)] bg-[var(--c-card-2)] px-4 py-3 rounded-xl border border-[var(--c-line)]/40 min-h-[80px] whitespace-pre-wrap leading-relaxed">
-                {pkg.policyDescription || "Chưa có mô tả."}
-              </p>
+              <div className="space-y-2">
+                <p className={`text-sm text-muted-foreground bg-muted/20 px-4 py-3 rounded-xl border border-border/40 min-h-[80px] whitespace-pre-wrap leading-relaxed transition-all duration-300 ${
+                  descExpanded ? "" : "line-clamp-5"
+                }`}>
+                  {pkg.policyDescription || "Chưa có mô tả."}
+                </p>
+                {pkg.policyDescription && pkg.policyDescription.length > 150 && (
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded(!descExpanded)}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mt-1"
+                  >
+                    {descExpanded ? "Thu gọn" : "Xem thêm..."}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-[var(--c-ink)]">Thời gian tối đa (giờ)</label>
+              <label className="text-sm font-semibold text-(--c-ink)">Thời gian tối đa (giờ)</label>
               {isEditing ? (
                 <Input type="number" min={1} max={24} value={maxHours} onChange={(e) => setMaxHours(+e.target.value)} className="rounded-xl h-11" />
               ) : (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)]/40">
-                  <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-(--c-card-2) border border-(--c-line)/40">
+                  <Clock className="w-4 h-4 text-(--c-primary-strong)" aria-hidden="true" />
                   <span className="font-semibold">{pkg.maxHours} giờ</span>
                 </div>
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-[var(--c-ink)]">Thứ tự hiển thị</label>
+              <label className="text-sm font-semibold text-(--c-ink)">Thứ tự hiển thị</label>
               {isEditing ? (
                 <Input type="number" min={0} value={sortOrder} onChange={(e) => setSortOrder(+e.target.value)} className="rounded-xl h-11" />
               ) : (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)]/40">
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-(--c-card-2) border border-(--c-line)/40">
                   <span className="font-semibold">#{pkg.sortOrder}</span>
                 </div>
               )}
@@ -169,18 +173,18 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
         </div>
       </div>
 
-      <hr className="border-[var(--c-line)]/50" />
+      <hr className="border-(--c-line)/50" />
 
       {/* Khu vực phủ sóng */}
       {pkg.coverageAreas && pkg.coverageAreas.length > 0 && (
         <div>
-          <h4 className="text-base font-bold text-[var(--c-ink)] flex items-center gap-2 mb-4">
-            <MapPin className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
+          <h4 className="text-base font-bold text-(--c-ink) flex items-center gap-2 mb-4">
+            <MapPin className="w-5 h-5 text-(--c-primary-strong)" aria-hidden="true" />
             Khu vực phủ sóng ({pkg.coverageAreas.length})
           </h4>
           <div className="flex flex-wrap gap-2">
             {pkg.coverageAreas.map((area) => (
-              <span key={area.id} className="px-3 py-1.5 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] text-sm font-medium border border-[var(--c-primary)]/20">
+              <span key={area.id} className="px-3 py-1.5 rounded-xl bg-(--c-primary-soft) text-(--c-primary-strong) text-sm font-medium border border-(--c-primary)/20">
                 📍 {area.name}
               </span>
             ))}
@@ -188,13 +192,13 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
         </div>
       )}
 
-      <hr className="border-[var(--c-line)]/50" />
+      <hr className="border-(--c-line)/50" />
 
       {/* Gallery */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-base font-bold text-[var(--c-ink)] flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
+          <h4 className="text-base font-bold text-(--c-ink) flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-(--c-primary-strong)" aria-hidden="true" />
             Thư viện ảnh
           </h4>
           {isEditing && (
@@ -215,13 +219,13 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
         </div>
 
         {allGallery.length === 0 ? (
-          <div className="flex items-center justify-center h-32 border border-dashed border-[var(--c-line)] rounded-2xl bg-[var(--c-card-2)]">
-            <p className="text-sm text-[var(--c-muted)]">Chưa có ảnh trong thư viện</p>
+          <div className="flex items-center justify-center h-32 border border-dashed border-(--c-line) rounded-2xl bg-(--c-card-2)">
+            <p className="text-sm text-(--c-muted)">Chưa có ảnh trong thư viện</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
             {allGallery.map((url, idx) => (
-              <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-[var(--c-line)]/50 group shadow-sm">
+              <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-(--c-line)/50 group shadow-sm">
                 <Image src={url} alt={`Gallery ${idx + 1}`} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                 {isEditing && galleryUrls.includes(url) && (
                   <button
@@ -237,15 +241,15 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
         )}
       </div>
 
-      <hr className="border-[var(--c-line)]/50" />
+      <hr className="border-(--c-line)/50" />
 
       {/* Sub-services included/excluded tasks */}
       {pkg.packageSubServices && pkg.packageSubServices.length > 0 && (
         <div>
-          <h4 className="text-base font-bold text-[var(--c-ink)] mb-4">Tổng hợp công việc trong gói</h4>
+          <h4 className="text-base font-bold text-(--c-ink) mb-4">Tổng hợp công việc trong gói</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h5 className="text-sm font-semibold text-[var(--c-primary-strong)] flex items-center gap-2 mb-3">
+              <h5 className="text-sm font-semibold text-(--c-primary-strong) flex items-center gap-2 mb-3">
                 <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                 Công việc bao gồm
               </h5>
@@ -254,13 +258,13 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
                   .flatMap((pss) => pss.subService?.includedTasks ?? [])
                   .filter(Boolean)
                   .map((task, i) => (
-                    <li key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-[var(--c-primary-soft)] border border-[var(--c-primary)]/10 text-sm">
-                      <Check className="w-4 h-4 text-[var(--c-primary-strong)] shrink-0 mt-0.5" aria-hidden="true" />
+                    <li key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-(--c-primary-soft) border border-(--c-primary)/10 text-sm">
+                      <Check className="w-4 h-4 text-(--c-primary-strong) shrink-0 mt-0.5" aria-hidden="true" />
                       <span>{task}</span>
                     </li>
                   ))}
                 {pkg.packageSubServices.flatMap((pss) => pss.subService?.includedTasks ?? []).filter(Boolean).length === 0 && (
-                  <li className="text-sm text-[var(--c-muted)] italic p-4 bg-[var(--c-card-2)] rounded-xl border border-dashed border-[var(--c-line)] text-center">Chưa có dữ liệu</li>
+                  <li className="text-sm text-(--c-muted) italic p-4 bg-(--c-card-2) rounded-xl border border-dashed border-(--c-line) text-center">Chưa có dữ liệu</li>
                 )}
               </ul>
             </div>
@@ -281,7 +285,7 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
                     </li>
                   ))}
                 {pkg.packageSubServices.flatMap((pss) => pss.subService?.excludedTasks ?? []).filter(Boolean).length === 0 && (
-                  <li className="text-sm text-[var(--c-muted)] italic p-4 bg-[var(--c-card-2)] rounded-xl border border-dashed border-[var(--c-line)] text-center">Chưa có dữ liệu</li>
+                  <li className="text-sm text-(--c-muted) italic p-4 bg-(--c-card-2) rounded-xl border border-dashed border-(--c-line) text-center">Chưa có dữ liệu</li>
                 )}
               </ul>
             </div>

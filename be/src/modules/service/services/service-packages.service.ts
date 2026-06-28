@@ -11,6 +11,11 @@ import { UpdateServicePackageDto } from '../dto/update-service-package.dto';
 import { CoverageAreaEntity } from '../entity/coverage-area.entity';
 import { PackageSubServiceEntity } from '../entity/package-sub-service.entity';
 import { AddSubServicesToPackageDto } from '../dto/add-sub-services-to-package.dto';
+import { ServiceDurationEntity } from '../entity/service-duration.entity';
+import { ServiceAddonEntity } from '../entity/service-addon.entity';
+import { ServiceSubscriptionEntity } from '../entity/service-subscription.entity';
+import { ServicePeakHourEntity } from '../entity/service-peak-hour.entity';
+import { ServiceSubServiceEntity } from '../entity/service-sub-service.entity';
 
 export interface ServicePackageAnalytics {
   totalBookings: number;
@@ -32,6 +37,16 @@ export class ServicePackagesService {
     private readonly packageRepository: Repository<ServicePackageEntity>,
     @InjectRepository(PackageSubServiceEntity)
     private readonly pssRepository: Repository<PackageSubServiceEntity>,
+    @InjectRepository(ServiceDurationEntity)
+    private readonly durationRepository: Repository<ServiceDurationEntity>,
+    @InjectRepository(ServiceAddonEntity)
+    private readonly addonRepository: Repository<ServiceAddonEntity>,
+    @InjectRepository(ServiceSubscriptionEntity)
+    private readonly subscriptionRepository: Repository<ServiceSubscriptionEntity>,
+    @InjectRepository(ServicePeakHourEntity)
+    private readonly peakHourRepository: Repository<ServicePeakHourEntity>,
+    @InjectRepository(ServiceSubServiceEntity)
+    private readonly subServiceRepository: Repository<ServiceSubServiceEntity>,
   ) {}
 
   async create(dto: CreateServicePackageDto): Promise<ServicePackageEntity> {
@@ -49,9 +64,11 @@ export class ServicePackagesService {
       name: dto.name,
       packageCode,
       iconUrl: dto.iconUrl || null,
+      galleryUrls: dto.galleryUrls || null,
       sortOrder: dto.sortOrder ?? 0,
       isActive: dto.isActive ?? true,
       maxHours: dto.maxHours ?? 8.0,
+      pricingMode: dto.pricingMode ?? null,
       termsAndConditions: dto.termsAndConditions || null,
       policyDescription: dto.policyDescription || null,
       nightSurcharge: dto.nightSurcharge ?? 0,
@@ -59,12 +76,94 @@ export class ServicePackagesService {
       waitingSurcharge: dto.waitingSurcharge ?? 0,
       toolFee: dto.toolFee ?? 0,
       peakRatePercent: dto.peakRatePercent ?? 0,
+      baseHourlyRate: dto.baseHourlyRate ?? 0,
+      premiumHourlyRate: dto.premiumHourlyRate ?? 0,
+      allowMultipleTaskers: dto.allowMultipleTaskers ?? false,
+      allowSubscription: dto.allowSubscription ?? false,
       coverageAreas: dto.coverageAreaIds
         ? dto.coverageAreaIds.map((id) => ({ id }) as CoverageAreaEntity)
         : [],
     });
 
-    return this.packageRepository.save(servicePackage);
+    const saved = await this.packageRepository.save(servicePackage);
+
+    // Save durations
+    if (dto.durations && dto.durations.length > 0) {
+      const durEntities = dto.durations.map((d) =>
+        this.durationRepository.create({
+          packageId: saved.id,
+          durationHours: d.durationHours,
+          priceMultiplier: d.priceMultiplier,
+          isPopular: d.isPopular ?? false,
+          isActive: d.isActive ?? true,
+          suggestedArea: d.suggestedArea || null,
+          taskerCount: d.taskerCount ?? 1,
+          title: d.title ?? null,
+          description: d.description ?? null,
+        }),
+      );
+      await this.durationRepository.save(durEntities);
+    }
+
+    // Save addons
+    if (dto.addons && dto.addons.length > 0) {
+      const addonEntities = dto.addons.map((a) =>
+        this.addonRepository.create({
+          packageId: saved.id,
+          name: a.name,
+          description: a.description || undefined,
+          price: a.price,
+          isActive: a.isActive ?? true,
+        }),
+      );
+      await this.addonRepository.save(addonEntities);
+    }
+
+    // Save subscriptions
+    if (dto.subscriptions && dto.subscriptions.length > 0) {
+      const subEntities = dto.subscriptions.map((s) =>
+        this.subscriptionRepository.create({
+          packageId: saved.id,
+          name: s.name,
+          description: s.description || undefined,
+          discountPercent: s.discountPercent,
+          isActive: s.isActive ?? true,
+        }),
+      );
+      await this.subscriptionRepository.save(subEntities);
+    }
+
+    // Save peakHours
+    if (dto.peakHours && dto.peakHours.length > 0) {
+      const peakEntities = dto.peakHours.map((p) =>
+        this.peakHourRepository.create({
+          packageId: saved.id,
+          dayOfWeek: p.dayOfWeek,
+          startHour: p.startHour,
+          endHour: p.endHour,
+          multiplier: p.multiplier,
+          startDate: p.startDate ? new Date(p.startDate) : null,
+          endDate: p.endDate ? new Date(p.endDate) : null,
+          isActive: p.isActive ?? true,
+        }),
+      );
+      await this.peakHourRepository.save(peakEntities);
+    }
+
+    // Save subServices
+    if (dto.subServices && dto.subServices.length > 0) {
+      const ssEntities = dto.subServices.map((ss) =>
+        this.subServiceRepository.create({
+          packageId: saved.id,
+          subServiceId: ss.subServiceId,
+          price: ss.price,
+          isActive: ss.isActive ?? true,
+        }),
+      );
+      await this.subServiceRepository.save(ssEntities);
+    }
+
+    return this.findOne(saved.id);
   }
 
   async findAll(): Promise<ServicePackageEntity[]> {
@@ -106,6 +205,12 @@ export class ServicePackagesService {
         'coverageAreas',
         'packageSubServices',
         'packageSubServices.subService',
+        'durations',
+        'addons',
+        'subscriptions',
+        'peakHours',
+        'subServices',
+        'subServices.subService',
       ],
     });
     if (!servicePackage) {
@@ -137,10 +242,18 @@ export class ServicePackagesService {
       name: dto.name ?? servicePackage.name,
       packageCode: dto.packageCode ?? servicePackage.packageCode,
       iconUrl: dto.iconUrl !== undefined ? dto.iconUrl : servicePackage.iconUrl,
+      galleryUrls:
+        dto.galleryUrls !== undefined
+          ? dto.galleryUrls
+          : servicePackage.galleryUrls,
       sortOrder: dto.sortOrder ?? servicePackage.sortOrder,
       isActive:
         dto.isActive !== undefined ? dto.isActive : servicePackage.isActive,
       maxHours: dto.maxHours ?? servicePackage.maxHours,
+      pricingMode:
+        dto.pricingMode !== undefined
+          ? dto.pricingMode
+          : servicePackage.pricingMode,
       termsAndConditions:
         dto.termsAndConditions !== undefined
           ? dto.termsAndConditions
@@ -154,6 +267,13 @@ export class ServicePackagesService {
       waitingSurcharge: dto.waitingSurcharge ?? servicePackage.waitingSurcharge,
       toolFee: dto.toolFee ?? servicePackage.toolFee,
       peakRatePercent: dto.peakRatePercent ?? servicePackage.peakRatePercent,
+      baseHourlyRate: dto.baseHourlyRate ?? servicePackage.baseHourlyRate,
+      premiumHourlyRate:
+        dto.premiumHourlyRate ?? servicePackage.premiumHourlyRate,
+      allowMultipleTaskers:
+        dto.allowMultipleTaskers ?? servicePackage.allowMultipleTaskers,
+      allowSubscription:
+        dto.allowSubscription ?? servicePackage.allowSubscription,
     });
 
     if (dto.coverageAreaIds) {
@@ -162,7 +282,100 @@ export class ServicePackagesService {
       );
     }
 
-    return this.packageRepository.save(servicePackage);
+    await this.packageRepository.save(servicePackage);
+
+    // Update durations
+    if (dto.durations !== undefined) {
+      await this.durationRepository.delete({ packageId: id });
+      if (dto.durations.length > 0) {
+        const durEntities = dto.durations.map((d) =>
+          this.durationRepository.create({
+            packageId: id,
+            durationHours: d.durationHours,
+            priceMultiplier: d.priceMultiplier,
+            isPopular: d.isPopular ?? false,
+            isActive: d.isActive ?? true,
+            suggestedArea: d.suggestedArea || null,
+            taskerCount: d.taskerCount ?? 1,
+            title: d.title ?? null,
+            description: d.description ?? null,
+          }),
+        );
+        await this.durationRepository.save(durEntities);
+      }
+    }
+
+    // Update addons
+    if (dto.addons !== undefined) {
+      await this.addonRepository.delete({ packageId: id });
+      if (dto.addons.length > 0) {
+        const addonEntities = dto.addons.map((a) =>
+          this.addonRepository.create({
+            packageId: id,
+            name: a.name,
+            description: a.description || undefined,
+            price: a.price,
+            isActive: a.isActive ?? true,
+          }),
+        );
+        await this.addonRepository.save(addonEntities);
+      }
+    }
+
+    // Update subscriptions
+    if (dto.subscriptions !== undefined) {
+      await this.subscriptionRepository.delete({ packageId: id });
+      if (dto.subscriptions.length > 0) {
+        const subEntities = dto.subscriptions.map((s) =>
+          this.subscriptionRepository.create({
+            packageId: id,
+            name: s.name,
+            description: s.description || undefined,
+            discountPercent: s.discountPercent,
+            isActive: s.isActive ?? true,
+          }),
+        );
+        await this.subscriptionRepository.save(subEntities);
+      }
+    }
+
+    // Update peakHours
+    if (dto.peakHours !== undefined) {
+      await this.peakHourRepository.delete({ packageId: id });
+      if (dto.peakHours.length > 0) {
+        const peakEntities = dto.peakHours.map((p) =>
+          this.peakHourRepository.create({
+            packageId: id,
+            dayOfWeek: p.dayOfWeek,
+            startHour: p.startHour,
+            endHour: p.endHour,
+            multiplier: p.multiplier,
+            startDate: p.startDate ? new Date(p.startDate) : null,
+            endDate: p.endDate ? new Date(p.endDate) : null,
+            isActive: p.isActive ?? true,
+          }),
+        );
+        await this.peakHourRepository.save(peakEntities);
+      }
+    }
+
+    // Update subServices
+    if (dto.subServices !== undefined) {
+      await this.subServiceRepository.delete({ packageId: id });
+      if (dto.subServices.length > 0) {
+        const ssEntities = dto.subServices.map((ss) =>
+          this.subServiceRepository.create({
+            packageId: id,
+            subServiceId: ss.subServiceId,
+            price: ss.price,
+            isActive: ss.isActive ?? true,
+          }),
+        );
+        await this.subServiceRepository.save(ssEntities);
+      }
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
@@ -199,7 +412,10 @@ export class ServicePackagesService {
     await this.pssRepository.save(entities);
   }
 
-  async removeSubService(packageId: string, subServiceId: string): Promise<void> {
+  async removeSubService(
+    packageId: string,
+    subServiceId: string,
+  ): Promise<void> {
     await this.pssRepository.delete({ packageId, subServiceId });
   }
 
@@ -229,10 +445,24 @@ export class ServicePackagesService {
       LIMIT 5
     `;
 
-    const [statsResult, taskersResult] = await Promise.all([
+    interface StatsResult {
+      totalBookings: number;
+      totalRevenue: string | number;
+      completedBookings: number;
+      cancelledBookings: number;
+    }
+
+    interface TaskerResult {
+      taskerId: string;
+      fullName: string;
+      phoneNumber: string;
+      completedJobs: number;
+    }
+
+    const [statsResult, taskersResult] = (await Promise.all([
       this.packageRepository.query(statsQuery, [id]),
       this.packageRepository.query(taskersQuery, [id]),
-    ]);
+    ])) as [StatsResult[], TaskerResult[]];
 
     const stats = statsResult[0] || {
       totalBookings: 0,
@@ -241,10 +471,10 @@ export class ServicePackagesService {
       cancelledBookings: 0,
     };
     return {
-      totalBookings: stats.totalBookings,
+      totalBookings: Number(stats.totalBookings),
       totalRevenue: Number(stats.totalRevenue),
-      completedBookings: stats.completedBookings,
-      cancelledBookings: stats.cancelledBookings,
+      completedBookings: Number(stats.completedBookings),
+      cancelledBookings: Number(stats.cancelledBookings),
       topTaskers: taskersResult,
     };
   }

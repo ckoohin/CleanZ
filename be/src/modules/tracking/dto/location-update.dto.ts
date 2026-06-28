@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsISO8601,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class LocationUpdateDto {
   @IsUUID()
@@ -16,4 +23,14 @@ export class LocationUpdateDto {
   @Min(-180)
   @Max(180)
   longitude!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  accuracy?: number;
+
+  @IsOptional()
+  @IsISO8601()
+  capturedAt?: string;
 }

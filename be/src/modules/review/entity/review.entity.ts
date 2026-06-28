@@ -4,20 +4,19 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
-/**
- * Đánh giá của khách hàng cho một booking đã hoàn thành.
- * overall_rating: điểm tổng (1.0–5.0). 4 tiêu chí phụ: 1–5.
- */
 @Entity('reviews')
 @Index('idx_reviews_tasker', ['taskerId'])
 @Index('idx_reviews_created', ['createdAt'])
+@Index('idx_reviews_booking', ['bookingId'], { unique: true })
+@Index('idx_reviews_package', ['packageId'])
 export class ReviewEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'booking_id', type: 'uuid' })
+  @Column({ name: 'booking_id', type: 'uuid', unique: true })
   bookingId!: string;
 
   @Column({ name: 'customer_id', type: 'uuid' })
@@ -26,12 +25,10 @@ export class ReviewEntity {
   @Column({ name: 'tasker_id', type: 'uuid' })
   taskerId!: string;
 
-  @Column({
-    name: 'overall_rating',
-    type: 'numeric',
-    precision: 2,
-    scale: 1,
-  })
+  @Column({ name: 'package_id', type: 'uuid', nullable: true })
+  packageId?: string | null;
+
+  @Column({ name: 'overall_rating', type: 'numeric', precision: 2, scale: 1 })
   overallRating!: number;
 
   @Column({ name: 'punctuality', type: 'int', default: 5 })
@@ -49,6 +46,30 @@ export class ReviewEntity {
   @Column({ type: 'text', nullable: true })
   comment?: string | null;
 
+  @Column({ name: 'is_anonymous', type: 'boolean', default: false })
+  isAnonymous!: boolean;
+
+  @Column({ name: 'images', type: 'simple-json', nullable: true })
+  images?: string[] | null;
+
+  @Column({ name: 'is_hidden', type: 'boolean', default: false })
+  isHidden!: boolean;
+
+  @Column({ name: 'admin_reply', type: 'text', nullable: true })
+  adminReply?: string | null;
+
+  @Column({ name: 'tasker_reply', type: 'text', nullable: true })
+  taskerReply?: string | null;
+
+  @Column({ name: 'tasker_replied_at', type: 'timestamp', nullable: true })
+  taskerRepliedAt?: Date | null;
+
+  @Column({ name: 'report_count', type: 'int', default: 0 })
+  reportCount!: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  updatedAt!: Date;
 }

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { use } from 'react';
+import { use } from "react";
 import { PolicyDetailView } from '@/features/admin/modules/policy/_components/PolicyDetailView';
 
 export default function AdminPolicyDetailPage({

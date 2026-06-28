@@ -9,6 +9,7 @@ import { CustomerSidebar } from '@/components/layouts/customer/sidebar/CustomerS
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AvatarProfile } from '@/components/layouts/site/header/AvatarProfile'
 import { ActiveBookingWidget } from '@/features/booking/components/ActiveBookingWidget'
+import { CustomerRealtimeNotifications } from '@/features/customer/_components/CustomerRealtimeNotifications'
 
 const CUSTOMER_NAV_LINKS = [
   { label: "Trang chủ",   href: "/customer" },
@@ -24,6 +25,7 @@ export default function CustomerLayout({
 }) {
     return (
         <div className="flex flex-col min-h-screen">
+            <CustomerRealtimeNotifications />
             <SidebarProvider>
                 {/* Desktop Sidebar (ẩn trên mobile) */}
                 <CustomerSidebar />

@@ -257,7 +257,14 @@ describe('TicketService chat — audience & thread (TC-U-CHAT)', () => {
         decryptEntities: (x: unknown) => x,
       } as any,
     );
-    return { svc, ticketRepo, messageRepo, attachmentRepo, threadReadRepo, realtime };
+    return {
+      svc,
+      ticketRepo,
+      messageRepo,
+      attachmentRepo,
+      threadReadRepo,
+      realtime,
+    };
   }
 
   it('reporter gửi → audience REPORTER + senderRole CUSTOMER', async () => {

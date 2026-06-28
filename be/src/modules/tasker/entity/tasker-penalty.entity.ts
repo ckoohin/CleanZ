@@ -20,8 +20,11 @@ export class TaskerPenaltyEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => TaskerEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'tasker_id' })
+  @ManyToOne(() => TaskerEntity, { nullable: false, onDelete: 'CASCADE' })
+  @JoinColumn({
+    name: 'tasker_id',
+    foreignKeyConstraintName: 'fk_tasker_penalties_tasker',
+  })
   tasker!: TaskerEntity;
 
   @Column({ name: 'type', type: 'enum', enum: BanType, enumName: 'ban_type' })

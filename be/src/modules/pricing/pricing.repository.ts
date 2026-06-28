@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { PricingConfigEntity } from './entity/pricing-config.entity';
 import { PeakDayConfigEntity } from './entity/peak-day-config.entity';
+import { PricingTierEntity } from './entity/pricing-tier.entity';
 import { PricingListQueryDto } from './dto/list-query-pricing.dto';
 import { PaginatedData } from '../../common/helpers/response.interface';
 
@@ -43,5 +44,26 @@ export class PeakDayConfigRepository extends Repository<PeakDayConfigEntity> {
       qb.where('pdc.isActive = true');
     }
     return qb.getMany();
+  }
+}
+
+@Injectable()
+export class PricingTierRepository extends Repository<PricingTierEntity> {
+  constructor(private readonly dataSource: DataSource) {
+    super(PricingTierEntity, dataSource.createEntityManager());
+  }
+
+  async findByPackageId(packageId: string): Promise<PricingTierEntity[]> {
+    return this.find({
+      where: { packageId },
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+  }
+
+  async findActiveByPackageId(packageId: string): Promise<PricingTierEntity[]> {
+    return this.find({
+      where: { packageId, isActive: true },
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
   }
 }

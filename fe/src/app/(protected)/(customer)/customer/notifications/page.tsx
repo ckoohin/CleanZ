@@ -1,5 +1,5 @@
-import { NotificationInbox } from "@/features/notifications/_components/NotificationInbox";
+import { CustomerNotificationsPage } from "@/features/customer/notifications/components/CustomerNotificationsPage";
 
-export default function CustomerNotificationsRoute() {
-  return <NotificationInbox basePath="/customer" bookingSegment="booking" />;
+export default function NotificationsRoute() {
+  return <CustomerNotificationsPage />;
 }

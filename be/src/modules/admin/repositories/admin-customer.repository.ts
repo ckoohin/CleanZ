@@ -9,7 +9,6 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { MailQueueService } from 'src/modules/mail/mail-queue.service';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
-import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
@@ -288,7 +287,12 @@ export class AdminCustomerRepository {
         BookingStatus.CANCELLED,
         BookingStatus.EXPIRED,
       ])
-      .getRawOne();
+      .getRawOne<{
+        total_bookings: string;
+        completed_bookings: string;
+        cancelled_bookings: string;
+        total_spent: string;
+      }>();
 
     const totalBookings = Number(row?.total_bookings ?? 0);
     const completedBookings = Number(row?.completed_bookings ?? 0);
@@ -337,7 +341,17 @@ export class AdminCustomerRepository {
       .orderBy('b.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
-      .getRawMany()
+      .getRawMany<{
+        id: string;
+        bookingCode: string;
+        totalPrice: string;
+        status: string;
+        scheduledStart: Date;
+        scheduledEnd: Date;
+        paymentMethod: string;
+        paymentStatus: string;
+        createdAt: Date;
+      }>()
       .then(async (rows) => {
         const countResult = await this.dataSource
           .getRepository(BookingEntity)

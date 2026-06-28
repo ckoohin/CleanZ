@@ -1,6 +1,13 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe,
-  Patch, Post, Query,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { PolicyService } from './policy.service';
 import { CreatePolicyDto } from './dto/create-policy.dto';
@@ -70,7 +77,10 @@ export class PolicyController {
     @Param('packageId', ParseUUIDPipe) packageId: string,
     @Body() body: { policyIds: string[] },
   ) {
-    return this.policyService.assignPoliciesToPackage(packageId, body.policyIds);
+    return this.policyService.assignPoliciesToPackage(
+      packageId,
+      body.policyIds,
+    );
   }
 
   @Delete('packages/:packageId/policies/:policyId')

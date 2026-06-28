@@ -180,6 +180,16 @@ interface TaskerLocationInput {
   currentLongitude?: number;
 }
 
+interface DistanceCacheEntry {
+  distance: TaskerAssignedBookingDetailResponse['distance'];
+  originLatitude: number;
+  originLongitude: number;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  calculatedAt: number;
+  lastAccessedAt: number;
+}
+
 const CUSTOMER_CONTACT_VISIBLE_STATUSES = [
   BookingStatus.TASKER_ON_THE_WAY,
   BookingStatus.CHECKED_IN,
@@ -187,9 +197,54 @@ const CUSTOMER_CONTACT_VISIBLE_STATUSES = [
   BookingStatus.COMPLETED,
 ];
 
+const CUSTOMER_STATUS_NOTIFICATION: Partial<
+  Record<
+    BookingStatus,
+    {
+      type: NotificationType;
+      title: string;
+      content: string;
+    }
+  >
+> = {
+  [BookingStatus.CONFIRMED]: {
+    type: NotificationType.BOOKING_CONFIRMED,
+    title: 'Đơn đặt lịch đã được xác nhận',
+    content: 'Tasker đã nhận đơn của bạn. Vui lòng chuẩn bị cho buổi dịch vụ.',
+  },
+  [BookingStatus.TASKER_ON_THE_WAY]: {
+    type: NotificationType.TASKER_ON_THE_WAY,
+    title: 'Tasker đang trên đường tới',
+    content: 'Tasker đã bắt đầu di chuyển tới địa điểm của bạn.',
+  },
+  [BookingStatus.CHECKED_IN]: {
+    type: NotificationType.SYSTEM,
+    title: 'Tasker đã đến nơi',
+    content: 'Tasker đã check-in tại địa điểm làm việc.',
+  },
+  [BookingStatus.IN_PROGRESS]: {
+    type: NotificationType.SYSTEM,
+    title: 'Dịch vụ đã bắt đầu',
+    content: 'Tasker đã bắt đầu thực hiện công việc.',
+  },
+  [BookingStatus.COMPLETED]: {
+    type: NotificationType.BOOKING_COMPLETED,
+    title: 'Dịch vụ đã hoàn thành',
+    content: 'Tasker đã hoàn thành công việc của bạn.',
+  },
+};
+
 @Injectable()
 export class TaskerBookingService {
   private readonly logger = new Logger(TaskerBookingService.name);
+  private readonly distanceRefreshIntervalMs = 90_000;
+  private readonly distanceRefreshMeters = 50;
+  private readonly distanceCacheTtlMs = 6 * 60 * 60 * 1000;
+  private readonly distanceCache = new Map<string, DistanceCacheEntry>();
+  private readonly pendingDistanceRequests = new Map<
+    string,
+    Promise<TaskerAssignedBookingDetailResponse['distance']>
+  >();
 
   constructor(
     private readonly dataSource: DataSource,
@@ -209,6 +264,7 @@ export class TaskerBookingService {
     bookingId: string,
     title: string,
     content: string,
+    dedupeKey?: string,
   ): void {
     if (!userId) return;
     void this.notificationService
@@ -219,13 +275,55 @@ export class TaskerBookingService {
         content,
         referenceType: NotificationRefType.BOOKING,
         referenceId: bookingId,
-        dedupeKey: `booking:${bookingId}:${type}`,
+        dedupeKey: `booking:${bookingId}:${dedupeKey ?? type}`,
       })
       .catch((err) =>
         this.logger.error(
           `Không thể enqueue noti booking ${bookingId}/${type}: ${err}`,
         ),
       );
+  }
+
+  private async emitCustomerBookingStatusChanged(input: {
+    booking: BookingEntity;
+    previousStatus: BookingStatus;
+    changedAt: Date;
+    actorUserId: string;
+    startedAt?: Date | null;
+  }): Promise<void> {
+    const { booking, previousStatus, changedAt, actorUserId, startedAt } =
+      input;
+
+    await this.trackingGateway.emitBookingStatusUpdated(booking.id, {
+      bookingId: booking.id,
+      bookingCode: booking.bookingCode,
+      previousStatus,
+      status: booking.status,
+      changedAt: changedAt.toISOString(),
+      actor: {
+        type: 'TASKER',
+        id: actorUserId,
+        name: booking.tasker?.user?.fullName ?? null,
+      },
+      checkedInAt: booking.checkedInAt?.toISOString() ?? null,
+      startedAt: startedAt?.toISOString() ?? null,
+      completedAt: booking.completedAt?.toISOString() ?? null,
+      paymentStatus: booking.paymentStatus ?? null,
+    });
+
+    const notification = CUSTOMER_STATUS_NOTIFICATION[booking.status];
+    if (notification) {
+      this.emitBookingNotification(
+        booking.customer?.user?.id,
+        notification.type,
+        booking.id,
+        notification.title,
+        notification.content,
+        notification.type === NotificationType.SYSTEM
+          ? `${booking.status}`
+          : undefined,
+      );
+    }
   }
 
   async findPostedBookings(
@@ -287,6 +385,7 @@ export class TaskerBookingService {
       const distance = await this.calculateDistanceFromTaskerLocation(
         booking,
         location,
+        `posted:${booking.id}:${userId}`,
       );
       if (!distance) {
         throw new NotFoundException('Booking thiếu tọa độ địa chỉ');
@@ -405,13 +504,26 @@ export class TaskerBookingService {
         };
       });
 
-      this.emitBookingNotification(
-        customerUserId,
-        NotificationType.BOOKING_CONFIRMED,
-        result.id,
-        'Đơn đặt lịch đã được xác nhận',
-        `Tasker đã nhận đơn ${result.bookingCode}. Vui lòng chuẩn bị cho buổi dịch vụ.`,
-      );
+      await this.emitCustomerBookingStatusChanged({
+        booking: {
+          id: result.id,
+          bookingCode: result.bookingCode,
+          status: result.status,
+          customer: {
+            user: { id: customerUserId } as UserEntity,
+          } as CustomerEntity,
+          tasker: {
+            id: result.tasker.id,
+            user: {
+              id: userId,
+              fullName: result.tasker.fullName ?? undefined,
+            } as UserEntity,
+          } as TaskerEntity,
+        } as BookingEntity,
+        previousStatus: BookingStatus.POSTED,
+        changedAt: new Date(),
+        actorUserId: userId,
+      });
 
       void this.trackingGateway
         .emitToBookingRoom(result.id, 'booking:status_changed', {
@@ -457,6 +569,7 @@ export class TaskerBookingService {
       const distance = await this.calculateDistanceFromTaskerLocation(
         booking,
         location,
+        `assigned:${booking.id}:${tasker.id}`,
       );
       return this.mapAssignedBookingDetail(booking, service, distance);
     }, 'Không thể lấy chi tiết booking của tasker');
@@ -544,13 +657,12 @@ export class TaskerBookingService {
         return savedBooking;
       });
 
-      this.emitBookingNotification(
-        booking.customer?.user?.id,
-        NotificationType.TASKER_ON_THE_WAY,
-        booking.id,
-        'Tasker đang trên đường tới',
-        'Tasker đã bắt đầu di chuyển tới địa điểm của bạn.',
-      );
+      await this.emitCustomerBookingStatusChanged({
+        booking,
+        previousStatus: BookingStatus.CONFIRMED,
+        changedAt: new Date(),
+        actorUserId: userId,
+      });
 
       void this.trackingGateway
         .emitToBookingRoom(booking.id, 'booking:status_changed', {
@@ -627,6 +739,12 @@ export class TaskerBookingService {
         arrivedAt,
         trackingStopped: true,
       });
+      await this.emitCustomerBookingStatusChanged({
+        booking,
+        previousStatus: BookingStatus.TASKER_ON_THE_WAY,
+        changedAt: booking.checkedInAt ?? new Date(),
+        actorUserId: userId,
+      });
 
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);
@@ -687,6 +805,13 @@ export class TaskerBookingService {
         bookingId: booking.id,
         status: booking.status,
         startedAt: startedAt.toISOString(),
+      });
+      await this.emitCustomerBookingStatusChanged({
+        booking,
+        previousStatus: BookingStatus.CHECKED_IN,
+        changedAt: startedAt,
+        actorUserId: userId,
+        startedAt,
       });
 
       const service = await this.findServiceByBooking(booking);
@@ -829,6 +954,12 @@ export class TaskerBookingService {
         status: settlement.booking.status,
         completedAt,
         paymentStatus: settlement.booking.paymentStatus,
+      });
+      await this.emitCustomerBookingStatusChanged({
+        booking: settlement.booking,
+        previousStatus: BookingStatus.IN_PROGRESS,
+        changedAt: settlement.booking.completedAt ?? new Date(),
+        actorUserId: userId,
       });
 
       const service = await this.findServiceByBooking(settlement.booking);
@@ -1019,6 +1150,7 @@ export class TaskerBookingService {
   private async calculateDistanceFromTaskerLocation(
     booking: BookingEntity,
     location?: TaskerLocationInput,
+    cacheKey = booking.id,
   ): Promise<TaskerAssignedBookingDetailResponse['distance']> {
     const currentLatitude = location?.currentLatitude;
     const currentLongitude = location?.currentLongitude;
@@ -1042,15 +1174,101 @@ export class TaskerBookingService {
     }
     const addressLatitude = booking.addressRef.latitude;
     const addressLongitude = booking.addressRef.longitude;
+    const destinationLatitude = Number(addressLatitude);
+    const destinationLongitude = Number(addressLongitude);
+    const now = Date.now();
+    this.removeExpiredDistanceCacheEntries(now);
 
-    const route = await this.goongMapService.calculateDrivingRoute({
-      originLatitude: currentLatitude,
-      originLongitude: currentLongitude,
-      destinationLatitude: Number(addressLatitude),
-      destinationLongitude: Number(addressLongitude),
-    });
+    const cached = this.distanceCache.get(cacheKey);
+    if (
+      cached &&
+      cached.destinationLatitude === destinationLatitude &&
+      cached.destinationLongitude === destinationLongitude
+    ) {
+      cached.lastAccessedAt = now;
 
-    return route.distance;
+      const elapsedMs = now - cached.calculatedAt;
+      const movedMeters = this.calculateDistanceMeters(
+        cached.originLatitude,
+        cached.originLongitude,
+        currentLatitude,
+        currentLongitude,
+      );
+
+      if (
+        elapsedMs < this.distanceRefreshIntervalMs ||
+        movedMeters < this.distanceRefreshMeters
+      ) {
+        return cached.distance;
+      }
+    }
+
+    const pendingRequest = this.pendingDistanceRequests.get(cacheKey);
+    if (pendingRequest) {
+      return pendingRequest;
+    }
+
+    const routeRequest = this.goongMapService
+      .calculateDrivingRoute({
+        originLatitude: currentLatitude,
+        originLongitude: currentLongitude,
+        destinationLatitude,
+        destinationLongitude,
+      })
+      .then((route) => {
+        this.distanceCache.set(cacheKey, {
+          distance: route.distance,
+          originLatitude: currentLatitude,
+          originLongitude: currentLongitude,
+          destinationLatitude,
+          destinationLongitude,
+          calculatedAt: Date.now(),
+          lastAccessedAt: Date.now(),
+        });
+
+        return route.distance;
+      })
+      .finally(() => {
+        this.pendingDistanceRequests.delete(cacheKey);
+      });
+
+    this.pendingDistanceRequests.set(cacheKey, routeRequest);
+    this.logger.debug(`Refreshing Goong distance for ${cacheKey}`);
+
+    return routeRequest;
+  }
+
+  private removeExpiredDistanceCacheEntries(now: number): void {
+    for (const [cacheKey, entry] of this.distanceCache) {
+      if (now - entry.lastAccessedAt > this.distanceCacheTtlMs) {
+        this.distanceCache.delete(cacheKey);
+      }
+    }
+  }
+
+  private calculateDistanceMeters(
+    fromLatitude: number,
+    fromLongitude: number,
+    toLatitude: number,
+    toLongitude: number,
+  ): number {
+    const earthRadiusMeters = 6_371_000;
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const latitudeDelta = toRadians(toLatitude - fromLatitude);
+    const longitudeDelta = toRadians(toLongitude - fromLongitude);
+    const fromLatitudeRadians = toRadians(fromLatitude);
+    const toLatitudeRadians = toRadians(toLatitude);
+    const haversine =
+      Math.sin(latitudeDelta / 2) ** 2 +
+      Math.cos(fromLatitudeRadians) *
+        Math.cos(toLatitudeRadians) *
+        Math.sin(longitudeDelta / 2) ** 2;
+
+    return (
+      2 *
+      earthRadiusMeters *
+      Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+    );
   }
 
   private async findServiceByBooking(booking: BookingEntity): Promise<{

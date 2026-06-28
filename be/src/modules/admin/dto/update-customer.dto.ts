@@ -10,14 +10,21 @@ import {
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 
 export class UpdateCustomerDto {
-  @ApiPropertyOptional({ example: 'Nguyen Van A', maxLength: 100, description: 'Họ tên khách hàng' })
+  @ApiPropertyOptional({
+    example: 'Nguyen Van A',
+    maxLength: 100,
+    description: 'Họ tên khách hàng',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'Họ tên không được để trống' })
   @MaxLength(100, { message: 'Họ tên không được vượt quá 100 ký tự' })
   fullName?: string;
 
-  @ApiPropertyOptional({ example: '0901234567', description: 'Số điện thoại khách hàng' })
+  @ApiPropertyOptional({
+    example: '0901234567',
+    description: 'Số điện thoại khách hàng',
+  })
   @IsOptional()
   @IsString()
   @Matches(/^0\d{9,10}$/, {
@@ -25,7 +32,10 @@ export class UpdateCustomerDto {
   })
   phone?: string;
 
-  @ApiPropertyOptional({ enum: PaymentMethod, description: 'Phương thức thanh toán mặc định' })
+  @ApiPropertyOptional({
+    enum: PaymentMethod,
+    description: 'Phương thức thanh toán mặc định',
+  })
   @IsOptional()
   @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ' })
   defaultPaymentMethod?: PaymentMethod;

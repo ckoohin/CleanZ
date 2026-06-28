@@ -1,13 +1,15 @@
 import React from "react";
 import Image from "next/image";
-import { Package, Star, Clock, MapPin, Image as ImageIcon } from "lucide-react";
+import { Package, Star, Clock, MapPin, Image as ImageIcon, Edit } from "lucide-react";
 import { AdminServicePackageEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { Switch } from "@/components/ui/switch";
+import { BaseButton } from "@/components/ui/base/base_button";
 
 interface PackageHeroProps {
   pkg: AdminServicePackageEntity;
   onToggle: () => void;
   isToggling: boolean;
+  onEdit?: () => void;
 }
 
 const vnd = (val: number | null | undefined) => {
@@ -15,11 +17,11 @@ const vnd = (val: number | null | undefined) => {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(val);
 };
 
-export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
+export function PackageHero({ pkg, onToggle, isToggling, onEdit }: PackageHeroProps) {
   const subCount = pkg.packageSubServices?.length ?? 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--c-card)] to-[var(--c-card-2)] border border-[var(--c-line)]/50 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-(--c-card) to-(--c-card-2) border border-(--c-line)/50 shadow-sm">
       {/* Background blur image */}
       {pkg.iconUrl && (
         <div className="absolute inset-0 opacity-10">
@@ -29,12 +31,12 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
 
       <div className="relative z-10 flex flex-col md:flex-row gap-6 p-6">
         {/* Thumbnail */}
-        <div className="relative h-40 w-40 md:h-44 md:w-44 rounded-2xl overflow-hidden border-2 border-[var(--c-line)]/50 bg-[var(--c-card-2)] shadow-md shrink-0">
+        <div className="relative h-40 w-40 md:h-44 md:w-44 rounded-2xl overflow-hidden border-2 border-(--c-line)/50 bg-(--c-card-2) shadow-md shrink-0">
           {pkg.iconUrl ? (
             <Image src={pkg.iconUrl} alt={pkg.name} fill className="object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <ImageIcon className="w-12 h-12 text-[var(--c-muted)]" aria-hidden="true" />
+              <ImageIcon className="w-12 h-12 text-(--c-muted)" aria-hidden="true" />
             </div>
           )}
         </div>
@@ -44,9 +46,9 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
           <div>
             <div className="flex items-start gap-3 flex-wrap">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-[var(--c-ink)] leading-tight">{pkg.name}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-(--c-ink) leading-tight">{pkg.name}</h1>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] font-bold">
+                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-(--c-primary-soft) text-(--c-primary-strong) font-bold">
                     {pkg.packageCode}
                   </span>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${pkg.isActive ? "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E] dark:bg-[rgba(14,159,110,0.12)] dark:text-[#0E9F6E]" : "bg-[rgba(225,29,72,0.12)] text-[#E11D48] dark:bg-[rgba(225,29,72,0.12)] dark:text-[#E11D48]"}`}>
@@ -57,7 +59,7 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
             </div>
 
             {pkg.policyDescription && (
-              <p className="text-sm text-[var(--c-muted)] mt-3 max-w-2xl leading-relaxed line-clamp-2">
+              <p className="text-sm text-(--c-muted) mt-3 max-w-2xl leading-relaxed line-clamp-2">
                 {pkg.policyDescription}
               </p>
             )}
@@ -71,7 +73,7 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
               { icon: Star, label: "4.8 ★ rating", color: "text-[#D97706]" },
               { icon: MapPin, label: pkg.coverageAreas && pkg.coverageAreas.length > 0 ? `${pkg.coverageAreas.length} khu vực` : "Toàn quốc", color: "text-[#0E9F6E]" },
             ].map((item) => (
-              <div key={item.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--c-card)] backdrop-blur-sm border border-[var(--c-line)]/40 text-sm font-medium">
+              <div key={item.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-(--c-card) backdrop-blur-sm border border-(--c-line)/40 text-sm font-medium">
                 <item.icon className={`w-4 h-4 ${item.color}`} aria-hidden="true" />
                 <span>{item.label}</span>
               </div>
@@ -80,16 +82,31 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex flex-row md:flex-col items-center md:items-end gap-3 shrink-0">
-          <div className="flex items-center gap-2 bg-[var(--c-card)] backdrop-blur-sm border border-[var(--c-line)]/40 px-3 py-2 rounded-xl">
-            <span className="text-xs font-medium text-[var(--c-muted)]">
-              {pkg.isActive ? "Bật" : "Tắt"}
-            </span>
-            <Switch
-              checked={pkg.isActive}
-              onCheckedChange={onToggle}
-              disabled={isToggling}
-            />
+        <div className="flex flex-row md:flex-col items-center md:items-end gap-3 shrink-0 w-full md:w-auto">
+          <div className="flex items-center justify-between md:justify-end gap-3 md:flex-col md:items-end w-full">
+            <div className="flex items-center gap-2 bg-background/70 backdrop-blur-sm border border-border/40 px-3 py-2 rounded-xl shrink-0">
+              <span className="text-xs font-medium text-muted-foreground">
+                {pkg.isActive ? "Bật" : "Tắt"}
+              </span>
+              <Switch
+                checked={pkg.isActive}
+                onCheckedChange={onToggle}
+                disabled={isToggling}
+              />
+            </div>
+            
+            {onEdit && (
+              <BaseButton
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onEdit}
+                className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl font-bold bg-background/70 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all shadow-2xs shrink-0"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                Sửa chi tiết
+              </BaseButton>
+            )}
           </div>
 
           {/* KPI mini */}
@@ -101,10 +118,10 @@ export function PackageHero({ pkg, onToggle, isToggling }: PackageHeroProps) {
             ]
               .filter((i) => i.show)
               .map((item) => (
-                <div key={item.label} className="text-center bg-[var(--c-card)] border border-[var(--c-line)]/40 rounded-xl px-3 py-2">
+                <div key={item.label} className="text-center bg-(--c-card) border border-(--c-line)/40 rounded-xl px-3 py-2">
                   <div className="text-lg">{item.icon}</div>
-                  <p className="text-[9px] text-[var(--c-muted)] font-medium leading-none mt-1">{item.label}</p>
-                  <p className="text-xs font-bold text-[var(--c-ink)] mt-0.5">{item.value}</p>
+                  <p className="text-[9px] text-(--c-muted) font-medium leading-none mt-1">{item.label}</p>
+                  <p className="text-xs font-bold text-(--c-ink) mt-0.5">{item.value}</p>
                 </div>
               ))}
           </div>

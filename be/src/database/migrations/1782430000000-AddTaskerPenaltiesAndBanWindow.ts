@@ -37,9 +37,24 @@ export class AddTaskerPenaltiesAndBanWindow1782430000000 implements MigrationInt
       `ALTER TABLE "taskers" ADD COLUMN IF NOT EXISTS "ban_ends_at" timestamp NULL`,
     );
 
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "uq_taskers_doc_id_number" ON "taskers" ("doc_id_number") WHERE "doc_id_number" IS NOT NULL`,
-    );
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM "taskers"
+          WHERE "doc_id_number" IS NOT NULL
+          GROUP BY "doc_id_number"
+          HAVING COUNT(*) > 1
+        ) THEN
+          CREATE UNIQUE INDEX IF NOT EXISTS "uq_taskers_doc_id_number"
+            ON "taskers" ("doc_id_number")
+            WHERE "doc_id_number" IS NOT NULL;
+        ELSE
+          RAISE NOTICE 'Skip uq_taskers_doc_id_number because duplicate doc_id_number values exist.';
+        END IF;
+      END $$;
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

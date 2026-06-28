@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use } from "react";
-import { ArrowLeft, Loader2, LayoutDashboard, DollarSign, Package, ScrollText, Star, Activity, BarChart3 } from "lucide-react";
+import { ArrowLeft, Loader2, LayoutDashboard, DollarSign, Package, ScrollText, Star, Activity, BarChart3, GitBranch, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import {
@@ -20,6 +20,8 @@ import { PackageTermsTab } from "@/features/admin/modules/service/_components/de
 import { PackageReviewsTab } from "@/features/admin/modules/service/_components/detail/PackageReviewsTab";
 import { PackageStatsTab } from "@/features/admin/modules/service/_components/detail/PackageStatsTab";
 import { PackageOperationsTab } from "@/features/admin/modules/service/_components/detail/PackageOperationsTab";
+import { PackageWorkflowTab } from "@/features/admin/modules/service/_components/detail/PackageWorkflowTab";
+import { PackageCustomerPreviewTab } from "@/features/admin/modules/service/_components/detail/PackageCustomerPreviewTab";
 
 const TABS = [
   { value: "overview",     label: "Tổng quan",       icon: LayoutDashboard },
@@ -27,8 +29,10 @@ const TABS = [
   { value: "sub-services",label: "Dịch vụ con",      icon: Package },
   { value: "terms",       label: "Chính sách & ĐK",  icon: ScrollText },
   { value: "reviews",     label: "Đánh giá",          icon: Star },
+  { value: "workflow",    label: "Quy trình",          icon: GitBranch },
   { value: "operations",  label: "Vận hành",          icon: Activity },
   { value: "stats",       label: "Thống kê",          icon: BarChart3 },
+  { value: "preview",     label: "Xem trước KH",      icon: Eye },
 ];
 
 export default function ServicePackageDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -83,6 +87,7 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
         pkg={pkg}
         onToggle={() => updateMutation.mutate({ id: pkg.id, payload: { isActive: !pkg.isActive } })}
         isToggling={updateMutation.isPending}
+        onEdit={() => router.push(`/admin/services/${pkg.id}/edit`)}
       />
 
       {/* Main tabs */}
@@ -125,12 +130,20 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
             <PackageReviewsTab packageId={id} />
           </TabsContent>
 
+          <TabsContent value="workflow" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageWorkflowTab packageId={id} />
+          </TabsContent>
+
           <TabsContent value="operations" className="mt-0 animate-in fade-in-50 duration-300">
             <PackageOperationsTab pkg={pkg} />
           </TabsContent>
 
           <TabsContent value="stats" className="mt-0 animate-in fade-in-50 duration-300">
             <PackageStatsTab packageId={id} packageName={pkg.name} />
+          </TabsContent>
+
+          <TabsContent value="preview" className="mt-0 animate-in fade-in-50 duration-300">
+            <PackageCustomerPreviewTab pkg={pkg} />
           </TabsContent>
         </Tabs>
       </div>

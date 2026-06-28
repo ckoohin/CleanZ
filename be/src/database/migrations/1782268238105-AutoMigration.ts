@@ -158,8 +158,12 @@ export class AutoMigration1782268238105 implements MigrationInterface {
       `ALTER TABLE "vouchers" ADD CONSTRAINT "FK_820556fd3264ae9abfe7cbc0734" FOREIGN KEY ("service_id") REFERENCES "services"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
     );
 
-    await queryRunner.query(`DROP INDEX "public"."IDX_cc7b6205936d8c13d2ddafe014"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_e1a6a844aa22491dc799fc85d4"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_cc7b6205936d8c13d2ddafe014"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_e1a6a844aa22491dc799fc85d4"`,
+    );
     await queryRunner.query(`DROP TABLE "package_coverage_areas"`);
     await queryRunner.query(`DROP TABLE "booking_sub_services"`);
     await queryRunner.query(`DROP INDEX "public"."idx_service_packages_code"`);

@@ -13,4 +13,3 @@ import { ServicePackageEntity } from '../service/entity/service-package.entity';
   exports: [PolicyService],
 })
 export class PolicyModule {}
-
