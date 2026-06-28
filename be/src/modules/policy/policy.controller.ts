@@ -5,7 +5,7 @@ import {
 import { PolicyService } from './policy.service';
 import { CreatePolicyDto } from './dto/create-policy.dto';
 import { UpdatePolicyDto } from './dto/update-policy.dto';
-import { PolicyCategory } from './entity/policy.entity';
+import { PolicyCategory, PolicyRole } from './entity/policy.entity';
 
 @Controller('policy')
 export class PolicyController {
@@ -89,8 +89,8 @@ export class PolicyController {
   // ─── Public ───────────────────────────────────────────────────────────────
 
   @Get('public/all')
-  getPublicPolicies() {
-    return this.policyService.getPublicPolicies();
+  getPublicPolicies(@Query('role') role?: PolicyRole) {
+    return this.policyService.getPublicPolicies(role);
   }
 
   @Get('public/by-slug/:slug')

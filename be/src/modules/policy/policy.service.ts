@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, FindOptionsWhere } from 'typeorm';
 import { CreatePolicyDto } from './dto/create-policy.dto';
 import { UpdatePolicyDto } from './dto/update-policy.dto';
-import { Policy, PolicyCategory } from './entity/policy.entity';
+import { Policy, PolicyCategory, PolicyRole } from './entity/policy.entity';
 import { ServicePackageEntity } from '../service/entity/service-package.entity';
 import { DEFAULT_POLICIES } from '../../database/seeds/policy.seed';
 
@@ -70,9 +70,15 @@ export class PolicyService {
 
   // ─── Public ──────────────────────────────────────────────────────────────────
 
-  async getPublicPolicies() {
+  async getPublicPolicies(role?: PolicyRole) {
+    const where: FindOptionsWhere<Policy> = { isActive: true };
+    if (role === PolicyRole.TASKER) {
+      where.role = In([PolicyRole.TASKER, PolicyRole.ALL]) as any;
+    } else if (role === PolicyRole.CUSTOMER) {
+      where.role = In([PolicyRole.CUSTOMER, PolicyRole.ALL]) as any;
+    }
     return this.policyRepository.find({
-      where: { isActive: true },
+      where,
       order: { category: 'ASC', sortOrder: 'ASC' },
     });
   }
