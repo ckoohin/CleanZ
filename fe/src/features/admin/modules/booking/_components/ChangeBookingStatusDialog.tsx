@@ -60,7 +60,7 @@ export function ChangeBookingStatusDialog({ bookingId, currentStatus, open, onOp
   };
 
   const availableStatuses = [
-    { value: "POSTED", label: "Đang Tìm Thợ (POSTED)" },
+    { value: "POSTED", label: "Đang kiếm nhân viên(POSTED)" },
     { value: "CONFIRMED", label: "Đã Nhận Đơn (CONFIRMED)" },
     { value: "TASKER_ON_THE_WAY", label: "Đang Di Chuyển (TASKER_ON_THE_WAY)" },
     { value: "CHECKED_IN", label: "Đã Đến Nơi (CHECKED_IN)" },

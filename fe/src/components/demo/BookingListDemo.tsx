@@ -360,7 +360,7 @@ const statusStyles = {
 };
 
 const statusLabels = {
-  POSTED: "Đang tìm thợ",
+  POSTED: "Đang tìm kiếm nhân viên",
   CONFIRMED: "Đã nhận đơn",
   IN_PROGRESS: "Đang làm việc",
   COMPLETED: "Hoàn thành",
@@ -386,7 +386,7 @@ const taskerOptions = [
 
 const statusOptions = [
   { value: "ALL", label: "Tất cả trạng thái" },
-  { value: "POSTED", label: "Đang tìm thợ" },
+  { value: "POSTED", label: "Đang tìm nhân viên" },
   { value: "CONFIRMED", label: "Đã nhận đơn" },
   { value: "IN_PROGRESS", label: "Đang làm việc" },
   { value: "COMPLETED", label: "Hoàn thành" },
@@ -583,8 +583,8 @@ const getNoteForBooking = (id: string): string => {
     "bk-2": "Máy lạnh Daikin 1.5 HP, cục nóng treo tường cao cần mang thang chuyên dụng.",
     "bk-3": "Giặt Sofa nỉ 3 chỗ ngồi, có vài vết bẩn sẫm màu khó sạch ở đệm tựa đầu.",
     "bk-4": "Kiểm tra ổ cắm phòng bếp bị chập điện, nhảy aptomat liên tục khi cắm lò vi sóng.",
-    "bk-5": "Biệt thự 3 tầng, cần 2 thợ dọn dẹp chuyên sâu cả sân thượng.",
-    "bk-7": "Chung cư lầu 12, cần thợ có mang máy hút bụi cầm tay để dọn thảm phòng ngủ.",
+    "bk-5": "Biệt thự 3 tầng, cần 2 nhân viên dọn dẹp chuyên sâu cả sân thượng.",
+    "bk-7": "Chung cư lầu 12, cần nhân viên có mang máy hút bụi cầm tay để dọn thảm phòng ngủ.",
     "bk-9": "Khách yêu cầu là quần áo sơ mi và quần tây công sở cẩn thận.",
   };
   return notesMap[baseId] || "Không có ghi chú đặc biệt từ khách hàng.";
@@ -765,7 +765,7 @@ function BookingDetailDrawer({
                       onClick={onAssignClick}
                       className="h-7 rounded-lg text-[10px] font-bold bg-[#FFA000] text-white hover:bg-[#FFA000]/90 px-3 transition-all"
                     >
-                      <Plus className="w-3 h-3 mr-1" /> Phân thợ thủ công
+                      <Plus className="w-3 h-3 mr-1" /> Phân nhân viên thủ công
                     </Button>
                   )}
                 </div>
@@ -1537,7 +1537,7 @@ export function BookingListDemo() {
       }
     },
     {
-      label: "Phân bổ thợ",
+      label: "Phân bổ nhân viên",
       icon: UserCheck,
       onClick: (row) => {
         const latest = bookingsList.find(b => b.id.split("-")[0] === row.id.split("-")[0]);

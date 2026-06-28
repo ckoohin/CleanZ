@@ -39,15 +39,17 @@ export function useSocket(autoConnect = true): Socket {
 export function useSocketEvent<T = unknown>(
   event: string,
   handler: (data: T) => void,
+  autoConnect = true,
 ): void {
-  const socket = useSocket();
+  const socket = useSocket(autoConnect);
 
   useEffect(() => {
+    if (!autoConnect) return;
     socket.on(event, handler);
     return () => {
       socket.off(event, handler);
     };
-  }, [event, handler, socket]);
+  }, [autoConnect, event, handler, socket]);
 }
 
 /**

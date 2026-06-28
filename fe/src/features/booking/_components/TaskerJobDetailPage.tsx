@@ -116,6 +116,10 @@ function PostedDetailView({
   onAccepted: () => void;
 }) {
   const accept = useAcceptBooking();
+  const platformCommissionRate = data.price.platformCommissionRate ?? 20;
+  const platformFee =
+    data.price.platformFee ?? Math.round((data.price.totalPrice * platformCommissionRate) / 100);
+  const taskerIncome = data.price.taskerIncome ?? Math.max(data.price.totalPrice - platformFee, 0);
 
   const handleAccept = async () => {
     try {
@@ -183,11 +187,20 @@ function PostedDetailView({
               </span>
             </div>
           ))}
-        <div className="flex justify-between pt-2 border-t border-border/40">
-          <span className="font-bold text-sm">Bạn nhận được (ước tính)</span>
-          <span className="font-black text-primary">{fmtCurrency(data.price.totalPrice)}</span>
+        <div className="space-y-2 pt-2 border-t border-border/40">
+          <div className="flex justify-between text-sm">
+            <span className="font-bold">Tổng tiền của đơn</span>
+            <span className="font-black text-foreground">{fmtCurrency(data.price.totalPrice)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Phí nền tảng</span>
+            <span className="font-semibold text-red-500">-{fmtCurrency(platformFee)}</span>
+          </div>
+          <div className="flex justify-between pt-2 border-t border-border/40">
+            <span className="font-bold text-sm">Thu nhập của bạn</span>
+            <span className="font-black text-primary">{fmtCurrency(taskerIncome)}</span>
+          </div>
         </div>
-        <p className="text-[10px] text-muted-foreground">* Sau khi trừ phí nền tảng</p>
       </div>
 
       {/* Accept button */}

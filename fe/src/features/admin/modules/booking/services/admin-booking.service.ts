@@ -8,7 +8,17 @@ import {
 } from '../types/booking.types';
 
 export const adminBookingService = {
-  getAdminBookings: async (params: { page?: number; limit?: number; keyword?: string; status?: string }) => {
+  getAdminBookings: async (params: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    status?: string;
+    paymentStatus?: string;
+    customerId?: string;
+    taskerId?: string;
+    fromDate?: string;
+    toDate?: string;
+  }) => {
     const { data } = await http.get(API_ENDPOINTS.ADMIN_BOOKINGS.BASE, { params });
     return data;
   },

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { customerNotificationApi } from "../services/notification.service";
 import type { NotificationQueryParams } from "../types/notification.types";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
 
 export const customerNotificationKeys = {
   all: ["customer-notifications"] as const,
@@ -13,17 +14,25 @@ export const customerNotificationKeys = {
 };
 
 export function useCustomerNotifications(params?: NotificationQueryParams) {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isCustomerReady = !isAuthLoading && user?.role === "CUSTOMER";
+
   return useQuery({
     queryKey: customerNotificationKeys.list(params),
     queryFn: () => customerNotificationApi.list(params),
+    enabled: isCustomerReady,
     placeholderData: (previous) => previous,
   });
 }
 
 export function useCustomerUnreadCount() {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isCustomerReady = !isAuthLoading && user?.role === "CUSTOMER";
+
   return useQuery({
     queryKey: customerNotificationKeys.unreadCount,
     queryFn: customerNotificationApi.unreadCount,
+    enabled: isCustomerReady,
   });
 }
 

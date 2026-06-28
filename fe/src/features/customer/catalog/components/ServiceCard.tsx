@@ -92,28 +92,30 @@ export const ServiceCard = ({
       </div>
 
       {/* ── Content ── */}
-      <div className="flex flex-col flex-1 p-4">
-        <h3 className="font-bold text-base text-foreground line-clamp-1 mb-1">{name}</h3>
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <h3 className="mb-1 line-clamp-1 break-words text-base font-bold leading-snug text-foreground">
+          {name}
+        </h3>
 
-        <p className="text-xs text-muted-foreground line-clamp-2 min-h-[32px] leading-relaxed">
+        <p className="min-h-[36px] text-xs leading-relaxed text-muted-foreground line-clamp-2 break-words">
           {description}
         </p>
 
         {/* Meta */}
-        <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground/80">
-          <span className="inline-flex items-center gap-1">
+        <div className="mt-3 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 text-xs text-muted-foreground/80">
+          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
             <Clock3 className="h-3.5 w-3.5 shrink-0 text-primary/60" />
             {durationHours} giờ
           </span>
-          <span className="inline-flex items-center gap-1 min-w-0">
+          <span className="inline-flex min-w-0 items-center gap-1">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/60" />
             <span className="truncate">{coverageArea || "Toàn khu vực"}</span>
           </span>
         </div>
 
         {/* Price + CTA */}
-        <div className="mt-auto pt-3 border-t border-border/40 flex items-end justify-between gap-2">
-          <div>
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/40 pt-3">
+          <div className="min-w-0">
             <p className="text-[10px] text-muted-foreground/70 mb-0.5 uppercase tracking-wide">
               Giá từ
             </p>
@@ -130,6 +132,7 @@ export const ServiceCard = ({
             className={cn(
               "shrink-0 inline-flex h-9 items-center gap-1 rounded-xl px-3",
               "bg-card border border-primary/30 text-primary text-xs font-bold",
+              "whitespace-nowrap",
               "hover:bg-primary hover:text-primary-foreground",
               "transition-all duration-200 active:scale-95"
             )}

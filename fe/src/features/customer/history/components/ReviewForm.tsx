@@ -362,19 +362,19 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
         <button
           type="button"
           onClick={() => setIsAnonymous((v) => !v)}
-          className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-colors ${
+          className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-colors ${
             isAnonymous
               ? "border-primary/40 bg-primary/5"
               : "border-border bg-background"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {isAnonymous ? (
-              <EyeOff className="w-5 h-5 text-primary" />
+              <EyeOff className="w-5 h-5 shrink-0 text-primary" />
             ) : (
-              <Eye className="w-5 h-5 text-muted-foreground" />
+              <Eye className="w-5 h-5 shrink-0 text-muted-foreground" />
             )}
-            <div className="text-left">
+            <div className="min-w-0 text-left">
               <p
                 className={`text-sm font-bold ${isAnonymous ? "text-primary" : "text-foreground/90"}`}
               >
@@ -388,10 +388,10 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
             </div>
           </div>
           <div
-            className={`w-10 h-6 rounded-full transition-colors relative ${isAnonymous ? "bg-primary" : "bg-muted"}`}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${isAnonymous ? "bg-primary" : "bg-muted"}`}
           >
             <span
-              className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${isAnonymous ? "translate-x-5" : "translate-x-1"}`}
+              className={`absolute left-0.5 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform duration-200 ${isAnonymous ? "translate-x-5" : "translate-x-0"}`}
             />
           </div>
         </button>

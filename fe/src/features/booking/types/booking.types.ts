@@ -221,6 +221,9 @@ export interface TaskerPostedBookingDetail {
     peakFee: number;
     petFee: number;
     discountAmount: number;
+    platformCommissionRate?: number;
+    platformFee?: number;
+    taskerIncome?: number;
   };
   schedule: BookingSchedule;
 }

@@ -87,6 +87,9 @@ export interface TaskerPostedBookingDetailResponse {
     peakFee: number;
     petFee: number;
     discountAmount: number;
+    platformCommissionRate: number;
+    platformFee: number;
+    taskerIncome: number;
   };
   schedule: {
     scheduledStartDate?: string | null;
@@ -396,17 +399,28 @@ export class TaskerBookingService {
         throw new NotFoundException('Booking thiếu tọa độ địa chỉ');
       }
       const service = await this.findServiceByBooking(booking);
+      const platformCommissionRate = await this.resolvePlatformCommissionRate(
+        this.dataSource.manager,
+        booking,
+      );
+      const totalPrice = toNumber(booking.totalPrice);
+      const platformFee = Math.round(
+        (totalPrice * platformCommissionRate) / 100,
+      );
 
       return {
         distance,
         service,
         price: {
-          totalPrice: toNumber(booking.totalPrice),
+          totalPrice,
           basePrice: toNumber(booking.basePrice),
           addonPrice: toNumber(booking.addonPrice),
           peakFee: toNumber(booking.peakFee),
           petFee: toNumber(booking.petFee),
           discountAmount: toNumber(booking.discountAmount),
+          platformCommissionRate,
+          platformFee,
+          taskerIncome: Math.max(totalPrice - platformFee, 0),
         },
         schedule: {
           scheduledStartDate: booking.scheduledStartDate,

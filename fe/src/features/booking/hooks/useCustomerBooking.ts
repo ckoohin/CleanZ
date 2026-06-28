@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { customerBookingApi } from "../services/booking.service";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import type {
   CancelBookingDto,
   CreateBookingDto,
@@ -70,11 +71,15 @@ export function useCreateBooking() {
 
 /** Chi tiết booking */
 export function useBookingDetail(id: string) {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isCustomerReady = !isAuthLoading && user?.role === "CUSTOMER";
+
   return useQuery({
     queryKey: QUERY_KEYS.detail(id),
     queryFn: () => customerBookingApi.findDetail(id),
-    enabled: !!id,
+    enabled: isCustomerReady && !!id,
     refetchInterval: (query) => {
+      if (!isCustomerReady || !id) return false;
       const status = query.state.data?.status;
       if (status === 'COMPLETED' || status === 'CANCELLED') {
         return false;
@@ -86,18 +91,26 @@ export function useBookingDetail(id: string) {
 
 /** Active booking (cho History page + Home widget) */
 export function useMyActiveBooking() {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isCustomerReady = !isAuthLoading && user?.role === "CUSTOMER";
+
   return useQuery({
     queryKey: QUERY_KEYS.myActive,
     queryFn: () => customerBookingApi.findMyActive(),
-    refetchInterval: 30_000,
+    enabled: isCustomerReady,
+    refetchInterval: isCustomerReady ? 30_000 : false,
   });
 }
 
 /** Danh sách lịch sử booking (History page + Profile stats) */
 export function useMyBookingHistory() {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isCustomerReady = !isAuthLoading && user?.role === "CUSTOMER";
+
   return useQuery({
     queryKey: QUERY_KEYS.myList,
     queryFn: () => customerBookingApi.findMyBookings(),
+    enabled: isCustomerReady,
     staleTime: 2 * 60 * 1000, // cache 2 phút
   });
 }

@@ -24,7 +24,7 @@ import { useMyActiveBooking } from "@/features/booking/hooks/useCustomerBooking"
 import type { BookingStatus } from "@/features/booking/types/booking.types";
 
 const STATUS_TEXT: Record<BookingStatus, string> = {
-  POSTED: "Đang tìm chuyên gia",
+  POSTED: "Đang tìm nhân viên",
   CONFIRMED: "Đã nhận đơn",
   TASKER_ON_THE_WAY: "Chuyên gia đang đến",
   CHECKED_IN: "Chuyên gia đã đến nơi",
