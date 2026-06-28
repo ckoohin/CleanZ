@@ -10,7 +10,7 @@ import {
 export class CreateWithdrawalRequestDto {
   @ApiProperty({ example: 500000 })
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(1)
+  @Min(10000)
   amount!: number;
 
   @ApiPropertyOptional({ example: 'Rút thu nhập tuần này' })

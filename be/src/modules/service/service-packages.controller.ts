@@ -85,7 +85,9 @@ export class ServicePackagesController {
   @Post(':id/sub-services')
   @Auth(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Thêm hoặc cập nhật danh sách dịch vụ con trong gói' })
+  @ApiOperation({
+    summary: 'Thêm hoặc cập nhật danh sách dịch vụ con trong gói',
+  })
   async addSubServices(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddSubServicesToPackageDto,

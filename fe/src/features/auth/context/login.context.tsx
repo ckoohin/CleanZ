@@ -1,21 +1,31 @@
-import { createContext, useContext, useState } from "react";
+import {
+    createContext,
+    useContext,
+    useState,
+    type Dispatch,
+    type SetStateAction,
+} from "react";
 import { useZodValidation } from "../hooks/useZodValidation";
 import { signin } from "../schemas/signup.schema";
 import { useLogin } from "../hooks/auth.hooks";
 import { useRouter } from "next/navigation";
 import { LoginCredentials } from "../types/auth.type";
+import type { ErrorMap } from "../types/error.type";
 
 type LoginContextType = {
     showPassword: boolean,
     setShowPassword: (value: boolean) => void
 
     formData: LoginCredentials,
-    setFormData: (value: LoginCredentials) => void,
+    setFormData: Dispatch<SetStateAction<LoginCredentials>>,
 
-    error: any,
-    setErrors: (value: any) => void,
+    error: ErrorMap,
+    setErrors: Dispatch<SetStateAction<ErrorMap>>,
 
-    validate: (data: LoginCredentials) => { success: boolean, errors: any },
+    validate: (data: LoginCredentials) => {
+        success: boolean,
+        errors: ErrorMap,
+    },
 
     handleSubmit: (e: React.FormEvent) => void,
 }
@@ -29,7 +39,7 @@ export function LoginProvider(
     const router = useRouter()
     const [formData, setFormData] = useState<LoginCredentials>({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setErrors] = useState<any>({});
+    const [error, setErrors] = useState<ErrorMap>({});
     const validate = useZodValidation(signin);
 
 

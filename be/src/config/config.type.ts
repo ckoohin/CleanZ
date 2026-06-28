@@ -8,6 +8,8 @@ export type AllConfigType = {
   NODE_ENV: 'development' | 'production';
 
   FRONTEND_URL: string;
+  BACKEND_URL?: string;
+  COOKIE_DOMAIN?: string;
 
   REDIS_HOST: string;
   REDIS_PORT: number;

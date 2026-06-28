@@ -15,6 +15,9 @@ export class PricingConfigEntity {
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
+  @Column({ type: 'uuid', name: 'service_id', nullable: true })
+  serviceId?: string | null;
+
   @Column({ type: 'numeric', precision: 12, scale: 2, name: 'base_price' })
   basePrice!: number;
 

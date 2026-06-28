@@ -88,7 +88,7 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-5 p-6">
             <div
               className="rounded-[24px] p-5 text-white"

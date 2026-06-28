@@ -252,9 +252,16 @@ export class AdminDashboardRepository {
       this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
-        .leftJoin('pricing_configs', 'pc', 'pc.service_id = b.service_id')
         .select(
-          'COALESCE(SUM(b.total_price * COALESCE(pc.platform_commission_rate, 15) / 100), 0)',
+          `COALESCE(SUM(
+            b.total_price * (
+              SELECT COALESCE(AVG(pc.platform_commission_rate), 15)
+              FROM booking_sub_services bss
+              INNER JOIN sub_services ss ON ss.id = bss.sub_service_id
+              LEFT JOIN pricing_configs pc ON pc.id = ss.pricing_config_id
+              WHERE bss.booking_id = b.id
+            ) / 100
+          ), 0)`,
           'commission',
         )
         .where('b.status = :completed', { completed: BookingStatus.COMPLETED })

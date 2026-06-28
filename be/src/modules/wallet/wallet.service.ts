@@ -72,7 +72,17 @@ export interface WalletTransactionResponse {
 
 export interface WalletTransactionListResponse {
   total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
   items: WalletTransactionResponse[];
+}
+
+export interface WalletTransactionQueryOpts {
+  page?: number;
+  limit?: number;
+  fromDate?: string;
+  toDate?: string;
 }
 
 @Injectable()
@@ -238,6 +248,7 @@ export class WalletService {
 
   async getMyTaskerTransactions(
     userId: string,
+    opts: WalletTransactionQueryOpts = {},
   ): Promise<WalletTransactionListResponse> {
     return asyncHandleOperation(async () => {
       const tasker = await this.findTaskerByUserId(
@@ -249,12 +260,13 @@ export class WalletService {
         tasker,
       );
 
-      return this.getTransactionsByWalletId(wallet.id);
+      return this.getTransactionsByWalletId(wallet.id, opts);
     }, 'Không thể lấy lịch sử ví tasker');
   }
 
   async getMyCustomerTransactions(
     userId: string,
+    opts: WalletTransactionQueryOpts = {},
   ): Promise<WalletTransactionListResponse> {
     return asyncHandleOperation(async () => {
       const customer = await this.findCustomerByUserId(
@@ -266,7 +278,7 @@ export class WalletService {
         customer,
       );
 
-      return this.getTransactionsByWalletId(wallet.id);
+      return this.getTransactionsByWalletId(wallet.id, opts);
     }, 'Không thể lấy lịch sử ví customer');
   }
 
@@ -504,22 +516,41 @@ export class WalletService {
 
   private async getTransactionsByWalletId(
     walletId: string,
+    opts: WalletTransactionQueryOpts = {},
   ): Promise<WalletTransactionListResponse> {
-    const transactionRepository = this.dataSource.getRepository(
-      WalletTransactionEntity,
-    );
-    const [transactions, total] = await transactionRepository.findAndCount({
-      where: { wallet: { id: walletId } },
-      relations: ['wallet', 'booking'],
-      order: { createdAt: 'DESC' },
-      take: 50,
-    });
+    const page = Math.max(1, opts.page ?? 1);
+    const limit = Math.min(100, Math.max(1, opts.limit ?? 10));
+    const skip = (page - 1) * limit;
+
+    const qb = this.dataSource
+      .getRepository(WalletTransactionEntity)
+      .createQueryBuilder('tx')
+      .leftJoinAndSelect('tx.wallet', 'wallet')
+      .leftJoinAndSelect('tx.booking', 'booking')
+      .where('tx.wallet_id = :walletId', { walletId })
+      .orderBy('tx.created_at', 'DESC');
+
+    if (opts.fromDate) {
+      qb.andWhere('tx.created_at >= :fromDate', {
+        fromDate: new Date(opts.fromDate),
+      });
+    }
+    if (opts.toDate) {
+      // toDate bao gồm cả ngày đó (lấy đến cuối ngày)
+      const to = new Date(opts.toDate);
+      to.setHours(23, 59, 59, 999);
+      qb.andWhere('tx.created_at <= :toDate', { toDate: to });
+    }
+
+    const total = await qb.getCount();
+    const transactions = await qb.clone().skip(skip).take(limit).getMany();
 
     return {
       total,
-      items: transactions.map((transaction) =>
-        this.mapTransaction(transaction),
-      ),
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      items: transactions.map((tx) => this.mapTransaction(tx)),
     };
   }
 

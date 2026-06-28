@@ -58,6 +58,7 @@ export class PublicServicesController {
       waitingSurcharge: Number(pkg.waitingSurcharge),
       toolFee: Number(pkg.toolFee),
       peakRatePercent: Number(pkg.peakRatePercent),
+      pricingMode: pkg.pricingMode || null,
       coverageAreas: (pkg.coverageAreas || []).map((area) => ({
         id: area.id,
         name: area.name,

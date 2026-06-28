@@ -42,6 +42,17 @@ export function useBookingQuote() {
   });
 }
 
+/** Xem báo giá realtime dạng Query */
+export function useBookingQuoteQuery(dto: QuoteBookingDto, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["booking", "quote", dto],
+    queryFn: () => customerBookingApi.quote(dto),
+    enabled: enabled && !!dto.packageId && !!dto.scheduledDate && !!dto.scheduledTime,
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
 /** Tạo booking */
 export function useCreateBooking() {
   const qc = useQueryClient();

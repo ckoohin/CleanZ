@@ -13,11 +13,12 @@ import { motion, Variants } from 'motion/react';
 import { useLogin } from '@/features/auth/hooks/auth.hooks'
 import { Checkbox } from '@/components/ui/checkbox'
 import { SocialSignIn } from './SocialSignIn'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useLoginContext } from '../../context/login.context'
 import LogoApp from '@/components/logo/LogoApp'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer'
 import { cn } from '@/lib/utils'
+import { getApiBaseUrl } from '@/lib/api/base-url'
 
 export const fadeUp: Variants = {
     hidden: { opacity: 0, y: 20 },
@@ -35,12 +36,12 @@ const BACKGROUND_IMAGES = [
 ];
 
 export const SignInFlow = () => {
-    const router = useRouter()
     const { formData, setFormData } = useLoginContext()
     const [showPassword, setShowPassword] = useState(false);
     const [error, setErrors] = useState<Record<string, string>>({});
     const validate = useZodValidation(signin);
     const login = useLogin("/customer");
+    const apiBaseUrl = getApiBaseUrl();
     
     // State cho Mobile Drawer
     const [showEmailFormMobile, setShowEmailFormMobile] = useState<boolean>(() => {
@@ -83,24 +84,15 @@ export const SignInFlow = () => {
 
     const handleSocialClick = (provider: 'google' | 'apple') => {
         if (provider === 'google') {
-            window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google?state=customer`;
-        }
-    };
-
-    const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
-        e.preventDefault();
-        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-            setShowEmailFormMobile(false);
-            setTimeout(() => {
-                router.push(path);
-            }, 300);
-        } else {
-            router.push(path);
+            window.location.href = `${apiBaseUrl}/auth/google?state=customer`;
         }
     };
 
     // Hàm render nội dung form (để tái sử dụng ở PC và Mobile Drawer)
-    const renderAuthForm = (isMobile = false) => (
+    const renderAuthForm = (isMobile = false) => {
+        const fieldSuffix = isMobile ? "mobile" : "desktop";
+
+        return (
         <div className={cn("w-full max-w-md space-y-6 mx-auto", isMobile ? "px-0" : "")}>
             {/* Heading */}
             <motion.div
@@ -125,16 +117,22 @@ export const SignInFlow = () => {
             >
                 {/* Email */}
                 <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor={`email-${fieldSuffix}`}>Email</Label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
-                            id="email"
+                            id={`email-${fieldSuffix}`}
+                            name="email"
                             type="email"
+                            autoComplete="email"
                             placeholder="name@example.com"
                             className="pl-10 bg-card border-border focus-visible:ring-primary"
                             value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            onChange={(e) => {
+                                const email = e.target.value;
+                                setFormData((current) => ({ ...current, email }));
+                                setErrors((current) => ({ ...current, email: "" }));
+                            }}
                         />
                     </div>
                     {error.email && <p className="text-xs text-destructive font-medium">{error.email}</p>}
@@ -143,17 +141,23 @@ export const SignInFlow = () => {
                 {/* Password */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Mật khẩu</Label>
+                        <Label htmlFor={`password-${fieldSuffix}`}>Mật khẩu</Label>
                     </div>
                     <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
-                            id="password"
+                            id={`password-${fieldSuffix}`}
+                            name="password"
                             type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
                             placeholder="••••••••"
                             className="pl-10 pr-10 bg-card border-border focus-visible:ring-primary"
                             value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            onChange={(e) => {
+                                const password = e.target.value;
+                                setFormData((current) => ({ ...current, password }));
+                                setErrors((current) => ({ ...current, password: "" }));
+                            }}
                         />
                         <button
                             type="button"
@@ -199,8 +203,8 @@ export const SignInFlow = () => {
 
                 <motion.div custom={3} variants={isMobile ? undefined : fadeUp} initial={isMobile ? "show" : "hidden"} animate="show">
                     <SocialSignIn
-                        url_gg={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?state=customer`}
-                        url_facebook={`${process.env.NEXT_PUBLIC_API_URL}/auth/facebook`}
+                        url_gg={`${apiBaseUrl}/auth/google?state=customer`}
+                        url_facebook={`${apiBaseUrl}/auth/facebook`}
                         text_gg="Đăng nhập với Google"
                         text_facebook="Đăng nhập với Facebook"
                     />
@@ -212,7 +216,8 @@ export const SignInFlow = () => {
                 <Link href="/register" className="text-primary font-bold hover:underline underline-offset-4 cursor-pointer">Đăng ký miễn phí</Link>
             </motion.p>
         </div>
-    );
+        );
+    };
 
     return (
         <div className="relative w-full h-screen bg-slate-950 text-foreground overflow-hidden flex flex-col lg:flex-row">
@@ -324,7 +329,13 @@ export const SignInFlow = () => {
             </div>
 
             {/* MOBILE DRAWER */}
-            <Drawer open={showEmailFormMobile} onOpenChange={setShowEmailFormMobile}>
+            <Drawer
+                open={showEmailFormMobile}
+                onOpenChange={setShowEmailFormMobile}
+                fixed
+                handleOnly
+                repositionInputs={false}
+            >
                 <DrawerContent className="bg-background border-t border-border lg:hidden max-h-[95vh] outline-none rounded-t-[3rem] sm:max-w-[540px] md:max-w-[640px] sm:mx-auto sm:border-x">
                     <div className="px-6 pb-12 pt-2 flex flex-col overflow-y-auto w-full">
                         <DrawerHeader className="px-0 pt-2 pb-4 border-b border-border mb-4 text-left">

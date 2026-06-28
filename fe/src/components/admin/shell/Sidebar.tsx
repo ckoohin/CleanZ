@@ -41,9 +41,11 @@ function NavRow({
   const Icon = item.icon;
 
   // Auto-expand the section the user navigates into.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (activeNow) setOpen(true);
   }, [activeNow]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <li>
@@ -104,7 +106,7 @@ function NavRow({
           {item.children!.map((c) => {
             const childActive = pathname === c.href;
             return (
-              <li key={c.href}>
+              <li key={c.href || c.title}>
                 <Link
                   href={c.href}
                   onClick={onNavigate}
@@ -166,7 +168,7 @@ export function SidebarContent({
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => (
-                <NavRow key={item.href} item={item} collapsed={collapsed} onNavigate={onNavigate} />
+                <NavRow key={item.href || item.title} item={item} collapsed={collapsed} onNavigate={onNavigate} />
               ))}
             </ul>
           </div>

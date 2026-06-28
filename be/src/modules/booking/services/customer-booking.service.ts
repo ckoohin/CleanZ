@@ -64,6 +64,8 @@ interface BookingPricingContext {
   discountAmount: number;
   totalPrice: number;
   voucher?: VoucherEntity | null;
+  areaM2?: number;
+  pricingTierId?: string;
 }
 
 export type CustomerBookingQuoteResponse = Record<string, unknown>;
@@ -182,6 +184,8 @@ export class CustomerBookingService {
           scheduledEndDate: context.scheduledEndDate,
           scheduledEndTime: context.scheduledEndTime,
           durationHours: context.durationHours,
+          areaM2: context.areaM2,
+          pricingTierId: context.pricingTierId,
           status: BookingStatus.POSTED,
           basePrice: context.basePrice,
           addonPrice: context.addonPrice,
@@ -573,6 +577,8 @@ export class CustomerBookingService {
         booking.discountAmount = context.discountAmount;
         booking.totalPrice = context.totalPrice;
         booking.voucherId = context.voucher?.id ?? null;
+        booking.areaM2 = context.areaM2;
+        booking.pricingTierId = context.pricingTierId;
 
         const savedBooking = await manager
           .getRepository(BookingEntity)
@@ -749,6 +755,8 @@ export class CustomerBookingService {
       packageId: dto.packageId,
       subServiceIds: dto.subServiceIds,
       durationHours: dto.durationHours,
+      areaM2: dto.areaM2,
+      pricingTierId: dto.pricingTierId,
       scheduledStart: scheduleStart.scheduledStart,
       scheduledStartTime: scheduleStart.scheduledStartTime,
       hasPet: addressRef?.hasPet ?? false,
@@ -781,6 +789,8 @@ export class CustomerBookingService {
       discountAmount: price.discountAmount,
       totalPrice: price.totalPrice,
       voucher: price.voucher,
+      areaM2: dto.areaM2,
+      pricingTierId: price.pricingTierId,
     };
   }
 

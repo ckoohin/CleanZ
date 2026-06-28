@@ -7,6 +7,9 @@ import { ConfigService } from '@nestjs/config';
 
 interface GoongDirectionsResponse {
   routes?: Array<{
+    overview_polyline?: {
+      points?: string;
+    };
     legs?: Array<{
       distance?: {
         value?: number;
@@ -27,6 +30,7 @@ export interface GoongRouteSummary {
     seconds: number;
     minutes: number;
   };
+  encodedPolyline?: string | null;
 }
 
 @Injectable()
@@ -81,6 +85,7 @@ export class GoongMapService {
         seconds: durationSeconds,
         minutes: Number((durationSeconds / 60).toFixed(0)),
       },
+      encodedPolyline: data.routes?.[0]?.overview_polyline?.points ?? null,
     };
   }
 

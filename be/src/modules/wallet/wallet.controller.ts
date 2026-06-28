@@ -7,6 +7,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -23,6 +24,7 @@ import {
   WalletService,
   WalletTransactionListResponse,
 } from './wallet.service';
+import { WalletTransactionListQueryDto } from './dto/wallet-transaction-list-query.dto';
 import { WalletListQueryDto } from './dto/wallet-list-query.dto';
 import { paginatedResponse } from 'src/common/helpers/response.helper';
 import { CreateWithdrawalRequestDto } from './dto/create-withdrawal-request.dto';
@@ -126,8 +128,9 @@ export class WalletController {
   @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
   getMyTaskerTransactions(
     @CurrentUser('id') userId: string,
+    @Query() query: WalletTransactionListQueryDto,
   ): Promise<WalletTransactionListResponse> {
-    return this.walletService.getMyTaskerTransactions(userId);
+    return this.walletService.getMyTaskerTransactions(userId, query);
   }
 
   @Get('customer/me/transactions')
@@ -139,8 +142,9 @@ export class WalletController {
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   getMyCustomerTransactions(
     @CurrentUser('id') userId: string,
+    @Query() query: WalletTransactionListQueryDto,
   ): Promise<WalletTransactionListResponse> {
-    return this.walletService.getMyCustomerTransactions(userId);
+    return this.walletService.getMyCustomerTransactions(userId, query);
   }
 
   @Get('system')

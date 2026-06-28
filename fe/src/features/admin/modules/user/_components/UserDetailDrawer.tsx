@@ -126,7 +126,7 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
             </p>
           </div>
         ) : (
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-6 space-y-6">
               {/* Profile header */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-[var(--c-card-2)] rounded-2xl border border-[var(--c-line)]">

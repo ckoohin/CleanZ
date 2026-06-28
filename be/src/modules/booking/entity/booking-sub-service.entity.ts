@@ -50,6 +50,31 @@ export class BookingSubServiceEntity {
   @Column({ type: 'int', default: 1 })
   quantity!: number;
 
+  /**
+   * true = dịch vụ này nằm trong gói mặc định
+   * false = khách thêm thủ công
+   */
+  @Column({ name: 'is_default', type: 'boolean', default: true })
+  isDefault!: boolean;
+
+  /**
+   * Khách bỏ tick (false) hay giữ (true) dịch vụ này
+   */
+  @Column({ name: 'is_selected', type: 'boolean', default: true })
+  isSelected!: boolean;
+
+  /**
+   * Phụ phí riêng của dịch vụ con này (nếu có)
+   */
+  @Column({
+    name: 'extra_fee',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  extraFee!: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

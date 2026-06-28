@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 import { taskerWalletApi } from "../services/tasker-wallet.service";
-import type { CreateTaskerWithdrawalPayload } from "../types/tasker-wallet.types";
+import type {
+  CreateTaskerWithdrawalPayload,
+  TaskerWalletTransactionQuery,
+} from "../types/tasker-wallet.types";
 
 export const taskerWalletKeys = {
   all: ["tasker-wallet"] as const,
   detail: () => [...taskerWalletKeys.all, "detail"] as const,
-  transactions: () => [...taskerWalletKeys.all, "transactions"] as const,
+  transactions: (query?: TaskerWalletTransactionQuery) =>
+    [...taskerWalletKeys.all, "transactions", query] as const,
   depositTransactions: () =>
     [...taskerWalletKeys.all, "deposit-transactions"] as const,
 };
@@ -19,10 +23,12 @@ export function useTaskerWallet() {
   });
 }
 
-export function useTaskerWalletTransactions() {
+export function useTaskerWalletTransactions(
+  query?: TaskerWalletTransactionQuery,
+) {
   return useQuery({
-    queryKey: taskerWalletKeys.transactions(),
-    queryFn: taskerWalletApi.getTransactions,
+    queryKey: taskerWalletKeys.transactions(query),
+    queryFn: () => taskerWalletApi.getTransactions(query),
   });
 }
 

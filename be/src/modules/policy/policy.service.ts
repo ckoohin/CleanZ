@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CreatePolicyDto } from './dto/create-policy.dto';
@@ -60,8 +64,13 @@ export class PolicyService {
     let created = 0;
     let skipped = 0;
     for (const data of DEFAULT_POLICIES) {
-      const exists = await this.policyRepository.findOne({ where: { slug: data.slug } });
-      if (exists) { skipped++; continue; }
+      const exists = await this.policyRepository.findOne({
+        where: { slug: data.slug },
+      });
+      if (exists) {
+        skipped++;
+        continue;
+      }
       await this.policyRepository.save(this.policyRepository.create(data));
       created++;
     }
@@ -103,14 +112,19 @@ export class PolicyService {
     return pkg.policies ?? [];
   }
 
-  async assignPoliciesToPackage(packageId: string, policyIds: string[]): Promise<Policy[]> {
+  async assignPoliciesToPackage(
+    packageId: string,
+    policyIds: string[],
+  ): Promise<Policy[]> {
     const pkg = await this.packageRepository.findOne({
       where: { id: packageId },
       relations: ['policies'],
     });
     if (!pkg) throw new NotFoundException('Không tìm thấy gói dịch vụ');
 
-    const policies = await this.policyRepository.find({ where: { id: In(policyIds) } });
+    const policies = await this.policyRepository.find({
+      where: { id: In(policyIds) },
+    });
     const existingIds = (pkg.policies ?? []).map((p) => p.id);
     const newPolicies = policies.filter((p) => !existingIds.includes(p.id));
     pkg.policies = [...(pkg.policies ?? []), ...newPolicies];
@@ -118,7 +132,10 @@ export class PolicyService {
     return pkg.policies;
   }
 
-  async removePolicyFromPackage(packageId: string, policyId: string): Promise<Policy[]> {
+  async removePolicyFromPackage(
+    packageId: string,
+    policyId: string,
+  ): Promise<Policy[]> {
     const pkg = await this.packageRepository.findOne({
       where: { id: packageId },
       relations: ['policies'],
@@ -133,7 +150,10 @@ export class PolicyService {
   async applyDefaultsToPackage(packageId: string): Promise<void> {
     const defaults = await this.getDefaults();
     if (defaults.length === 0) return;
-    await this.assignPoliciesToPackage(packageId, defaults.map((p) => p.id));
+    await this.assignPoliciesToPackage(
+      packageId,
+      defaults.map((p) => p.id),
+    );
   }
 
   /** Lấy danh sách gói dịch vụ đang dùng policy này */
