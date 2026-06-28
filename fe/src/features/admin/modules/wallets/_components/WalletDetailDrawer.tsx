@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -49,6 +48,7 @@ import type {
   WalletOwnerType,
   WalletTransaction,
 } from "../types/wallet.types";
+import { TransactionDetailDrawer } from "./TransactionDetailDrawer";
 
 interface Props {
   walletId: string;
@@ -94,6 +94,8 @@ export function WalletDetailDrawer({
   const [txPage, setTxPage] = useState(1);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<WalletTransaction | null>(null);
 
   const hasFilter = Boolean(fromDate || toDate);
 
@@ -143,7 +145,7 @@ export function WalletDetailDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-        <SheetContent className="cz-admin flex w-full flex-col bg-(--c-card) p-0 sm:max-w-xl">
+        <SheetContent className="cz-admin flex w-full flex-col bg-(--c-card) p-0 sm:max-w-2xl">
         <SheetHeader className="border-b border-(--c-line) px-6 py-5">
           <SheetTitle className="flex items-center gap-2 text-base text-(--c-ink)">
             <WalletCards className="size-5 text-(--c-primary-strong)" />
@@ -159,7 +161,7 @@ export function WalletDetailDrawer({
               <Skeleton className="h-64 rounded-2xl" />
             </div>
           ) : wallet ? (
-            <div className="space-y-5 p-6">
+            <div className="space-y-5 px-4 py-5 sm:p-6">
               <div className="rounded-[24px] bg-(--c-primary) p-5 text-white shadow-lg shadow-(--c-primary)/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-semibold opacity-80">
@@ -248,14 +250,18 @@ export function WalletDetailDrawer({
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {isTransactionsLoading ? (
                     Array.from({ length: 4 }).map((_, index) => (
                       <Skeleton key={index} className="h-20 w-full rounded-2xl" />
                     ))
                   ) : transactions?.items.length ? (
                     transactions.items.map((transaction) => (
-                      <TransactionItem key={transaction.id} transaction={transaction} />
+                      <TransactionItem
+                        key={transaction.id}
+                        transaction={transaction}
+                        onClick={() => setSelectedTransaction(transaction)}
+                      />
                     ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border p-8 text-center">
@@ -374,6 +380,12 @@ export function WalletDetailDrawer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransactionDetailDrawer
+        transaction={selectedTransaction}
+        open={Boolean(selectedTransaction)}
+        onClose={() => setSelectedTransaction(null)}
+      />
     </>
   );
 }
@@ -416,8 +428,10 @@ function InfoCard({
 
 function TransactionItem({
   transaction,
+  onClick,
 }: {
   transaction: WalletTransaction;
+  onClick: () => void;
 }) {
   const amount = Number(transaction.amount);
   const balanceBefore = Number(transaction.balanceBefore);
@@ -426,7 +440,11 @@ function TransactionItem({
   const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-(--c-line) bg-(--c-card) p-3.5">
+    <button
+      type="button"
+      onClick={onClick}
+      className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-(--c-line) bg-(--c-card) p-3.5 text-left transition-colors hover:border-(--c-primary)/45 hover:bg-(--c-card-2) focus:outline-none focus:ring-2 focus:ring-(--c-primary)/25"
+    >
       <div
         className="flex size-10 shrink-0 items-center justify-center rounded-xl"
         style={{
@@ -438,29 +456,37 @@ function TransactionItem({
       >
         <Icon className="size-5" />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-(--c-ink)">
-          {TRANSACTION_LABELS[transaction.type] ?? transaction.type}
-        </p>
-        <p className="truncate text-xs text-(--c-muted)">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate text-sm font-bold text-(--c-ink)">
+            {TRANSACTION_LABELS[transaction.type] ?? transaction.type}
+          </p>
+          {transaction.referenceType && (
+            <span className="hidden shrink-0 rounded-full bg-(--c-card-2) px-2 py-0.5 text-[10px] font-bold text-(--c-muted) sm:inline-flex">
+              {transaction.referenceType}
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 truncate text-xs text-(--c-muted)">
           {transaction.description || "Không có mô tả"}
         </p>
         <p className="mt-1 text-[10px] text-(--c-muted)">
-          {new Date(transaction.createdAt).toLocaleString("vi-VN")}
+          {new Date(transaction.createdAt).toLocaleString("vi-VN")} · Nhấn để xem chi tiết
         </p>
       </div>
-      <div className="text-right">
+      <div className="min-w-[112px] max-w-[136px] text-right sm:min-w-[140px] sm:max-w-[180px]">
         <p
-          className="text-sm font-black"
+          className="truncate text-sm font-black sm:text-base"
           style={{ color: isCredit ? "#0E9F6E" : "#E11D48" }}
+          title={`${isCredit ? "+" : "-"}${formatCurrency(Math.abs(amount))}`}
         >
           {isCredit ? "+" : "-"}
           {formatCurrency(Math.abs(amount))}
         </p>
-        <p className="text-[10px] text-(--c-muted)">
+        <p className="truncate text-[10px] text-(--c-muted)" title={`Còn ${formatCurrency(balanceAfter)}`}>
           Còn {formatCurrency(balanceAfter)}
         </p>
       </div>
-    </div>
+    </button>
   );
 }

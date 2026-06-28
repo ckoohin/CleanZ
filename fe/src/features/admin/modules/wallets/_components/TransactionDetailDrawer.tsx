@@ -6,6 +6,8 @@ import {
   CalendarClock,
   FileText,
   Link2,
+  MapPin,
+  PackageCheck,
   ReceiptText,
   type LucideIcon,
   UserRound,
@@ -58,7 +60,7 @@ const REFERENCE_LABELS: Record<string, string> = {
   TASKER_TERMINATION: "Tasker nghỉ việc",
 };
 
-const formatCurrency = (value: number | string) =>
+const formatCurrency = (value: number | string | null | undefined) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -74,10 +76,15 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
   const AmountIcon = isCredit ? ArrowDownLeft : ArrowUpRight;
   const walletOwner = getWalletOwner(transaction);
   const reference = getReferenceInfo(transaction);
+  const booking = transaction.booking;
+  const bookingCustomer = booking?.customer?.user?.fullName;
+  const bookingTasker = booking?.tasker?.user?.fullName;
+  const bookingPackage = booking?.package?.name;
+  const bookingSchedule = getBookingScheduleLabel(transaction);
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent className="cz-admin flex w-full flex-col bg-[var(--c-card)] p-0 sm:max-w-xl">
+      <SheetContent className="cz-admin flex w-full flex-col bg-[var(--c-card)] p-0 sm:max-w-2xl">
         <SheetHeader className="border-b border-[var(--c-line)] px-6 py-5">
           <SheetTitle className="flex items-center gap-2 text-base text-[var(--c-ink)]">
             <ReceiptText className="size-5 text-[var(--c-primary-strong)]" />
@@ -89,7 +96,7 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
         </SheetHeader>
 
         <ScrollArea className="flex-1 min-h-0">
-          <div className="space-y-5 p-6">
+          <div className="space-y-5 px-4 py-5 sm:p-6">
             <div
               className="rounded-[24px] p-5 text-white"
               style={{ background: isCredit ? "#0E9F6E" : "#E11D48" }}
@@ -141,9 +148,51 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
               />
               <DetailRow
                 icon={UserRound}
-                label="Ví thực hiện"
+                label="Chủ ví"
                 value={walletOwner.detail}
               />
+              {bookingCustomer && (
+                <DetailRow
+                  icon={UserRound}
+                  label="Khách hàng"
+                  value={bookingCustomer}
+                />
+              )}
+              {bookingTasker && (
+                <DetailRow
+                  icon={UserRound}
+                  label="Tasker"
+                  value={bookingTasker}
+                />
+              )}
+              {bookingPackage && (
+                <DetailRow
+                  icon={PackageCheck}
+                  label="Gói dịch vụ"
+                  value={bookingPackage}
+                />
+              )}
+              {bookingSchedule && (
+                <DetailRow
+                  icon={CalendarClock}
+                  label="Lịch làm việc"
+                  value={bookingSchedule}
+                />
+              )}
+              {booking?.address && (
+                <DetailRow
+                  icon={MapPin}
+                  label="Địa chỉ"
+                  value={booking.address}
+                />
+              )}
+              {booking?.totalPrice != null && (
+                <DetailRow
+                  icon={WalletCards}
+                  label="Tổng tiền booking"
+                  value={formatCurrency(booking.totalPrice)}
+                />
+              )}
             </section>
 
             <section className="space-y-3 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
@@ -206,7 +255,9 @@ function getReferenceInfo(transaction: WalletTransaction): {
       return {
         label: "Booking liên quan",
         value:
-          transaction.booking?.bookingCode ?? "Booking phát sinh giao dịch này",
+          transaction.booking?.bookingCode
+            ? `Đơn ${transaction.booking.bookingCode}`
+            : "Booking phát sinh giao dịch này",
       };
     case "WITHDRAWAL_REQUEST":
       return {
@@ -233,6 +284,42 @@ function getReferenceInfo(transaction: WalletTransaction): {
         value: transaction.description || "Giao dịch nội bộ hệ thống",
       };
   }
+}
+
+function getBookingScheduleLabel(transaction: WalletTransaction): string | null {
+  const booking = transaction.booking;
+  if (!booking) return null;
+
+  if (booking.scheduledStart) {
+    const start = new Date(booking.scheduledStart);
+    const date = Number.isNaN(start.getTime())
+      ? null
+      : start.toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+    return [
+      date,
+      booking.durationHours ? `${booking.durationHours} giờ` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null;
+  }
+
+  const date = booking.scheduledStartDate
+    ? new Date(booking.scheduledStartDate).toLocaleDateString("vi-VN")
+    : null;
+  const time = booking.scheduledStartTime?.slice(0, 5) ?? null;
+
+  return [
+    [date, time].filter(Boolean).join(" "),
+    booking.durationHours ? `${booking.durationHours} giờ` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ") || null;
 }
 
 function InfoCard({

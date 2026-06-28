@@ -9,7 +9,6 @@ import {
   MapPin,
   Calendar,
   User,
-  Phone,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -23,7 +22,6 @@ import {
   ShieldAlert,
   CreditCard,
   HelpCircle,
-  MessageSquare,
   ShieldCheck,
   Briefcase,
   ChevronRight,
@@ -48,7 +46,7 @@ import { BookingTrackingMap } from "./BookingTrackingMap";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type { BookingStatusUpdatedPayload } from "@/features/booking/types/tracking.types";
-import { useMyReview } from "@/features/customer/history/hooks/useReview";
+import { useMyReview, useTaskerPublicReviews } from "@/features/customer/history/hooks/useReview";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -474,6 +472,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   const [showReportSheet, setShowReportSheet] = useState(false);
   const [showTaskerModal, setShowTaskerModal] = useState(false);
   const [showAvatarZoom, setShowAvatarZoom] = useState(false);
+  const [taskerReviewPage, setTaskerReviewPage] = useState(1);
   const [taskerLocation, setTaskerLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -496,11 +495,17 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 
   const displayTaskerLat = taskerLocation?.latitude ?? (isDestCoordsValid ? destLat + 0.003 : null);
   const displayTaskerLng = taskerLocation?.longitude ?? (isDestCoordsValid ? destLng + 0.003 : null);
+  const taskerReviews = useTaskerPublicReviews(
+    showTaskerModal ? booking?.tasker?.id : null,
+    taskerReviewPage,
+    5,
+  );
 
   const isCompleted = booking?.status === "COMPLETED";
   const hasReviewed = !!myReview?.review;
-
-
+  const taskerReviewTotalPages = Math.max(taskerReviews.data?.totalPages ?? 1, 1);
+  const taskerReviewAvg =
+    taskerReviews.data?.avgRating ?? booking?.tasker?.ratingAvg ?? 0;
 
   // Tự động bật bản đồ Full Screen khi trạng thái chuyển sang TASKER_ON_THE_WAY
   useEffect(() => {
@@ -738,7 +743,10 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
         {booking.tasker ? (
           <div className="space-y-2">
             <div
-              onClick={() => setShowTaskerModal(true)}
+              onClick={() => {
+                setTaskerReviewPage(1);
+                setShowTaskerModal(true);
+              }}
               className="bg-card rounded-2xl border border-border/50 p-4 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:bg-muted/10 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -773,26 +781,9 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                   </div>
                 </div>
               </div>
-              {booking.tasker.phone && (
-                <div className="shrink-0">
-                  {booking.status === "COMPLETED" || booking.status === "CANCELLED" || booking.status === "EXPIRED" ? (
-                    <div className="text-right">
-                      <p className="text-[9px] text-muted-foreground mb-0.5">Số điện thoại (đã che)</p>
-                      <span className="text-xs font-bold font-mono text-muted-foreground bg-muted px-2.5 py-1 rounded-lg">
-                        {booking.tasker.phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2")}
-                      </span>
-                    </div>
-                  ) : (
-                    <a
-                      href={`tel:${booking.tasker.phone}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center hover:bg-primary/20 transition-colors"
-                    >
-                      <Phone className="w-4 h-4 text-primary" />
-                    </a>
-                  )}
-                </div>
-              )}
+              <span className="shrink-0 rounded-xl bg-primary/10 px-3 py-2 text-[11px] font-extrabold text-primary">
+                Xem hồ sơ
+              </span>
             </div>
 
             {/* Đánh giá sau khi hoàn thành */}
@@ -1124,45 +1115,133 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                 </div>
               </div>
 
-              {/* Contact section */}
-              {booking.status === "COMPLETED" || booking.status === "CANCELLED" || booking.status === "EXPIRED" ? (
-                <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 flex items-start gap-3">
-                  <ShieldCheck className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                    Đơn hàng đã kết thúc. Để đảm bảo an toàn thông tin, số điện thoại và các hình thức liên hệ của chuyên gia đã được ẩn tự động.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {booking.tasker.phone && (
-                    <div className="flex flex-col items-center justify-center text-center space-y-1">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Số điện thoại liên hệ</span>
-                      <a href={`tel:${booking.tasker.phone}`} className="text-xl font-black font-mono text-primary hover:underline">
-                        {booking.tasker.phone}
-                      </a>
-                    </div>
-                  )}
+              <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                  CleanZ chỉ hiển thị hồ sơ và lịch sử đánh giá của Tasker. Số điện thoại được ẩn để bảo vệ thông tin cá nhân.
+                </p>
+              </div>
 
-                  {/* Actions call/chat */}
-                  <div className="flex flex-col gap-2 pt-2">
-                    <a
-                      href={`tel:${booking.tasker.phone}`}
-                      className="w-full py-4 bg-primary text-primary-foreground font-black text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all shadow-md shadow-primary/20 active:scale-[0.98]"
-                    >
-                      <Phone className="w-4 h-4 fill-primary-foreground" />
-                      <span>Gọi điện ngay</span>
-                    </a>
-
-                    <button
-                      disabled
-                      className="w-full py-4 border border-border bg-background text-muted-foreground/60 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 cursor-not-allowed opacity-80"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      <span>Hội thoại trong ứng dụng (Sắp ra mắt)</span>
-                    </button>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-foreground">
+                      Lịch sử đánh giá
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {taskerReviews.data?.totalReviews ?? 0} đánh giá · trung bình{" "}
+                      {taskerReviewAvg > 0 ? taskerReviewAvg.toFixed(1) : "5.0"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-500 font-extrabold text-sm shrink-0">
+                    <Star className="w-4 h-4 fill-amber-400" />
+                    <span>{taskerReviewAvg > 0 ? taskerReviewAvg.toFixed(1) : "5.0"}</span>
                   </div>
                 </div>
-              )}
+
+                {taskerReviews.isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="rounded-2xl border border-border/60 p-4 animate-pulse">
+                        <div className="h-4 w-32 bg-muted rounded mb-3" />
+                        <div className="h-3 w-full bg-muted rounded mb-2" />
+                        <div className="h-3 w-2/3 bg-muted rounded" />
+                      </div>
+                    ))}
+                  </div>
+                ) : taskerReviews.data?.items.length ? (
+                  <div className="space-y-3">
+                    {taskerReviews.data.items.map((review) => (
+                      <div
+                        key={review.id}
+                        className="rounded-2xl border border-border/60 bg-background p-4 space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center shrink-0">
+                              {review.avatar ? (
+                                <img
+                                  src={review.avatar}
+                                  alt={review.customerName ?? "Khách hàng"}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <User className="w-5 h-5 text-primary" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-foreground truncate">
+                                {review.customerName ?? "Khách hàng ẩn danh"}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {fmtDate(review.createdAt)}
+                                {review.bookingCode ? ` · ${review.bookingCode}` : ""}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-amber-500 font-black text-sm shrink-0">
+                            <Star className="w-4 h-4 fill-amber-400" />
+                            <span>{review.overallRating.toFixed(1)}</span>
+                          </div>
+                        </div>
+
+                        {review.comment ? (
+                          <p className="text-sm text-foreground/80 leading-relaxed">
+                            {review.comment}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic">
+                            Khách hàng không để lại nhận xét.
+                          </p>
+                        )}
+
+                        {review.taskerReply && (
+                          <div className="rounded-xl bg-primary/5 border border-primary/15 p-3">
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-wider mb-1">
+                              Phản hồi từ Tasker
+                            </p>
+                            <p className="text-sm text-foreground/80">{review.taskerReply}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 p-5 text-center">
+                    <Star className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+                    <p className="text-sm font-bold text-foreground">Chưa có đánh giá</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tasker này chưa có lịch sử đánh giá công khai.
+                    </p>
+                  </div>
+                )}
+
+                {taskerReviewTotalPages > 1 && (
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <button
+                      type="button"
+                      disabled={taskerReviewPage <= 1}
+                      onClick={() => setTaskerReviewPage((p) => Math.max(1, p - 1))}
+                      className="px-4 py-2 rounded-xl border border-border text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/40 transition-colors"
+                    >
+                      Trước
+                    </button>
+                    <span className="text-xs font-bold text-muted-foreground">
+                      Trang {taskerReviewPage}/{taskerReviewTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={taskerReviewPage >= taskerReviewTotalPages}
+                      onClick={() =>
+                        setTaskerReviewPage((p) => Math.min(taskerReviewTotalPages, p + 1))
+                      }
+                      className="px-4 py-2 rounded-xl border border-border text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/40 transition-colors"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Bottom close button */}
               <div className="pt-2">
@@ -1263,16 +1342,16 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                         </div>
                       </div>
 
-                      {booking.tasker.phone && (
-                        <div className="shrink-0 flex gap-2">
-                          <a
-                            href={`tel:${booking.tasker.phone}`}
-                            className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-200 hover:bg-emerald-600 transition-colors"
-                          >
-                            <Phone className="w-4 h-4 fill-white text-emerald-500" />
-                          </a>
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTaskerReviewPage(1);
+                          setShowTaskerModal(true);
+                        }}
+                        className="shrink-0 rounded-full bg-primary/10 px-3 py-2 text-[11px] font-extrabold text-primary"
+                      >
+                        Hồ sơ
+                      </button>
                     </div>
                   )}
 

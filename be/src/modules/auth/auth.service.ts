@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -31,6 +32,8 @@ import { DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -70,14 +73,16 @@ export class AuthService {
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
       const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
 
+      this.logger.log(
+        `[DEV] Verify email link for ${user.email}: ${verificationUrl}`,
+      );
+
       await this.mailService.sendVerificationEmail(
         user.email,
         user.fullName,
         verificationUrl,
       );
 
-      // Không trả `hash` (token xác thực email) trong response — chỉ gửi qua email
-      // link, tránh tự verify mà không cần truy cập hộp thư.
       return {
         message:
           'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
@@ -136,13 +141,16 @@ export class AuthService {
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
       const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
 
+      this.logger.log(
+        `[DEV] Resend verify link for ${user.email}: ${verificationUrl}`,
+      );
+
       await this.mailService.sendVerificationEmail(
         user.email,
         user.fullName,
         verificationUrl,
       );
 
-      // Không trả `hash` (token xác thực) trong response — chỉ qua email link.
       return {
         message:
           'Gửi lại email xác thực thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
