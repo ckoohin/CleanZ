@@ -154,6 +154,8 @@ export interface AdminServicePackageEntity {
     isRequired?: boolean;
     isDefault?: boolean;
     sortOrder?: number;
+    price?: number;
+    isActive?: boolean;
   }[];
   baseHourlyRate?: number;
   premiumHourlyRate?: number;

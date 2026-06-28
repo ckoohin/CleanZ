@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/constants/routes";
 
 interface PackageOverviewTabProps {
   pkg: AdminServicePackageEntity;
@@ -75,7 +76,7 @@ export function PackageOverviewTab({ pkg }: PackageOverviewTabProps) {
           <h3 className="text-xl font-bold text-(--c-ink)">Thông tin tổng quan</h3>
           <p className="text-sm text-(--c-muted) mt-0.5">Hình ảnh, mô tả và các thông số cơ bản của gói</p>
         </div>
-        <BaseButton variant="outline" size="sm" onClick={() => router.push(`/admin/services/${pkg.id}/edit`)} className="gap-2 rounded-xl">
+        <BaseButton variant="outline" size="sm" onClick={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.UPDATE(pkg.id))} className="gap-2 rounded-xl">
           <Edit3 className="w-4 h-4" aria-hidden="true" />
           Chỉnh sửa
         </BaseButton>

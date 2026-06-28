@@ -50,12 +50,12 @@ export const navGroups: NavGroup[] = [
       { title: "Đơn hàng", href: A.BOOKINGS, icon: ClipboardList },
       {
         title: "Dịch vụ",
-        href: A.SERVICES.BASE,
+        href: A.SERVICES.SERVICE_PACKAGES.BASE,
         icon: Sparkles,
         children: [
-          { title: "Gói dịch vụ", href: A.SERVICE_PACKAGES },
-          { title: "Tạo gói mới", href: A.SERVICES.CREATE },
-          { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES },
+          { title: "Gói dịch vụ", href: A.SERVICES.SERVICE_PACKAGES.BASE },
+          { title: "Tạo gói mới", href: A.SERVICES.SERVICE_PACKAGES.CREATE },
+          { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES.BASE },
         ],
       },
       { title: "Bảng giá", href: A.PRICING, icon: Tag },

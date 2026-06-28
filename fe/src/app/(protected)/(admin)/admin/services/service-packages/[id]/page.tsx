@@ -3,6 +3,7 @@
 import React, { use } from "react";
 import { ArrowLeft, Loader2, LayoutDashboard, DollarSign, Package, ScrollText, Star, Activity, BarChart3, GitBranch, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/constants/routes";
 import { BaseButton } from "@/components/ui/base/base_button";
 import {
   useAdminPackageDetail,
@@ -87,7 +88,7 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
         pkg={pkg}
         onToggle={() => updateMutation.mutate({ id: pkg.id, payload: { isActive: !pkg.isActive } })}
         isToggling={updateMutation.isPending}
-        onEdit={() => router.push(`/admin/services/${pkg.id}/edit`)}
+        onEdit={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.UPDATE(pkg.id))}
       />
 
       {/* Main tabs */}

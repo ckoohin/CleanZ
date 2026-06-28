@@ -43,7 +43,6 @@ export const ROUTES = {
     USERS: "/admin/users",
     PRICING: "/admin/pricing",
     INCIDENTS: "/admin/incidents",
-    SERVICE_PACKAGES: "/admin/service-packages",
     REPORTS: {
       BASE: "/admin/reports",
       TASKERS: "/admin/reports/taskers",
@@ -51,9 +50,18 @@ export const ROUTES = {
     },
     BOOKINGS: "/admin/bookings",
     SERVICES: {
-      BASE: "/admin/services",
-      CREATE: "/admin/services/create-package",
-      SUB_SERVICES: "/admin/services/sub-services",
+      SERVICE_PACKAGES: {
+        BASE: "/admin/services/service-packages",
+        CREATE: "/admin/services/service-packages/create",
+        DETAIL: (id: string) => `/admin/services/service-packages/${id}`,
+        UPDATE: (id: string) => `/admin/services/service-packages/${id}/update`,
+      },
+      SUB_SERVICES: {
+        BASE: "/admin/services/sub-services",
+        CREATE: "/admin/services/sub-services/create",
+        DETAIL: (id: string) => `/admin/services/sub-services/${id}`,
+        UPDATE: (id: string) => `/admin/services/sub-services/${id}/update`,
+      },
     },
     POLICIES: {
       BASE: "/admin/policies",
