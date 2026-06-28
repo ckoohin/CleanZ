@@ -6,6 +6,7 @@ import {
   Sparkles,
   Tag,
   ScrollText,
+  TicketPercent,
   Users,
   BadgeCheck,
   UserCog,
@@ -87,6 +88,12 @@ export const navGroups: NavGroup[] = [
       { title: "Giao dịch", href: A.FINANCES.BASE, icon: ArrowLeftRight },
       { title: "Quản lý ví", href: A.FINANCES.WALLETS, icon: WalletCards },
       { title: "Rút tiền", href: A.FINANCES.WITHDRAWALS, icon: Banknote },
+      {
+        title: "Voucher",
+        href: A.VOUCHERS.BASE,
+        icon: TicketPercent,
+        children: [{ title: "Tạo voucher mới", href: A.VOUCHERS.CREATE }],
+      },
     ],
   },
   {
