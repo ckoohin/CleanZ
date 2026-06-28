@@ -94,19 +94,34 @@ export interface ServiceDurationEntity {
   description?: string;
 }
 
+export type AddonPriceUnit = 'per_item' | 'per_room' | 'per_m2' | 'per_session' | 'fixed';
+
 export interface ServiceAddonEntity {
   id?: string;
   name: string;
   description?: string;
+  iconUrl?: string | null;
   price: number;
+  priceUnit?: AddonPriceUnit;
+  durationMinutes?: number | null;
+  maxQuantity?: number | null;
+  sortOrder?: number;
   isActive: boolean;
 }
+
+export type SubscriptionBillingCycle = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export interface ServiceSubscriptionEntity {
   id?: string;
   name: string;
   description?: string;
+  bonusDescription?: string | null;
   discountPercent: number;
+  billingCycle?: SubscriptionBillingCycle;
+  sessionsPerCycle?: number | null;
+  commitmentMonths?: number | null;
+  isPopular?: boolean;
+  sortOrder?: number;
   isActive: boolean;
 }
 

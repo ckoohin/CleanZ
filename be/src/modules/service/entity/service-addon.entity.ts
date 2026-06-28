@@ -32,6 +32,21 @@ export class ServiceAddonEntity {
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   price!: number;
 
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'price_unit', default: 'per_item' })
+  priceUnit?: string;
+
+  @Column({ type: 'integer', nullable: true, name: 'duration_minutes' })
+  durationMinutes?: number | null;
+
+  @Column({ type: 'integer', nullable: true, name: 'max_quantity' })
+  maxQuantity?: number | null;
+
+  @Column({ type: 'integer', nullable: true, name: 'sort_order', default: 0 })
+  sortOrder?: number;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'icon_url' })
+  iconUrl?: string | null;
+
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive!: boolean;
 
