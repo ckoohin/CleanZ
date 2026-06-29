@@ -1,19 +1,21 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 export type NotificationType =
-  | "BOOKING"
-  | "PAYMENT"
+  | "BOOKING_CONFIRMED"
+  | "TASKER_ON_THE_WAY"
+  | "BOOKING_COMPLETED"
+  | "BOOKING_CANCELLED"
+  | "PAYMENT_SUCCESS"
+  | "PAYMENT_FAILED"
+  | "INCIDENT_UPDATE"
+  | "SUPPORT_REPLY"
   | "SYSTEM"
-  | "PROMOTION"
-  | "SUPPORT_TICKET"
-  | "WALLET"
-  | "WITHDRAWAL";
+  | "PROMOTION";
 
 export type NotificationRefType =
   | "BOOKING"
+  | "INCIDENT"
   | "PAYMENT"
-  | "SUPPORT_TICKET"
-  | "WALLET_TRANSACTION"
-  | "WITHDRAWAL";
+  | "SUPPORT_TICKET";
 
 export type BroadcastSegment = "ALL" | "CUSTOMER" | "TASKER";
 
@@ -49,10 +51,8 @@ export interface BroadcastResult {
 
 // ─── Request DTOs ─────────────────────────────────────────────────────────────
 export interface BroadcastNotificationDto {
-  /** Dùng segment hoặc userIds, không được bỏ trống cả 2 */
   segment?: BroadcastSegment;
   userIds?: string[];
-  /** Chỉ PROMOTION hoặc SYSTEM */
   type: "PROMOTION" | "SYSTEM";
   title: string;
   content?: string;

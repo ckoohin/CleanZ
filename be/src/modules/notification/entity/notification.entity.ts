@@ -18,6 +18,10 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 @Index('idx_notifications_user_created', ['user', 'createdAt'])
 @Index('idx_notifications_reference', ['referenceId', 'referenceType'])
 @Index('idx_notifications_created_at', ['createdAt'])
+@Index('uq_notifications_dedupe_key', ['dedupeKey'], {
+  unique: true,
+  where: '"dedupe_key" IS NOT NULL',
+})
 @Check(
   'CHK_notifications_reference_type',
   `"reference_type" IS NULL OR "reference_type" IN ('BOOKING','INCIDENT','SUPPORT_TICKET','PAYMENT')`,

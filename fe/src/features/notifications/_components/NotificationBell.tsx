@@ -9,18 +9,15 @@ import { useNotificationRealtime, useUnreadCount } from "../useNotifications";
 interface NotificationBellProps {
   href: string;
   className?: string;
+  enableRealtime?: boolean;
 }
-
-/**
- * Chuông thông báo + badge số chưa đọc (realtime). Đặt ở header/top-bar để
- * badge cập nhật tức thì khi có thông báo mới (kể cả tin nhắn support ticket).
- */
 export const NotificationBell: React.FC<NotificationBellProps> = ({
   href,
   className,
+  enableRealtime = true,
 }) => {
   const { data } = useUnreadCount();
-  useNotificationRealtime();
+  useNotificationRealtime(enableRealtime);
   const count = data?.count ?? 0;
 
   return (

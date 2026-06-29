@@ -24,7 +24,6 @@ import { BookingPolicyService } from 'src/modules/booking/services/booking-polic
 import { BookingScheduleService } from 'src/modules/booking/services/booking-schedule.service';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
-import { NotificationEntity } from 'src/modules/notification/entity/notification.entity';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
@@ -445,7 +444,7 @@ export class AdminBookingRepository {
   }
 
   async cancelBookingByAdmin(bookingId: string, adminUserId: string) {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
@@ -499,22 +498,29 @@ export class AdminBookingRepository {
       });
       await manager.getRepository(BookingStatusLogEntity).save(statusLog);
 
-      if (booking.tasker?.user?.id) {
-        const noti = manager.getRepository(NotificationEntity).create({
-          user: { id: booking.tasker.user.id } as UserEntity,
+      return {
+        response: { success: true, message: 'Đã hủy đơn hàng thành công' },
+        bookingId: booking.id,
+        bookingCode: booking.bookingCode,
+        taskerUserId: booking.tasker?.user?.id,
+      };
+    });
+
+    if (result.taskerUserId) {
+      await Promise.allSettled([
+        this.notificationService.notify({
+          userId: result.taskerUserId,
           type: NotificationType.BOOKING_CANCELLED,
-          referenceId: booking.id,
+          referenceId: result.bookingId,
           referenceType: NotificationRefType.BOOKING,
           title: 'Đơn hàng bị hủy bởi Admin',
-          content: `Đơn ${booking.bookingCode} đã bị quản trị viên hủy.`,
-          isRead: false,
-          dedupeKey: `booking:${booking.id}:${NotificationType.BOOKING_CANCELLED}`,
-        });
-        await manager.getRepository(NotificationEntity).save(noti);
-      }
+          content: `Đơn ${result.bookingCode} đã bị quản trị viên hủy.`,
+          dedupeKey: `booking:${result.bookingId}:${NotificationType.BOOKING_CANCELLED}`,
+        }),
+      ]);
+    }
 
-      return { success: true, message: 'Đã hủy đơn hàng thành công' };
-    });
+    return result.response;
   }
 
   async assignTaskerToBooking(
@@ -522,7 +528,7 @@ export class AdminBookingRepository {
     taskerId: string,
     adminUserId: string,
   ) {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
@@ -576,36 +582,46 @@ export class AdminBookingRepository {
       });
       await manager.getRepository(BookingStatusLogEntity).save(statusLog);
 
-      if (booking.customer?.user?.id) {
-        const noti = manager.getRepository(NotificationEntity).create({
-          user: { id: booking.customer.user.id } as UserEntity,
-          type: NotificationType.BOOKING_CONFIRMED,
-          referenceId: booking.id,
-          referenceType: NotificationRefType.BOOKING,
-          title: 'Đơn hàng đã được gán nhân viên',
-          content: `Quản trị viên đã gán nhân viên ${tasker.user?.fullName || 'N/A'} cho đơn ${booking.bookingCode} của bạn.`,
-          isRead: false,
-          dedupeKey: `booking:${booking.id}:${NotificationType.BOOKING_CONFIRMED}`,
-        });
-        await manager.getRepository(NotificationEntity).save(noti);
-      }
-
-      if (tasker.user?.id) {
-        const noti = manager.getRepository(NotificationEntity).create({
-          user: { id: tasker.user.id } as UserEntity,
-          type: NotificationType.SYSTEM,
-          referenceId: booking.id,
-          referenceType: NotificationRefType.BOOKING,
-          title: 'Bạn được gán đơn mới',
-          content: `Bạn đã được quản trị viên gán đơn ${booking.bookingCode}.`,
-          isRead: false,
-          dedupeKey: `booking:${booking.id}:tasker_assigned`,
-        });
-        await manager.getRepository(NotificationEntity).save(noti);
-      }
-
-      return { success: true, message: 'Gán nhân viên thành công' };
+      return {
+        response: { success: true, message: 'Gán nhân viên thành công' },
+        bookingId: booking.id,
+        bookingCode: booking.bookingCode,
+        customerUserId: booking.customer?.user?.id,
+        taskerUserId: tasker.user?.id,
+        taskerName: tasker.user?.fullName || 'N/A',
+      };
     });
+
+    await Promise.allSettled([
+      ...(result.customerUserId
+        ? [
+            this.notificationService.notify({
+              userId: result.customerUserId,
+              type: NotificationType.BOOKING_CONFIRMED,
+              referenceId: result.bookingId,
+              referenceType: NotificationRefType.BOOKING,
+              title: 'Đơn hàng đã được gán nhân viên',
+              content: `Quản trị viên đã gán nhân viên ${result.taskerName} cho đơn ${result.bookingCode} của bạn.`,
+              dedupeKey: `booking:${result.bookingId}:${NotificationType.BOOKING_CONFIRMED}`,
+            }),
+          ]
+        : []),
+      ...(result.taskerUserId
+        ? [
+            this.notificationService.notify({
+              userId: result.taskerUserId,
+              type: NotificationType.SYSTEM,
+              referenceId: result.bookingId,
+              referenceType: NotificationRefType.BOOKING,
+              title: 'Bạn được gán đơn mới',
+              content: `Bạn đã được quản trị viên gán đơn ${result.bookingCode}.`,
+              dedupeKey: `booking:${result.bookingId}:tasker_assigned`,
+            }),
+          ]
+        : []),
+    ]);
+
+    return result.response;
   }
 
   async searchBookings(queryDto: BookingSearchQueryDto) {

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useAdminVouchers } from "../hooks/useAdminVouchers";
 import { DeleteVoucherDialog } from "./DeleteVoucherDialog";
-import { Voucher, VoucherListQuery } from "../types/voucher.type";
+import { Voucher, VoucherListQuery, VoucherType } from "../types/voucher.type";
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return "--";
@@ -134,7 +134,7 @@ function normalizeVoucherResponse(raw: VoucherApiResponse) {
   if (
     raw.data &&
     typeof raw.data === "object" &&
-    Array.isArray((raw.data as any).items)
+    Array.isArray((raw.data as { items?: unknown }).items)
   ) {
     const inner = raw.data as {
       items?: Voucher[];
@@ -288,7 +288,7 @@ export function VoucherListTable() {
               setQuery((prev) => ({
                 ...prev,
                 page: 1,
-                type: e.target.value as any,
+                type: e.target.value as "" | VoucherType,
               }))
             }
             className="rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30"
@@ -304,7 +304,7 @@ export function VoucherListTable() {
               setQuery((prev) => ({
                 ...prev,
                 page: 1,
-                isActive: e.target.value,
+                isActive: e.target.value as "" | "true" | "false",
               }))
             }
             className="rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30"

@@ -24,7 +24,7 @@ export interface VoucherListQuery {
   limit?: number;
   search?: string;
   type?: "" | VoucherType;
-  isActive?: "" | boolean | string;
+  isActive?: "" | "true" | "false";
 }
 
 export interface VoucherListResponse {
@@ -35,4 +35,27 @@ export interface VoucherListResponse {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface CreateVoucherPayload {
+  code: string;
+  name: string;
+  description?: string;
+  type: VoucherType;
+  value: number;
+  maxDiscount?: number;
+  minOrderAmount?: number;
+  usageLimit?: number;
+  serviceId?: string;
+  startDate?: string;
+  endDate?: string;
+  isActive?: boolean;
+}
+
+export type UpdateVoucherPayload = Partial<CreateVoucherPayload>;
+
+export interface VoucherStats {
+  voucher: Voucher;
+  issuedCount: number;
+  usedCount: number;
 }
