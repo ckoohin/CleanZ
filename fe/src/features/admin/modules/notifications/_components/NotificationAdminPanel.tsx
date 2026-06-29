@@ -36,11 +36,17 @@ import {
 } from "@/components/ui/dialog";
 
 const TYPE_LABELS: Record<
-  string,
+  NotificationType,
   { label: string; tone: BadgeTone; color?: string; soft?: string }
 > = {
-  BOOKING: { label: "Đặt lịch", tone: "info" },
-  PAYMENT: { label: "Thanh toán", tone: "success" },
+  BOOKING_CONFIRMED: { label: "Booking xác nhận", tone: "info" },
+  TASKER_ON_THE_WAY: { label: "Tasker đang đến", tone: "info" },
+  BOOKING_COMPLETED: { label: "Booking hoàn tất", tone: "success" },
+  BOOKING_CANCELLED: { label: "Booking đã hủy", tone: "danger" },
+  PAYMENT_SUCCESS: { label: "Thanh toán thành công", tone: "success" },
+  PAYMENT_FAILED: { label: "Thanh toán thất bại", tone: "danger" },
+  INCIDENT_UPDATE: { label: "Sự cố", tone: "warning" },
+  SUPPORT_REPLY: { label: "Hỗ trợ", tone: "warning" },
   SYSTEM: { label: "Hệ thống", tone: "neutral" },
   PROMOTION: {
     label: "Khuyến mãi",
@@ -48,10 +54,9 @@ const TYPE_LABELS: Record<
     color: "var(--c-primary-strong)",
     soft: "var(--c-primary-soft)",
   },
-  SUPPORT_TICKET: { label: "Hỗ trợ", tone: "warning" },
-  WALLET: { label: "Ví", tone: "purple" },
-  WITHDRAWAL: { label: "Rút tiền", tone: "danger" },
 };
+
+const FILTER_TYPES = Object.keys(TYPE_LABELS) as NotificationType[];
 
 const inputClass =
   "text-sm rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)] focus:border-[var(--c-primary)]/50";
@@ -253,8 +258,8 @@ export const NotificationAdminPanel: React.FC = () => {
             </SelectTrigger>
             <SelectContent className="cz-admin rounded-xl">
               <SelectItem value="ALL">Tất cả loại</SelectItem>
-              {Object.entries(TYPE_LABELS).map(([val, { label }]) => (
-                <SelectItem key={val} value={val}>{label}</SelectItem>
+              {FILTER_TYPES.map((val) => (
+                <SelectItem key={val} value={val}>{TYPE_LABELS[val].label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

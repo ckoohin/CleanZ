@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  connectNotificationSocket,
-  disconnectNotificationSocket,
-  getNotificationSocket,
-} from "@/lib/socket/notification-socket.client";
+import { useSocketEvent } from "@/hooks/use-socket";
 import { customerNotificationKeys } from "@/features/customer/notifications/hooks/useCustomerNotifications";
+import { notificationKeys } from "@/features/notifications/useNotifications";
+import {
+  NOTIFICATION_EVENT_NEW,
+  NOTIFICATION_EVENT_UNREAD,
+} from "@/features/notifications/types";
 
 interface NotificationPayload {
   id: string;
@@ -25,13 +26,10 @@ interface UnreadCountPayload {
 }
 
 export function CustomerRealtimeNotifications() {
-  const [, setUnreadCount] = useState(0);
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const socket = getNotificationSocket();
-
-    const handleNewNotification = (notification: NotificationPayload) => {
+  const handleNewNotification = useCallback(
+    (notification: NotificationPayload) => {
       toast.info(notification.title, {
         id: `notification-${notification.id}`,
         description: notification.content ?? undefined,
@@ -39,24 +37,29 @@ export function CustomerRealtimeNotifications() {
       void queryClient.invalidateQueries({
         queryKey: customerNotificationKeys.all,
       });
-    };
+      void queryClient.invalidateQueries({
+        queryKey: notificationKeys.all,
+      });
+    },
+    [queryClient],
+  );
 
-    const handleUnreadCount = (payload: UnreadCountPayload) => {
-      setUnreadCount(payload.count);
+  const handleUnreadCount = useCallback(
+    (payload: UnreadCountPayload) => {
       queryClient.setQueryData(customerNotificationKeys.unreadCount, payload);
-    };
+      queryClient.setQueryData(notificationKeys.unread, payload);
+    },
+    [queryClient],
+  );
 
-    socket.on("notification:new", handleNewNotification);
-    socket.on("notification:unread_count", handleUnreadCount);
-
-    connectNotificationSocket();
-
-    return () => {
-      socket.off("notification:new", handleNewNotification);
-      socket.off("notification:unread_count", handleUnreadCount);
-      disconnectNotificationSocket();
-    };
-  }, [queryClient]);
+  useSocketEvent<NotificationPayload>(
+    NOTIFICATION_EVENT_NEW,
+    handleNewNotification,
+  );
+  useSocketEvent<UnreadCountPayload>(
+    NOTIFICATION_EVENT_UNREAD,
+    handleUnreadCount,
+  );
 
   return null;
 }

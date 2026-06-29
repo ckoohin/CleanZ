@@ -15,13 +15,11 @@ import { Separator } from "@/components/ui/separator";
 import {
   Search, MapPin, ChevronDown, Phone, Menu, X, Sparkles,
   Clock, Star, TrendingUp, Zap,
-  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useLogout, useProfile } from "@/features/auth/hooks/auth.hooks";
 
 interface HeaderProps {
@@ -311,7 +309,12 @@ export const Header: React.FC<HeaderProps> = ({
               )}
 
               {/* notifications (chỉ khi đã đăng nhập) */}
-              {profile && <NotificationBell href="/customer/notifications" />}
+              {profile && (
+                <NotificationBell
+                  href="/customer/notifications"
+                  enableRealtime={false}
+                />
+              )}
 
               {/* avatar */}
               <AvatarProfile />

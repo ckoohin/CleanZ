@@ -5,6 +5,18 @@ import { toast } from "sonner";
 import { adminVoucherService } from "../services/admin-voucher.service";
 import { UpdateVoucherPayload } from "../types/voucher.type";
 
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as ApiError)?.response?.data?.message || fallback;
+}
+
 export const useUpdateVoucher = () => {
   const queryClient = useQueryClient();
 
@@ -18,8 +30,8 @@ export const useUpdateVoucher = () => {
         queryKey: ["admin-voucher-detail", variables.id],
       });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Không thể cập nhật voucher");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Không thể cập nhật voucher"));
     },
   });
 };
