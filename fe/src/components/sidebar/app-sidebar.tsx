@@ -7,7 +7,6 @@ import {
   FileText,
   HeadphonesIcon,
   LayoutDashboard,
-  Newspaper,
   Settings2,
   TicketPercent,
   Users,
@@ -103,14 +102,6 @@ const operationsNav = [
     icon: <HeadphonesIcon />,
     items: [
       { title: "Hàng đợi ticket", url: "/admin/support-tickets" },
-    ],
-  },
-  {
-    title: "Blog",
-    url: ROUTES.ADMIN.BLOGS.BASE,
-    icon: <Newspaper />,
-    items: [
-      { title: "Quản lý blog", url: ROUTES.ADMIN.BLOGS.BASE },
     ],
   },
   {
