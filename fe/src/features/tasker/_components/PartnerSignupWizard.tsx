@@ -76,17 +76,17 @@ export const PartnerSignupWizard: React.FC = () => {
       const updated = { ...prev };
       if (!updated.phone && profile.phone) updated.phone = profile.phone;
       if (!updated.bio && profile.bio) updated.bio = profile.bio;
-      if (!updated.experience && (profile as any).experience) {
-        updated.experience = (profile as any).experience;
+      if (!updated.experience && profile.experience) {
+        updated.experience = profile.experience;
       }
-      if (!updated.skills && (profile as any).skills) {
-        updated.skills = (profile as any).skills;
+      if (!updated.skills && profile.skills) {
+        updated.skills = profile.skills;
       }
-      if (!updated.addressResident && (profile as any).addressResident) {
-        updated.addressResident = (profile as any).addressResident;
+      if (!updated.addressResident && profile.addressResident) {
+        updated.addressResident = profile.addressResident;
       }
-      if (!updated.addressCurrent && (profile as any).addressCurrent) {
-        updated.addressCurrent = (profile as any).addressCurrent;
+      if (!updated.addressCurrent && profile.addressCurrent) {
+        updated.addressCurrent = profile.addressCurrent;
       }
       if (!updated.bankName && profile.bankName) updated.bankName = profile.bankName;
       if (!updated.bankAccountNumber && profile.bankAccountNumber) {
@@ -264,11 +264,11 @@ export const PartnerSignupWizard: React.FC = () => {
                 <StepPersonalInfo
                   initialValues={{
                     bio: formData.bio || profile?.bio || "",
-                    experience: formData.experience || (profile as any)?.experience || "",
+                    experience: formData.experience || profile?.experience || "",
                     phone: formData.phone || profile?.phone || "",
-                    skills: formData.skills || (profile as any)?.skills || "",
-                    addressResident: formData.addressResident || (profile as any)?.addressResident || "",
-                    addressCurrent: formData.addressCurrent || (profile as any)?.addressCurrent || "",
+                    skills: formData.skills || profile?.skills || "",
+                    addressResident: formData.addressResident || profile?.addressResident || "",
+                    addressCurrent: formData.addressCurrent || profile?.addressCurrent || "",
                   }}
                   onNext={handleNext}
                   isSubmitting={false}

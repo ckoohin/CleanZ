@@ -35,6 +35,7 @@ import {
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
@@ -270,6 +271,7 @@ export class TaskerBookingService {
     private readonly goongMapService: GoongMapService,
     private readonly trackingGateway: TrackingGateway,
     private readonly notificationService: NotificationService,
+    private readonly vouchersService: VouchersService,
   ) {}
 
   private emitBookingNotification(
@@ -469,6 +471,12 @@ export class TaskerBookingService {
             'Booking không còn khả dụng hoặc đã có tasker nhận',
           );
         }
+
+        await this.bookingPolicyService.assertTaskerConcurrentAndOverlapConstraints(
+          manager,
+          tasker.id,
+          booking,
+        );
 
         if (booking.paymentMethod === PaymentMethod.CASH) {
           const commissionRate = await this.resolvePlatformCommissionRate(
@@ -892,6 +900,7 @@ export class TaskerBookingService {
             completedAt,
           );
         }
+        await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
         const savedBooking = await bookingRepository.save(booking);
 
         const totalPrice = toNumber(savedBooking.totalPrice);
@@ -1386,6 +1395,10 @@ export class TaskerBookingService {
         const oldStatus = booking.status;
         booking.status = BookingStatus.POSTED;
         booking.tasker = null;
+        await this.vouchersService.releaseReservationForBooking(
+          manager,
+          booking.id,
+        );
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
@@ -1464,7 +1477,7 @@ export class TaskerBookingService {
       return {
         message: suspended
           ? `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ. Tài khoản bị khóa nhận đơn ${CANCEL_SUSPENSION_DAYS} ngày.`
-          : `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ. Đơn đang tìm tasker mới.`,
+          : `Đã hủy đơn.`,
         penaltyAmount,
         weeklyCount: weeklyCount + 1,
         suspended,

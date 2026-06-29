@@ -220,6 +220,11 @@ export class CustomerBookingService {
             .save(context.addressRef);
         }
         const savedBooking = await bookingRepository.save(booking);
+        await this.voucherService.reserveForBooking(manager, {
+          bookingId: savedBooking.id,
+          customerId: context.customer.id,
+          voucherId: savedBooking.voucherId,
+        });
 
         const bookingSubServiceRepository = manager.getRepository(
           BookingSubServiceEntity,
@@ -612,6 +617,7 @@ export class CustomerBookingService {
           manager,
           userId,
           draft,
+          booking.id,
         );
 
         booking.address = context.bookingAddress;
@@ -634,6 +640,11 @@ export class CustomerBookingService {
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
+        await this.voucherService.reserveForBooking(manager, {
+          bookingId: savedBooking.id,
+          customerId: savedBooking.customer.id,
+          voucherId: savedBooking.voucherId,
+        });
 
         await this.paymentService.updateLatestPendingPaymentAmount(
           manager,
@@ -689,6 +700,10 @@ export class CustomerBookingService {
         const oldStatus = booking.status;
         booking.status = BookingStatus.CANCELLED;
         booking.cancelledAt = new Date();
+        await this.voucherService.releaseReservationForBooking(
+          manager,
+          booking.id,
+        );
         taskerUserId = booking.tasker?.user?.id;
         bookingCode = booking.bookingCode;
         const savedBooking = await manager
@@ -751,6 +766,7 @@ export class CustomerBookingService {
     manager: EntityManager,
     userId: string,
     dto: BookingScheduleDraft,
+    currentBookingId?: string,
   ): Promise<BookingPricingContext> {
     const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
 
@@ -813,6 +829,8 @@ export class CustomerBookingService {
       scheduledStartTime: scheduleStart.scheduledStartTime,
       hasPet: dto.hasPet ?? addressRef?.hasPet ?? false,
       voucherCode: dto.voucherCode,
+      customerId: customer.id,
+      currentBookingId,
     });
     const schedule = this.bookingScheduleService.buildSchedule(
       dto,

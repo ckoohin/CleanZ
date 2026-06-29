@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { TaskerSidebar } from "@/features/tasker/_components/TaskerSidebar";
@@ -28,14 +28,21 @@ export default function TaskerLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [now, setNow] = useState(() => Date.now());
   const { data: tasker } = useTaskerProfile();
   const guard = useTaskerActionGuard(tasker);
   const updatePresence = useUpdatePresence();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const hasLockBanner = Boolean(
     tasker?.status === "SUSPENDED" ||
       tasker?.status === "TERMINATED" ||
       (tasker?.cancelSuspendedUntil &&
-        new Date(tasker.cancelSuspendedUntil).getTime() > Date.now())
+        new Date(tasker.cancelSuspendedUntil).getTime() > now)
   );
 
   const handleToggleOnline = () => {

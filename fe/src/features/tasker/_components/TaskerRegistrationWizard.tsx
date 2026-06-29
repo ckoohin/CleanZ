@@ -642,7 +642,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
         router.replace("/tasker");
       })();
     } else if (profile?.approvalStatus === TaskerStatus.PENDING) {
-      setStep(4);
+      queueMicrotask(() => setStep(4));
     }
   }, [profile, isProfileLoading, router, queryClient]);
 
@@ -655,57 +655,67 @@ export const TaskerRegistrationWizard: React.FC = () => {
     const flagged = getReviewPartMap(profile?.adminNotes);
     const doc = profile?.document;
 
-    setForm((prev) => ({
-      ...prev,
-      // /auth/me (user) là payload từ JWT — KHÔNG có fullName → ưu tiên lấy từ hồ sơ.
-      fullName: prev.fullName || profile?.fullName || user?.fullName || "",
-      phone: flagged.phone ? "" : prev.phone || profile?.phone || "",
-      currentAddress: flagged.address
-        ? ""
-        : prev.currentAddress || profile?.addressCurrent || "",
-      cccdNumber: prev.cccdNumber || profile?.document?.idNumber || "",
-      bankName: flagged.bankInfo ? "" : prev.bankName || profile?.bankName || "",
-      bankAccount: flagged.bankInfo
-        ? ""
-        : prev.bankAccount || profile?.bankAccountNumber || "",
-      bankHolder: flagged.bankInfo
-        ? ""
-        : prev.bankHolder || profile?.bankAccountName || "",
-    }));
+    queueMicrotask(() => {
+      setForm((prev) => ({
+        ...prev,
+        // /auth/me (user) là payload từ JWT — KHÔNG có fullName → ưu tiên lấy từ hồ sơ.
+        fullName: prev.fullName || profile?.fullName || user?.fullName || "",
+        phone: flagged.phone ? "" : prev.phone || profile?.phone || "",
+        currentAddress: flagged.address
+          ? ""
+          : prev.currentAddress || profile?.addressCurrent || "",
+        cccdNumber: prev.cccdNumber || profile?.document?.idNumber || "",
+        bankName: flagged.bankInfo ? "" : prev.bankName || profile?.bankName || "",
+        bankAccount: flagged.bankInfo
+          ? ""
+          : prev.bankAccount || profile?.bankAccountNumber || "",
+        bankHolder: flagged.bankInfo
+          ? ""
+          : prev.bankHolder || profile?.bankAccountName || "",
+      }));
 
-    // Kinh nghiệm: nạp lại từ chuỗi đã lưu, trừ khi bị gắn cờ cần cập nhật.
-    if (!(flagged.experience || flagged.skills || flagged.bio)) {
-      const parsedExp = parseExperiences(profile?.experience);
-      if (parsedExp.length) setExperiences(parsedExp);
-    }
+      // Kinh nghiệm: nạp lại từ chuỗi đã lưu, trừ khi bị gắn cờ cần cập nhật.
+      if (!(flagged.experience || flagged.skills || flagged.bio)) {
+        const parsedExp = parseExperiences(profile?.experience);
+        if (parsedExp.length) setExperiences(parsedExp);
+      }
 
-    // Ảnh/giấy tờ: giữ ảnh cũ; phần bị gắn cờ thì để trống để buộc nộp lại.
-    if (!flagged.citizenCard) {
-      if (doc?.frontUrl) setCccdFront(doc.frontUrl);
-      if (doc?.backUrl) setCccdBack(doc.backUrl);
-    }
-    if (!flagged.idWithSelfie && profile?.avatarUrl) setSelfie(profile.avatarUrl);
-    if (!flagged.healthCertificate && doc?.healthCertificateUrl)
-      setDocHealth(doc.healthCertificateUrl);
-    if (!flagged.criminalRecord && doc?.criminalRecordUrl)
-      setDocJudicial(doc.criminalRecordUrl);
-    if (!flagged.certificate && doc?.certificateUrl)
-      setDocCert(doc.certificateUrl);
+      // Ảnh/giấy tờ: giữ ảnh cũ; phần bị gắn cờ thì để trống để buộc nộp lại.
+      if (!flagged.citizenCard) {
+        if (doc?.frontUrl) setCccdFront(doc.frontUrl);
+        if (doc?.backUrl) setCccdBack(doc.backUrl);
+      }
+      if (!flagged.idWithSelfie && profile?.avatarUrl) setSelfie(profile.avatarUrl);
+      if (!flagged.healthCertificate && doc?.healthCertificateUrl)
+        setDocHealth(doc.healthCertificateUrl);
+      if (!flagged.criminalRecord && doc?.criminalRecordUrl)
+        setDocJudicial(doc.criminalRecordUrl);
+      if (!flagged.certificate && doc?.certificateUrl)
+        setDocCert(doc.certificateUrl);
 
-    setSeeded(true);
+      setSeeded(true);
+    });
   }, [profile, user, isProfileLoading, seeded]);
 
   /* Deep-link từ email (?focus=<phần>): sau khi seed xong, nhảy tới đúng bước
      chứa phần admin yêu cầu rồi cuộn / focus vào ô đó. Chỉ chạy 1 lần. */
   useEffect(() => {
     if (!seeded || focusHandled || !needsResubmit) return;
-    setFocusHandled(true);
     const focusParam = new URLSearchParams(window.location.search).get("focus");
-    if (!focusParam) return;
+    if (!focusParam) {
+      queueMicrotask(() => setFocusHandled(true));
+      return;
+    }
     const target = FOCUS_TARGETS[focusParam];
-    if (!target) return;
-    setStep(target.step);
-    setPendingFocusId(target.elementId);
+    if (!target) {
+      queueMicrotask(() => setFocusHandled(true));
+      return;
+    }
+    queueMicrotask(() => {
+      setFocusHandled(true);
+      setStep(target.step);
+      setPendingFocusId(target.elementId);
+    });
   }, [seeded, focusHandled, needsResubmit]);
 
   /* Thực thi cuộn + focus sau khi bước đích đã render. */

@@ -92,7 +92,10 @@ export const navGroups: NavGroup[] = [
         title: "Voucher",
         href: A.VOUCHERS.BASE,
         icon: TicketPercent,
-        children: [{ title: "Tạo voucher mới", href: A.VOUCHERS.CREATE }],
+        children: [
+          { title: "Danh sách voucher", href: A.VOUCHERS.BASE },
+          { title: "Tạo voucher mới", href: A.VOUCHERS.CREATE },
+        ],
       },
     ],
   },

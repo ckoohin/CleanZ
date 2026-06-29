@@ -3,13 +3,10 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  ManyToOne,
   OneToMany,
-  JoinColumn,
   Index,
 } from 'typeorm';
 import { VoucherType } from '../../../common/enums/voucher-type.enum';
-import { SubServiceEntity } from '../../service/entity/sub-service.entity';
 import { CustomerVoucherEntity } from './customer-voucher.entity';
 
 @Entity('vouchers')
@@ -54,11 +51,20 @@ export class VoucherEntity {
   @Column({ type: 'int', nullable: true, name: 'usage_limit' })
   usageLimit!: number | null;
 
+  @Column({ type: 'int', nullable: true, name: 'per_customer_limit' })
+  perCustomerLimit!: number | null;
+
   @Column({ type: 'int', default: 0, name: 'used_count' })
   usedCount!: number;
 
-  @Column({ type: 'uuid', nullable: true, name: 'service_id' })
-  serviceId!: string | null;
+  @Column({ type: 'int', default: 0, name: 'reserved_count' })
+  reservedCount!: number;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'package_ids' })
+  packageIds!: string[] | null;
+
+  @Column({ type: 'jsonb', nullable: true, name: 'customer_ids' })
+  customerIds!: string[] | null;
 
   @Index('idx_vouchers_active_dates')
   @Column({ type: 'timestamp', nullable: true, name: 'start_date' })
@@ -72,13 +78,6 @@ export class VoucherEntity {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
-
-  @ManyToOne(() => SubServiceEntity, (s) => s.vouchers, {
-    nullable: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'service_id' })
-  service?: SubServiceEntity | null;
 
   @OneToMany(() => CustomerVoucherEntity, (cv) => cv.voucher)
   customerVouchers!: CustomerVoucherEntity[];

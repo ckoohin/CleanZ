@@ -38,6 +38,8 @@ export interface CalculateBookingPriceInput {
   scheduledStartTime: string;
   hasPet: boolean;
   voucherCode?: string;
+  customerId?: string;
+  currentBookingId?: string;
 }
 
 export interface ServiceSummary {
@@ -515,8 +517,10 @@ export class PricingService {
       ? await this.voucherService.findValidForBooking(
           manager,
           input.voucherCode,
-          input.subServiceIds || [],
+          input.customerId ?? '',
+          input.packageId,
           subtotal,
+          input.currentBookingId,
         )
       : null;
     const discountAmount: number = voucher

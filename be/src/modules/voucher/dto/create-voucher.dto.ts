@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsUUID,
   IsInt,
+  IsArray,
   Min,
   MaxLength,
   IsNotEmpty,
@@ -73,10 +74,32 @@ export class CreateVoucherDto {
   @Min(1)
   usageLimit?: number;
 
-  @ApiPropertyOptional({ description: 'Restrict to a specific service UUID' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Maximum completed/reserved uses per customer. null = unlimited',
+  })
   @IsOptional()
-  @IsUUID()
-  serviceId?: string;
+  @IsInt()
+  @Min(1)
+  perCustomerLimit?: number;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Restrict voucher to selected service package UUIDs',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  packageIds?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Restrict voucher to selected customer UUIDs',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  customerIds?: string[];
 
   @ApiPropertyOptional({ example: '2026-01-01T00:00:00.000Z' })
   @IsOptional()

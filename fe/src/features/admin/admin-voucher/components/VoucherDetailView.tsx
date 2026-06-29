@@ -189,6 +189,27 @@ export function VoucherDetailView({ id }: Props) {
               Đã sử dụng
             </p>
             <p className="text-lg font-bold">{data.usedCount ?? 0}</p>
+            <p className="text-xs text-muted-foreground">
+              Đang giữ chỗ: {data.reservedCount ?? 0}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border bg-background p-4 space-y-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+              Giới hạn mỗi khách
+            </p>
+            <p className="text-lg font-bold">
+              {data.perCustomerLimit ?? "Không giới hạn"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border bg-background p-4 space-y-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+              Gói áp dụng
+            </p>
+            <p className="text-lg font-bold">
+              {data.packageIds?.length ? `${data.packageIds.length} gói` : "Tất cả"}
+            </p>
           </div>
         </div>
 
@@ -235,9 +256,20 @@ export function VoucherDetailView({ id }: Props) {
 
             <div className="space-y-4 text-sm">
               <div>
-                <p className="text-muted-foreground">Service ID áp dụng</p>
+                <p className="text-muted-foreground">Gói dịch vụ áp dụng</p>
                 <p className="font-medium break-all">
-                  {data.serviceId || "Áp dụng toàn hệ thống"}
+                  {data.packageIds?.length
+                    ? data.packageIds.join(", ")
+                    : "Tất cả gói dịch vụ"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground">Khách hàng áp dụng</p>
+                <p className="font-medium break-all">
+                  {data.customerIds?.length
+                    ? data.customerIds.join(", ")
+                    : "Tất cả khách hàng"}
                 </p>
               </div>
 
@@ -294,6 +326,10 @@ export function VoucherDetailView({ id }: Props) {
             , số lượt sử dụng tối đa là{" "}
             <span className="font-semibold">
               {data.usageLimit ?? "không giới hạn"}
+            </span>
+            , mỗi khách được dùng tối đa{" "}
+            <span className="font-semibold">
+              {data.perCustomerLimit ?? "không giới hạn"}
             </span>
             .
           </div>

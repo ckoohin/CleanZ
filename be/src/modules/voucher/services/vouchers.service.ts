@@ -10,7 +10,11 @@ import {
   CustomerVoucherRepository,
 } from '../voucher.repository';
 import { VoucherEntity } from '../entity/voucher.entity';
-import { CustomerVoucherEntity } from '../entity/customer-voucher.entity';
+import {
+  CustomerVoucherEntity,
+  CustomerVoucherStatus,
+} from '../entity/customer-voucher.entity';
+import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { PaginatedData } from '../../../common/helpers/response.interface';
 import { VoucherType } from '../../../common/enums/voucher-type.enum';
 import { CreateVoucherDto } from '../dto/create-voucher.dto';
@@ -18,6 +22,29 @@ import { VoucherListQueryDto } from '../dto/list-query-voucher.dto';
 import { UpdateVoucherDto } from '../dto/update-voucher.dto';
 import { IssueVoucherToCustomersDto } from '../dto/issue-voucher-to-customer.dto';
 import { toNumber } from '../../../common/helpers/number.helper';
+import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+
+export type VoucherDisabledReason =
+  | 'NOT_STARTED'
+  | 'EXHAUSTED'
+  | 'PER_LIMIT_REACHED'
+  | null;
+
+export interface AvailableVoucherItem {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null | undefined;
+  type: VoucherType;
+  value: number;
+  maxDiscount: number | null;
+  minOrderAmount: number;
+  endDate: Date | null;
+  remainingUses: number | null;
+  canUse: boolean;
+  disabledReason: VoucherDisabledReason;
+  source: 'ISSUED' | 'PUBLIC';
+}
 
 @Injectable()
 export class VouchersService {
@@ -60,8 +87,11 @@ export class VouchersService {
       maxDiscount: dto.maxDiscount ?? null,
       minOrderAmount: dto.minOrderAmount ?? 0,
       usageLimit: dto.usageLimit ?? null,
+      perCustomerLimit: dto.perCustomerLimit ?? null,
       usedCount: 0,
-      serviceId: dto.serviceId ?? null,
+      reservedCount: 0,
+      packageIds: dto.packageIds?.length ? dto.packageIds : null,
+      customerIds: dto.customerIds?.length ? dto.customerIds : null,
       startDate: dto.startDate ? new Date(dto.startDate) : null,
       endDate: dto.endDate ? new Date(dto.endDate) : null,
       isActive: dto.isActive ?? true,
@@ -79,7 +109,6 @@ export class VouchersService {
   async findOne(id: string): Promise<VoucherEntity> {
     const voucher = await this.voucherRepo.findOne({
       where: { id },
-      relations: ['service'],
     });
     if (!voucher) throw new NotFoundException('VOUCHER_NOT_FOUND');
     return voucher;
@@ -97,14 +126,15 @@ export class VouchersService {
   async findValidForBooking(
     manager: EntityManager,
     voucherCode: string,
-    subServiceIds: string[],
+    customerId: string,
+    packageId: string,
     subtotal: number,
+    excludeBookingId?: string,
   ): Promise<VoucherEntity> {
     const now = new Date();
     const voucher = await manager
       .getRepository(VoucherEntity)
       .createQueryBuilder('voucher')
-      .leftJoinAndSelect('voucher.service', 'service')
       .where('UPPER(voucher.code) = :code', {
         code: voucherCode.trim().toUpperCase(),
       })
@@ -128,15 +158,50 @@ export class VouchersService {
     if (
       voucher.usageLimit !== null &&
       voucher.usageLimit !== undefined &&
-      voucher.usedCount >= voucher.usageLimit
+      voucher.usedCount + voucher.reservedCount >= voucher.usageLimit
     ) {
       throw new BadRequestException('Voucher đã hết lượt sử dụng');
     }
 
-    if (voucher.service && !subServiceIds.includes(voucher.service.id)) {
-      throw new BadRequestException(
-        'Voucher không áp dụng cho các dịch vụ con đã chọn',
-      );
+    if (
+      voucher.packageIds?.length &&
+      !voucher.packageIds.includes(packageId)
+    ) {
+      throw new BadRequestException('Voucher không áp dụng cho gói dịch vụ này');
+    }
+
+    if (
+      voucher.customerIds?.length &&
+      !voucher.customerIds.includes(customerId)
+    ) {
+      throw new BadRequestException('Voucher không áp dụng cho khách hàng này');
+    }
+
+    if (voucher.perCustomerLimit) {
+      const activeUses = await manager
+        .getRepository(CustomerVoucherEntity)
+        .createQueryBuilder('cv')
+        .where('cv.customerId = :customerId', { customerId })
+        .andWhere('cv.voucherId = :voucherId', { voucherId: voucher.id })
+        .andWhere('cv.status IN (:...statuses)', {
+          statuses: [
+            CustomerVoucherStatus.RESERVED,
+            CustomerVoucherStatus.USED,
+          ],
+        })
+        .andWhere(
+          excludeBookingId
+            ? '(cv.bookingId IS NULL OR cv.bookingId != :excludeBookingId)'
+            : '1=1',
+          { excludeBookingId },
+        )
+        .getCount();
+
+      if (activeUses >= voucher.perCustomerLimit) {
+        throw new BadRequestException(
+          'Bạn đã đạt giới hạn sử dụng voucher này',
+        );
+      }
     }
 
     if (subtotal < toNumber(voucher.minOrderAmount)) {
@@ -189,8 +254,22 @@ export class VouchersService {
       minOrderAmount: dto.minOrderAmount ?? voucher.minOrderAmount,
       usageLimit:
         dto.usageLimit !== undefined ? dto.usageLimit : voucher.usageLimit,
-      serviceId:
-        dto.serviceId !== undefined ? dto.serviceId : voucher.serviceId,
+      perCustomerLimit:
+        dto.perCustomerLimit !== undefined
+          ? dto.perCustomerLimit
+          : voucher.perCustomerLimit,
+      packageIds:
+        dto.packageIds !== undefined
+          ? dto.packageIds.length
+            ? dto.packageIds
+            : null
+          : voucher.packageIds,
+      customerIds:
+        dto.customerIds !== undefined
+          ? dto.customerIds.length
+            ? dto.customerIds
+            : null
+          : voucher.customerIds,
       startDate: dto.startDate ? new Date(dto.startDate) : voucher.startDate,
       endDate: dto.endDate ? new Date(dto.endDate) : voucher.endDate,
       isActive: dto.isActive !== undefined ? dto.isActive : voucher.isActive,
@@ -237,6 +316,7 @@ export class VouchersService {
           cv.customerId = customerId;
           cv.voucherId = voucherId;
           cv.isUsed = false;
+          cv.status = CustomerVoucherStatus.ISSUED;
       
           return cv;
         });
@@ -260,6 +340,7 @@ export class VouchersService {
   async getVoucherStats(voucherId: string): Promise<{
     voucher: VoucherEntity;
     issuedCount: number;
+    reservedCount: number;
     usedCount: number;
   }> {
     const voucher = await this.findOne(voucherId);
@@ -268,7 +349,248 @@ export class VouchersService {
     return {
       voucher,
       issuedCount: stats.total,
+      reservedCount: stats.reserved,
       usedCount: stats.used,
     };
+  }
+
+  async reserveForBooking(
+    manager: EntityManager,
+    input: {
+      bookingId: string;
+      customerId: string;
+      voucherId?: string | null;
+    },
+  ): Promise<void> {
+    await this.releaseReservationForBooking(manager, input.bookingId);
+    if (!input.voucherId) return;
+
+    const voucherRepo = manager.getRepository(VoucherEntity);
+    const voucher = await voucherRepo
+      .createQueryBuilder('voucher')
+      .setLock('pessimistic_write')
+      .where('voucher.id = :voucherId', { voucherId: input.voucherId })
+      .getOne();
+
+    if (!voucher) throw new NotFoundException('VOUCHER_NOT_FOUND');
+    if (
+      voucher.usageLimit !== null &&
+      voucher.usageLimit !== undefined &&
+      voucher.usedCount + voucher.reservedCount >= voucher.usageLimit
+    ) {
+      throw new BadRequestException('Voucher đã hết lượt sử dụng');
+    }
+
+    if (voucher.perCustomerLimit) {
+      const activeUses = await manager
+        .getRepository(CustomerVoucherEntity)
+        .createQueryBuilder('cv')
+        .where('cv.customerId = :customerId', { customerId: input.customerId })
+        .andWhere('cv.voucherId = :voucherId', { voucherId: input.voucherId })
+        .andWhere('cv.status IN (:...statuses)', {
+          statuses: [
+            CustomerVoucherStatus.RESERVED,
+            CustomerVoucherStatus.USED,
+          ],
+        })
+        .getCount();
+
+      if (activeUses >= voucher.perCustomerLimit) {
+        throw new BadRequestException(
+          'Bạn đã đạt giới hạn sử dụng voucher này',
+        );
+      }
+    }
+
+    const reservationRepo = manager.getRepository(CustomerVoucherEntity);
+    await reservationRepo.save(
+      reservationRepo.create({
+        customerId: input.customerId,
+        voucherId: input.voucherId,
+        bookingId: input.bookingId,
+        isUsed: false,
+        status: CustomerVoucherStatus.RESERVED,
+        reservedAt: new Date(),
+      }),
+    );
+
+    await voucherRepo.increment({ id: input.voucherId }, 'reservedCount', 1);
+  }
+
+  async releaseReservationForBooking(
+    manager: EntityManager,
+    bookingId: string,
+  ): Promise<void> {
+    const reservationRepo = manager.getRepository(CustomerVoucherEntity);
+    const reservation = await reservationRepo.findOne({
+      where: {
+        bookingId,
+        status: CustomerVoucherStatus.RESERVED,
+      },
+    });
+
+    if (!reservation) return;
+
+    reservation.status = CustomerVoucherStatus.RELEASED;
+    await reservationRepo.save(reservation);
+    await manager
+      .getRepository(VoucherEntity)
+      .decrement({ id: reservation.voucherId }, 'reservedCount', 1);
+  }
+
+  async markBookingVoucherUsed(
+    manager: EntityManager,
+    bookingId: string,
+  ): Promise<void> {
+    const reservationRepo = manager.getRepository(CustomerVoucherEntity);
+    const reservation = await reservationRepo.findOne({
+      where: {
+        bookingId,
+        status: CustomerVoucherStatus.RESERVED,
+      },
+    });
+
+    if (!reservation) {
+      const booking = await manager.getRepository(BookingEntity).findOne({
+        where: { id: bookingId },
+        relations: ['customer'],
+      });
+
+      if (!booking?.voucherId || !booking.customer?.id) return;
+
+      await reservationRepo.save(
+        reservationRepo.create({
+          customerId: booking.customer.id,
+          voucherId: booking.voucherId,
+          bookingId,
+          isUsed: true,
+          status: CustomerVoucherStatus.USED,
+          usedAt: new Date(),
+        }),
+      );
+      await manager
+        .getRepository(VoucherEntity)
+        .increment({ id: booking.voucherId }, 'usedCount', 1);
+      return;
+    }
+
+    reservation.status = CustomerVoucherStatus.USED;
+    reservation.isUsed = true;
+    reservation.usedAt = new Date();
+    await reservationRepo.save(reservation);
+
+    const voucherRepo = manager.getRepository(VoucherEntity);
+    await voucherRepo.decrement({ id: reservation.voucherId }, 'reservedCount', 1);
+    await voucherRepo.increment({ id: reservation.voucherId }, 'usedCount', 1);
+  }
+
+  async findAvailableForCustomer(
+    userId: string,
+    packageId?: string,
+  ): Promise<AvailableVoucherItem[]> {
+    const now = new Date();
+
+    const customer = await this.dataSource
+      .getRepository(CustomerEntity)
+      .findOne({ where: { user: { id: userId } } });
+
+    if (!customer) return [];
+    const customerId = customer.id;
+
+    // 1. Vouchers được admin phát riêng cho customer này (ISSUED)
+    const issuedRows = await this.customerVoucherRepo
+      .createQueryBuilder('cv')
+      .innerJoinAndSelect('cv.voucher', 'v')
+      .where('cv.customerId = :customerId', { customerId })
+      .andWhere('cv.status = :status', { status: CustomerVoucherStatus.ISSUED })
+      .andWhere('v.is_active = true')
+      .getMany();
+
+    const issuedVouchers = issuedRows.map((row) => ({
+      voucher: row.voucher,
+      source: 'ISSUED' as const,
+    }));
+    const issuedIds = new Set(issuedVouchers.map((iv) => iv.voucher.id));
+
+    // 2. Vouchers public (không giới hạn customer, khớp packageId nếu có)
+    const qb = this.voucherRepo
+      .createQueryBuilder('v')
+      .where('v.is_active = true')
+      .andWhere('(v.end_date IS NULL OR v.end_date > :now)', { now });
+
+    if (packageId) {
+      qb.andWhere(
+        '(v.package_ids IS NULL OR v.package_ids = \'null\'::jsonb OR v.package_ids @> :pid::jsonb)',
+        { pid: JSON.stringify([packageId]) },
+      );
+    }
+
+    const publicVouchers = (await qb.getMany())
+      .filter((v) => !issuedIds.has(v.id))
+      .map((v) => ({ voucher: v, source: 'PUBLIC' as const }));
+
+    const allEntries = [...issuedVouchers, ...publicVouchers];
+    if (!allEntries.length) return [];
+
+    // 3. Đếm số lần customer đang dùng (RESERVED + USED) cho từng voucher
+    const voucherIds = allEntries.map((e) => e.voucher.id);
+    const usageRows = await this.customerVoucherRepo
+      .createQueryBuilder('cv')
+      .select('cv.voucherId', 'voucherId')
+      .addSelect('COUNT(*)', 'cnt')
+      .where('cv.customerId = :customerId', { customerId })
+      .andWhere('cv.voucherId IN (:...voucherIds)', { voucherIds })
+      .andWhere('cv.status IN (:...statuses)', {
+        statuses: [CustomerVoucherStatus.RESERVED, CustomerVoucherStatus.USED],
+      })
+      .groupBy('cv.voucherId')
+      .getRawMany<{ voucherId: string; cnt: string }>();
+
+    const usageMap = new Map(
+      usageRows.map((r) => [r.voucherId, parseInt(r.cnt, 10)]),
+    );
+
+    return allEntries.map(({ voucher, source }) => {
+      const remaining =
+        voucher.usageLimit !== null
+          ? Math.max(
+              0,
+              voucher.usageLimit - voucher.usedCount - voucher.reservedCount,
+            )
+          : null;
+
+      let canUse = true;
+      let disabledReason: VoucherDisabledReason = null;
+
+      if (voucher.startDate && voucher.startDate > now) {
+        canUse = false;
+        disabledReason = 'NOT_STARTED';
+      } else if (remaining !== null && remaining <= 0) {
+        canUse = false;
+        disabledReason = 'EXHAUSTED';
+      } else if (voucher.perCustomerLimit) {
+        const used = usageMap.get(voucher.id) ?? 0;
+        if (used >= voucher.perCustomerLimit) {
+          canUse = false;
+          disabledReason = 'PER_LIMIT_REACHED';
+        }
+      }
+
+      return {
+        id: voucher.id,
+        code: voucher.code,
+        name: voucher.name,
+        description: voucher.description,
+        type: voucher.type,
+        value: toNumber(voucher.value),
+        maxDiscount: voucher.maxDiscount ? toNumber(voucher.maxDiscount) : null,
+        minOrderAmount: toNumber(voucher.minOrderAmount),
+        endDate: voucher.endDate,
+        remainingUses: remaining,
+        canUse,
+        disabledReason,
+        source,
+      };
+    });
   }
 }

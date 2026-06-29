@@ -14,6 +14,35 @@ import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 
+export const TASKER_MAX_CONCURRENT_BOOKINGS = 3;
+
+/** Các trạng thái tính là "đang đảm nhiệm" của tasker (đã nhận, chưa xong) */
+const TASKER_ACTIVE_STATUSES = [
+  BookingStatus.CONFIRMED,
+  BookingStatus.TASKER_ON_THE_WAY,
+  BookingStatus.CHECKED_IN,
+  BookingStatus.IN_PROGRESS,
+];
+
+function toTimestamp(
+  date: string | null | undefined,
+  time: string | null | undefined,
+): Date | null {
+  if (!date || !time) return null;
+  const d = new Date(`${date}T${time}`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatViTime(d: Date): string {
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+}
+
 /** Phí phạt (VND) theo số lần hủy trong 7 ngày (1-indexed: lần 1, 2, 3+) */
 export const TASKER_CANCEL_PENALTY_TIERS: Record<number, number> = {
   1: 50_000,
@@ -144,6 +173,62 @@ export class BookingPolicyService {
       throw new BadRequestException(
         'Chỉ tasker đang hoạt động mới có thể nhận booking',
       );
+    }
+  }
+
+  async assertTaskerConcurrentAndOverlapConstraints(
+    manager: EntityManager,
+    taskerId: string,
+    newBooking: BookingEntity,
+  ): Promise<void> {
+    const activeBookings = await manager.getRepository(BookingEntity).find({
+      where: { tasker: { id: taskerId }, status: In(TASKER_ACTIVE_STATUSES) },
+      select: [
+        'id',
+        'bookingCode',
+        'status',
+        'scheduledStartDate',
+        'scheduledStartTime',
+        'scheduledEndDate',
+        'scheduledEndTime',
+      ],
+    });
+
+    if (activeBookings.length >= TASKER_MAX_CONCURRENT_BOOKINGS) {
+      throw new ConflictException(
+        `Bạn đang đảm nhiệm ${activeBookings.length} đơn. Hoàn thành bớt trước khi nhận thêm (tối đa ${TASKER_MAX_CONCURRENT_BOOKINGS} đơn).`,
+      );
+    }
+
+    const newStart = toTimestamp(
+      newBooking.scheduledStartDate,
+      newBooking.scheduledStartTime,
+    );
+    const newEnd = toTimestamp(
+      newBooking.scheduledEndDate,
+      newBooking.scheduledEndTime,
+    );
+
+    if (!newStart || !newEnd) return;
+
+    for (const existing of activeBookings) {
+      const exStart = toTimestamp(
+        existing.scheduledStartDate,
+        existing.scheduledStartTime,
+      );
+      const exEnd = toTimestamp(
+        existing.scheduledEndDate,
+        existing.scheduledEndTime,
+      );
+
+      if (!exStart || !exEnd) continue;
+
+      const overlaps = newStart < exEnd && newEnd > exStart;
+      if (overlaps) {
+        throw new ConflictException(
+          `Lịch trùng với đơn ${existing.bookingCode}: ${formatViTime(exStart)} → ${formatViTime(exEnd)}. Vui lòng chọn đơn khác.`,
+        );
+      }
     }
   }
 }

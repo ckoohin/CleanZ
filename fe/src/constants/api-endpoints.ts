@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     ADDRESSES: "/customer/addresses",
     ADDRESS: (id: string) => `/customer/addresses/${id}`,
     DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
+    VOUCHERS_AVAILABLE: "/customer/vouchers/available",
   },
   TASKERS: {
     BASE: "/taskers",

@@ -24,6 +24,7 @@ import {
   useBookingQuote,
   useCreateBooking,
 } from "@/features/booking/hooks/useCustomerBooking";
+import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
 import type {
   BookingQuoteResponse,
   CreateBookingDto,
@@ -914,9 +915,11 @@ function StepSchedule({
 function StepPayment({
   form,
   onChange,
+  packageId,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
+  packageId?: string;
 }) {
   const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
     { value: "CASH", label: "Tiền mặt", icon: "💵" },
@@ -969,16 +972,12 @@ function StepPayment({
 
       <div className="bg-card p-5 rounded-2xl border border-border/50">
         <h2 className="text-base font-bold text-foreground mb-3">
-          Mã voucher (tuỳ chọn)
+          Voucher giảm giá (tuỳ chọn)
         </h2>
-        <input
-          type="text"
-          value={form.voucherCode}
-          onChange={(e) =>
-            onChange({ voucherCode: e.target.value.toUpperCase() })
-          }
-          placeholder="Nhập mã voucher..."
-          className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/30 outline-none"
+        <VoucherPickerSheet
+          packageId={packageId}
+          selectedCode={form.voucherCode}
+          onSelect={(code) => onChange({ voucherCode: code })}
         />
       </div>
     </div>
@@ -1386,7 +1385,7 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepPayment form={form} onChange={update} />
+              <StepPayment form={form} onChange={update} packageId={form.serviceId || undefined} />
             </motion.div>
           )}
           {step === 4 && (

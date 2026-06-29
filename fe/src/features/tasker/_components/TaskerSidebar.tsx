@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -54,7 +54,10 @@ function isTabActive(href: string, exact: boolean | undefined, pathname: string)
   return exact ? pathname === href : pathname.startsWith(href);
 }
 
-function getTaskerLockBanner(tasker: ReturnType<typeof useTaskerProfile>["data"]) {
+function getTaskerLockBanner(
+  tasker: ReturnType<typeof useTaskerProfile>["data"],
+  now: number,
+) {
   if (!tasker) return null;
   if (tasker.status === "TERMINATED") {
     return {
@@ -72,7 +75,7 @@ function getTaskerLockBanner(tasker: ReturnType<typeof useTaskerProfile>["data"]
   }
   if (
     tasker.cancelSuspendedUntil &&
-    new Date(tasker.cancelSuspendedUntil).getTime() > Date.now()
+    new Date(tasker.cancelSuspendedUntil).getTime() > now
   ) {
     return {
       title: "Bạn đang tạm bị khóa nhận đơn",
@@ -90,7 +93,14 @@ function TaskerLockBanner({
   compact?: boolean;
 }) {
   const { data: tasker } = useTaskerProfile();
-  const banner = getTaskerLockBanner(tasker);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const banner = getTaskerLockBanner(tasker, now);
 
   if (!banner) return null;
 

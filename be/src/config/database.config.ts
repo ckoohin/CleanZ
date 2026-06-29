@@ -25,12 +25,12 @@ export const getDatabaseConfig = (
     synchronize: false,
 
     // Glob khớp cả runtime dev (.ts qua ts-node) lẫn prod (.js trong dist/)
-    migrations: [join(__dirname, '..', 'database', 'migrations', '*.{ts,js}')],
-    migrationsTableName: 'migrations',
-    migrationsRun,
+    // migrations: [join(__dirname, '..', 'database', 'migrations', '*.{ts,js}')],
+    // migrationsTableName: 'migrations',
+    // migrationsRun,
 
-    logging: isDev ? ['error', 'warn', 'query'] : false,
-    maxQueryExecutionTime: 100, // log query chậm hơn 100ms
+    logging: false,
+    // maxQueryExecutionTime: 100, // log query chậm hơn 100ms
     // ssl: { rejectUnauthorized: false },
   };
 };
