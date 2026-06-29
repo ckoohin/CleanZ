@@ -409,7 +409,27 @@ export class BookingController {
     return this.bookingExpirationService.expireOverduePostedBookings();
   }
 
-  @Patch('/customer/:id/cancel')
+  @Patch('tasker/:id/cancel')
+  @Auth(UserRole.TASKER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker hủy đơn (chỉ khi CONFIRMED)',
+    description:
+      'Tasker chỉ được hủy khi đơn ở trạng thái CONFIRMED. Sau khi hủy, booking được re-post về POSTED để tasker khác có thể nhận. Customer sẽ nhận thông báo.',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiBody({ type: CancelBookingDto })
+  @ApiOkResponse({ description: 'Hủy thành công, đơn đã re-post' })
+  cancelByTasker(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+    @Body() dto: CancelBookingDto,
+  ) {
+    return this.taskerBookingService.cancelByTasker(userId, bookingId, dto);
+  }
+
+  @Patch('customer/:id/cancel')
   @Auth(UserRole.CUSTOMER)
   @ApiTags('Booking – Customer Flow')
   @ApiOperation({

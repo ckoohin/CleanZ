@@ -17,6 +17,7 @@ import {
   Settings,
   WalletCards,
   LifeBuoy,
+  AlertTriangle,
 } from "lucide-react";
 import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,67 @@ function isTabActive(href: string, exact: boolean | undefined, pathname: string)
   return exact ? pathname === href : pathname.startsWith(href);
 }
 
+function getTaskerLockBanner(tasker: ReturnType<typeof useTaskerProfile>["data"]) {
+  if (!tasker) return null;
+  if (tasker.status === "TERMINATED") {
+    return {
+      title: "Tài khoản đã bị khóa vĩnh viễn",
+      description: tasker.banReason || "Bạn không thể nhận đơn. Vui lòng liên hệ hỗ trợ nếu cần kháng cáo.",
+    };
+  }
+  if (tasker.status === "SUSPENDED") {
+    return {
+      title: "Tài khoản đang bị khóa",
+      description: tasker.banEndsAt
+        ? `Mở khóa dự kiến: ${new Date(tasker.banEndsAt).toLocaleString("vi-VN")}.`
+        : tasker.banReason || "Bạn không thể nhận đơn trong thời gian bị khóa.",
+    };
+  }
+  if (
+    tasker.cancelSuspendedUntil &&
+    new Date(tasker.cancelSuspendedUntil).getTime() > Date.now()
+  ) {
+    return {
+      title: "Bạn đang tạm bị khóa nhận đơn",
+      description: `Do hủy đơn quá số lần cho phép. Mở lại sau ${new Date(
+        tasker.cancelSuspendedUntil
+      ).toLocaleString("vi-VN")}.`,
+    };
+  }
+  return null;
+}
+
+function TaskerLockBanner({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
+  const { data: tasker } = useTaskerProfile();
+  const banner = getTaskerLockBanner(tasker);
+
+  if (!banner) return null;
+
+  return (
+    <div
+      className={cn(
+        "border border-red-200 bg-red-50 text-red-700 shadow-sm dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200",
+        compact ? "px-3 py-2" : "mx-4 mb-3 rounded-2xl px-3 py-2.5"
+      )}
+      role="alert"
+    >
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide">{banner.title}</p>
+          <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-snug">
+            {banner.description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
 
 function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
@@ -83,6 +145,10 @@ function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
             <span className="text-[10px] text-primary font-bold uppercase tracking-widest mt-1">PARTNER</span>
           </div>
         </div>
+      </div>
+
+      <div className="pt-3">
+        <TaskerLockBanner />
       </div>
 
       {/* Online toggle */}
@@ -187,8 +253,9 @@ function MobileTopBar() {
     : "S";
 
   return (
-    <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 bg-card/90 backdrop-blur-md border-b border-border/50 flex items-center px-4 gap-3">
-      <div className="flex items-center gap-2">
+    <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/90 backdrop-blur-md border-b border-border/50">
+      <div className="h-16 flex items-center px-4 gap-3">
+        <div className="flex items-center gap-2">
         <LogoApp variant="icon-only" size="sm" />
         <div className="flex flex-col">
           <span className="font-black tracking-tight leading-none text-[18px]">
@@ -198,7 +265,7 @@ function MobileTopBar() {
         </div>
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3">
         <div className="flex flex-col items-end text-right">
           <span className="text-[10px] text-muted-foreground leading-none font-medium">Xin chào,</span>
           <span className="text-sm font-bold text-foreground leading-tight truncate max-w-[120px] mt-0.5">
@@ -219,6 +286,8 @@ function MobileTopBar() {
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{initials}</AvatarFallback>
         </Avatar>
       </div>
+      </div>
+      <TaskerLockBanner compact />
     </div>
   );
 }

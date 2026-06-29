@@ -5,6 +5,7 @@ import type {
   AdminTaskerFilter,
   AdminUpdateTaskerPayload,
   BanTaskerPayload,
+  UpdateTaskerWorkStatusPayload,
 } from "../types/admin-tasker.types";
 
 export const adminTaskerKeys = {
@@ -67,6 +68,21 @@ export function useUpdateTasker() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Lỗi khi cập nhật thông tin tasker"));
+    },
+  });
+}
+
+export function useUpdateTaskerWorkStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateTaskerWorkStatusPayload) =>
+      adminTaskerApi.updateTaskerWorkStatus(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminTaskerKeys.all });
+      toast.success("Đã mở khóa nhận đơn cho tasker!");
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Lỗi khi mở khóa nhận đơn"));
     },
   });
 }

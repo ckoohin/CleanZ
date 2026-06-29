@@ -153,3 +153,18 @@ export function useMarkComplete(bookingId: string) {
     onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
 }
+
+/** 12. Tasker hủy đơn */
+export function useCancelByTasker(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason?: string) => taskerBookingApi.cancelByTasker(bookingId, reason),
+    onSuccess: (res) => {
+      toast.success(res.message ?? "Đã hủy đơn. Đơn đang được tìm tasker mới.");
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
+    },
+    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+  });
+}

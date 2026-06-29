@@ -23,9 +23,15 @@ import { GoongMapService } from 'src/modules/goong/goong-map.service';
 import { TrackingGateway } from 'src/modules/tracking/tracking.gateway';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerBookingLocationDto } from '../dto/tasker-booking-location.dto';
+import { CancelBookingDto } from '../dto/cancel-booking.dto';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
-import { BookingPolicyService } from './booking-policy.service';
+import {
+  BookingPolicyService,
+  CANCEL_SUSPENSION_DAYS,
+  WEEKLY_CANCEL_LIMIT,
+} from './booking-policy.service';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
@@ -1317,5 +1323,153 @@ export class TaskerBookingService {
       );
       return DEFAULT_PLATFORM_COMMISSION_RATE;
     }
+  }
+
+  async cancelByTasker(
+    userId: string,
+    bookingId: string,
+    dto: CancelBookingDto,
+  ): Promise<{
+    message: string;
+    penaltyAmount: number;
+    weeklyCount: number;
+    suspended: boolean;
+    suspendedUntil?: string;
+  }> {
+    return asyncHandleOperation(async () => {
+      let customerUserId: string | undefined;
+      let taskerUserId: string = userId;
+      let bookingCode = '';
+      let penaltyAmount = 0;
+      let weeklyCount = 0;
+      let suspended = false;
+      let suspendedUntil: Date | undefined;
+
+      await this.dataSource.transaction(async (manager) => {
+        const booking = await manager
+          .getRepository(BookingEntity)
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .andWhere('taskerUser.id = :userId', { userId })
+          .getOne();
+
+        if (!booking) {
+          throw new NotFoundException(
+            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+          );
+        }
+
+        const tasker = booking.tasker!;
+        this.bookingPolicyService.assertTaskerCanCancel(booking);
+        this.bookingPolicyService.assertTaskerNotCancelSuspended(tasker);
+
+        customerUserId = booking.customer?.user?.id;
+        taskerUserId = tasker.user?.id ?? userId;
+        bookingCode = booking.bookingCode;
+
+        // Đếm lần hủy trong 7 ngày (TRƯỚC lần này)
+        weeklyCount = await this.bookingPolicyService.countWeeklyCancels(
+          manager,
+          tasker.id,
+        );
+        // Lần hủy này là weeklyCount + 1
+        const thisCancel = weeklyCount + 1;
+        penaltyAmount =
+          this.bookingPolicyService.resolveCancelPenaltyAmount(thisCancel);
+
+        // 1. Re-post booking
+        const oldStatus = booking.status;
+        booking.status = BookingStatus.POSTED;
+        booking.tasker = null;
+        const savedBooking = await manager
+          .getRepository(BookingEntity)
+          .save(booking);
+
+        // 2. Log status
+        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
+          booking: savedBooking,
+          oldStatus,
+          newStatus: BookingStatus.POSTED,
+          changedByUser: { id: userId } as UserEntity,
+          note: `Tasker hủy đơn (lần ${thisCancel}/tuần) — phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ`,
+          cancelledBy: CancelledBy.TASKER,
+          cancelledByUser: { id: userId } as UserEntity,
+          cancelReason: dto.reason?.trim() || null,
+          cancellationFee: penaltyAmount,
+          refundAmount: 0,
+        });
+        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+
+        // 3. Trừ ví tasker nếu có phí phạt
+        if (penaltyAmount > 0) {
+          const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+            manager,
+            tasker,
+          );
+          await this.walletService.debitWallet(manager, {
+            wallet: taskerWallet,
+            amount: penaltyAmount,
+            type: WalletTransactionType.CANCELLATION_FEE,
+            booking: savedBooking,
+            description: `Phí phạt hủy đơn #${bookingCode} (lần ${thisCancel}/tuần)`,
+          });
+        }
+
+        // 4. Khóa nếu đủ 3 lần trong tuần
+        if (thisCancel >= WEEKLY_CANCEL_LIMIT) {
+          suspendedUntil = new Date(
+            Date.now() + CANCEL_SUSPENSION_DAYS * 24 * 60 * 60 * 1000,
+          );
+          tasker.cancelSuspendedUntil = suspendedUntil;
+          suspended = true;
+          await manager.getRepository(TaskerEntity).save(tasker);
+        }
+      });
+
+      // 5. Notify customer
+      if (customerUserId) {
+        await this.notificationService.notify({
+          userId: customerUserId,
+          type: NotificationType.BOOKING_CANCELLED,
+          referenceType: NotificationRefType.BOOKING,
+          referenceId: bookingId,
+          title: 'Tasker đã hủy đơn của bạn',
+          content: `Đơn #${bookingCode} đang được tìm tasker mới. Xin lỗi vì sự bất tiện này.`,
+        });
+      }
+
+      // 6. Notify tasker nếu bị khóa
+      if (suspended && suspendedUntil) {
+        const fmt = suspendedUntil.toLocaleDateString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        await this.notificationService.notify({
+          userId: taskerUserId,
+          type: NotificationType.SYSTEM,
+          referenceType: NotificationRefType.BOOKING,
+          referenceId: bookingId,
+          title: 'Tài khoản bị tạm khóa nhận đơn',
+          content: `Bạn đã hủy ${WEEKLY_CANCEL_LIMIT} đơn trong 7 ngày. Tài khoản bị khóa nhận đơn đến ${fmt}.`,
+        });
+      }
+
+      return {
+        message: suspended
+          ? `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ. Tài khoản bị khóa nhận đơn ${CANCEL_SUSPENSION_DAYS} ngày.`
+          : `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ. Đơn đang tìm tasker mới.`,
+        penaltyAmount,
+        weeklyCount: weeklyCount + 1,
+        suspended,
+        suspendedUntil: suspendedUntil?.toISOString(),
+      };
+    }, 'Lỗi khi tasker hủy đơn');
   }
 }

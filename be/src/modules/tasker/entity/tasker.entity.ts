@@ -159,6 +159,10 @@ export class TaskerEntity {
   @Column({ name: 'deposit_topup_due', type: 'timestamp', nullable: true })
   depositTopupDue?: Date | null;
 
+  /** Hạn khóa do tự hủy quá 3 lần/tuần. NULL = không bị khóa theo luồng này. */
+  @Column({ name: 'cancel_suspended_until', type: 'timestamp', nullable: true })
+  cancelSuspendedUntil?: Date | null;
+
   @Column({
     name: 'presence_status',
     type: 'enum',

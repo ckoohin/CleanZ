@@ -105,4 +105,17 @@ export const taskerBookingApi = {
   /** 11. Hoàn thành */
   markComplete: (id: string): Promise<TaskerAssignedBookingDetail> =>
     http.patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id)).then((r) => r.data.data ?? r.data),
+
+  /** 12. Tasker hủy đơn (chỉ khi CONFIRMED) */
+  cancelByTasker: (
+    id: string,
+    reason?: string,
+  ): Promise<{
+    message: string;
+    penaltyAmount: number;
+    weeklyCount: number;
+    suspended: boolean;
+    suspendedUntil?: string;
+  }> =>
+    http.patch(API_ENDPOINTS.BOOKING.TASKER_CANCEL(id), { reason }).then((r) => r.data.data ?? r.data),
 };

@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   Route,
   Loader2,
+  ShieldAlert,
+  XCircle,
 } from "lucide-react";
 import {
   usePostedBookingDetail,
@@ -28,6 +30,7 @@ import {
   useMarkCheckedIn,
   useMarkStart,
   useMarkComplete,
+  useCancelByTasker,
 } from "@/features/booking/hooks/useTaskerBooking";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
@@ -38,6 +41,7 @@ import type {
 import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTracking";
 import { BookingTrackingMap } from "./BookingTrackingMap";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
+import { toast } from "sonner";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -214,6 +218,161 @@ function PostedDetailView({
   );
 }
 
+// ─── Tasker Cancel Dialog ─────────────────────────────────────────────────────
+const PRESET_CANCEL_REASONS = [
+  "Có việc đột xuất, không thể đến được",
+  "Phương tiện di chuyển gặp sự cố",
+  "Ốm / Không đủ sức khoẻ để làm việc",
+  "Sai thông tin lịch hẹn",
+];
+
+const CANCEL_POLICY_ITEMS = [
+  { title: "Lần 1 / tuần", value: "50.000đ" },
+  { title: "Lần 2 / tuần", value: "100.000đ" },
+  { title: "Lần 3+ / tuần", value: "200.000đ", note: "Khóa 7 ngày" },
+];
+
+function TaskerCancelDialog({
+  bookingCode,
+  isPending,
+  cancelReason,
+  onReasonChange,
+  onClose,
+  onConfirm,
+}: {
+  bookingCode: string;
+  isPending: boolean;
+  cancelReason: string;
+  onReasonChange: (v: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const handlePreset = (reason: string) => {
+    onReasonChange(cancelReason === reason ? "" : reason);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 backdrop-blur-sm sm:items-center sm:p-6">
+      <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-2xl shadow-black/20">
+        {/* Header */}
+        <div className="space-y-4 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+          <div className="flex items-start gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-600">
+              <ShieldAlert className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-red-500">
+                Xác nhận hủy đơn
+              </p>
+              <h3 className="mt-1 text-lg font-black leading-tight text-foreground">
+                #{bookingCode}
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Đơn sẽ được trả về trạng thái chờ Tasker mới. Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isPending}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+              aria-label="Đóng"
+            >
+              <XCircle className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Cảnh báo phí phạt */}
+        <div className="mx-5 rounded-2xl border border-red-200 bg-red-50/90 p-3.5 sm:mx-6">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="size-4 shrink-0 text-red-500" />
+            <p className="text-xs font-black uppercase tracking-wide text-red-600">
+              Chính sách phạt hủy đơn
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {CANCEL_POLICY_ITEMS.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-xl border border-red-200/80 bg-white/65 px-2 py-2 text-center"
+              >
+                <p className="text-[10px] font-bold text-red-500">
+                  {item.title}
+                </p>
+                <p className="mt-1 text-xs font-black text-red-600">
+                  {item.value}
+                </p>
+                {item.note && (
+                  <p className="mt-0.5 text-[9px] font-semibold text-red-400">
+                    {item.note}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Lý do gợi ý */}
+        <div className="space-y-3 px-5 py-4 sm:px-6">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Chọn lý do hủy
+          </p>
+          <div className="grid gap-2">
+            {PRESET_CANCEL_REASONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handlePreset(r)}
+                className={`flex min-h-11 items-center rounded-2xl border px-3.5 py-2.5 text-left text-sm font-semibold transition-all ${
+                  cancelReason === r
+                    ? "border-red-300 bg-red-50 text-red-700 shadow-sm shadow-red-500/10"
+                    : "border-border bg-background text-foreground hover:border-primary/30 hover:bg-muted/30"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          {/* Tự nhập */}
+          <textarea
+            value={PRESET_CANCEL_REASONS.includes(cancelReason) ? "" : cancelReason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            placeholder="Hoặc nhập lý do khác..."
+            rows={3}
+            className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100 placeholder:text-muted-foreground"
+          />
+        </div>
+
+        {/* Buttons */}
+        <div className="grid grid-cols-2 gap-3 border-t border-border/60 bg-muted/20 px-5 py-4 sm:px-6">
+          <button
+            type="button"
+            className="min-h-12 rounded-2xl border border-border bg-background text-sm font-black text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
+            onClick={onClose}
+            disabled={isPending}
+          >
+            Quay lại
+          </button>
+          <button
+            type="button"
+            className="min-h-12 rounded-2xl bg-red-500 text-sm font-black text-white shadow-lg shadow-red-500/20 transition-colors hover:bg-red-600 disabled:opacity-60 disabled:shadow-none"
+            disabled={isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+            ) : (
+              "Xác nhận hủy"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Assigned Detail View ─────────────────────────────────────────────────────
 function AssignedDetailView({
   data,
@@ -291,6 +450,9 @@ function AssignedDetailView({
   const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
+  const cancelByTasker = useCancelByTasker(bookingId);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const {
     tracking,
     isConnected: isTrackingConnected,
@@ -613,12 +775,46 @@ function AssignedDetailView({
 
       {/* Action buttons based on status */}
       {data.status === "CONFIRMED" && (
-        <ActionButton
-          label="Bắt đầu di chuyển tới"
-          icon={Navigation}
-          onClick={() => markOnWay.mutate()}
-          isPending={markOnWay.isPending}
-          color="amber"
+        <div className="flex flex-col gap-3">
+          <ActionButton
+            label="Bắt đầu di chuyển tới"
+            icon={Navigation}
+            onClick={() => markOnWay.mutate()}
+            isPending={markOnWay.isPending}
+            color="amber"
+          />
+          <button
+            onClick={() => setShowCancelDialog(true)}
+            className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors"
+          >
+            Hủy đơn này
+          </button>
+        </div>
+      )}
+
+      {/* Cancel dialog */}
+      {showCancelDialog && (
+        <TaskerCancelDialog
+          bookingCode={data.bookingCode}
+          isPending={cancelByTasker.isPending}
+          cancelReason={cancelReason}
+          onReasonChange={setCancelReason}
+          onClose={() => { setShowCancelDialog(false); setCancelReason(""); }}
+          onConfirm={() =>
+            cancelByTasker.mutate(cancelReason || undefined, {
+              onSuccess: (res) => {
+                setShowCancelDialog(false);
+                setCancelReason("");
+                if (res.suspended) {
+                  toast.warning(
+                    `Tài khoản bị khóa nhận đơn 7 ngày do hủy quá 3 lần trong tuần`,
+                    { duration: 8000 },
+                  );
+                }
+                router.push("/tasker/jobs");
+              },
+            })
+          }
         />
       )}
       {data.status === "CHECKED_IN" && (

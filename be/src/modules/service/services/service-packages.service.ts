@@ -49,6 +49,16 @@ export class ServicePackagesService {
     private readonly subServiceRepository: Repository<ServiceSubServiceEntity>,
   ) {}
 
+  private availablePackagesCache: {
+    data: ServicePackageEntity[];
+    ts: number;
+  } | null = null;
+  private readonly PKG_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  invalidatePackageCache(): void {
+    this.availablePackagesCache = null;
+  }
+
   async create(dto: CreateServicePackageDto): Promise<ServicePackageEntity> {
     const packageCode = dto.packageCode || this.generateCode(dto.name);
 
@@ -174,6 +184,7 @@ export class ServicePackagesService {
       await this.subServiceRepository.save(ssEntities);
     }
 
+    this.invalidatePackageCache();
     return this.findOne(saved.id);
   }
 
@@ -187,6 +198,16 @@ export class ServicePackagesService {
   async findAvailablePackages(
     search?: string,
   ): Promise<ServicePackageEntity[]> {
+    if (!search?.trim()) {
+      const now = Date.now();
+      if (
+        this.availablePackagesCache &&
+        now - this.availablePackagesCache.ts < this.PKG_CACHE_TTL_MS
+      ) {
+        return this.availablePackagesCache.data;
+      }
+    }
+
     const qb = this.packageRepository
       .createQueryBuilder('pkg')
       .leftJoinAndSelect('pkg.coverageAreas', 'area')
@@ -194,9 +215,17 @@ export class ServicePackagesService {
       .leftJoinAndSelect('pss.subService', 'sub', 'sub.isActive = true')
       .leftJoinAndSelect('sub.pricingConfig', 'pricing')
       .leftJoinAndSelect('pkg.pricingTiers', 'tier', 'tier.isActive = true')
-      .leftJoinAndSelect('pkg.durations', 'duration', 'duration.isActive = true')
+      .leftJoinAndSelect(
+        'pkg.durations',
+        'duration',
+        'duration.isActive = true',
+      )
       .leftJoinAndSelect('pkg.addons', 'addon', 'addon.isActive = true')
-      .leftJoinAndSelect('pkg.peakHours', 'peakHour', 'peakHour.isActive = true')
+      .leftJoinAndSelect(
+        'pkg.peakHours',
+        'peakHour',
+        'peakHour.isActive = true',
+      )
       .where('pkg.isActive = true')
       .orderBy('pkg.sortOrder', 'ASC')
       .addOrderBy('pkg.createdAt', 'DESC')
@@ -215,7 +244,11 @@ export class ServicePackagesService {
       );
     }
 
-    return qb.getMany();
+    const result = await qb.getMany();
+    if (!search?.trim()) {
+      this.availablePackagesCache = { data: result, ts: Date.now() };
+    }
+    return result;
   }
 
   async findOne(id: string): Promise<ServicePackageEntity> {
@@ -406,12 +439,14 @@ export class ServicePackagesService {
       }
     }
 
+    this.invalidatePackageCache();
     return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     const servicePackage = await this.findOne(id);
     await this.packageRepository.remove(servicePackage);
+    this.invalidatePackageCache();
   }
 
   async addSubServices(
@@ -441,6 +476,7 @@ export class ServicePackagesService {
     );
 
     await this.pssRepository.save(entities);
+    this.invalidatePackageCache();
   }
 
   async removeSubService(
@@ -448,6 +484,7 @@ export class ServicePackagesService {
     subServiceId: string,
   ): Promise<void> {
     await this.pssRepository.delete({ packageId, subServiceId });
+    this.invalidatePackageCache();
   }
 
   async getAnalytics(id: string): Promise<ServicePackageAnalytics> {

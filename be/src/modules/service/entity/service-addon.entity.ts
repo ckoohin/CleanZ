@@ -32,7 +32,13 @@ export class ServiceAddonEntity {
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   price!: number;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'price_unit', default: 'per_item' })
+  @Column({
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+    name: 'price_unit',
+    default: 'per_item',
+  })
   priceUnit?: string;
 
   @Column({ type: 'integer', nullable: true, name: 'duration_minutes' })

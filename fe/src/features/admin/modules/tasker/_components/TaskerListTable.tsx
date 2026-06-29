@@ -164,6 +164,8 @@ export const TaskerListTable: React.FC = () => {
             taskerId={row.id}
             status={row.status}
             fullName={row.fullName || "tasker"}
+            presenceStatus={row.presenceStatus}
+            cancelSuspendedUntil={row.cancelSuspendedUntil}
           />
         </div>
       ),

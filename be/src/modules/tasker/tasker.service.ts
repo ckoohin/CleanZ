@@ -23,6 +23,7 @@ import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
 import { AdminUpdateTaskerDto } from './dto/admin-update-tasker.dto';
+import { AdminUpdateTaskerWorkStatusDto } from './dto/admin-update-tasker-work-status.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { TaskerEntity } from './entity/tasker.entity';
@@ -366,6 +367,36 @@ export class TaskerService {
     }, 'Không thể cập nhật thông tin tasker');
   }
 
+  async updateTaskerWorkStatusByAdmin(
+    id: string,
+    dto: AdminUpdateTaskerWorkStatusDto,
+    adminId?: string,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { id },
+        relations: ['user'],
+      });
+      if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
+
+      if (dto.clearCancelSuspension) {
+        tasker.cancelSuspendedUntil = null;
+      } else {
+        throw new BadRequestException(
+          'Admin chỉ có thể mở khóa nhận đơn. Trạng thái online/offline do tasker tự điều chỉnh.',
+        );
+      }
+
+      tasker.updatedBy = adminId ?? tasker.updatedBy ?? null;
+      const saved = await this.taskerRepository.save(tasker);
+      const adminNames = await this.resolveAdminNames([
+        saved.docReviewedBy,
+        saved.updatedBy,
+      ]);
+      return this.mapProfile(saved, adminNames);
+    }, 'Không thể mở khóa nhận đơn cho tasker');
+  }
+
   async approveTasker(
     id: string,
     adminId?: string,
@@ -631,10 +662,14 @@ export class TaskerService {
         tasker.updatedBy = adminId ?? null;
         await taskerRepo.save(tasker);
 
-        // Khóa đăng nhập + vô hiệu phiên hiện có (bump tokenVersion).
-        tasker.user.isActive = false;
+        // TEMPORARY: vẫn cho tasker đăng nhập để thấy banner khóa và liên hệ hỗ trợ,
+        // nhưng status SUSPENDED sẽ chặn bật online / nhận việc.
+        // PERMANENT: vô hiệu đăng nhập + phiên hiện có.
+        tasker.user.isActive = !isPermanent;
         await userRepo.save(tasker.user);
-        await userRepo.increment({ id: tasker.user.id }, 'tokenVersion', 1);
+        if (isPermanent) {
+          await userRepo.increment({ id: tasker.user.id }, 'tokenVersion', 1);
+        }
 
         // Ghi lịch sử kỷ luật.
         await penaltyRepo.save(
@@ -1005,6 +1040,7 @@ export class TaskerService {
       adminNotes: tasker.docNote ?? null,
       banReason: tasker.banReason ?? null,
       banEndsAt: tasker.banEndsAt ?? null,
+      cancelSuspendedUntil: tasker.cancelSuspendedUntil ?? null,
       // Audit: ai duyệt hồ sơ + ai cập nhật gần nhất (kèm tên admin nếu resolve được).
       docReviewedBy: tasker.docReviewedBy ?? null,
       docReviewedByName: tasker.docReviewedBy

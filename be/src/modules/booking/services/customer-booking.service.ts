@@ -28,6 +28,7 @@ import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingEntity } from '../entity/booking.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
+import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import {
   BookingScheduleDraft,
   BookingScheduleService,
@@ -442,19 +443,51 @@ export class CustomerBookingService {
         .limit(50)
         .getMany();
 
+      // Batch-load payments and vouchers to avoid N+1 queries
+      const bookingIds = bookings.map((b) => b.id);
+      const voucherIds = [
+        ...new Set(
+          bookings.filter((b) => b.voucherId).map((b) => b.voucherId!),
+        ),
+      ];
+
+      const [allPayments, allVouchers] = await Promise.all([
+        this.paymentService.findLatestByBookingIds(
+          this.dataSource.manager,
+          bookingIds,
+        ),
+        voucherIds.length > 0
+          ? Promise.all(
+              voucherIds.map((id) =>
+                this.voucherService
+                  .getById(this.dataSource.manager, id)
+                  .catch(() => null),
+              ),
+            )
+          : Promise.resolve([]),
+      ]);
+
+      // Build lookup maps
+      const paymentMap = new Map<string, PaymentEntity>();
+      for (const p of allPayments) {
+        const bid =
+          (p as any).bookingId ??
+          (p as any).booking_id ??
+          (p.booking as any)?.id;
+        if (bid && !paymentMap.has(bid)) {
+          paymentMap.set(bid, p); // first = latest due to DESC sort
+        }
+      }
+      const voucherMap = new Map(
+        allVouchers.filter(Boolean).map((v) => [v!.id, v!]),
+      );
+
       const items: CustomerBookingDetailResponse[] = [];
       for (const booking of bookings) {
-        const [payment, voucher] = await Promise.all([
-          this.paymentService.findLatestByBookingId(
-            this.dataSource.manager,
-            booking.id,
-          ),
-          booking.voucherId
-            ? this.voucherService
-                .getById(this.dataSource.manager, booking.voucherId)
-                .catch(() => null)
-            : Promise.resolve(null),
-        ]);
+        const payment = paymentMap.get(booking.id) ?? null;
+        const voucher = booking.voucherId
+          ? (voucherMap.get(booking.voucherId) ?? null)
+          : null;
 
         const packageSummary = {
           id: booking.package?.id,

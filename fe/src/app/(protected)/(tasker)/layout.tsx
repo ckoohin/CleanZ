@@ -31,6 +31,12 @@ export default function TaskerLayout({
   const { data: tasker } = useTaskerProfile();
   const guard = useTaskerActionGuard(tasker);
   const updatePresence = useUpdatePresence();
+  const hasLockBanner = Boolean(
+    tasker?.status === "SUSPENDED" ||
+      tasker?.status === "TERMINATED" ||
+      (tasker?.cancelSuspendedUntil &&
+        new Date(tasker.cancelSuspendedUntil).getTime() > Date.now())
+  );
 
   const handleToggleOnline = () => {
     guard.requireVerified(() => {
@@ -47,7 +53,9 @@ export default function TaskerLayout({
         <TaskerSidebar onToggleOnline={handleToggleOnline} />
 
         {/* Main content area */}
-        <main className="flex-1 min-w-0 lg:pt-0 pt-14 pb-24 lg:pb-0 relative overflow-x-hidden">
+        <main
+          className={`flex-1 min-w-0 ${hasLockBanner ? "pt-28" : "pt-14"} lg:pt-0 pb-24 lg:pb-0 relative overflow-x-hidden`}
+        >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}

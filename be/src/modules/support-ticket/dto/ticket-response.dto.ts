@@ -234,7 +234,10 @@ export interface TicketAdminView extends TicketSummary {
   /** Trang tin MỚI NHẤT của các luồng hội thoại (REPORTER+COUNTERPARTY). */
   messages: AdminMessage[];
   /** Phân trang theo từng luồng (tổng số + còn tin cũ hơn). */
-  messagePaging: Record<'REPORTER' | 'COUNTERPARTY', { hasMore: boolean; total: number }>;
+  messagePaging: Record<
+    'REPORTER' | 'COUNTERPARTY',
+    { hasMore: boolean; total: number }
+  >;
   statusLogs: StatusLogView[];
   resolutions: ResolutionView[];
   /** Ảnh đính kèm ở cấp ticket (không thuộc message nào). */

@@ -237,11 +237,37 @@ export class PricingService {
     const packageRepository = manager.getRepository(ServicePackageEntity);
     const subServiceRepository = manager.getRepository(SubServiceEntity);
     const addonRepository = manager.getRepository(ServiceAddonEntity);
+    const pricingTierRepo = manager.getRepository(PricingTierEntity);
 
-    const servicePackage = await packageRepository.findOne({
-      where: { id: input.packageId, isActive: true },
-      relations: ['coverageAreas', 'peakHours'],
-    });
+    const uniqueAddonIds = input.addonIds ? [...new Set(input.addonIds)] : [];
+
+    const [servicePackage, subServices, addons, activeTiers, peakDays] =
+      await Promise.all([
+        packageRepository.findOne({
+          where: { id: input.packageId, isActive: true },
+          relations: ['coverageAreas', 'peakHours'],
+        }),
+        input.subServiceIds?.length
+          ? subServiceRepository.find({
+              where: { id: In(input.subServiceIds), isActive: true },
+              relations: ['pricingConfig'],
+            })
+          : Promise.resolve([] as SubServiceEntity[]),
+        uniqueAddonIds.length
+          ? addonRepository.find({
+              where: uniqueAddonIds.map((id) => ({
+                id,
+                packageId: input.packageId,
+                isActive: true,
+              })),
+            })
+          : Promise.resolve([] as ServiceAddonEntity[]),
+        pricingTierRepo.find({
+          where: { packageId: input.packageId, isActive: true },
+          order: { sortOrder: 'ASC' },
+        }),
+        this.peakDayRepo.findAll(true),
+      ]);
 
     if (!servicePackage) {
       throw new NotFoundException(
@@ -249,30 +275,10 @@ export class PricingService {
       );
     }
 
-    let subServices: SubServiceEntity[] = [];
-    if (input.subServiceIds && input.subServiceIds.length > 0) {
-      subServices = await subServiceRepository.find({
-        where: { id: In(input.subServiceIds), isActive: true },
-        relations: ['pricingConfig'],
-      });
-    }
-
-    let addons: ServiceAddonEntity[] = [];
-    if (input.addonIds && input.addonIds.length > 0) {
-      const uniqueAddonIds = [...new Set(input.addonIds)];
-      addons = await addonRepository.find({
-        where: uniqueAddonIds.map((id) => ({
-          id,
-          packageId: servicePackage.id,
-          isActive: true,
-        })),
-      });
-
-      if (addons.length !== uniqueAddonIds.length) {
-        throw new BadRequestException(
-          'Một hoặc nhiều dịch vụ thêm không hợp lệ hoặc không thuộc gói dịch vụ đã chọn',
-        );
-      }
+    if (uniqueAddonIds.length > 0 && addons.length !== uniqueAddonIds.length) {
+      throw new BadRequestException(
+        'Một hoặc nhiều dịch vụ thêm không hợp lệ hoặc không thuộc gói dịch vụ đã chọn',
+      );
     }
 
     let durationHours =
@@ -289,11 +295,6 @@ export class PricingService {
     let matchedTierId: string | undefined;
 
     // 1. Tải các pricing tiers hoạt động của package này
-    const pricingTierRepo = manager.getRepository(PricingTierEntity);
-    const activeTiers = await pricingTierRepo.find({
-      where: { packageId: servicePackage.id, isActive: true },
-      order: { sortOrder: 'ASC' },
-    });
 
     if (activeTiers.length > 0) {
       let matchedTier: PricingTierEntity | null = null;
@@ -399,7 +400,10 @@ export class PricingService {
     // Dịch vụ thêm / phụ phí đêm/sớm
     let addonPrice = toNumber(servicePackage.toolFee);
     addonPrice += addons.reduce((sum, addon) => sum + toNumber(addon.price), 0);
-    if (matchedTierId || (durationHours > 0 && toNumber(servicePackage.baseHourlyRate) > 0)) {
+    if (
+      matchedTierId ||
+      (durationHours > 0 && toNumber(servicePackage.baseHourlyRate) > 0)
+    ) {
       for (const sub of subServices) {
         const pricing = sub.pricingConfig;
         if (!pricing || !pricing.isActive) {
@@ -467,7 +471,6 @@ export class PricingService {
     }
 
     let holidayPeakRate = 0;
-    const peakDays = await this.peakDayRepo.findAll(true);
 
     if (peakDays.length > 0 && input.scheduledStart) {
       const bookingDate = new Date(input.scheduledStart);

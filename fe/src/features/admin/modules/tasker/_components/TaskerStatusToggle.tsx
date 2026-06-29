@@ -22,7 +22,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusSwitch } from "@/components/ui/base/status_switch";
-import { useBanTasker, useUnbanTasker } from "../hooks/admin-tasker.hooks";
+import {
+  useBanTasker,
+  useUnbanTasker,
+  useUpdateTaskerWorkStatus,
+} from "../hooks/admin-tasker.hooks";
 import { ACCOUNT_STATUS_LABELS } from "../constants";
 import type { BanType, TaskerAccountStatus } from "../types/admin-tasker.types";
 
@@ -40,15 +44,20 @@ interface TaskerStatusToggleProps {
   taskerId: string;
   status: TaskerAccountStatus;
   fullName: string;
+  presenceStatus?: string | null;
+  cancelSuspendedUntil?: string | null;
 }
 
 export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
   taskerId,
   status,
   fullName,
+  presenceStatus,
+  cancelSuspendedUntil,
 }) => {
   const [banOpen, setBanOpen] = useState(false);
   const [unbanOpen, setUnbanOpen] = useState(false);
+  const [unlockCancelOpen, setUnlockCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [banType, setBanType] = useState<BanType>("TEMPORARY");
   // Số ngày khóa cho hình thức TEMPORARY (mặc định 7, 1–365).
@@ -56,12 +65,38 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
 
   const banMutation = useBanTasker();
   const unbanMutation = useUnbanTasker();
+  const workStatusMutation = useUpdateTaskerWorkStatus();
+  const cancelSuspensionActive = Boolean(
+    cancelSuspendedUntil && new Date(cancelSuspendedUntil).getTime() > Date.now()
+  );
+
+  const openUnlockCancelDialog = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setUnlockCancelOpen(true);
+  };
+
+  const handleUnlockCancelSuspension = () => {
+    workStatusMutation.mutate(
+      {
+        id: taskerId,
+        clearCancelSuspension: true,
+      },
+      { onSuccess: () => setUnlockCancelOpen(false) }
+    );
+  };
 
   if (status !== "ACTIVE" && status !== "SUSPENDED") {
     return (
-      <StatusBadge tone={ACCOUNT_STATUS_TONE[status] ?? "neutral"}>
-        {ACCOUNT_STATUS_LABELS[status] || status}
-      </StatusBadge>
+      <div className="flex flex-col items-start gap-1.5">
+        <StatusBadge tone={ACCOUNT_STATUS_TONE[status] ?? "neutral"}>
+          {ACCOUNT_STATUS_LABELS[status] || status}
+        </StatusBadge>
+        {cancelSuspensionActive && (
+          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+            Khóa nhận đơn
+          </span>
+        )}
+      </div>
     );
   }
 
@@ -99,14 +134,32 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
 
   return (
     <>
-      <StatusSwitch
-        checked={isActive}
-        disabled={banMutation.isPending || unbanMutation.isPending}
-        onClick={handleToggleClick}
-        ariaLabel={`${isActive ? "Đình chỉ" : "Gỡ khóa"} tài khoản ${fullName}`}
-        activeLabel="Đang hoạt động"
-        inactiveLabel="Bị đình chỉ"
-      />
+      <div className="flex flex-col items-start gap-1.5">
+        <StatusSwitch
+          checked={isActive}
+          disabled={banMutation.isPending || unbanMutation.isPending}
+          onClick={handleToggleClick}
+          ariaLabel={`${isActive ? "Đình chỉ" : "Gỡ khóa"} tài khoản ${fullName}`}
+          activeLabel="Đang hoạt động"
+          inactiveLabel="Bị đình chỉ"
+        />
+        {isActive && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full border border-[var(--c-line)] bg-[var(--c-card-2)] px-2.5 py-1 text-[11px] font-bold text-[var(--c-ink-soft)]">
+              {presenceStatus === "ONLINE" ? "Online" : "Offline"}
+            </span>
+            {cancelSuspensionActive && (
+              <button
+                type="button"
+                onClick={openUnlockCancelDialog}
+                className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-700 transition hover:border-amber-500/50 hover:bg-amber-500/15"
+              >
+                Mở khóa nhận đơn
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       <Dialog open={banOpen} onOpenChange={setBanOpen}>
         <DialogContent className="cz-admin sm:max-w-md rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
@@ -205,6 +258,48 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
               className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
             >
               {unbanMutation.isPending ? "Đang xử lý..." : "Gỡ khóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unlockCancelOpen} onOpenChange={setUnlockCancelOpen}>
+        <DialogContent className="cz-admin sm:max-w-md rounded-[20px] border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
+          <DialogHeader>
+            <DialogTitle className="text-[var(--c-ink)]">Mở khóa nhận đơn</DialogTitle>
+            <DialogDescription className="pt-1 text-sm text-[var(--c-muted)]">
+              Admin chỉ mở khóa nhận đơn cho <strong>{fullName}</strong>. Trạng thái Online/Offline vẫn do tasker tự điều chỉnh trên app.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {cancelSuspensionActive && (
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3">
+                <span>
+                  <span className="block text-sm font-bold text-amber-700">
+                    Tasker đang bị khóa nhận đơn
+                  </span>
+                  <span className="block text-xs text-amber-700/80">
+                    Khóa đến {new Date(cancelSuspendedUntil as string).toLocaleString("vi-VN")}.
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setUnlockCancelOpen(false)}
+              disabled={workStatusMutation.isPending}
+              className="rounded-full border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleUnlockCancelSuspension}
+              disabled={workStatusMutation.isPending}
+              className="rounded-full bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
+            >
+              {workStatusMutation.isPending ? "Đang mở khóa..." : "Mở khóa"}
             </Button>
           </DialogFooter>
         </DialogContent>

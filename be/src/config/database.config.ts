@@ -29,7 +29,8 @@ export const getDatabaseConfig = (
     migrationsTableName: 'migrations',
     migrationsRun, // <- npm start sẽ tự áp mọi migration pending
 
-    logging: false,
+    logging: isDev ? ['error', 'warn', 'query'] : false,
+    maxQueryExecutionTime: 100, // log query chậm hơn 100ms
     // ssl: { rejectUnauthorized: false },
   };
 };
