@@ -43,6 +43,8 @@ export const ROUTES = {
     WALLET: "/customer/wallet",
     CATALOG: "/customer/catalog",
     CATALOG_DETAIL: (id: string) => `/customer/catalog/${id}`,
+    BLOGS: "/customer/blogs",
+    BLOG_DETAIL: (id: string) => `/customer/blogs/${id}`,
     INCIDENT: "/customer/incident",
     INCIDENT_DETAIL: (id: string) => `/customer/incident/${id}`,
     INCIDENT_REPORT: "/customer/incident/report",
@@ -130,6 +132,9 @@ export const ROUTES = {
     },
     SUPPORT_TICKETS: {
       BASE: "/admin/support-tickets",
+    },
+    BLOGS: {
+      BASE: "/admin/blogs",
     },
     SETTINGS: {
       BASE: "/admin/settings",

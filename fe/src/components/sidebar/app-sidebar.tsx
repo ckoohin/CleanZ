@@ -7,6 +7,7 @@ import {
   FileText,
   HeadphonesIcon,
   LayoutDashboard,
+  Newspaper,
   Settings2,
   TicketPercent,
   Users,
@@ -18,7 +19,6 @@ import {
 
 import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/sidebar/nav-main"
-import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
 import { SidebarBrand } from "@/components/sidebar/team-switcher"
 import {
@@ -103,6 +103,14 @@ const operationsNav = [
     icon: <HeadphonesIcon />,
     items: [
       { title: "Hàng đợi ticket", url: "/admin/support-tickets" },
+    ],
+  },
+  {
+    title: "Blog",
+    url: ROUTES.ADMIN.BLOGS.BASE,
+    icon: <Newspaper />,
+    items: [
+      { title: "Quản lý blog", url: ROUTES.ADMIN.BLOGS.BASE },
     ],
   },
   {

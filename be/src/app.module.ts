@@ -30,6 +30,7 @@ import { VoucherModule } from './modules/voucher/voucher.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
 import { ReviewModule } from './modules/review/review.module';
 import { AppealModule } from './modules/appeal/appeal.module';
+import { BlogModule } from './modules/blog/blog.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { AppealModule } from './modules/appeal/appeal.module';
     WorkflowModule,
     ReviewModule,
     AppealModule,
+    BlogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
