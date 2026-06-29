@@ -8,34 +8,98 @@ import {
   VoucherStats,
 } from "../types/voucher.type";
 
-function normalizePaginatedResponse(raw: any): VoucherListResponse {
-  // Hỗ trợ nhiều format BE khác nhau
-  // dạng 1: { data, total, page, limit, totalPages }
-  if (raw?.data && Array.isArray(raw.data)) {
+type RawPaginatedVoucherResponse =
+  | Voucher[]
+  | {
+      success?: boolean;
+      message?: string;
+      data?:
+        | Voucher[]
+        | {
+            items?: Voucher[];
+            data?: Voucher[];
+            total?: number;
+            page?: number;
+            limit?: number;
+            totalPages?: number;
+          };
+      items?: Voucher[];
+      total?: number;
+      page?: number;
+      limit?: number;
+      totalPages?: number;
+    }
+  | null
+  | undefined;
+
+function normalizePaginatedResponse(
+  raw: RawPaginatedVoucherResponse,
+): VoucherListResponse {
+  const success = !raw || Array.isArray(raw) ? true : raw.success ?? true;
+  const message = !raw || Array.isArray(raw) ? undefined : raw.message;
+
+  if (Array.isArray(raw)) {
     return {
-      data: raw.data,
-      total: Number(raw.total ?? 0),
-      page: Number(raw.page ?? 1),
-      limit: Number(raw.limit ?? 20),
-      totalPages:
-        Number(raw.totalPages ?? Math.ceil((raw.total ?? 0) / (raw.limit ?? 20))) || 1,
+      success,
+      message,
+      data: raw,
+      total: raw.length,
+      page: 1,
+      limit: raw.length || 20,
+      totalPages: 1,
     };
   }
 
-  // dạng 2: { items, total, page, limit }
+  const nested = raw?.data;
+
+  if (nested && !Array.isArray(nested) && Array.isArray(nested.items)) {
+    const total = Number(nested.total ?? nested.items.length);
+    const page = Number(nested.page ?? 1);
+    const limit = Number(nested.limit ?? 20);
+    return {
+      success,
+      message,
+      data: nested.items,
+      total,
+      page,
+      limit,
+      totalPages: Number(nested.totalPages ?? Math.ceil(total / limit)) || 1,
+    };
+  }
+
+  if (nested && Array.isArray(nested)) {
+    const total = Number(raw.total ?? nested.length);
+    const page = Number(raw.page ?? 1);
+    const limit = Number(raw.limit ?? 20);
+    return {
+      success,
+      message,
+      data: nested,
+      total,
+      page,
+      limit,
+      totalPages: Number(raw.totalPages ?? Math.ceil(total / limit)) || 1,
+    };
+  }
+
   if (raw?.items && Array.isArray(raw.items)) {
+    const total = Number(raw.total ?? raw.items.length);
+    const page = Number(raw.page ?? 1);
+    const limit = Number(raw.limit ?? 20);
     return {
+      success,
+      message,
       data: raw.items,
-      total: Number(raw.total ?? 0),
-      page: Number(raw.page ?? 1),
-      limit: Number(raw.limit ?? 20),
-      totalPages:
-        Number(raw.totalPages ?? Math.ceil((raw.total ?? 0) / (raw.limit ?? 20))) || 1,
+      total,
+      page,
+      limit,
+      totalPages: Number(raw.totalPages ?? Math.ceil(total / limit)) || 1,
     };
   }
 
-  // fallback
   return {
+    success,
+    message,
     data: [],
     total: 0,
     page: 1,
@@ -50,8 +114,7 @@ export const adminVoucherService = {
       params: query,
     });
 
-    const raw = response.data?.data ?? response.data;
-    return normalizePaginatedResponse(raw);
+    return normalizePaginatedResponse(response.data);
   },
 
   async getVoucherById(id: string): Promise<Voucher> {
@@ -64,7 +127,10 @@ export const adminVoucherService = {
     return response.data?.data ?? response.data;
   },
 
-  async updateVoucher(id: string, payload: UpdateVoucherPayload): Promise<Voucher> {
+  async updateVoucher(
+    id: string,
+    payload: UpdateVoucherPayload,
+  ): Promise<Voucher> {
     const response = await http.patch(`/admin/vouchers/${id}`, payload);
     return response.data?.data ?? response.data;
   },

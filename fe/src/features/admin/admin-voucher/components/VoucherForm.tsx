@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, Save, TicketPercent } from "lucide-react";
 import {
   CreateVoucherPayload,
-  UpdateVoucherPayload,
   Voucher,
   VoucherType,
 } from "../types/voucher.type";
@@ -12,7 +11,7 @@ import {
 type Props = {
   mode: "create" | "edit";
   initialData?: Voucher | null;
-  onSubmit: (payload: CreateVoucherPayload | UpdateVoucherPayload) => Promise<void> | void;
+  onSubmit: (payload: CreateVoucherPayload) => Promise<void> | void;
   isSubmitting?: boolean;
 };
 

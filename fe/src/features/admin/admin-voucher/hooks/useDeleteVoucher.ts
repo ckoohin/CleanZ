@@ -4,6 +4,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { adminVoucherService } from "../services/admin-voucher.service";
 
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as ApiError)?.response?.data?.message || fallback;
+}
+
 export const useDeleteVoucher = () => {
   const queryClient = useQueryClient();
 
@@ -13,8 +25,8 @@ export const useDeleteVoucher = () => {
       toast.success("Xóa voucher thành công");
       queryClient.invalidateQueries({ queryKey: ["admin-vouchers"] });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Không thể xóa voucher");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Không thể xóa voucher"));
     },
   });
 };

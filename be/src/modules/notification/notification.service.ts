@@ -82,34 +82,57 @@ export class NotificationService {
     dto: BroadcastNotificationDto,
   ): Promise<{ campaignId: string; enqueued: number; chunks: number }> {
     return asyncHandleOperation(async () => {
-      const userIds = dto.userIds ?? (await this.resolveSegment(dto.segment!));
       const campaignId = randomUUID();
+      const base = {
+        type: dto.type,
+        title: dto.title,
+        content: dto.content,
+        dedupeKey: `broadcast:${campaignId}`,
+      };
 
+      let enqueued = 0;
       let chunks = 0;
-      for (let i = 0; i < userIds.length; i += BROADCAST_CHUNK_SIZE) {
-        const slice = userIds.slice(i, i + BROADCAST_CHUNK_SIZE);
-        await this.notifyMany(slice, {
-          type: dto.type,
-          title: dto.title,
-          content: dto.content,
-          dedupeKey: `broadcast:${campaignId}`,
-        });
-        chunks += 1;
+      if (dto.userIds) {
+        for (let i = 0; i < dto.userIds.length; i += BROADCAST_CHUNK_SIZE) {
+          const slice = dto.userIds.slice(i, i + BROADCAST_CHUNK_SIZE);
+          await this.notifyMany(slice, base);
+          enqueued += slice.length;
+          chunks += 1;
+        }
+      } else {
+        let afterId: string | undefined;
+        while (true) {
+          const userIds = await this.resolveSegmentBatch(dto.segment!, afterId);
+          if (userIds.length === 0) break;
+
+          await this.notifyMany(userIds, base);
+          enqueued += userIds.length;
+          chunks += 1;
+          afterId = userIds[userIds.length - 1];
+
+          if (userIds.length < BROADCAST_CHUNK_SIZE) break;
+        }
       }
 
       this.logger.log(
-        `Broadcast ${campaignId}: type=${dto.type} enqueued=${userIds.length} chunks=${chunks}`,
+        `Broadcast ${campaignId}: type=${dto.type} enqueued=${enqueued} chunks=${chunks}`,
       );
-      return { campaignId, enqueued: userIds.length, chunks };
+      return { campaignId, enqueued, chunks };
     }, 'Lỗi khi broadcast thông báo');
   }
 
   // Lấy danh sách user active theo segment (chỉ select id để nhẹ bộ nhớ).
-  private async resolveSegment(segment: BroadcastSegment): Promise<string[]> {
+  // Keyset pagination để broadcast segment lớn không load toàn bộ user id vào RAM.
+  private async resolveSegmentBatch(
+    segment: BroadcastSegment,
+    afterId?: string,
+  ): Promise<string[]> {
     const qb = this.userRepo
       .createQueryBuilder('user')
       .select('user.id', 'id')
-      .where('user.is_active = :active', { active: true });
+      .where('user.is_active = :active', { active: true })
+      .orderBy('user.id', 'ASC')
+      .limit(BROADCAST_CHUNK_SIZE);
     if (segment !== BroadcastSegment.ALL) {
       const role =
         segment === BroadcastSegment.CUSTOMER
@@ -117,6 +140,7 @@ export class NotificationService {
           : UserRole.TASKER;
       qb.andWhere('user.role = :role', { role });
     }
+    if (afterId) qb.andWhere('user.id > :afterId', { afterId });
     const rows = await qb.getRawMany<{ id: string }>();
     return rows.map((r) => r.id);
   }
