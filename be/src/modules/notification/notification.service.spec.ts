@@ -101,15 +101,28 @@ describe('NotificationService', () => {
   });
 
   describe('broadcast (TC-U-BC)', () => {
-    const mockUsers = (ids: string[]) => {
-      const qb = {
+    const mockUserBatches = (batches: string[][]) => {
+      const qbs = batches.map((ids) => ({
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue(ids.map((id) => ({ id }))),
-      };
-      userRepo.createQueryBuilder.mockReturnValue(qb);
-      return qb;
+      }));
+      let index = 0;
+      userRepo.createQueryBuilder.mockImplementation(
+        () =>
+          qbs[index++] ?? {
+            select: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            andWhere: jest.fn().mockReturnThis(),
+            getRawMany: jest.fn().mockResolvedValue([]),
+          },
+      );
+      return qbs;
     };
 
     it('userIds trực tiếp → fan-out, trả {campaignId, enqueued, chunks}', async () => {
@@ -129,7 +142,12 @@ describe('NotificationService', () => {
 
     it('segment=ALL → resolve user active, chunk 500', async () => {
       const ids = Array.from({ length: 1200 }, (_, i) => `u${i}`);
-      const qb = mockUsers(ids);
+      const qbs = mockUserBatches([
+        ids.slice(0, 500),
+        ids.slice(500, 1000),
+        ids.slice(1000),
+      ]);
+      const qb = qbs[0];
       const res = await service.broadcast({
         segment: BroadcastSegment.ALL,
         type: NotificationType.SYSTEM,
@@ -138,17 +156,23 @@ describe('NotificationService', () => {
       expect(res.enqueued).toBe(1200);
       expect(res.chunks).toBe(3); // 500+500+200
       expect(queue.addBulk).toHaveBeenCalledTimes(3);
+      expect(userRepo.createQueryBuilder).toHaveBeenCalledTimes(3);
+      expect(qbs[0].orderBy).toHaveBeenCalledWith('user.id', 'ASC');
+      expect(qbs[0].limit).toHaveBeenCalledWith(500);
+      expect(qbs[1].andWhere).toHaveBeenCalledWith('user.id > :afterId', {
+        afterId: 'u499',
+      });
       expect(qb.andWhere).not.toHaveBeenCalled(); // ALL không lọc role
     });
 
     it('segment=CUSTOMER → lọc theo role', async () => {
-      const qb = mockUsers(['c1']);
+      const qbs = mockUserBatches([['c1']]);
       await service.broadcast({
         segment: BroadcastSegment.CUSTOMER,
         type: NotificationType.PROMOTION,
         title: 'sale',
       });
-      expect(qb.andWhere).toHaveBeenCalledWith('user.role = :role', {
+      expect(qbs[0].andWhere).toHaveBeenCalledWith('user.role = :role', {
         role: 'CUSTOMER',
       });
     });

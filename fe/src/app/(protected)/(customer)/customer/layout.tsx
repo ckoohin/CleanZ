@@ -10,6 +10,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { AvatarProfile } from '@/components/layouts/site/header/AvatarProfile'
 import { ActiveBookingWidget } from '@/features/booking/components/ActiveBookingWidget'
 import { CustomerRealtimeNotifications } from '@/features/customer/_components/CustomerRealtimeNotifications'
+import { NotificationBell } from '@/features/notifications/_components/NotificationBell'
 
 const CUSTOMER_NAV_LINKS = [
   { label: "Trang chủ",   href: "/customer" },
@@ -40,6 +41,7 @@ export default function CustomerLayout({
                     <header className="hidden md:flex h-16 shrink-0 items-center justify-end gap-2 px-6 border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0 z-40">
                         <div className="flex items-center gap-4">
                             <ThemeToggle />
+                            <NotificationBell href="/customer/notifications" enableRealtime={false} />
                             <AvatarProfile />
                         </div>
                     </header>

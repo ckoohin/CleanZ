@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import {
   useMutation,
   useQuery,
@@ -66,21 +66,28 @@ export function useMarkAllNotificationsRead() {
   });
 }
 
-/**
- * Lắng nghe realtime: tin mới / số chưa đọc → làm mới cache để badge + danh sách
- * cập nhật tức thì (không cần reload). Khớp event BE NotificationGateway.
- */
-export function useNotificationRealtime() {
+export function useNotificationRealtime(enabled = true) {
   const qc = useQueryClient();
   const { data: user, isLoading: isAuthLoading } = useAuth();
-  const isAuthenticated = !isAuthLoading && !!user;
+  const isAuthenticated = enabled && !isAuthLoading && !!user;
 
-  useSocketEvent(NOTIFICATION_EVENT_NEW, () => {
+  const handleNewNotification = useCallback(() => {
     qc.invalidateQueries({ queryKey: notificationKeys.all });
-  }, isAuthenticated);
-  useSocketEvent<{ count: number }>(NOTIFICATION_EVENT_UNREAD, (data) => {
-    qc.setQueryData(notificationKeys.unread, data);
-  }, isAuthenticated);
+  }, [qc]);
+
+  const handleUnreadCount = useCallback(
+    (data: { count: number }) => {
+      qc.setQueryData(notificationKeys.unread, data);
+    },
+    [qc],
+  );
+
+  useSocketEvent(NOTIFICATION_EVENT_NEW, handleNewNotification, isAuthenticated);
+  useSocketEvent<{ count: number }>(
+    NOTIFICATION_EVENT_UNREAD,
+    handleUnreadCount,
+    isAuthenticated,
+  );
 
   // Đồng bộ lại khi quay lại tab.
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -18,6 +18,7 @@ import {
   WalletCards,
   LifeBuoy,
   AlertTriangle,
+  ScrollText,
 } from "lucide-react";
 import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { cn } from "@/lib/utils";
@@ -36,15 +37,14 @@ const ALL_NAV_ITEMS = [
   { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
   { href: "/tasker/support-tickets", label: "Hỗ trợ",  icon: LifeBuoy },
+  { href: "/tasker/policies",        label: "Chính sách", icon: ScrollText },
 ];
 
-// Bottom nav: 2 bên FAB center (giữ index 0,1,3,4 — không gồm "Thu nhập"/"Hỗ trợ")
 const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
 const RIGHT_TABS = [ALL_NAV_ITEMS[3], ALL_NAV_ITEMS[4]];
 
 interface TaskerSidebarProps {
   className?: string;
-  /** Callback khi bấm nút Bật/Tắt hoạt động — guard xử lý ở parent */
   onToggleOnline?: () => void;
 }
 
@@ -365,12 +365,10 @@ function MobileBottomNav({
   const hasActiveBooking = !!activeBooking;
 
   return (
-    // Wrapper cố định bottom — bao gồm cả FAB nổi
     <div
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {/* Nút Toggle Online/Offline nổi lên ở góc phải, tự động đẩy lên nếu có đơn hàng đang chạy */}
       <div 
         className={cn(
           "absolute right-4 transition-all duration-300 z-50",
@@ -437,7 +435,6 @@ function MobileBottomNav({
         </div>
       </div>
 
-      {/* FAB nổi lên — Custom Vector Icon thay vì ảnh thô */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+12px)]">
         <motion.button
           whileTap={{ scale: 0.92 }}
@@ -449,7 +446,6 @@ function MobileBottomNav({
           )}
           aria-label="Chat AI Trợ lý"
         >
-          {/* Custom SVG Icon kế thừa text-primary (màu cam) để đồng bộ CleanZ */}
           <CleanZBotIcon className="w-full h-full" />
         </motion.button>
       </div>

@@ -55,11 +55,15 @@ interface NotificationInboxProps {
   basePath: string;
   /** Segment xem đơn của role: customer="booking", tasker="jobs". */
   bookingSegment?: string;
+  incidentSegment?: string;
+  enableRealtime?: boolean;
 }
 
 export const NotificationInbox: React.FC<NotificationInboxProps> = ({
   basePath,
   bookingSegment = "booking",
+  incidentSegment = "incident",
+  enableRealtime = true,
 }) => {
   // referenceType → route theo role (chỉ điều hướng các đích đã có trang).
   const hrefFor = (n: AppNotification): string | null => {
@@ -69,6 +73,8 @@ export const NotificationInbox: React.FC<NotificationInboxProps> = ({
         return `${basePath}/support-tickets/${n.referenceId}`;
       case "BOOKING":
         return `${basePath}/${bookingSegment}/${n.referenceId}`;
+      case "INCIDENT":
+        return `${basePath}/${incidentSegment}/${n.referenceId}`;
       default:
         return null;
     }
@@ -79,7 +85,7 @@ export const NotificationInbox: React.FC<NotificationInboxProps> = ({
   const { data: unread } = useUnreadCount();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
-  useNotificationRealtime();
+  useNotificationRealtime(enableRealtime);
 
   const items = data?.data ?? [];
   const unreadCount = unread?.count ?? 0;

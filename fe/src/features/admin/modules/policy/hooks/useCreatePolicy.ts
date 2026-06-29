@@ -1,19 +1,15 @@
-'use client';
+"use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { adminPolicyService } from '../services/admin-policy.service';
-import { CreatePolicyPayload } from '../types/policy.type';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminPolicyService } from "../services/admin-policy.service";
 
 export const useCreatePolicy = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: CreatePolicyPayload) =>
-      adminPolicyService.createPolicy(payload),
+    mutationFn: adminPolicyService.createPolicy,
     onSuccess: () => {
-      toast.success('Tạo chính sách thành công');
-      queryClient.invalidateQueries({ queryKey: ['admin-policies'] });
+      queryClient.invalidateQueries({ queryKey: ["admin-policies"] });
     },
   });
 };

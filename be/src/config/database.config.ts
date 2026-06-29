@@ -22,12 +22,12 @@ export const getDatabaseConfig = (
     database: configService.get('DB_DATABASE', { infer: true }),
 
     autoLoadEntities: true,
-    synchronize: false, // Tạm tắt để bypass lỗi TypeORM
+    synchronize: false,
 
-    // Glob khớp cả runtime dev (.ts qua ts-node) lẫn prod (.js trong dist/).
+    // Glob khớp cả runtime dev (.ts qua ts-node) lẫn prod (.js trong dist/)
     migrations: [join(__dirname, '..', 'database', 'migrations', '*.{ts,js}')],
     migrationsTableName: 'migrations',
-    migrationsRun, // <- npm start sẽ tự áp mọi migration pending
+    migrationsRun,
 
     logging: isDev ? ['error', 'warn', 'query'] : false,
     maxQueryExecutionTime: 100, // log query chậm hơn 100ms
