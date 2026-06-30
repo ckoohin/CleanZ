@@ -120,13 +120,13 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
 
   const status = booking.status ?? "";
   const statusMeta = STATUS_MAP[status] ?? { label: status, tone: "neutral" as BadgeTone };
-  const paymentStatusMeta = getPaymentStatusMeta(status, payment?.status);
   const isClosed = status === "COMPLETED" || status === "CANCELLED" || status === "EXPIRED";
 
   const schedule = booking.schedule;
   const price = booking.price;
   const operation = booking.operation;
   const payment = booking.payment;
+  const paymentStatusMeta = getPaymentStatusMeta(status, payment?.status);
 
   const handleCancel = () => {
     cancelMutation.mutate(
