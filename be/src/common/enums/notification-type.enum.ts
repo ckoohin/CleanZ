@@ -1,5 +1,6 @@
 // Khớp 100% enum `notification_type` trong CleanZ/data.sql (DR-2)
 export enum NotificationType {
+  BOOKING_NEW_AVAILABLE = 'BOOKING_NEW_AVAILABLE',
   BOOKING_CONFIRMED = 'BOOKING_CONFIRMED',
   TASKER_ON_THE_WAY = 'TASKER_ON_THE_WAY',
   BOOKING_COMPLETED = 'BOOKING_COMPLETED',

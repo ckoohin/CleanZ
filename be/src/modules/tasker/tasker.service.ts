@@ -37,6 +37,19 @@ import {
 
 export type TaskerProfileResponse = Record<string, unknown>;
 
+interface RedisLike {
+  hset(key: string, values: Record<string, string>): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
+  del(...keys: string[]): Promise<number>;
+}
+
+const TASKER_LOCATION_TTL_SECONDS = 5 * 60;
+
+function isLocationSchemaUnavailable(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  return code === '42703' || code === '42883';
+}
+
 @Injectable()
 export class TaskerService {
   private readonly logger = new Logger(TaskerService.name);
@@ -60,6 +73,30 @@ export class TaskerService {
     void promise.catch((err) =>
       this.logger.error(`Gửi email thất bại (${context})`, err as Error),
     );
+  }
+
+  private async redis(): Promise<RedisLike> {
+    return this.taskerQueue.client as Promise<RedisLike>;
+  }
+
+  private async cacheTaskerLocation(
+    taskerId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    const redis = await this.redis();
+    const key = `tasker:loc:${taskerId}`;
+    await redis.hset(key, {
+      lat: String(lat),
+      lng: String(lng),
+      at: new Date().toISOString(),
+    });
+    await redis.expire(key, TASKER_LOCATION_TTL_SECONDS);
+  }
+
+  private async clearTaskerLocation(taskerId: string): Promise<void> {
+    const redis = await this.redis();
+    await redis.del(`tasker:loc:${taskerId}`);
   }
 
   async submitProfile(
@@ -240,6 +277,8 @@ export class TaskerService {
   async updatePresence(
     userId: string,
     presenceStatus: TASKER_PRESENCE_STATUS,
+    lat?: number,
+    lng?: number,
   ): Promise<TaskerProfileResponse> {
     return asyncHandleOperation(async () => {
       const tasker = await this.taskerRepository.findOne({
@@ -263,8 +302,73 @@ export class TaskerService {
 
       tasker.presenceStatus = presenceStatus;
       const saved = await this.taskerRepository.save(tasker);
+
+      // Cập nhật vị trí khi chuyển sang ONLINE có kèm tọa độ
+      if (
+        presenceStatus === TASKER_PRESENCE_STATUS.ONLINE &&
+        lat != null &&
+        lng != null
+      ) {
+        await this.updateTaskerLocationColumns(tasker.id, lat, lng);
+        await this.cacheTaskerLocation(tasker.id, lat, lng);
+      }
+
+      if (presenceStatus === TASKER_PRESENCE_STATUS.OFFLINE) {
+        await this.clearTaskerLocation(tasker.id);
+      }
+
       return this.mapProfile(saved);
     }, 'Không thể cập nhật trạng thái hoạt động');
+  }
+
+  async updateLocation(
+    userId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { user: { id: userId } },
+        select: ['id', 'presenceStatus'],
+      });
+
+      if (!tasker) {
+        throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+      }
+
+      if (tasker.presenceStatus !== TASKER_PRESENCE_STATUS.ONLINE) {
+        throw new BadRequestException(
+          'Chỉ được cập nhật vị trí khi đang ở trạng thái ONLINE',
+        );
+      }
+
+      await this.updateTaskerLocationColumns(tasker.id, lat, lng);
+      await this.cacheTaskerLocation(tasker.id, lat, lng);
+    }, 'Không thể cập nhật vị trí');
+  }
+
+  private async updateTaskerLocationColumns(
+    taskerId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    try {
+      await this.dataSource.query(
+        `UPDATE taskers
+           SET current_location    = ST_SetSRID(ST_Point($1, $2), 4326)::geography,
+               location_updated_at = NOW()
+         WHERE id = $3`,
+        [lng, lat, taskerId],
+      );
+    } catch (error) {
+      if (!isLocationSchemaUnavailable(error)) {
+        throw error;
+      }
+
+      this.logger.warn(
+        'Tasker location columns/PostGIS are unavailable; cached location in Redis only',
+      );
+    }
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────

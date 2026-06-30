@@ -6,6 +6,8 @@ import {
 } from '../types/notify-input.interface';
 
 const CHANNEL_MATRIX: Record<NotificationType, NotificationChannel[]> = {
+  // Chỉ in-app — tasker nhận ngay qua socket khi đang online
+  [NotificationType.BOOKING_NEW_AVAILABLE]: ['IN_APP'],
   [NotificationType.BOOKING_CONFIRMED]: ['IN_APP', 'EMAIL'],
   [NotificationType.TASKER_ON_THE_WAY]: ['IN_APP', 'EMAIL'],
   [NotificationType.BOOKING_COMPLETED]: ['IN_APP', 'EMAIL'],

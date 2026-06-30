@@ -35,6 +35,7 @@ import { ReinstateTaskerDto } from './dto/reinstate-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { UpdatePresenceDto } from './dto/update-presence.dto';
+import { UpdateTaskerLocationDto } from './dto/update-tasker-location.dto';
 import { TaskerService } from './tasker.service';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -206,7 +207,25 @@ export class TaskerController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdatePresenceDto,
   ) {
-    return this.taskerService.updatePresence(user.id, dto.presenceStatus);
+    return this.taskerService.updatePresence(
+      user.id,
+      dto.presenceStatus,
+      dto.lat,
+      dto.lng,
+    );
+  }
+
+  @Patch('me/location')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker cập nhật vị trí hiện tại (heartbeat mỗi 60s khi ONLINE)',
+  })
+  async updateLocation(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateTaskerLocationDto,
+  ) {
+    await this.taskerService.updateLocation(user.id, dto.lat, dto.lng);
+    return { updated: true };
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────

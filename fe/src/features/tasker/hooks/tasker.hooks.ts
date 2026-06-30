@@ -1,9 +1,21 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskerApi } from '../services/tasker.service';
 import { toast } from 'sonner';
-import { CreateTaskerServiceDto, UpdateTaskerProfileDto } from '../types/tasker.type';
+import {
+  CreateTaskerServiceDto,
+  TaskerProfile,
+  UpdateTaskerProfileDto,
+} from '../types/tasker.type';
+import type { TaskerLocationPayload } from '../services/tasker.service';
 
 type ApiError = Error & { response?: { data?: { message?: string } } };
+type PresenceStatus = 'ONLINE' | 'OFFLINE';
+
+const TEST_TASKER_LOCATION: TaskerLocationPayload = {
+  lat: 10.7769,
+  lng: 106.7009,
+};
 
 export const taskerKeys = {
   all: ['tasker'] as const,
@@ -105,8 +117,14 @@ export function useUpdateTaskerDocuments() {
 export function useUpdatePresence() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (presenceStatus: 'ONLINE' | 'OFFLINE') =>
-      taskerApi.updatePresence(presenceStatus),
+    mutationFn: async (presenceStatus: PresenceStatus) => {
+      if (presenceStatus === 'OFFLINE') {
+        return taskerApi.updatePresence(presenceStatus);
+      }
+
+      const location = await getCurrentTaskerLocation();
+      return taskerApi.updatePresence(presenceStatus, location);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
       toast.success(
@@ -116,7 +134,73 @@ export function useUpdatePresence() {
       );
     },
     onError: (error: ApiError) => {
-      toast.error(error.response?.data?.message || 'Lỗi khi cập nhật trạng thái hoạt động');
+      toast.error(
+        error.response?.data?.message ||
+          error.message ||
+          'Lỗi khi cập nhật trạng thái hoạt động',
+      );
     },
+  });
+}
+
+export function useTaskerLocationHeartbeat(tasker?: TaskerProfile | null) {
+  const isOnline = tasker?.presenceStatus === 'ONLINE';
+
+  useEffect(() => {
+    if (!isOnline) return;
+
+    let stopped = false;
+
+    const publishLocation = async () => {
+      try {
+        const location = await getCurrentTaskerLocation();
+        if (!stopped) {
+          await taskerApi.updateLocation(location);
+        }
+      } catch {
+        // Heartbeat không toast liên tục để tránh làm phiền khi browser mất GPS tạm thời.
+      }
+    };
+
+    void publishLocation();
+    const timer = window.setInterval(publishLocation, 60_000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [isOnline]);
+}
+
+function getFallbackTaskerLocation(): TaskerLocationPayload {
+  return TEST_TASKER_LOCATION;
+}
+
+function getCurrentTaskerLocation(): Promise<TaskerLocationPayload> {
+  if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+    return Promise.resolve(getFallbackTaskerLocation());
+  }
+
+  if (!window.isSecureContext) {
+    return Promise.resolve(getFallbackTaskerLocation());
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        resolve(getFallbackTaskerLocation());
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12_000,
+        maximumAge: 30_000,
+      },
+    );
   });
 }

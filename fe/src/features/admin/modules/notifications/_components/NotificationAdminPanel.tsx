@@ -39,6 +39,7 @@ const TYPE_LABELS: Record<
   NotificationType,
   { label: string; tone: BadgeTone; color?: string; soft?: string }
 > = {
+  BOOKING_NEW_AVAILABLE: { label: "Đơn mới gần tasker", tone: "info" },
   BOOKING_CONFIRMED: { label: "Booking xác nhận", tone: "info" },
   TASKER_ON_THE_WAY: { label: "Tasker đang đến", tone: "info" },
   BOOKING_COMPLETED: { label: "Booking hoàn tất", tone: "success" },

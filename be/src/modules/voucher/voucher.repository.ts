@@ -99,9 +99,12 @@ export class CustomerVoucherRepository extends Repository<CustomerVoucherEntity>
       });
 
     if (excludeBookingId) {
-      qb.andWhere('(cv.bookingId IS NULL OR cv.bookingId != :excludeBookingId)', {
-        excludeBookingId,
-      });
+      qb.andWhere(
+        '(cv.bookingId IS NULL OR cv.bookingId != :excludeBookingId)',
+        {
+          excludeBookingId,
+        },
+      );
     }
 
     return qb.getCount();

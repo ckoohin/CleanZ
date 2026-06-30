@@ -163,11 +163,10 @@ export class VouchersService {
       throw new BadRequestException('Voucher đã hết lượt sử dụng');
     }
 
-    if (
-      voucher.packageIds?.length &&
-      !voucher.packageIds.includes(packageId)
-    ) {
-      throw new BadRequestException('Voucher không áp dụng cho gói dịch vụ này');
+    if (voucher.packageIds?.length && !voucher.packageIds.includes(packageId)) {
+      throw new BadRequestException(
+        'Voucher không áp dụng cho gói dịch vụ này',
+      );
     }
 
     if (
@@ -317,7 +316,7 @@ export class VouchersService {
           cv.voucherId = voucherId;
           cv.isUsed = false;
           cv.status = CustomerVoucherStatus.ISSUED;
-      
+
           return cv;
         });
         await queryRunner.manager.save(CustomerVoucherEntity, records);
@@ -480,7 +479,11 @@ export class VouchersService {
     await reservationRepo.save(reservation);
 
     const voucherRepo = manager.getRepository(VoucherEntity);
-    await voucherRepo.decrement({ id: reservation.voucherId }, 'reservedCount', 1);
+    await voucherRepo.decrement(
+      { id: reservation.voucherId },
+      'reservedCount',
+      1,
+    );
     await voucherRepo.increment({ id: reservation.voucherId }, 'usedCount', 1);
   }
 
@@ -520,7 +523,7 @@ export class VouchersService {
 
     if (packageId) {
       qb.andWhere(
-        '(v.package_ids IS NULL OR v.package_ids = \'null\'::jsonb OR v.package_ids @> :pid::jsonb)',
+        "(v.package_ids IS NULL OR v.package_ids = 'null'::jsonb OR v.package_ids @> :pid::jsonb)",
         { pid: JSON.stringify([packageId]) },
       );
     }

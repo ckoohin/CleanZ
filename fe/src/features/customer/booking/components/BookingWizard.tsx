@@ -184,6 +184,25 @@ function timeToMinutes(time: string): number {
   return Number(hour) * 60 + Number(minute);
 }
 
+function toDateKey(value: string | Date): string {
+  if (typeof value === "string") {
+    const datePart = value.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+  }
+
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "";
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function isPeakTimeSlot(
   date: string,
   time: string,
@@ -195,15 +214,16 @@ function isPeakTimeSlot(
   if (Number.isNaN(selectedDate.getTime())) return false;
 
   const dayOfWeek = selectedDate.getDay();
+  const selectedDateKey = toDateKey(date);
   const currentMinutes = timeToMinutes(time);
 
   return peakHours.some((peak) => {
     if (peak.dayOfWeek !== 7 && peak.dayOfWeek !== dayOfWeek) return false;
 
-    if (peak.startDate && selectedDate < new Date(peak.startDate)) {
+    if (peak.startDate && selectedDateKey < toDateKey(peak.startDate)) {
       return false;
     }
-    if (peak.endDate && selectedDate > new Date(peak.endDate)) {
+    if (peak.endDate && selectedDateKey > toDateKey(peak.endDate)) {
       return false;
     }
 

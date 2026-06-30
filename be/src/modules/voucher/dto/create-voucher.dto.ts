@@ -76,7 +76,8 @@ export class CreateVoucherDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'Maximum completed/reserved uses per customer. null = unlimited',
+    description:
+      'Maximum completed/reserved uses per customer. null = unlimited',
   })
   @IsOptional()
   @IsInt()

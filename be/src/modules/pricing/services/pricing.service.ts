@@ -432,6 +432,7 @@ export class PricingService {
     if (packagePeakHours.length > 0 && input.scheduledStart) {
       const bookingDate = new Date(input.scheduledStart);
       const bookingDayOfWeek = bookingDate.getDay();
+      const bookingDateKey = this.toDateKey(bookingDate);
       const bookingTimeStr = input.scheduledStartTime?.slice(0, 5);
 
       const matchingPackagePeakHours = packagePeakHours.filter((peakHour) => {
@@ -442,10 +443,16 @@ export class PricingService {
           return false;
         }
 
-        if (peakHour.startDate && bookingDate < new Date(peakHour.startDate)) {
+        if (
+          peakHour.startDate &&
+          bookingDateKey < this.toDateKey(peakHour.startDate)
+        ) {
           return false;
         }
-        if (peakHour.endDate && bookingDate > new Date(peakHour.endDate)) {
+        if (
+          peakHour.endDate &&
+          bookingDateKey > this.toDateKey(peakHour.endDate)
+        ) {
           return false;
         }
 
@@ -686,6 +693,19 @@ export class PricingService {
     }
 
     return first.getTime() === second.getTime();
+  }
+
+  private toDateKey(date: Date): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const values = Object.fromEntries(
+      parts.map((part) => [part.type, part.value]),
+    );
+    return `${values.year}-${values.month}-${values.day}`;
   }
 
   private normalizeTime(value?: string | null): string | null {

@@ -4,10 +4,15 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { TaskerSidebar } from "@/features/tasker/_components/TaskerSidebar";
-import { useTaskerProfile, useUpdatePresence } from "@/features/tasker/hooks/tasker.hooks";
+import {
+  useTaskerLocationHeartbeat,
+  useTaskerProfile,
+  useUpdatePresence,
+} from "@/features/tasker/hooks/tasker.hooks";
 import { useTaskerActionGuard } from "@/features/tasker/hooks/useTaskerActionGuard";
 import RoleGuard from "@/features/auth/_components/authv1/RoleGuard";
 import { ActiveJobWidget } from "@/features/booking/components/ActiveJobWidget";
+import { TaskerRealtimeDispatch } from "@/features/tasker/_components/TaskerRealtimeDispatch";
 
 // Page transition variants — slide nhẹ từ phải sang trái (kiểu native app)
 const PAGE_VARIANTS = {
@@ -32,6 +37,7 @@ export default function TaskerLayout({
   const { data: tasker } = useTaskerProfile();
   const guard = useTaskerActionGuard(tasker);
   const updatePresence = useUpdatePresence();
+  useTaskerLocationHeartbeat(tasker);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -80,6 +86,7 @@ export default function TaskerLayout({
 
         {/* Khôi phục và định vị Widget theo dõi công việc hoạt động chuẩn xác theo viewport toàn màn hình */}
         <ActiveJobWidget />
+        <TaskerRealtimeDispatch />
       </div>
     </RoleGuard>
   );

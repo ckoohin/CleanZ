@@ -43,6 +43,8 @@ import { ServicePackageEntity } from 'src/modules/service/entity/service-package
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
+import { NotificationGateway } from 'src/modules/notification/notification.gateway';
+import { BookingDispatchService } from './booking-dispatch.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -92,6 +94,8 @@ export class CustomerBookingService {
     private readonly pricingService: PricingService,
     private readonly voucherService: VouchersService,
     private readonly notificationService: NotificationService,
+    private readonly bookingDispatchService: BookingDispatchService,
+    private readonly notificationGateway: NotificationGateway,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -163,7 +167,11 @@ export class CustomerBookingService {
     dto: CreateBookingDto,
   ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
-      return this.dataSource.transaction(async (manager) => {
+      let createdBookingId: string | undefined;
+      let addressLat: number | null = null;
+      let addressLng: number | null = null;
+
+      const response = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
         const logRepository = manager.getRepository(BookingStatusLogEntity);
         const context = await this.buildBookingPricingContext(
@@ -259,12 +267,47 @@ export class CustomerBookingService {
         });
         await logRepository.save(statusLog);
 
+        // Lấy tọa độ để dispatch sau khi transaction commit
+        createdBookingId = savedBooking.id;
+        const rawLat = context.addressRef?.latitude;
+        const rawLng = context.addressRef?.longitude;
+        addressLat = rawLat != null ? Number(rawLat) : null;
+        addressLng = rawLng != null ? Number(rawLng) : null;
+
         return this.mapCreatedBookingResponse(
           savedBooking,
           context,
           paymentMethod,
         );
       });
+
+      // Sau khi transaction commit thành công — emit + enqueue dispatch
+      if (createdBookingId) {
+        this.notificationGateway.emitToUser(userId, 'booking:searching', {
+          bookingId: createdBookingId,
+        });
+
+        if (
+          addressLat != null &&
+          addressLng != null &&
+          Number.isFinite(addressLat) &&
+          Number.isFinite(addressLng)
+        ) {
+          void this.bookingDispatchService
+            .enqueueDispatch(createdBookingId, userId, addressLat, addressLng)
+            .catch((err: unknown) =>
+              this.logger.error(
+                `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err}`,
+              ),
+            );
+        } else {
+          this.logger.warn(
+            `Booking=${createdBookingId} thiếu tọa độ địa chỉ — bỏ qua dispatch tự động`,
+          );
+        }
+      }
+
+      return response;
     }, 'Không thể tạo booking');
   }
 

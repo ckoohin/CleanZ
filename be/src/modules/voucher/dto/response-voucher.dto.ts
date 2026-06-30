@@ -14,7 +14,9 @@ export class VoucherResponseDto {
   @ApiProperty() usedCount!: number;
   @ApiProperty() reservedCount!: number;
   @ApiProperty({ type: [String], nullable: true }) packageIds!: string[] | null;
-  @ApiProperty({ type: [String], nullable: true }) customerIds!: string[] | null;
+  @ApiProperty({ type: [String], nullable: true }) customerIds!:
+    | string[]
+    | null;
   @ApiProperty() startDate!: Date | null;
   @ApiProperty() endDate!: Date | null;
   @ApiProperty() isActive!: boolean;

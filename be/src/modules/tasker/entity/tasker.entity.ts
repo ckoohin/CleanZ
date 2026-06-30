@@ -191,6 +191,10 @@ export class TaskerEntity {
   })
   bankAccountName?: string | null;
 
+  // current_location (GEOGRAPHY POINT) managed via raw SQL — không map vào entity để tránh xung đột TypeORM
+  @Column({ name: 'location_updated_at', type: 'timestamptz', nullable: true })
+  locationUpdatedAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

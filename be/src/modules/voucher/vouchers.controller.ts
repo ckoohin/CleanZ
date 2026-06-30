@@ -11,11 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
 import { VouchersService } from './services/vouchers.service';
 import {

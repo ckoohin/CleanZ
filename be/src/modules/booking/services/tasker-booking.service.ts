@@ -36,6 +36,7 @@ import { ServicePackageEntity } from 'src/modules/service/entity/service-package
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
+import { BookingDispatchService } from './booking-dispatch.service';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
@@ -272,6 +273,7 @@ export class TaskerBookingService {
     private readonly trackingGateway: TrackingGateway,
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
+    private readonly bookingDispatchService: BookingDispatchService,
   ) {}
 
   private emitBookingNotification(
@@ -564,6 +566,15 @@ export class TaskerBookingService {
           ),
         );
 
+      // Hủy các delayed dispatch job còn đang chờ cho booking này
+      void this.bookingDispatchService
+        .cancelPendingDispatch(result.id)
+        .catch((err) =>
+          this.logger.warn(
+            `Không thể hủy dispatch job cho booking=${result.id}: ${err}`,
+          ),
+        );
+
       return result;
     }, 'Không thể nhận booking');
   }
@@ -606,7 +617,11 @@ export class TaskerBookingService {
     userId: string,
   ): Promise<TaskerAssignedBookingDetailResponse | null> {
     return asyncHandleOperation(async () => {
-      const tasker = await this.findTaskerProfile(userId);
+      const tasker = await this.dataSource
+        .getRepository(TaskerEntity)
+        .findOne({ where: { user: { id: userId } }, relations: ['user'] });
+
+      if (!tasker) return null;
       const booking = await this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
