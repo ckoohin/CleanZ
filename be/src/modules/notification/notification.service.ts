@@ -203,7 +203,7 @@ export class NotificationService {
 
       const qb = this.notificationRepo
         .createQueryBuilder('n')
-        .orderBy('n.created_at', 'DESC')
+        .orderBy('n.createdAt', 'DESC')
         .skip((page - 1) * limit)
         .take(limit);
       if (query.userId)

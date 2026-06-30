@@ -204,7 +204,7 @@ export class IncidentAdminService {
 
       if (query.sort === 'severity') qb.orderBy('i.severity', 'ASC');
       else if (query.sort === 'decisionDueAt')
-        qb.orderBy('i.decision_due_at', 'ASC');
+        qb.orderBy('i.decisionDueAt', 'ASC');
       else qb.orderBy('i.reportedAt', 'DESC');
 
       const [rows, total] = await qb.getManyAndCount();

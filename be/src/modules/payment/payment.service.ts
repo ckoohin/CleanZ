@@ -46,7 +46,7 @@ export class PaymentService {
       .getRepository(PaymentEntity)
       .createQueryBuilder('p')
       .where('p.booking_id IN (:...ids)', { ids: bookingIds })
-      .orderBy('p.created_at', 'DESC')
+      .orderBy('p.createdAt', 'DESC')
       .getMany();
   }
 

@@ -105,8 +105,8 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
       .andWhere(
         "(booking.scheduled_start_date + booking.scheduled_start_time) <= timezone('Asia/Ho_Chi_Minh', now())",
       )
-      .orderBy('booking.scheduled_start_date', 'ASC')
-      .addOrderBy('booking.scheduled_start_time', 'ASC')
+      .orderBy('booking.scheduledStartDate', 'ASC')
+      .addOrderBy('booking.scheduledStartTime', 'ASC')
       .take(this.batchSize)
       .getMany();
 

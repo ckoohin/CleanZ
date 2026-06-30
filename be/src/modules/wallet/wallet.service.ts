@@ -527,11 +527,11 @@ export class WalletService {
       .createQueryBuilder('tx')
       .leftJoinAndSelect('tx.wallet', 'wallet')
       .leftJoinAndSelect('tx.booking', 'booking')
-      .where('wallet.id = :walletId', { walletId })
+      .where('tx.wallet = :walletId', { walletId })
       .orderBy('tx.createdAt', 'DESC');
 
     if (opts.fromDate) {
-      qb.andWhere('tx.created_at >= :fromDate', {
+      qb.andWhere('tx.createdAt >= :fromDate', {
         fromDate: new Date(opts.fromDate),
       });
     }
@@ -539,7 +539,7 @@ export class WalletService {
       // toDate bao gồm cả ngày đó (lấy đến cuối ngày)
       const to = new Date(opts.toDate);
       to.setHours(23, 59, 59, 999);
-      qb.andWhere('tx.created_at <= :toDate', { toDate: to });
+      qb.andWhere('tx.createdAt <= :toDate', { toDate: to });
     }
 
     const total = await qb.getCount();
