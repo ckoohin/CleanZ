@@ -77,6 +77,7 @@ export interface CreateAdminServiceDto {
   isActive?: boolean;
   pricingType?: string;
   pricingConfigId?: string;
+  basePrice?: number;
 }
 
 export type UpdateAdminServiceDto = Partial<CreateAdminServiceDto>;
@@ -94,7 +95,21 @@ export interface ServiceDurationEntity {
   description?: string;
 }
 
-export type AddonPriceUnit = 'per_item' | 'per_room' | 'per_m2' | 'per_session' | 'fixed';
+export type AddonPriceUnit =
+  | 'per_item'       // Theo dịch vụ (mỗi lần)
+  | 'per_session'    // Theo buổi
+  | 'per_hour'       // Theo giờ
+  | 'per_room'       // Theo phòng
+  | 'per_floor'      // Theo tầng
+  | 'per_toilet'     // Theo phòng tắm/WC
+  | 'per_m2'         // Theo m²
+  | 'per_window'     // Theo cửa/kính
+  | 'per_appliance'  // Theo thiết bị (máy lạnh, tủ lạnh...)
+  | 'per_bed'        // Theo giường
+  | 'per_sofa_seat'  // Theo chỗ ngồi sofa
+  | 'per_kg'         // Theo kg (giặt ủi)
+  | 'per_set'        // Theo bộ
+  | 'fixed';         // Cố định
 
 export interface ServiceAddonEntity {
   id?: string;
@@ -176,6 +191,7 @@ export interface AdminServicePackageEntity {
   premiumHourlyRate?: number;
   allowMultipleTaskers?: boolean;
   allowSubscription?: boolean;
+  allowSingleService?: boolean;
   durations?: ServiceDurationEntity[];
   addons?: ServiceAddonEntity[];
   subscriptions?: ServiceSubscriptionEntity[];
@@ -206,6 +222,7 @@ export interface CreateAdminPackageDto {
   premiumHourlyRate?: number;
   allowMultipleTaskers?: boolean;
   allowSubscription?: boolean;
+  allowSingleService?: boolean;
   durations?: ServiceDurationEntity[];
   addons?: ServiceAddonEntity[];
   subscriptions?: ServiceSubscriptionEntity[];
@@ -233,6 +250,12 @@ export interface AdminPackageAnalytics {
     phoneNumber: string;
     completedJobs: number;
   }[];
+}
+
+export interface AnalyticsFilter {
+  from?: string;
+  to?: string;
+  taskerId?: string;
 }
 
 // ─── Bookings & Taskers Interfaces ──────────────────────────────────────────
@@ -334,8 +357,11 @@ export const adminServicesApi = {
     await http.delete(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.REMOVE_SUB_SERVICE(packageId, subServiceId));
   },
 
-  getPackageAnalytics: async (id: string) => {
-    const { data } = await http.get<ApiResponse<AdminPackageAnalytics>>(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.ANALYTICS(id));
+  getPackageAnalytics: async (id: string, filter?: AnalyticsFilter) => {
+    const { data } = await http.get<ApiResponse<AdminPackageAnalytics>>(
+      API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.ANALYTICS(id),
+      { params: filter },
+    );
     return data.data;
   },
 

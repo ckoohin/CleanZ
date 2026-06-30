@@ -88,4 +88,11 @@ export class CreateSubServiceDto {
   @IsOptional()
   @IsUUID()
   pricingConfigId?: string;
+
+  @ApiPropertyOptional({ example: 150000, description: 'Giá gốc của dịch vụ — tạo pricing config mới nếu chưa có' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  basePrice?: number;
 }
