@@ -18,7 +18,6 @@ import {
 
 import { ROUTES } from "@/constants/routes"
 import { NavMain } from "@/components/sidebar/nav-main"
-import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
 import { SidebarBrand } from "@/components/sidebar/team-switcher"
 import {

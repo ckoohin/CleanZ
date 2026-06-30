@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   MapPin,
   MessageSquare,
+  Newspaper,
   Settings,
   Sparkles,
   Star,
@@ -23,7 +24,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-  SidebarGroupLabel
 } from "@/components/ui/sidebar"
 
 const customerData = {
@@ -63,6 +63,11 @@ const customerData = {
     },
   ],
   personal: [
+    {
+      title: "Blog",
+      url: "/customer/blogs",
+      icon: <Newspaper />,
+    },
     {
       title: "Ví & Ưu đãi",
       url: "/customer/wallet",

@@ -36,6 +36,14 @@ export const API_ENDPOINTS = {
     BASE: "/services",
     CATEGORIES: "/services/categories",
   },
+  BLOG: {
+    BASE: "/blog",
+    DETAIL: (id: string) => `/blog/${id}`,
+    ADMIN_ALL: "/blog/admin/all",
+    ADMIN_BASE: "/blog/admin",
+    ADMIN_DETAIL: (id: string) => `/blog/admin/${id}`,
+    ADMIN_STATUS: (id: string) => `/blog/admin/${id}/status`,
+  },
   PUBLIC: {
     CATEGORIES: "/public/categories",
     SERVICES: "/public/services",
