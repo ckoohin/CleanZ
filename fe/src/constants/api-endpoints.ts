@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     ADDRESSES: "/customer/addresses",
     ADDRESS: (id: string) => `/customer/addresses/${id}`,
     DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
+    VOUCHERS_AVAILABLE: "/customer/vouchers/available",
   },
   TASKERS: {
     BASE: "/taskers",
@@ -63,6 +64,7 @@ export const API_ENDPOINTS = {
     TASKER_CHECKIN: (id: string) => `/booking/tasker/${id}/check-in`,
     TASKER_START: (id: string) => `/booking/tasker/${id}/start`,
     TASKER_COMPLETE: (id: string) => `/booking/tasker/${id}/complete`,
+    TASKER_CANCEL: (id: string) => `/booking/tasker/${id}/cancel`,
   },
   ADMIN_SUPPORT_TICKETS: {
     BASE: "/admin/support-tickets",
@@ -198,6 +200,7 @@ export const API_ENDPOINTS = {
     CREATE: (bookingId: string) => `/reviews/booking/${bookingId}`,
     MY_REVIEW: (bookingId: string) => `/reviews/booking/${bookingId}`,
     PACKAGE: (packageId: string) => `/reviews/package/${packageId}`,
+    TASKER_PUBLIC: (taskerId: string) => `/reviews/tasker/${taskerId}`,
     REPORT: (id: string) => `/reviews/${id}/report`,
   },
   TASKER_REVIEWS: {

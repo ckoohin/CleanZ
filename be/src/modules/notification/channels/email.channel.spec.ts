@@ -64,7 +64,7 @@ describe('EmailChannel (TC-U-EM)', () => {
     expect(mail.sendNotificationEmail).not.toHaveBeenCalled();
   });
 
-  it('lỗi SMTP → throw (để BullMQ retry)', async () => {
+  it('lỗi SMTP/template → log và không throw để không làm fail notification job', async () => {
     userRepo.findOne.mockResolvedValue({
       id: 'u1',
       email: 'a@b.c',
@@ -73,6 +73,6 @@ describe('EmailChannel (TC-U-EM)', () => {
     mail.sendNotificationEmail.mockRejectedValue(new Error('SMTP down'));
     await expect(
       channel.send({ userId: 'u1', type: NotificationType.SYSTEM, title: 't' }),
-    ).rejects.toThrow('SMTP down');
+    ).resolves.toBeUndefined();
   });
 });

@@ -18,6 +18,11 @@ export interface BanTaskerPayload {
   durationDays?: number;
 }
 
+export interface UpdateTaskerWorkStatusPayload {
+  id: string;
+  clearCancelSuspension?: boolean;
+}
+
 export interface AdminTasker extends TaskerProfile {
   status: TaskerAccountStatus;
   presenceStatus?: string | null;
@@ -31,6 +36,8 @@ export interface AdminTasker extends TaskerProfile {
   docReviewedByName?: string | null;
   /** Thời điểm hết hạn khóa tạm thời; null nếu không bị khóa tạm. */
   banEndsAt?: string | null;
+  /** Thời điểm hết hạn khóa nhận đơn do tự hủy quá số lần cho phép. */
+  cancelSuspendedUntil?: string | null;
 }
 
 /** Payload admin chỉnh sửa thông tin cơ bản của tasker (không đụng tới giấy tờ KYC). */

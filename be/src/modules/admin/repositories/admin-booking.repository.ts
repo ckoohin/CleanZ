@@ -34,6 +34,7 @@ import { BookingSubServiceEntity } from 'src/modules/booking/entity/booking-sub-
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
@@ -135,6 +136,7 @@ export class AdminBookingRepository {
     private readonly bookingPolicyService: BookingPolicyService,
     private readonly bookingScheduleService: BookingScheduleService,
     private readonly bookingLocationPolicyService: BookingLocationPolicyService,
+    private readonly vouchersService: VouchersService,
   ) {}
 
   async createBooking(adminUserId: string, dto: CreateAdminBookingDto) {
@@ -200,6 +202,7 @@ export class AdminBookingRepository {
         scheduledStartTime: scheduleStart.scheduledStartTime,
         hasPet: addressRef.hasPet,
         voucherCode: dto.voucherCode,
+        customerId: customer.id,
       });
       const schedule = this.bookingScheduleService.buildSchedule(
         dto,
@@ -240,6 +243,11 @@ export class AdminBookingRepository {
           recurringRule: null,
         }),
       );
+      await this.vouchersService.reserveForBooking(manager, {
+        bookingId: booking.id,
+        customerId: customer.id,
+        voucherId: booking.voucherId,
+      });
 
       const bookingSubServiceRepository = manager.getRepository(
         BookingSubServiceEntity,
@@ -473,6 +481,10 @@ export class AdminBookingRepository {
       booking.cancelledAt = new Date();
       booking.cancelledBy = CancelledBy.ADMIN;
       booking.cancelledByUserId = adminUserId;
+      await this.vouchersService.releaseReservationForBooking(
+        manager,
+        booking.id,
+      );
 
       const savedBooking = await manager
         .getRepository(BookingEntity)
@@ -1400,6 +1412,10 @@ export class AdminBookingRepository {
         booking.cancelledAt = new Date();
         booking.cancelledBy = CancelledBy.ADMIN;
         booking.cancelledByUserId = adminUserId;
+        await this.vouchersService.releaseReservationForBooking(
+          manager,
+          booking.id,
+        );
         latestPayment = await this.paymentService.findLatestByBookingId(
           manager,
           booking.id,
@@ -1566,6 +1582,7 @@ export class AdminBookingRepository {
         completedAt,
       );
     }
+    await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
 
     const totalPrice = Number(booking.totalPrice);
     let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;

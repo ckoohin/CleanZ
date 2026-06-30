@@ -145,9 +145,7 @@ export class PublicServicesController {
         startHour: peakHour.startHour,
         endHour: peakHour.endHour,
         multiplier: Number(peakHour.multiplier),
-        startDate: peakHour.startDate
-          ? peakHour.startDate.toISOString()
-          : null,
+        startDate: peakHour.startDate ? peakHour.startDate.toISOString() : null,
         endDate: peakHour.endDate ? peakHour.endDate.toISOString() : null,
       })),
     };

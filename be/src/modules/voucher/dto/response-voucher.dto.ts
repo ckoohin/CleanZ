@@ -10,8 +10,13 @@ export class VoucherResponseDto {
   @ApiProperty() maxDiscount!: number | null;
   @ApiProperty() minOrderAmount!: number;
   @ApiProperty() usageLimit!: number | null;
+  @ApiProperty() perCustomerLimit!: number | null;
   @ApiProperty() usedCount!: number;
-  @ApiProperty() serviceId!: string | null;
+  @ApiProperty() reservedCount!: number;
+  @ApiProperty({ type: [String], nullable: true }) packageIds!: string[] | null;
+  @ApiProperty({ type: [String], nullable: true }) customerIds!:
+    | string[]
+    | null;
   @ApiProperty() startDate!: Date | null;
   @ApiProperty() endDate!: Date | null;
   @ApiProperty() isActive!: boolean;

@@ -110,8 +110,17 @@ function normalizePaginatedResponse(
 
 export const adminVoucherService = {
   async getVouchers(query?: VoucherListQuery): Promise<VoucherListResponse> {
+    const params = query
+      ? {
+          ...query,
+          search: query.search?.trim() || undefined,
+          type: query.type || undefined,
+          isActive: query.isActive || undefined,
+        }
+      : undefined;
+
     const response = await http.get("/admin/vouchers", {
-      params: query,
+      params,
     });
 
     return normalizePaginatedResponse(response.data);

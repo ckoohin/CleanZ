@@ -6,7 +6,6 @@ import {
   MessageSquare,
   Send,
   Star,
-  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -177,7 +176,7 @@ export default function TaskerReviewsPage() {
           </DialogHeader>
           {replyTarget && (
             <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-muted-foreground italic">
-              "{replyTarget.comment ?? "(Không có nhận xét)"}"
+              &ldquo;{replyTarget.comment ?? "(Không có nhận xét)"}&rdquo;
             </div>
           )}
           <Textarea
@@ -316,7 +315,7 @@ function ReviewCard({
       </div>
 
       {review.comment && (
-        <p className="text-sm text-foreground/80">"{review.comment}"</p>
+        <p className="text-sm text-foreground/80">&ldquo;{review.comment}&rdquo;</p>
       )}
 
       {review.images && review.images.length > 0 && (

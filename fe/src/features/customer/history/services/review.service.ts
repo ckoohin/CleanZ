@@ -23,7 +23,8 @@ export interface CreateReviewPayload {
 
 export interface ReviewResponse {
   id: string;
-  bookingId: string;
+  bookingId?: string;
+  bookingCode?: string | null;
   overallRating: number;
   punctuality: number;
   cleanliness: number;
@@ -48,6 +49,19 @@ export interface PackageReviewsResponse {
   distribution: { stars: number; count: number; pct: number }[];
 }
 
+export interface TaskerPublicReviewsResponse extends PackageReviewsResponse {
+  tasker: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+    ratingAvg: number;
+    totalCompletedJobs: number;
+  };
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const reviewApi = {
   create: (bookingId: string, payload: CreateReviewPayload) =>
     http
@@ -69,6 +83,14 @@ export const reviewApi = {
       .get<PackageReviewsResponse>(API_ENDPOINTS.REVIEWS.PACKAGE(packageId), {
         params: { page, limit },
       })
+      .then((r) => r.data),
+
+  getTaskerReviews: (taskerId: string, page = 1, limit = 5) =>
+    http
+      .get<TaskerPublicReviewsResponse>(
+        API_ENDPOINTS.REVIEWS.TASKER_PUBLIC(taskerId),
+        { params: { page, limit } },
+      )
       .then((r) => r.data),
 
   report: (reviewId: string, reason: ReportReason, description?: string) =>

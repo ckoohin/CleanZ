@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import type { BookingSchedule } from "../types/booking.types";
 
 const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
@@ -11,10 +12,51 @@ const TASKER_KEYS = {
 };
 
 function getErrorMsg(err: unknown): string {
-  return (
-    (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-    "Có lỗi xảy ra"
-  );
+  const data = (err as { response?: { data?: { message?: unknown; errors?: unknown } } })?.response?.data;
+  const message = data?.message ?? data?.errors;
+
+  if (typeof message === "string") return message;
+  if (Array.isArray(message)) return message.join(", ");
+  if (message && typeof message === "object") {
+    return Object.values(message as Record<string, unknown>)
+      .map((value) => (typeof value === "string" ? value : JSON.stringify(value)))
+      .join(", ");
+  }
+
+  return "Có lỗi xảy ra";
+}
+
+export function isSilentTaskerBookingError(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  const message = getErrorMsg(err).toLocaleLowerCase("vi-VN");
+
+  if (status === 404) {
+    return (
+      message.includes("booking không tồn tại") ||
+      message.includes("không thuộc tasker") ||
+      message.includes("không còn ở trạng thái posted") ||
+      message.includes("không còn khả dụng") ||
+      message.includes("đã có tasker nhận")
+    );
+  }
+
+  if (status === 409) {
+    return (
+      message.includes("không còn khả dụng") ||
+      message.includes("đã có tasker nhận")
+    );
+  }
+
+  return false;
+}
+
+function handleTaskerBookingError(err: unknown) {
+  if (isSilentTaskerBookingError(err)) {
+    console.info("[TaskerBooking] Bỏ qua lỗi booking stale/không thuộc tasker:", getErrorMsg(err));
+    return;
+  }
+
+  toast.error(getErrorMsg(err));
 }
 
 // ─── Tasker Hooks ─────────────────────────────────────────────────────────────
@@ -63,7 +105,7 @@ export function useAcceptBooking() {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -107,21 +149,46 @@ export function useMarkOnTheWay(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
 /** 09. Check-in khi đến nơi */
-export function useMarkCheckedIn(bookingId: string) {
+export function useMarkCheckedIn(bookingId: string, schedule?: BookingSchedule) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => taskerBookingApi.markCheckedIn(bookingId),
     onSuccess: () => {
-      toast.success("Check-in thành công! Bạn đã đến nơi");
+      if (schedule?.scheduledStartDate && schedule?.scheduledStartTime) {
+        const scheduledStart = new Date(
+          `${schedule.scheduledStartDate}T${schedule.scheduledStartTime}`,
+        );
+        if (!isNaN(scheduledStart.getTime())) {
+          const diffMin = (Date.now() - scheduledStart.getTime()) / 60_000;
+          const minutesLate = Math.max(0, Math.round(diffMin));
+          if (minutesLate > 15) {
+            toast.warning(
+              `Check-in muộn ${minutesLate} phút — bạn bị cộng 2 điểm cảnh báo`,
+              { duration: 7000 },
+            );
+          } else if (minutesLate > 0) {
+            toast.warning(
+              `Check-in muộn ${minutesLate} phút — bạn bị cộng 1 điểm cảnh báo`,
+              { duration: 7000 },
+            );
+          } else {
+            toast.success("Check-in thành công! Bạn đến đúng giờ 👍");
+          }
+        } else {
+          toast.success("Check-in thành công! Bạn đã đến nơi");
+        }
+      } else {
+        toast.success("Check-in thành công! Bạn đã đến nơi");
+      }
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -135,7 +202,7 @@ export function useMarkStart(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -150,6 +217,21 @@ export function useMarkComplete(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
+  });
+}
+
+/** 12. Tasker hủy đơn */
+export function useCancelByTasker(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason?: string) => taskerBookingApi.cancelByTasker(bookingId, reason),
+    onSuccess: (res) => {
+      toast.success(res.message ?? "Đã hủy đơn. Đơn đang được tìm tasker mới.");
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
+    },
+    onError: handleTaskerBookingError,
   });
 }

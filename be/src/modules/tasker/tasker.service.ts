@@ -23,6 +23,7 @@ import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
 import { AdminUpdateTaskerDto } from './dto/admin-update-tasker.dto';
+import { AdminUpdateTaskerWorkStatusDto } from './dto/admin-update-tasker-work-status.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { TaskerEntity } from './entity/tasker.entity';
@@ -35,6 +36,19 @@ import {
 } from './tasker.constants';
 
 export type TaskerProfileResponse = Record<string, unknown>;
+
+interface RedisLike {
+  hset(key: string, values: Record<string, string>): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
+  del(...keys: string[]): Promise<number>;
+}
+
+const TASKER_LOCATION_TTL_SECONDS = 5 * 60;
+
+function isLocationSchemaUnavailable(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  return code === '42703' || code === '42883';
+}
 
 @Injectable()
 export class TaskerService {
@@ -59,6 +73,30 @@ export class TaskerService {
     void promise.catch((err) =>
       this.logger.error(`Gửi email thất bại (${context})`, err as Error),
     );
+  }
+
+  private async redis(): Promise<RedisLike> {
+    return this.taskerQueue.client as Promise<RedisLike>;
+  }
+
+  private async cacheTaskerLocation(
+    taskerId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    const redis = await this.redis();
+    const key = `tasker:loc:${taskerId}`;
+    await redis.hset(key, {
+      lat: String(lat),
+      lng: String(lng),
+      at: new Date().toISOString(),
+    });
+    await redis.expire(key, TASKER_LOCATION_TTL_SECONDS);
+  }
+
+  private async clearTaskerLocation(taskerId: string): Promise<void> {
+    const redis = await this.redis();
+    await redis.del(`tasker:loc:${taskerId}`);
   }
 
   async submitProfile(
@@ -239,6 +277,8 @@ export class TaskerService {
   async updatePresence(
     userId: string,
     presenceStatus: TASKER_PRESENCE_STATUS,
+    lat?: number,
+    lng?: number,
   ): Promise<TaskerProfileResponse> {
     return asyncHandleOperation(async () => {
       const tasker = await this.taskerRepository.findOne({
@@ -262,8 +302,73 @@ export class TaskerService {
 
       tasker.presenceStatus = presenceStatus;
       const saved = await this.taskerRepository.save(tasker);
+
+      // Cập nhật vị trí khi chuyển sang ONLINE có kèm tọa độ
+      if (
+        presenceStatus === TASKER_PRESENCE_STATUS.ONLINE &&
+        lat != null &&
+        lng != null
+      ) {
+        await this.updateTaskerLocationColumns(tasker.id, lat, lng);
+        await this.cacheTaskerLocation(tasker.id, lat, lng);
+      }
+
+      if (presenceStatus === TASKER_PRESENCE_STATUS.OFFLINE) {
+        await this.clearTaskerLocation(tasker.id);
+      }
+
       return this.mapProfile(saved);
     }, 'Không thể cập nhật trạng thái hoạt động');
+  }
+
+  async updateLocation(
+    userId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { user: { id: userId } },
+        select: ['id', 'presenceStatus'],
+      });
+
+      if (!tasker) {
+        throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+      }
+
+      if (tasker.presenceStatus !== TASKER_PRESENCE_STATUS.ONLINE) {
+        throw new BadRequestException(
+          'Chỉ được cập nhật vị trí khi đang ở trạng thái ONLINE',
+        );
+      }
+
+      await this.updateTaskerLocationColumns(tasker.id, lat, lng);
+      await this.cacheTaskerLocation(tasker.id, lat, lng);
+    }, 'Không thể cập nhật vị trí');
+  }
+
+  private async updateTaskerLocationColumns(
+    taskerId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> {
+    try {
+      await this.dataSource.query(
+        `UPDATE taskers
+           SET current_location    = ST_SetSRID(ST_Point($1, $2), 4326)::geography,
+               location_updated_at = NOW()
+         WHERE id = $3`,
+        [lng, lat, taskerId],
+      );
+    } catch (error) {
+      if (!isLocationSchemaUnavailable(error)) {
+        throw error;
+      }
+
+      this.logger.warn(
+        'Tasker location columns/PostGIS are unavailable; cached location in Redis only',
+      );
+    }
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────
@@ -364,6 +469,36 @@ export class TaskerService {
       ]);
       return this.mapProfile(tasker, adminNames);
     }, 'Không thể cập nhật thông tin tasker');
+  }
+
+  async updateTaskerWorkStatusByAdmin(
+    id: string,
+    dto: AdminUpdateTaskerWorkStatusDto,
+    adminId?: string,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { id },
+        relations: ['user'],
+      });
+      if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
+
+      if (dto.clearCancelSuspension) {
+        tasker.cancelSuspendedUntil = null;
+      } else {
+        throw new BadRequestException(
+          'Admin chỉ có thể mở khóa nhận đơn. Trạng thái online/offline do tasker tự điều chỉnh.',
+        );
+      }
+
+      tasker.updatedBy = adminId ?? tasker.updatedBy ?? null;
+      const saved = await this.taskerRepository.save(tasker);
+      const adminNames = await this.resolveAdminNames([
+        saved.docReviewedBy,
+        saved.updatedBy,
+      ]);
+      return this.mapProfile(saved, adminNames);
+    }, 'Không thể mở khóa nhận đơn cho tasker');
   }
 
   async approveTasker(
@@ -631,10 +766,14 @@ export class TaskerService {
         tasker.updatedBy = adminId ?? null;
         await taskerRepo.save(tasker);
 
-        // Khóa đăng nhập + vô hiệu phiên hiện có (bump tokenVersion).
-        tasker.user.isActive = false;
+        // TEMPORARY: vẫn cho tasker đăng nhập để thấy banner khóa và liên hệ hỗ trợ,
+        // nhưng status SUSPENDED sẽ chặn bật online / nhận việc.
+        // PERMANENT: vô hiệu đăng nhập + phiên hiện có.
+        tasker.user.isActive = !isPermanent;
         await userRepo.save(tasker.user);
-        await userRepo.increment({ id: tasker.user.id }, 'tokenVersion', 1);
+        if (isPermanent) {
+          await userRepo.increment({ id: tasker.user.id }, 'tokenVersion', 1);
+        }
 
         // Ghi lịch sử kỷ luật.
         await penaltyRepo.save(
@@ -1005,6 +1144,7 @@ export class TaskerService {
       adminNotes: tasker.docNote ?? null,
       banReason: tasker.banReason ?? null,
       banEndsAt: tasker.banEndsAt ?? null,
+      cancelSuspendedUntil: tasker.cancelSuspendedUntil ?? null,
       // Audit: ai duyệt hồ sơ + ai cập nhật gần nhất (kèm tên admin nếu resolve được).
       docReviewedBy: tasker.docReviewedBy ?? null,
       docReviewedByName: tasker.docReviewedBy

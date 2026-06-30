@@ -25,6 +25,14 @@ interface UnreadCountPayload {
   count: number;
 }
 
+interface BookingSearchingPayload {
+  bookingId: string;
+  ring?: number;
+  radiusKm?: string | number;
+  taskersFound?: number;
+  exhausted?: boolean;
+}
+
 export function CustomerRealtimeNotifications() {
   const queryClient = useQueryClient();
 
@@ -52,6 +60,52 @@ export function CustomerRealtimeNotifications() {
     [queryClient],
   );
 
+  const handleBookingSearching = useCallback(
+    (payload: BookingSearchingPayload) => {
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-list"] });
+      if (payload.bookingId) {
+        void queryClient.invalidateQueries({
+          queryKey: ["booking", payload.bookingId],
+        });
+      }
+
+      toast.info("Đang tìm Tasker phù hợp", {
+        id: payload.bookingId
+          ? `booking-searching-${payload.bookingId}`
+          : "booking-searching",
+        description: "CleanZ đang gửi đơn đến các Tasker gần bạn.",
+      });
+    },
+    [queryClient],
+  );
+
+  const handleBookingStillSearching = useCallback(
+    (payload: BookingSearchingPayload) => {
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-list"] });
+      if (payload.bookingId) {
+        void queryClient.invalidateQueries({
+          queryKey: ["booking", payload.bookingId],
+        });
+      }
+
+      const radiusText = payload.radiusKm ? ` trong bán kính ${payload.radiusKm}km` : "";
+      toast.info(
+        payload.exhausted ? "Vẫn đang tiếp tục tìm Tasker" : "Đang mở rộng tìm kiếm",
+        {
+          id: payload.bookingId
+            ? `booking-searching-${payload.bookingId}`
+            : "booking-searching",
+          description: payload.exhausted
+            ? "Đơn vẫn đang mở, hệ thống sẽ tiếp tục hiển thị cho Tasker phù hợp."
+            : `CleanZ đang tìm thêm Tasker${radiusText}.`,
+        },
+      );
+    },
+    [queryClient],
+  );
+
   useSocketEvent<NotificationPayload>(
     NOTIFICATION_EVENT_NEW,
     handleNewNotification,
@@ -59,6 +113,14 @@ export function CustomerRealtimeNotifications() {
   useSocketEvent<UnreadCountPayload>(
     NOTIFICATION_EVENT_UNREAD,
     handleUnreadCount,
+  );
+  useSocketEvent<BookingSearchingPayload>(
+    "booking:searching",
+    handleBookingSearching,
+  );
+  useSocketEvent<BookingSearchingPayload>(
+    "booking:still_searching",
+    handleBookingStillSearching,
   );
 
   return null;

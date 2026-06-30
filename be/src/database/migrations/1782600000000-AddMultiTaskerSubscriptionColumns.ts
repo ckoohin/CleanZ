@@ -7,9 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - Nếu cột/bảng đã tồn tại (tạo trước bởi synchronize) → không làm gì
  * - Nếu chưa tồn tại → tạo mới
  */
-export class AddMultiTaskerSubscriptionColumns1782600000000
-  implements MigrationInterface
-{
+export class AddMultiTaskerSubscriptionColumns1782600000000 implements MigrationInterface {
   name = 'AddMultiTaskerSubscriptionColumns1782600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

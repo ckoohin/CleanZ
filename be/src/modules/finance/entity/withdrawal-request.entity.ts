@@ -59,7 +59,12 @@ export class WithdrawalRequestEntity {
   @Column({ type: 'text', nullable: true, name: 'admin_note' })
   adminNote!: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true, name: 'proof_image_url' })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    name: 'proof_image_url',
+  })
   proofImageUrl!: string | null;
 
   @Column({ type: 'timestamp', nullable: true, name: 'reviewed_at' })

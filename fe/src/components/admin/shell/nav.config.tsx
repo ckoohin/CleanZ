@@ -60,7 +60,7 @@ export const navGroups: NavGroup[] = [
           // { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES.BASE },
         ],
       },
-      { title: "Bảng giá", href: A.PRICING, icon: Tag },
+      // { title: "Bảng giá", href: A.PRICING, icon: Tag },
       {
         title: "Chính sách",
         href: A.POLICIES.BASE,
@@ -92,7 +92,10 @@ export const navGroups: NavGroup[] = [
         title: "Voucher",
         href: A.VOUCHERS.BASE,
         icon: TicketPercent,
-        children: [{ title: "Tạo voucher mới", href: A.VOUCHERS.CREATE }],
+        children: [
+          { title: "Danh sách voucher", href: A.VOUCHERS.BASE },
+          { title: "Tạo voucher mới", href: A.VOUCHERS.CREATE },
+        ],
       },
     ],
   },

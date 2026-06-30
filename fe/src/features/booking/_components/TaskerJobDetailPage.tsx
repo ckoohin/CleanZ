@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SwipeToAccept } from "@/features/tasker/_components/SwipeToAccept";
@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   Route,
   Loader2,
+  ShieldAlert,
+  XCircle,
 } from "lucide-react";
 import {
   usePostedBookingDetail,
@@ -28,9 +30,12 @@ import {
   useMarkCheckedIn,
   useMarkStart,
   useMarkComplete,
+  useCancelByTasker,
+  isSilentTaskerBookingError,
 } from "@/features/booking/hooks/useTaskerBooking";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
+  BookingSchedule,
   BookingStatus,
   TaskerAssignedBookingDetail,
   TaskerPostedBookingDetail,
@@ -38,6 +43,7 @@ import type {
 import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTracking";
 import { BookingTrackingMap } from "./BookingTrackingMap";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
+import { toast } from "sonner";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -102,6 +108,127 @@ function ActionButton({
         </>
       )}
     </button>
+  );
+}
+
+// ─── Checkin Window Banner ────────────────────────────────────────────────────
+const CHECKIN_OPEN_BEFORE = 3000;  // T-30
+const CHECKIN_AUTO_CANCEL = 45; // T+45
+
+function parseScheduledStart(schedule: BookingSchedule): Date | null {
+  if (!schedule.scheduledStartDate || !schedule.scheduledStartTime) return null;
+  const d = new Date(`${schedule.scheduledStartDate}T${schedule.scheduledStartTime}`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function fmtTime(date: Date) {
+  return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtCountdown(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return m > 0 ? `${m} phút ${s} giây` : `${s} giây`;
+}
+
+function CheckinWindowBanner({ schedule }: { schedule: BookingSchedule }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const scheduledStart = parseScheduledStart(schedule);
+  if (!scheduledStart) return null;
+
+  const startMs = scheduledStart.getTime();
+  const diffMin = (now - startMs) / 60_000;
+
+  const windowOpenTime = new Date(startMs - CHECKIN_OPEN_BEFORE * 60_000);
+  const autoCancelTime = new Date(startMs + CHECKIN_AUTO_CANCEL * 60_000);
+
+  if (diffMin < -CHECKIN_OPEN_BEFORE) {
+    const secsUntilOpen = Math.ceil((-diffMin - CHECKIN_OPEN_BEFORE) * 60);
+    return (
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+          <p className="text-xs font-black text-blue-700 uppercase tracking-wide">
+            Cửa sổ check-in chưa mở
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-blue-800">
+          Mở lúc {fmtTime(windowOpenTime)} · còn{" "}
+          <span className="font-black">{fmtCountdown(secsUntilOpen)}</span>
+        </p>
+        <p className="text-[11px] text-blue-600 mt-1">
+          Hãy di chuyển để đến nơi đúng giờ. Check-in sớm nhất từ 30 phút trước lịch hẹn.
+        </p>
+      </div>
+    );
+  }
+
+  if (diffMin <= 0) {
+    const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <p className="text-xs font-black text-emerald-700 uppercase tracking-wide">
+            Cửa sổ check-in đang mở
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-emerald-800">
+          Đến nơi rồi bấm check-in trước{" "}
+          <span className="font-black">{fmtTime(autoCancelTime)}</span>
+        </p>
+        <div className="mt-2 flex items-center gap-1.5 bg-white/70 rounded-xl px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <p className="text-xs font-bold text-emerald-700">
+            Hủy tự động sau{" "}
+            <span className="font-black">{fmtCountdown(secsUntilCancel)}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (diffMin <= CHECKIN_AUTO_CANCEL) {
+    const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
+    const minutesLate = Math.ceil(diffMin);
+    const warningPoints = diffMin > 15 ? 2 : 1;
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          <p className="text-xs font-black text-red-700 uppercase tracking-wide">
+            Đang đến muộn — {minutesLate} phút
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-red-800">
+          Vẫn có thể check-in, nhưng bạn sẽ bị +{warningPoints} điểm cảnh báo
+        </p>
+        <div className="mt-2 flex items-center gap-1.5 bg-white/70 rounded-xl px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <p className="text-xs font-bold text-red-700">
+            Đơn bị hủy tự động sau{" "}
+            <span className="font-black">{fmtCountdown(secsUntilCancel)}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-slate-500 shrink-0" />
+        <p className="text-sm font-semibold text-slate-600">
+          Cửa sổ check-in đã đóng lúc {fmtTime(autoCancelTime)}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -214,83 +341,177 @@ function PostedDetailView({
   );
 }
 
+// ─── Tasker Cancel Dialog ─────────────────────────────────────────────────────
+const PRESET_CANCEL_REASONS = [
+  "Có việc đột xuất, không thể đến được",
+  "Phương tiện di chuyển gặp sự cố",
+  "Ốm / Không đủ sức khoẻ để làm việc",
+  "Sai thông tin lịch hẹn",
+];
+
+const CANCEL_POLICY_ITEMS = [
+  { title: "Lần 1 / tuần", value: "50.000đ" },
+  { title: "Lần 2 / tuần", value: "100.000đ" },
+  { title: "Lần 3+ / tuần", value: "200.000đ", note: "Khóa 7 ngày" },
+];
+
+function TaskerCancelDialog({
+  bookingCode,
+  isPending,
+  cancelReason,
+  onReasonChange,
+  onClose,
+  onConfirm,
+}: {
+  bookingCode: string;
+  isPending: boolean;
+  cancelReason: string;
+  onReasonChange: (v: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const handlePreset = (reason: string) => {
+    onReasonChange(cancelReason === reason ? "" : reason);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 backdrop-blur-sm sm:items-center sm:p-6">
+      <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-2xl shadow-black/20">
+        {/* Header */}
+        <div className="space-y-4 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+          <div className="flex items-start gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-600">
+              <ShieldAlert className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-red-500">
+                Xác nhận hủy đơn
+              </p>
+              <h3 className="mt-1 text-lg font-black leading-tight text-foreground">
+                #{bookingCode}
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                Đơn sẽ được trả về trạng thái chờ Tasker mới. Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isPending}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+              aria-label="Đóng"
+            >
+              <XCircle className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Cảnh báo phí phạt */}
+        <div className="mx-5 rounded-2xl border border-red-200 bg-red-50/90 p-3.5 sm:mx-6">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="size-4 shrink-0 text-red-500" />
+            <p className="text-xs font-black uppercase tracking-wide text-red-600">
+              Chính sách phạt hủy đơn
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {CANCEL_POLICY_ITEMS.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-xl border border-red-200/80 bg-white/65 px-2 py-2 text-center"
+              >
+                <p className="text-[10px] font-bold text-red-500">
+                  {item.title}
+                </p>
+                <p className="mt-1 text-xs font-black text-red-600">
+                  {item.value}
+                </p>
+                {item.note && (
+                  <p className="mt-0.5 text-[9px] font-semibold text-red-400">
+                    {item.note}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Lý do gợi ý */}
+        <div className="space-y-3 px-5 py-4 sm:px-6">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Chọn lý do hủy
+          </p>
+          <div className="grid gap-2">
+            {PRESET_CANCEL_REASONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handlePreset(r)}
+                className={`flex min-h-11 items-center rounded-2xl border px-3.5 py-2.5 text-left text-sm font-semibold transition-all ${
+                  cancelReason === r
+                    ? "border-red-300 bg-red-50 text-red-700 shadow-sm shadow-red-500/10"
+                    : "border-border bg-background text-foreground hover:border-primary/30 hover:bg-muted/30"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          {/* Tự nhập */}
+          <textarea
+            value={PRESET_CANCEL_REASONS.includes(cancelReason) ? "" : cancelReason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            placeholder="Hoặc nhập lý do khác..."
+            rows={3}
+            className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100 placeholder:text-muted-foreground"
+          />
+        </div>
+
+        {/* Buttons */}
+        <div className="grid grid-cols-2 gap-3 border-t border-border/60 bg-muted/20 px-5 py-4 sm:px-6">
+          <button
+            type="button"
+            className="min-h-12 rounded-2xl border border-border bg-background text-sm font-black text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
+            onClick={onClose}
+            disabled={isPending}
+          >
+            Quay lại
+          </button>
+          <button
+            type="button"
+            className="min-h-12 rounded-2xl bg-red-500 text-sm font-black text-white shadow-lg shadow-red-500/20 transition-colors hover:bg-red-600 disabled:opacity-60 disabled:shadow-none"
+            disabled={isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+            ) : (
+              "Xác nhận hủy"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Assigned Detail View ─────────────────────────────────────────────────────
 function AssignedDetailView({
   data,
   bookingId,
-  trackingSocket,
 }: {
   data: TaskerAssignedBookingDetail;
   bookingId: string;
-  trackingSocket: ReturnType<typeof useTrackingSocket>;
 }) {
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulationStep, setSimulationStep] = useState(0);
-
-  const destLat = data.address?.latitude ? Number(data.address.latitude) : null;
-  const destLng = data.address?.longitude ? Number(data.address.longitude) : null;
-
-  const isDestValid =
-    destLat !== null &&
-    destLng !== null &&
-    !isNaN(destLat) &&
-    !isNaN(destLng) &&
-    destLat >= -90 &&
-    destLat <= 90 &&
-    destLng >= -180 &&
-    destLng <= 180;
-
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    if (isSimulating && isDestValid && destLat !== null && destLng !== null) {
-      // Điểm xuất phát của Tasker cách điểm đến 0.005 độ (khoảng 500m)
-      const startLat = destLat + 0.005;
-      const startLng = destLng + 0.005;
-
-      intervalId = setInterval(() => {
-        setSimulationStep((prevStep) => {
-          const nextStep = prevStep + 1;
-          if (nextStep > 10) {
-            setIsSimulating(false);
-            if (intervalId) clearInterval(intervalId);
-            return 0;
-          }
-
-          const currentLat = startLat - (startLat - destLat) * (nextStep / 10);
-          const currentLng = startLng - (startLng - destLng) * (nextStep / 10);
-
-          if (trackingSocket) {
-            trackingSocket.emit("tasker:location:update", {
-              bookingId,
-              latitude: currentLat,
-              longitude: currentLng,
-            });
-          }
-
-          return nextStep;
-        });
-      }, 2000);
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isSimulating, isDestValid, destLat, destLng, trackingSocket, bookingId]);
-
-  const handleToggleSimulation = () => {
-    setIsSimulating((prev) => {
-      const next = !prev;
-      if (!next) {
-        setSimulationStep(0);
-      }
-      return next;
-    });
-  };
   const router = useRouter();
   const markOnWay = useMarkOnTheWay(bookingId);
-  const markCheckedIn = useMarkCheckedIn(bookingId);
+  const markCheckedIn = useMarkCheckedIn(bookingId, data.schedule);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
+  const cancelByTasker = useCancelByTasker(bookingId);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const {
     tracking,
     isConnected: isTrackingConnected,
@@ -450,6 +671,10 @@ function AssignedDetailView({
               <BookingStatusStepper currentStatus={data.status} />
             </div>
 
+            <div className="mb-3">
+              <CheckinWindowBanner schedule={data.schedule} />
+            </div>
+
             <ActionButton
               label="Check-in — Tôi đã đến nơi"
               icon={MapPin}
@@ -457,31 +682,6 @@ function AssignedDetailView({
               isPending={markCheckedIn.isPending}
               color="amber"
             />
-
-            {process.env.NODE_ENV === "development" && (
-              <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-dashed border-primary/40 bg-card p-4 shadow-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase tracking-wider text-primary">
-                    Bộ giả lập GPS di chuyển
-                  </p>
-                  <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
-                    {isSimulating
-                      ? `Đang gửi tọa độ: Chặng ${simulationStep}/10`
-                      : "Giả lập GPS chạy xe tới nhà khách hàng"}
-                  </p>
-                </div>
-                <button
-                  onClick={handleToggleSimulation}
-                  className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider shadow-sm transition-all select-none ${
-                    isSimulating
-                      ? "bg-red-500 text-white shadow-red-200 hover:bg-red-600"
-                      : "bg-primary text-white shadow-primary/20 hover:bg-primary/95"
-                  }`}
-                >
-                  {isSimulating ? "Dừng" : "Giả lập"}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -613,12 +813,46 @@ function AssignedDetailView({
 
       {/* Action buttons based on status */}
       {data.status === "CONFIRMED" && (
-        <ActionButton
-          label="Bắt đầu di chuyển tới"
-          icon={Navigation}
-          onClick={() => markOnWay.mutate()}
-          isPending={markOnWay.isPending}
-          color="amber"
+        <div className="flex flex-col gap-3">
+          <ActionButton
+            label="Bắt đầu di chuyển tới"
+            icon={Navigation}
+            onClick={() => markOnWay.mutate()}
+            isPending={markOnWay.isPending}
+            color="amber"
+          />
+          <button
+            onClick={() => setShowCancelDialog(true)}
+            className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors"
+          >
+            Hủy đơn này
+          </button>
+        </div>
+      )}
+
+      {/* Cancel dialog */}
+      {showCancelDialog && (
+        <TaskerCancelDialog
+          bookingCode={data.bookingCode}
+          isPending={cancelByTasker.isPending}
+          cancelReason={cancelReason}
+          onReasonChange={setCancelReason}
+          onClose={() => { setShowCancelDialog(false); setCancelReason(""); }}
+          onConfirm={() =>
+            cancelByTasker.mutate(cancelReason || undefined, {
+              onSuccess: (res) => {
+                setShowCancelDialog(false);
+                setCancelReason("");
+                if (res.suspended) {
+                  toast.warning(
+                    `Tài khoản bị khóa nhận đơn 7 ngày do hủy quá 3 lần trong tuần`,
+                    { duration: 8000 },
+                  );
+                }
+                router.push("/tasker/jobs");
+              },
+            })
+          }
         />
       )}
       {data.status === "CHECKED_IN" && (
@@ -639,15 +873,26 @@ function AssignedDetailView({
           color="emerald"
         />
       )}
-      {(data.status === "COMPLETED" || data.status === "CANCELLED") && (
-        <div className="bg-muted/50 rounded-2xl p-4 text-center">
+      {data.status === "COMPLETED" && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-          <p className="text-sm font-bold text-foreground">
-            {data.status === "COMPLETED" ? "Đã hoàn thành" : "Đã bị hủy"}
+          <p className="text-sm font-bold text-foreground">Đã hoàn thành</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Thu nhập đã được ghi vào ví</p>
+        </div>
+      )}
+      {data.status === "CANCELLED" && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center">
+          <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+          <p className="text-sm font-bold text-foreground">Đơn đã bị hủy</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Đơn có thể đã bị hủy do không check-in đúng giờ hoặc do yêu cầu hủy
           </p>
-          {data.status === "COMPLETED" && (
-            <p className="text-xs text-muted-foreground mt-0.5">Thu nhập đã được ghi vào ví</p>
-          )}
+          <button
+            onClick={() => router.push("/tasker/jobs")}
+            className="mt-3 text-xs font-bold text-primary"
+          >
+            ← Về danh sách đơn
+          </button>
         </div>
       )}
 
@@ -707,6 +952,9 @@ function AssignedDetailView({
     </div>
   );
 }
+
+// Fallback: 376 Thụy Khuê, Tây Hồ, Hà Nội
+const FALLBACK_LOCATION = { currentLatitude: 21.0463, currentLongitude: 105.8374 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
@@ -776,22 +1024,17 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
         setIsRequestingLocation(false);
       },
       (error) => {
-        let message =
-          "Không thể xác định vị trí. Hãy bật GPS rồi thử lại.";
-        let errorKind: LocationErrorKind = "location-disabled";
-
         if (error.code === error.PERMISSION_DENIED) {
-          message =
-            "Quyền vị trí đang bị chặn. Hãy mở cài đặt trang của trình duyệt, chọn Vị trí → Cho phép rồi thử lại.";
-          errorKind = "permission-denied";
-        } else if (error.code === error.TIMEOUT) {
-          message =
-            "Chưa nhận được tín hiệu GPS. Hãy bật Vị trí chính xác, ra nơi thoáng và thử lại.";
-          errorKind = "timeout";
+          setLocationError(
+            "Quyền vị trí đang bị chặn. Hãy mở cài đặt trang của trình duyệt, chọn Vị trí → Cho phép rồi thử lại.",
+          );
+          setLocationErrorKind("permission-denied");
+          setLocationResolved(true);
+          setIsRequestingLocation(false);
+          return;
         }
-
-        setLocationError(message);
-        setLocationErrorKind(errorKind);
+        // GPS lỗi (timeout/unavailable) → dùng vị trí mặc định để không block
+        setLocation(FALLBACK_LOCATION);
         setLocationResolved(true);
         setIsRequestingLocation(false);
       },
@@ -821,6 +1064,19 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     !isPostedMode,
   );
 
+  // Detect auto-cancel khi tasker đang di chuyển
+  const prevStatusRef = useRef<BookingStatus | null>(null);
+  useEffect(() => {
+    const current = assignedQuery.data?.status ?? null;
+    const prev = prevStatusRef.current;
+    if (prev === "TASKER_ON_THE_WAY" && current === "CANCELLED") {
+      toast.error("Đơn đã bị hủy tự động do không check-in đúng giờ", {
+        duration: 8000,
+      });
+    }
+    prevStatusRef.current = current;
+  }, [assignedQuery.data?.status]);
+
   useEffect(() => {
     if (isPostedMode || !trackingSocket) return;
 
@@ -841,7 +1097,13 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             });
           },
           (err) => {
-            console.error("Lỗi lấy vị trí Tasker định kỳ:", err);
+            if (err.code !== err.PERMISSION_DENIED) {
+              trackingSocket.emit("tasker:location:update", {
+                bookingId,
+                latitude: FALLBACK_LOCATION.currentLatitude,
+                longitude: FALLBACK_LOCATION.currentLongitude,
+              });
+            }
           },
           { enableHighAccuracy: true }
         );
@@ -869,6 +1131,19 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     (!Number.isFinite(location.currentLatitude) ||
       !Number.isFinite(location.currentLongitude));
   const activeStatus = isPostedMode ? null : assignedQuery.data?.status;
+  const activeQuery = isPostedMode ? postedQuery : assignedQuery;
+  const isSilentBookingError =
+    activeQuery.isError && isSilentTaskerBookingError(activeQuery.error);
+
+  useEffect(() => {
+    if (!isSilentBookingError) return;
+
+    console.info(
+      "[TaskerJobDetail] Bỏ qua lỗi booking stale/không thuộc tasker:",
+      activeQuery.error,
+    );
+    router.replace("/tasker/jobs");
+  }, [activeQuery.error, isSilentBookingError, router]);
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -936,7 +1211,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
                   : "Thử lấy lại vị trí"}
             </button>
           </div>
-        ) : isLoading ? (
+        ) : isLoading || isSilentBookingError ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse" />
@@ -1008,7 +1283,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             </div>
           )
         ) : assignedQuery.data ? (
-          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} trackingSocket={trackingSocket} />
+          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} />
         ) : (
           <div className="text-center py-16 text-muted-foreground text-sm">
             Đang tải...

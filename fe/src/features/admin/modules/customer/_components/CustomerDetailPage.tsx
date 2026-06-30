@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   useAdminCustomerDetail,
@@ -13,8 +13,8 @@ import {
   formatDateTimeFull,
   BOOKING_STATUS_STYLES,
   BOOKING_STATUS_LABELS,
-  PAYMENT_STATUS_LABELS,
-  PAYMENT_STATUS_TEXT_STYLES,
+  getBookingPaymentStatusLabel,
+  getBookingPaymentStatusTextStyle,
   STAT_CARD_STYLES,
 } from "@/features/admin/modules/customer/customer.helpers";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,98 @@ interface CustomerDetailPageProps {
   customerId: string;
 }
 
+interface BookingPaginationProps {
+  page: number;
+  totalPages: number;
+  total: number;
+  limit: number;
+  onPageChange: (page: number) => void;
+  compact?: boolean;
+}
+
+function formatBookingDate(value?: string | null) {
+  if (!value) return "Chưa có";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Chưa có";
+
+  return date.toLocaleDateString("vi-VN");
+}
+
+function getVisiblePages(page: number, totalPages: number) {
+  const maxVisible = 5;
+  const half = Math.floor(maxVisible / 2);
+  const start = Math.max(1, Math.min(page - half, totalPages - maxVisible + 1));
+  const end = Math.min(totalPages, start + maxVisible - 1);
+
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+function BookingPagination({
+  page,
+  totalPages,
+  total,
+  limit,
+  onPageChange,
+  compact = false,
+}: BookingPaginationProps) {
+  if (totalPages <= 1) return null;
+
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = Math.min(page * limit, total);
+  const visiblePages = getVisiblePages(page, totalPages);
+
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 ${
+        compact ? "rounded-xl bg-[var(--c-card-2)] px-3 py-2" : "p-3 border-t border-[var(--c-line)] bg-[var(--c-card-2)]"
+      }`}
+    >
+      <span className="text-xs font-medium text-[var(--c-muted)]">
+        {startItem}-{endItem} / {total} đơn
+      </span>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-8 h-8 rounded-full shadow-none border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)]"
+          disabled={page === 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          aria-label="Trang trước"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </Button>
+        {!compact &&
+          visiblePages.map((pageNumber) => (
+            <Button
+              key={pageNumber}
+              variant="outline"
+              size="sm"
+              className={`h-8 min-w-8 rounded-full px-2 text-xs font-bold shadow-none ${
+                pageNumber === page
+                  ? "border-[var(--c-primary)] bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)]"
+                  : "border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-muted)] hover:bg-[var(--c-card-2)]"
+              }`}
+              onClick={() => onPageChange(pageNumber)}
+            >
+              {pageNumber}
+            </Button>
+          ))}
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-8 h-8 rounded-full shadow-none border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)]"
+          disabled={page === totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          aria-label="Trang sau"
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customerId }) => {
   const router = useRouter();
   const [bookingPage, setBookingPage] = useState(1);
@@ -77,7 +169,24 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
 
   const bookings = bookingsData?.data || [];
   const meta = bookingsData?.meta;
-  const totalPages = meta?.totalPages || 0;
+  const totalBookings = meta?.total ?? 0;
+  const totalPages = Math.max(1, meta?.totalPages || 1);
+  const effectiveBookingPage = meta?.page ?? bookingPage;
+  const effectiveBookingLimit = meta?.limit ?? bookingLimit;
+  const canPaginateBookings = totalBookings > effectiveBookingLimit;
+  const headerPagination = useMemo(
+    () => (
+      <BookingPagination
+        page={effectiveBookingPage}
+        totalPages={totalPages}
+        total={totalBookings}
+        limit={effectiveBookingLimit}
+        onPageChange={setBookingPage}
+        compact
+      />
+    ),
+    [effectiveBookingLimit, effectiveBookingPage, totalBookings, totalPages],
+  );
 
   if (isLoading) {
     return (
@@ -324,15 +433,18 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
 
           {/* Booking History */}
           <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5 space-y-4">
-            <h3 className="text-sm font-bold text-[var(--c-ink)] flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" />
-              Lịch sử đặt dịch vụ
-              {meta?.total !== undefined && (
-                <span className="ml-1 text-[10px] font-bold bg-[var(--c-card-2)] text-[var(--c-muted)] px-2 py-0.5 rounded-full">
-                  {meta.total} đơn
-                </span>
-              )}
-            </h3>
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <h3 className="text-sm font-bold text-[var(--c-ink)] flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" />
+                Lịch sử đặt dịch vụ
+                {meta?.total !== undefined && (
+                  <span className="ml-1 text-[10px] font-bold bg-[var(--c-card-2)] text-[var(--c-muted)] px-2 py-0.5 rounded-full">
+                    {meta.total} đơn
+                  </span>
+                )}
+              </h3>
+              {canPaginateBookings && headerPagination}
+            </div>
 
             {isBookingsLoading ? (
               <div className="space-y-2">
@@ -362,7 +474,7 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
                           #{booking.bookingCode}
                         </TableCell>
                         <TableCell className="text-xs text-[var(--c-muted)] py-3">
-                          {new Date(booking.scheduledStart).toLocaleDateString("vi-VN")}
+                          {formatBookingDate(booking.createdAt)}
                         </TableCell>
                         <TableCell className="font-semibold text-xs text-[var(--c-ink-soft)] py-3">
                           {formatVND(booking.totalPrice)}
@@ -376,8 +488,8 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
                           </Badge>
                         </TableCell>
                         <TableCell className="py-3">
-                          <span className={`text-[10px] font-bold uppercase ${PAYMENT_STATUS_TEXT_STYLES[booking.paymentStatus] || "text-[var(--c-muted)]"}`}>
-                            {PAYMENT_STATUS_LABELS[booking.paymentStatus] || booking.paymentStatus}
+                          <span className={`text-[10px] font-bold uppercase ${getBookingPaymentStatusTextStyle(booking.status, booking.paymentStatus)}`}>
+                            {getBookingPaymentStatusLabel(booking.status, booking.paymentStatus)}
                           </span>
                         </TableCell>
                       </TableRow>
@@ -385,33 +497,13 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
                   </TableBody>
                 </Table>
 
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between p-3 border-t border-[var(--c-line)] bg-[var(--c-card-2)]">
-                    <span className="text-xs text-[var(--c-muted)]">
-                      Trang {bookingPage} / {totalPages} • {meta?.total} đơn tổng cộng
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="w-8 h-8 rounded-full shadow-none border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)]"
-                        disabled={bookingPage === 1}
-                        onClick={() => setBookingPage((p) => Math.max(1, p - 1))}
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="w-8 h-8 rounded-full shadow-none border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:bg-[var(--c-card-2)]"
-                        disabled={bookingPage === totalPages}
-                        onClick={() => setBookingPage((p) => Math.min(totalPages, p + 1))}
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <BookingPagination
+                  page={effectiveBookingPage}
+                  totalPages={totalPages}
+                  total={totalBookings}
+                  limit={effectiveBookingLimit}
+                  onPageChange={setBookingPage}
+                />
               </div>
             )}
           </div>

@@ -11,11 +11,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
+import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
 import { VouchersService } from './services/vouchers.service';
 import {
   successResponse,
@@ -26,6 +23,7 @@ import { VoucherListQueryDto } from './dto/list-query-voucher.dto';
 import { UpdateVoucherDto } from './dto/update-voucher.dto';
 import { IssueVoucherToCustomersDto } from './dto/issue-voucher-to-customer.dto';
 
+@AdminOnly()
 @ApiTags('Admin – Vouchers')
 @Controller('admin/vouchers')
 export class VouchersController {

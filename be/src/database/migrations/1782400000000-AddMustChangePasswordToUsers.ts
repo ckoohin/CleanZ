@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * default false). Dùng để buộc đổi mật khẩu ở lần đăng nhập đầu tiên với các
  * tài khoản admin tạo bằng mật khẩu tạm. Additive + idempotent.
  */
-export class AddMustChangePasswordToUsers1782400000000
-  implements MigrationInterface
-{
+export class AddMustChangePasswordToUsers1782400000000 implements MigrationInterface {
   name = 'AddMustChangePasswordToUsers1782400000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

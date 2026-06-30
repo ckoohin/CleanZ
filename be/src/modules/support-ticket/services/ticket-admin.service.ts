@@ -543,7 +543,11 @@ export class TicketAdminService {
     actingAdminId: string,
   ): Promise<InternalNoteView> {
     return asyncHandleOperation(async () => {
-      const msg = await this.addMessage(id, { body, isInternal: true }, actingAdminId);
+      const msg = await this.addMessage(
+        id,
+        { body, isInternal: true },
+        actingAdminId,
+      );
       const author = await this.userRepo.findOne({
         where: { id: actingAdminId },
       });

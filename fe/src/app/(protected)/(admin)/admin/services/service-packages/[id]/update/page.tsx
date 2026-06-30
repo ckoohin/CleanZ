@@ -3091,7 +3091,7 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
                           const pct = Math.round((p.multiplier - 1) * 100);
                           const fmt = (s: string) => s ? new Date(s).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
                           return (
-                            <tr key={i} className="hover:bg-primary/[0.02] transition-colors group">
+                            <tr key={i} className="hover:bg-primary/2 transition-colors group">
                               {/* Ngày */}
                               <td className="py-3.5 px-4">
                                 <span className="font-extrabold text-foreground text-[13px] block leading-tight">{daysText[p.dayOfWeek]}</span>

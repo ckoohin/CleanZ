@@ -30,10 +30,12 @@ import type { AuthUser } from '../auth/types/AuthRequest';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
 import { AdminUpdateTaskerDto } from './dto/admin-update-tasker.dto';
+import { AdminUpdateTaskerWorkStatusDto } from './dto/admin-update-tasker-work-status.dto';
 import { ReinstateTaskerDto } from './dto/reinstate-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { UpdatePresenceDto } from './dto/update-presence.dto';
+import { UpdateTaskerLocationDto } from './dto/update-tasker-location.dto';
 import { TaskerService } from './tasker.service';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -205,7 +207,25 @@ export class TaskerController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdatePresenceDto,
   ) {
-    return this.taskerService.updatePresence(user.id, dto.presenceStatus);
+    return this.taskerService.updatePresence(
+      user.id,
+      dto.presenceStatus,
+      dto.lat,
+      dto.lng,
+    );
+  }
+
+  @Patch('me/location')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker cập nhật vị trí hiện tại (heartbeat mỗi 60s khi ONLINE)',
+  })
+  async updateLocation(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateTaskerLocationDto,
+  ) {
+    await this.taskerService.updateLocation(user.id, dto.lat, dto.lng);
+    return { updated: true };
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────
@@ -237,6 +257,20 @@ export class TaskerController {
     @CurrentUser('id') adminId: string,
   ) {
     return this.taskerService.updateTaskerByAdmin(id, dto, adminId);
+  }
+
+  @Patch('admin/:id/work-status')
+  @AdminOnly()
+  @ApiOperation({
+    summary: 'Admin mở khóa nhận đơn cho tasker',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  updateTaskerWorkStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminUpdateTaskerWorkStatusDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.updateTaskerWorkStatusByAdmin(id, dto, adminId);
   }
 
   @Patch('admin/:id/approve')

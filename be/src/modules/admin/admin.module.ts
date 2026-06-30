@@ -22,6 +22,7 @@ import { BookingModule } from 'src/modules/booking/booking.module';
 import { NotificationEntity } from 'src/modules/notification/entity/notification.entity';
 import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { MailModule } from 'src/modules/mail/mail.module';
+import { VoucherModule } from 'src/modules/voucher/voucher.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { MailModule } from 'src/modules/mail/mail.module';
     PaymentModule,
     BookingModule,
     MailModule,
+    VoucherModule,
   ],
 
   controllers: [AdminController],

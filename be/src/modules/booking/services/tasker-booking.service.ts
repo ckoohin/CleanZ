@@ -23,12 +23,21 @@ import { GoongMapService } from 'src/modules/goong/goong-map.service';
 import { TrackingGateway } from 'src/modules/tracking/tracking.gateway';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerBookingLocationDto } from '../dto/tasker-booking-location.dto';
+import { CancelBookingDto } from '../dto/cancel-booking.dto';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
-import { BookingPolicyService } from './booking-policy.service';
+import {
+  BookingPolicyService,
+  CANCEL_SUSPENSION_DAYS,
+  WEEKLY_CANCEL_LIMIT,
+} from './booking-policy.service';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
+import { BookingDispatchService } from './booking-dispatch.service';
+import { BookingCheckinService } from './booking-checkin.service';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
@@ -264,6 +273,9 @@ export class TaskerBookingService {
     private readonly goongMapService: GoongMapService,
     private readonly trackingGateway: TrackingGateway,
     private readonly notificationService: NotificationService,
+    private readonly vouchersService: VouchersService,
+    private readonly bookingDispatchService: BookingDispatchService,
+    private readonly bookingCheckinService: BookingCheckinService,
   ) {}
 
   private emitBookingNotification(
@@ -404,9 +416,9 @@ export class TaskerBookingService {
         booking,
       );
       const totalPrice = toNumber(booking.totalPrice);
-      const platformFee = Math.round(
-        (totalPrice * platformCommissionRate) / 100,
-      );
+      const discountAmount = toNumber(booking.discountAmount);
+      const subtotal = totalPrice + discountAmount;
+      const platformFee = Math.round((subtotal * platformCommissionRate) / 100);
 
       return {
         distance,
@@ -417,10 +429,10 @@ export class TaskerBookingService {
           addonPrice: toNumber(booking.addonPrice),
           peakFee: toNumber(booking.peakFee),
           petFee: toNumber(booking.petFee),
-          discountAmount: toNumber(booking.discountAmount),
+          discountAmount,
           platformCommissionRate,
           platformFee,
-          taskerIncome: Math.max(totalPrice - platformFee, 0),
+          taskerIncome: Math.max(subtotal - platformFee, 0),
         },
         schedule: {
           scheduledStartDate: booking.scheduledStartDate,
@@ -464,13 +476,22 @@ export class TaskerBookingService {
           );
         }
 
+        await this.bookingPolicyService.assertTaskerConcurrentAndOverlapConstraints(
+          manager,
+          tasker.id,
+          booking,
+        );
+
         if (booking.paymentMethod === PaymentMethod.CASH) {
           const commissionRate = await this.resolvePlatformCommissionRate(
             manager,
             booking,
           );
+          // Dùng subtotal (trước voucher) vì nền tảng thu phí trên giá gốc của tasker
+          const subtotalForCommission =
+            toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
           const platformFee = Math.round(
-            (toNumber(booking.totalPrice) * commissionRate) / 100,
+            (subtotalForCommission * commissionRate) / 100,
           );
           await this.taskerDepositService.assertCanCoverCashCommission(
             manager,
@@ -550,6 +571,39 @@ export class TaskerBookingService {
           ),
         );
 
+      // Hủy các delayed dispatch job còn đang chờ cho booking này
+      void this.bookingDispatchService
+        .cancelPendingDispatch(result.id)
+        .catch((err) =>
+          this.logger.warn(
+            `Không thể hủy dispatch job cho booking=${result.id}: ${err}`,
+          ),
+        );
+
+      // Schedule checkin/auto-cancel jobs theo lịch hẹn
+      void this.dataSource
+        .getRepository(BookingEntity)
+        .findOne({
+          where: { id: result.id },
+          select: [
+            'id',
+            'bookingCode',
+            'scheduledStart',
+            'scheduledEnd',
+            'scheduledStartDate',
+            'scheduledStartTime',
+            'scheduledEndDate',
+            'scheduledEndTime',
+            'durationHours',
+          ],
+        })
+        .then((b) => b && this.bookingCheckinService.scheduleCheckinJobs(b))
+        .catch((err) =>
+          this.logger.warn(
+            `Không thể schedule checkin jobs cho booking=${result.id}: ${err}`,
+          ),
+        );
+
       return result;
     }, 'Không thể nhận booking');
   }
@@ -592,7 +646,11 @@ export class TaskerBookingService {
     userId: string,
   ): Promise<TaskerAssignedBookingDetailResponse | null> {
     return asyncHandleOperation(async () => {
-      const tasker = await this.findTaskerProfile(userId);
+      const tasker = await this.dataSource
+        .getRepository(TaskerEntity)
+        .findOne({ where: { user: { id: userId } }, relations: ['user'] });
+
+      if (!tasker) return null;
       const booking = await this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
@@ -698,51 +756,44 @@ export class TaskerBookingService {
     bookingId: string,
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
+      // Validate quyền sở hữu booking trước khi vào transaction check-in
+      const tasker = await this.findTaskerProfile(userId);
+
+      const ownerCheck = await this.dataSource
+        .getRepository(BookingEntity)
+        .findOne({
+          where: { id: bookingId, tasker: { id: tasker.id } },
+          select: ['id'],
+        });
+      if (!ownerCheck) {
+        throw new NotFoundException(
+          'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+        );
+      }
+
+      // Delegate sang BookingCheckinService để validate time window + ghi log
       const booking = await this.dataSource.transaction(async (manager) => {
-        const tasker = await this.findTaskerProfile(userId);
-        const bookingRepository = manager.getRepository(BookingEntity);
-        const booking = await bookingRepository
+        await this.bookingCheckinService.performCheckin(
+          userId,
+          bookingId,
+          manager,
+        );
+
+        // Load lại booking với đầy đủ relations để map response
+        return manager
+          .getRepository(BookingEntity)
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
           .leftJoinAndSelect('booking.customer', 'customer')
           .leftJoinAndSelect('customer.user', 'customerUser')
           .leftJoinAndSelect('booking.addressRef', 'addressRef')
-          .setLock('pessimistic_write', undefined, ['booking'])
           .where('booking.id = :bookingId', { bookingId })
-          .andWhere('tasker.id = :taskerId', { taskerId: tasker.id })
           .getOne();
-
-        if (!booking) {
-          throw new NotFoundException(
-            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
-          );
-        }
-
-        if (booking.status !== BookingStatus.TASKER_ON_THE_WAY) {
-          throw new BadRequestException(
-            'Chỉ booking ở trạng thái TASKER_ON_THE_WAY mới có thể check-in',
-          );
-        }
-
-        const oldStatus = booking.status;
-        const checkedInAt = new Date();
-        booking.status = BookingStatus.CHECKED_IN;
-        booking.checkedInAt = checkedInAt;
-        const savedBooking = await bookingRepository.save(booking);
-
-        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
-          booking: savedBooking,
-          oldStatus,
-          newStatus: BookingStatus.CHECKED_IN,
-          changedByUser: { id: userId } as UserEntity,
-          note: 'Tasker đã đến nơi',
-          cancellationFee: 0,
-          refundAmount: 0,
-        });
-        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
-
-        return savedBooking;
       });
+
+      if (!booking)
+        throw new NotFoundException('Booking không tìm thấy sau check-in');
 
       const arrivedAt =
         booking.checkedInAt?.toISOString() ?? new Date().toISOString();
@@ -758,6 +809,11 @@ export class TaskerBookingService {
         changedAt: booking.checkedInAt ?? new Date(),
         actorUserId: userId,
       });
+
+      // Hủy auto-cancel job vì đã check-in thành công
+      void this.bookingCheckinService
+        .cancelCheckinJobs(bookingId)
+        .catch(() => null);
 
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);
@@ -886,15 +942,19 @@ export class TaskerBookingService {
             completedAt,
           );
         }
+        await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
         const savedBooking = await bookingRepository.save(booking);
 
+        // Voucher do nền tảng chịu: tasker nhận tiền tính trên subtotal (trước giảm giá)
         const totalPrice = toNumber(savedBooking.totalPrice);
+        const discountAmount = toNumber(savedBooking.discountAmount);
+        const subtotal = totalPrice + discountAmount;
         const commissionRate = await this.resolvePlatformCommissionRate(
           manager,
           savedBooking,
         );
-        const platformFee = Math.round((totalPrice * commissionRate) / 100);
-        const taskerEarning = Math.max(totalPrice - platformFee, 0);
+        const platformFee = Math.round((subtotal * commissionRate) / 100);
+        const taskerEarning = Math.max(subtotal - platformFee, 0);
 
         if (savedBooking.paymentMethod === PaymentMethod.CASH) {
           if (platformFee > 0) {
@@ -924,6 +984,15 @@ export class TaskerBookingService {
             platformFee,
             savedBooking,
             `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
+          );
+        }
+        // Ghi nhận chi phí voucher nền tảng chịu
+        if (discountAmount > 0) {
+          await this.walletService.recordPlatformExpense(
+            manager,
+            discountAmount,
+            savedBooking,
+            `Nền tảng chịu voucher cho booking ${savedBooking.bookingCode}`,
           );
         }
 
@@ -1317,5 +1386,157 @@ export class TaskerBookingService {
       );
       return DEFAULT_PLATFORM_COMMISSION_RATE;
     }
+  }
+
+  async cancelByTasker(
+    userId: string,
+    bookingId: string,
+    dto: CancelBookingDto,
+  ): Promise<{
+    message: string;
+    penaltyAmount: number;
+    weeklyCount: number;
+    suspended: boolean;
+    suspendedUntil?: string;
+  }> {
+    return asyncHandleOperation(async () => {
+      let customerUserId: string | undefined;
+      let taskerUserId: string = userId;
+      let bookingCode = '';
+      let penaltyAmount = 0;
+      let weeklyCount = 0;
+      let suspended = false;
+      let suspendedUntil: Date | undefined;
+
+      await this.dataSource.transaction(async (manager) => {
+        const booking = await manager
+          .getRepository(BookingEntity)
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .andWhere('taskerUser.id = :userId', { userId })
+          .getOne();
+
+        if (!booking) {
+          throw new NotFoundException(
+            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+          );
+        }
+
+        const tasker = booking.tasker!;
+        this.bookingPolicyService.assertTaskerCanCancel(booking);
+        this.bookingPolicyService.assertTaskerNotCancelSuspended(tasker);
+
+        customerUserId = booking.customer?.user?.id;
+        taskerUserId = tasker.user?.id ?? userId;
+        bookingCode = booking.bookingCode;
+
+        // Đếm lần hủy trong 7 ngày (TRƯỚC lần này)
+        weeklyCount = await this.bookingPolicyService.countWeeklyCancels(
+          manager,
+          tasker.id,
+        );
+        // Lần hủy này là weeklyCount + 1
+        const thisCancel = weeklyCount + 1;
+        penaltyAmount =
+          this.bookingPolicyService.resolveCancelPenaltyAmount(thisCancel);
+
+        // 1. Re-post booking
+        const oldStatus = booking.status;
+        booking.status = BookingStatus.POSTED;
+        booking.tasker = null;
+        await this.vouchersService.releaseReservationForBooking(
+          manager,
+          booking.id,
+        );
+        const savedBooking = await manager
+          .getRepository(BookingEntity)
+          .save(booking);
+
+        // 2. Log status
+        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
+          booking: savedBooking,
+          oldStatus,
+          newStatus: BookingStatus.POSTED,
+          changedByUser: { id: userId } as UserEntity,
+          note: `Tasker hủy đơn (lần ${thisCancel}/tuần) — phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ`,
+          cancelledBy: CancelledBy.TASKER,
+          cancelledByUser: { id: userId } as UserEntity,
+          cancelReason: dto.reason?.trim() || null,
+          cancellationFee: penaltyAmount,
+          refundAmount: 0,
+        });
+        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+
+        // 3. Trừ ví tasker nếu có phí phạt
+        if (penaltyAmount > 0) {
+          const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+            manager,
+            tasker,
+          );
+          await this.walletService.debitWallet(manager, {
+            wallet: taskerWallet,
+            amount: penaltyAmount,
+            type: WalletTransactionType.CANCELLATION_FEE,
+            booking: savedBooking,
+            description: `Phí phạt hủy đơn #${bookingCode} (lần ${thisCancel}/tuần)`,
+          });
+        }
+
+        // 4. Khóa nếu đủ 3 lần trong tuần
+        if (thisCancel >= WEEKLY_CANCEL_LIMIT) {
+          suspendedUntil = new Date(
+            Date.now() + CANCEL_SUSPENSION_DAYS * 24 * 60 * 60 * 1000,
+          );
+          tasker.cancelSuspendedUntil = suspendedUntil;
+          suspended = true;
+          await manager.getRepository(TaskerEntity).save(tasker);
+        }
+      });
+
+      // 5. Notify customer
+      if (customerUserId) {
+        await this.notificationService.notify({
+          userId: customerUserId,
+          type: NotificationType.BOOKING_CANCELLED,
+          referenceType: NotificationRefType.BOOKING,
+          referenceId: bookingId,
+          title: 'Tasker đã hủy đơn của bạn',
+          content: `Đơn #${bookingCode} đang được tìm tasker mới. Xin lỗi vì sự bất tiện này.`,
+        });
+      }
+
+      // 6. Notify tasker nếu bị khóa
+      if (suspended && suspendedUntil) {
+        const fmt = suspendedUntil.toLocaleDateString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          timeZone: 'Asia/Ho_Chi_Minh',
+        });
+        await this.notificationService.notify({
+          userId: taskerUserId,
+          type: NotificationType.SYSTEM,
+          referenceType: NotificationRefType.BOOKING,
+          referenceId: bookingId,
+          title: 'Tài khoản bị tạm khóa nhận đơn',
+          content: `Bạn đã hủy ${WEEKLY_CANCEL_LIMIT} đơn trong 7 ngày. Tài khoản bị khóa nhận đơn đến ${fmt}.`,
+        });
+      }
+
+      return {
+        message: suspended
+          ? `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ. Tài khoản bị khóa nhận đơn ${CANCEL_SUSPENSION_DAYS} ngày.`
+          : `Đã hủy đơn.`,
+        penaltyAmount,
+        weeklyCount: weeklyCount + 1,
+        suspended,
+        suspendedUntil: suspendedUntil?.toISOString(),
+      };
+    }, 'Lỗi khi tasker hủy đơn');
   }
 }

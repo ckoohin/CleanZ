@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import {
+  AlertTriangle,
   Camera,
   CheckCircle2,
   Eye,
@@ -64,10 +65,19 @@ function StarPicker({
 
 export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
   const router = useRouter();
-  const { data: bookingData, isLoading: isBookingLoading } =
-    useBookingDetail(bookingId);
-  const { data: existingReview, isLoading: isReviewLoading } =
-    useMyReview(bookingId);
+  const {
+    data: bookingData,
+    error: bookingError,
+    isLoading: isBookingLoading,
+  } = useBookingDetail(bookingId, {
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const {
+    data: existingReview,
+    error: reviewError,
+    isLoading: isReviewLoading,
+  } = useMyReview(bookingId);
   const createReview = useCreateReview(bookingId);
 
   const [overallRating, setOverallRating] = useState(0);
@@ -116,6 +126,67 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (bookingError || reviewError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="px-4 py-4 sticky top-0 bg-background z-10 border-b border-border/50 flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 -ml-2 rounded-full hover:bg-muted"
+          >
+            <X className="w-5 h-5 text-foreground/90" />
+          </button>
+          <h1 className="text-lg font-bold text-foreground">Đánh giá Dịch vụ</h1>
+        </div>
+        <div className="p-6 max-w-md mx-auto">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
+            <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-amber-500" />
+            <p className="font-bold text-foreground">
+              Chưa thể mở đánh giá
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Dữ liệu đơn hàng vừa được cập nhật. Vui lòng thử lại sau vài giây.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
+            >
+              Tải lại
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!booking || booking.status !== "COMPLETED") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="px-4 py-4 sticky top-0 bg-background z-10 border-b border-border/50 flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 -ml-2 rounded-full hover:bg-muted"
+          >
+            <X className="w-5 h-5 text-foreground/90" />
+          </button>
+          <h1 className="text-lg font-bold text-foreground">Đánh giá Dịch vụ</h1>
+        </div>
+        <div className="p-6 max-w-md mx-auto">
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-primary" />
+            <p className="font-bold text-foreground">
+              Đang đồng bộ trạng thái đơn hàng
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Bạn có thể đánh giá sau khi đơn được ghi nhận hoàn thành.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -299,12 +370,9 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
         </div>
 
         {/* Image upload */}
-        <div>
+        {/* <div>
           <p className="text-sm font-bold text-foreground/90 mb-3">
             Ảnh minh chứng{" "}
-            <span className="font-normal text-muted-foreground">
-              (Không bắt buộc, tối đa {MAX_IMAGES} ảnh)
-            </span>
           </p>
           <div className="flex flex-wrap gap-3">
             {images.map((url, i) => (
@@ -356,7 +424,7 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
             className="hidden"
             onChange={handleImagePick}
           />
-        </div>
+        </div> */}
 
         {/* Anonymous toggle */}
         <button

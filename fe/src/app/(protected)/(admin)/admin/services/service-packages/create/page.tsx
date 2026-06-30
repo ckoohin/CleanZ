@@ -57,6 +57,7 @@ import { adminPolicyService } from "@/features/admin/modules/policy/services/adm
 import { useAdminPolicies } from "@/features/admin/modules/policy/hooks/useAdminPolicies";
 import { POLICY_CATEGORY_META, PolicyCategory } from "@/features/admin/modules/policy/types/policy.type";
 import { CreateWorkflowStepDto } from "@/features/admin/modules/service/types/workflow.type";
+import { ROUTES } from "@/constants/routes";
 
 // ─── Step config ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -1609,7 +1610,7 @@ export default function CreatePackagePage() {
       }
 
       toast.success("Tạo gói dịch vụ thành công!");
-      router.push(`/admin/services/service-packages/${pkg.id}`);
+      router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.BASE);
     } catch (e: unknown) {
       const error = e as { 
         response?: { 
@@ -3175,7 +3176,7 @@ export default function CreatePackagePage() {
                           const pct = Math.round((p.multiplier - 1) * 100);
                           const fmt = (s: string) => s ? new Date(s).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
                           return (
-                            <tr key={i} className="hover:bg-primary/[0.02] transition-colors">
+                            <tr key={i} className="hover:bg-primary/2 transition-colors">
                               {/* Ngày */}
                               <td className="py-3.5 px-4">
                                 <span className="font-extrabold text-foreground text-[13px] block leading-tight">{daysText[p.dayOfWeek]}</span>

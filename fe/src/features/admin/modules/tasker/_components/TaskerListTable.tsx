@@ -101,7 +101,7 @@ export const TaskerListTable: React.FC = () => {
       title: "Đối tác",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="relative w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0">
             {row.avatarUrl ? (
               <img
                 src={row.avatarUrl}
@@ -110,6 +110,13 @@ export const TaskerListTable: React.FC = () => {
               />
             ) : (
               row.fullName?.[0]?.toUpperCase() || "T"
+            )}
+            {row.presenceStatus === "ONLINE" && (
+              <span
+                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--c-card)] bg-emerald-500 shadow-sm"
+                aria-label="Đang online"
+                title="Đang online"
+              />
             )}
           </div>
           <div>
@@ -164,6 +171,7 @@ export const TaskerListTable: React.FC = () => {
             taskerId={row.id}
             status={row.status}
             fullName={row.fullName || "tasker"}
+            cancelSuspendedUntil={row.cancelSuspendedUntil}
           />
         </div>
       ),
