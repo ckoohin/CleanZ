@@ -72,6 +72,9 @@ export class TaskerEntity {
   @Column({ name: 'total_completed_jobs', type: 'int', default: 0 })
   totalCompletedJobs!: number;
 
+  @Column({ name: 'warning_points', type: 'int', default: 0 })
+  warningPoints!: number;
+
   @Column({
     name: 'total_working_hours',
     type: 'numeric',

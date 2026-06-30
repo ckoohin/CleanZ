@@ -44,7 +44,6 @@ interface TaskerStatusToggleProps {
   taskerId: string;
   status: TaskerAccountStatus;
   fullName: string;
-  presenceStatus?: string | null;
   cancelSuspendedUntil?: string | null;
 }
 
@@ -52,7 +51,6 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
   taskerId,
   status,
   fullName,
-  presenceStatus,
   cancelSuspendedUntil,
 }) => {
   const [banOpen, setBanOpen] = useState(false);
@@ -62,12 +60,13 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
   const [banType, setBanType] = useState<BanType>("TEMPORARY");
   // Số ngày khóa cho hình thức TEMPORARY (mặc định 7, 1–365).
   const [durationDays, setDurationDays] = useState(7);
+  const [renderedAt] = useState(() => Date.now());
 
   const banMutation = useBanTasker();
   const unbanMutation = useUnbanTasker();
   const workStatusMutation = useUpdateTaskerWorkStatus();
   const cancelSuspensionActive = Boolean(
-    cancelSuspendedUntil && new Date(cancelSuspendedUntil).getTime() > Date.now()
+    cancelSuspendedUntil && new Date(cancelSuspendedUntil).getTime() > renderedAt
   );
 
   const openUnlockCancelDialog = (e: React.MouseEvent) => {
@@ -143,20 +142,15 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
           activeLabel="Đang hoạt động"
           inactiveLabel="Bị đình chỉ"
         />
-        {isActive && (
+        {isActive && cancelSuspensionActive && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full border border-[var(--c-line)] bg-[var(--c-card-2)] px-2.5 py-1 text-[11px] font-bold text-[var(--c-ink-soft)]">
-              {presenceStatus === "ONLINE" ? "Online" : "Offline"}
-            </span>
-            {cancelSuspensionActive && (
-              <button
-                type="button"
-                onClick={openUnlockCancelDialog}
-                className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-700 transition hover:border-amber-500/50 hover:bg-amber-500/15"
-              >
-                Mở khóa nhận đơn
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openUnlockCancelDialog}
+              className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-700 transition hover:border-amber-500/50 hover:bg-amber-500/15"
+            >
+              Mở khóa nhận đơn
+            </button>
           </div>
         )}
       </div>
@@ -268,7 +262,7 @@ export const TaskerStatusToggle: React.FC<TaskerStatusToggleProps> = ({
           <DialogHeader>
             <DialogTitle className="text-[var(--c-ink)]">Mở khóa nhận đơn</DialogTitle>
             <DialogDescription className="pt-1 text-sm text-[var(--c-muted)]">
-              Admin chỉ mở khóa nhận đơn cho <strong>{fullName}</strong>. Trạng thái Online/Offline vẫn do tasker tự điều chỉnh trên app.
+              Admin chỉ mở khóa nhận đơn cho <strong>{fullName}</strong>. Trạng thái hiện diện vẫn do tasker tự điều chỉnh trên app.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

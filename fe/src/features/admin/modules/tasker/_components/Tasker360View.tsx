@@ -477,7 +477,6 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                 taskerId={detail.id}
                 status={detail.status}
                 fullName={detail.fullName || "tasker"}
-                presenceStatus={detail.presenceStatus}
                 cancelSuspendedUntil={detail.cancelSuspendedUntil}
               />
             </div>

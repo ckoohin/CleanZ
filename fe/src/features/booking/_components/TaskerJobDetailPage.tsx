@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SwipeToAccept } from "@/features/tasker/_components/SwipeToAccept";
@@ -35,6 +35,7 @@ import {
 } from "@/features/booking/hooks/useTaskerBooking";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
+  BookingSchedule,
   BookingStatus,
   TaskerAssignedBookingDetail,
   TaskerPostedBookingDetail,
@@ -107,6 +108,127 @@ function ActionButton({
         </>
       )}
     </button>
+  );
+}
+
+// ─── Checkin Window Banner ────────────────────────────────────────────────────
+const CHECKIN_OPEN_BEFORE = 3000;  // T-30
+const CHECKIN_AUTO_CANCEL = 45; // T+45
+
+function parseScheduledStart(schedule: BookingSchedule): Date | null {
+  if (!schedule.scheduledStartDate || !schedule.scheduledStartTime) return null;
+  const d = new Date(`${schedule.scheduledStartDate}T${schedule.scheduledStartTime}`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function fmtTime(date: Date) {
+  return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtCountdown(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return m > 0 ? `${m} phút ${s} giây` : `${s} giây`;
+}
+
+function CheckinWindowBanner({ schedule }: { schedule: BookingSchedule }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const scheduledStart = parseScheduledStart(schedule);
+  if (!scheduledStart) return null;
+
+  const startMs = scheduledStart.getTime();
+  const diffMin = (now - startMs) / 60_000;
+
+  const windowOpenTime = new Date(startMs - CHECKIN_OPEN_BEFORE * 60_000);
+  const autoCancelTime = new Date(startMs + CHECKIN_AUTO_CANCEL * 60_000);
+
+  if (diffMin < -CHECKIN_OPEN_BEFORE) {
+    const secsUntilOpen = Math.ceil((-diffMin - CHECKIN_OPEN_BEFORE) * 60);
+    return (
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+          <p className="text-xs font-black text-blue-700 uppercase tracking-wide">
+            Cửa sổ check-in chưa mở
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-blue-800">
+          Mở lúc {fmtTime(windowOpenTime)} · còn{" "}
+          <span className="font-black">{fmtCountdown(secsUntilOpen)}</span>
+        </p>
+        <p className="text-[11px] text-blue-600 mt-1">
+          Hãy di chuyển để đến nơi đúng giờ. Check-in sớm nhất từ 30 phút trước lịch hẹn.
+        </p>
+      </div>
+    );
+  }
+
+  if (diffMin <= 0) {
+    const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <p className="text-xs font-black text-emerald-700 uppercase tracking-wide">
+            Cửa sổ check-in đang mở
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-emerald-800">
+          Đến nơi rồi bấm check-in trước{" "}
+          <span className="font-black">{fmtTime(autoCancelTime)}</span>
+        </p>
+        <div className="mt-2 flex items-center gap-1.5 bg-white/70 rounded-xl px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <p className="text-xs font-bold text-emerald-700">
+            Hủy tự động sau{" "}
+            <span className="font-black">{fmtCountdown(secsUntilCancel)}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (diffMin <= CHECKIN_AUTO_CANCEL) {
+    const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
+    const minutesLate = Math.ceil(diffMin);
+    const warningPoints = diffMin > 15 ? 2 : 1;
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          <p className="text-xs font-black text-red-700 uppercase tracking-wide">
+            Đang đến muộn — {minutesLate} phút
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-red-800">
+          Vẫn có thể check-in, nhưng bạn sẽ bị +{warningPoints} điểm cảnh báo
+        </p>
+        <div className="mt-2 flex items-center gap-1.5 bg-white/70 rounded-xl px-3 py-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <p className="text-xs font-bold text-red-700">
+            Đơn bị hủy tự động sau{" "}
+            <span className="font-black">{fmtCountdown(secsUntilCancel)}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-slate-500 shrink-0" />
+        <p className="text-sm font-semibold text-slate-600">
+          Cửa sổ check-in đã đóng lúc {fmtTime(autoCancelTime)}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -384,7 +506,7 @@ function AssignedDetailView({
 }) {
   const router = useRouter();
   const markOnWay = useMarkOnTheWay(bookingId);
-  const markCheckedIn = useMarkCheckedIn(bookingId);
+  const markCheckedIn = useMarkCheckedIn(bookingId, data.schedule);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
   const cancelByTasker = useCancelByTasker(bookingId);
@@ -547,6 +669,10 @@ function AssignedDetailView({
                 Tiến trình chuyến đi
               </p>
               <BookingStatusStepper currentStatus={data.status} />
+            </div>
+
+            <div className="mb-3">
+              <CheckinWindowBanner schedule={data.schedule} />
             </div>
 
             <ActionButton
@@ -747,15 +873,26 @@ function AssignedDetailView({
           color="emerald"
         />
       )}
-      {(data.status === "COMPLETED" || data.status === "CANCELLED") && (
-        <div className="bg-muted/50 rounded-2xl p-4 text-center">
+      {data.status === "COMPLETED" && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-          <p className="text-sm font-bold text-foreground">
-            {data.status === "COMPLETED" ? "Đã hoàn thành" : "Đã bị hủy"}
+          <p className="text-sm font-bold text-foreground">Đã hoàn thành</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Thu nhập đã được ghi vào ví</p>
+        </div>
+      )}
+      {data.status === "CANCELLED" && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center">
+          <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+          <p className="text-sm font-bold text-foreground">Đơn đã bị hủy</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Đơn có thể đã bị hủy do không check-in đúng giờ hoặc do yêu cầu hủy
           </p>
-          {data.status === "COMPLETED" && (
-            <p className="text-xs text-muted-foreground mt-0.5">Thu nhập đã được ghi vào ví</p>
-          )}
+          <button
+            onClick={() => router.push("/tasker/jobs")}
+            className="mt-3 text-xs font-bold text-primary"
+          >
+            ← Về danh sách đơn
+          </button>
         </div>
       )}
 
@@ -926,6 +1063,19 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     location,
     !isPostedMode,
   );
+
+  // Detect auto-cancel khi tasker đang di chuyển
+  const prevStatusRef = useRef<BookingStatus | null>(null);
+  useEffect(() => {
+    const current = assignedQuery.data?.status ?? null;
+    const prev = prevStatusRef.current;
+    if (prev === "TASKER_ON_THE_WAY" && current === "CANCELLED") {
+      toast.error("Đơn đã bị hủy tự động do không check-in đúng giờ", {
+        duration: 8000,
+      });
+    }
+    prevStatusRef.current = current;
+  }, [assignedQuery.data?.status]);
 
   useEffect(() => {
     if (isPostedMode || !trackingSocket) return;

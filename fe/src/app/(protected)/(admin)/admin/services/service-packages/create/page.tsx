@@ -55,6 +55,7 @@ import { adminPolicyService } from "@/features/admin/modules/policy/services/adm
 import { useAdminPolicies } from "@/features/admin/modules/policy/hooks/useAdminPolicies";
 import { POLICY_CATEGORY_META, PolicyCategory } from "@/features/admin/modules/policy/types/policy.type";
 import { CreateWorkflowStepDto } from "@/features/admin/modules/service/types/workflow.type";
+import { ROUTES } from "@/constants/routes";
 
 // ─── Step config ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -1400,7 +1401,7 @@ export default function CreatePackagePage() {
       }
 
       toast.success("Tạo gói dịch vụ thành công!");
-      router.push(`/admin/services/${pkg.id}`);
+      router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.BASE);
     } catch (e: unknown) {
       const error = e as { 
         response?: { 

@@ -37,6 +37,7 @@ import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { BookingDispatchService } from './booking-dispatch.service';
+import { BookingCheckinService } from './booking-checkin.service';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
@@ -274,6 +275,7 @@ export class TaskerBookingService {
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
     private readonly bookingDispatchService: BookingDispatchService,
+    private readonly bookingCheckinService: BookingCheckinService,
   ) {}
 
   private emitBookingNotification(
@@ -416,9 +418,7 @@ export class TaskerBookingService {
       const totalPrice = toNumber(booking.totalPrice);
       const discountAmount = toNumber(booking.discountAmount);
       const subtotal = totalPrice + discountAmount;
-      const platformFee = Math.round(
-        (subtotal * platformCommissionRate) / 100,
-      );
+      const platformFee = Math.round((subtotal * platformCommissionRate) / 100);
 
       return {
         distance,
@@ -580,6 +580,30 @@ export class TaskerBookingService {
           ),
         );
 
+      // Schedule checkin/auto-cancel jobs theo lịch hẹn
+      void this.dataSource
+        .getRepository(BookingEntity)
+        .findOne({
+          where: { id: result.id },
+          select: [
+            'id',
+            'bookingCode',
+            'scheduledStart',
+            'scheduledEnd',
+            'scheduledStartDate',
+            'scheduledStartTime',
+            'scheduledEndDate',
+            'scheduledEndTime',
+            'durationHours',
+          ],
+        })
+        .then((b) => b && this.bookingCheckinService.scheduleCheckinJobs(b))
+        .catch((err) =>
+          this.logger.warn(
+            `Không thể schedule checkin jobs cho booking=${result.id}: ${err}`,
+          ),
+        );
+
       return result;
     }, 'Không thể nhận booking');
   }
@@ -732,51 +756,44 @@ export class TaskerBookingService {
     bookingId: string,
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
+      // Validate quyền sở hữu booking trước khi vào transaction check-in
+      const tasker = await this.findTaskerProfile(userId);
+
+      const ownerCheck = await this.dataSource
+        .getRepository(BookingEntity)
+        .findOne({
+          where: { id: bookingId, tasker: { id: tasker.id } },
+          select: ['id'],
+        });
+      if (!ownerCheck) {
+        throw new NotFoundException(
+          'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+        );
+      }
+
+      // Delegate sang BookingCheckinService để validate time window + ghi log
       const booking = await this.dataSource.transaction(async (manager) => {
-        const tasker = await this.findTaskerProfile(userId);
-        const bookingRepository = manager.getRepository(BookingEntity);
-        const booking = await bookingRepository
+        await this.bookingCheckinService.performCheckin(
+          userId,
+          bookingId,
+          manager,
+        );
+
+        // Load lại booking với đầy đủ relations để map response
+        return manager
+          .getRepository(BookingEntity)
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
           .leftJoinAndSelect('booking.customer', 'customer')
           .leftJoinAndSelect('customer.user', 'customerUser')
           .leftJoinAndSelect('booking.addressRef', 'addressRef')
-          .setLock('pessimistic_write', undefined, ['booking'])
           .where('booking.id = :bookingId', { bookingId })
-          .andWhere('tasker.id = :taskerId', { taskerId: tasker.id })
           .getOne();
-
-        if (!booking) {
-          throw new NotFoundException(
-            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
-          );
-        }
-
-        if (booking.status !== BookingStatus.TASKER_ON_THE_WAY) {
-          throw new BadRequestException(
-            'Chỉ booking ở trạng thái TASKER_ON_THE_WAY mới có thể check-in',
-          );
-        }
-
-        const oldStatus = booking.status;
-        const checkedInAt = new Date();
-        booking.status = BookingStatus.CHECKED_IN;
-        booking.checkedInAt = checkedInAt;
-        const savedBooking = await bookingRepository.save(booking);
-
-        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
-          booking: savedBooking,
-          oldStatus,
-          newStatus: BookingStatus.CHECKED_IN,
-          changedByUser: { id: userId } as UserEntity,
-          note: 'Tasker đã đến nơi',
-          cancellationFee: 0,
-          refundAmount: 0,
-        });
-        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
-
-        return savedBooking;
       });
+
+      if (!booking)
+        throw new NotFoundException('Booking không tìm thấy sau check-in');
 
       const arrivedAt =
         booking.checkedInAt?.toISOString() ?? new Date().toISOString();
@@ -792,6 +809,11 @@ export class TaskerBookingService {
         changedAt: booking.checkedInAt ?? new Date(),
         actorUserId: userId,
       });
+
+      // Hủy auto-cancel job vì đã check-in thành công
+      void this.bookingCheckinService
+        .cancelCheckinJobs(bookingId)
+        .catch(() => null);
 
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);

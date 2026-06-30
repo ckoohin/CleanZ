@@ -41,14 +41,20 @@ export class EmailChannel {
     }
 
     const subject = EMAIL_SUBJECTS[input.type] ?? input.title;
-    await this.mailService.sendNotificationEmail(
-      user.email,
-      user.fullName,
-      subject,
-      {
-        title: input.title,
-        content: input.content,
-      },
-    );
+    try {
+      await this.mailService.sendNotificationEmail(
+        user.email,
+        user.fullName,
+        subject,
+        {
+          title: input.title,
+          content: input.content,
+        },
+      );
+    } catch (err) {
+      this.logger.error(
+        `Skip email notification: user=${input.userId}, type=${input.type}, error=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 }
