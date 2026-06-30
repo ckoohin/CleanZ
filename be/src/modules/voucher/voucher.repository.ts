@@ -8,6 +8,35 @@ import {
 import { VoucherListQueryDto } from './dto/list-query-voucher.dto';
 import { PaginatedData } from '../../common/helpers/response.interface';
 
+export interface VoucherUsageDetailRow {
+  id: string;
+  customerId: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  status: CustomerVoucherStatus;
+  bookingId: string | null;
+  bookingCode: string | null;
+  bookingStatus: string | null;
+  discountAmount: number;
+  totalPrice: number;
+  issuedAt: Date;
+  reservedAt: Date | null;
+  usedAt: Date | null;
+}
+
+export interface VoucherUsageStatsDetail {
+  total: number;
+  issued: number;
+  reserved: number;
+  used: number;
+  released: number;
+  totalDiscountAmount: number;
+  totalOrderAmount: number;
+  conversionRate: number;
+  rows: VoucherUsageDetailRow[];
+}
+
 @Injectable()
 export class VoucherRepository extends Repository<VoucherEntity> {
   constructor(private readonly dataSource: DataSource) {
@@ -83,6 +112,87 @@ export class CustomerVoucherRepository extends Repository<CustomerVoucherEntity>
       total: parseInt(result?.total ?? '0', 10),
       reserved: parseInt(result?.reserved ?? '0', 10),
       used: parseInt(result?.used ?? '0', 10),
+    };
+  }
+
+  async getVoucherUsageStatsDetail(
+    voucherId: string,
+  ): Promise<VoucherUsageStatsDetail> {
+    const rows = await this.createQueryBuilder('cv')
+      .leftJoin('cv.customer', 'customer')
+      .leftJoin('customer.user', 'user')
+      .leftJoin('cv.booking', 'booking')
+      .select('cv.id', 'id')
+      .addSelect('cv.customerId', 'customerId')
+      .addSelect('user.fullName', 'customerName')
+      .addSelect('user.email', 'customerEmail')
+      .addSelect('user.phone', 'customerPhone')
+      .addSelect('cv.status', 'status')
+      .addSelect('cv.bookingId', 'bookingId')
+      .addSelect('booking.bookingCode', 'bookingCode')
+      .addSelect('booking.status', 'bookingStatus')
+      .addSelect('booking.discountAmount', 'discountAmount')
+      .addSelect('booking.totalPrice', 'totalPrice')
+      .addSelect('cv.createdAt', 'issuedAt')
+      .addSelect('cv.reservedAt', 'reservedAt')
+      .addSelect('cv.usedAt', 'usedAt')
+      .where('cv.voucherId = :voucherId', { voucherId })
+      .orderBy('cv.createdAt', 'DESC')
+      .getRawMany<{
+        id: string;
+        customerId: string;
+        customerName: string | null;
+        customerEmail: string | null;
+        customerPhone: string | null;
+        status: CustomerVoucherStatus;
+        bookingId: string | null;
+        bookingCode: string | null;
+        bookingStatus: string | null;
+        discountAmount: string | null;
+        totalPrice: string | null;
+        issuedAt: Date;
+        reservedAt: Date | null;
+        usedAt: Date | null;
+      }>();
+
+    const detailRows = rows.map((row) => ({
+      ...row,
+      discountAmount: Number(row.discountAmount ?? 0),
+      totalPrice: Number(row.totalPrice ?? 0),
+    }));
+
+    const total = detailRows.length;
+    const issued = detailRows.filter(
+      (row) => row.status === CustomerVoucherStatus.ISSUED,
+    ).length;
+    const reserved = detailRows.filter(
+      (row) => row.status === CustomerVoucherStatus.RESERVED,
+    ).length;
+    const used = detailRows.filter(
+      (row) => row.status === CustomerVoucherStatus.USED,
+    ).length;
+    const released = detailRows.filter(
+      (row) => row.status === CustomerVoucherStatus.RELEASED,
+    ).length;
+    const totalDiscountAmount = detailRows.reduce(
+      (sum, row) => sum + row.discountAmount,
+      0,
+    );
+    const totalOrderAmount = detailRows.reduce(
+      (sum, row) => sum + row.totalPrice,
+      0,
+    );
+
+    return {
+      total,
+      issued,
+      reserved,
+      used,
+      released,
+      totalDiscountAmount,
+      totalOrderAmount,
+      conversionRate: total > 0 ? Math.round((used / total) * 10000) / 100 : 0,
+      rows: detailRows,
     };
   }
 

@@ -341,15 +341,27 @@ export class VouchersService {
     issuedCount: number;
     reservedCount: number;
     usedCount: number;
+    releasedCount: number;
+    totalDiscountAmount: number;
+    totalOrderAmount: number;
+    conversionRate: number;
+    usages: Awaited<
+      ReturnType<CustomerVoucherRepository['getVoucherUsageStatsDetail']>
+    >['rows'];
   }> {
     const voucher = await this.findOne(voucherId);
     const stats =
-      await this.customerVoucherRepo.getVoucherUsageStats(voucherId);
+      await this.customerVoucherRepo.getVoucherUsageStatsDetail(voucherId);
     return {
       voucher,
       issuedCount: stats.total,
       reservedCount: stats.reserved,
       usedCount: stats.used,
+      releasedCount: stats.released,
+      totalDiscountAmount: stats.totalDiscountAmount,
+      totalOrderAmount: stats.totalOrderAmount,
+      conversionRate: stats.conversionRate,
+      usages: stats.rows,
     };
   }
 

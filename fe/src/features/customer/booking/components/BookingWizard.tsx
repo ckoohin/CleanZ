@@ -203,6 +203,20 @@ function toDateKey(value: string | Date): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+function getVietnamDayOfWeek(date: string): number {
+  const dateKey = toDateKey(date);
+  const parsed = new Date(`${dateKey}T12:00:00+07:00`);
+  if (Number.isNaN(parsed.getTime())) return -1;
+  return parsed.getUTCDay();
+}
+
+function isPeakDayMatch(rawPeakDay: unknown, bookingDayOfWeek: number): boolean {
+  const peakDay = Number(rawPeakDay);
+  if (!Number.isFinite(peakDay)) return false;
+  if (peakDay === 7) return true;
+  return peakDay === bookingDayOfWeek;
+}
+
 function isPeakTimeSlot(
   date: string,
   time: string,
@@ -210,15 +224,14 @@ function isPeakTimeSlot(
 ): boolean {
   if (!date || peakHours.length === 0) return false;
 
-  const selectedDate = new Date(`${date}T${time}:00+07:00`);
-  if (Number.isNaN(selectedDate.getTime())) return false;
+  const dayOfWeek = getVietnamDayOfWeek(date);
+  if (dayOfWeek < 0) return false;
 
-  const dayOfWeek = selectedDate.getDay();
   const selectedDateKey = toDateKey(date);
   const currentMinutes = timeToMinutes(time);
 
   return peakHours.some((peak) => {
-    if (peak.dayOfWeek !== 7 && peak.dayOfWeek !== dayOfWeek) return false;
+    if (!isPeakDayMatch(peak.dayOfWeek, dayOfWeek)) return false;
 
     if (peak.startDate && selectedDateKey < toDateKey(peak.startDate)) {
       return false;
@@ -231,10 +244,10 @@ function isPeakTimeSlot(
     const endMinutes = timeToMinutes(peak.endHour);
 
     if (startMinutes <= endMinutes) {
-      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
     }
 
-    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
   });
 }
 

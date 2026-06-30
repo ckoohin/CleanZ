@@ -70,12 +70,19 @@ export const taskerBookingApi = {
     location?: { currentLatitude?: number; currentLongitude?: number }
   ): Promise<TaskerPostedBookingDetail> =>
     http
-      .get(API_ENDPOINTS.BOOKING.TASKER_POSTED_DETAIL(id), { params: location })
+      .get(API_ENDPOINTS.BOOKING.TASKER_POSTED_DETAIL(id), {
+        params: location,
+        skipErrorToast: true,
+      } as Parameters<typeof http.get>[1])
       .then((r) => r.data.data ?? r.data),
 
   /** 06. Nhận đơn */
   accept: (id: string): Promise<TaskerAcceptResponse> =>
-    http.post(API_ENDPOINTS.BOOKING.TASKER_ACCEPT(id)).then((r) => r.data.data ?? r.data),
+    http
+      .post(API_ENDPOINTS.BOOKING.TASKER_ACCEPT(id), undefined, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 07A. Lấy đơn hàng đang hoạt động hiện tại */
   findActive: (): Promise<TaskerAssignedBookingDetail | null> =>
@@ -87,7 +94,10 @@ export const taskerBookingApi = {
     location?: { currentLatitude?: number; currentLongitude?: number }
   ): Promise<TaskerAssignedBookingDetail> =>
     http
-      .get(API_ENDPOINTS.BOOKING.TASKER_ASSIGNED(id), { params: location })
+      .get(API_ENDPOINTS.BOOKING.TASKER_ASSIGNED(id), {
+        params: location,
+        skipErrorToast: true,
+      } as Parameters<typeof http.get>[1])
       .then((r) => r.data.data ?? r.data),
 
   /** 08. Bắt đầu di chuyển */

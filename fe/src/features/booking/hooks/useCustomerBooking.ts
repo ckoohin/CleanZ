@@ -70,7 +70,10 @@ export function useCreateBooking() {
 }
 
 /** Chi tiết booking */
-export function useBookingDetail(id: string) {
+export function useBookingDetail(
+  id: string,
+  options?: { staleTime?: number; refetchOnMount?: boolean | "always" },
+) {
   const { data: user, isLoading: isAuthLoading } = useAuth();
   const isCustomerReady = !isAuthLoading && user?.role === "CUSTOMER";
 
@@ -78,6 +81,8 @@ export function useBookingDetail(id: string) {
     queryKey: QUERY_KEYS.detail(id),
     queryFn: () => customerBookingApi.findDetail(id),
     enabled: isCustomerReady && !!id,
+    staleTime: options?.staleTime,
+    refetchOnMount: options?.refetchOnMount,
     refetchInterval: (query) => {
       if (!isCustomerReady || !id) return false;
       const status = query.state.data?.status;

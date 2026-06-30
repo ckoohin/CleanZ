@@ -11,10 +11,51 @@ const TASKER_KEYS = {
 };
 
 function getErrorMsg(err: unknown): string {
-  return (
-    (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-    "Có lỗi xảy ra"
-  );
+  const data = (err as { response?: { data?: { message?: unknown; errors?: unknown } } })?.response?.data;
+  const message = data?.message ?? data?.errors;
+
+  if (typeof message === "string") return message;
+  if (Array.isArray(message)) return message.join(", ");
+  if (message && typeof message === "object") {
+    return Object.values(message as Record<string, unknown>)
+      .map((value) => (typeof value === "string" ? value : JSON.stringify(value)))
+      .join(", ");
+  }
+
+  return "Có lỗi xảy ra";
+}
+
+export function isSilentTaskerBookingError(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  const message = getErrorMsg(err).toLocaleLowerCase("vi-VN");
+
+  if (status === 404) {
+    return (
+      message.includes("booking không tồn tại") ||
+      message.includes("không thuộc tasker") ||
+      message.includes("không còn ở trạng thái posted") ||
+      message.includes("không còn khả dụng") ||
+      message.includes("đã có tasker nhận")
+    );
+  }
+
+  if (status === 409) {
+    return (
+      message.includes("không còn khả dụng") ||
+      message.includes("đã có tasker nhận")
+    );
+  }
+
+  return false;
+}
+
+function handleTaskerBookingError(err: unknown) {
+  if (isSilentTaskerBookingError(err)) {
+    console.info("[TaskerBooking] Bỏ qua lỗi booking stale/không thuộc tasker:", getErrorMsg(err));
+    return;
+  }
+
+  toast.error(getErrorMsg(err));
 }
 
 // ─── Tasker Hooks ─────────────────────────────────────────────────────────────
@@ -63,7 +104,7 @@ export function useAcceptBooking() {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -107,7 +148,7 @@ export function useMarkOnTheWay(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -121,7 +162,7 @@ export function useMarkCheckedIn(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -135,7 +176,7 @@ export function useMarkStart(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -150,7 +191,7 @@ export function useMarkComplete(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }
 
@@ -165,6 +206,6 @@ export function useCancelByTasker(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
     },
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: handleTaskerBookingError,
   });
 }

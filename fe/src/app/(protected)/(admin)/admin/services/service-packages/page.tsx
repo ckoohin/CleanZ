@@ -214,12 +214,11 @@ export default function AdminServicesPage() {
       <PageHeader onAdd={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.CREATE)} />
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { label: "Tổng gói dịch vụ", value: packages?.length ?? 0, icon: Package, color: "text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)]" },
           { label: "Đang hoạt động", value: packages?.filter((p) => p.isActive).length ?? 0, icon: TrendingUp, color: "text-[#0E9F6E] bg-[rgba(14,159,110,0.12)] dark:bg-[rgba(14,159,110,0.12)]" },
           { label: "Đã tắt", value: packages?.filter((p) => !p.isActive).length ?? 0, icon: PowerOff, color: "text-[#E11D48] bg-[rgba(225,29,72,0.12)] dark:bg-[rgba(225,29,72,0.12)]" },
-          { label: "Tổng dịch vụ con", value: packages?.reduce((s, p) => s + (p.packageSubServices?.length ?? 0), 0) ?? 0, icon: Grid3X3, color: "text-[#2563EB] bg-[rgba(37,99,235,0.12)] dark:bg-[rgba(37,99,235,0.12)]" },
         ].map((stat) => (
           <div key={stat.label} className="bg-(--c-card) border border-(--c-line)/50 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
             <div className={`p-2.5 rounded-xl ${stat.color}`}>
@@ -351,21 +350,6 @@ export default function AdminServicesPage() {
                 <SelectItem value="short" className="text-xs font-semibold rounded-lg">Dưới 4 giờ / ca</SelectItem>
                 <SelectItem value="medium" className="text-xs font-semibold rounded-lg">Từ 4h - 8h / ca</SelectItem>
                 <SelectItem value="long" className="text-xs font-semibold rounded-lg">Trên 8 giờ / ca</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Lọc 3: Số lượng dịch vụ con */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">Dịch vụ con</label>
-            <Select value={hasSubServicesFilter} onValueChange={(val) => setHasSubServicesFilter(val as "all" | "yes" | "no")}>
-              <SelectTrigger className="h-9 rounded-xl text-xs bg-background">
-                <SelectValue placeholder="Chọn trạng thái" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all" className="text-xs font-semibold rounded-lg">Tất cả</SelectItem>
-                <SelectItem value="yes" className="text-xs font-semibold rounded-lg">Có dịch vụ con</SelectItem>
-                <SelectItem value="no" className="text-xs font-semibold rounded-lg">Chưa có dịch vụ con</SelectItem>
               </SelectContent>
             </Select>
           </div>

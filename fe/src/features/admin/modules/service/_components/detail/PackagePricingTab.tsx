@@ -649,10 +649,6 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
               <Plus className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
               Dịch vụ thêm
             </TabsTrigger>
-            <TabsTrigger value="subservices" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group flex items-center justify-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
-              Tùy chọn (Con)
-            </TabsTrigger>
             {allowSubscription && (
               <TabsTrigger value="subscriptions" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group flex items-center justify-center gap-1.5">
                 <CalendarDays className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
@@ -1300,8 +1296,8 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
             )}
           </TabsContent>
 
-          {/* TAB 3: SUB-SERVICES (TÙY CHỌN DỊCH VỤ CON) */}
-          <TabsContent value="subservices" className="space-y-4">
+          {/* TAB 3: SUB-SERVICES — hidden */}
+          <TabsContent value="subservices" className="hidden space-y-4">
             {isEditing && (
               <div className="p-4 bg-muted/10 border border-border/30 rounded-xl space-y-3 mb-2">
                 <p className="text-xs font-bold text-foreground">Liên kết thêm dịch vụ con mới của hệ thống vào gói</p>

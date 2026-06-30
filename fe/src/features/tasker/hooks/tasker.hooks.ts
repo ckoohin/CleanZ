@@ -12,9 +12,10 @@ import type { TaskerLocationPayload } from '../services/tasker.service';
 type ApiError = Error & { response?: { data?: { message?: string } } };
 type PresenceStatus = 'ONLINE' | 'OFFLINE';
 
+// Fallback: 376 Thụy Khuê, Tây Hồ, Hà Nội
 const TEST_TASKER_LOCATION: TaskerLocationPayload = {
-  lat: 10.7769,
-  lng: 106.7009,
+  lat: 21.0463,
+  lng: 105.8374,
 };
 
 export const taskerKeys = {

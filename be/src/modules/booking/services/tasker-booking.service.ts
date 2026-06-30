@@ -414,8 +414,10 @@ export class TaskerBookingService {
         booking,
       );
       const totalPrice = toNumber(booking.totalPrice);
+      const discountAmount = toNumber(booking.discountAmount);
+      const subtotal = totalPrice + discountAmount;
       const platformFee = Math.round(
-        (totalPrice * platformCommissionRate) / 100,
+        (subtotal * platformCommissionRate) / 100,
       );
 
       return {
@@ -427,10 +429,10 @@ export class TaskerBookingService {
           addonPrice: toNumber(booking.addonPrice),
           peakFee: toNumber(booking.peakFee),
           petFee: toNumber(booking.petFee),
-          discountAmount: toNumber(booking.discountAmount),
+          discountAmount,
           platformCommissionRate,
           platformFee,
-          taskerIncome: Math.max(totalPrice - platformFee, 0),
+          taskerIncome: Math.max(subtotal - platformFee, 0),
         },
         schedule: {
           scheduledStartDate: booking.scheduledStartDate,
@@ -485,8 +487,11 @@ export class TaskerBookingService {
             manager,
             booking,
           );
+          // Dùng subtotal (trước voucher) vì nền tảng thu phí trên giá gốc của tasker
+          const subtotalForCommission =
+            toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
           const platformFee = Math.round(
-            (toNumber(booking.totalPrice) * commissionRate) / 100,
+            (subtotalForCommission * commissionRate) / 100,
           );
           await this.taskerDepositService.assertCanCoverCashCommission(
             manager,
@@ -918,13 +923,16 @@ export class TaskerBookingService {
         await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
         const savedBooking = await bookingRepository.save(booking);
 
+        // Voucher do nền tảng chịu: tasker nhận tiền tính trên subtotal (trước giảm giá)
         const totalPrice = toNumber(savedBooking.totalPrice);
+        const discountAmount = toNumber(savedBooking.discountAmount);
+        const subtotal = totalPrice + discountAmount;
         const commissionRate = await this.resolvePlatformCommissionRate(
           manager,
           savedBooking,
         );
-        const platformFee = Math.round((totalPrice * commissionRate) / 100);
-        const taskerEarning = Math.max(totalPrice - platformFee, 0);
+        const platformFee = Math.round((subtotal * commissionRate) / 100);
+        const taskerEarning = Math.max(subtotal - platformFee, 0);
 
         if (savedBooking.paymentMethod === PaymentMethod.CASH) {
           if (platformFee > 0) {
@@ -954,6 +962,15 @@ export class TaskerBookingService {
             platformFee,
             savedBooking,
             `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
+          );
+        }
+        // Ghi nhận chi phí voucher nền tảng chịu
+        if (discountAmount > 0) {
+          await this.walletService.recordPlatformExpense(
+            manager,
+            discountAmount,
+            savedBooking,
+            `Nền tảng chịu voucher cho booking ${savedBooking.bookingCode}`,
           );
         }
 

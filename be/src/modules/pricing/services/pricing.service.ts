@@ -431,15 +431,12 @@ export class PricingService {
     );
     if (packagePeakHours.length > 0 && input.scheduledStart) {
       const bookingDate = new Date(input.scheduledStart);
-      const bookingDayOfWeek = bookingDate.getDay();
+      const bookingDayOfWeek = this.getVietnamDayOfWeek(bookingDate);
       const bookingDateKey = this.toDateKey(bookingDate);
       const bookingTimeStr = input.scheduledStartTime?.slice(0, 5);
 
       const matchingPackagePeakHours = packagePeakHours.filter((peakHour) => {
-        if (
-          peakHour.dayOfWeek !== 7 &&
-          peakHour.dayOfWeek !== bookingDayOfWeek
-        ) {
+        if (!this.isPeakDayMatch(peakHour.dayOfWeek, bookingDayOfWeek)) {
           return false;
         }
 
@@ -463,10 +460,10 @@ export class PricingService {
         const end = this.timeToMinutes(peakHour.endHour);
 
         if (start <= end) {
-          return time >= start && time < end;
+          return time >= start && time <= end;
         }
 
-        return time >= start || time < end;
+        return time >= start || time <= end;
       });
 
       if (matchingPackagePeakHours.length > 0) {
@@ -706,6 +703,23 @@ export class PricingService {
       parts.map((part) => [part.type, part.value]),
     );
     return `${values.year}-${values.month}-${values.day}`;
+  }
+
+  private getVietnamDayOfWeek(date: Date): number {
+    const dateKey = this.toDateKey(date);
+    const parsed = new Date(`${dateKey}T12:00:00+07:00`);
+    if (Number.isNaN(parsed.getTime())) return -1;
+    return parsed.getUTCDay();
+  }
+
+  private isPeakDayMatch(
+    rawPeakDay: number | string,
+    bookingDayOfWeek: number,
+  ): boolean {
+    const peakDay = Number(rawPeakDay);
+    if (!Number.isFinite(peakDay)) return false;
+    if (peakDay === 7) return true;
+    return peakDay === bookingDayOfWeek;
   }
 
   private normalizeTime(value?: string | null): string | null {

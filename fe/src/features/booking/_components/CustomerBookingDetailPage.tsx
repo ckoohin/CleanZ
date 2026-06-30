@@ -806,7 +806,15 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                 </div>
 
                 <button
-                  onClick={() => router.push(`/customer/history/review/${booking.id}`)}
+                  onClick={() => {
+                    void queryClient.invalidateQueries({
+                      queryKey: ["booking", booking.id],
+                    });
+                    void queryClient.invalidateQueries({
+                      queryKey: ["reviews", "booking", booking.id],
+                    });
+                    router.push(`/customer/history/review/${booking.id}`);
+                  }}
                   disabled={isReviewLoading}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-60"
                 >

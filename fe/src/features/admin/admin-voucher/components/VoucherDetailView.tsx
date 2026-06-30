@@ -11,9 +11,16 @@ import {
   CircleDollarSign,
   Hash,
   Clock3,
+  ReceiptText,
+  UserRound,
+  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
-import { useAdminVoucherDetail } from "../hooks/useAdminVoucherDetail";
+import {
+  useAdminVoucherDetail,
+  useAdminVoucherStats,
+} from "../hooks/useAdminVoucherDetail";
+import type { VoucherUsageStatus } from "../types/voucher.type";
 
 type Props = {
   id: string;
@@ -29,8 +36,23 @@ function formatCurrency(value?: number | null) {
   return new Intl.NumberFormat("vi-VN").format(value) + "đ";
 }
 
+const STATUS_LABEL: Record<VoucherUsageStatus, string> = {
+  ISSUED: "Đã phát hành",
+  RESERVED: "Đang giữ chỗ",
+  USED: "Đã sử dụng",
+  RELEASED: "Đã giải phóng",
+};
+
+const STATUS_CLASS: Record<VoucherUsageStatus, string> = {
+  ISSUED: "border-blue-200 bg-blue-50 text-blue-700",
+  RESERVED: "border-amber-200 bg-amber-50 text-amber-700",
+  USED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  RELEASED: "border-slate-200 bg-slate-50 text-slate-600",
+};
+
 export function VoucherDetailView({ id }: Props) {
   const { data, isLoading, isError, error } = useAdminVoucherDetail(id);
+  const { data: stats, isLoading: isStatsLoading } = useAdminVoucherStats(id);
 
   if (!id) {
     return (
@@ -196,7 +218,7 @@ export function VoucherDetailView({ id }: Props) {
 
           <div className="rounded-2xl border bg-background p-4 space-y-2">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Giới hạn mỗi khách
+              Giới hạn sử dụng
             </p>
             <p className="text-lg font-bold">
               {data.perCustomerLimit ?? "Không giới hạn"}
@@ -292,6 +314,154 @@ export function VoucherDetailView({ id }: Props) {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* usage statistics */}
+        <div className="rounded-2xl border bg-background p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <ReceiptText className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-bold">Thống kê sử dụng voucher</h3>
+            </div>
+            {isStatsLoading && (
+              <span className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Đang tải thống kê...
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-2xl border bg-card p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tổng phát hành
+              </p>
+              <p className="mt-2 text-2xl font-black">{stats?.issuedCount ?? 0}</p>
+            </div>
+            <div className="rounded-2xl border bg-card p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Đã dùng
+              </p>
+              <p className="mt-2 text-2xl font-black text-emerald-600">
+                {stats?.usedCount ?? data.usedCount ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border bg-card p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Đang giữ chỗ
+              </p>
+              <p className="mt-2 text-2xl font-black text-amber-600">
+                {stats?.reservedCount ?? data.reservedCount ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border bg-card p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tỷ lệ chuyển đổi
+              </p>
+              <p className="mt-2 text-2xl font-black">
+                {stats ? `${stats.conversionRate.toFixed(1)}%` : "0%"}
+              </p>
+            </div>
+            <div className="rounded-2xl border bg-card p-4 lg:col-span-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <WalletCards className="h-4 w-4" />
+                <p className="text-xs font-semibold uppercase tracking-wider">
+                  Tổng tiền đã giảm
+                </p>
+              </div>
+              <p className="mt-2 text-2xl font-black text-primary">
+                {formatCurrency(stats?.totalDiscountAmount ?? 0)}
+              </p>
+            </div>
+            <div className="rounded-2xl border bg-card p-4 lg:col-span-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CircleDollarSign className="h-4 w-4" />
+                <p className="text-xs font-semibold uppercase tracking-wider">
+                  Giá trị đơn có voucher
+                </p>
+              </div>
+              <p className="mt-2 text-2xl font-black">
+                {formatCurrency(stats?.totalOrderAmount ?? 0)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-2xl border">
+            <div className="border-b bg-muted/30 px-4 py-3">
+              <p className="text-sm font-bold">Chi tiết lượt sử dụng</p>
+              <p className="text-xs text-muted-foreground">
+                Theo từng khách hàng, đơn hàng và trạng thái voucher.
+              </p>
+            </div>
+
+            {!stats?.usages?.length ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                <UserRound className="mb-2 h-8 w-8 opacity-50" />
+                <p className="text-sm font-semibold">Chưa có lượt phát hành/sử dụng</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-muted/20 text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-bold">Khách hàng</th>
+                      <th className="px-4 py-3 font-bold">Trạng thái</th>
+                      <th className="px-4 py-3 font-bold">Đơn hàng</th>
+                      <th className="px-4 py-3 font-bold text-right">Giảm giá</th>
+                      <th className="px-4 py-3 font-bold text-right">Tổng đơn</th>
+                      <th className="px-4 py-3 font-bold">Thời điểm</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {stats.usages.map((usage) => (
+                      <tr key={usage.id} className="hover:bg-muted/10">
+                        <td className="px-4 py-3">
+                          <p className="font-bold">
+                            {usage.customerName ?? "Khách hàng"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {usage.customerPhone || usage.customerEmail || usage.customerId}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${STATUS_CLASS[usage.status]}`}
+                          >
+                            {STATUS_LABEL[usage.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {usage.bookingCode ? (
+                            <>
+                              <p className="font-semibold">#{usage.bookingCode}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {usage.bookingStatus ?? "—"}
+                              </p>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">Chưa gắn đơn</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-primary">
+                          {formatCurrency(usage.discountAmount)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">
+                          {formatCurrency(usage.totalPrice)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          <p>Phát: {formatDate(usage.issuedAt)}</p>
+                          {usage.reservedAt && (
+                            <p>Giữ: {formatDate(usage.reservedAt)}</p>
+                          )}
+                          {usage.usedAt && <p>Dùng: {formatDate(usage.usedAt)}</p>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 

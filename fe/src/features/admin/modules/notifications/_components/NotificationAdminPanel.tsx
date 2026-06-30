@@ -253,7 +253,7 @@ export const NotificationAdminPanel: React.FC = () => {
               setFilter((p) => ({ ...p, type: v as NotificationType | "ALL", page: 1 }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line)] text-sm font-medium shadow-none">
+            <SelectTrigger className="h-10 min-w-[215px] rounded-full border-[var(--c-line)] bg-[var(--c-card-2)] text-sm font-medium shadow-none">
               <ListFilter className="w-3.5 h-3.5 mr-1 text-[var(--c-muted)]" />
               <SelectValue placeholder="Loại thông báo" />
             </SelectTrigger>

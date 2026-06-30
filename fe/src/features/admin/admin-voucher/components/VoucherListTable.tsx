@@ -286,7 +286,7 @@ export function VoucherListTable() {
         emptyDescription="Không có voucher nào khớp với tìm kiếm hoặc bộ lọc của bạn."
         rowActions={rowActions}
         filters={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+          <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto sm:w-auto">
             <Select
               value={query.type || "ALL"}
               onValueChange={(type) =>
@@ -297,7 +297,7 @@ export function VoucherListTable() {
                 }))
               }
             >
-              <SelectTrigger className="h-10 w-full rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium shadow-none sm:w-[150px]">
+              <SelectTrigger className="h-10 w-full shrink-0 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium shadow-none sm:w-[162px]">
                 <ListFilter className="size-4 text-[var(--c-muted)]" />
                 <SelectValue placeholder="Loại voucher" />
               </SelectTrigger>
@@ -319,7 +319,7 @@ export function VoucherListTable() {
                 }))
               }
             >
-              <SelectTrigger className="h-10 w-full rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium shadow-none sm:w-[170px]">
+              <SelectTrigger className="h-10 w-full shrink-0 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium shadow-none sm:w-[185px]">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent className="cz-admin rounded-xl">

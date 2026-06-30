@@ -31,6 +31,7 @@ import {
   useMarkStart,
   useMarkComplete,
   useCancelByTasker,
+  isSilentTaskerBookingError,
 } from "@/features/booking/hooks/useTaskerBooking";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
@@ -377,74 +378,10 @@ function TaskerCancelDialog({
 function AssignedDetailView({
   data,
   bookingId,
-  trackingSocket,
 }: {
   data: TaskerAssignedBookingDetail;
   bookingId: string;
-  trackingSocket: ReturnType<typeof useTrackingSocket>;
 }) {
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulationStep, setSimulationStep] = useState(0);
-
-  const destLat = data.address?.latitude ? Number(data.address.latitude) : null;
-  const destLng = data.address?.longitude ? Number(data.address.longitude) : null;
-
-  const isDestValid =
-    destLat !== null &&
-    destLng !== null &&
-    !isNaN(destLat) &&
-    !isNaN(destLng) &&
-    destLat >= -90 &&
-    destLat <= 90 &&
-    destLng >= -180 &&
-    destLng <= 180;
-
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    if (isSimulating && isDestValid && destLat !== null && destLng !== null) {
-      // Điểm xuất phát của Tasker cách điểm đến 0.005 độ (khoảng 500m)
-      const startLat = destLat + 0.005;
-      const startLng = destLng + 0.005;
-
-      intervalId = setInterval(() => {
-        setSimulationStep((prevStep) => {
-          const nextStep = prevStep + 1;
-          if (nextStep > 10) {
-            setIsSimulating(false);
-            if (intervalId) clearInterval(intervalId);
-            return 0;
-          }
-
-          const currentLat = startLat - (startLat - destLat) * (nextStep / 10);
-          const currentLng = startLng - (startLng - destLng) * (nextStep / 10);
-
-          if (trackingSocket) {
-            trackingSocket.emit("tasker:location:update", {
-              bookingId,
-              latitude: currentLat,
-              longitude: currentLng,
-            });
-          }
-
-          return nextStep;
-        });
-      }, 2000);
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isSimulating, isDestValid, destLat, destLng, trackingSocket, bookingId]);
-
-  const handleToggleSimulation = () => {
-    setIsSimulating((prev) => {
-      const next = !prev;
-      if (!next) {
-        setSimulationStep(0);
-      }
-      return next;
-    });
-  };
   const router = useRouter();
   const markOnWay = useMarkOnTheWay(bookingId);
   const markCheckedIn = useMarkCheckedIn(bookingId);
@@ -619,31 +556,6 @@ function AssignedDetailView({
               isPending={markCheckedIn.isPending}
               color="amber"
             />
-
-            {process.env.NODE_ENV === "development" && (
-              <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-dashed border-primary/40 bg-card p-4 shadow-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase tracking-wider text-primary">
-                    Bộ giả lập GPS di chuyển
-                  </p>
-                  <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
-                    {isSimulating
-                      ? `Đang gửi tọa độ: Chặng ${simulationStep}/10`
-                      : "Giả lập GPS chạy xe tới nhà khách hàng"}
-                  </p>
-                </div>
-                <button
-                  onClick={handleToggleSimulation}
-                  className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider shadow-sm transition-all select-none ${
-                    isSimulating
-                      ? "bg-red-500 text-white shadow-red-200 hover:bg-red-600"
-                      : "bg-primary text-white shadow-primary/20 hover:bg-primary/95"
-                  }`}
-                >
-                  {isSimulating ? "Dừng" : "Giả lập"}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -904,6 +816,9 @@ function AssignedDetailView({
   );
 }
 
+// Fallback: 376 Thụy Khuê, Tây Hồ, Hà Nội
+const FALLBACK_LOCATION = { currentLatitude: 21.0463, currentLongitude: 105.8374 };
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
@@ -972,22 +887,17 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
         setIsRequestingLocation(false);
       },
       (error) => {
-        let message =
-          "Không thể xác định vị trí. Hãy bật GPS rồi thử lại.";
-        let errorKind: LocationErrorKind = "location-disabled";
-
         if (error.code === error.PERMISSION_DENIED) {
-          message =
-            "Quyền vị trí đang bị chặn. Hãy mở cài đặt trang của trình duyệt, chọn Vị trí → Cho phép rồi thử lại.";
-          errorKind = "permission-denied";
-        } else if (error.code === error.TIMEOUT) {
-          message =
-            "Chưa nhận được tín hiệu GPS. Hãy bật Vị trí chính xác, ra nơi thoáng và thử lại.";
-          errorKind = "timeout";
+          setLocationError(
+            "Quyền vị trí đang bị chặn. Hãy mở cài đặt trang của trình duyệt, chọn Vị trí → Cho phép rồi thử lại.",
+          );
+          setLocationErrorKind("permission-denied");
+          setLocationResolved(true);
+          setIsRequestingLocation(false);
+          return;
         }
-
-        setLocationError(message);
-        setLocationErrorKind(errorKind);
+        // GPS lỗi (timeout/unavailable) → dùng vị trí mặc định để không block
+        setLocation(FALLBACK_LOCATION);
         setLocationResolved(true);
         setIsRequestingLocation(false);
       },
@@ -1037,7 +947,13 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             });
           },
           (err) => {
-            console.error("Lỗi lấy vị trí Tasker định kỳ:", err);
+            if (err.code !== err.PERMISSION_DENIED) {
+              trackingSocket.emit("tasker:location:update", {
+                bookingId,
+                latitude: FALLBACK_LOCATION.currentLatitude,
+                longitude: FALLBACK_LOCATION.currentLongitude,
+              });
+            }
           },
           { enableHighAccuracy: true }
         );
@@ -1065,6 +981,19 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     (!Number.isFinite(location.currentLatitude) ||
       !Number.isFinite(location.currentLongitude));
   const activeStatus = isPostedMode ? null : assignedQuery.data?.status;
+  const activeQuery = isPostedMode ? postedQuery : assignedQuery;
+  const isSilentBookingError =
+    activeQuery.isError && isSilentTaskerBookingError(activeQuery.error);
+
+  useEffect(() => {
+    if (!isSilentBookingError) return;
+
+    console.info(
+      "[TaskerJobDetail] Bỏ qua lỗi booking stale/không thuộc tasker:",
+      activeQuery.error,
+    );
+    router.replace("/tasker/jobs");
+  }, [activeQuery.error, isSilentBookingError, router]);
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -1132,7 +1061,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
                   : "Thử lấy lại vị trí"}
             </button>
           </div>
-        ) : isLoading ? (
+        ) : isLoading || isSilentBookingError ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse" />
@@ -1204,7 +1133,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             </div>
           )
         ) : assignedQuery.data ? (
-          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} trackingSocket={trackingSocket} />
+          <AssignedDetailView data={assignedQuery.data} bookingId={bookingId} />
         ) : (
           <div className="text-center py-16 text-muted-foreground text-sm">
             Đang tải...

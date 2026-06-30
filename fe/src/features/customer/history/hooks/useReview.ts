@@ -21,6 +21,7 @@ export function useMyReview(bookingId: string) {
     queryKey: reviewKeys.myReview(bookingId),
     queryFn: () => reviewApi.getMyReview(bookingId),
     enabled: !!bookingId,
+    staleTime: 0,
     retry: false,
   });
 }

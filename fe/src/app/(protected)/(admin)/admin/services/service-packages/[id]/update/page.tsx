@@ -3341,7 +3341,6 @@ export default function EditServicePackagePage({ params }: { params: React.Usabl
               <SectionCard icon={BarChart3} title="Các mốc giá & Tùy chọn con">
                 <div className="divide-y divide-border/20 border border-border/30 rounded-xl overflow-hidden bg-muted/5">
                   <ReviewRow label="Số mốc thời lượng" value={`${durations.length} mốc`} />
-                  <ReviewRow label="Số dịch vụ con (Tùy chọn)" value={`${selectedSubServices.length} dịch vụ`} />
                   <ReviewRow label="Số dịch vụ đi kèm (Addon)" value={`${addons.length} dịch vụ`} />
                   <ReviewRow label="Khung giờ cao điểm riêng" value={`${peakHours.length} khung giờ`} />
                   <ReviewRow label="Cấu hình chu kỳ gói tháng" value={`${subscriptions.length} chu kỳ`} />

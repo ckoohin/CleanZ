@@ -64,4 +64,28 @@ export interface VoucherStats {
   issuedCount: number;
   reservedCount: number;
   usedCount: number;
+  releasedCount: number;
+  totalDiscountAmount: number;
+  totalOrderAmount: number;
+  conversionRate: number;
+  usages: VoucherUsageDetail[];
+}
+
+export type VoucherUsageStatus = "ISSUED" | "RESERVED" | "USED" | "RELEASED";
+
+export interface VoucherUsageDetail {
+  id: string;
+  customerId: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  status: VoucherUsageStatus;
+  bookingId: string | null;
+  bookingCode: string | null;
+  bookingStatus: string | null;
+  discountAmount: number;
+  totalPrice: number;
+  issuedAt: string;
+  reservedAt: string | null;
+  usedAt: string | null;
 }
