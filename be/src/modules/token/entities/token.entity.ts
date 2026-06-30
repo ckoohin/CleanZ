@@ -4,11 +4,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
 @Entity('tokens')
+@Index('idx_tokens_user_type_expires', ['user', 'type', 'expiresAt'])
 export class Token {
   @PrimaryGeneratedColumn('uuid')
   id: string;

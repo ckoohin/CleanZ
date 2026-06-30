@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddNotificationDedupeUniqueIndex1782640000000
-  implements MigrationInterface
-{
+export class AddNotificationDedupeUniqueIndex1782640000000 implements MigrationInterface {
   name = 'AddNotificationDedupeUniqueIndex1782640000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

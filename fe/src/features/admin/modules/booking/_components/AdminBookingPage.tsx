@@ -147,7 +147,7 @@ export function AdminBookingPage() {
   const [selectedCustomer, setSelectedCustomer] = React.useState<LookupOption | null>(null)
   const [selectedTasker, setSelectedTasker] = React.useState<LookupOption | null>(null)
   const [page, setPage] = React.useState(1)
-  const limit = 10
+  const [limit, setLimit] = React.useState(10)
 
   const { data, total, isLoading, mutate } = useAdminBookings({
     page,
@@ -397,6 +397,13 @@ export function AdminBookingPage() {
         rowActions={rowActions}
         totalItems={total}
         isLoading={isLoading}
+        page={page}
+        limit={limit}
+        onPageChange={setPage}
+        onLimitChange={(nextLimit) => {
+          setLimit(nextLimit)
+          setPage(1)
+        }}
       />
 
       <AdminBookingDetailModal

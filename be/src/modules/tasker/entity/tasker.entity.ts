@@ -72,6 +72,9 @@ export class TaskerEntity {
   @Column({ name: 'total_completed_jobs', type: 'int', default: 0 })
   totalCompletedJobs!: number;
 
+  @Column({ name: 'warning_points', type: 'int', default: 0 })
+  warningPoints!: number;
+
   @Column({
     name: 'total_working_hours',
     type: 'numeric',
@@ -159,6 +162,10 @@ export class TaskerEntity {
   @Column({ name: 'deposit_topup_due', type: 'timestamp', nullable: true })
   depositTopupDue?: Date | null;
 
+  /** Hạn khóa do tự hủy quá 3 lần/tuần. NULL = không bị khóa theo luồng này. */
+  @Column({ name: 'cancel_suspended_until', type: 'timestamp', nullable: true })
+  cancelSuspendedUntil?: Date | null;
+
   @Column({
     name: 'presence_status',
     type: 'enum',
@@ -186,6 +193,10 @@ export class TaskerEntity {
     nullable: true,
   })
   bankAccountName?: string | null;
+
+  // current_location (GEOGRAPHY POINT) managed via raw SQL — không map vào entity để tránh xung đột TypeORM
+  @Column({ name: 'location_updated_at', type: 'timestamptz', nullable: true })
+  locationUpdatedAt?: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

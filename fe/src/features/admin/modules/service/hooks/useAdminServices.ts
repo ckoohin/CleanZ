@@ -8,6 +8,7 @@ import {
   CreateAdminPackageDto,
   UpdateAdminPackageDto,
   SubServiceLinkItem,
+  AnalyticsFilter,
 } from '../services/admin-services.service';
 import { toast } from 'sonner';
 
@@ -33,7 +34,7 @@ export const ADMIN_PACKAGES_KEYS = {
   lists: () => [...ADMIN_PACKAGES_KEYS.all, 'list'] as const,
   details: () => [...ADMIN_PACKAGES_KEYS.all, 'detail'] as const,
   detail: (id: string) => [...ADMIN_PACKAGES_KEYS.details(), id] as const,
-  analytics: (id: string) => [...ADMIN_PACKAGES_KEYS.detail(id), 'analytics'] as const,
+  analytics: (id: string, filter?: AnalyticsFilter) => [...ADMIN_PACKAGES_KEYS.detail(id), 'analytics', filter] as const,
 };
 
 // ─── SUB-SERVICES HOOKS ──────────────────────────────────────────────────────
@@ -177,11 +178,11 @@ export const useDeleteAdminPackage = () => {
   });
 };
 
-export const useAdminPackageAnalytics = (id: string) => {
+export const useAdminPackageAnalytics = (id: string, filter?: AnalyticsFilter, enabled = true) => {
   return useQuery({
-    queryKey: ADMIN_PACKAGES_KEYS.analytics(id),
-    queryFn: () => adminServicesApi.getPackageAnalytics(id),
-    enabled: !!id,
+    queryKey: ADMIN_PACKAGES_KEYS.analytics(id, filter),
+    queryFn: () => adminServicesApi.getPackageAnalytics(id, filter),
+    enabled: !!id && enabled,
   });
 };
 

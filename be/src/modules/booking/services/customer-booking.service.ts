@@ -28,6 +28,7 @@ import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingEntity } from '../entity/booking.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
+import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import {
   BookingScheduleDraft,
   BookingScheduleService,
@@ -42,6 +43,8 @@ import { ServicePackageEntity } from 'src/modules/service/entity/service-package
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
+import { NotificationGateway } from 'src/modules/notification/notification.gateway';
+import { BookingDispatchService } from './booking-dispatch.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -91,6 +94,8 @@ export class CustomerBookingService {
     private readonly pricingService: PricingService,
     private readonly voucherService: VouchersService,
     private readonly notificationService: NotificationService,
+    private readonly bookingDispatchService: BookingDispatchService,
+    private readonly notificationGateway: NotificationGateway,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -162,7 +167,11 @@ export class CustomerBookingService {
     dto: CreateBookingDto,
   ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
-      return this.dataSource.transaction(async (manager) => {
+      let createdBookingId: string | undefined;
+      let addressLat: number | null = null;
+      let addressLng: number | null = null;
+
+      const response = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
         const logRepository = manager.getRepository(BookingStatusLogEntity);
         const context = await this.buildBookingPricingContext(
@@ -219,6 +228,11 @@ export class CustomerBookingService {
             .save(context.addressRef);
         }
         const savedBooking = await bookingRepository.save(booking);
+        await this.voucherService.reserveForBooking(manager, {
+          bookingId: savedBooking.id,
+          customerId: context.customer.id,
+          voucherId: savedBooking.voucherId,
+        });
 
         const bookingSubServiceRepository = manager.getRepository(
           BookingSubServiceEntity,
@@ -253,12 +267,47 @@ export class CustomerBookingService {
         });
         await logRepository.save(statusLog);
 
+        // Lấy tọa độ để dispatch sau khi transaction commit
+        createdBookingId = savedBooking.id;
+        const rawLat = context.addressRef?.latitude;
+        const rawLng = context.addressRef?.longitude;
+        addressLat = rawLat != null ? Number(rawLat) : null;
+        addressLng = rawLng != null ? Number(rawLng) : null;
+
         return this.mapCreatedBookingResponse(
           savedBooking,
           context,
           paymentMethod,
         );
       });
+
+      // Sau khi transaction commit thành công — emit + enqueue dispatch
+      if (createdBookingId) {
+        this.notificationGateway.emitToUser(userId, 'booking:searching', {
+          bookingId: createdBookingId,
+        });
+
+        if (
+          addressLat != null &&
+          addressLng != null &&
+          Number.isFinite(addressLat) &&
+          Number.isFinite(addressLng)
+        ) {
+          void this.bookingDispatchService
+            .enqueueDispatch(createdBookingId, userId, addressLat, addressLng)
+            .catch((err: unknown) =>
+              this.logger.error(
+                `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err}`,
+              ),
+            );
+        } else {
+          this.logger.warn(
+            `Booking=${createdBookingId} thiếu tọa độ địa chỉ — bỏ qua dispatch tự động`,
+          );
+        }
+      }
+
+      return response;
     }, 'Không thể tạo booking');
   }
 
@@ -442,19 +491,51 @@ export class CustomerBookingService {
         .limit(50)
         .getMany();
 
+      // Batch-load payments and vouchers to avoid N+1 queries
+      const bookingIds = bookings.map((b) => b.id);
+      const voucherIds = [
+        ...new Set(
+          bookings.filter((b) => b.voucherId).map((b) => b.voucherId!),
+        ),
+      ];
+
+      const [allPayments, allVouchers] = await Promise.all([
+        this.paymentService.findLatestByBookingIds(
+          this.dataSource.manager,
+          bookingIds,
+        ),
+        voucherIds.length > 0
+          ? Promise.all(
+              voucherIds.map((id) =>
+                this.voucherService
+                  .getById(this.dataSource.manager, id)
+                  .catch(() => null),
+              ),
+            )
+          : Promise.resolve([]),
+      ]);
+
+      // Build lookup maps
+      const paymentMap = new Map<string, PaymentEntity>();
+      for (const p of allPayments) {
+        const bid =
+          (p as any).bookingId ??
+          (p as any).booking_id ??
+          (p.booking as any)?.id;
+        if (bid && !paymentMap.has(bid)) {
+          paymentMap.set(bid, p); // first = latest due to DESC sort
+        }
+      }
+      const voucherMap = new Map(
+        allVouchers.filter(Boolean).map((v) => [v!.id, v!]),
+      );
+
       const items: CustomerBookingDetailResponse[] = [];
       for (const booking of bookings) {
-        const [payment, voucher] = await Promise.all([
-          this.paymentService.findLatestByBookingId(
-            this.dataSource.manager,
-            booking.id,
-          ),
-          booking.voucherId
-            ? this.voucherService
-                .getById(this.dataSource.manager, booking.voucherId)
-                .catch(() => null)
-            : Promise.resolve(null),
-        ]);
+        const payment = paymentMap.get(booking.id) ?? null;
+        const voucher = booking.voucherId
+          ? (voucherMap.get(booking.voucherId) ?? null)
+          : null;
 
         const packageSummary = {
           id: booking.package?.id,
@@ -579,6 +660,7 @@ export class CustomerBookingService {
           manager,
           userId,
           draft,
+          booking.id,
         );
 
         booking.address = context.bookingAddress;
@@ -601,6 +683,11 @@ export class CustomerBookingService {
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
+        await this.voucherService.reserveForBooking(manager, {
+          bookingId: savedBooking.id,
+          customerId: savedBooking.customer.id,
+          voucherId: savedBooking.voucherId,
+        });
 
         await this.paymentService.updateLatestPendingPaymentAmount(
           manager,
@@ -656,6 +743,10 @@ export class CustomerBookingService {
         const oldStatus = booking.status;
         booking.status = BookingStatus.CANCELLED;
         booking.cancelledAt = new Date();
+        await this.voucherService.releaseReservationForBooking(
+          manager,
+          booking.id,
+        );
         taskerUserId = booking.tasker?.user?.id;
         bookingCode = booking.bookingCode;
         const savedBooking = await manager
@@ -718,6 +809,7 @@ export class CustomerBookingService {
     manager: EntityManager,
     userId: string,
     dto: BookingScheduleDraft,
+    currentBookingId?: string,
   ): Promise<BookingPricingContext> {
     const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
 
@@ -780,6 +872,8 @@ export class CustomerBookingService {
       scheduledStartTime: scheduleStart.scheduledStartTime,
       hasPet: dto.hasPet ?? addressRef?.hasPet ?? false,
       voucherCode: dto.voucherCode,
+      customerId: customer.id,
+      currentBookingId,
     });
     const schedule = this.bookingScheduleService.buildSchedule(
       dto,

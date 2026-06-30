@@ -24,13 +24,26 @@ export class MailProcessor extends WorkerHost {
     switch (job.name) {
       case MAIL_JOB_TEMP_PASSWORD: {
         const d = job.data as TempPasswordJobData;
-        await this.mailService.sendTempPasswordEmail(
-          d.email,
-          d.fullName,
-          d.tempPassword,
-          d.loginUrl,
+        this.logger.log(
+          `[TempPassword] Processor nhận job | jobId=${job.id} email=${d.email} attemptsMade=${job.attemptsMade}`,
         );
-        this.logger.log(`Đã gửi temp-password email tới ${d.email}`);
+        try {
+          await this.mailService.sendTempPasswordEmail(
+            d.email,
+            d.fullName,
+            d.tempPassword,
+            d.loginUrl,
+          );
+          this.logger.log(
+            `[TempPassword] Email gửi thành công | jobId=${job.id} email=${d.email}`,
+          );
+        } catch (err) {
+          this.logger.error(
+            `[TempPassword] Gửi email thất bại | jobId=${job.id} email=${d.email} attempt=${job.attemptsMade}`,
+            err as Error,
+          );
+          throw err; // để BullMQ retry
+        }
         break;
       }
       default:

@@ -16,6 +16,7 @@ export enum TaskerStatus {
 export interface TaskerProfile {
   id: string;
   userId: string;
+  status?: 'PENDING' | 'TRAINING' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED' | 'TERMINATED';
   fullName?: string;
   skills: string;
   phone?: string;
@@ -27,6 +28,9 @@ export interface TaskerProfile {
   totalJobs: number;
   avgRating: number;
   adminNotes?: string;
+  banReason?: string | null;
+  banEndsAt?: string | null;
+  cancelSuspendedUntil?: string | null;
   // Address fields
   addressResident?: string;
   addressCurrent?: string;

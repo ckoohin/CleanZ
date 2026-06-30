@@ -38,7 +38,13 @@ export class ServiceSubscriptionEntity {
   })
   discountPercent!: number;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'billing_cycle', default: 'monthly' })
+  @Column({
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+    name: 'billing_cycle',
+    default: 'monthly',
+  })
   billingCycle?: string;
 
   @Column({ type: 'integer', nullable: true, name: 'sessions_per_cycle' })

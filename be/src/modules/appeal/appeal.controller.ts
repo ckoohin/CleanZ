@@ -18,7 +18,9 @@ export class AppealController {
 
   @Get('verify')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Xác thực token kháng cáo & lấy thông tin hiển thị' })
+  @ApiOperation({
+    summary: 'Xác thực token kháng cáo & lấy thông tin hiển thị',
+  })
   verify(@Query('token') token: string) {
     return this.appealService.getContext(token ?? '');
   }

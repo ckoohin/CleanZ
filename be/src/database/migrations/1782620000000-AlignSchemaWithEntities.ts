@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AlignSchemaWithEntities1782620000000
-  implements MigrationInterface
-{
+export class AlignSchemaWithEntities1782620000000 implements MigrationInterface {
   name = 'AlignSchemaWithEntities1782620000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -3,8 +3,11 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ServiceRepository } from '../service.repository';
 import { SubServiceEntity } from '../entity/sub-service.entity';
+import { PricingConfigEntity } from '../../pricing/entity/pricing-config.entity';
 import { PaginatedData } from '../../../common/helpers/response.interface';
 import { CreateSubServiceDto } from '../dto/create-sub-service.dto';
 import { SubServiceListQueryDto } from '../dto/list-query-sub-service.dto';
@@ -18,9 +21,27 @@ import { toNumber } from 'src/common/helpers/number.helper';
 
 @Injectable()
 export class SubServicesService {
-  constructor(private readonly serviceRepo: ServiceRepository) {}
+  constructor(
+    private readonly serviceRepo: ServiceRepository,
+    @InjectRepository(PricingConfigEntity)
+    private readonly pricingConfigRepo: Repository<PricingConfigEntity>,
+  ) {}
 
   async create(dto: CreateSubServiceDto): Promise<SubServiceEntity> {
+    let pricingConfig: PricingConfigEntity | undefined;
+
+    if (dto.basePrice !== undefined && dto.basePrice >= 0) {
+      pricingConfig = await this.pricingConfigRepo.save(
+        this.pricingConfigRepo.create({
+          name: dto.name,
+          basePrice: dto.basePrice,
+          isActive: true,
+        }),
+      );
+    } else if (dto.pricingConfigId) {
+      pricingConfig = { id: dto.pricingConfigId } as PricingConfigEntity;
+    }
+
     const entity = this.serviceRepo.create({
       name: dto.name,
       description: dto.description ?? undefined,
@@ -34,9 +55,7 @@ export class SubServicesService {
       isActive: dto.isActive ?? true,
       pricingType: dto.pricingType ?? 'FIXED',
       termsAndConditions: dto.termsAndConditions ?? undefined,
-      pricingConfig: dto.pricingConfigId
-        ? ({ id: dto.pricingConfigId } as any)
-        : undefined,
+      pricingConfig: pricingConfig ?? undefined,
     });
     return this.serviceRepo.save(entity);
   }
@@ -123,12 +142,21 @@ export class SubServicesService {
         dto.termsAndConditions !== undefined
           ? dto.termsAndConditions
           : service.termsAndConditions,
-      pricingConfig:
-        dto.pricingConfigId !== undefined
-          ? dto.pricingConfigId
-            ? ({ id: dto.pricingConfigId } as any)
-            : null
-          : service.pricingConfig,
+      pricingConfig: await (async () => {
+        if (dto.basePrice !== undefined && dto.basePrice >= 0) {
+          if (service.pricingConfig?.id) {
+            await this.pricingConfigRepo.update(service.pricingConfig.id, { basePrice: dto.basePrice, name: dto.name ?? service.name });
+            return service.pricingConfig;
+          }
+          return await this.pricingConfigRepo.save(
+            this.pricingConfigRepo.create({ name: dto.name ?? service.name, basePrice: dto.basePrice, isActive: true }),
+          );
+        }
+        if (dto.pricingConfigId !== undefined) {
+          return dto.pricingConfigId ? ({ id: dto.pricingConfigId } as any) : null;
+        }
+        return service.pricingConfig;
+      })(),
     });
 
     return this.serviceRepo.save(service);

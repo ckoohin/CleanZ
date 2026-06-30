@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getAdminVouchers } from "../apis/voucher.api";
+import { adminVoucherService } from "../services/admin-voucher.service";
 import { VoucherListQuery } from "../types/voucher.type";
 
 export function useAdminVouchers(query: VoucherListQuery) {
   return useQuery({
     queryKey: ["admin-vouchers", query],
-    queryFn: () => getAdminVouchers(query),
+    queryFn: () => adminVoucherService.getVouchers(query),
   });
 }

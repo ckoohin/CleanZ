@@ -1,4 +1,5 @@
 export type NotificationType =
+  | "BOOKING_NEW_AVAILABLE"
   | "BOOKING_CONFIRMED"
   | "TASKER_ON_THE_WAY"
   | "BOOKING_COMPLETED"

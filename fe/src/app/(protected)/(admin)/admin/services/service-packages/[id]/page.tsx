@@ -27,7 +27,6 @@ import { PackageCustomerPreviewTab } from "@/features/admin/modules/service/_com
 const TABS = [
   { value: "overview",     label: "Tổng quan",       icon: LayoutDashboard },
   { value: "pricing",     label: "Bảng giá",         icon: DollarSign },
-  { value: "sub-services",label: "Dịch vụ con",      icon: Package },
   { value: "terms",       label: "Chính sách & ĐK",  icon: ScrollText },
   { value: "reviews",     label: "Đánh giá",          icon: Star },
   { value: "workflow",    label: "Quy trình",          icon: GitBranch },
@@ -117,10 +116,6 @@ export default function ServicePackageDetailPage({ params }: { params: Promise<{
 
           <TabsContent value="pricing" className="mt-0 animate-in fade-in-50 duration-300">
             <PackagePricingTab pkg={pkg} />
-          </TabsContent>
-
-          <TabsContent value="sub-services" className="mt-0 animate-in fade-in-50 duration-300">
-            <PackageSubServicesTab pkg={pkg} />
           </TabsContent>
 
           <TabsContent value="terms" className="mt-0 animate-in fade-in-50 duration-300">

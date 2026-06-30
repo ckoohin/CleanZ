@@ -39,6 +39,7 @@ const TYPE_LABELS: Record<
   NotificationType,
   { label: string; tone: BadgeTone; color?: string; soft?: string }
 > = {
+  BOOKING_NEW_AVAILABLE: { label: "Đơn mới gần tasker", tone: "info" },
   BOOKING_CONFIRMED: { label: "Booking xác nhận", tone: "info" },
   TASKER_ON_THE_WAY: { label: "Tasker đang đến", tone: "info" },
   BOOKING_COMPLETED: { label: "Booking hoàn tất", tone: "success" },
@@ -252,7 +253,7 @@ export const NotificationAdminPanel: React.FC = () => {
               setFilter((p) => ({ ...p, type: v as NotificationType | "ALL", page: 1 }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line)] text-sm font-medium shadow-none">
+            <SelectTrigger className="h-10 min-w-[215px] rounded-full border-[var(--c-line)] bg-[var(--c-card-2)] text-sm font-medium shadow-none">
               <ListFilter className="w-3.5 h-3.5 mr-1 text-[var(--c-muted)]" />
               <SelectValue placeholder="Loại thông báo" />
             </SelectTrigger>

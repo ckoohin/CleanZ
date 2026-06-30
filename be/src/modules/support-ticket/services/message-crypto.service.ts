@@ -65,7 +65,10 @@ export class MessageCryptoService {
       const cipher = createCipheriv('aes-256-gcm', aesKey, iv);
       const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
       const tag = cipher.getAuthTag();
-      const wrappedKey = publicEncrypt({ key: this.publicKey, ...OAEP }, aesKey);
+      const wrappedKey = publicEncrypt(
+        { key: this.publicKey, ...OAEP },
+        aesKey,
+      );
       const envelope = {
         k: wrappedKey.toString('base64'),
         iv: iv.toString('base64'),
@@ -74,7 +77,10 @@ export class MessageCryptoService {
       };
       return PREFIX + Buffer.from(JSON.stringify(envelope)).toString('base64');
     } catch (e) {
-      this.logger.error('Mã hoá tin nhắn thất bại, lưu dạng thường', e as Error);
+      this.logger.error(
+        'Mã hoá tin nhắn thất bại, lưu dạng thường',
+        e as Error,
+      );
       return plain;
     }
   }

@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
@@ -77,8 +78,13 @@ export class ServicePackagesController {
   @Get(':id/analytics')
   @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Lấy dữ liệu thống kê của gói dịch vụ' })
-  async getAnalytics(@Param('id', ParseUUIDPipe) id: string) {
-    const data = await this.servicePackagesService.getAnalytics(id);
+  async getAnalytics(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('taskerId') taskerId?: string,
+  ) {
+    const data = await this.servicePackagesService.getAnalytics(id, from, to, taskerId);
     return successResponse(data);
   }
 

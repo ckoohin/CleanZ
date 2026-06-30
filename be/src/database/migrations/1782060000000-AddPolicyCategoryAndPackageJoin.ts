@@ -61,7 +61,7 @@ export class AddPolicyCategoryAndPackageJoin1782060000000 implements MigrationIn
     `);
 
     // 6. Tạo bảng join package_policies (M2M)
-  await queryRunner.query(`
+    await queryRunner.query(`
 DO $$
 BEGIN
   IF EXISTS (
@@ -88,7 +88,7 @@ BEGIN
 END $$;
 `);
     // 7. Index hỗ trợ lookup theo policy_id
-   await queryRunner.query(`
+    await queryRunner.query(`
 DO $$
 BEGIN
   IF EXISTS (

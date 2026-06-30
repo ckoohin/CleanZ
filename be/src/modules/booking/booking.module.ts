@@ -20,6 +20,10 @@ import { TrackingModule } from '../tracking/tracking.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { NotificationModule } from '../notification/notification.module';
+import { BookingDispatchService } from './services/booking-dispatch.service';
+import { BookingDispatchProcessor } from './processors/booking-dispatch.processor';
+import { BookingCheckinService } from './services/booking-checkin.service';
+import { BookingCheckinProcessor } from './processors/booking-checkin.processor';
 
 @Module({
   imports: [
@@ -47,6 +51,10 @@ import { NotificationModule } from '../notification/notification.module';
     BookingExpirationService,
     CustomerBookingService,
     TaskerBookingService,
+    BookingDispatchService,
+    BookingDispatchProcessor,
+    BookingCheckinService,
+    BookingCheckinProcessor,
   ],
   exports: [
     BookingLocationPolicyService,

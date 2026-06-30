@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PricingConfigEntity } from '../pricing/entity/pricing-config.entity';
 import { ServicePackageEntity } from './entity/service-package.entity';
 import { SubServiceEntity } from './entity/sub-service.entity';
 import { PackageSubServiceEntity } from './entity/package-sub-service.entity';
@@ -21,6 +22,7 @@ import { CoverageAreasController } from './coverage-areas.controller';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      PricingConfigEntity,
       ServicePackageEntity,
       SubServiceEntity,
       PackageSubServiceEntity,

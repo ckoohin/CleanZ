@@ -45,7 +45,9 @@ export class AddAddonDetailFields1782590000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_service_addons_package_id"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_service_addons_package_id"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "service_addons"`);
   }
 }

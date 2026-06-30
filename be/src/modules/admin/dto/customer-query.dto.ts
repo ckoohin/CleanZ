@@ -14,7 +14,13 @@ import { Transform, Type } from 'class-transformer';
  * ép thành boolean `true` TRƯỚC khi @Transform chạy (Boolean("false") === true).
  * Đọc obj[key] lấy đúng chuỗi gốc → parse chuẩn.
  */
-const toOptionalBoolean = ({ obj, key }: { obj: Record<string, unknown>; key: string }) => {
+const toOptionalBoolean = ({
+  obj,
+  key,
+}: {
+  obj: Record<string, unknown>;
+  key: string;
+}) => {
   const v = obj?.[key];
   if (v === true || v === 'true') return true;
   if (v === false || v === 'false') return false;

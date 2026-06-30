@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   XCircle,
@@ -218,6 +219,7 @@ function EmptyState({ tab, onBook }: { tab: "ACTIVE" | "HISTORY"; onBook?: () =>
 export const HistoryPage = () => {
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { data: activeData, isLoading: isActiveLoading } = useMyActiveBooking();
   const { data: historyData, isLoading: isHistoryLoading } = useMyBookingHistory();
@@ -233,7 +235,11 @@ export const HistoryPage = () => {
   }, [historyData]);
 
   const goToDetail = (id: string) => router.push(`/customer/booking/${id}`);
-  const goToReview = (id: string) => router.push(`/customer/history/review/${id}`);
+  const goToReview = (id: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["booking", id] });
+    void queryClient.invalidateQueries({ queryKey: ["reviews", "booking", id] });
+    router.push(`/customer/history/review/${id}`);
+  };
   const goToCatalog = () => router.push(ROUTES.CUSTOMER.CATALOG);
 
   const isLoading = activeTab === "ACTIVE" ? isActiveLoading : isHistoryLoading;
