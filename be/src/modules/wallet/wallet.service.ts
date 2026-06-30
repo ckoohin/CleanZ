@@ -527,8 +527,8 @@ export class WalletService {
       .createQueryBuilder('tx')
       .leftJoinAndSelect('tx.wallet', 'wallet')
       .leftJoinAndSelect('tx.booking', 'booking')
-      .where('tx.wallet_id = :walletId', { walletId })
-      .orderBy('tx.created_at', 'DESC');
+      .where('wallet.id = :walletId', { walletId })
+      .orderBy('tx.createdAt', 'DESC');
 
     if (opts.fromDate) {
       qb.andWhere('tx.created_at >= :fromDate', {
