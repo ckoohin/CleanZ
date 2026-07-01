@@ -1,15 +1,56 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { EntityManager, In } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { BookingEntity } from '../entity/booking.entity';
+import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
+
+export const TASKER_MAX_CONCURRENT_BOOKINGS = 3;
+
+/** Các trạng thái tính là "đang đảm nhiệm" của tasker (đã nhận, chưa xong) */
+const TASKER_ACTIVE_STATUSES = [
+  BookingStatus.CONFIRMED,
+  BookingStatus.TASKER_ON_THE_WAY,
+  BookingStatus.CHECKED_IN,
+  BookingStatus.IN_PROGRESS,
+];
+
+function toTimestamp(
+  date: string | null | undefined,
+  time: string | null | undefined,
+): Date | null {
+  if (!date || !time) return null;
+  const d = new Date(`${date}T${time}`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatViTime(d: Date): string {
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+}
+
+/** Phí phạt (VND) theo số lần hủy trong 7 ngày (1-indexed: lần 1, 2, 3+) */
+export const TASKER_CANCEL_PENALTY_TIERS: Record<number, number> = {
+  1: 50_000,
+  2: 100_000,
+  3: 200_000,
+};
+export const WEEKLY_CANCEL_LIMIT = 3;
+export const CANCEL_SUSPENSION_DAYS = 7;
 
 const FINISHED_BOOKING_STATUSES = [
   BookingStatus.CANCELLED,
@@ -77,11 +118,117 @@ export class BookingPolicyService {
     }
   }
 
+  assertTaskerCanCancel(booking: BookingEntity): void {
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Tasker chỉ có thể hủy khi đơn ở trạng thái CONFIRMED (chưa di chuyển tới địa chỉ khách)',
+      );
+    }
+  }
+
+  assertTaskerNotCancelSuspended(tasker: TaskerEntity): void {
+    const until = tasker.cancelSuspendedUntil;
+    if (until && until > new Date()) {
+      const fmt = until.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Ho_Chi_Minh',
+      });
+      throw new ForbiddenException(
+        `Tài khoản bị tạm khóa nhận đơn đến ${fmt} do hủy quá ${WEEKLY_CANCEL_LIMIT} lần trong 7 ngày.`,
+      );
+    }
+  }
+
+  async countWeeklyCancels(
+    manager: EntityManager,
+    taskerId: string,
+  ): Promise<number> {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return manager
+      .getRepository(BookingStatusLogEntity)
+      .createQueryBuilder('log')
+      .innerJoin('log.booking', 'booking')
+      .innerJoin('booking.tasker', 'tasker')
+      .where('tasker.id = :taskerId', { taskerId })
+      .andWhere('log.cancelledBy = :by', { by: CancelledBy.TASKER })
+      .andWhere('log.createdAt >= :since', { since })
+      .getCount();
+  }
+
+  resolveCancelPenaltyAmount(weeklyCount: number): number {
+    const tier = Math.min(weeklyCount, WEEKLY_CANCEL_LIMIT);
+    return (
+      TASKER_CANCEL_PENALTY_TIERS[tier] ??
+      TASKER_CANCEL_PENALTY_TIERS[WEEKLY_CANCEL_LIMIT]
+    );
+  }
+
   assertTaskerCanAcceptBooking(tasker: TaskerEntity): void {
+    this.assertTaskerNotCancelSuspended(tasker);
     if (tasker.status !== TaskerStatus.ACTIVE) {
       throw new BadRequestException(
         'Chỉ tasker đang hoạt động mới có thể nhận booking',
       );
+    }
+  }
+
+  async assertTaskerConcurrentAndOverlapConstraints(
+    manager: EntityManager,
+    taskerId: string,
+    newBooking: BookingEntity,
+  ): Promise<void> {
+    const activeBookings = await manager.getRepository(BookingEntity).find({
+      where: { tasker: { id: taskerId }, status: In(TASKER_ACTIVE_STATUSES) },
+      select: [
+        'id',
+        'bookingCode',
+        'status',
+        'scheduledStartDate',
+        'scheduledStartTime',
+        'scheduledEndDate',
+        'scheduledEndTime',
+      ],
+    });
+
+    if (activeBookings.length >= TASKER_MAX_CONCURRENT_BOOKINGS) {
+      throw new ConflictException(
+        `Bạn đang đảm nhiệm ${activeBookings.length} đơn. Hoàn thành bớt trước khi nhận thêm (tối đa ${TASKER_MAX_CONCURRENT_BOOKINGS} đơn).`,
+      );
+    }
+
+    const newStart = toTimestamp(
+      newBooking.scheduledStartDate,
+      newBooking.scheduledStartTime,
+    );
+    const newEnd = toTimestamp(
+      newBooking.scheduledEndDate,
+      newBooking.scheduledEndTime,
+    );
+
+    if (!newStart || !newEnd) return;
+
+    for (const existing of activeBookings) {
+      const exStart = toTimestamp(
+        existing.scheduledStartDate,
+        existing.scheduledStartTime,
+      );
+      const exEnd = toTimestamp(
+        existing.scheduledEndDate,
+        existing.scheduledEndTime,
+      );
+
+      if (!exStart || !exEnd) continue;
+
+      const overlaps = newStart < exEnd && newEnd > exStart;
+      if (overlaps) {
+        throw new ConflictException(
+          `Lịch trùng với đơn ${existing.bookingCode}: ${formatViTime(exStart)} → ${formatViTime(exEnd)}. Vui lòng chọn đơn khác.`,
+        );
+      }
     }
   }
 }

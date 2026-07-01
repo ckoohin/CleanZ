@@ -4,6 +4,7 @@ import type {
   AdminTaskerDetail,
   AdminTaskerFilter,
   AdminUpdateTaskerPayload,
+  UpdateTaskerWorkStatusPayload,
   BanType,
   PaginatedTaskers,
 } from "../types/admin-tasker.types";
@@ -48,6 +49,16 @@ export const adminTaskerApi = {
     payload: AdminUpdateTaskerPayload
   ): Promise<AdminTasker> =>
     http.patch(`${BASE}/${id}`, payload).then((res) => res.data),
+
+  updateTaskerWorkStatus: ({
+    id,
+    clearCancelSuspension,
+  }: UpdateTaskerWorkStatusPayload): Promise<AdminTasker> =>
+    http
+      .patch(`${BASE}/${id}/work-status`, {
+        ...(clearCancelSuspension ? { clearCancelSuspension } : {}),
+      })
+      .then((res) => res.data),
 
   getTaskerDocuments: (id: string): Promise<TaskerDocumentsResponse> =>
     http.get(`${BASE}/${id}`).then((res) => buildDocumentsFromDetail(res.data)),

@@ -13,6 +13,7 @@ import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 export const reviewKeys = {
   myReview: (bookingId: string) => ["reviews", "booking", bookingId] as const,
   package: (packageId: string) => ["reviews", "package", packageId] as const,
+  tasker: (taskerId: string) => ["reviews", "tasker", taskerId] as const,
 };
 
 export function useMyReview(bookingId: string) {
@@ -20,6 +21,7 @@ export function useMyReview(bookingId: string) {
     queryKey: reviewKeys.myReview(bookingId),
     queryFn: () => reviewApi.getMyReview(bookingId),
     enabled: !!bookingId,
+    staleTime: 0,
     retry: false,
   });
 }
@@ -29,6 +31,20 @@ export function usePackageReviews(packageId: string, page = 1, limit = 10) {
     queryKey: [...reviewKeys.package(packageId), page, limit],
     queryFn: () => reviewApi.getPackageReviews(packageId, page, limit),
     enabled: !!packageId,
+  });
+}
+
+export function useTaskerPublicReviews(
+  taskerId?: string | null,
+  page = 1,
+  limit = 5,
+) {
+  return useQuery({
+    queryKey: taskerId
+      ? [...reviewKeys.tasker(taskerId), page, limit]
+      : ["reviews", "tasker", null, page, limit],
+    queryFn: () => reviewApi.getTaskerReviews(taskerId as string, page, limit),
+    enabled: !!taskerId,
   });
 }
 

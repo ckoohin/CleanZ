@@ -10,3 +10,11 @@ export const useAdminVoucherDetail = (id: string) => {
     enabled: !!id,
   });
 };
+
+export const useAdminVoucherStats = (id: string) => {
+  return useQuery({
+    queryKey: ["admin-voucher-stats", id],
+    queryFn: () => adminVoucherService.getVoucherStats(id),
+    enabled: !!id,
+  });
+};

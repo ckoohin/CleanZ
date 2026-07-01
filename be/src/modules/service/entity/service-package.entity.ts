@@ -152,6 +152,9 @@ export class ServicePackageEntity {
   @Column({ type: 'boolean', default: false, name: 'allow_subscription' })
   allowSubscription!: boolean;
 
+  @Column({ type: 'boolean', default: true, name: 'allow_single_service' })
+  allowSingleService!: boolean;
+
   @OneToMany(() => PackageSubServiceEntity, (pss) => pss.package)
   packageSubServices!: PackageSubServiceEntity[];
 

@@ -99,7 +99,31 @@ export const PAYMENT_STATUS_TEXT_STYLES: Record<string, string> = {
   FAILED: "text-[#E11D48]",
   REFUNDED: "text-[#2563EB]",
   PARTIALLY_REFUNDED: "text-[#2563EB]",
+  CANCELLED: "text-[#E11D48]",
 };
+
+export function isCancelledBookingStatus(status?: string | null) {
+  return status === "CANCELLED" || status === "EXPIRED";
+}
+
+export function getBookingPaymentStatusLabel(
+  bookingStatus?: string | null,
+  paymentStatus?: string | null,
+) {
+  if (isCancelledBookingStatus(bookingStatus)) return "Đã hủy";
+  if (!paymentStatus) return "—";
+  return PAYMENT_STATUS_LABELS[paymentStatus] || paymentStatus;
+}
+
+export function getBookingPaymentStatusTextStyle(
+  bookingStatus?: string | null,
+  paymentStatus?: string | null,
+) {
+  if (isCancelledBookingStatus(bookingStatus)) return PAYMENT_STATUS_TEXT_STYLES.CANCELLED;
+  return paymentStatus
+    ? PAYMENT_STATUS_TEXT_STYLES[paymentStatus] || "text-[var(--c-muted)]"
+    : "text-[var(--c-muted)]";
+}
 
 /**
  * Static class sets for the detail-page stat cards.

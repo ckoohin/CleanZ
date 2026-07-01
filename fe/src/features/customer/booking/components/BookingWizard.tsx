@@ -24,6 +24,7 @@ import {
   useBookingQuote,
   useCreateBooking,
 } from "@/features/booking/hooks/useCustomerBooking";
+import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
 import type {
   BookingQuoteResponse,
   CreateBookingDto,
@@ -183,6 +184,39 @@ function timeToMinutes(time: string): number {
   return Number(hour) * 60 + Number(minute);
 }
 
+function toDateKey(value: string | Date): string {
+  if (typeof value === "string") {
+    const datePart = value.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+  }
+
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "";
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getVietnamDayOfWeek(date: string): number {
+  const dateKey = toDateKey(date);
+  const parsed = new Date(`${dateKey}T12:00:00+07:00`);
+  if (Number.isNaN(parsed.getTime())) return -1;
+  return parsed.getUTCDay();
+}
+
+function isPeakDayMatch(rawPeakDay: unknown, bookingDayOfWeek: number): boolean {
+  const peakDay = Number(rawPeakDay);
+  if (!Number.isFinite(peakDay)) return false;
+  if (peakDay === 7) return true;
+  return peakDay === bookingDayOfWeek;
+}
+
 function isPeakTimeSlot(
   date: string,
   time: string,
@@ -190,19 +224,19 @@ function isPeakTimeSlot(
 ): boolean {
   if (!date || peakHours.length === 0) return false;
 
-  const selectedDate = new Date(`${date}T${time}:00+07:00`);
-  if (Number.isNaN(selectedDate.getTime())) return false;
+  const dayOfWeek = getVietnamDayOfWeek(date);
+  if (dayOfWeek < 0) return false;
 
-  const dayOfWeek = selectedDate.getDay();
+  const selectedDateKey = toDateKey(date);
   const currentMinutes = timeToMinutes(time);
 
   return peakHours.some((peak) => {
-    if (peak.dayOfWeek !== 7 && peak.dayOfWeek !== dayOfWeek) return false;
+    if (!isPeakDayMatch(peak.dayOfWeek, dayOfWeek)) return false;
 
-    if (peak.startDate && selectedDate < new Date(peak.startDate)) {
+    if (peak.startDate && selectedDateKey < toDateKey(peak.startDate)) {
       return false;
     }
-    if (peak.endDate && selectedDate > new Date(peak.endDate)) {
+    if (peak.endDate && selectedDateKey > toDateKey(peak.endDate)) {
       return false;
     }
 
@@ -210,10 +244,10 @@ function isPeakTimeSlot(
     const endMinutes = timeToMinutes(peak.endHour);
 
     if (startMinutes <= endMinutes) {
-      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
     }
 
-    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
   });
 }
 
@@ -914,9 +948,11 @@ function StepSchedule({
 function StepPayment({
   form,
   onChange,
+  packageId,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
+  packageId?: string;
 }) {
   const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
     { value: "CASH", label: "Tiền mặt", icon: "💵" },
@@ -969,16 +1005,12 @@ function StepPayment({
 
       <div className="bg-card p-5 rounded-2xl border border-border/50">
         <h2 className="text-base font-bold text-foreground mb-3">
-          Mã voucher (tuỳ chọn)
+          Voucher giảm giá (tuỳ chọn)
         </h2>
-        <input
-          type="text"
-          value={form.voucherCode}
-          onChange={(e) =>
-            onChange({ voucherCode: e.target.value.toUpperCase() })
-          }
-          placeholder="Nhập mã voucher..."
-          className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground focus:ring-2 focus:ring-primary/30 outline-none"
+        <VoucherPickerSheet
+          packageId={packageId}
+          selectedCode={form.voucherCode}
+          onSelect={(code) => onChange({ voucherCode: code })}
         />
       </div>
     </div>
@@ -1386,7 +1418,7 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepPayment form={form} onChange={update} />
+              <StepPayment form={form} onChange={update} packageId={form.serviceId || undefined} />
             </motion.div>
           )}
           {step === 4 && (

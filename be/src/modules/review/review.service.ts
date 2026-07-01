@@ -228,6 +228,113 @@ export class ReviewService {
     };
   }
 
+  async getTaskerPublicReviews(taskerId: string, page = 1, limit = 5) {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), 20);
+    const skip = (safePage - 1) * safeLimit;
+
+    const tasker = await this.taskerRepo.findOne({
+      where: { id: taskerId },
+      relations: ['user'],
+    });
+    if (!tasker) throw new NotFoundException('Không tìm thấy Tasker');
+
+    const baseQb = () =>
+      this.reviewRepo
+        .createQueryBuilder('r')
+        .where('r.tasker_id = :taskerId', { taskerId })
+        .andWhere('r.is_hidden = false');
+
+    const [rawItems, total, aggResult, distribution] = await Promise.all([
+      baseQb()
+        .leftJoin('customers', 'c', 'c.id = r.customer_id')
+        .leftJoin('users', 'u', 'u.id = c.user_id')
+        .leftJoin('bookings', 'b', 'b.id = r.booking_id')
+        .select([
+          'r.id AS id',
+          'r.overall_rating AS "overallRating"',
+          'r.punctuality AS punctuality',
+          'r.cleanliness AS cleanliness',
+          'r.friendliness AS friendliness',
+          'r.satisfaction AS satisfaction',
+          'r.comment AS comment',
+          'r.images AS images',
+          'r.admin_reply AS "adminReply"',
+          'r.tasker_reply AS "taskerReply"',
+          'r.tasker_replied_at AS "taskerRepliedAt"',
+          'r.is_anonymous AS "isAnonymous"',
+          'r.created_at AS "createdAt"',
+          'b.booking_code AS "bookingCode"',
+          `CASE WHEN r.is_anonymous THEN 'Ẩn danh' ELSE u.full_name END AS "customerName"`,
+          `CASE WHEN r.is_anonymous THEN NULL ELSE u.avatar_url END AS avatar`,
+        ])
+        .orderBy('r.created_at', 'DESC')
+        .offset(skip)
+        .limit(safeLimit)
+        .getRawMany<{
+          id: string;
+          overallRating: string;
+          punctuality: number;
+          cleanliness: number;
+          friendliness: number;
+          satisfaction: number;
+          comment: string | null;
+          images: string | null;
+          adminReply: string | null;
+          taskerReply: string | null;
+          taskerRepliedAt: Date | null;
+          isAnonymous: boolean;
+          createdAt: Date;
+          bookingCode: string | null;
+          customerName: string | null;
+          avatar: string | null;
+        }>(),
+
+      baseQb().getCount(),
+
+      baseQb()
+        .select('AVG(r.overall_rating)', 'avg')
+        .addSelect('COUNT(*)', 'count')
+        .getRawOne<{ avg: string; count: string }>(),
+
+      baseQb()
+        .select('FLOOR(r.overall_rating)::int', 'star')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('FLOOR(r.overall_rating)::int')
+        .getRawMany<{ star: number; count: string }>(),
+    ]);
+
+    return {
+      tasker: {
+        id: tasker.id,
+        fullName: tasker.user?.fullName ?? null,
+        avatarUrl: tasker.user?.avatarUrl ?? null,
+        ratingAvg: Number(tasker.ratingAvg),
+        totalCompletedJobs: tasker.totalCompletedJobs,
+      },
+      items: rawItems.map((r) => ({
+        ...r,
+        overallRating: parseFloat2(r.overallRating),
+        images: r.images ? (JSON.parse(r.images) as string[]) : [],
+      })),
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+      avgRating: parseFloat2(aggResult?.avg),
+      totalReviews: parseInt(aggResult?.count ?? '0'),
+      distribution: [5, 4, 3, 2, 1].map((star) => {
+        const found = distribution.find((d) => Number(d.star) === star);
+        const count = found ? parseInt(found.count) : 0;
+        return {
+          stars: star,
+          count,
+          pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+        };
+      }),
+    };
+  }
+
   // ─── Tasker ─────────────────────────────────────────────────────────────────
 
   async taskerGetMyReviews(

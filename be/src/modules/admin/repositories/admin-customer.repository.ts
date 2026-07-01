@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +22,8 @@ import { UpdateCustomerDto } from '../dto/update-customer.dto';
 
 @Injectable()
 export class AdminCustomerRepository {
+  private readonly logger = new Logger(AdminCustomerRepository.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly mailQueue: MailQueueService,
@@ -320,7 +323,9 @@ export class AdminCustomerRepository {
     page: number = 1,
     limit: number = 10,
   ) {
-    const skip = (page - 1) * limit;
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), 50);
+    const offset = (safePage - 1) * safeLimit;
 
     const [data, total] = await this.dataSource
       .getRepository(BookingEntity)
@@ -339,8 +344,8 @@ export class AdminCustomerRepository {
       ])
       .where('c.id = :customerId', { customerId })
       .orderBy('b.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
+      .offset(offset)
+      .limit(safeLimit)
       .getRawMany<{
         id: string;
         bookingCode: string;
@@ -376,9 +381,9 @@ export class AdminCustomerRepository {
       })),
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
       },
     };
   }
@@ -387,6 +392,9 @@ export class AdminCustomerRepository {
     return asyncHandleOperation(async () => {
       // Mật khẩu tạm do hệ thống sinh; khách buộc đổi ở lần đăng nhập đầu tiên.
       const tempPassword = this.generateTempPassword();
+      this.logger.log(
+        `[TempPassword] Sinh mật khẩu tạm cho email=${dto.email} | hint=${tempPassword.slice(0, 3)}*** | adminId=${adminId ?? 'system'}`,
+      );
 
       // Kiểm tra email trùng (kể cả đã xóa mềm) — trả lỗi có thể hành động được.
       const existing = await this.dataSource.getRepository(UserEntity).findOne({
@@ -456,12 +464,18 @@ export class AdminCustomerRepository {
 
       // Gửi mật khẩu tạm NGOÀI transaction (commit xong) — qua queue có retry,
       // không giữ kết nối/lock DB suốt round-trip SMTP. Lỗi gửi không phá tài khoản.
+      this.logger.log(
+        `[TempPassword] Enqueue email cho customerId=${createdId} email=${dto.email}`,
+      );
       await this.mailQueue.enqueueTempPassword({
         email: dto.email,
         fullName: dto.fullName.trim(),
         tempPassword,
         loginUrl: this.loginUrl(),
       });
+      this.logger.log(
+        `[TempPassword] Enqueue thành công → email=${dto.email}`,
+      );
 
       return this.getCustomerDetail(createdId);
     }, 'Lỗi khi tạo khách hàng');
@@ -485,18 +499,27 @@ export class AdminCustomerRepository {
       }
 
       const tempPassword = this.generateTempPassword();
+      this.logger.log(
+        `[TempPassword] Sinh lại mật khẩu tạm cho customerId=${customerId} email=${customer.user.email} | hint=${tempPassword.slice(0, 3)}*** | adminId=${adminId ?? 'system'}`,
+      );
       await this.dataSource.getRepository(UserEntity).update(customer.user.id, {
         password: await bcrypt.hash(tempPassword, 10),
         mustChangePassword: true,
       });
       await this.markUpdatedBy(customerId, adminId);
 
+      this.logger.log(
+        `[TempPassword] Enqueue resend email → customerId=${customerId} email=${customer.user.email}`,
+      );
       await this.mailQueue.enqueueTempPassword({
         email: customer.user.email,
         fullName: customer.user.fullName,
         tempPassword,
         loginUrl: this.loginUrl(),
       });
+      this.logger.log(
+        `[TempPassword] Enqueue resend thành công → email=${customer.user.email}`,
+      );
 
       return { message: 'Đã gửi lại mật khẩu tạm tới email khách hàng.' };
     }, 'Lỗi khi gửi lại mật khẩu tạm');

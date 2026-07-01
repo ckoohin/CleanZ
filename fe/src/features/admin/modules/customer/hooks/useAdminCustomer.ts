@@ -33,10 +33,14 @@ export const adminCustomerKeys = {
     [...adminCustomerKeys.all, 'bookings', id, { page, limit }] as const,
 };
 
-export function useAdminCustomers(filter: CustomerQueryFilter) {
+export function useAdminCustomers(
+  filter: CustomerQueryFilter,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: adminCustomerKeys.list(filter),
     queryFn: () => adminCustomerApi.getCustomers(filter),
+    enabled: options?.enabled ?? true,
     // Giữ dữ liệu trang trước khi đổi page/filter/keyword để không nháy skeleton.
     placeholderData: keepPreviousData,
   });

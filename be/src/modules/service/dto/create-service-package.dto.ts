@@ -126,6 +126,11 @@ export class CreateServicePackageDto {
   @IsBoolean()
   allowSubscription?: boolean;
 
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  allowSingleService?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()

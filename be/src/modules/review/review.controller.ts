@@ -61,6 +61,21 @@ export class ReviewController {
     );
   }
 
+  @Public()
+  @Get('tasker/:taskerId')
+  @ApiOperation({ summary: 'Lấy lịch sử đánh giá của Tasker (public)' })
+  getTaskerReviews(
+    @Param('taskerId', ParseUUIDPipe) taskerId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.reviewService.getTaskerPublicReviews(
+      taskerId,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 5,
+    );
+  }
+
   @Auth()
   @Post(':id/report')
   @HttpCode(HttpStatus.CREATED)

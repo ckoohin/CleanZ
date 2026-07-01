@@ -54,6 +54,22 @@ function fmtDateTime(iso?: string | null) {
   return d.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
 }
 
+function getPaymentStatusMeta(
+  bookingStatus?: string | null,
+  paymentStatus?: string | null,
+): { label: string; tone: BadgeTone } {
+  if (bookingStatus === "CANCELLED" || bookingStatus === "EXPIRED") {
+    return { label: "Đã hủy", tone: "danger" };
+  }
+
+  if (paymentStatus === "PAID") return { label: "Đã thanh toán", tone: "success" };
+  if (paymentStatus === "FAILED") return { label: "Thanh toán thất bại", tone: "danger" };
+  if (paymentStatus === "REFUNDED") return { label: "Đã hoàn tiền", tone: "info" };
+  if (paymentStatus === "PARTIALLY_REFUNDED") return { label: "Hoàn tiền một phần", tone: "info" };
+
+  return { label: paymentStatus ?? "—", tone: "warning" };
+}
+
 function PriceRow({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   if (value === 0) return null;
   return (
@@ -104,12 +120,12 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
 
   const status = booking.status ?? "";
   const statusMeta = STATUS_MAP[status] ?? { label: status, tone: "neutral" as BadgeTone };
-  const isClosed = status === "COMPLETED" || status === "CANCELLED" || status === "EXPIRED";
-
   const schedule = booking.schedule;
   const price = booking.price;
   const operation = booking.operation;
   const payment = booking.payment;
+  const paymentStatusMeta = getPaymentStatusMeta(status, payment?.status);
+  const isClosed = status === "COMPLETED" || status === "CANCELLED" || status === "EXPIRED";
 
   const handleCancel = () => {
     cancelMutation.mutate(
@@ -161,9 +177,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-[var(--c-muted)]">Trạng thái TT</span>
-                <StatusBadge tone={payment?.status === "PAID" ? "success" : "warning"}>
-                  {payment?.status === "PAID" ? "Đã thanh toán" : payment?.status ?? "—"}
-                </StatusBadge>
+                <StatusBadge tone={paymentStatusMeta.tone}>{paymentStatusMeta.label}</StatusBadge>
               </div>
               {payment?.voucher && (
                 <div className="flex items-center justify-between">
@@ -361,13 +375,13 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
               </div>
             ) : (
               <div className="flex flex-wrap gap-3">
-                <AdminButton
+                {/* <AdminButton
                   variant="primary"
                   onClick={() => setIsAssignOpen(true)}
                   icon={<User className="w-4 h-4" />}
                 >
                   {booking.tasker ? "Thay Tasker" : "Gán Tasker"}
-                </AdminButton>
+                </AdminButton> */}
                 <AdminButton variant="secondary" onClick={() => setIsChangeStatusOpen(true)}>
                   Đổi trạng thái
                 </AdminButton>

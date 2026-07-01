@@ -364,14 +364,14 @@ export const UserListTable: React.FC = () => {
         rowActions={rowActions}
         inlineActionCount={2}
         filters={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-nowrap overflow-x-auto pb-0.5">
             <Select
               value={filter.role}
               onValueChange={(val) =>
                 setFilter((prev) => ({ ...prev, role: val as RoleFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[150px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-xs font-medium shadow-none">
                 <SelectValue placeholder="Vai trò" />
               </SelectTrigger>
               <SelectContent className="cz-admin rounded-xl">
@@ -395,7 +395,7 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, provider: val as ProviderFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-[168px] shrink-0 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-xs font-medium shadow-none">
                 <SelectValue placeholder="Phương thức" />
               </SelectTrigger>
               <SelectContent className="cz-admin rounded-xl">
@@ -414,7 +414,7 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, verified: val as VerifiedFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[150px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-xs font-medium shadow-none">
                 <SelectValue placeholder="Xác thực" />
               </SelectTrigger>
               <SelectContent className="cz-admin rounded-xl">
@@ -430,7 +430,7 @@ export const UserListTable: React.FC = () => {
                 setFilter((prev) => ({ ...prev, status: val as StatusFilter, page: 1 }))
               }
             >
-              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+              <SelectTrigger className="h-9 w-[158px] shrink-0 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-xs font-medium shadow-none">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent className="cz-admin rounded-xl">

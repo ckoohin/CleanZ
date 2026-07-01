@@ -58,10 +58,10 @@ export const navGroups: NavGroup[] = [
         children: [
           { title: "Gói dịch vụ", href: A.SERVICES.SERVICE_PACKAGES.BASE },
           { title: "Tạo gói mới", href: A.SERVICES.SERVICE_PACKAGES.CREATE },
-          { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES.BASE },
+          // { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES.BASE },
         ],
       },
-      { title: "Bảng giá", href: A.PRICING, icon: Tag },
+      // { title: "Bảng giá", href: A.PRICING, icon: Tag },
       {
         title: "Chính sách",
         href: A.POLICIES.BASE,
@@ -93,7 +93,10 @@ export const navGroups: NavGroup[] = [
         title: "Voucher",
         href: A.VOUCHERS.BASE,
         icon: TicketPercent,
-        children: [{ title: "Tạo voucher mới", href: A.VOUCHERS.CREATE }],
+        children: [
+          { title: "Danh sách voucher", href: A.VOUCHERS.BASE },
+          { title: "Tạo voucher mới", href: A.VOUCHERS.CREATE },
+        ],
       },
     ],
   },

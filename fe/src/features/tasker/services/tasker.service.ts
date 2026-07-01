@@ -9,6 +9,11 @@ import {
 
 export type { ServiceListResponse };
 
+export interface TaskerLocationPayload {
+  lat: number;
+  lng: number;
+}
+
 export const taskerApi = {
   // GET /tasker/profile/me — xem profile của chính mình.
   // Chưa có hồ sơ (404) là trạng thái hợp lệ của applicant → trả null, không toast lỗi.
@@ -27,9 +32,23 @@ export const taskerApi = {
   },
 
   // PATCH /tasker/me/presence — cập nhật trạng thái hoạt động (online/offline)
-  updatePresence: (presenceStatus: 'ONLINE' | 'OFFLINE'): Promise<TaskerProfile> =>
+  updatePresence: (
+    presenceStatus: 'ONLINE' | 'OFFLINE',
+    location?: TaskerLocationPayload,
+  ): Promise<TaskerProfile> =>
     http
-      .patch<TaskerProfile>('/tasker/me/presence', { presenceStatus })
+      .patch<TaskerProfile>('/tasker/me/presence', {
+        presenceStatus,
+        ...(location ?? {}),
+      })
+      .then((res) => res.data),
+
+  // PATCH /tasker/me/location — heartbeat vị trí khi đang ONLINE
+  updateLocation: (location: TaskerLocationPayload): Promise<{ updated: boolean }> =>
+    http
+      .patch<{ updated: boolean }>('/tasker/me/location', location, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2])
       .then((res) => res.data),
 
   // POST /tasker/profile — nộp hồ sơ (multipart/form-data)

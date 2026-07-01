@@ -38,6 +38,8 @@ export interface CalculateBookingPriceInput {
   scheduledStartTime: string;
   hasPet: boolean;
   voucherCode?: string;
+  customerId?: string;
+  currentBookingId?: string;
 }
 
 export interface ServiceSummary {
@@ -237,11 +239,37 @@ export class PricingService {
     const packageRepository = manager.getRepository(ServicePackageEntity);
     const subServiceRepository = manager.getRepository(SubServiceEntity);
     const addonRepository = manager.getRepository(ServiceAddonEntity);
+    const pricingTierRepo = manager.getRepository(PricingTierEntity);
 
-    const servicePackage = await packageRepository.findOne({
-      where: { id: input.packageId, isActive: true },
-      relations: ['coverageAreas', 'peakHours'],
-    });
+    const uniqueAddonIds = input.addonIds ? [...new Set(input.addonIds)] : [];
+
+    const [servicePackage, subServices, addons, activeTiers, peakDays] =
+      await Promise.all([
+        packageRepository.findOne({
+          where: { id: input.packageId, isActive: true },
+          relations: ['coverageAreas', 'peakHours'],
+        }),
+        input.subServiceIds?.length
+          ? subServiceRepository.find({
+              where: { id: In(input.subServiceIds), isActive: true },
+              relations: ['pricingConfig'],
+            })
+          : Promise.resolve([] as SubServiceEntity[]),
+        uniqueAddonIds.length
+          ? addonRepository.find({
+              where: uniqueAddonIds.map((id) => ({
+                id,
+                packageId: input.packageId,
+                isActive: true,
+              })),
+            })
+          : Promise.resolve([] as ServiceAddonEntity[]),
+        pricingTierRepo.find({
+          where: { packageId: input.packageId, isActive: true },
+          order: { sortOrder: 'ASC' },
+        }),
+        this.peakDayRepo.findAll(true),
+      ]);
 
     if (!servicePackage) {
       throw new NotFoundException(
@@ -249,30 +277,10 @@ export class PricingService {
       );
     }
 
-    let subServices: SubServiceEntity[] = [];
-    if (input.subServiceIds && input.subServiceIds.length > 0) {
-      subServices = await subServiceRepository.find({
-        where: { id: In(input.subServiceIds), isActive: true },
-        relations: ['pricingConfig'],
-      });
-    }
-
-    let addons: ServiceAddonEntity[] = [];
-    if (input.addonIds && input.addonIds.length > 0) {
-      const uniqueAddonIds = [...new Set(input.addonIds)];
-      addons = await addonRepository.find({
-        where: uniqueAddonIds.map((id) => ({
-          id,
-          packageId: servicePackage.id,
-          isActive: true,
-        })),
-      });
-
-      if (addons.length !== uniqueAddonIds.length) {
-        throw new BadRequestException(
-          'Một hoặc nhiều dịch vụ thêm không hợp lệ hoặc không thuộc gói dịch vụ đã chọn',
-        );
-      }
+    if (uniqueAddonIds.length > 0 && addons.length !== uniqueAddonIds.length) {
+      throw new BadRequestException(
+        'Một hoặc nhiều dịch vụ thêm không hợp lệ hoặc không thuộc gói dịch vụ đã chọn',
+      );
     }
 
     let durationHours =
@@ -289,11 +297,6 @@ export class PricingService {
     let matchedTierId: string | undefined;
 
     // 1. Tải các pricing tiers hoạt động của package này
-    const pricingTierRepo = manager.getRepository(PricingTierEntity);
-    const activeTiers = await pricingTierRepo.find({
-      where: { packageId: servicePackage.id, isActive: true },
-      order: { sortOrder: 'ASC' },
-    });
 
     if (activeTiers.length > 0) {
       let matchedTier: PricingTierEntity | null = null;
@@ -399,7 +402,10 @@ export class PricingService {
     // Dịch vụ thêm / phụ phí đêm/sớm
     let addonPrice = toNumber(servicePackage.toolFee);
     addonPrice += addons.reduce((sum, addon) => sum + toNumber(addon.price), 0);
-    if (matchedTierId || (durationHours > 0 && toNumber(servicePackage.baseHourlyRate) > 0)) {
+    if (
+      matchedTierId ||
+      (durationHours > 0 && toNumber(servicePackage.baseHourlyRate) > 0)
+    ) {
       for (const sub of subServices) {
         const pricing = sub.pricingConfig;
         if (!pricing || !pricing.isActive) {
@@ -425,21 +431,25 @@ export class PricingService {
     );
     if (packagePeakHours.length > 0 && input.scheduledStart) {
       const bookingDate = new Date(input.scheduledStart);
-      const bookingDayOfWeek = bookingDate.getDay();
+      const bookingDayOfWeek = this.getVietnamDayOfWeek(bookingDate);
+      const bookingDateKey = this.toDateKey(bookingDate);
       const bookingTimeStr = input.scheduledStartTime?.slice(0, 5);
 
       const matchingPackagePeakHours = packagePeakHours.filter((peakHour) => {
-        if (
-          peakHour.dayOfWeek !== 7 &&
-          peakHour.dayOfWeek !== bookingDayOfWeek
-        ) {
+        if (!this.isPeakDayMatch(peakHour.dayOfWeek, bookingDayOfWeek)) {
           return false;
         }
 
-        if (peakHour.startDate && bookingDate < new Date(peakHour.startDate)) {
+        if (
+          peakHour.startDate &&
+          bookingDateKey < this.toDateKey(peakHour.startDate)
+        ) {
           return false;
         }
-        if (peakHour.endDate && bookingDate > new Date(peakHour.endDate)) {
+        if (
+          peakHour.endDate &&
+          bookingDateKey > this.toDateKey(peakHour.endDate)
+        ) {
           return false;
         }
 
@@ -450,10 +460,10 @@ export class PricingService {
         const end = this.timeToMinutes(peakHour.endHour);
 
         if (start <= end) {
-          return time >= start && time < end;
+          return time >= start && time <= end;
         }
 
-        return time >= start || time < end;
+        return time >= start || time <= end;
       });
 
       if (matchingPackagePeakHours.length > 0) {
@@ -467,7 +477,6 @@ export class PricingService {
     }
 
     let holidayPeakRate = 0;
-    const peakDays = await this.peakDayRepo.findAll(true);
 
     if (peakDays.length > 0 && input.scheduledStart) {
       const bookingDate = new Date(input.scheduledStart);
@@ -512,8 +521,10 @@ export class PricingService {
       ? await this.voucherService.findValidForBooking(
           manager,
           input.voucherCode,
-          input.subServiceIds || [],
+          input.customerId ?? '',
+          input.packageId,
           subtotal,
+          input.currentBookingId,
         )
       : null;
     const discountAmount: number = voucher
@@ -679,6 +690,36 @@ export class PricingService {
     }
 
     return first.getTime() === second.getTime();
+  }
+
+  private toDateKey(date: Date): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const values = Object.fromEntries(
+      parts.map((part) => [part.type, part.value]),
+    );
+    return `${values.year}-${values.month}-${values.day}`;
+  }
+
+  private getVietnamDayOfWeek(date: Date): number {
+    const dateKey = this.toDateKey(date);
+    const parsed = new Date(`${dateKey}T12:00:00+07:00`);
+    if (Number.isNaN(parsed.getTime())) return -1;
+    return parsed.getUTCDay();
+  }
+
+  private isPeakDayMatch(
+    rawPeakDay: number | string,
+    bookingDayOfWeek: number,
+  ): boolean {
+    const peakDay = Number(rawPeakDay);
+    if (!Number.isFinite(peakDay)) return false;
+    if (peakDay === 7) return true;
+    return peakDay === bookingDayOfWeek;
   }
 
   private normalizeTime(value?: string | null): string | null {

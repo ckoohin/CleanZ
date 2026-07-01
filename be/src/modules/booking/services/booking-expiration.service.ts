@@ -10,6 +10,7 @@ import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 
 export interface ExpireOverdueBookingsResponse {
   expiredCount: number;
@@ -26,6 +27,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly dataSource: DataSource,
+    private readonly vouchersService: VouchersService,
     configService: ConfigService,
   ) {
     this.intervalMs = Number(
@@ -115,6 +117,10 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     for (const booking of bookings) {
       const oldStatus = booking.status;
       booking.status = BookingStatus.EXPIRED;
+      await this.vouchersService.releaseReservationForBooking(
+        manager,
+        booking.id,
+      );
       await bookingRepository.save(booking);
 
       const statusLog = logRepository.create({

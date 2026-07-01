@@ -10,8 +10,11 @@ export interface Voucher {
   maxDiscount?: number | null;
   minOrderAmount?: number | null;
   usageLimit?: number | null;
+  perCustomerLimit?: number | null;
   usedCount?: number | null;
-  serviceId?: string | null;
+  reservedCount?: number | null;
+  packageIds?: string[] | null;
+  customerIds?: string[] | null;
   startDate?: string | null;
   endDate?: string | null;
   isActive: boolean;
@@ -46,7 +49,9 @@ export interface CreateVoucherPayload {
   maxDiscount?: number;
   minOrderAmount?: number;
   usageLimit?: number;
-  serviceId?: string;
+  perCustomerLimit?: number;
+  packageIds?: string[];
+  customerIds?: string[];
   startDate?: string;
   endDate?: string;
   isActive?: boolean;
@@ -57,5 +62,30 @@ export type UpdateVoucherPayload = Partial<CreateVoucherPayload>;
 export interface VoucherStats {
   voucher: Voucher;
   issuedCount: number;
+  reservedCount: number;
   usedCount: number;
+  releasedCount: number;
+  totalDiscountAmount: number;
+  totalOrderAmount: number;
+  conversionRate: number;
+  usages: VoucherUsageDetail[];
+}
+
+export type VoucherUsageStatus = "ISSUED" | "RESERVED" | "USED" | "RELEASED";
+
+export interface VoucherUsageDetail {
+  id: string;
+  customerId: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  status: VoucherUsageStatus;
+  bookingId: string | null;
+  bookingCode: string | null;
+  bookingStatus: string | null;
+  discountAmount: number;
+  totalPrice: number;
+  issuedAt: string;
+  reservedAt: string | null;
+  usedAt: string | null;
 }

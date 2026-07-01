@@ -5,7 +5,7 @@ import {
   DollarSign, Moon, PawPrint, Clock, Wrench, TrendingUp, Edit3, Save, X as XIcon, Sparkles,
   Calculator, AlertCircle, Plus, Trash2, CheckCircle2, XCircle, Pencil, Flame,
   Timer, CalendarDays, SlidersHorizontal, Tag, BarChart3, ArrowUpRight, Info,
-  Layers, ChevronDown, ChevronUp, Home, Ruler, ToggleLeft, Search, HelpCircle, ScrollText, Eye
+  Layers, ChevronDown, ChevronUp, Home, Ruler, ToggleLeft, Search, HelpCircle, ScrollText, Eye, ShoppingCart
 } from "lucide-react";
 import {
   AdminServicePackageEntity, adminServicesApi, AdminServiceEntity,
@@ -93,6 +93,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
   const [premiumHourlyRate, setPremiumHourlyRate] = useState(0);
   const [allowMultipleTaskers, setAllowMultipleTaskers] = useState(false);
   const [allowSubscription, setAllowSubscription] = useState(false);
+  const [allowSingleService, setAllowSingleService] = useState(true);
   const [activeTab, setActiveTab] = useState("durations");
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -100,7 +101,10 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
     if (!allowSubscription && activeTab === "subscriptions") {
       setActiveTab("durations");
     }
-  }, [allowSubscription, activeTab]);
+    if (!allowSingleService && activeTab === "subservices") {
+      setActiveTab("durations");
+    }
+  }, [allowSubscription, allowSingleService, activeTab]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const [nightSurcharge, setNightSurcharge] = useState(0);
@@ -243,6 +247,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
       setPremiumHourlyRate(Number(pkg.premiumHourlyRate ?? 0));
       setAllowMultipleTaskers(!!pkg.allowMultipleTaskers);
       setAllowSubscription(!!pkg.allowSubscription);
+      setAllowSingleService(pkg.allowSingleService !== false);
 
       setNightSurcharge(Number(pkg.nightSurcharge ?? 0));
       setPetSurcharge(Number(pkg.petSurcharge ?? 0));
@@ -387,6 +392,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
         premiumHourlyRate: Number(premiumHourlyRate),
         allowMultipleTaskers,
         allowSubscription,
+        allowSingleService,
         maxHours: Number(maxHours),
         nightSurcharge: Number(nightSurcharge),
         petSurcharge: Number(petSurcharge),
@@ -631,6 +637,26 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
             </div>
             <p className="text-xs font-semibold text-slate-700 leading-normal">Kích hoạt chế độ đặt gói dọn dẹp định kỳ</p>
           </div>
+
+          <div className="flex flex-col gap-2 p-3 bg-muted/20 border border-border/40 rounded-xl justify-center">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-black text-slate-800">Cho phép dịch vụ lẻ</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full transition-colors cursor-help shrink-0">
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[280px] bg-slate-900 text-white p-3 text-xs leading-relaxed border border-slate-800 shadow-lg rounded-lg">
+                    Cho phép khách hàng đặt từng lần riêng lẻ (không cần đăng ký gói). Tắt nếu gói chỉ dành riêng cho đặt theo gói tháng.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Switch checked={allowSingleService} disabled={!isEditing} onCheckedChange={setAllowSingleService} />
+            </div>
+            <p className="text-xs font-semibold text-slate-700 leading-normal">Kích hoạt chế độ đặt dịch vụ lẻ theo từng lần</p>
+          </div>
         </div>
       </SCard>
 
@@ -639,7 +665,9 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={cn(
             "grid grid-cols-2 w-full bg-slate-200/60 p-1 rounded-lg mb-6 gap-1 h-auto",
-            allowSubscription ? "md:grid-cols-5" : "md:grid-cols-4"
+            (allowSubscription && allowSingleService) ? "md:grid-cols-6"
+              : (allowSubscription || allowSingleService) ? "md:grid-cols-5"
+              : "md:grid-cols-4"
           )}>
             <TabsTrigger value="durations" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group flex items-center justify-center gap-1.5">
               <Clock className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
@@ -649,10 +677,12 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
               <Plus className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
               Dịch vụ thêm
             </TabsTrigger>
-            <TabsTrigger value="subservices" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group flex items-center justify-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
-              Tùy chọn (Con)
-            </TabsTrigger>
+            {allowSingleService && (
+              <TabsTrigger value="subservices" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group flex items-center justify-center gap-1.5">
+                <ShoppingCart className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
+                Dịch vụ lẻ
+              </TabsTrigger>
+            )}
             {allowSubscription && (
               <TabsTrigger value="subscriptions" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group flex items-center justify-center gap-1.5">
                 <CalendarDays className="w-3.5 h-3.5 transition-colors text-primary group-data-[state=active]:text-white" />
@@ -1300,8 +1330,8 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
             )}
           </TabsContent>
 
-          {/* TAB 3: SUB-SERVICES (TÙY CHỌN DỊCH VỤ CON) */}
-          <TabsContent value="subservices" className="space-y-4">
+          {/* TAB 3: DỊCH VỤ LẺ (SUB-SERVICES) */}
+          {allowSingleService && <TabsContent value="subservices" className="space-y-4">
             {isEditing && (
               <div className="p-4 bg-muted/10 border border-border/30 rounded-xl space-y-3 mb-2">
                 <p className="text-xs font-bold text-foreground">Liên kết thêm dịch vụ con mới của hệ thống vào gói</p>
@@ -1370,7 +1400,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                 ))}
               </div>
             )}
-          </TabsContent>
+          </TabsContent>}
 
           {/* TAB 4: SUBSCRIPTIONS */}
           <TabsContent value="subscriptions" className="space-y-4">

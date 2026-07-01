@@ -229,7 +229,7 @@ export const TaskerApprovalTable: React.FC = () => {
               setFilter((prev) => ({ ...prev, status: val as DocFilter, page: 1 }))
             }
           >
-            <SelectTrigger className="h-10 min-w-[160px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
+            <SelectTrigger className="h-10 min-w-[185px] rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none">
               <SelectValue placeholder="Lọc trạng thái" />
             </SelectTrigger>
             <SelectContent className="cz-admin rounded-xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">

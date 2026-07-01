@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsEnum, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
 
 export class UpdatePresenceDto {
@@ -9,4 +10,26 @@ export class UpdatePresenceDto {
   })
   @IsEnum(TASKER_PRESENCE_STATUS)
   presenceStatus!: TASKER_PRESENCE_STATUS;
+
+  @ApiPropertyOptional({
+    example: 10.7769,
+    description: 'Vĩ độ (khi chuyển sang ONLINE)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat?: number;
+
+  @ApiPropertyOptional({
+    example: 106.7009,
+    description: 'Kinh độ (khi chuyển sang ONLINE)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng?: number;
 }

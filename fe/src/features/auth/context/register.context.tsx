@@ -75,7 +75,7 @@ export function RegisterProvider({ children }: { children: React.ReactNode }) {
 
             await register.mutateAsync(data)
 
-            router.push(`/login`)
+            router.push(`/verify-email-notice`)
 
         } catch (error) {
             console.error("Register error:", error);

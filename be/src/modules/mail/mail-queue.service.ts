@@ -19,11 +19,15 @@ export class MailQueueService {
   constructor(@InjectQueue(MAIL_QUEUE) private readonly mailQueue: Queue) {}
 
   async enqueueTempPassword(data: TempPasswordJobData): Promise<void> {
+    this.logger.log(`[TempPassword] Đang enqueue job cho email=${data.email}`);
     try {
-      await this.mailQueue.add(MAIL_JOB_TEMP_PASSWORD, data, MAIL_JOB_OPTS);
+      const job = await this.mailQueue.add(MAIL_JOB_TEMP_PASSWORD, data, MAIL_JOB_OPTS);
+      this.logger.log(
+        `[TempPassword] Job added to mailQueue | jobId=${job.id} email=${data.email}`,
+      );
     } catch (err) {
       this.logger.error(
-        `Không enqueue được temp-password email cho ${data.email}`,
+        `[TempPassword] Không enqueue được job cho email=${data.email}`,
         err as Error,
       );
     }

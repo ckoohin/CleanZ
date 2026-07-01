@@ -49,6 +49,16 @@ export class ServicePackagesService {
     private readonly subServiceRepository: Repository<ServiceSubServiceEntity>,
   ) {}
 
+  private availablePackagesCache: {
+    data: ServicePackageEntity[];
+    ts: number;
+  } | null = null;
+  private readonly PKG_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  invalidatePackageCache(): void {
+    this.availablePackagesCache = null;
+  }
+
   async create(dto: CreateServicePackageDto): Promise<ServicePackageEntity> {
     const packageCode = dto.packageCode || this.generateCode(dto.name);
 
@@ -80,6 +90,7 @@ export class ServicePackagesService {
       premiumHourlyRate: dto.premiumHourlyRate ?? 0,
       allowMultipleTaskers: dto.allowMultipleTaskers ?? false,
       allowSubscription: dto.allowSubscription ?? false,
+      allowSingleService: dto.allowSingleService ?? true,
       coverageAreas: dto.coverageAreaIds
         ? dto.coverageAreaIds.map((id) => ({ id }) as CoverageAreaEntity)
         : [],
@@ -174,6 +185,7 @@ export class ServicePackagesService {
       await this.subServiceRepository.save(ssEntities);
     }
 
+    this.invalidatePackageCache();
     return this.findOne(saved.id);
   }
 
@@ -187,6 +199,16 @@ export class ServicePackagesService {
   async findAvailablePackages(
     search?: string,
   ): Promise<ServicePackageEntity[]> {
+    if (!search?.trim()) {
+      const now = Date.now();
+      if (
+        this.availablePackagesCache &&
+        now - this.availablePackagesCache.ts < this.PKG_CACHE_TTL_MS
+      ) {
+        return this.availablePackagesCache.data;
+      }
+    }
+
     const qb = this.packageRepository
       .createQueryBuilder('pkg')
       .leftJoinAndSelect('pkg.coverageAreas', 'area')
@@ -194,9 +216,17 @@ export class ServicePackagesService {
       .leftJoinAndSelect('pss.subService', 'sub', 'sub.isActive = true')
       .leftJoinAndSelect('sub.pricingConfig', 'pricing')
       .leftJoinAndSelect('pkg.pricingTiers', 'tier', 'tier.isActive = true')
-      .leftJoinAndSelect('pkg.durations', 'duration', 'duration.isActive = true')
+      .leftJoinAndSelect(
+        'pkg.durations',
+        'duration',
+        'duration.isActive = true',
+      )
       .leftJoinAndSelect('pkg.addons', 'addon', 'addon.isActive = true')
-      .leftJoinAndSelect('pkg.peakHours', 'peakHour', 'peakHour.isActive = true')
+      .leftJoinAndSelect(
+        'pkg.peakHours',
+        'peakHour',
+        'peakHour.isActive = true',
+      )
       .where('pkg.isActive = true')
       .orderBy('pkg.sortOrder', 'ASC')
       .addOrderBy('pkg.createdAt', 'DESC')
@@ -215,7 +245,11 @@ export class ServicePackagesService {
       );
     }
 
-    return qb.getMany();
+    const result = await qb.getMany();
+    if (!search?.trim()) {
+      this.availablePackagesCache = { data: result, ts: Date.now() };
+    }
+    return result;
   }
 
   async findOne(id: string): Promise<ServicePackageEntity> {
@@ -294,6 +328,8 @@ export class ServicePackagesService {
         dto.allowMultipleTaskers ?? servicePackage.allowMultipleTaskers,
       allowSubscription:
         dto.allowSubscription ?? servicePackage.allowSubscription,
+      allowSingleService:
+        dto.allowSingleService ?? servicePackage.allowSingleService,
     });
 
     if (dto.coverageAreaIds) {
@@ -406,12 +442,14 @@ export class ServicePackagesService {
       }
     }
 
+    this.invalidatePackageCache();
     return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     const servicePackage = await this.findOne(id);
     await this.packageRepository.remove(servicePackage);
+    this.invalidatePackageCache();
   }
 
   async addSubServices(
@@ -441,6 +479,7 @@ export class ServicePackagesService {
     );
 
     await this.pssRepository.save(entities);
+    this.invalidatePackageCache();
   }
 
   async removeSubService(
@@ -448,32 +487,48 @@ export class ServicePackagesService {
     subServiceId: string,
   ): Promise<void> {
     await this.pssRepository.delete({ packageId, subServiceId });
+    this.invalidatePackageCache();
   }
 
-  async getAnalytics(id: string): Promise<ServicePackageAnalytics> {
+  async getAnalytics(
+    id: string,
+    from?: string,
+    to?: string,
+    taskerId?: string,
+  ): Promise<ServicePackageAnalytics> {
     await this.findOne(id); // Check existence
 
+    const fromVal     = from     ?? null;
+    const toVal       = to       ?? null;
+    const taskerVal   = taskerId ?? null;
+
     const statsQuery = `
-      SELECT 
+      SELECT
         COUNT(id)::int AS "totalBookings",
         COALESCE(SUM(total_price), 0)::numeric AS "totalRevenue",
         COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END)::int AS "completedBookings",
         COUNT(CASE WHEN status = 'CANCELLED' THEN 1 END)::int AS "cancelledBookings"
       FROM bookings
       WHERE package_id = $1
+        AND ($2::text IS NULL OR created_at::date >= $2::date)
+        AND ($3::text IS NULL OR created_at::date <= $3::date)
+        AND ($4::text IS NULL OR tasker_id::text = $4::text)
     `;
 
     const taskersQuery = `
-      SELECT 
+      SELECT
         t.id AS "taskerId", u.full_name AS "fullName", u.phone AS "phoneNumber",
         COUNT(b.id)::int AS "completedJobs"
       FROM taskers t
       JOIN users u ON t.user_id = u.id
       JOIN bookings b ON b.tasker_id = t.id
       WHERE b.package_id = $1 AND b.status = 'COMPLETED'
+        AND ($2::text IS NULL OR b.created_at::date >= $2::date)
+        AND ($3::text IS NULL OR b.created_at::date <= $3::date)
+        AND ($4::text IS NULL OR t.id::text = $4::text)
       GROUP BY t.id, u.full_name, u.phone
       ORDER BY "completedJobs" DESC
-      LIMIT 5
+      LIMIT 10
     `;
 
     interface StatsResult {
@@ -491,8 +546,8 @@ export class ServicePackagesService {
     }
 
     const [statsResult, taskersResult] = (await Promise.all([
-      this.packageRepository.query(statsQuery, [id]),
-      this.packageRepository.query(taskersQuery, [id]),
+      this.packageRepository.query(statsQuery, [id, fromVal, toVal, taskerVal]),
+      this.packageRepository.query(taskersQuery, [id, fromVal, toVal, taskerVal]),
     ])) as [StatsResult[], TaskerResult[]];
 
     const stats = statsResult[0] || {

@@ -70,7 +70,19 @@ export interface WalletTransaction {
   referenceType?: string | null;
   description?: string | null;
   createdAt: string;
-  booking?: { id: string; bookingCode?: string } | null;
+  booking?: {
+    id: string;
+    bookingCode?: string;
+    address?: string | null;
+    scheduledStart?: string | null;
+    scheduledStartDate?: string | null;
+    scheduledStartTime?: string | null;
+    durationHours?: number | string | null;
+    totalPrice?: number | string | null;
+    customer?: WalletOwnerProfile | null;
+    tasker?: WalletOwnerProfile | null;
+    package?: { id: string; name?: string | null } | null;
+  } | null;
 }
 
 export interface WalletTransactionQuery {

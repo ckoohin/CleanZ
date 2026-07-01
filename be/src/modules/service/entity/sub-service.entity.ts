@@ -1,5 +1,4 @@
 import { PricingConfigEntity } from 'src/modules/pricing/entity/pricing-config.entity';
-import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -104,9 +103,6 @@ export class SubServiceEntity {
   })
   @JoinColumn({ name: 'pricing_config_id' })
   pricingConfig?: PricingConfigEntity | null;
-
-  @OneToMany(() => VoucherEntity, (v) => v.service)
-  vouchers!: VoucherEntity[];
 
   @OneToMany(() => PackageSubServiceEntity, (pss) => pss.subService)
   packageSubServices!: PackageSubServiceEntity[];

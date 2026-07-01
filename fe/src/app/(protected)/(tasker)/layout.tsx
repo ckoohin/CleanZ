@@ -1,13 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { TaskerSidebar } from "@/features/tasker/_components/TaskerSidebar";
-import { useTaskerProfile, useUpdatePresence } from "@/features/tasker/hooks/tasker.hooks";
+import {
+  useTaskerLocationHeartbeat,
+  useTaskerProfile,
+  useUpdatePresence,
+} from "@/features/tasker/hooks/tasker.hooks";
 import { useTaskerActionGuard } from "@/features/tasker/hooks/useTaskerActionGuard";
 import RoleGuard from "@/features/auth/_components/authv1/RoleGuard";
 import { ActiveJobWidget } from "@/features/booking/components/ActiveJobWidget";
+import { TaskerRealtimeDispatch } from "@/features/tasker/_components/TaskerRealtimeDispatch";
 
 // Page transition variants — slide nhẹ từ phải sang trái (kiểu native app)
 const PAGE_VARIANTS = {
@@ -28,9 +33,23 @@ export default function TaskerLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [now, setNow] = useState(() => Date.now());
   const { data: tasker } = useTaskerProfile();
   const guard = useTaskerActionGuard(tasker);
   const updatePresence = useUpdatePresence();
+  useTaskerLocationHeartbeat(tasker);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const hasLockBanner = Boolean(
+    tasker?.status === "SUSPENDED" ||
+      tasker?.status === "TERMINATED" ||
+      (tasker?.cancelSuspendedUntil &&
+        new Date(tasker.cancelSuspendedUntil).getTime() > now)
+  );
 
   const handleToggleOnline = () => {
     guard.requireVerified(() => {
@@ -47,7 +66,9 @@ export default function TaskerLayout({
         <TaskerSidebar onToggleOnline={handleToggleOnline} />
 
         {/* Main content area */}
-        <main className="flex-1 min-w-0 lg:pt-0 pt-14 pb-24 lg:pb-0 relative overflow-x-hidden">
+        <main
+          className={`flex-1 min-w-0 ${hasLockBanner ? "pt-28" : "pt-14"} lg:pt-0 pb-24 lg:pb-0 relative overflow-x-hidden`}
+        >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
@@ -65,6 +86,7 @@ export default function TaskerLayout({
 
         {/* Khôi phục và định vị Widget theo dõi công việc hoạt động chuẩn xác theo viewport toàn màn hình */}
         <ActiveJobWidget />
+        <TaskerRealtimeDispatch />
       </div>
     </RoleGuard>
   );

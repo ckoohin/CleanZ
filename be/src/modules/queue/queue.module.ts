@@ -21,6 +21,7 @@ import { QueueBoardService } from './queue-board.service';
     }),
     BullModule.registerQueue(
       { name: 'bookingQueue' },
+      { name: 'bookingCheckinQueue' },
       { name: 'notificationQueue' },
       { name: 'paymentQueue' },
       { name: 'analyticsQueue' },

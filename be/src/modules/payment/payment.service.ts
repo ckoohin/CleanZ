@@ -37,6 +37,19 @@ export class PaymentService {
     });
   }
 
+  async findLatestByBookingIds(
+    manager: EntityManager,
+    bookingIds: string[],
+  ): Promise<PaymentEntity[]> {
+    if (bookingIds.length === 0) return [];
+    return manager
+      .getRepository(PaymentEntity)
+      .createQueryBuilder('p')
+      .where('p.booking_id IN (:...ids)', { ids: bookingIds })
+      .orderBy('p.created_at', 'DESC')
+      .getMany();
+  }
+
   async updateLatestPendingPaymentAmount(
     manager: EntityManager,
     bookingId: string,

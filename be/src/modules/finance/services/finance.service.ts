@@ -106,7 +106,9 @@ export class FinanceService {
         // note gốc của tasker giữ nguyên, chỉ lưu adminNote và proof riêng
         ...(dto.note !== undefined ? { note: dto.note } : {}),
         ...(dto.adminNote !== undefined ? { adminNote: dto.adminNote } : {}),
-        ...(dto.proofImageUrl !== undefined ? { proofImageUrl: dto.proofImageUrl } : {}),
+        ...(dto.proofImageUrl !== undefined
+          ? { proofImageUrl: dto.proofImageUrl }
+          : {}),
         reviewedAt: new Date(),
         ...(dto.status === WithdrawalStatus.APPROVED
           ? { processedAt: new Date() }

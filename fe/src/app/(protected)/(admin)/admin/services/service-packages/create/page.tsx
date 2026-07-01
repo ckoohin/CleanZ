@@ -4,14 +4,14 @@ import React, { useState, useMemo, useCallback, useRef, KeyboardEvent, useEffect
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Package, DollarSign, ScrollText, Wrench,
+  ArrowLeft, Package, DollarSign, ScrollText,
   Loader2, ChevronRight, CheckCircle2, Info,
   Clock, Moon, PawPrint, Hammer, Timer,
   Search, Plus, X, Check, List, Settings2,
   AlertCircle, Image as ImageIcon,
   Trash2, Zap, Layers, MapPin, BarChart3,
   Edit, Eye, CheckSquare, ExternalLink, Shield, Sparkles, Heart, Star,
-  Percent, Calendar, HelpCircle, Users, Home, TrendingUp, TrendingDown
+  Percent, Calendar, HelpCircle, Users, Home, TrendingUp, TrendingDown, ShoppingCart
 } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MultipleImageUpload } from "@/components/ui/multiple-image-upload";
@@ -25,7 +25,8 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  useCreateAdminPackage, useAdminServices, useCreateAdminService, useAddSubServicesToPackage, useCoverageAreas, useUpdateCoverageArea,
+  useCreateAdminPackage, useAdminServices, useCreateAdminService, useUpdateAdminService, useDeleteAdminService,
+  useAddSubServicesToPackage, useCoverageAreas, useUpdateCoverageArea,
 } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { usePeakDays, useCreatePeakDay } from "@/features/admin/hooks/useAdminPricing";
 import { adminPricingApi } from "@/features/admin/services/admin-pricing.service";
@@ -49,12 +50,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { adminWorkflowService } from "@/features/admin/modules/service/services/admin-workflow.service";
 import { adminPolicyService } from "@/features/admin/modules/policy/services/admin-policy.service";
 import { useAdminPolicies } from "@/features/admin/modules/policy/hooks/useAdminPolicies";
 import { POLICY_CATEGORY_META, PolicyCategory } from "@/features/admin/modules/policy/types/policy.type";
 import { CreateWorkflowStepDto } from "@/features/admin/modules/service/types/workflow.type";
+import { ROUTES } from "@/constants/routes";
 
 // ─── Step config ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -331,47 +334,94 @@ function StepIndicator({
 }
 
 // ─── SubServiceCard ───────────────────────────────────────────────────────────
-function SubServiceCard({ svc, isSelected, onToggle, onPreview }: {
+function SubServiceCard({ svc, isSelected, config, onToggle, onUpdate, onInfo }: {
   svc: AdminServiceEntity;
   isSelected: boolean;
+  config?: { price: number; isRequired: boolean; isDefault: boolean; isActive: boolean };
   onToggle: () => void;
-  onPreview: () => void;
+  onUpdate: (fields: Partial<{ price: number; isRequired: boolean; isDefault: boolean; isActive: boolean }>) => void;
+  onInfo: () => void;
 }) {
+  const basePrice = svc.pricingConfig?.basePrice ? Number(svc.pricingConfig.basePrice) : 0;
   return (
-    <div className={cn("rounded-xl border-2 transition-all duration-200 overflow-hidden",
-      isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border/40 bg-card hover:border-primary/30")}>
-      <div className="flex items-center gap-3 p-3">
-        <button type="button" onClick={onToggle}
-          className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-            isSelected ? "border-primary bg-primary" : "border-muted-foreground/30")}>
+    <div className={cn(
+      "rounded-xl border-2 transition-all duration-200 overflow-hidden",
+      isSelected ? "border-primary shadow-md bg-primary/3" : "border-border/40 bg-card hover:border-primary/30 hover:shadow-sm"
+    )}>
+      {/* ── Header row (always visible) ── */}
+      <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={onToggle}>
+        <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+          isSelected ? "border-primary bg-primary" : "border-muted-foreground/30")}>
           {isSelected && <Check className="w-3 h-3 text-white" />}
-        </button>
-        <button type="button" onClick={onToggle} className="relative h-11 w-11 rounded-xl overflow-hidden bg-muted/40 border border-border/40 shrink-0">
+        </div>
+        <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-muted/40 border border-border/40 shrink-0">
           {svc.thumbnailUrl
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={svc.thumbnailUrl} alt={svc.name} className="w-full h-full object-cover" />
             : <div className="flex h-full items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground/30" /></div>}
-        </button>
-        <button type="button" onClick={onToggle} className="flex-1 min-w-0 text-left">
+        </div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-sm truncate">{svc.name}</span>
+            <span className="font-bold text-sm">{svc.name}</span>
             <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold shrink-0">{svc.subServiceCode}</span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {svc.durationHours && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="w-3 h-3" />{svc.durationHours}h</span>}
-            {svc.pricingConfig?.basePrice && <span className="text-xs text-primary font-bold">{vnd(Number(svc.pricingConfig.basePrice))}</span>}
+            {basePrice > 0 && <span className="text-xs text-muted-foreground">Giá gốc: <span className="font-bold text-primary">{vnd(basePrice)}</span></span>}
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full",
               svc.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
               {svc.isActive ? "Bật" : "Tắt"}
             </span>
           </div>
-        </button>
-        <button type="button" onClick={onPreview}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
-          title="Xem chi tiết">
-          <Eye className="w-3.5 h-3.5" />
-        </button>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button type="button"
+            onClick={e => { e.stopPropagation(); onInfo(); }}
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Xem chi tiết dịch vụ">
+            <Info className="w-3.5 h-3.5" />
+          </button>
+          <div className={cn("transition-transform duration-200", isSelected ? "rotate-90" : "")}>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </div>
       </div>
+
+      {/* ── Expanded config (only when selected) ── */}
+      {isSelected && config && (
+        <div className="px-4 pb-4 pt-1 border-t border-primary/15 bg-primary/2 space-y-4">
+          {/* Description */}
+          {svc.shortDescription && (
+            <p className="text-xs text-muted-foreground leading-relaxed">{svc.shortDescription}</p>
+          )}
+
+          {/* Price input */}
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Label className="text-xs font-bold block mb-1.5">Giá gốc cho gói này (₫)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={config.price === 0 ? "" : config.price}
+                  onChange={e => onUpdate({ price: Number(e.target.value) })}
+                  className="h-9 rounded-lg text-sm pr-14"
+                  placeholder={basePrice > 0 ? String(basePrice) : "Nhập giá"}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">₫</span>
+              </div>
+              {basePrice > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Để trống → dùng giá gốc mặc định <span className="font-bold text-primary">{vnd(basePrice)}</span>
+                </p>
+              )}
+            </div>
+            <button type="button" onClick={onToggle}
+              className="shrink-0 flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-700 font-semibold px-3 py-2 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200/60">
+              <X className="w-3.5 h-3.5" /> Bỏ chọn
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -626,6 +676,8 @@ export default function CreatePackagePage() {
   const queryClient = useQueryClient();
   const createPackage = useCreateAdminPackage();
   const createService = useCreateAdminService();
+  const updateService = useUpdateAdminService();
+  const deleteService = useDeleteAdminService();
   const addSubServices = useAddSubServicesToPackage();
 
   const { data: servicesData } = useAdminServices({ limit: 100 });
@@ -642,6 +694,7 @@ export default function CreatePackagePage() {
   const [policyDescription, setPolicyDescription] = useState("");
   const [sortOrder, setSortOrder] = useState(0);
   const [isActive, setIsActive] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // ── STEP 2: Cấu hình giá & Phụ phí ──
   const [pricingMode, setPricingMode] = useState<PricingMode>("HOURLY");
@@ -673,13 +726,17 @@ export default function CreatePackagePage() {
   const [premiumHourlyRate, setPremiumHourlyRate] = useState(120000);
   const [allowMultipleTaskers, setAllowMultipleTaskers] = useState(false);
   const [allowSubscription, setAllowSubscription] = useState(false);
+  const [allowSingleService, setAllowSingleService] = useState(true);
   const [activeTab, setActiveTab] = useState("durations");
 
   useEffect(() => {
     if (!allowSubscription && activeTab === "subscriptions") {
       setActiveTab("durations");
     }
-  }, [allowSubscription, activeTab]);
+    if (!allowSingleService && activeTab === "subservices") {
+      setActiveTab("durations");
+    }
+  }, [allowSubscription, allowSingleService, activeTab]);
 
   // Helper states for adding new configurations in tabs
   const [newDuration, setNewDuration] = useState({
@@ -702,6 +759,11 @@ export default function CreatePackagePage() {
     isActive: true,
   });
   const [editingAddonIndex, setEditingAddonIndex] = useState<number | null>(null);
+  const [editAddonModal, setEditAddonModal] = useState<{
+    idx: number; name: string; description: string; price: string;
+    priceUnit: AddonPriceUnit; durationMinutes: string; maxQuantity: string;
+    sortOrder: string; isActive: boolean;
+  } | null>(null);
   const [newSubscription, setNewSubscription] = useState({
     name: "",
     description: "",
@@ -715,7 +777,18 @@ export default function CreatePackagePage() {
     isActive: true,
   });
   const [editingSubscriptionIndex, setEditingSubscriptionIndex] = useState<number | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showAddonPresets, setShowAddonPresets] = useState(false);
+  const [viewingAddon, setViewingAddon] = useState<ServiceAddonEntity | null>(null);
+  const [detailSvc, setDetailSvc] = useState<AdminServiceEntity | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<AdminServiceEntity | null>(null);
+  const [crudModal, setCrudModal] = useState<{ open: boolean; mode: "create" | "edit"; svc?: AdminServiceEntity }>({ open: false, mode: "create" });
+  const CRUD_EMPTY = { name: "", shortDescription: "", description: "", thumbnailUrl: "", galleryUrl1: "", galleryUrl2: "", durationHours: "", basePrice: "", includedTask: "", excludedTask: "", includedTasks: [] as string[], excludedTasks: [] as string[], isActive: true };
+  const [crudForm, setCrudForm] = useState(CRUD_EMPTY);
   const [newPeakHour, setNewPeakHour] = useState({ dayOfWeek: "1", startHour: "08:00", endHour: "22:00", multiplier: "1.1", startDate: "", endDate: "", isActive: true });
+  const [editingPeakHourIdx, setEditingPeakHourIdx] = useState<number | null>(null);
+  const [editPeakHour, setEditPeakHour] = useState({ dayOfWeek: "1", startHour: "08:00", endHour: "22:00", multiplier: "1.1", startDate: "", endDate: "", isActive: true });
+  const [viewingPeakHour, setViewingPeakHour] = useState<(typeof peakHours[number]) | null>(null);
 
   // Dropdown visibility states for searchable select inputs
   const [isOpenAreaDropdown, setIsOpenAreaDropdown] = useState(false);
@@ -754,10 +827,10 @@ export default function CreatePackagePage() {
         const updated = { ...d };
         if (field === 'hours') {
           const val = parseFloat(value);
-          if (!isNaN(val) && val > 0 && val <= 24) {
+          if (!isNaN(val) && val > 0 && val <= maxHours) {
             updated.durationHours = val;
           } else {
-            toast.error("Số giờ phải nằm trong khoảng từ 0.1 đến 24!");
+            toast.error(`Số giờ phải nằm trong khoảng từ 0.1 đến giờ phục vụ tối đa của gói (${maxHours} giờ)!`);
           }
         } else if (field === 'area') {
           const val = parseInt(value, 10);
@@ -789,7 +862,11 @@ export default function CreatePackagePage() {
       });
     });
     setInlineEditingCell(null);
-  }, []);
+    setIsOpenInlineHoursDropdown(false);
+    setIsOpenInlineAreaDropdown(false);
+    setIsOpenInlineAdjustmentDropdown(false);
+    setInlineDdRect(null);
+  }, [maxHours]);
 
   // Area options: 55, 75, 95, ... up to 1500
   const areaOptions = useMemo(() => {
@@ -801,14 +878,15 @@ export default function CreatePackagePage() {
     return opts;
   }, []);
 
-  // Hour options: 1, 1.5, 2, 2.5, ... up to 24
+  // Hour options: 1, 1.5, 2, 2.5, ... up to maxHours
   const hourOptions = useMemo(() => {
     const opts: number[] = [];
-    for (let h = 1.0; h <= 24.0; h += 0.5) {
+    const limit = maxHours > 0 ? maxHours : 24.0;
+    for (let h = 1.0; h <= limit; h += 0.5) {
       opts.push(h);
     }
     return opts;
-  }, []);
+  }, [maxHours]);
 
   const adjustmentOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: "0", label: "Giá gốc (0%)" }];
@@ -875,6 +953,15 @@ export default function CreatePackagePage() {
 
   // ── STEP 3: Khu vực phục vụ ──
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
+
+  const selectedAreaNames = useMemo(() => {
+    if (!coverageAreas || coverageAreas.length === 0) return "";
+    return coverageAreas
+      .filter(a => selectedAreaIds.includes(a.id))
+      .map(a => a.name)
+      .join(", ");
+  }, [coverageAreas, selectedAreaIds]);
+
   const updateAreaMutation = useUpdateCoverageArea();
   const [editingArea, setEditingArea] = useState<CoverageAreaEntity | null>(null);
   const [editAreaFee, setEditAreaFee] = useState("");
@@ -995,8 +1082,6 @@ export default function CreatePackagePage() {
   const updateSelected = (id: string, patch: Partial<SelectedSubService>) =>
     setSelectedSubServices(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
 
-  const removeSelected = (id: string) => setSelectedSubServices(prev => prev.filter(s => s.id !== id));
-
   const toggleArea = (id: string) => setSelectedAreaIds(prev =>
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -1078,6 +1163,10 @@ export default function CreatePackagePage() {
       toast.error("Vui lòng nhập số giờ hợp lệ");
       return;
     }
+    if (hours > maxHours) {
+      toast.error(`Không được thiết lập giờ vượt quá giờ phục vụ tối đa của gói (${maxHours} giờ). Muốn tăng khung giờ hơn thì hãy đổi giờ phục vụ tối đa cao hơn.`);
+      return;
+    }
     const adj = parseFloat(newDuration.priceAdjustment) || 0;
     const multi = 1 + adj / 100;
 
@@ -1102,11 +1191,86 @@ export default function CreatePackagePage() {
     toast.success("Đã thêm thời lượng mới");
   };
 
+  const PEAK_HOUR_QUICK_PRESETS: {
+    label: string; icon: React.ElementType; multiplier: string;
+    entries?: ServicePeakHourEntity[];
+    dayOfWeek?: string; startHour?: string; endHour?: string;
+  }[] = [
+    { label: "Cuối tuần toàn ngày", icon: Star, multiplier: "1.15", entries: [
+      { dayOfWeek: 6, startHour: "08:00", endHour: "22:00", multiplier: 1.15, isActive: true },
+      { dayOfWeek: 0, startHour: "08:00", endHour: "22:00", multiplier: 1.15, isActive: true },
+    ]},
+    { label: "Sáng hàng ngày", icon: TrendingUp, multiplier: "1.1", dayOfWeek: "7", startHour: "07:00", endHour: "09:00" },
+    { label: "Trưa hàng ngày", icon: Timer, multiplier: "1.1", dayOfWeek: "7", startHour: "11:00", endHour: "14:00" },
+    { label: "Chiều tối hàng ngày", icon: Moon, multiplier: "1.2", dayOfWeek: "7", startHour: "17:00", endHour: "20:00" },
+    { label: "Tối hàng ngày", icon: Moon, multiplier: "1.25", dayOfWeek: "7", startHour: "20:00", endHour: "22:00" },
+    { label: "Thứ 6 chiều tối", icon: TrendingUp, multiplier: "1.2", dayOfWeek: "5", startHour: "17:00", endHour: "22:00" },
+  ];
+
+  const ADDON_PRESETS: { group: string; icon: React.ElementType; items: Omit<ServiceAddonEntity, 'isActive'>[] }[] = [
+    {
+      group: "Thiết bị gia dụng",
+      icon: Zap,
+      items: [
+        { name: "Vệ sinh máy lạnh", price: 150000, priceUnit: "per_appliance", durationMinutes: 30, description: "Vệ sinh dàn lạnh, dàn nóng, bộ lọc máy lạnh chuyên sâu", sortOrder: 0 },
+        { name: "Vệ sinh tủ lạnh", price: 120000, priceUnit: "per_appliance", durationMinutes: 30, description: "Vệ sinh toàn bộ ngăn tủ lạnh, khử mùi", sortOrder: 1 },
+        { name: "Vệ sinh máy giặt", price: 120000, priceUnit: "per_appliance", durationMinutes: 30, description: "Vệ sinh lồng giặt, vỏ máy, khay giặt", sortOrder: 2 },
+        { name: "Vệ sinh lò vi sóng", price: 80000, priceUnit: "per_appliance", durationMinutes: 20, description: "Lau sạch bên trong và bên ngoài lò vi sóng", sortOrder: 3 },
+        { name: "Vệ sinh bếp / máy hút mùi", price: 100000, priceUnit: "per_appliance", durationMinutes: 30, description: "Tẩy dầu mỡ bếp, bộ lọc máy hút mùi", sortOrder: 4 },
+      ]
+    },
+    {
+      group: "Lau kính / Cửa sổ",
+      icon: Sparkles,
+      items: [
+        { name: "Lau kính ban công", price: 60000, priceUnit: "per_window", durationMinutes: 15, description: "Lau sạch kính cửa sổ, ban công từ bên trong", sortOrder: 0 },
+        { name: "Lau kính ngoài trời", price: 90000, priceUnit: "per_window", durationMinutes: 20, description: "Lau kính mặt ngoài (tầng 2 trở lên)", sortOrder: 1 },
+        { name: "Lau cửa kính phòng tắm", price: 50000, priceUnit: "per_window", durationMinutes: 15, description: "Lau sạch cửa kính vách ngăn phòng tắm", sortOrder: 2 },
+      ]
+    },
+    {
+      group: "Không gian thêm",
+      icon: Home,
+      items: [
+        { name: "Dọn thêm phòng ngủ", price: 80000, priceUnit: "per_room", durationMinutes: 30, description: "Dọn dẹp thêm mỗi phòng ngủ ngoài gói chuẩn", sortOrder: 0 },
+        { name: "Vệ sinh thêm toilet / WC", price: 50000, priceUnit: "per_toilet", durationMinutes: 20, description: "Vệ sinh thêm mỗi phòng tắm / WC", sortOrder: 1 },
+        { name: "Dọn thêm tầng", price: 100000, priceUnit: "per_floor", durationMinutes: 30, description: "Dọn dẹp thêm mỗi tầng trong nhà nhiều tầng", sortOrder: 2 },
+        { name: "Lau sàn thêm", price: 30000, priceUnit: "per_m2", durationMinutes: 0, description: "Lau sàn khu vực phát sinh thêm ngoài phạm vi gói", sortOrder: 3 },
+      ]
+    },
+    {
+      group: "Đồ nội thất",
+      icon: Heart,
+      items: [
+        { name: "Giặt ghế sofa", price: 80000, priceUnit: "per_sofa_seat", durationMinutes: 20, description: "Giặt hút mỗi chỗ ngồi sofa bằng máy chuyên dụng", sortOrder: 0 },
+        { name: "Thay ga trải giường", price: 50000, priceUnit: "per_bed", durationMinutes: 15, description: "Thay ga gối, drap giường sạch", sortOrder: 1 },
+        { name: "Giặt thảm", price: 120000, priceUnit: "per_m2", durationMinutes: 30, description: "Giặt hút thảm trải sàn bằng máy chuyên dụng", sortOrder: 2 },
+      ]
+    },
+    {
+      group: "Giặt ủi",
+      icon: Layers,
+      items: [
+        { name: "Giặt ủi theo kg", price: 30000, priceUnit: "per_kg", durationMinutes: 0, description: "Giặt sấy và ủi quần áo theo trọng lượng", sortOrder: 0 },
+        { name: "Giặt ủi theo bộ", price: 25000, priceUnit: "per_set", durationMinutes: 0, description: "Giặt ủi theo từng bộ trang phục", sortOrder: 1 },
+      ]
+    },
+  ];
+
   const ADDON_PRICE_UNIT_LABELS: Record<AddonPriceUnit, string> = {
     per_item: "Theo dịch vụ",
-    per_room: "Theo phòng",
-    per_m2: "Theo m²",
     per_session: "Theo buổi",
+    per_hour: "Theo giờ",
+    per_room: "Theo phòng",
+    per_floor: "Theo tầng",
+    per_toilet: "Theo phòng tắm",
+    per_m2: "Theo m²",
+    per_window: "Theo cửa/kính",
+    per_appliance: "Theo thiết bị",
+    per_bed: "Theo giường",
+    per_sofa_seat: "Theo chỗ ngồi sofa",
+    per_kg: "Theo kg",
+    per_set: "Theo bộ",
     fixed: "Cố định",
   };
 
@@ -1147,20 +1311,15 @@ export default function CreatePackagePage() {
       isActive: newAddon.isActive,
     };
 
-    if (editingAddonIndex !== null) {
-      setAddons(prev => prev.map((a, i) => i === editingAddonIndex ? { ...a, ...addonEntry } : a));
-      setEditingAddonIndex(null);
-      toast.success("Đã cập nhật dịch vụ thêm");
-    } else {
-      setAddons(prev => [...prev, addonEntry]);
-      toast.success("Đã thêm dịch vụ thêm");
-    }
+    setAddons(prev => [...prev, addonEntry]);
+    toast.success("Đã thêm dịch vụ thêm");
     resetNewAddon();
   };
 
   const handleEditAddon = (i: number) => {
     const a = addons[i];
-    setNewAddon({
+    setEditAddonModal({
+      idx: i,
       name: a.name,
       description: a.description ?? "",
       price: String(a.price),
@@ -1170,7 +1329,6 @@ export default function CreatePackagePage() {
       sortOrder: a.sortOrder != null ? String(a.sortOrder) : "",
       isActive: a.isActive,
     });
-    setEditingAddonIndex(i);
   };
 
   const BILLING_CYCLE_LABELS: Record<SubscriptionBillingCycle, string> = {
@@ -1227,6 +1385,7 @@ export default function CreatePackagePage() {
       toast.success("Đã thêm cấu hình gói tháng");
     }
     resetNewSubscription();
+    setShowSubscriptionModal(false);
   };
 
   const handleEditSubscription = (i: number) => {
@@ -1244,6 +1403,56 @@ export default function CreatePackagePage() {
       isActive: s.isActive,
     });
     setEditingSubscriptionIndex(i);
+    setShowSubscriptionModal(true);
+  };
+
+  const openCrudCreate = () => { setCrudForm(CRUD_EMPTY); setCrudModal({ open: true, mode: "create" }); };
+
+  const openCrudEdit = (svc: AdminServiceEntity) => {
+    const currentPrice = selectedSubServices.find(s => s.id === svc.id)?.price;
+    setCrudForm({
+      name: svc.name, shortDescription: svc.shortDescription ?? "", description: svc.description ?? "",
+      thumbnailUrl: svc.thumbnailUrl ?? "", galleryUrl1: svc.galleryUrls?.[0] ?? "", galleryUrl2: svc.galleryUrls?.[1] ?? "",
+      durationHours: svc.durationHours != null ? String(svc.durationHours) : "",
+      basePrice: currentPrice ? String(currentPrice) : (svc.pricingConfig?.basePrice ? String(svc.pricingConfig.basePrice) : ""),
+      includedTask: "", excludedTask: "", includedTasks: svc.includedTasks ?? [], excludedTasks: svc.excludedTasks ?? [],
+      isActive: svc.isActive,
+    });
+    setCrudModal({ open: true, mode: "edit", svc });
+  };
+
+  const handleCrudSubmit = async () => {
+    if (!crudForm.name.trim()) { toast.error("Vui lòng nhập tên dịch vụ"); return; }
+    const gallery = [crudForm.galleryUrl1, crudForm.galleryUrl2].filter(Boolean);
+    const priceVal = crudForm.basePrice ? Number(crudForm.basePrice) : 0;
+    const payload = {
+      name: crudForm.name.trim(), shortDescription: crudForm.shortDescription.trim() || undefined,
+      description: crudForm.description.trim() || undefined, thumbnailUrl: crudForm.thumbnailUrl.trim() || undefined,
+      galleryUrls: gallery.length ? gallery : undefined,
+      durationHours: crudForm.durationHours ? Number(crudForm.durationHours) : undefined,
+      basePrice: priceVal > 0 ? priceVal : undefined,
+      includedTasks: crudForm.includedTasks.length ? crudForm.includedTasks : undefined,
+      excludedTasks: crudForm.excludedTasks.length ? crudForm.excludedTasks : undefined,
+      isActive: crudForm.isActive,
+    };
+    if (crudModal.mode === "create") {
+      const created = await createService.mutateAsync(payload);
+      // auto-add to selected list with the entered base price
+      setSelectedSubServices(prev => [...prev, { id: created.id, name: created.name, price: priceVal, isRequired: false, isDefault: false, sortOrder: 0, isActive: true }]);
+    } else if (crudModal.svc) {
+      await updateService.mutateAsync({ id: crudModal.svc.id, payload });
+      // update price if already selected
+      setSelectedSubServices(prev => prev.map(s => s.id === crudModal.svc!.id ? { ...s, price: priceVal } : s));
+      if (detailSvc?.id === crudModal.svc.id) setDetailSvc(null);
+    }
+    setCrudModal({ open: false, mode: "create" }); setCrudForm(CRUD_EMPTY);
+  };
+
+  const handleDeleteSvc = async (svc: AdminServiceEntity) => {
+    await deleteService.mutateAsync(svc.id);
+    setDeleteConfirm(null);
+    setDetailSvc(null);
+    setSelectedSubServices(prev => prev.filter(s => s.id !== svc.id));
   };
 
   const handleSavePeakHour = () => {
@@ -1310,7 +1519,8 @@ export default function CreatePackagePage() {
         premiumHourlyRate: Number(premiumHourlyRate),
         allowMultipleTaskers,
         allowSubscription,
-        
+        allowSingleService,
+
         durations: durations.map(d => ({
           durationHours: d.durationHours,
           priceMultiplier: d.priceMultiplier,
@@ -1400,7 +1610,7 @@ export default function CreatePackagePage() {
       }
 
       toast.success("Tạo gói dịch vụ thành công!");
-      router.push(`/admin/services/${pkg.id}`);
+      router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.BASE);
     } catch (e: unknown) {
       const error = e as { 
         response?: { 
@@ -1476,7 +1686,7 @@ export default function CreatePackagePage() {
                     onChange={e => { const d = e.target.value.replace(/\D/g, ""); setSortOrder(d ? Number(d) : 0); }}
                     className="h-11 rounded-xl" />
                 </Field>
-                <Field label="Trạng thái khi tạo">
+                <Field label="Trạng thái hoạt động">
                   <div className="flex items-center gap-3 h-11">
                     <Switch checked={isActive} onCheckedChange={setIsActive} />
                     <span className={cn("text-sm font-semibold", isActive ? "text-emerald-600" : "text-muted-foreground")}>
@@ -1566,6 +1776,25 @@ export default function CreatePackagePage() {
                 <Input inputMode="numeric" value={premiumHourlyRate === 0 ? "" : String(premiumHourlyRate)} onChange={e => { const d = e.target.value.replace(/\D/g, ""); setPremiumHourlyRate(d ? Number(d) : 0); }} className="h-10 rounded-lg border-slate-300 font-bold" />
                 {premiumHourlyRate > 0 && <p className="text-sm font-black text-slate-900 mt-1">{vnd(premiumHourlyRate)} / giờ</p>}
               </Field>
+              <Field
+                label={<span className="text-xs font-black text-slate-900">Giờ phục vụ tối đa (giờ)</span>}
+                required
+                hint="Số giờ tối đa khách có thể đặt"
+                tooltip="Thời lượng phục vụ tối đa cho một đơn hàng của gói này. Mặc định là 8 giờ."
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={maxHours === 0 ? "" : String(maxHours)}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    setMaxHours(val ? val : 0);
+                  }}
+                  className="h-10 rounded-lg border-slate-300 font-bold"
+                />
+                {maxHours > 0 && <p className="text-sm font-black text-slate-900 mt-1">{maxHours} giờ</p>}
+              </Field>
               <div className="flex flex-col gap-2.5 p-3.5 bg-muted/20 border border-border/40 rounded-xl justify-center">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
@@ -1604,6 +1833,26 @@ export default function CreatePackagePage() {
                 </div>
                 <p className="text-xs font-semibold text-slate-700 leading-normal">Kích hoạt tính năng đăng ký theo tháng/định kỳ cho gói này</p>
               </div>
+
+              <div className="flex flex-col gap-2.5 p-3.5 bg-muted/20 border border-border/40 rounded-lg justify-center">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-bold text-slate-900">Cho phép dịch vụ lẻ</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full transition-colors cursor-help shrink-0">
+                          <HelpCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-[280px] bg-slate-900 text-white p-3 text-xs leading-relaxed border border-slate-800 shadow-lg rounded-lg">
+                        Cho phép khách hàng đặt từng lần riêng lẻ (không cần đăng ký gói). Tắt nếu gói chỉ dành riêng cho đặt theo gói tháng.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Switch checked={allowSingleService} onCheckedChange={setAllowSingleService} />
+                </div>
+                <p className="text-xs font-semibold text-slate-700 leading-normal">Kích hoạt chế độ đặt dịch vụ lẻ theo từng lần</p>
+              </div>
             </div>
           </SectionCard>
 
@@ -1611,7 +1860,9 @@ export default function CreatePackagePage() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className={cn(
                 "grid grid-cols-2 w-full bg-slate-200/60 p-1 rounded-lg mb-4 gap-1 h-auto",
-                allowSubscription ? "md:grid-cols-5" : "md:grid-cols-4"
+                (allowSubscription && allowSingleService) ? "md:grid-cols-6"
+                  : (allowSubscription || allowSingleService) ? "md:grid-cols-5"
+                  : "md:grid-cols-4"
               )}>
                 <TabsTrigger value="durations" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group">
                   <Clock className="w-3.5 h-3.5 mr-1.5 transition-colors text-primary group-data-[state=active]:text-white" />
@@ -1621,10 +1872,12 @@ export default function CreatePackagePage() {
                   <Plus className="w-3.5 h-3.5 mr-1.5 transition-colors text-primary group-data-[state=active]:text-white" />
                   Dịch vụ thêm
                 </TabsTrigger>
-                <TabsTrigger value="subservices" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group">
-                  <Wrench className="w-3.5 h-3.5 mr-1.5 transition-colors text-primary group-data-[state=active]:text-white" />
-                  Tùy chọn (Con)
-                </TabsTrigger>
+                {allowSingleService && (
+                  <TabsTrigger value="subservices" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group">
+                    <ShoppingCart className="w-3.5 h-3.5 mr-1.5 transition-colors text-primary group-data-[state=active]:text-white" />
+                    Dịch vụ lẻ
+                  </TabsTrigger>
+                )}
                 {allowSubscription && (
                   <TabsTrigger value="subscriptions" className="rounded-md font-bold text-xs py-2 transition-all data-[state=active]:bg-primary data-[state=active]:text-white text-slate-800 data-[state=active]:shadow-sm group">
                     <Calendar className="w-3.5 h-3.5 mr-1.5 transition-colors text-primary group-data-[state=active]:text-white" />
@@ -1887,6 +2140,11 @@ export default function CreatePackagePage() {
                         onClick={() => {
                           setTempTitle(newDuration.title || "");
                           setTempDescription(newDuration.description || "");
+                          setTempHours(newDuration.durationHours || "");
+                          setTempArea(newDuration.suggestedArea || "");
+                          setTempAdjustment(newDuration.priceAdjustment || "0");
+                          setTempIsPopular(newDuration.isPopular || false);
+                          setTempTaskerCount(newDuration.taskerCount || "1");
                           setIsOpenMetaModal(true);
                         }}
                         className={cn(
@@ -2160,43 +2418,104 @@ export default function CreatePackagePage() {
 
               {/* TAB 2: ADDONS */}
               <TabsContent value="addons" className="space-y-4">
-                {/* Form thêm / chỉnh sửa addon */}
-                <div className={cn("p-4 border rounded-2xl space-y-4 transition-colors",
-                  editingAddonIndex !== null
-                    ? "bg-amber-50/50 border-amber-300/60 dark:bg-amber-900/10 dark:border-amber-700/40"
-                    : "bg-muted/10 border-border/30")}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold text-foreground">
-                      {editingAddonIndex !== null
-                        ? `Đang chỉnh sửa: ${addons[editingAddonIndex]?.name}`
-                        : "Thêm dịch vụ thêm mới (Ví dụ: Lau kính ngoài, Vệ sinh tủ lạnh, Dọn thêm phòng)"}
-                    </p>
-                    {editingAddonIndex !== null && (
-                      <button type="button" onClick={() => { setEditingAddonIndex(null); resetNewAddon(); }}
-                        className="text-xs font-bold px-3 py-1 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground">
-                        Huỷ sửa
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Row 1: Thông tin chính */}
+                {/* ── Chọn nhanh từ thư viện preset ── */}
+                <div className="border border-border/40 rounded-xl overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddonPresets(p => !p)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-extrabold text-slate-800">Thêm nhanh từ thư viện dịch vụ phổ biến</span>
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                        {ADDON_PRESETS.reduce((acc, g) => acc + g.items.length, 0)} mẫu
+                      </span>
+                    </div>
+                    <ChevronRight className={cn("w-4 h-4 text-slate-500 transition-transform", showAddonPresets && "rotate-90")} />
+                  </button>
+
+                  {showAddonPresets && (
+                    <div className="p-4 space-y-4 border-t border-border/30 bg-white">
+                      {ADDON_PRESETS.map((group) => (
+                        <div key={group.group}>
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <group.icon className="w-3.5 h-3.5 text-primary/70" />
+                            <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">{group.group}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {group.items.map((preset) => {
+                              const alreadyAdded = addons.some(a => a.name === preset.name);
+                              return (
+                                <button
+                                  key={preset.name}
+                                  type="button"
+                                  disabled={alreadyAdded}
+                                  onClick={() => {
+                                    if (alreadyAdded) return;
+                                    setAddons(prev => [...prev, { ...preset, isActive: true }]);
+                                    toast.success(`Đã thêm "${preset.name}"`);
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
+                                    alreadyAdded
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-default opacity-70"
+                                      : "border-border/50 bg-white hover:border-primary hover:bg-primary/5 hover:text-primary text-slate-700 cursor-pointer shadow-2xs"
+                                  )}
+                                >
+                                  {alreadyAdded
+                                    ? <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                                    : <Plus className="w-3 h-3 shrink-0" />
+                                  }
+                                  <span>{preset.name}</span>
+                                  <span className={cn("font-bold ml-0.5", alreadyAdded ? "text-emerald-600" : "text-primary")}>
+                                    {vnd(preset.price)}
+                                  </span>
+                                  <span className="text-[10px] opacity-60 shrink-0">/{ADDON_PRICE_UNIT_LABELS[preset.priceUnit as AddonPriceUnit]?.replace("Theo ", "")}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Form thêm addon ── */}
+                <div className="p-4 border rounded-2xl space-y-4 bg-muted/10 border-border/30">
+                  <p className="text-xs font-bold text-foreground">Thêm dịch vụ thêm tuỳ chỉnh</p>
+
+                  {/* Row 1: Tên + Đơn giá + Đơn vị tính */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <Field label="Tên dịch vụ thêm" required>
                       <Input placeholder="Lau kính ban công" value={newAddon.name}
                         onChange={e => setNewAddon(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-xl" />
                     </Field>
-                    <Field label="Đơn giá phụ thu (₫)" required>
-                      <Input type="number" placeholder="50000" value={newAddon.price}
-                        onChange={e => setNewAddon(p => ({ ...p, price: e.target.value }))} className="h-10 rounded-xl" />
+                    <Field label="Đơn giá phụ thu (₫)" required
+                      hint={newAddon.price ? vnd(Number(newAddon.price)) : undefined}>
+                      <Input inputMode="numeric" placeholder="50000" value={newAddon.price}
+                        onChange={e => { const d = e.target.value.replace(/\D/g, ""); setNewAddon(p => ({ ...p, price: d })); }}
+                        className="h-10 rounded-xl font-bold" />
                     </Field>
-                    <Field label="Đơn vị tính" tooltip="Cách tính giá khi khách chọn addon này">
+                    <Field label="Đơn vị tính" tooltip="Cách tính giá cho mỗi đơn vị khách chọn">
                       <Select value={newAddon.priceUnit} onValueChange={v => setNewAddon(p => ({ ...p, priceUnit: v as AddonPriceUnit }))}>
                         <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="per_item">Theo dịch vụ (mỗi lần)</SelectItem>
-                          <SelectItem value="per_room">Theo phòng</SelectItem>
-                          <SelectItem value="per_m2">Theo m²</SelectItem>
                           <SelectItem value="per_session">Theo buổi</SelectItem>
+                          <SelectItem value="per_hour">Theo giờ</SelectItem>
+                          <SelectItem value="per_room">Theo phòng</SelectItem>
+                          <SelectItem value="per_floor">Theo tầng</SelectItem>
+                          <SelectItem value="per_toilet">Theo phòng tắm / WC</SelectItem>
+                          <SelectItem value="per_m2">Theo m²</SelectItem>
+                          <SelectItem value="per_window">Theo cửa / kính</SelectItem>
+                          <SelectItem value="per_appliance">Theo thiết bị</SelectItem>
+                          <SelectItem value="per_bed">Theo giường</SelectItem>
+                          <SelectItem value="per_sofa_seat">Theo chỗ ngồi sofa</SelectItem>
+                          <SelectItem value="per_kg">Theo kg (giặt ủi)</SelectItem>
+                          <SelectItem value="per_set">Theo bộ</SelectItem>
                           <SelectItem value="fixed">Cố định</SelectItem>
                         </SelectContent>
                       </Select>
@@ -2204,46 +2523,67 @@ export default function CreatePackagePage() {
                   </div>
 
                   {/* Row 2: Cấu hình bổ sung */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Field label="Thời gian thêm (phút)" tooltip="Thời gian phát sinh thêm khi khách chọn addon này">
-                      <Input type="number" placeholder="30" value={newAddon.durationMinutes}
-                        onChange={e => setNewAddon(p => ({ ...p, durationMinutes: e.target.value }))} className="h-10 rounded-xl" />
+                      <div className="relative">
+                        <Input inputMode="numeric" placeholder="30" value={newAddon.durationMinutes}
+                          onChange={e => setNewAddon(p => ({ ...p, durationMinutes: e.target.value.replace(/\D/g, "") }))}
+                          className="h-10 rounded-xl pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">phút</span>
+                      </div>
+                      {newAddon.durationMinutes && Number(newAddon.durationMinutes) > 0 && (
+                        <p className="text-[10px] text-primary font-bold mt-0.5">
+                          {Math.floor(Number(newAddon.durationMinutes) / 60) > 0 ? `${Math.floor(Number(newAddon.durationMinutes) / 60)} giờ ` : ""}
+                          {Number(newAddon.durationMinutes) % 60 > 0 ? `${Number(newAddon.durationMinutes) % 60} phút` : ""}
+                        </p>
+                      )}
                     </Field>
-                    <Field label="Số lượng tối đa" tooltip="Giới hạn khách có thể chọn tối đa bao nhiêu đơn vị. Để trống = không giới hạn">
-                      <Input type="number" placeholder="Không giới hạn" value={newAddon.maxQuantity}
-                        onChange={e => setNewAddon(p => ({ ...p, maxQuantity: e.target.value }))} className="h-10 rounded-xl" />
+                    <Field label="Số lượng tối đa" tooltip="Để trống = không giới hạn số lượng khách có thể chọn">
+                      <Input inputMode="numeric" placeholder="∞ Không giới hạn" value={newAddon.maxQuantity}
+                        onChange={e => setNewAddon(p => ({ ...p, maxQuantity: e.target.value.replace(/\D/g, "") }))}
+                        className="h-10 rounded-xl" />
                     </Field>
-                    <Field label="Thứ tự hiển thị" tooltip="Số nhỏ hơn hiển thị trước">
-                      <Input type="number" placeholder="0" value={newAddon.sortOrder}
-                        onChange={e => setNewAddon(p => ({ ...p, sortOrder: e.target.value }))} className="h-10 rounded-xl" />
+                    <Field label="Thứ tự hiển thị" tooltip="Số nhỏ hơn hiển thị trước trong danh sách addon cho khách">
+                      <Input inputMode="numeric" placeholder="0" value={newAddon.sortOrder}
+                        onChange={e => setNewAddon(p => ({ ...p, sortOrder: e.target.value.replace(/\D/g, "") }))}
+                        className="h-10 rounded-xl" />
                     </Field>
                     <Field label="Trạng thái">
-                      <div className="flex items-center gap-2 h-10">
+                      <div className="flex items-center gap-2 h-10 px-3 border border-border/40 rounded-xl bg-background">
                         <Switch checked={newAddon.isActive} onCheckedChange={v => setNewAddon(p => ({ ...p, isActive: v }))} />
-                        <span className="text-xs font-semibold">{newAddon.isActive ? "Đang bật" : "Đã tắt"}</span>
+                        <span className={cn("text-xs font-semibold", newAddon.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+                          {newAddon.isActive ? "Đang bật" : "Đã tắt"}
+                        </span>
                       </div>
                     </Field>
                   </div>
 
-                  {/* Row 3: Mô tả full width */}
+                  {/* Row 3: Mô tả */}
                   <Field label="Mô tả chi tiết">
-                    <Input placeholder="Thực hiện lau chùi kính toàn bộ khu vực ban công, loại bỏ vết bẩn cứng đầu..." value={newAddon.description}
+                    <Input placeholder="Mô tả ngắn về dịch vụ thêm này..." value={newAddon.description}
                       onChange={e => setNewAddon(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
                   </Field>
 
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between">
+                    {newAddon.name && newAddon.price ? (
+                      <p className="text-xs text-slate-600 font-semibold">
+                        Giá hiển thị: <span className="text-primary font-black">{vnd(Number(newAddon.price))}</span>
+                        <span className="text-slate-400"> / {ADDON_PRICE_UNIT_LABELS[newAddon.priceUnit]?.replace("Theo ", "")}</span>
+                      </p>
+                    ) : <div />}
                     <BaseButton type="button" onClick={handleSaveAddon}
-                      className={cn("h-10 rounded-xl font-bold text-white px-6",
-                        editingAddonIndex !== null ? "bg-amber-500 hover:bg-amber-600" : "bg-primary")}>
-                      {editingAddonIndex !== null ? "Lưu thay đổi" : "+ Thêm dịch vụ thêm"}
+                      className="h-10 rounded-xl font-bold text-white px-6 bg-primary">
+                      + Thêm dịch vụ thêm
                     </BaseButton>
                   </div>
                 </div>
 
-                {/* Bảng danh sách addons */}
+                {/* ── Danh sách addons ── */}
                 {addons.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground text-xs bg-muted/5 border border-dashed border-border/40 rounded-2xl">
-                    Chưa có dịch vụ thêm nào. Thêm ở form bên trên.
+                  <div className="py-10 text-center text-muted-foreground text-xs bg-muted/5 border border-dashed border-border/40 rounded-2xl space-y-2">
+                    <Plus className="w-8 h-8 mx-auto text-muted-foreground/30" />
+                    <p className="font-semibold">Chưa có dịch vụ thêm nào.</p>
+                    <p>Chọn nhanh từ thư viện bên trên hoặc tự điền form.</p>
                   </div>
                 ) : (
                   <div className="border border-border/30 rounded-xl overflow-hidden bg-card shadow-2xs">
@@ -2259,38 +2599,32 @@ export default function CreatePackagePage() {
                       <thead>
                         <tr className="bg-muted/20 border-b border-border/30 text-slate-700 uppercase font-extrabold tracking-wider text-[10px]">
                           <th className="py-3 px-4">Tên dịch vụ</th>
-                          <th className="py-3 px-4">Mô tả</th>
                           <th className="py-3 px-4 text-right">Đơn giá</th>
                           <th className="py-3 px-4 text-center">Đơn vị</th>
                           <th className="py-3 px-4 text-center">T.Gian</th>
                           <th className="py-3 px-4 text-center">Tối đa</th>
-                          <th className="py-3 px-4 text-center">Thứ tự</th>
                           <th className="py-3 px-4 text-center">Bật/Tắt</th>
                           <th className="py-3 px-4 text-right">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/20">
                         {addons.map((a, i) => (
-                          <tr key={i} className={cn("transition-colors",
-                            editingAddonIndex === i ? "bg-amber-50/60 dark:bg-amber-900/10" : "hover:bg-muted/10")}>
-                            <td className="py-3 px-4 font-bold text-foreground">
-                              {a.name}
+                          <tr key={i} className="transition-colors group hover:bg-muted/10">
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-foreground">{a.name}</div>
+                              {a.description && <div className="text-[10px] text-muted-foreground mt-0.5 max-w-[220px] truncate">{a.description}</div>}
                             </td>
-                            <td className="py-3 px-4 text-muted-foreground max-w-[180px] truncate">{a.description || "—"}</td>
-                            <td className="py-3 px-4 text-right font-semibold text-primary whitespace-nowrap">{vnd(a.price)}</td>
+                            <td className="py-3 px-4 text-right font-black text-primary whitespace-nowrap">{vnd(a.price)}</td>
                             <td className="py-3 px-4 text-center">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary whitespace-nowrap">
                                 {ADDON_PRICE_UNIT_LABELS[a.priceUnit ?? "per_item"]}
                               </span>
                             </td>
                             <td className="py-3 px-4 text-center text-muted-foreground">
-                              {a.durationMinutes ? `${a.durationMinutes} phút` : "—"}
+                              {a.durationMinutes ? `+${a.durationMinutes} phút` : "—"}
                             </td>
                             <td className="py-3 px-4 text-center text-muted-foreground">
-                              {a.maxQuantity ?? "∞"}
-                            </td>
-                            <td className="py-3 px-4 text-center text-muted-foreground">
-                              {a.sortOrder ?? "—"}
+                              {a.maxQuantity != null ? `≤ ${a.maxQuantity}` : "∞"}
                             </td>
                             <td className="py-3 px-4 text-center">
                               <Switch checked={a.isActive}
@@ -2298,15 +2632,22 @@ export default function CreatePackagePage() {
                             </td>
                             <td className="py-3 px-4 text-right">
                               <div className="flex items-center gap-1 justify-end">
+                                <button type="button" onClick={() => setViewingAddon(a)}
+                                  title="Xem chi tiết"
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 text-muted-foreground hover:text-slate-700 transition-colors">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
                                 <button type="button" onClick={() => handleEditAddon(i)}
-                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600">
+                                  title="Chỉnh sửa"
+                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600 transition-colors">
                                   <Edit className="w-3.5 h-3.5" />
                                 </button>
                                 <button type="button" onClick={() => {
                                   setAddons(prev => prev.filter((_, idx) => idx !== i));
-                                  if (editingAddonIndex === i) { setEditingAddonIndex(null); resetNewAddon(); }
+                                  if (editAddonModal?.idx === i) setEditAddonModal(null);
                                 }}
-                                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                                  title="Xoá"
+                                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -2319,10 +2660,16 @@ export default function CreatePackagePage() {
                 )}
               </TabsContent>
 
-              {/* TAB 3: SUB-SERVICES (TÙY CHỌN DỊCH VỤ CON) */}
-              <TabsContent value="subservices" className="space-y-4">
+              {/* TAB 3: DỊCH VỤ LẺ */}
+              {allowSingleService && <TabsContent value="subservices" className="space-y-4">
                 <div className="space-y-4">
-                  <p className="text-xs font-bold text-foreground">Chọn và cấu hình giá riêng cho các dịch vụ con đi kèm trong gói này</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-foreground">Chọn dịch vụ lẻ và nhập giá gốc riêng cho từng dịch vụ trong gói này</p>
+                    <button type="button" onClick={openCrudCreate}
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm">
+                      <Plus className="w-3.5 h-3.5" /> Tạo dịch vụ lẻ mới
+                    </button>
+                  </div>
                   
                   {/* Search and Select Sub Services */}
                   <div className="relative">
@@ -2331,73 +2678,33 @@ export default function CreatePackagePage() {
                       onChange={e => setSearchSvc(e.target.value)} className="h-10 rounded-xl pl-9 text-sm" />
                   </div>
                   
+                  {selectedSubServices.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Đã chọn <span className="font-bold text-primary">{selectedSubServices.length}</span> dịch vụ lẻ — nhấn vào thẻ để chỉnh sửa chi tiết
+                    </p>
+                  )}
+
                   {filteredSvcs.length === 0 ? (
                     <div className="py-10 text-center text-muted-foreground text-sm">
                       <Package className="w-8 h-8 mx-auto mb-3 opacity-30" />Không tìm thấy dịch vụ con nào phù hợp.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
-                      {filteredSvcs.map(svc => (
-                        <SubServiceCard key={svc.id} svc={svc}
-                          isSelected={!!selectedSubServices.find(s => s.id === svc.id)}
-                          onToggle={() => toggleSelect(svc)}
-                          onPreview={() => setPreviewSubService(svc)} />
-                      ))}
-                    </div>
-                  )}
-
-                  {selectedSubServices.length > 0 && (
-                    <div className="space-y-3 pt-3 border-t border-border/30">
-                      <Label className="text-sm font-bold block">Danh sách dịch vụ con đã chọn & Bảng giá riêng biệt</Label>
-                      {selectedSubServices.map((s, idx) => {
-                        const fullSvc = allSubServices.find(x => x.id === s.id);
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {filteredSvcs.map(svc => {
+                        const sel = selectedSubServices.find(s => s.id === svc.id);
                         return (
-                          <div key={s.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border border-border/40 rounded-xl bg-muted/10">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-sm truncate text-foreground">{s.name}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Giá mặc định: {fullSvc?.pricingConfig?.basePrice ? vnd(Number(fullSvc.pricingConfig.basePrice)) : "Chưa có"}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-4 flex-wrap shrink-0">
-                              <div className="flex items-center gap-1.5">
-                                <Label className="text-xs font-semibold">Giá riêng (₫):</Label>
-                                <Input
-                                  type="number"
-                                  value={s.price === 0 ? "" : s.price}
-                                  onChange={e => updateSelected(s.id, { price: Number(e.target.value) })}
-                                  className="w-28 h-8 rounded-lg text-xs"
-                                  placeholder="Nhập giá riêng"
-                                />
-                              </div>
-
-                              <label className="flex items-center gap-1.5 cursor-pointer">
-                                <Switch checked={s.isRequired} onCheckedChange={v => updateSelected(s.id, { isRequired: v })} />
-                                <span className="text-xs font-semibold">Bắt buộc</span>
-                              </label>
-
-                              <label className="flex items-center gap-1.5 cursor-pointer">
-                                <Switch checked={s.isDefault} onCheckedChange={v => updateSelected(s.id, { isDefault: v })} />
-                                <span className="text-xs font-semibold">Mặc định</span>
-                              </label>
-
-                              <label className="flex items-center gap-1.5 cursor-pointer">
-                                <Switch checked={s.isActive} onCheckedChange={v => updateSelected(s.id, { isActive: v })} />
-                                <span className="text-xs font-semibold">Bật</span>
-                              </label>
-
-                              <button type="button" onClick={() => removeSelected(s.id)}
-                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
+                          <SubServiceCard key={svc.id} svc={svc}
+                            isSelected={!!sel}
+                            config={sel ? { price: sel.price, isRequired: sel.isRequired, isDefault: sel.isDefault, isActive: sel.isActive } : undefined}
+                            onToggle={() => toggleSelect(svc)}
+                            onUpdate={fields => updateSelected(svc.id, fields)}
+                            onInfo={() => setDetailSvc(svc)} />
                         );
                       })}
                     </div>
                   )}
                 </div>
-              </TabsContent>
+              </TabsContent>}
 
               {/* TAB 4: SUBSCRIPTIONS */}
               <TabsContent value="subscriptions" className="space-y-4">
@@ -2406,109 +2713,191 @@ export default function CreatePackagePage() {
                   <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wide self-center mr-1">Thêm nhanh:</span>
                   {SUBSCRIPTION_PRESETS.map(preset => (
                     <button key={preset.label} type="button"
-                      onClick={() => setNewSubscription(p => ({ ...p, ...preset.data }))}
+                      onClick={() => { setNewSubscription(p => ({ ...p, ...preset.data })); setShowSubscriptionModal(true); }}
                       className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors shadow-xs">
                       {preset.label}
                     </button>
                   ))}
+                  <button type="button"
+                    onClick={() => { resetNewSubscription(); setEditingSubscriptionIndex(null); setShowSubscriptionModal(true); }}
+                    className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs ml-auto">
+                    + Thêm gói mới
+                  </button>
                 </div>
 
-                {/* Form */}
-                <div className={cn("p-4 border rounded-2xl space-y-4 transition-colors",
-                  editingSubscriptionIndex !== null
-                    ? "bg-amber-50/50 border-amber-300/60"
-                    : "bg-muted/10 border-border/30")}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold text-foreground">
-                      {editingSubscriptionIndex !== null
-                        ? `Đang chỉnh sửa: ${subscriptions[editingSubscriptionIndex]?.name}`
-                        : "Thêm cấu hình gói định kỳ mới"}
-                    </p>
-                    {editingSubscriptionIndex !== null && (
-                      <button type="button" onClick={() => { setEditingSubscriptionIndex(null); resetNewSubscription(); }}
-                        className="text-xs font-bold px-3 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80">
-                        Huỷ sửa
+                {/* Dialog thêm/sửa gói định kỳ */}
+                <Dialog open={showSubscriptionModal} onOpenChange={open => {
+                  setShowSubscriptionModal(open);
+                  if (!open) { setEditingSubscriptionIndex(null); resetNewSubscription(); }
+                }}>
+                  <DialogContent className="w-full sm:max-w-2xl rounded-2xl p-0 bg-card border border-border overflow-hidden">
+                    <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+                      <DialogTitle className="text-base font-black flex items-center gap-2">
+                        {editingSubscriptionIndex !== null
+                          ? <><span className="text-amber-500">✎</span> Chỉnh sửa gói định kỳ</>
+                          : <><span className="text-emerald-500">＋</span> Thêm cấu hình gói định kỳ</>}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground">
+                        Cấu hình gói đăng ký định kỳ — khách hàng chọn gói này để đặt dịch vụ với ưu đãi giảm giá theo chu kỳ.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
+                      {/* Block 1: Tên & chu kỳ */}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Thông tin cơ bản</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Field label="Tên gói định kỳ" required tooltip="Tên hiển thị với khách hàng, nên ngắn gọn và rõ ràng. Ví dụ: Gói quý (12 buổi)">
+                            <Input placeholder="Gói quý (12 buổi)" value={newSubscription.name}
+                              onChange={e => setNewSubscription(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-xl" />
+                          </Field>
+                          <Field label="Chu kỳ thanh toán" tooltip="Khách sẽ bị tính phí và gia hạn theo chu kỳ này. Chọn phù hợp với mô hình dịch vụ.">
+                            <Select value={newSubscription.billingCycle} onValueChange={v => setNewSubscription(p => ({ ...p, billingCycle: v as SubscriptionBillingCycle }))}>
+                              <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="weekly">Hàng tuần (7 ngày)</SelectItem>
+                                <SelectItem value="biweekly">2 tuần/lần (14 ngày)</SelectItem>
+                                <SelectItem value="monthly">Hàng tháng (30 ngày)</SelectItem>
+                                <SelectItem value="quarterly">Hàng quý (90 ngày)</SelectItem>
+                                <SelectItem value="yearly">Hàng năm (365 ngày)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        </div>
+                      </div>
+
+                      {/* Block 2: Giới hạn & cam kết */}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Giới hạn & Cam kết</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Field label="Số buổi/chu kỳ" tooltip="Tổng số buổi dọn được gộp trong 1 chu kỳ. Ví dụ: gói tháng 4 buổi = mỗi tuần 1 buổi. Để trống nếu không giới hạn.">
+                            <Select value={newSubscription.sessionsPerCycle || "custom"}
+                              onValueChange={v => setNewSubscription(p => ({ ...p, sessionsPerCycle: v === "custom" ? "" : v }))}>
+                              <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Chọn số buổi..." /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">1 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="2">2 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="4">4 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="6">6 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="8">8 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="10">10 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="12">12 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="16">16 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="20">20 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="24">24 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="48">48 buổi/chu kỳ</SelectItem>
+                                <SelectItem value="custom">Không giới hạn</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                          <Field label="Cam kết tối thiểu (tháng)" tooltip="Số tháng khách phải duy trì gói trước khi có thể huỷ. Dùng để hạn chế huỷ sớm và bảo vệ doanh thu. Để trống nếu không cam kết.">
+                            <Select value={newSubscription.commitmentMonths || "none"}
+                              onValueChange={v => setNewSubscription(p => ({ ...p, commitmentMonths: v === "none" ? "" : v }))}>
+                              <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Chọn cam kết..." /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Không cam kết</SelectItem>
+                                <SelectItem value="1">1 tháng</SelectItem>
+                                <SelectItem value="2">2 tháng</SelectItem>
+                                <SelectItem value="3">3 tháng</SelectItem>
+                                <SelectItem value="4">4 tháng</SelectItem>
+                                <SelectItem value="6">6 tháng</SelectItem>
+                                <SelectItem value="12">12 tháng</SelectItem>
+                                <SelectItem value="24">24 tháng</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        </div>
+                      </div>
+
+                      {/* Block 3: Ưu đãi */}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Ưu đãi & Giảm giá</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Field label="Giảm giá (%)" required tooltip="Phần trăm giảm so với giá đặt lẻ từng buổi. Ví dụ: 15 nghĩa là khách được giảm 15% tổng hóa đơn.">
+                            <div className="relative">
+                              <Input type="number" min="0" max="100" placeholder="15" value={newSubscription.discountPercent}
+                                onChange={e => setNewSubscription(p => ({ ...p, discountPercent: e.target.value }))} className="h-10 rounded-xl pr-10" />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">%</span>
+                            </div>
+                          </Field>
+                          <Field label="Thứ tự hiển thị" tooltip="Vị trí sắp xếp trên giao diện khách hàng. Số nhỏ hơn hiển thị trước. Để trống = mặc định 0.">
+                            <Select value={newSubscription.sortOrder || "0"}
+                              onValueChange={v => setNewSubscription(p => ({ ...p, sortOrder: v }))}>
+                              <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                                  <SelectItem key={n} value={String(n)}>Vị trí {n}{n === 0 ? " (đầu tiên)" : ""}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <Field label="Mô tả ưu đãi" tooltip="Câu mô tả ngắn hiển thị dưới tên gói, nêu bật lợi ích chính. Ví dụ: Tiết kiệm 15% khi cam kết 3 tháng.">
+                            <textarea
+                              rows={2}
+                              placeholder="Tiết kiệm 15% khi cam kết 3 tháng dọn dẹp định kỳ..."
+                              value={newSubscription.description}
+                              onChange={e => setNewSubscription(p => ({ ...p, description: e.target.value }))}
+                              className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                          </Field>
+                          <Field label="Ưu đãi thêm (Bonus)" tooltip="Quyền lợi bổ sung ngoài giảm giá. Ví dụ: Tặng 1 buổi dọn sâu miễn phí mỗi quý, ưu tiên đặt lịch giờ vàng.">
+                            <textarea
+                              rows={2}
+                              placeholder="Tặng 2 buổi dọn sâu miễn phí/năm..."
+                              value={newSubscription.bonusDescription}
+                              onChange={e => setNewSubscription(p => ({ ...p, bonusDescription: e.target.value }))}
+                              className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                          </Field>
+                        </div>
+                      </div>
+
+                      {/* Block 4: Cài đặt hiển thị */}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Cài đặt hiển thị</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Field label="Phổ biến" tooltip="Đánh dấu badge 'Phổ biến' trên thẻ gói này. Chỉ nên chọn 1 gói phổ biến nhất để tránh loãng.">
+                            <div className="flex items-center gap-3 h-10 px-3 bg-muted/20 rounded-xl border border-border/40">
+                              <Switch checked={newSubscription.isPopular} onCheckedChange={v => setNewSubscription(p => ({ ...p, isPopular: v }))} />
+                              <div>
+                                <p className="text-xs font-bold">{newSubscription.isPopular ? "Đang hiện badge" : "Không hiển thị"}</p>
+                                <p className="text-[10px] text-muted-foreground">badge &quot;Phổ biến&quot;</p>
+                              </div>
+                            </div>
+                          </Field>
+                          <Field label="Trạng thái" tooltip="Bật thì khách hàng có thể nhìn thấy và chọn gói này. Tắt để tạm ẩn mà không xoá.">
+                            <div className="flex items-center gap-3 h-10 px-3 bg-muted/20 rounded-xl border border-border/40">
+                              <Switch checked={newSubscription.isActive} onCheckedChange={v => setNewSubscription(p => ({ ...p, isActive: v }))} />
+                              <div>
+                                <p className="text-xs font-bold">{newSubscription.isActive ? "Đang bật" : "Đã tắt"}</p>
+                                <p className="text-[10px] text-muted-foreground">{newSubscription.isActive ? "Khách hàng thấy" : "Tạm ẩn"}</p>
+                              </div>
+                            </div>
+                          </Field>
+                        </div>
+                      </div>
+                    </div>
+
+                    <DialogFooter className="px-6 py-4 border-t border-border/40 flex gap-3">
+                      <button type="button" onClick={() => { setShowSubscriptionModal(false); setEditingSubscriptionIndex(null); resetNewSubscription(); }}
+                        className="flex-1 h-10 rounded-xl border border-border/40 text-sm font-semibold hover:bg-muted/40 transition-colors">
+                        Huỷ
                       </button>
-                    )}
-                  </div>
-
-                  {/* Row 1 */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <Field label="Tên gói định kỳ" required>
-                      <Input placeholder="Gói quý (12 buổi)" value={newSubscription.name}
-                        onChange={e => setNewSubscription(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                    <Field label="Chu kỳ thanh toán" tooltip="Khách sẽ được lập hóa đơn theo chu kỳ này">
-                      <Select value={newSubscription.billingCycle} onValueChange={v => setNewSubscription(p => ({ ...p, billingCycle: v as SubscriptionBillingCycle }))}>
-                        <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="weekly">Hàng tuần</SelectItem>
-                          <SelectItem value="biweekly">2 tuần/lần</SelectItem>
-                          <SelectItem value="monthly">Hàng tháng</SelectItem>
-                          <SelectItem value="quarterly">Hàng quý (3 tháng)</SelectItem>
-                          <SelectItem value="yearly">Hàng năm</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Số buổi/chu kỳ" tooltip="Tổng buổi dọn được gồm trong 1 chu kỳ">
-                      <Input type="number" placeholder="12" value={newSubscription.sessionsPerCycle}
-                        onChange={e => setNewSubscription(p => ({ ...p, sessionsPerCycle: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                    <Field label="Cam kết tối thiểu (tháng)" tooltip="Số tháng khách phải duy trì gói">
-                      <Input type="number" placeholder="3" value={newSubscription.commitmentMonths}
-                        onChange={e => setNewSubscription(p => ({ ...p, commitmentMonths: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                  </div>
-
-                  {/* Row 2 */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <Field label="Giảm giá (%)" required>
-                      <Input type="number" min="0" max="100" placeholder="15" value={newSubscription.discountPercent}
-                        onChange={e => setNewSubscription(p => ({ ...p, discountPercent: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                    <Field label="Thứ tự hiển thị">
-                      <Input type="number" placeholder="0" value={newSubscription.sortOrder}
-                        onChange={e => setNewSubscription(p => ({ ...p, sortOrder: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                    <Field label="Phổ biến">
-                      <div className="flex items-center gap-2 h-10">
-                        <Switch checked={newSubscription.isPopular} onCheckedChange={v => setNewSubscription(p => ({ ...p, isPopular: v }))} />
-                        <span className="text-xs font-semibold">{newSubscription.isPopular ? "Hiện badge Phổ biến" : "Không"}</span>
-                      </div>
-                    </Field>
-                    <Field label="Trạng thái">
-                      <div className="flex items-center gap-2 h-10">
-                        <Switch checked={newSubscription.isActive} onCheckedChange={v => setNewSubscription(p => ({ ...p, isActive: v }))} />
-                        <span className="text-xs font-semibold">{newSubscription.isActive ? "Đang bật" : "Đã tắt"}</span>
-                      </div>
-                    </Field>
-                  </div>
-
-                  {/* Row 3 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Mô tả ưu đãi">
-                      <Input placeholder="Tiết kiệm 15% khi cam kết 3 tháng dọn dẹp định kỳ..." value={newSubscription.description}
-                        onChange={e => setNewSubscription(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                    <Field label="Ưu đãi thêm (Bonus)" tooltip="Ví dụ: Tặng 1 buổi dọn sâu miễn phí mỗi quý">
-                      <Input placeholder="Tặng 2 buổi dọn sâu miễn phí/năm..." value={newSubscription.bonusDescription}
-                        onChange={e => setNewSubscription(p => ({ ...p, bonusDescription: e.target.value }))} className="h-10 rounded-xl" />
-                    </Field>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <BaseButton type="button" onClick={handleSaveSubscription}
-                      className={cn("h-10 rounded-xl font-bold text-white px-6",
-                        editingSubscriptionIndex !== null ? "bg-amber-500 hover:bg-amber-600" : "bg-primary")}>
-                      {editingSubscriptionIndex !== null ? "Lưu thay đổi" : "+ Thêm gói định kỳ"}
-                    </BaseButton>
-                  </div>
-                </div>
+                      <BaseButton type="button" onClick={handleSaveSubscription}
+                        className={cn("flex-1 h-10 rounded-xl font-bold text-white",
+                          editingSubscriptionIndex !== null ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-600 hover:bg-emerald-700")}>
+                        {editingSubscriptionIndex !== null ? "Lưu thay đổi" : "Thêm gói định kỳ"}
+                      </BaseButton>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {/* Bảng */}
                 {subscriptions.length === 0 ? (
                   <div className="py-8 text-center text-muted-foreground text-xs bg-muted/5 border border-dashed border-border/40 rounded-2xl">
-                    Chưa có cấu hình gói tháng nào. Dùng nút thêm nhanh hoặc điền form ở trên.
+                    Chưa có cấu hình gói tháng nào. Dùng preset hoặc nhấn &quot;+ Thêm gói mới&quot;.
                   </div>
                 ) : (
                   <div className="border border-border/30 rounded-xl overflow-hidden bg-card shadow-2xs">
@@ -2590,52 +2979,177 @@ export default function CreatePackagePage() {
               </TabsContent>
 
               {/* TAB 5: PEAK HOURS */}
-              <TabsContent value="peakhours" className="space-y-4">
-                <div className="p-4 bg-muted/10 border border-border/30 rounded-2xl space-y-4">
-                  <p className="text-xs font-bold text-foreground">Thiết lập khung giờ cao điểm riêng cho gói dịch vụ này</p>
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <Field label="Thứ trong tuần">
-                        <Select value={newPeakHour.dayOfWeek} onValueChange={v => setNewPeakHour(p => ({ ...p, dayOfWeek: v }))}>
-                          <SelectTrigger className="h-10 rounded-xl text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent className="text-xs">
-                            <SelectItem value="1">Thứ Hai</SelectItem>
-                            <SelectItem value="2">Thứ Ba</SelectItem>
-                            <SelectItem value="3">Thứ Tư</SelectItem>
-                            <SelectItem value="4">Thứ Năm</SelectItem>
-                            <SelectItem value="5">Thứ Sáu</SelectItem>
-                            <SelectItem value="6">Thứ Bảy</SelectItem>
-                            <SelectItem value="0">Chủ Nhật</SelectItem>
-                            <SelectItem value="7">Hàng ngày</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Giờ bắt đầu">
-                        <Input type="time" value={newPeakHour.startHour}
-                          onChange={e => setNewPeakHour(p => ({ ...p, startHour: e.target.value }))} className="h-10 rounded-xl text-xs" />
-                      </Field>
-                      <Field label="Giờ kết thúc">
-                        <Input type="time" value={newPeakHour.endHour}
-                          onChange={e => setNewPeakHour(p => ({ ...p, endHour: e.target.value }))} className="h-10 rounded-xl text-xs" />
-                      </Field>
-                      <Field label="Hệ số phụ thu" hint="1.2 = +20% giá">
-                        <Input type="number" step="0.05" placeholder="1.2" value={newPeakHour.multiplier}
-                          onChange={e => setNewPeakHour(p => ({ ...p, multiplier: e.target.value }))} className="h-10 rounded-xl text-xs" />
-                      </Field>
+              <TabsContent value="peakhours" className="space-y-3">
+                <div className="border border-border/40 rounded-xl bg-card divide-y divide-border/30">
+
+                  {/* ── Preset nhanh ── */}
+                  <div className="px-4 py-3 flex items-start gap-3">
+                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-0.5">Chọn nhanh</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PEAK_HOUR_QUICK_PRESETS.map(preset => (
+                        <button type="button" key={preset.label}
+                          onClick={() => {
+                            if (preset.entries) {
+                              const toAdd = preset.entries.filter(e =>
+                                !peakHours.some(p => p.dayOfWeek === e.dayOfWeek && p.startHour === e.startHour && p.endHour === e.endHour)
+                              );
+                              if (toAdd.length === 0) { toast.info("Cấu hình này đã được thêm rồi"); return; }
+                              setPeakHours(prev => [...prev, ...toAdd]);
+                              toast.success(`Đã thêm "${preset.label}"`);
+                            } else {
+                              setNewPeakHour(p => ({
+                                ...p, dayOfWeek: preset.dayOfWeek!,
+                                startHour: preset.startHour!, endHour: preset.endHour!, multiplier: preset.multiplier,
+                              }));
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors"
+                        >
+                          {preset.label} <span className="text-slate-400 font-normal">·</span> +{Math.round((parseFloat(preset.multiplier) - 1) * 100)}%
+                        </button>
+                      ))}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                      <Field label="Áp dụng từ ngày" hint="Để trống nếu muốn áp dụng cho mọi ngày">
-                        <Input type="date" value={newPeakHour.startDate}
-                          onChange={e => setNewPeakHour(p => ({ ...p, startDate: e.target.value }))} className="h-10 rounded-xl text-xs" />
-                      </Field>
-                      <Field label="Đến ngày" hint="Để trống nếu muốn áp dụng vô thời hạn">
-                        <Input type="date" value={newPeakHour.endDate}
-                          onChange={e => setNewPeakHour(p => ({ ...p, endDate: e.target.value }))} className="h-10 rounded-xl text-xs" />
-                      </Field>
-                      <BaseButton type="button" onClick={handleSavePeakHour} className="h-10 rounded-xl font-bold bg-primary text-white text-xs w-full">
-                        + Thêm khung giờ
-                      </BaseButton>
+                  </div>
+
+                  {/* ── Ngày áp dụng ── */}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Ngày</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { value: "1", label: "Thứ 2" }, { value: "2", label: "Thứ 3" },
+                        { value: "3", label: "Thứ 4" }, { value: "4", label: "Thứ 5" },
+                        { value: "5", label: "Thứ 6" }, { value: "6", label: "Thứ 7" },
+                        { value: "0", label: "Chủ nhật" }, { value: "7", label: "Hàng ngày" },
+                      ].map(d => (
+                        <button type="button" key={d.value}
+                          onClick={() => setNewPeakHour(p => ({ ...p, dayOfWeek: d.value }))}
+                          className={cn(
+                            "px-3 py-1 rounded-lg border text-sm font-semibold transition-colors",
+                            newPeakHour.dayOfWeek === d.value
+                              ? "bg-primary text-white border-primary"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                          )}>
+                          {d.label}
+                        </button>
+                      ))}
                     </div>
+                  </div>
+
+                  {/* ── Khung giờ ── */}
+                  <div className="px-4 py-3 flex items-start gap-3">
+                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-1">Khung giờ</span>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Sáng sớm", start: "06:00", end: "09:00" },
+                          { label: "Buổi sáng", start: "08:00", end: "11:00" },
+                          { label: "Buổi trưa", start: "11:00", end: "14:00" },
+                          { label: "Buổi chiều", start: "14:00", end: "18:00" },
+                          { label: "Chiều tối", start: "17:00", end: "20:00" },
+                          { label: "Buổi tối", start: "19:00", end: "22:00" },
+                          { label: "Cả ngày", start: "06:00", end: "22:00" },
+                        ].map(t => {
+                          const active = newPeakHour.startHour === t.start && newPeakHour.endHour === t.end;
+                          return (
+                            <button type="button" key={t.label}
+                              onClick={() => setNewPeakHour(p => ({ ...p, startHour: t.start, endHour: t.end }))}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg border text-sm font-semibold transition-colors",
+                                active
+                                  ? "bg-primary text-white border-primary"
+                                  : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                              )}>
+                              {t.label}
+                              <span className={cn("ml-1 font-mono text-xs", active ? "opacity-70" : "text-slate-400")}>{t.start}–{t.end}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 h-9 focus-within:border-slate-500 transition-colors">
+                          <span className="text-xs text-slate-400 font-medium shrink-0">từ</span>
+                          <input type="time" value={newPeakHour.startHour}
+                            onChange={e => setNewPeakHour(p => ({ ...p, startHour: e.target.value }))}
+                            className="text-sm font-bold bg-transparent outline-none w-24" />
+                        </div>
+                        <span className="text-slate-400 font-bold">→</span>
+                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 h-9 focus-within:border-slate-500 transition-colors">
+                          <span className="text-xs text-slate-400 font-medium shrink-0">đến</span>
+                          <input type="time" value={newPeakHour.endHour}
+                            onChange={e => setNewPeakHour(p => ({ ...p, endHour: e.target.value }))}
+                            className="text-sm font-bold bg-transparent outline-none w-24" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Tăng giá ── */}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Tăng giá</span>
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {[
+                        { label: "+10%", value: "1.1" }, { label: "+15%", value: "1.15" },
+                        { label: "+20%", value: "1.2" }, { label: "+25%", value: "1.25" },
+                        { label: "+30%", value: "1.3" }, { label: "+50%", value: "1.5" },
+                      ].map(m => (
+                        <button type="button" key={m.value}
+                          onClick={() => setNewPeakHour(p => ({ ...p, multiplier: m.value }))}
+                          className={cn(
+                            "px-3 py-1 rounded-lg border text-sm font-bold transition-colors",
+                            newPeakHour.multiplier === m.value
+                              ? "bg-primary text-white border-primary"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                          )}>
+                          {m.label}
+                        </button>
+                      ))}
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-colors h-8 px-2.5">
+                        <span className="text-sm font-extrabold text-primary select-none">+</span>
+                        <input type="number" step="5" min="5" max="200"
+                          value={String(Math.round((parseFloat(newPeakHour.multiplier || "1") - 1) * 100))}
+                          onChange={e => {
+                            const pct = Math.max(5, Math.min(200, parseInt(e.target.value || "5")));
+                            setNewPeakHour(p => ({ ...p, multiplier: ((100 + pct) / 100).toFixed(2) }));
+                          }}
+                          className="w-10 text-sm font-extrabold bg-transparent outline-none text-center text-foreground" />
+                        <span className="text-sm font-extrabold text-slate-400 select-none">%</span>
+                      </div>
+                      {parseFloat(newPeakHour.multiplier) > 1 && (
+                        <span className="text-xs font-semibold text-muted-foreground bg-muted/50 rounded-md px-2 py-1">
+                          × {parseFloat(newPeakHour.multiplier).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── Thời hạn ── */}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Thời hạn</span>
+                    <DateRangePicker
+                      startDate={newPeakHour.startDate}
+                      endDate={newPeakHour.endDate}
+                      onStartChange={v => setNewPeakHour(p => ({ ...p, startDate: v }))}
+                      onEndChange={v => setNewPeakHour(p => ({ ...p, endDate: v }))}
+                      placeholder="Không giới hạn (để trống)"
+                    />
+                  </div>
+
+                  {/* ── Submit ── */}
+                  <div className="px-4 py-3 flex items-center justify-between bg-slate-50/50">
+                    <p className="text-sm text-slate-500">
+                      {newPeakHour.startHour && newPeakHour.endHour && newPeakHour.multiplier && parseFloat(newPeakHour.multiplier) > 1
+                        ? <><span className="font-bold text-foreground">{["CN","T2","T3","T4","T5","T6","T7","Hàng ngày"][parseInt(newPeakHour.dayOfWeek)]}</span>
+                          <span className="mx-1.5 text-muted-foreground/40">·</span>
+                          <span className="font-bold text-foreground">{newPeakHour.startHour} – {newPeakHour.endHour}</span>
+                          <span className="mx-1.5 text-muted-foreground/40">·</span>
+                          <span className="font-bold text-primary">+{Math.round((parseFloat(newPeakHour.multiplier) - 1) * 100)}% giá</span></>
+                        : <span className="italic">Chưa đủ thông tin</span>
+                      }
+                    </p>
+                    <BaseButton type="button" onClick={handleSavePeakHour}
+                      className="h-9 rounded-lg font-bold bg-primary text-white text-sm px-5">
+                      + Thêm khung giờ
+                    </BaseButton>
                   </div>
                 </div>
 
@@ -2644,42 +3158,112 @@ export default function CreatePackagePage() {
                     Chưa có cấu hình khung giờ cao điểm riêng cho gói này.
                   </div>
                 ) : (
-                  <div className="border border-border/30 rounded-lg overflow-hidden bg-card shadow-2xs">
+                  <div className="border border-border/30 rounded-xl overflow-hidden bg-card shadow-sm">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-muted/40 border-b border-border/30 text-slate-800 uppercase font-extrabold tracking-wider text-[11px]">
-                          <th className="py-3.5 px-4 font-bold">Ngày áp dụng</th>
-                          <th className="py-3.5 px-4 font-bold">Khung giờ</th>
-                          <th className="py-3.5 px-4 font-bold text-center">Hệ số tăng giá</th>
-                          <th className="py-3.5 px-4 font-bold text-center">Trạng thái</th>
-                          <th className="py-3.5 px-4 font-bold text-right">Thao tác</th>
+                        <tr className="bg-muted/50 border-b border-border/30 text-slate-500 uppercase font-extrabold tracking-widest text-[10px]">
+                          <th className="py-3 px-4">Ngày áp dụng</th>
+                          <th className="py-3 px-4">Khung giờ</th>
+                          <th className="py-3 px-4">Thời hạn</th>
+                          <th className="py-3 px-4 text-center">Hệ số tăng giá</th>
+                          <th className="py-3 px-4 text-center">Trạng thái</th>
+                          <th className="py-3 px-4 text-right">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/20">
                         {peakHours.map((p, i) => {
                           const daysText = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Hàng ngày"];
+                          const pct = Math.round((p.multiplier - 1) * 100);
+                          const fmt = (s: string) => s ? new Date(s).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
                           return (
-                            <tr key={i} className="hover:bg-muted/10 transition-colors">
-                              <td className="py-3 px-4">
-                                <span className="font-bold text-foreground block">{daysText[p.dayOfWeek]}</span>
+                            <tr key={i} className="hover:bg-primary/2 transition-colors">
+                              {/* Ngày */}
+                              <td className="py-3.5 px-4">
+                                <span className="font-extrabold text-foreground text-[13px] block leading-tight">{daysText[p.dayOfWeek]}</span>
+                                <span className="text-[10px] text-muted-foreground/70 font-medium block mt-0.5">
+                                  {p.dayOfWeek === 7 ? "Áp dụng tất cả các ngày trong tuần" : `Chỉ áp dụng vào ${daysText[p.dayOfWeek]}`}
+                                </span>
+                              </td>
+                              {/* Khung giờ */}
+                              <td className="py-3.5 px-4">
+                                <span className="inline-flex items-center gap-1.5 bg-primary/8 text-primary font-extrabold rounded-lg px-2.5 py-1 text-[12px]">
+                                  <Clock className="w-3 h-3 shrink-0" />
+                                  {p.startHour} – {p.endHour}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground/60 block mt-1">
+                                  {(() => {
+                                    const [sh, sm] = p.startHour.split(":").map(Number);
+                                    const [eh, em] = p.endHour.split(":").map(Number);
+                                    const mins = (eh * 60 + em) - (sh * 60 + sm);
+                                    if (mins <= 0) return "";
+                                    const h = Math.floor(mins / 60), m = mins % 60;
+                                    return h > 0 ? `${h} giờ${m > 0 ? ` ${m} phút` : ""}` : `${m} phút`;
+                                  })()}
+                                </span>
+                              </td>
+                              {/* Thời hạn */}
+                              <td className="py-3.5 px-4">
                                 {p.startDate || p.endDate ? (
-                                  <span className="text-[10px] text-muted-foreground font-semibold block mt-0.5">
-                                    {p.startDate ? new Date(p.startDate).toLocaleDateString("vi-VN") : "..."} - {p.endDate ? new Date(p.endDate).toLocaleDateString("vi-VN") : "..."}
-                                  </span>
+                                  <div>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-0.5">
+                                      <Calendar className="w-3 h-3 text-amber-500 shrink-0" />
+                                      {fmt(p.startDate ?? "") ?? "…"} → {fmt(p.endDate ?? "") ?? "…"}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground/60 block mt-1">Giới hạn thời gian</span>
+                                  </div>
                                 ) : (
-                                  <span className="text-[10px] text-muted-foreground font-semibold block mt-0.5">Mọi ngày</span>
+                                  <span className="text-[11px] text-muted-foreground/60 font-medium">Không giới hạn</span>
                                 )}
                               </td>
-                              <td className="py-3 px-4 font-mono text-indigo-600 dark:text-indigo-400">{p.startHour} - {p.endHour}</td>
-                              <td className="py-3 px-4 text-center font-extrabold text-rose-600">+{Math.round((p.multiplier - 1) * 100)}% ({p.multiplier}x)</td>
-                              <td className="py-3 px-4 text-center">
+                              {/* Hệ số */}
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="inline-flex flex-col items-center">
+                                  <span className="font-extrabold text-primary text-base leading-none">+{pct}%</span>
+                                  <span className="text-[10px] text-muted-foreground font-semibold mt-0.5">{p.multiplier}x giá gốc</span>
+                                </span>
+                              </td>
+                              {/* Toggle */}
+                              <td className="py-3.5 px-4 text-center">
                                 <Switch checked={p.isActive} onCheckedChange={v => setPeakHours(prev => prev.map((x, idx) => idx === i ? { ...x, isActive: v } : x))} />
                               </td>
-                              <td className="py-3 px-4 text-right">
-                                <button type="button" onClick={() => setPeakHours(prev => prev.filter((_, idx) => idx !== i))}
-                                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                              {/* Actions */}
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center justify-end gap-1">
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button type="button"
+                                          onClick={() => setViewingPeakHour(p)}
+                                          className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">Xem chi tiết</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button type="button"
+                                          onClick={() => {
+                                            setEditPeakHour({ dayOfWeek: String(p.dayOfWeek), startHour: p.startHour, endHour: p.endHour, multiplier: String(p.multiplier), startDate: p.startDate ?? "", endDate: p.endDate ?? "", isActive: p.isActive });
+                                            setEditingPeakHourIdx(i);
+                                          }}
+                                          className="p-1.5 rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600 transition-colors">
+                                          <Edit className="w-3.5 h-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">Chỉnh sửa</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button type="button" onClick={() => setPeakHours(prev => prev.filter((_, idx) => idx !== i))}
+                                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">Xoá</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -3106,55 +3690,277 @@ export default function CreatePackagePage() {
       {/* STEP 4: Xem lại & Hoàn tất */}
       {step === 4 && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-6">
               {/* Card 1: Thông tin cơ bản */}
               <SectionCard icon={Package} title="Thông tin cơ bản">
-                <div className="divide-y divide-border/20 border border-border/30 rounded-xl overflow-hidden bg-muted/5">
-                  <ReviewRow label="Tên gói" value={name} />
-                  <ReviewRow label="Mã gói" value={<code className="text-primary text-xs bg-primary/10 px-2 py-0.5 rounded font-mono">{packageCode}</code>} />
-                  <ReviewRow label="Mô tả chính sách" value={policyDescription || "Không có"} />
-                  <ReviewRow label="Thứ tự hiển thị" value={sortOrder} />
-                  <ReviewRow label="Trạng thái" value={<Badge className={isActive ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}>{isActive ? "Kích hoạt" : "Lưu nháp"}</Badge>} />
-                  <ReviewRow label="Ảnh đại diện" value={iconUrl ? "Đã tải lên" : "Không có"} />
-                  <ReviewRow label="Ảnh gallery" value={`${galleryUrls.filter(Boolean).length} ảnh`} />
+                <div className="space-y-4">
+                  <div className="flex gap-4 items-start border-b border-border/20 pb-4">
+                    <div className="space-y-2 shrink-0">
+                      <span className="text-xs font-bold text-muted-foreground block">Ảnh đại diện</span>
+                      {iconUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={iconUrl} alt="Thumbnail" className="w-20 h-20 object-cover rounded-2xl border-2 border-border/80 shadow-sm" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-border flex items-center justify-center bg-muted/40">
+                          <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-lg font-black text-foreground truncate">{name || <span className="text-rose-500 italic">Chưa nhập tên</span>}</h4>
+                        <Badge className={isActive ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none font-extrabold text-[10px]" : "bg-slate-100 text-slate-700 hover:bg-slate-100 border-none font-extrabold text-[10px]"}>
+                          {isActive ? "Đang hoạt động" : "Lưu nháp"}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-4 text-xs font-semibold text-slate-700 flex-wrap">
+                        <p className="flex items-center gap-1">
+                          <span className="text-muted-foreground text-[11px]">Mã gói:</span> 
+                          <span className="font-mono bg-primary/10 text-primary px-2 py-0.5 rounded font-extrabold text-[11px]">{packageCode || "Chưa tạo"}</span>
+                        </p>
+                        <p className="flex items-center gap-1">
+                          <span className="text-muted-foreground text-[11px]">Thứ tự hiển thị:</span> 
+                          <span className="font-bold">{sortOrder}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {policyDescription && (
+                    <div className="p-3.5 bg-muted/20 border border-border/40 rounded-xl space-y-1">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Mô tả ngắn dịch vụ</span>
+                      <p className="text-xs text-slate-700 leading-relaxed">{policyDescription}</p>
+                    </div>
+                  )}
+
+                  {galleryUrls.filter(Boolean).length > 0 && (
+                    <div className="space-y-2 border-t border-border/10 pt-3">
+                      <span className="text-xs font-bold text-muted-foreground block">Ảnh gallery chi tiết</span>
+                      <div className="flex gap-2 flex-wrap">
+                        {galleryUrls.filter(Boolean).map((url, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={url} alt="Gallery" className="w-14 h-14 object-cover rounded-xl border border-border/40 shadow-2xs hover:scale-105 transition-transform" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </SectionCard>
 
               {/* Card 2: Thiết lập nâng cao */}
               <SectionCard icon={Settings2} title="Thiết lập nâng cao & Đơn giá">
-                <div className="divide-y divide-border/20 border border-border/30 rounded-xl overflow-hidden bg-muted/5">
-                  <ReviewRow label="Đơn giá giờ Chuẩn" value={vnd(baseHourlyRate)} />
-                  <ReviewRow label="Đơn giá giờ Premium" value={vnd(premiumHourlyRate)} />
-                  <ReviewRow label="Nhiều thợ cùng làm" value={allowMultipleTaskers ? "Cho phép" : "Không"} />
-                  <ReviewRow label="Cho phép gói tháng" value={allowSubscription ? "Cho phép" : "Không"} />
-                  <ReviewRow label="Phí ship mặc định" value="Mặc định toàn bộ Hà Nội" />
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 gap-4 border-b border-border/20 pb-4">
+                    <div className="bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 rounded-xl p-3 text-center">
+                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 block mb-1">Đơn giá giờ Chuẩn</span>
+                      <span className="text-lg font-black text-emerald-600 block">{vnd(baseHourlyRate)} <span className="text-xs font-normal text-muted-foreground">/ giờ</span></span>
+                    </div>
+                    <div className="bg-orange-50/50 dark:bg-orange-950/10 border border-orange-100 rounded-xl p-3 text-center">
+                      <span className="text-xs font-bold text-orange-800 dark:text-orange-400 block mb-1">Đơn giá giờ Premium</span>
+                      <span className="text-lg font-black text-orange-500 block">{vnd(premiumHourlyRate)} <span className="text-xs font-normal text-muted-foreground">/ giờ</span></span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-slate-700">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn("p-2 rounded-xl shrink-0", allowMultipleTaskers ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400")}>
+                        {allowMultipleTaskers ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-slate-400" />}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Nhiều thợ cùng làm</span>
+                        <span className="font-bold text-foreground">{allowMultipleTaskers ? "Cho phép" : "Không hỗ trợ"}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn("p-2 rounded-xl shrink-0", allowSubscription ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400")}>
+                        {allowSubscription ? <Check className="w-4 h-4 text-emerald-600" /> : <X className="w-4 h-4 text-slate-400" />}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Đăng ký gói tháng</span>
+                        <span className="font-bold text-foreground">{allowSubscription ? "Cho phép" : "Không hỗ trợ"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border-t border-border/20 pt-4">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Khu vực áp dụng ({selectedAreaIds.length})</span>
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {coverageAreas.filter(a => selectedAreaIds.includes(a.id)).map(a => (
+                        <Badge key={a.id} variant="secondary" className="text-[10px] px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border-none font-bold text-slate-700 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          {a.name}
+                        </Badge>
+                      ))}
+                      {selectedAreaIds.length === 0 && <span className="text-rose-500 italic text-xs">Chưa chọn khu vực nào</span>}
+                    </div>
+                  </div>
                 </div>
               </SectionCard>
-
-              {/* Phụ phí bổ sung đã ẩn/xóa */}
             </div>
 
             <div className="space-y-6">
               {/* Card 4: Bảng giá v2 */}
               <SectionCard icon={BarChart3} title="Các mốc giá & Tùy chọn con">
-                <div className="divide-y divide-border/20 border border-border/30 rounded-xl overflow-hidden bg-muted/5">
-                  <ReviewRow label="Số mốc thời lượng" value={`${durations.length} mốc`} />
-                  <ReviewRow label="Số dịch vụ con (Tùy chọn)" value={`${selectedSubServices.length} dịch vụ`} />
-                  <ReviewRow label="Số dịch vụ đi kèm (Addon)" value={`${addons.length} dịch vụ`} />
-                  <ReviewRow label="Khung giờ cao điểm riêng" value={`${peakHours.length} khung giờ`} />
-                  <ReviewRow label="Cấu hình chu kỳ gói tháng" value={`${subscriptions.length} chu kỳ`} />
+                <div className="space-y-5">
+                  {/* Mốc thời lượng */}
+                  <div className="space-y-2.5">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Mốc thời lượng ({durations.length})</span>
+                    <div className="flex flex-wrap gap-2">
+                      {durations.map((d, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border/60 rounded-xl text-xs font-bold shadow-2xs">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{d.durationHours}h {d.title ? `(${d.title})` : ""}</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                          <span className="text-primary font-extrabold">x{d.priceMultiplier.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {durations.length === 0 && <span className="text-rose-500 italic text-xs">Chưa có mốc thời lượng</span>}
+                    </div>
+                  </div>
+
+                  {/* Dịch vụ con */}
+                  <div className="space-y-2.5 border-t border-border/20 pt-4">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Dịch vụ con tùy chọn ({selectedSubServices.length})</span>
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {selectedSubServices.map((s, i) => (
+                        <div key={i} className="flex justify-between items-center px-3 py-2 bg-muted/20 border border-border/40 rounded-xl text-xs font-bold">
+                          <span className="truncate pr-2 text-slate-700">{s.name}</span>
+                          <span className="text-emerald-600 font-extrabold shrink-0">{vnd(s.price)}</span>
+                        </div>
+                      ))}
+                      {selectedSubServices.length === 0 && <span className="text-muted-foreground italic text-xs">Không có dịch vụ con</span>}
+                    </div>
+                  </div>
+
+                  {/* Dịch vụ đi kèm (Addon) */}
+                  <div className="space-y-2.5 border-t border-border/20 pt-4">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Dịch vụ đi kèm / Addons ({addons.length})</span>
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {addons.map((a, i) => (
+                        <div key={i} className="flex justify-between items-center px-3 py-2 bg-muted/20 border border-border/40 rounded-xl text-xs font-bold">
+                          <span className="truncate pr-2 text-slate-700">{a.name}</span>
+                          <span className="text-orange-500 font-extrabold shrink-0">+{vnd(a.price)}</span>
+                        </div>
+                      ))}
+                      {addons.length === 0 && <span className="text-muted-foreground italic text-xs">Không có dịch vụ đi kèm</span>}
+                    </div>
+                  </div>
+
+                  {/* Khung giờ cao điểm */}
+                  <div className="space-y-2.5 border-t border-border/20 pt-4">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Khung giờ cao điểm ({peakHours.length})</span>
+                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                      {peakHours.map((p, i) => (
+                        <div key={i} className="flex items-center gap-2 px-2.5 py-1 bg-orange-500/5 border border-orange-100 rounded-lg text-[11px] font-bold text-slate-700">
+                          <Zap className="w-3 h-3 text-orange-500" />
+                          <span>T{p.dayOfWeek === 0 ? "CN" : p.dayOfWeek + 1}: {p.startHour} - {p.endHour}</span>
+                          <span className="text-orange-600">x{p.multiplier}</span>
+                        </div>
+                      ))}
+                      {peakHours.length === 0 && <span className="text-muted-foreground italic text-xs">Không có khung giờ cao điểm</span>}
+                    </div>
+                  </div>
+
+                  {/* Chu kỳ gói tháng */}
+                  {allowSubscription && (
+                    <div className="space-y-2.5 border-t border-border/20 pt-4">
+                      <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Ưu đãi gói tháng ({subscriptions.length})</span>
+                      <div className="grid grid-cols-1 gap-2 max-h-36 overflow-y-auto pr-1">
+                        {subscriptions.map((s, i) => (
+                          <div key={i} className="flex justify-between items-center px-3 py-2 bg-muted/20 border border-border/40 rounded-xl text-xs font-bold">
+                            <span className="truncate pr-2 text-slate-700">{s.name}</span>
+                            <span className="text-emerald-600 font-extrabold shrink-0">Giảm {s.discountPercent}%</span>
+                          </div>
+                        ))}
+                        {subscriptions.length === 0 && <span className="text-muted-foreground italic text-xs">Không có ưu đãi gói tháng</span>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </SectionCard>
 
               {/* Card 5: Điều khoản & Quy trình */}
               <SectionCard icon={ScrollText} title="Quy trình & Điều khoản">
-                <div className="divide-y divide-border/20 border border-border/30 rounded-xl overflow-hidden bg-muted/5">
-                  <ReviewRow label="Số bước quy trình thực hiện" value={`${workflowSteps.length} bước`} />
-                  <ReviewRow label="Cam kết chất lượng" value={`${commitments.length} cam kết`} />
-                  <ReviewRow label="Chính sách gán kèm từ thư viện" value={`${selectedPolicyIds.length} chính sách`} />
-                  <ReviewRow label="Điều khoản áp dụng riêng" value={termsAndConditions ? "Đã nhập" : "Không có"} />
-                  <ReviewRow label="Quy chuẩn Premium riêng" value={premiumTermsAndConditions ? "Đã nhập" : "Không có"} />
+                <div className="space-y-5">
+                  {/* Quy trình thực hiện */}
+                  <div className="space-y-3">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Quy trình thực hiện ({workflowSteps.length} bước)</span>
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {workflowSteps.map((w, i) => (
+                        <div key={i} className="p-3 bg-muted/10 border border-border/40 rounded-xl space-y-2">
+                          <div className="flex justify-between items-start gap-2 flex-wrap">
+                            <div className="flex gap-2 items-center min-w-0">
+                              <span className="w-5 h-5 rounded-full bg-primary text-white font-extrabold flex items-center justify-center shrink-0 text-[10px]">{i + 1}</span>
+                              <span className="font-extrabold text-xs text-foreground truncate">{w.title}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg shrink-0">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                              {w.durationMinutes} phút
+                            </div>
+                          </div>
+                          {w.description && <p className="text-[11px] text-muted-foreground leading-relaxed pl-7">{w.description}</p>}
+                          {w.checklistItems && w.checklistItems.length > 0 && (
+                            <div className="pl-7 pt-1.5 border-t border-border/10 mt-1.5 space-y-1">
+                              {w.checklistItems.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 text-[10px] text-slate-700 font-semibold">
+                                  <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  <span>{item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {workflowSteps.length === 0 && <span className="text-rose-500 italic text-xs">Chưa cấu hình quy trình</span>}
+                    </div>
+                  </div>
+
+                  {/* Cam kết chất lượng */}
+                  <div className="space-y-2.5 border-t border-border/20 pt-4">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Cam kết chất lượng ({commitments.length})</span>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {commitments.map((c, i) => (
+                        <div key={i} className="flex gap-2.5 items-start p-2.5 bg-muted/20 border border-border/40 rounded-xl text-xs">
+                          <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <span className="font-bold text-foreground block">{c.title}</span>
+                            {c.content && <span className="text-muted-foreground text-[11px] block mt-0.5 leading-relaxed">{c.content}</span>}
+                          </div>
+                        </div>
+                      ))}
+                      {commitments.length === 0 && <span className="text-muted-foreground italic text-xs">Không có cam kết</span>}
+                    </div>
+                  </div>
+
+                  {/* Chính sách gán kèm */}
+                  <div className="space-y-2.5 border-t border-border/20 pt-4">
+                    <span className="text-xs font-bold text-muted-foreground block uppercase tracking-wider">Chính sách gán kèm ({selectedPolicyIds.length})</span>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                      {policiesData.filter(p => selectedPolicyIds.includes(p.id)).map(p => (
+                        <Badge key={p.id} variant="secondary" className="text-[10px] px-2.5 py-1 bg-slate-100 text-slate-700 border-none font-bold">
+                          {p.title}
+                        </Badge>
+                      ))}
+                      {selectedPolicyIds.length === 0 && <span className="text-muted-foreground italic text-xs">Không có chính sách</span>}
+                    </div>
+                  </div>
+
+                  {/* Điều khoản */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border/20 pt-4">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Điều khoản áp dụng riêng</span>
+                      <span className={cn("text-xs font-bold", termsAndConditions ? "text-emerald-600" : "text-muted-foreground italic")}>
+                        {termsAndConditions ? "Đã cấu hình chi tiết" : "Không có cấu hình riêng"}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Quy chuẩn Premium riêng</span>
+                      <span className={cn("text-xs font-bold", premiumTermsAndConditions ? "text-emerald-600" : "text-muted-foreground italic")}>
+                        {premiumTermsAndConditions ? "Đã cấu hình chi tiết" : "Không có cấu hình riêng"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </SectionCard>
             </div>
@@ -3162,13 +3968,514 @@ export default function CreatePackagePage() {
 
           <div className="flex justify-between gap-3 pt-4 border-t border-border/30">
             <BaseButton variant="outline" onClick={() => setStep(3)} className="h-11 px-6 rounded-xl font-bold">← Quay lại</BaseButton>
-            <BaseButton variant="primary" onClick={handleSubmit} disabled={isSubmitting}
+            <BaseButton variant="primary" onClick={() => setShowConfirmModal(true)} disabled={isSubmitting}
               className="h-11 px-8 rounded-xl font-bold gap-2 flex-1 md:flex-none">
               {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Đang tạo...</> : <><CheckCircle2 className="w-4 h-4" />Tạo gói dịch vụ</>}
             </BaseButton>
           </div>
         </div>
       )}
+
+      {/* Dialog Xác nhận Tạo mới */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="w-full sm:max-w-[550px] rounded-2xl p-6 bg-card border border-border">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black flex items-center gap-2 text-foreground">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              Xác nhận tạo gói dịch vụ
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Bạn có chắc chắn muốn tạo gói dịch vụ mới này? Vui lòng kiểm tra kỹ các thông tin tóm tắt chi tiết bên dưới.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+            {/* Phần 1: Thông tin gói */}
+            <div className="bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl p-3.5 space-y-2.5 text-xs">
+              <p className="font-extrabold text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-1.5 mb-2">Thông tin gói</p>
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Tên gói dịch vụ</span>
+                  <span className="font-bold text-foreground block truncate" title={name}>{name || <span className="text-rose-500 italic">Chưa nhập</span>}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Mã gói (Package Code)</span>
+                  <span className="font-mono font-bold text-foreground block truncate" title={packageCode}>{packageCode || <span className="text-rose-500 italic">Chưa nhập</span>}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Đơn giá cơ bản</span>
+                  <span className="font-bold text-emerald-600 block">{vnd(baseHourlyRate)} / giờ</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Đơn giá Premium</span>
+                  <span className="font-bold text-orange-600 block">{vnd(premiumHourlyRate)} / giờ</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Trạng thái hoạt động</span>
+                  <span className={cn("font-bold block", isActive ? "text-emerald-600" : "text-slate-500")}>
+                    {isActive ? "Kích hoạt ngay" : "Lưu nháp"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Thứ tự hiển thị</span>
+                  <span className="font-bold text-foreground block">{sortOrder}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Phần 2: Mốc thời lượng & Giá */}
+            <div className="bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl p-3.5 text-xs">
+              <p className="font-extrabold text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-1.5 mb-2">Các mốc thời lượng ({durations.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {durations.map((d, idx) => (
+                  <Badge key={idx} variant="outline" className="bg-card text-foreground border-border/60 py-1 px-2 text-[10px] font-bold">
+                    {d.durationHours}h {d.title ? `(${d.title})` : ""} - nhân hệ số: x{d.priceMultiplier.toFixed(2)}
+                  </Badge>
+                ))}
+                {durations.length === 0 && <span className="text-rose-500 italic">Chưa có mốc thời lượng nào</span>}
+              </div>
+            </div>
+
+            {/* Phần 3: Dịch vụ con & Dịch vụ đi kèm */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl p-3.5">
+                <p className="font-extrabold text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-1.5 mb-2">Dịch vụ con ({selectedSubServices.length})</p>
+                <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                  {selectedSubServices.map((s, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-[10px] border-b border-border/10 pb-1 last:border-0 last:pb-0">
+                      <span className="font-semibold text-foreground truncate max-w-[120px]">{s.name}</span>
+                      <span className="font-mono font-bold text-emerald-600 shrink-0">{vnd(s.price)}</span>
+                    </div>
+                  ))}
+                  {selectedSubServices.length === 0 && <span className="text-muted-foreground italic text-[10px]">Không có dịch vụ con</span>}
+                </div>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl p-3.5">
+                <p className="font-extrabold text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-1.5 mb-2">Dịch vụ đi kèm ({addons.length})</p>
+                <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                  {addons.map((a, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-[10px] border-b border-border/10 pb-1 last:border-0 last:pb-0">
+                      <span className="font-semibold text-foreground truncate max-w-[120px]">{a.name}</span>
+                      <span className="font-mono font-bold text-orange-600 shrink-0">+{vnd(a.price)}</span>
+                    </div>
+                  ))}
+                  {addons.length === 0 && <span className="text-muted-foreground italic text-[10px]">Không có dịch vụ đi kèm</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Phần 4: Quy trình thực hiện */}
+            <div className="bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl p-3.5 text-xs">
+              <p className="font-extrabold text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-1.5 mb-2">Quy trình thực hiện ({workflowSteps.length} bước)</p>
+              <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                {workflowSteps.map((w, idx) => (
+                  <div key={idx} className="flex gap-2 items-start text-[10px]">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold flex items-center justify-center shrink-0 text-[9px]">{idx + 1}</span>
+                    <div className="min-w-0">
+                      <span className="font-bold text-foreground block truncate">{w.title}</span>
+                      {w.description && <span className="text-muted-foreground text-[9px] block line-clamp-1">{w.description}</span>}
+                    </div>
+                  </div>
+                ))}
+                {workflowSteps.length === 0 && <span className="text-rose-500 italic text-[10px]">Chưa cấu hình quy trình thực hiện</span>}
+              </div>
+            </div>
+
+            {/* Phần 5: Khu vực phủ sóng */}
+            <div className="bg-slate-50 dark:bg-slate-900/30 border border-border/50 rounded-xl p-3.5 text-xs">
+              <p className="font-extrabold text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-1.5 mb-2">Khu vực áp dụng ({selectedAreaIds.length} khu vực)</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+                {selectedAreaNames || <span className="text-rose-500 italic">Chưa chọn khu vực nào</span>}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4 pt-2 border-t border-border/30">
+            <BaseButton
+              variant="outline"
+              type="button"
+              onClick={() => setShowConfirmModal(false)}
+              className="rounded-xl h-11 px-5 font-bold"
+              disabled={isSubmitting}
+            >
+              Hủy bỏ
+            </BaseButton>
+            <BaseButton
+              variant="primary"
+              type="button"
+              onClick={async () => {
+                try {
+                  await handleSubmit();
+                } finally {
+                  setShowConfirmModal(false);
+                }
+              }}
+              disabled={isSubmitting}
+              className="rounded-xl h-11 px-6 font-bold gap-2 bg-orange-500 hover:bg-orange-600 text-white flex-1"
+            >
+              {isSubmitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Đang tạo...</>
+              ) : (
+                <><CheckCircle2 className="w-4 h-4" />Xác nhận & Tạo mới</>
+              )}
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Chi tiết dịch vụ lẻ */}
+      <Dialog open={!!detailSvc} onOpenChange={open => { if (!open) setDetailSvc(null); }}>
+        <DialogContent className="w-full sm:max-w-2xl rounded-2xl p-0 bg-card border border-border overflow-hidden">
+          {detailSvc && (
+            <>
+              <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+                <DialogTitle className="text-base font-black flex items-center gap-3">
+                  {detailSvc.thumbnailUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={detailSvc.thumbnailUrl} alt={detailSvc.name} className="w-9 h-9 rounded-xl object-cover border border-border/40" />
+                  )}
+                  <div>
+                    <p>{detailSvc.name}</p>
+                    <p className="text-xs font-mono text-primary font-bold">{detailSvc.subServiceCode}</p>
+                  </div>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  {detailSvc.shortDescription || "Không có mô tả ngắn"}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
+                {/* Gallery */}
+                {detailSvc.galleryUrls && detailSvc.galleryUrls.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Hình ảnh</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {detailSvc.galleryUrls.map((url, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={i} src={url} alt={`${detailSvc.name} ${i + 1}`}
+                          className="h-24 w-32 object-cover rounded-xl border border-border/40 shrink-0" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Thông tin cơ bản */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Thông tin</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
+                      <p className="text-[10px] text-muted-foreground font-semibold">Thời lượng</p>
+                      <p className="text-sm font-bold mt-0.5">{detailSvc.durationHours ? `${detailSvc.durationHours}h` : "—"}</p>
+                    </div>
+                    <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
+                      <p className="text-[10px] text-muted-foreground font-semibold">Giá gốc</p>
+                      <p className="text-sm font-bold text-primary mt-0.5">
+                        {detailSvc.pricingConfig?.basePrice ? vnd(Number(detailSvc.pricingConfig.basePrice)) : "—"}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
+                      <p className="text-[10px] text-muted-foreground font-semibold">Trạng thái</p>
+                      <span className={cn("inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
+                        detailSvc.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
+                        {detailSvc.isActive ? "Đang bật" : "Đã tắt"}
+                      </span>
+                    </div>
+                    {detailSvc.coverageArea && (
+                      <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
+                        <p className="text-[10px] text-muted-foreground font-semibold">Khu vực</p>
+                        <p className="text-sm font-bold mt-0.5">{detailSvc.coverageArea}</p>
+                      </div>
+                    )}
+                    {detailSvc.pricingConfig?.peakPrice && (
+                      <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
+                        <p className="text-[10px] text-muted-foreground font-semibold">Giá cao điểm</p>
+                        <p className="text-sm font-bold text-amber-600 mt-0.5">{vnd(Number(detailSvc.pricingConfig.peakPrice))}</p>
+                      </div>
+                    )}
+                    {detailSvc.pricingConfig?.platformCommissionRate != null && (
+                      <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
+                        <p className="text-[10px] text-muted-foreground font-semibold">Hoa hồng nền tảng</p>
+                        <p className="text-sm font-bold mt-0.5">{detailSvc.pricingConfig.platformCommissionRate}%</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mô tả chi tiết */}
+                {detailSvc.description && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mô tả chi tiết</p>
+                    <p className="text-sm text-foreground leading-relaxed bg-muted/20 rounded-xl p-4 border border-border/40">
+                      {detailSvc.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Công việc bao gồm / không bao gồm */}
+                {((detailSvc.includedTasks?.length ?? 0) > 0 || (detailSvc.excludedTasks?.length ?? 0) > 0) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {detailSvc.includedTasks && detailSvc.includedTasks.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Bao gồm</p>
+                        <ul className="space-y-1">
+                          {detailSvc.includedTasks.map((task, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                              <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>{task}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {detailSvc.excludedTasks && detailSvc.excludedTasks.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Không bao gồm</p>
+                        <ul className="space-y-1">
+                          {detailSvc.excludedTasks.map((task, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                              <span className="text-rose-400 shrink-0 mt-0.5">✕</span>{task}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="px-6 py-4 border-t border-border/40 flex gap-2">
+                <button type="button" onClick={() => setDeleteConfirm(detailSvc)}
+                  className="h-10 px-4 rounded-xl border border-rose-200 text-rose-600 text-sm font-semibold hover:bg-rose-50 transition-colors">
+                  Xoá
+                </button>
+                <button type="button" onClick={() => { openCrudEdit(detailSvc!); setDetailSvc(null); }}
+                  className="flex-1 h-10 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+                  Chỉnh sửa
+                </button>
+                <button type="button" onClick={() => setDetailSvc(null)}
+                  className="h-10 px-4 rounded-xl border border-border/40 text-sm font-semibold hover:bg-muted/40 transition-colors">
+                  Đóng
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog xác nhận xoá dịch vụ lẻ */}
+      <Dialog open={!!deleteConfirm} onOpenChange={open => { if (!open) setDeleteConfirm(null); }}>
+        <DialogContent className="w-full sm:max-w-sm rounded-2xl p-6 bg-card border border-border">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-rose-600">Xác nhận xoá dịch vụ</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Xoá dịch vụ <span className="font-bold text-foreground">&quot;{deleteConfirm?.name}&quot;</span> khỏi hệ thống. Hành động này không thể hoàn tác và sẽ xoá tất cả liên kết với gói dịch vụ.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 mt-4">
+            <button type="button" onClick={() => setDeleteConfirm(null)}
+              className="flex-1 h-10 rounded-xl border border-border/40 text-sm font-semibold hover:bg-muted/40 transition-colors">
+              Huỷ
+            </button>
+            <button type="button" disabled={deleteService.isPending}
+              onClick={() => deleteConfirm && handleDeleteSvc(deleteConfirm)}
+              className="flex-1 h-10 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 transition-colors disabled:opacity-60">
+              {deleteService.isPending ? "Đang xoá..." : "Xoá dịch vụ"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Tạo / Chỉnh sửa dịch vụ lẻ */}
+      <Dialog open={crudModal.open} onOpenChange={open => { if (!open) { setCrudModal({ open: false, mode: "create" }); setCrudForm(CRUD_EMPTY); } }}>
+        <DialogContent className="w-full sm:max-w-2xl rounded-2xl p-0 bg-card border border-border overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+            <DialogTitle className="text-base font-black flex items-center gap-2">
+              {crudModal.mode === "create" ? <><span className="text-primary">＋</span> Tạo dịch vụ lẻ mới</> : <><span className="text-amber-500">✎</span> Chỉnh sửa dịch vụ lẻ</>}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {crudModal.mode === "create" ? "Tạo dịch vụ lẻ mới — tự động thêm vào danh sách đã chọn của gói này." : `Chỉnh sửa thông tin và giá gốc của dịch vụ "${crudModal.svc?.name}".`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[72vh]">
+            {/* Block 1: Thông tin cơ bản + Giá gốc */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Thông tin cơ bản</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Tên dịch vụ" required tooltip="Tên chính xác hiển thị với khách hàng, nên mô tả rõ loại dịch vụ">
+                  <Input placeholder="Nấu ăn, Giặt ủi, Dọn bếp..." value={crudForm.name}
+                    onChange={e => setCrudForm(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-xl" />
+                </Field>
+                <Field label="Thời lượng (giờ)" tooltip="Thời gian trung bình hoàn thành dịch vụ. Hiển thị trên card cho khách hàng tham khảo.">
+                  <Select value={crudForm.durationHours || "none"} onValueChange={v => setCrudForm(p => ({ ...p, durationHours: v === "none" ? "" : v }))}>
+                    <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Chọn thời lượng..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Không xác định</SelectItem>
+                      {[0.5,1,1.5,2,2.5,3,4,5,6,8].map(h => <SelectItem key={h} value={String(h)}>{h} giờ</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              {/* Giá gốc — field quan trọng */}
+              <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                <Field label="Giá gốc (₫)" required tooltip="Giá cơ bản của dịch vụ này trong gói. Khách hàng sẽ thấy giá này khi chọn dịch vụ lẻ.">
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      placeholder="150000"
+                      value={crudForm.basePrice}
+                      onChange={e => setCrudForm(p => ({ ...p, basePrice: e.target.value }))}
+                      className="h-10 rounded-xl pr-14 text-sm font-bold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">₫</span>
+                  </div>
+                  {crudForm.basePrice && !isNaN(Number(crudForm.basePrice)) && Number(crudForm.basePrice) > 0 && (
+                    <p className="text-xs text-primary font-bold mt-1">{vnd(Number(crudForm.basePrice))}</p>
+                  )}
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Mô tả ngắn" tooltip="1–2 câu tóm tắt — hiển thị trên card danh sách và preview. Không quá 120 ký tự.">
+                  <Input placeholder="Dịch vụ nấu ăn tại nhà bởi đầu bếp có kinh nghiệm..." value={crudForm.shortDescription}
+                    onChange={e => setCrudForm(p => ({ ...p, shortDescription: e.target.value }))} className="h-10 rounded-xl" />
+                </Field>
+              </div>
+              <div className="mt-4">
+                <Field label="Mô tả chi tiết" tooltip="Giải thích đầy đủ nội dung dịch vụ: quy trình thực hiện, cam kết chất lượng, lưu ý cho khách hàng.">
+                  <textarea rows={3} placeholder="Mô tả chi tiết về quy trình, chất liệu sử dụng, cam kết chất lượng..."
+                    value={crudForm.description} onChange={e => setCrudForm(p => ({ ...p, description: e.target.value }))}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                </Field>
+              </div>
+            </div>
+
+            {/* Block 2: Hình ảnh */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Hình ảnh</p>
+              <div className="space-y-3">
+                <Field label="Ảnh đại diện (thumbnail)" tooltip="URL ảnh chính — hiển thị trên card dịch vụ. Tỉ lệ 1:1 hoặc 4:3.">
+                  <div className="flex gap-2">
+                    <Input placeholder="https://..." value={crudForm.thumbnailUrl}
+                      onChange={e => setCrudForm(p => ({ ...p, thumbnailUrl: e.target.value }))} className="h-10 rounded-xl flex-1" />
+                    {crudForm.thumbnailUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={crudForm.thumbnailUrl} alt="thumb" className="h-10 w-10 rounded-xl object-cover border border-border/40 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    )}
+                  </div>
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field label="Ảnh gallery 1" tooltip="Ảnh bổ sung hiển thị trong trang chi tiết. Nên dùng ảnh ngang 16:9.">
+                    <div className="flex gap-2">
+                      <Input placeholder="https://..." value={crudForm.galleryUrl1}
+                        onChange={e => setCrudForm(p => ({ ...p, galleryUrl1: e.target.value }))} className="h-10 rounded-xl flex-1" />
+                      {crudForm.galleryUrl1 && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={crudForm.galleryUrl1} alt="g1" className="h-10 w-10 rounded-xl object-cover border border-border/40 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      )}
+                    </div>
+                  </Field>
+                  <Field label="Ảnh gallery 2" tooltip="Ảnh thứ 2 trong bộ gallery. Tỉ lệ 16:9.">
+                    <div className="flex gap-2">
+                      <Input placeholder="https://..." value={crudForm.galleryUrl2}
+                        onChange={e => setCrudForm(p => ({ ...p, galleryUrl2: e.target.value }))} className="h-10 rounded-xl flex-1" />
+                      {crudForm.galleryUrl2 && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={crudForm.galleryUrl2} alt="g2" className="h-10 w-10 rounded-xl object-cover border border-border/40 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      )}
+                    </div>
+                  </Field>
+                </div>
+              </div>
+            </div>
+
+            {/* Block 3: Phạm vi công việc */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Phạm vi công việc</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Field label="Công việc bao gồm" tooltip="Liệt kê những gì khách hàng nhận được. Nhấn Enter để thêm mục.">
+                    <div className="flex gap-2">
+                      <Input placeholder="Lau sàn, Rửa bát..." value={crudForm.includedTask}
+                        onChange={e => setCrudForm(p => ({ ...p, includedTask: e.target.value }))}
+                        onKeyDown={e => { if (e.key === "Enter" && crudForm.includedTask.trim()) { setCrudForm(p => ({ ...p, includedTasks: [...p.includedTasks, p.includedTask.trim()], includedTask: "" })); e.preventDefault(); } }}
+                        className="h-9 rounded-xl flex-1 text-sm" />
+                      <button type="button"
+                        onClick={() => { if (crudForm.includedTask.trim()) setCrudForm(p => ({ ...p, includedTasks: [...p.includedTasks, p.includedTask.trim()], includedTask: "" })); }}
+                        className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </Field>
+                  <div className="space-y-1 max-h-28 overflow-y-auto">
+                    {crudForm.includedTasks.map((t, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200/60">
+                        <span className="text-emerald-500 text-xs shrink-0">✓</span>
+                        <span className="text-xs flex-1">{t}</span>
+                        <button type="button" onClick={() => setCrudForm(p => ({ ...p, includedTasks: p.includedTasks.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-rose-500 shrink-0"><X className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                    {crudForm.includedTasks.length === 0 && <p className="text-[10px] text-muted-foreground text-center py-2">Chưa có mục nào</p>}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Field label="Không bao gồm" tooltip="Những gì không thuộc phạm vi dịch vụ để tránh hiểu nhầm. Nhấn Enter để thêm.">
+                    <div className="flex gap-2">
+                      <Input placeholder="Giặt quần áo, Dọn ban công..." value={crudForm.excludedTask}
+                        onChange={e => setCrudForm(p => ({ ...p, excludedTask: e.target.value }))}
+                        onKeyDown={e => { if (e.key === "Enter" && crudForm.excludedTask.trim()) { setCrudForm(p => ({ ...p, excludedTasks: [...p.excludedTasks, p.excludedTask.trim()], excludedTask: "" })); e.preventDefault(); } }}
+                        className="h-9 rounded-xl flex-1 text-sm" />
+                      <button type="button"
+                        onClick={() => { if (crudForm.excludedTask.trim()) setCrudForm(p => ({ ...p, excludedTasks: [...p.excludedTasks, p.excludedTask.trim()], excludedTask: "" })); }}
+                        className="h-9 w-9 rounded-xl bg-rose-100 text-rose-500 hover:bg-rose-200 flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </Field>
+                  <div className="space-y-1 max-h-28 overflow-y-auto">
+                    {crudForm.excludedTasks.map((t, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 rounded-lg border border-rose-200/60">
+                        <span className="text-rose-400 text-xs shrink-0">✕</span>
+                        <span className="text-xs flex-1">{t}</span>
+                        <button type="button" onClick={() => setCrudForm(p => ({ ...p, excludedTasks: p.excludedTasks.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-rose-500 shrink-0"><X className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                    {crudForm.excludedTasks.length === 0 && <p className="text-[10px] text-muted-foreground text-center py-2">Chưa có mục nào</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Block 4: Trạng thái */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Trạng thái</p>
+              <Field label="Trạng thái hiển thị" tooltip="Bật thì dịch vụ có thể được chọn và đặt lịch. Tắt để tạm ẩn.">
+                <div className="flex items-center gap-3 h-10 px-3 bg-muted/20 rounded-xl border border-border/40 w-fit">
+                  <Switch checked={crudForm.isActive} onCheckedChange={v => setCrudForm(p => ({ ...p, isActive: v }))} />
+                  <div>
+                    <p className="text-xs font-bold">{crudForm.isActive ? "Đang bật" : "Đang tắt"}</p>
+                    <p className="text-[10px] text-muted-foreground">{crudForm.isActive ? "Khách có thể đặt" : "Tạm ẩn khỏi khách hàng"}</p>
+                  </div>
+                </div>
+              </Field>
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-border/40 flex gap-3">
+            <button type="button" onClick={() => { setCrudModal({ open: false, mode: "create" }); setCrudForm(CRUD_EMPTY); }}
+              className="flex-1 h-10 rounded-xl border border-border/40 text-sm font-semibold hover:bg-muted/40 transition-colors">
+              Huỷ
+            </button>
+            <BaseButton type="button" onClick={handleCrudSubmit}
+              disabled={createService.isPending || updateService.isPending}
+              className={cn("flex-1 h-10 rounded-xl font-bold text-white",
+                crudModal.mode === "edit" ? "bg-amber-500 hover:bg-amber-600" : "bg-primary hover:bg-primary/90")}>
+              {(createService.isPending || updateService.isPending) ? "Đang lưu..." : crudModal.mode === "edit" ? "Lưu thay đổi" : "Tạo dịch vụ"}
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Chỉnh sửa nhanh phí ship của khu vực */}
       <Dialog open={!!editingArea} onOpenChange={open => { if (!open) setEditingArea(null); }}>
@@ -3422,25 +4729,43 @@ export default function CreatePackagePage() {
               type="button"
               variant="primary"
               onClick={() => {
-                const hours = parseFloat(tempHours);
-                if (isNaN(hours) || hours <= 0 || hours > 24) {
-                  toast.error("Số giờ phải từ 0.1 đến 24!");
+                if (editingDurationIndex === null) {
+                  // Đang mở từ form thêm mới: chỉ write-back title/description và các trường đã nhập về newDuration
+                  setNewDuration(prev => ({
+                    ...prev,
+                    title: tempTitle.trim(),
+                    description: tempDescription.trim(),
+                    durationHours: tempHours || prev.durationHours,
+                    suggestedArea: tempArea || prev.suggestedArea,
+                    priceAdjustment: tempAdjustment,
+                    isPopular: tempIsPopular,
+                    taskerCount: tempTaskerCount,
+                  }));
+                  setIsOpenMetaModal(false);
+                  toast.success("Đã lưu tiêu đề & mô tả cho mốc mới!");
                   return;
                 }
-                if (editingDurationIndex !== null) {
-                  const adj = parseFloat(tempAdjustment) || 0;
-                  setDurations(prev => prev.map((x, idx) => idx === editingDurationIndex ? {
-                    ...x,
-                    durationHours: hours,
-                    suggestedArea: tempArea ? Number(tempArea) : null,
-                    priceMultiplier: 1 + adj / 100,
-                    isPopular: tempIsPopular,
-                    isActive: tempIsActive,
-                    taskerCount: allowMultipleTaskers ? Number(tempTaskerCount) : x.taskerCount,
-                    title: tempTitle.trim() || undefined,
-                    description: tempDescription.trim() || undefined,
-                  } : tempIsPopular ? { ...x, isPopular: false } : x));
+                const hours = parseFloat(tempHours);
+                if (isNaN(hours) || hours <= 0) {
+                  toast.error("Số giờ không hợp lệ!");
+                  return;
                 }
+                if (hours > maxHours) {
+                  toast.error(`Không được thiết lập giờ vượt quá giờ phục vụ tối đa của gói (${maxHours} giờ). Muốn tăng khung giờ hơn thì hãy đổi giờ phục vụ tối đa cao hơn.`);
+                  return;
+                }
+                const adj = parseFloat(tempAdjustment) || 0;
+                setDurations(prev => prev.map((x, idx) => idx === editingDurationIndex ? {
+                  ...x,
+                  durationHours: hours,
+                  suggestedArea: tempArea ? Number(tempArea) : null,
+                  priceMultiplier: 1 + adj / 100,
+                  isPopular: tempIsPopular,
+                  isActive: tempIsActive,
+                  taskerCount: allowMultipleTaskers ? Number(tempTaskerCount) : x.taskerCount,
+                  title: tempTitle.trim() || undefined,
+                  description: tempDescription.trim() || undefined,
+                } : tempIsPopular ? { ...x, isPopular: false } : x));
                 setIsOpenMetaModal(false);
                 setEditingDurationIndex(null);
                 toast.success("Đã cập nhật mốc thời lượng!");
@@ -3467,7 +4792,7 @@ export default function CreatePackagePage() {
                   Mốc thời lượng dịch vụ
                 </DialogDescription>
               </div>
-              <div className="flex gap-1.5 flex-shrink-0">
+              <div className="flex gap-1.5 shrink-0">
                 {viewingDuration?.isPopular && (
                   <Badge className="bg-orange-500 text-white text-[9px] px-2 py-0.5 font-bold">Phổ biến</Badge>
                 )}
@@ -3530,6 +4855,204 @@ export default function CreatePackagePage() {
               onClick={() => setViewingDuration(null)}
               className="py-2.5 px-6 rounded-xl text-xs font-bold h-10 w-full sm:w-auto"
             >
+              Đóng
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Chỉnh sửa addon ── */}
+      <Dialog open={!!editAddonModal} onOpenChange={(open) => { if (!open) setEditAddonModal(null); }}>
+        <DialogContent className="w-full sm:max-w-[600px] rounded-2xl p-0 overflow-hidden bg-card border border-border">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <Edit className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-foreground">
+                  Chỉnh sửa: {editAddonModal?.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">Cập nhật thông tin dịch vụ thêm</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          {editAddonModal && (
+            <div className="px-6 py-5 space-y-4">
+              {/* Row 1: Tên + Giá + Đơn vị */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-1 space-y-1">
+                  <label className="text-xs font-bold text-foreground">Tên dịch vụ thêm <span className="text-destructive">*</span></label>
+                  <Input placeholder="Lau kính ban công" value={editAddonModal.name}
+                    onChange={e => setEditAddonModal(p => p && ({ ...p, name: e.target.value }))}
+                    className="h-10 rounded-xl" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Đơn giá phụ thu (₫) <span className="text-destructive">*</span></label>
+                  <Input type="number" min="0" placeholder="50000" value={editAddonModal.price}
+                    onChange={e => setEditAddonModal(p => p && ({ ...p, price: e.target.value }))}
+                    className="h-10 rounded-xl" />
+                  {editAddonModal.price && Number(editAddonModal.price) > 0 && (
+                    <p className="text-[10px] text-muted-foreground">{Number(editAddonModal.price).toLocaleString("vi-VN")} ₫</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Đơn vị tính</label>
+                  <Select value={editAddonModal.priceUnit} onValueChange={v => setEditAddonModal(p => p && ({ ...p, priceUnit: v as AddonPriceUnit }))}>
+                    <SelectTrigger className="h-10 rounded-xl text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.entries(ADDON_PRICE_UNIT_LABELS) as [AddonPriceUnit, string][]).map(([val, label]) => (
+                        <SelectItem key={val} value={val}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {/* Row 2: Thời gian + Số lượng + Thứ tự + Trạng thái */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Thời gian thêm (phút)</label>
+                  <div className="relative">
+                    <Input type="number" min="0" placeholder="0" value={editAddonModal.durationMinutes}
+                      onChange={e => setEditAddonModal(p => p && ({ ...p, durationMinutes: e.target.value }))}
+                      className="h-10 rounded-xl pr-12" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">phút</span>
+                  </div>
+                  {editAddonModal.durationMinutes && <p className="text-[10px] text-primary">{editAddonModal.durationMinutes} phút</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Số lượng tối đa</label>
+                  <Input type="number" min="1" placeholder="∞ Không giới hạn" value={editAddonModal.maxQuantity}
+                    onChange={e => setEditAddonModal(p => p && ({ ...p, maxQuantity: e.target.value }))}
+                    className="h-10 rounded-xl" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Thứ tự hiển thị</label>
+                  <Input type="number" min="1" placeholder="1" value={editAddonModal.sortOrder}
+                    onChange={e => setEditAddonModal(p => p && ({ ...p, sortOrder: e.target.value }))}
+                    className="h-10 rounded-xl" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Trạng thái</label>
+                  <div className="h-10 flex items-center gap-2">
+                    <Switch checked={editAddonModal.isActive} onCheckedChange={v => setEditAddonModal(p => p && ({ ...p, isActive: v }))} />
+                    <span className={cn("text-xs font-bold", editAddonModal.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+                      {editAddonModal.isActive ? "Đang bật" : "Đã tắt"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {/* Mô tả */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Mô tả chi tiết</label>
+                <Textarea placeholder="Mô tả ngắn về dịch vụ thêm này..." value={editAddonModal.description}
+                  onChange={e => setEditAddonModal(p => p && ({ ...p, description: e.target.value }))}
+                  className="rounded-xl text-sm resize-none" rows={2} />
+              </div>
+              {/* Preview */}
+              {editAddonModal.price && Number(editAddonModal.price) > 0 && (
+                <div className="flex items-center gap-2 bg-primary/5 border border-primary/15 rounded-xl px-4 py-2.5">
+                  <span className="text-xs text-muted-foreground">Giá hiển thị:</span>
+                  <span className="text-sm font-black text-primary">{Number(editAddonModal.price).toLocaleString("vi-VN")} ₫</span>
+                  <span className="text-xs text-slate-400">/ {ADDON_PRICE_UNIT_LABELS[editAddonModal.priceUnit]?.replace("Theo ", "")}</span>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="px-6 pb-5 flex gap-2 border-t border-border/40 pt-4">
+            <BaseButton type="button" variant="outline" className="flex-1 h-9 rounded-xl text-xs font-bold" onClick={() => setEditAddonModal(null)}>Huỷ</BaseButton>
+            <BaseButton type="button" variant="primary" className="h-9 px-6 rounded-xl text-xs font-bold gap-1.5"
+              onClick={() => {
+                if (!editAddonModal) return;
+                if (!editAddonModal.name.trim()) { toast.error("Vui lòng nhập tên dịch vụ thêm"); return; }
+                const priceVal = Number(editAddonModal.price);
+                if (isNaN(priceVal) || priceVal < 0) { toast.error("Đơn giá không hợp lệ"); return; }
+                setAddons(prev => prev.map((a, i) => i === editAddonModal.idx ? {
+                  ...a,
+                  name: editAddonModal.name.trim(),
+                  description: editAddonModal.description.trim() || undefined,
+                  price: priceVal,
+                  priceUnit: editAddonModal.priceUnit,
+                  durationMinutes: editAddonModal.durationMinutes ? Number(editAddonModal.durationMinutes) : null,
+                  maxQuantity: editAddonModal.maxQuantity ? Number(editAddonModal.maxQuantity) : null,
+                  sortOrder: editAddonModal.sortOrder ? Number(editAddonModal.sortOrder) : undefined,
+                  isActive: editAddonModal.isActive,
+                } : a));
+                toast.success("Đã cập nhật dịch vụ thêm");
+                setEditAddonModal(null);
+              }}>
+              <Check className="w-3.5 h-3.5" /> Lưu thay đổi
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Xem chi tiết addon */}
+      <Dialog open={!!viewingAddon} onOpenChange={(open) => !open && setViewingAddon(null)}>
+        <DialogContent className="w-full sm:max-w-[440px] rounded-2xl p-6 bg-card border border-border">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              {viewingAddon?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400 font-medium">Chi tiết dịch vụ thêm</DialogDescription>
+          </DialogHeader>
+          {viewingAddon && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-primary/5 rounded-xl px-4 py-3 border border-primary/10">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Đơn giá</p>
+                  <p className="text-lg font-black text-primary">{vnd(viewingAddon.price)}</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Đơn vị tính</p>
+                  <p className="text-xs font-bold text-slate-700">{ADDON_PRICE_UNIT_LABELS[viewingAddon.priceUnit ?? "per_item"]}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 text-center">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-0.5">Thời gian thêm</p>
+                  <p className="text-xs font-black text-slate-700">
+                    {viewingAddon.durationMinutes ? `+${viewingAddon.durationMinutes} phút` : "—"}
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 text-center">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-0.5">Số lượng tối đa</p>
+                  <p className="text-xs font-black text-slate-700">
+                    {viewingAddon.maxQuantity != null ? `≤ ${viewingAddon.maxQuantity}` : "∞"}
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 text-center">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-0.5">Trạng thái</p>
+                  <p className={cn("text-xs font-black", viewingAddon.isActive ? "text-emerald-600" : "text-rose-500")}>
+                    {viewingAddon.isActive ? "Đang bật" : "Đã tắt"}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+                <p className="text-[10px] text-slate-400 font-semibold mb-1.5">Mô tả</p>
+                <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+                  {viewingAddon.description || <span className="italic text-slate-400">Chưa có mô tả.</span>}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="pt-4 flex gap-2">
+            <BaseButton type="button" variant="outline"
+              onClick={() => {
+                if (!viewingAddon) return;
+                const idx = addons.findIndex(a => a === viewingAddon);
+                if (idx !== -1) handleEditAddon(idx);
+                setViewingAddon(null);
+              }}
+              className="py-2.5 px-5 rounded-xl text-xs font-bold h-10 flex-1">
+              <Edit className="w-3.5 h-3.5 mr-1.5" /> Chỉnh sửa
+            </BaseButton>
+            <BaseButton type="button" variant="primary"
+              onClick={() => setViewingAddon(null)}
+              className="py-2.5 px-6 rounded-xl text-xs font-bold h-10 flex-1">
               Đóng
             </BaseButton>
           </DialogFooter>
@@ -3611,16 +5134,233 @@ export default function CreatePackagePage() {
         </SheetContent>
       </Sheet>
 
+      {/* ── Dialog Xem chi tiết khung giờ cao điểm ── */}
+      <Dialog open={!!viewingPeakHour} onOpenChange={(open) => !open && setViewingPeakHour(null)}>
+        <DialogContent className="w-full sm:max-w-[420px] rounded-2xl p-0 overflow-hidden bg-card border border-border">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-foreground">Chi tiết khung giờ cao điểm</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">Thông tin cấu hình tăng giá theo giờ</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          {viewingPeakHour && (() => {
+            const daysText = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Hàng ngày"];
+            const pct = Math.round((viewingPeakHour.multiplier - 1) * 100);
+            const fmt = (s: string) => s ? new Date(s).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
+            const [sh, sm] = viewingPeakHour.startHour.split(":").map(Number);
+            const [eh, em] = viewingPeakHour.endHour.split(":").map(Number);
+            const mins = (eh * 60 + em) - (sh * 60 + sm);
+            const durText = mins > 0 ? (Math.floor(mins / 60) > 0 ? `${Math.floor(mins / 60)} giờ${mins % 60 > 0 ? ` ${mins % 60} phút` : ""}` : `${mins} phút`) : "";
+            return (
+              <div className="px-6 py-5 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-muted/40 rounded-xl p-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Ngày áp dụng</p>
+                    <p className="text-sm font-extrabold text-foreground">{daysText[viewingPeakHour.dayOfWeek]}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">{viewingPeakHour.dayOfWeek === 7 ? "Mọi ngày trong tuần" : `Chỉ ngày ${daysText[viewingPeakHour.dayOfWeek]}`}</p>
+                  </div>
+                  <div className="bg-primary/5 rounded-xl p-3 border border-primary/15">
+                    <p className="text-[10px] font-black text-primary/70 uppercase tracking-wider mb-1">Hệ số tăng giá</p>
+                    <p className="text-xl font-black text-primary">+{pct}%</p>
+                    <p className="text-[10px] text-primary/60 mt-0.5">{viewingPeakHour.multiplier}x giá gốc</p>
+                  </div>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2">Khung giờ</p>
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary font-extrabold rounded-lg px-3 py-1.5 text-sm">
+                      <Clock className="w-3.5 h-3.5" />{viewingPeakHour.startHour} – {viewingPeakHour.endHour}
+                    </span>
+                    {durText && <span className="text-xs text-muted-foreground font-semibold">({durText})</span>}
+                  </div>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2">Thời hạn áp dụng</p>
+                  {viewingPeakHour.startDate || viewingPeakHour.endDate ? (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span className="text-sm font-bold text-foreground">
+                        {fmt(viewingPeakHour.startDate ?? "") ?? "…"} → {fmt(viewingPeakHour.endDate ?? "") ?? "…"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-bold text-muted-foreground">Không giới hạn</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
+                  <p className="text-xs font-bold text-muted-foreground">Trạng thái</p>
+                  <span className={cn("text-xs font-extrabold px-2.5 py-1 rounded-full", viewingPeakHour.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+                    {viewingPeakHour.isActive ? "Đang hoạt động" : "Đã tắt"}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter className="px-6 pb-5 flex gap-2 border-t border-border/40 pt-4">
+            {viewingPeakHour && (() => {
+              const idx = peakHours.indexOf(viewingPeakHour);
+              return (
+                <BaseButton type="button" variant="outline" className="flex-1 h-9 rounded-xl text-xs font-bold gap-1.5"
+                  onClick={() => {
+                    const p = viewingPeakHour;
+                    setEditPeakHour({ dayOfWeek: String(p.dayOfWeek), startHour: p.startHour, endHour: p.endHour, multiplier: String(p.multiplier), startDate: p.startDate ?? "", endDate: p.endDate ?? "", isActive: p.isActive });
+                    setEditingPeakHourIdx(idx);
+                    setViewingPeakHour(null);
+                  }}>
+                  <Edit className="w-3.5 h-3.5" /> Chỉnh sửa
+                </BaseButton>
+              );
+            })()}
+            <BaseButton type="button" variant="primary" className="h-9 px-5 rounded-xl text-xs font-bold" onClick={() => setViewingPeakHour(null)}>Đóng</BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Chỉnh sửa khung giờ cao điểm ── */}
+      <Dialog open={editingPeakHourIdx !== null} onOpenChange={(open) => { if (!open) setEditingPeakHourIdx(null); }}>
+        <DialogContent className="w-full sm:max-w-[560px] rounded-2xl p-0 overflow-hidden bg-card border border-border">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <Edit className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-foreground">Chỉnh sửa khung giờ cao điểm</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">Cập nhật thông tin cấu hình tăng giá</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="px-6 py-5">
+            <div className="border border-border/40 rounded-xl bg-background divide-y divide-border/30">
+              {/* Ngày */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Ngày</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[["CN","0"],["T2","1"],["T3","2"],["T4","3"],["T5","4"],["T6","5"],["T7","6"],["Hàng ngày","7"]].map(([label, val]) => (
+                    <button key={val} type="button"
+                      onClick={() => setEditPeakHour(p => ({ ...p, dayOfWeek: val }))}
+                      className={cn("px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors",
+                        editPeakHour.dayOfWeek === val
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                      )}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Khung giờ */}
+              <div className="px-4 py-3 flex items-start gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-1">Khung giờ</span>
+                <div className="space-y-2 flex-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[["Sáng sớm","06:00","08:00"],["Buổi sáng","08:00","11:00"],["Buổi trưa","11:00","14:00"],["Buổi chiều","14:00","17:00"],["Chiều tối","17:00","20:00"],["Buổi tối","19:00","22:00"],["Cả ngày","06:00","22:00"]].map(([label, s, e]) => (
+                      <button key={label} type="button"
+                        onClick={() => setEditPeakHour(p => ({ ...p, startHour: s, endHour: e }))}
+                        className={cn("px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors",
+                          editPeakHour.startHour === s && editPeakHour.endHour === e
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                        )}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="time" value={editPeakHour.startHour} onChange={e => setEditPeakHour(p => ({ ...p, startHour: e.target.value }))} className="h-8 rounded-lg text-xs w-32" />
+                    <span className="text-slate-400 font-bold text-sm">→</span>
+                    <Input type="time" value={editPeakHour.endHour} onChange={e => setEditPeakHour(p => ({ ...p, endHour: e.target.value }))} className="h-8 rounded-lg text-xs w-32" />
+                  </div>
+                </div>
+              </div>
+              {/* Tăng giá */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Tăng giá</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[["10%","1.1"],["+15%","1.15"],["+20%","1.2"],["+25%","1.25"],["+30%","1.3"],["+50%","1.5"]].map(([label, val]) => (
+                    <button key={val} type="button"
+                      onClick={() => setEditPeakHour(p => ({ ...p, multiplier: val }))}
+                      className={cn("px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors",
+                        editPeakHour.multiplier === val
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                      )}>
+                      +{label}
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-colors h-8 px-2.5">
+                    <span className="text-xs font-extrabold text-primary select-none">+</span>
+                    <input type="number" step="5" min="5" max="200"
+                      value={String(Math.round((parseFloat(editPeakHour.multiplier || "1") - 1) * 100))}
+                      onChange={e => {
+                        const pct = Math.max(5, Math.min(200, parseInt(e.target.value || "5")));
+                        setEditPeakHour(p => ({ ...p, multiplier: ((100 + pct) / 100).toFixed(2) }));
+                      }}
+                      className="w-10 text-xs font-extrabold bg-transparent outline-none text-center text-foreground" />
+                    <span className="text-xs font-extrabold text-slate-400 select-none">%</span>
+                  </div>
+                  {parseFloat(editPeakHour.multiplier) > 1 && (
+                    <span className="text-xs font-semibold text-muted-foreground bg-muted/50 rounded-md px-2 py-1">
+                      × {parseFloat(editPeakHour.multiplier).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Thời hạn */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Thời hạn</span>
+                <DateRangePicker
+                  startDate={editPeakHour.startDate}
+                  endDate={editPeakHour.endDate}
+                  onStartChange={v => setEditPeakHour(p => ({ ...p, startDate: v }))}
+                  onEndChange={v => setEditPeakHour(p => ({ ...p, endDate: v }))}
+                  placeholder="Không giới hạn (để trống)"
+                />
+              </div>
+              {/* Trạng thái */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Trạng thái</span>
+                <div className="flex items-center gap-2">
+                  <Switch checked={editPeakHour.isActive} onCheckedChange={v => setEditPeakHour(p => ({ ...p, isActive: v }))} />
+                  <span className="text-xs font-semibold text-muted-foreground">{editPeakHour.isActive ? "Đang hoạt động" : "Đã tắt"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="px-6 pb-5 flex gap-2 border-t border-border/40 pt-4">
+            <BaseButton type="button" variant="outline" className="flex-1 h-9 rounded-xl text-xs font-bold" onClick={() => setEditingPeakHourIdx(null)}>Huỷ</BaseButton>
+            <BaseButton type="button" variant="primary" className="h-9 px-6 rounded-xl text-xs font-bold gap-1.5"
+              onClick={() => {
+                if (editingPeakHourIdx === null) return;
+                setPeakHours(prev => prev.map((item, idx) =>
+                  idx === editingPeakHourIdx
+                    ? { ...item, dayOfWeek: parseInt(editPeakHour.dayOfWeek), startHour: editPeakHour.startHour, endHour: editPeakHour.endHour, multiplier: parseFloat(editPeakHour.multiplier), startDate: editPeakHour.startDate || null, endDate: editPeakHour.endDate || null, isActive: editPeakHour.isActive }
+                    : item
+                ));
+                setEditingPeakHourIdx(null);
+                toast.success("Đã cập nhật khung giờ cao điểm");
+              }}>
+              <Check className="w-3.5 h-3.5" /> Lưu thay đổi
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Inline table dropdowns rendered via portal to escape overflow:hidden ── */}
-      {typeof window !== "undefined" && inlineDdRect && (
+      {typeof window !== "undefined" && inlineDdRect && inlineEditingCell && (
         <>
-          {isOpenInlineHoursDropdown && createPortal(
+          {inlineEditingCell?.field === 'hours' && createPortal(
             <div style={{ position: "fixed", top: inlineDdRect.top + 4, left: inlineDdRect.left, minWidth: 140, zIndex: 9999 }}
               className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl"
             >
               {hourOptions.filter(opt => opt.toString().includes(inlineEditValue || "")).map(opt => (
                 <button key={opt} type="button"
-                  onMouseDown={() => inlineEditingCell && handleInlineSave(inlineEditingCell.rowIndex, 'hours', opt.toString())}
+                  onMouseDown={(e) => { e.preventDefault(); handleInlineSave(inlineEditingCell.rowIndex, 'hours', opt.toString()); }}
                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
                 >
                   {opt} giờ ({opt * 60} phút)
@@ -3629,13 +5369,13 @@ export default function CreatePackagePage() {
             </div>,
             document.body
           )}
-          {isOpenInlineAreaDropdown && createPortal(
+          {inlineEditingCell?.field === 'area' && createPortal(
             <div style={{ position: "fixed", top: inlineDdRect.top + 4, left: inlineDdRect.left, minWidth: 140, zIndex: 9999 }}
               className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl"
             >
               {areaOptions.filter(opt => opt.toString().includes(inlineEditValue || "")).map(opt => (
                 <button key={opt} type="button"
-                  onMouseDown={() => inlineEditingCell && handleInlineSave(inlineEditingCell.rowIndex, 'area', opt.toString())}
+                  onMouseDown={(e) => { e.preventDefault(); handleInlineSave(inlineEditingCell.rowIndex, 'area', opt.toString()); }}
                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
                 >
                   {opt} m²
@@ -3644,7 +5384,7 @@ export default function CreatePackagePage() {
             </div>,
             document.body
           )}
-          {isOpenInlineAdjustmentDropdown && createPortal(
+          {inlineEditingCell?.field === 'adjustment' && createPortal(
             <div style={{ position: "fixed", top: inlineDdRect.top + 4, left: inlineDdRect.left, minWidth: 176, zIndex: 9999 }}
               className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl"
             >
@@ -3655,7 +5395,7 @@ export default function CreatePackagePage() {
                 )
                 .map(opt => (
                   <button key={opt.value} type="button"
-                    onMouseDown={() => inlineEditingCell && handleInlineSave(inlineEditingCell.rowIndex, 'adjustment', opt.value)}
+                    onMouseDown={(e) => { e.preventDefault(); handleInlineSave(inlineEditingCell.rowIndex, 'adjustment', opt.value); }}
                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
                   >
                     {opt.label}

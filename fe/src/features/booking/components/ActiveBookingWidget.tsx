@@ -9,13 +9,10 @@ import {
   Calendar,
   User,
   Phone,
-  ChevronUp,
   Star,
   Activity,
-  Sparkles,
   ShieldCheck,
   Briefcase,
-  X,
   MessageSquare,
   ChevronRight,
   Coins,
@@ -57,6 +54,9 @@ export function ActiveBookingWidget() {
   const booking = data?.booking;
   if (isLoading || !booking) return null;
 
+  const terminalStatuses: BookingStatus[] = ["COMPLETED", "CANCELLED", "EXPIRED"];
+  if (terminalStatuses.includes(booking.status)) return null;
+
   // Không hiển thị widget khi người dùng đang ở chính trang chi tiết đơn hàng
   const isDetailPage =
     pathname.includes("/customer/booking/") &&
@@ -81,6 +81,7 @@ export function ActiveBookingWidget() {
   const startTime = booking.schedule?.scheduledStartTime ?? "";
   const startTimeFormatted = startTime.split(":").slice(0, 2).join(":");
   const taskerFullName = booking.tasker?.fullName ?? null;
+  const serviceName = booking.service?.name ?? "Gói dịch vụ";
 
   return (
     <>
@@ -127,7 +128,7 @@ export function ActiveBookingWidget() {
             </div>
 
             <span className="truncate text-sm font-black leading-tight text-white drop-shadow-md sm:text-base">
-              {booking.service.name}
+              {serviceName}
             </span>
 
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-black leading-none text-orange-100 drop-shadow-sm sm:text-xs">
@@ -194,7 +195,7 @@ export function ActiveBookingWidget() {
                   <Briefcase className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Dịch vụ đặt lịch</span>
-                    <span className="text-sm font-bold text-foreground truncate">{booking.service.name}</span>
+                    <span className="text-sm font-bold text-foreground truncate">{serviceName}</span>
                   </div>
                 </div>
 

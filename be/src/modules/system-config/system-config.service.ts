@@ -5,10 +5,30 @@ import { PeakDayConfigEntity } from '../pricing/entity/peak-day-config.entity';
 
 @Injectable()
 export class SystemConfigService {
+  private readonly configCache = new Map<
+    string,
+    { value: string; ts: number }
+  >();
+  private readonly CONFIG_CACHE_TTL_MS = 10 * 60 * 1000;
+
+  clearConfigCache(key?: string): void {
+    if (key) {
+      this.configCache.delete(key);
+    } else {
+      this.configCache.clear();
+    }
+  }
+
   async getRequiredString(
     manager: EntityManager,
     key: string,
   ): Promise<string> {
+    const now = Date.now();
+    const cached = this.configCache.get(key);
+    if (cached && now - cached.ts < this.CONFIG_CACHE_TTL_MS) {
+      return cached.value;
+    }
+
     const config = await manager.getRepository(SystemConfigEntity).findOne({
       where: { configKey: key },
     });
@@ -17,7 +37,9 @@ export class SystemConfigService {
       throw new NotFoundException(`Thiếu cấu hình hệ thống ${key}`);
     }
 
-    return config.configValue.trim();
+    const value = config.configValue.trim();
+    this.configCache.set(key, { value, ts: now });
+    return value;
   }
 
   async getRequiredNumber(
