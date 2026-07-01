@@ -338,6 +338,17 @@ export class ServicePackagesService {
       );
     }
 
+    // TypeORM does not populate scalar FKs when loading via relation JOIN,
+    // so cascading save would UPDATE child rows with packageId=undefined.
+    // Detach all cascade relations — each is managed manually below.
+    const pkg = servicePackage as unknown as Record<string, unknown>;
+    pkg['durations'] = undefined;
+    pkg['addons'] = undefined;
+    pkg['subscriptions'] = undefined;
+    pkg['peakHours'] = undefined;
+    pkg['subServices'] = undefined;
+    pkg['pricingTiers'] = undefined;
+
     await this.packageRepository.save(servicePackage);
 
     // Update durations
@@ -498,9 +509,9 @@ export class ServicePackagesService {
   ): Promise<ServicePackageAnalytics> {
     await this.findOne(id); // Check existence
 
-    const fromVal     = from     ?? null;
-    const toVal       = to       ?? null;
-    const taskerVal   = taskerId ?? null;
+    const fromVal = from ?? null;
+    const toVal = to ?? null;
+    const taskerVal = taskerId ?? null;
 
     const statsQuery = `
       SELECT
@@ -547,7 +558,12 @@ export class ServicePackagesService {
 
     const [statsResult, taskersResult] = (await Promise.all([
       this.packageRepository.query(statsQuery, [id, fromVal, toVal, taskerVal]),
-      this.packageRepository.query(taskersQuery, [id, fromVal, toVal, taskerVal]),
+      this.packageRepository.query(taskersQuery, [
+        id,
+        fromVal,
+        toVal,
+        taskerVal,
+      ]),
     ])) as [StatsResult[], TaskerResult[]];
 
     const stats = statsResult[0] || {
