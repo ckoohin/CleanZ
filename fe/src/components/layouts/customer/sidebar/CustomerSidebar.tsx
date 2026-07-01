@@ -5,6 +5,7 @@ import {
   Home,
   ClipboardList,
   Wallet,
+  BookOpenText,
   Headphones,
   User,
   MapPin,
@@ -43,6 +44,11 @@ const serviceNav = [
     title: "Ví CleanZ",
     url: "/customer/wallet",
     icon: <Wallet />,
+  },
+  {
+    title: "Blog",
+    url: "/customer/blogs",
+    icon: <BookOpenText />,
   },
 ]
 
