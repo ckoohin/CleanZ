@@ -20,6 +20,11 @@ import { formatDate, getBlogAuthorName, getBlogCategoryName, getBlogThumbnail } 
 import { BlogFormDialog } from "./BlogFormDialog";
 
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+const STATUS_LABELS: Record<BlogStatus, string> = {
+  DRAFT: "Bản nháp",
+  PUBLISHED: "Đã xuất bản",
+  ARCHIVED: "Đã lưu trữ",
+};
 
 export function AdminBlogPage() {
   const router = useRouter();
@@ -89,12 +94,12 @@ export function AdminBlogPage() {
         <Select value={blog.status} onValueChange={(value) => statusMutation.mutate({ id: blog.id, status: value as BlogStatus })}>
           <SelectTrigger className="h-8 w-[132px] rounded-lg"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+            {STATUS_OPTIONS.map((item) => <SelectItem key={item} value={item}>{STATUS_LABELS[item]}</SelectItem>)}
           </SelectContent>
         </Select>
       ),
     },
-    { key: "view_count", title: "View", hideOnMobile: true, render: (blog) => <span className="text-xs font-semibold">{blog.view_count}</span> },
+    { key: "view_count", title: "Lượt xem", hideOnMobile: true, render: (blog) => <span className="text-xs font-semibold">{blog.view_count}</span> },
     { key: "author", title: "Tác giả", hideOnMobile: true, render: (blog) => <span className="text-xs text-[var(--c-muted)]">{getBlogAuthorName(blog)}</span> },
     { key: "published_at", title: "Xuất bản", hideOnMobile: true, render: (blog) => <span className="text-xs text-[var(--c-muted)]">{formatDate(blog.published_at)}</span> },
   ];
@@ -102,7 +107,7 @@ export function AdminBlogPage() {
   const rowActions: RowAction<BlogPost>[] = [
     {
       type: "view",
-      label: "Xem customer",
+      label: "Xem trang khách hàng",
       icon: Eye,
       hidden: (blog) => blog.status !== "PUBLISHED",
       onClick: (blog) => window.open(ROUTES.CUSTOMER.BLOG_DETAIL(blog.id), "_blank"),
@@ -116,7 +121,7 @@ export function AdminBlogPage() {
       <SelectTrigger className="h-9 w-full rounded-lg sm:w-40"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
       <SelectContent>
         <SelectItem value="ALL">Tất cả</SelectItem>
-        {STATUS_OPTIONS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+        {STATUS_OPTIONS.map((item) => <SelectItem key={item} value={item}>{STATUS_LABELS[item]}</SelectItem>)}
       </SelectContent>
     </Select>
   );
@@ -157,7 +162,7 @@ export function AdminBlogPage() {
             onLimitChange={(nextLimit) => setParams({ limit: String(nextLimit) })}
             keyword={q}
             onKeywordChange={(keyword) => setParams({ q: keyword })}
-            placeholderSearch="Tìm title, slug, summary..."
+            placeholderSearch="Tìm tiêu đề, đường dẫn, tóm tắt..."
             filters={filters}
             isLoading={isLoading}
             emptyTitle="Chưa có bài viết"

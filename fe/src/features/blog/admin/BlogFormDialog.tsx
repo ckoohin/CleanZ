@@ -26,6 +26,11 @@ import type { BlogFormInput, BlogPost, BlogStatus } from "../types/blog.types";
 import { fromDateTimeInputValue, toDateTimeInputValue } from "../utils/blog-format";
 
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+const STATUS_LABELS: Record<BlogStatus, string> = {
+  DRAFT: "Bản nháp",
+  PUBLISHED: "Đã xuất bản",
+  ARCHIVED: "Đã lưu trữ",
+};
 
 function slugify(value: string) {
   return value
@@ -101,54 +106,54 @@ function BlogFormBody({
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="blog-title">Title</Label>
+            <Label htmlFor="blog-title">Tiêu đề</Label>
             <Input id="blog-title" value={form.title} onChange={(event) => handleTitleChange(event.target.value)} required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="blog-slug">Slug</Label>
+            <Label htmlFor="blog-slug">Đường dẫn</Label>
             <Input id="blog-slug" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} required />
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="blog-summary">Summary</Label>
+          <Label htmlFor="blog-summary">Tóm tắt</Label>
           <Textarea id="blog-summary" value={form.summary} onChange={(event) => update("summary", event.target.value)} rows={3} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="blog-content">Content</Label>
+          <Label htmlFor="blog-content">Nội dung</Label>
           <Textarea id="blog-content" value={form.content} onChange={(event) => update("content", event.target.value)} rows={10} required />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="blog-thumbnail">thumbnail_url</Label>
-            <Input id="blog-thumbnail" value={form.thumbnail_url} onChange={(event) => update("thumbnail_url", event.target.value)} placeholder="https://..." />
+            <Label htmlFor="blog-thumbnail">Ảnh đại diện</Label>
+            <Input id="blog-thumbnail" value={form.thumbnail_url} onChange={(event) => update("thumbnail_url", event.target.value)} placeholder="Nhập đường dẫn ảnh đại diện" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="blog-category-id">category_id</Label>
-            <Input id="blog-category-id" value={form.category_id} onChange={(event) => update("category_id", event.target.value)} placeholder="UUID danh mục nếu có" />
+            <Label htmlFor="blog-category-id">Danh mục</Label>
+            <Input id="blog-category-id" value={form.category_id} onChange={(event) => update("category_id", event.target.value)} placeholder="Nhập mã danh mục (nếu có)" />
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="blog-tags">Tags</Label>
-            <Input id="blog-tags" value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="cleaning, meo-hay" />
+            <Label htmlFor="blog-tags">Thẻ</Label>
+            <Input id="blog-tags" value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="Ví dụ: vệ sinh, mẹo hay" />
           </div>
           <div className="space-y-2">
-            <Label>Status</Label>
+            <Label>Trạng thái</Label>
             <Select value={form.status} onValueChange={(value) => update("status", value as BlogStatus)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                {STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{STATUS_LABELS[status]}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="blog-published-at">published_at</Label>
+          <Label htmlFor="blog-published-at">Ngày xuất bản</Label>
           <Input id="blog-published-at" type="datetime-local" value={dateValue} onChange={(event) => update("published_at", fromDateTimeInputValue(event.target.value))} />
         </div>
 
