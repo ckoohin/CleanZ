@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileText, AlertCircle, ScrollText } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, AlertCircle, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,7 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useTaskerPolicies } from '../hooks/useTaskerPolicies';
+import { useCustomerPolicies } from '../hooks/useCustomerPolicies';
 import {
   POLICY_CATEGORY_META,
   type Policy,
@@ -56,7 +56,7 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
-// ─── Group by category ────────────────────────────────────────────────────────
+// ─── Group by category (preserve insertion order) ─────────────────────────────
 
 function groupByCategory(policies: Policy[]): Map<PolicyCategory, Policy[]> {
   const map = new Map<PolicyCategory, Policy[]>();
@@ -131,8 +131,8 @@ function PolicySkeleton() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export function TaskerPoliciesPage() {
-  const { data: policies = [], isLoading, isError } = useTaskerPolicies();
+export function CustomerPoliciesPage() {
+  const { data: policies = [], isLoading, isError } = useCustomerPolicies();
   const [activeCategory, setActiveCategory] = useState<PolicyCategory | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -148,6 +148,7 @@ export function TaskerPoliciesPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen">
+        {/* Hero skeleton */}
         <div className="bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border-b border-border/40 px-6 md:px-10 py-10">
           <div className="max-w-7xl mx-auto animate-pulse space-y-3">
             <div className="h-4 bg-muted rounded w-32" />
@@ -186,9 +187,9 @@ export function TaskerPoliciesPage() {
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-14">
           <Button variant="ghost" size="sm" asChild className="mb-6 -ml-2 text-muted-foreground hover:text-foreground">
-            <Link href="/tasker" className="flex items-center gap-2">
+            <Link href="/customer" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
-              Quay lại Dashboard
+              Quay lại Trang chủ
             </Link>
           </Button>
 
@@ -204,10 +205,10 @@ export function TaskerPoliciesPage() {
               </div>
               <h1 className="text-3xl md:text-4xl font-light leading-tight" style={{ fontFamily: 'var(--font-serif)' }}>
                 Chính sách{' '}
-                <span className="italic text-primary">đối tác</span>
+                <span className="italic text-primary">khách hàng</span>
               </h1>
               <p className="text-muted-foreground mt-2 text-sm md:text-base max-w-xl">
-                Các quy định, tiêu chuẩn và điều khoản áp dụng cho Tasker trên nền tảng CleanZ.
+                Các quy định, điều khoản và tiêu chuẩn dịch vụ áp dụng cho khách hàng trên nền tảng CleanZ.
               </p>
             </div>
 
@@ -316,7 +317,7 @@ export function TaskerPoliciesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm leading-none">{meta.label}</p>
-                        <p className="text-xs mt-0.5 opacity-70">{items.length} chính sách</p>
+                        <p className="text-xs text-current/60 mt-0.5 opacity-70">{items.length} chính sách</p>
                       </div>
                       <Badge
                         variant="secondary"
