@@ -147,7 +147,7 @@ export class TicketAdminService {
           'ASC',
         ).addOrderBy('t.createdAt', 'DESC');
       } else if (query.sort === 'dueAt') {
-        qb.orderBy('t.resolution_due_at', 'ASC', 'NULLS LAST');
+        qb.orderBy('t.resolutionDueAt', 'ASC', 'NULLS LAST');
       } else {
         qb.orderBy('t.createdAt', 'DESC');
       }
