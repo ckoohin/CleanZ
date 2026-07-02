@@ -174,6 +174,10 @@ export const API_ENDPOINTS = {
     RESEND_TEMP_PASSWORD: (id: string) =>
       `/admin/customers/${id}/resend-temp-password`,
   },
+  CUSTOMER_POLICIES: {
+    PUBLIC_ALL: "/policy/public/all",
+    PUBLIC_BY_SLUG: (slug: string) => `/policy/public/by-slug/${slug}`,
+  },
   TASKER_POLICIES: {
     PUBLIC_ALL: "/policy/public/all",
     PUBLIC_BY_SLUG: (slug: string) => `/policy/public/by-slug/${slug}`,

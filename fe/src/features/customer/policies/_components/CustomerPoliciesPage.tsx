@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileText, AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTaskerPolicies } from '../hooks/useTaskerPolicies';
+import { useCustomerPolicies } from '../hooks/useCustomerPolicies';
 import {
   POLICY_CATEGORY_META,
   type Policy,
@@ -61,7 +61,7 @@ function groupByCategory(policies: Policy[]): Map<PolicyCategory, Policy[]> {
   return map;
 }
 
-// ─── Policy item ──────────────────────────────────────────────────────────────
+// ─── Policy item (custom accordion) ──────────────────────────────────────────
 
 function PolicyItem({ policy }: { policy: Policy }) {
   const [open, setOpen] = useState(false);
@@ -114,6 +114,7 @@ function CategorySection({
 
   return (
     <section ref={sectionRef} className="scroll-mt-24">
+      {/* Section label */}
       <div className="flex items-center gap-2.5 mb-3 px-1">
         <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0">
           <CatIcon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -123,6 +124,7 @@ function CategorySection({
         <span className="text-xs text-muted-foreground/60 tabular-nums">{items.length}</span>
       </div>
 
+      {/* Policy list */}
       <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
         {items.map((policy) => (
           <PolicyItem key={policy.id} policy={policy} />
@@ -160,14 +162,15 @@ function Skeleton() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export function TaskerPoliciesPage() {
-  const { data: policies = [], isLoading, isError } = useTaskerPolicies();
+export function CustomerPoliciesPage() {
+  const { data: policies = [], isLoading, isError } = useCustomerPolicies();
   const [activeCategory, setActiveCategory] = useState<PolicyCategory | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const grouped = groupByCategory(policies);
   const categories = Array.from(grouped.keys());
 
+  // Track active category on scroll
   useEffect(() => {
     if (categories.length === 0) return;
     const observer = new IntersectionObserver(
@@ -229,14 +232,14 @@ export function TaskerPoliciesPage() {
       {/* ── Page header ───────────────────────────────────────────────────────── */}
       <div className="mb-8">
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-5 text-muted-foreground hover:text-foreground">
-          <Link href="/tasker" className="flex items-center gap-2">
+          <Link href="/customer" className="flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Quay lại Dashboard
+            Quay lại Trang chủ
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold text-foreground">Chính sách đối tác</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Chính sách khách hàng</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Các quy định và tiêu chuẩn áp dụng cho Tasker trên nền tảng CleanZ.
+          Các quy định và điều khoản áp dụng khi sử dụng dịch vụ CleanZ.
         </p>
       </div>
 
