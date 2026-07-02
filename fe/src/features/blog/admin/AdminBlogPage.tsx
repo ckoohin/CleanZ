@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BookOpenText, Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/base/confirm_dialog";
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ export function AdminBlogPage() {
   const pathname = usePathname();
   const sp = useSearchParams();
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null);
+  const [deletingBlog, setDeletingBlog] = useState<BlogPost | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   const page = Math.max(1, Number(sp.get("page") ?? 1));
@@ -62,9 +64,11 @@ export function AdminBlogPage() {
     setShowForm(true);
   };
 
-  const handleDelete = (blog: BlogPost) => {
-    if (!window.confirm(`Xóa bài viết "${blog.title}"?`)) return;
-    deleteMutation.mutate(blog.id);
+  const confirmDelete = () => {
+    if (!deletingBlog) return;
+    deleteMutation.mutate(deletingBlog.id, {
+      onSuccess: () => setDeletingBlog(null),
+    });
   };
 
   const columns: Column<BlogPost>[] = [
@@ -91,7 +95,11 @@ export function AdminBlogPage() {
       key: "status",
       title: "Trạng thái",
       render: (blog) => (
-        <Select value={blog.status} onValueChange={(value) => statusMutation.mutate({ id: blog.id, status: value as BlogStatus })}>
+        <Select
+          value={blog.status}
+          onValueChange={(value) => statusMutation.mutate({ id: blog.id, status: value as BlogStatus })}
+          disabled={statusMutation.isPending}
+        >
           <SelectTrigger className="h-8 w-[132px] rounded-lg"><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((item) => <SelectItem key={item} value={item}>{STATUS_LABELS[item]}</SelectItem>)}
@@ -113,7 +121,7 @@ export function AdminBlogPage() {
       onClick: (blog) => window.open(ROUTES.CUSTOMER.BLOG_DETAIL(blog.id), "_blank"),
     },
     { type: "edit", label: "Sửa", icon: Pencil, onClick: openEdit },
-    { type: "delete", label: "Xóa", icon: Trash2, variant: "destructive", onClick: handleDelete },
+    { type: "delete", label: "Xóa", icon: Trash2, variant: "destructive", onClick: setDeletingBlog },
   ];
 
   const filters = (
@@ -166,7 +174,7 @@ export function AdminBlogPage() {
             filters={filters}
             isLoading={isLoading}
             emptyTitle="Chưa có bài viết"
-            emptyDescription="Tạo bài viết đầu tiên để hiển thị trên khu vực customer."
+            emptyDescription="Tạo bài viết đầu tiên để hiển thị trên khu vực khách hàng."
             emptyIcon={BookOpenText}
             rowActions={rowActions}
             inlineActionCount={3}
@@ -175,6 +183,16 @@ export function AdminBlogPage() {
       </div>
 
       <BlogFormDialog open={showForm} onOpenChange={setShowForm} blog={editingBlog} />
+      <ConfirmDialog
+        isOpen={Boolean(deletingBlog)}
+        onClose={() => setDeletingBlog(null)}
+        onConfirm={confirmDelete}
+        title="Xóa bài viết"
+        description={deletingBlog ? `Bạn có chắc chắn muốn xóa bài viết "${deletingBlog.title}"? Hành động này không thể hoàn tác` : ""}
+        confirmLabel="Xóa bài viết"
+        variant="destructive"
+        isPending={deleteMutation.isPending}
+      />
     </main>
   );
 }
