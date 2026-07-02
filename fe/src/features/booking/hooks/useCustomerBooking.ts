@@ -157,6 +157,38 @@ export function useCancelBooking(bookingId: string) {
   });
 }
 
+/** Xác nhận đơn do tasker tạo hộ */
+export function useConfirmTaskerBooking(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => customerBookingApi.confirmTaskerBooking(bookingId),
+    onSuccess: () => {
+      toast.success("Đã xác nhận đơn! Tasker sẽ đến theo lịch hẹn ✅");
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.detail(bookingId) });
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
+    },
+    onError: (err: unknown) => {
+      toast.error(getBookingErrorMessage(err, "Không thể xác nhận đơn"));
+    },
+  });
+}
+
+/** Từ chối đơn do tasker tạo hộ */
+export function useDeclineTaskerBooking(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => customerBookingApi.declineTaskerBooking(bookingId),
+    onSuccess: () => {
+      toast.success("Đã từ chối đơn");
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.detail(bookingId) });
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
+    },
+    onError: (err: unknown) => {
+      toast.error(getBookingErrorMessage(err, "Không thể từ chối đơn"));
+    },
+  });
+}
+
 /** Cập nhật lịch/địa chỉ */
 export function useUpdateBookingSchedule(bookingId: string) {
   const qc = useQueryClient();

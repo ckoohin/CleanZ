@@ -26,6 +26,7 @@ import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateBookingForCustomerDto } from './dto/create-booking-for-customer.dto';
 import { QuoteBookingDto } from './dto/quote-booking.dto';
 import {
   OptionalTaskerBookingLocationDto,
@@ -46,6 +47,11 @@ import {
   TaskerPostedBookingDetailResponse,
   TaskerPostedBookingListResponse,
 } from './services/tasker-booking.service';
+import {
+  TaskerCreateBookingService,
+  TaskerCreatedBookingResponse,
+} from './services/tasker-create-booking.service';
+import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-customer-booking.service';
 import {
   BookingExpirationService,
   ExpireOverdueBookingsResponse,
@@ -68,6 +74,8 @@ export class BookingController {
     private readonly bookingExpirationService: BookingExpirationService,
     private readonly customerBookingService: CustomerBookingService,
     private readonly taskerBookingService: TaskerBookingService,
+    private readonly taskerCreateBookingService: TaskerCreateBookingService,
+    private readonly taskerConfirmCustomerBookingService: TaskerConfirmCustomerBookingService,
   ) {}
 
   @Post()
@@ -151,6 +159,69 @@ export class BookingController {
     @Body() quoteBookingDto: QuoteBookingDto,
   ): Promise<CustomerBookingQuoteResponse> {
     return this.customerBookingService.quote(userId, quoteBookingDto);
+  }
+
+  @Post('tasker/create-for-customer')
+  @Auth(UserRole.TASKER)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker tạo đơn chủ động cho customer',
+    description:
+      'Tasker nhập SĐT khách → hệ thống tạo booking ở trạng thái PENDING_CUSTOMER_CONFIRMATION. Customer nhận notification và có 15 phút để xác nhận hoặc từ chối.',
+  })
+  @ApiBody({ type: CreateBookingForCustomerDto })
+  @ApiCreatedResponse({ description: 'Booking đã tạo, chờ customer xác nhận' })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  createForCustomer(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateBookingForCustomerDto,
+  ): Promise<TaskerCreatedBookingResponse> {
+    return this.taskerCreateBookingService.createForCustomer(userId, dto);
+  }
+
+  @Patch('customer/:id/confirm-tasker-booking')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer xác nhận đơn do tasker tạo',
+    description:
+      'Chỉ booking ở trạng thái PENDING_CUSTOMER_CONFIRMATION mới được xác nhận. Sau khi xác nhận, booking chuyển sang CONFIRMED.',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({ description: 'Booking chuyển PENDING_CUSTOMER_CONFIRMATION → CONFIRMED' })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  confirmTaskerBooking(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ) {
+    return this.taskerConfirmCustomerBookingService.confirmByCustomer(
+      userId,
+      bookingId,
+    );
+  }
+
+  @Patch('customer/:id/decline-tasker-booking')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer từ chối đơn do tasker tạo',
+    description:
+      'Chỉ booking ở trạng thái PENDING_CUSTOMER_CONFIRMATION mới được từ chối. Booking chuyển sang CANCELLED.',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({ description: 'Booking chuyển PENDING_CUSTOMER_CONFIRMATION → CANCELLED' })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  declineTaskerBooking(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ) {
+    return this.taskerConfirmCustomerBookingService.declineByCustomer(
+      userId,
+      bookingId,
+    );
   }
 
   @Get('tasker/posted')

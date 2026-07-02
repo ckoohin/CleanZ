@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -38,6 +39,18 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 @ApiBearerAuth('access-token')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
+
+  @Get('lookup')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker tra cứu customer theo số điện thoại',
+    description:
+      'Dùng trước khi tạo đơn cho customer. Trả tên và danh sách địa chỉ đã lưu. Không trả thông tin nhạy cảm.',
+  })
+  @ApiOkResponse({ description: 'Thông tin customer' })
+  lookupByPhone(@Query('phone') phone: string) {
+    return this.customerService.lookupByPhone(phone);
+  }
 
   @Get('profile/me')
   @Auth(UserRole.CUSTOMER)

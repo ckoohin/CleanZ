@@ -7,7 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
+import { NotificationType } from 'src/common/enums/notification-type.enum';
+import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
+import { NotificationService } from 'src/modules/notification/notification.service';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
@@ -28,6 +32,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly dataSource: DataSource,
     private readonly vouchersService: VouchersService,
+    private readonly notificationService: NotificationService,
     configService: ConfigService,
   ) {
     this.intervalMs = Number(
@@ -86,6 +91,101 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
         error instanceof Error ? error.stack : undefined,
       );
     }
+
+    try {
+      const result = await this.cancelExpiredPendingConfirmations();
+      if (result.cancelledCount > 0) {
+        this.logger.log(
+          `Cancelled ${result.cancelledCount} timed-out pending confirmation bookings`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        'Failed to cancel expired pending confirmation bookings',
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  async cancelExpiredPendingConfirmations(): Promise<{
+    cancelledCount: number;
+    bookingIds: string[];
+  }> {
+    return asyncHandleOperation(async () => {
+      // Select FOR UPDATE và update phải nằm chung một transaction
+      const bookings = await this.dataSource.transaction(async (manager) => {
+        const bookingRepository = manager.getRepository(BookingEntity);
+        const logRepository = manager.getRepository(BookingStatusLogEntity);
+
+        const lockedBookings = await bookingRepository
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .setOnLocked('skip_locked')
+          .where('booking.status = :status', {
+            status: BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
+          })
+          .andWhere('booking.confirmation_deadline IS NOT NULL')
+          .andWhere('booking.confirmation_deadline < NOW()')
+          .take(100)
+          .getMany();
+
+        for (const booking of lockedBookings) {
+          const oldStatus = booking.status;
+          booking.status = BookingStatus.CANCELLED;
+          booking.cancelledBy = CancelledBy.SYSTEM_TIMEOUT;
+          booking.cancelledAt = new Date();
+          booking.confirmationDeadline = null;
+          await bookingRepository.save(booking);
+
+          const statusLog = logRepository.create({
+            booking,
+            oldStatus,
+            newStatus: BookingStatus.CANCELLED,
+            changedByUser: null,
+            note: 'Hết thời hạn xác nhận',
+            cancelledBy: CancelledBy.SYSTEM_TIMEOUT,
+            cancellationFee: 0,
+            refundAmount: 0,
+          });
+          await logRepository.save(statusLog);
+        }
+
+        return lockedBookings;
+      });
+
+      if (!bookings.length) {
+        return { cancelledCount: 0, bookingIds: [] };
+      }
+
+      // Notify taskers sau khi transaction commit
+      for (const booking of bookings) {
+        const taskerUserId = booking.tasker?.user?.id;
+        if (taskerUserId) {
+          void this.notificationService
+            .notify({
+              userId: taskerUserId,
+              type: NotificationType.BOOKING_CANCELLED,
+              title: 'Đơn hết hạn xác nhận',
+              content: `Đơn ${booking.bookingCode} đã tự động hủy do khách không xác nhận trong thời hạn.`,
+              referenceType: NotificationRefType.BOOKING,
+              referenceId: booking.id,
+              dedupeKey: `booking:${booking.id}:system_timeout`,
+            })
+            .catch((err) =>
+              this.logger.error(
+                `Không thể gửi thông báo timeout booking=${booking.id}: ${err}`,
+              ),
+            );
+        }
+      }
+
+      return {
+        cancelledCount: bookings.length,
+        bookingIds: bookings.map((b) => b.id),
+      };
+    }, 'Không thể hủy booking hết hạn xác nhận');
   }
 
   private async expireBatch(

@@ -35,6 +35,7 @@ interface Props {
 
 const STATUS_MAP: Record<string, { label: string; tone: BadgeTone }> = {
   POSTED:            { label: "Đang tìm kiếm nhân viên",   tone: "warning" },
+  PENDING_CUSTOMER_CONFIRMATION: { label: "Chờ khách xác nhận", tone: "warning" },
   CONFIRMED:         { label: "Đã nhận đơn",     tone: "info" },
   TASKER_ON_THE_WAY: { label: "Nhân viên đang đến",   tone: "info" },
   CHECKED_IN:        { label: "Đã đến nơi",      tone: "info" },

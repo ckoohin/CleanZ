@@ -42,7 +42,10 @@ import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity'
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
-import { PricingService } from 'src/modules/pricing/services/pricing.service';
+import {
+  PeakBreakdownItem,
+  PricingService,
+} from 'src/modules/pricing/services/pricing.service';
 import { NotificationGateway } from 'src/modules/notification/notification.gateway';
 import { BookingDispatchService } from './booking-dispatch.service';
 
@@ -63,6 +66,7 @@ interface BookingPricingContext {
   basePrice: number;
   addonPrice: number;
   peakFee: number;
+  peakBreakdown: PeakBreakdownItem[];
   petFee: number;
   waitingFee: number;
   subtotal: number;
@@ -145,6 +149,7 @@ export class CustomerBookingService {
           basePrice: context.basePrice,
           addonPrice: context.addonPrice,
           peakFee: context.peakFee,
+          peakBreakdown: context.peakBreakdown,
           petFee: context.petFee,
           waitingFee: context.waitingFee,
           subtotal: context.subtotal,
@@ -436,6 +441,8 @@ export class CustomerBookingService {
           createdAt: log.createdAt,
         })),
         note: booking.note,
+        source: booking.source,
+        confirmationDeadline: booking.confirmationDeadline ?? null,
         createdAt: booking.createdAt,
         updatedAt: booking.updatedAt,
       };
@@ -897,6 +904,7 @@ export class CustomerBookingService {
       basePrice: price.basePrice,
       addonPrice: price.addonPrice,
       peakFee: price.peakFee,
+      peakBreakdown: price.peakBreakdown,
       petFee: price.petFee,
       waitingFee: price.waitingFee,
       subtotal: price.subtotal,

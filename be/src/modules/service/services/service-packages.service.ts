@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ConflictException,
@@ -6,7 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ServicePackageEntity } from '../entity/service-package.entity';
-import { CreateServicePackageDto } from '../dto/create-service-package.dto';
+import {
+  CreateServicePackageDto,
+  ServicePeakHourDto,
+} from '../dto/create-service-package.dto';
 import { UpdateServicePackageDto } from '../dto/update-service-package.dto';
 import { CoverageAreaEntity } from '../entity/coverage-area.entity';
 import { PackageSubServiceEntity } from '../entity/package-sub-service.entity';
@@ -157,6 +161,7 @@ export class ServicePackagesService {
 
     // Save peakHours
     if (dto.peakHours && dto.peakHours.length > 0) {
+      this.validatePeakHours(dto.peakHours);
       const peakEntities = dto.peakHours.map((p) =>
         this.peakHourRepository.create({
           packageId: saved.id,
@@ -419,6 +424,7 @@ export class ServicePackagesService {
 
     // Update peakHours
     if (dto.peakHours !== undefined) {
+      this.validatePeakHours(dto.peakHours);
       await this.peakHourRepository.delete({ packageId: id });
       if (dto.peakHours.length > 0) {
         const peakEntities = dto.peakHours.map((p) =>
@@ -579,6 +585,25 @@ export class ServicePackagesService {
       cancelledBookings: Number(stats.cancelledBookings),
       topTaskers: taskersResult,
     };
+  }
+
+  private validatePeakHours(peakHours: ServicePeakHourDto[]): void {
+    for (const peakHour of peakHours) {
+      if (peakHour.startHour.slice(0, 5) === peakHour.endHour.slice(0, 5)) {
+        throw new BadRequestException(
+          `Khung giờ cao điểm không hợp lệ: startHour và endHour phải khác nhau (${peakHour.startHour})`,
+        );
+      }
+      if (peakHour.startDate && peakHour.endDate) {
+        const startDate = new Date(peakHour.startDate);
+        const endDate = new Date(peakHour.endDate);
+        if (startDate > endDate) {
+          throw new BadRequestException(
+            'Khung giờ cao điểm không hợp lệ: startDate phải trước hoặc bằng endDate',
+          );
+        }
+      }
+    }
   }
 
   private generateCode(text: string): string {

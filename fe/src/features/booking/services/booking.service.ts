@@ -4,12 +4,15 @@ import type {
   BookingQuoteResponse,
   CancelBookingDto,
   CreateBookingDto,
+  CreateBookingForCustomerDto,
   CustomerActiveBookingResponse,
   CustomerBookingDetail,
   CustomerBookingListResponse,
+  CustomerLookupResult,
   QuoteBookingDto,
   TaskerAcceptResponse,
   TaskerAssignedBookingDetail,
+  TaskerCreatedBookingResponse,
   TaskerPostedBookingDetail,
   TaskerPostedBookingListResponse,
   UpdateBookingScheduleDto,
@@ -56,6 +59,22 @@ export const customerBookingApi = {
   /** 03E. Danh sách toàn bộ booking của customer */
   findMyBookings: (): Promise<CustomerBookingListResponse> =>
     http.get(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data.data ?? r.data),
+
+  /** 03F. Xác nhận đơn do tasker tạo hộ */
+  confirmTaskerBooking: (id: string): Promise<{ id: string; bookingCode: string; status: string }> =>
+    http
+      .patch(API_ENDPOINTS.BOOKING.CONFIRM_TASKER_BOOKING(id), undefined, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2])
+      .then((r) => r.data.data ?? r.data),
+
+  /** 03G. Từ chối đơn do tasker tạo hộ */
+  declineTaskerBooking: (id: string): Promise<{ id: string; bookingCode: string; status: string }> =>
+    http
+      .patch(API_ENDPOINTS.BOOKING.DECLINE_TASKER_BOOKING(id), undefined, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2])
+      .then((r) => r.data.data ?? r.data),
 };
 
 // ─── Tasker Booking APIs ───────────────────────────────────────────────────────
@@ -115,6 +134,23 @@ export const taskerBookingApi = {
   /** 11. Hoàn thành */
   markComplete: (id: string): Promise<TaskerAssignedBookingDetail> =>
     http.patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id)).then((r) => r.data.data ?? r.data),
+
+  /** 13. Tra cứu customer theo SĐT (để tạo đơn hộ) */
+  lookupCustomer: (phone: string): Promise<CustomerLookupResult> =>
+    http
+      .get(API_ENDPOINTS.CUSTOMER.LOOKUP, {
+        params: { phone },
+        skipErrorToast: true,
+      } as Parameters<typeof http.get>[1])
+      .then((r) => r.data.data ?? r.data),
+
+  /** 14. Tạo đơn hộ customer → chờ khách xác nhận trong 15 phút */
+  createForCustomer: (dto: CreateBookingForCustomerDto): Promise<TaskerCreatedBookingResponse> =>
+    http
+      .post(API_ENDPOINTS.BOOKING.TASKER_CREATE_FOR_CUSTOMER, dto, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 12. Tasker hủy đơn (chỉ khi CONFIRMED) */
   cancelByTasker: (

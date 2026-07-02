@@ -5,10 +5,10 @@ export class AutoMigration1782792744036 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DROP INDEX "public"."idx_service_sub_services_package_id"`,
+      `DROP INDEX IF EXISTS "public"."idx_service_sub_services_package_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "service_packages" DROP COLUMN "allow_single_service"`,
+      `ALTER TABLE "service_packages" DROP COLUMN IF EXISTS "allow_single_service"`,
     );
   }
 

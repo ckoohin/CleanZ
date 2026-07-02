@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
-import type { BookingSchedule } from "../types/booking.types";
+import type {
+  BookingSchedule,
+  CreateBookingForCustomerDto,
+} from "../types/booking.types";
 
 const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
@@ -218,6 +221,31 @@ export function useMarkComplete(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
     },
     onError: handleTaskerBookingError,
+  });
+}
+
+/** 13. Tra cứu customer theo SĐT */
+export function useCustomerLookup() {
+  return useMutation({
+    mutationFn: (phone: string) => taskerBookingApi.lookupCustomer(phone),
+    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+  });
+}
+
+/** 14. Tạo đơn hộ customer */
+export function useCreateBookingForCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateBookingForCustomerDto) =>
+      taskerBookingApi.createForCustomer(dto),
+    onSuccess: (data) => {
+      toast.success(
+        `Đã tạo đơn ${data.bookingCode}! Chờ khách xác nhận trong 15 phút ⏳`,
+        { duration: 7000 },
+      );
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+    },
+    onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
 }
 

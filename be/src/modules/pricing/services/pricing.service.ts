@@ -23,6 +23,12 @@ import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity'
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { toNumber } from 'src/common/helpers/number.helper';
+import {
+  createVietnamDateTime,
+  formatVietnamDate,
+  formatVietnamTime,
+} from 'src/common/helpers/vietnam-time.helper';
+import { ServicePeakHourEntity } from 'src/modules/service/entity/service-peak-hour.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
@@ -48,6 +54,20 @@ export interface ServiceSummary {
   description?: string | null;
 }
 
+export interface PeakBreakdownItem {
+  from: string;
+  to: string;
+  hours: number;
+  rate: number;
+  fee: number;
+}
+
+interface PeakInterval {
+  start: number;
+  end: number;
+  rate: number;
+}
+
 export interface BookingPriceResult {
   package: ServicePackageEntity;
   subServices: SubServiceEntity[];
@@ -56,6 +76,7 @@ export interface BookingPriceResult {
   basePrice: number;
   addonPrice: number;
   peakFee: number;
+  peakBreakdown: PeakBreakdownItem[];
   petFee: number;
   waitingFee: number;
   subtotal: number;
@@ -243,7 +264,7 @@ export class PricingService {
 
     const uniqueAddonIds = input.addonIds ? [...new Set(input.addonIds)] : [];
 
-    const [servicePackage, subServices, addons, activeTiers, peakDays] =
+    const [servicePackage, subServices, addons, activeTiers] =
       await Promise.all([
         packageRepository.findOne({
           where: { id: input.packageId, isActive: true },
@@ -268,7 +289,6 @@ export class PricingService {
           where: { packageId: input.packageId, isActive: true },
           order: { sortOrder: 'ASC' },
         }),
-        this.peakDayRepo.findAll(true),
       ]);
 
     if (!servicePackage) {
@@ -416,103 +436,18 @@ export class PricingService {
         addonPrice += toNumber(pricing.basePrice);
       }
     }
-    const startTime = input.scheduledStartTime;
-    if (startTime) {
-      const hour = parseInt(startTime.split(':')[0], 10);
-      if (hour < 7 || hour >= 19) {
-        addonPrice += toNumber(servicePackage.nightSurcharge);
-      }
-    }
-
-    // 2. Tính tỷ lệ cao điểm & ngày lễ tết (Peak Days)
-    let servicePeakRate = 0;
+    // 2. Tính phí cao điểm — chỉ theo khung giờ cao điểm config trong gói dịch vụ
+    // (service_peak_hours), prorate theo từng giờ trùng khung: giờ thường tính giá
+    // thường, giờ nào trùng khung cao điểm mới tính thêm phí cao điểm
     const packagePeakHours = (servicePackage.peakHours || []).filter(
       (peakHour) => peakHour.isActive,
     );
-    if (packagePeakHours.length > 0 && input.scheduledStart) {
-      const bookingDate = new Date(input.scheduledStart);
-      const bookingDayOfWeek = this.getVietnamDayOfWeek(bookingDate);
-      const bookingDateKey = this.toDateKey(bookingDate);
-      const bookingTimeStr = input.scheduledStartTime?.slice(0, 5);
-
-      const matchingPackagePeakHours = packagePeakHours.filter((peakHour) => {
-        if (!this.isPeakDayMatch(peakHour.dayOfWeek, bookingDayOfWeek)) {
-          return false;
-        }
-
-        if (
-          peakHour.startDate &&
-          bookingDateKey < this.toDateKey(peakHour.startDate)
-        ) {
-          return false;
-        }
-        if (
-          peakHour.endDate &&
-          bookingDateKey > this.toDateKey(peakHour.endDate)
-        ) {
-          return false;
-        }
-
-        if (!bookingTimeStr) return true;
-
-        const time = this.timeToMinutes(bookingTimeStr);
-        const start = this.timeToMinutes(peakHour.startHour);
-        const end = this.timeToMinutes(peakHour.endHour);
-
-        if (start <= end) {
-          return time >= start && time <= end;
-        }
-
-        return time >= start || time <= end;
-      });
-
-      if (matchingPackagePeakHours.length > 0) {
-        servicePeakRate = Math.max(
-          ...matchingPackagePeakHours.map((peakHour) =>
-            Math.max(toNumber(peakHour.multiplier) - 1, 0),
-          ),
-          0,
-        );
-      }
-    }
-
-    let holidayPeakRate = 0;
-
-    if (peakDays.length > 0 && input.scheduledStart) {
-      const bookingDate = new Date(input.scheduledStart);
-      const bookingTimeStr = input.scheduledStartTime;
-
-      const matchingPeakDays = peakDays.filter((pd) => {
-        // Kiểm tra ngày
-        if (pd.startAt && bookingDate < new Date(pd.startAt)) return false;
-        if (pd.endAt && bookingDate > new Date(pd.endAt)) return false;
-
-        // Kiểm tra giờ
-        if (pd.startTime && pd.endTime && bookingTimeStr) {
-          const t = bookingTimeStr.slice(0, 5);
-          const start = pd.startTime.slice(0, 5);
-          const end = pd.endTime.slice(0, 5);
-
-          if (start < end) {
-            if (t < start || t > end) return false;
-          } else {
-            if (t < start && t > end) return false;
-          }
-        }
-        return true;
-      });
-
-      if (matchingPeakDays.length > 0) {
-        holidayPeakRate = Math.max(
-          ...matchingPeakDays.map((pd) => toNumber(pd.peakRate)),
-          0,
-        );
-      }
-    }
-
-    const totalPeakRate = servicePeakRate + holidayPeakRate;
-    const peakFee =
-      totalPeakRate > 0 ? Math.round(basePrice * totalPeakRate) : 0;
+    const { peakFee, peakBreakdown } = this.calculatePeakFee(
+      input.scheduledStart,
+      durationHours,
+      basePrice,
+      packagePeakHours,
+    );
     const petFee = input.hasPet ? toNumber(servicePackage.petSurcharge) : 0;
     const waitingFee = 0;
     const subtotal = basePrice + addonPrice + peakFee + petFee + waitingFee;
@@ -540,6 +475,7 @@ export class PricingService {
       basePrice,
       addonPrice,
       peakFee,
+      peakBreakdown,
       petFee,
       waitingFee,
       subtotal,
@@ -633,6 +569,174 @@ export class PricingService {
       })
       .orderBy('service.createdAt', 'ASC')
       .getOne();
+  }
+
+  /**
+   * Tính phí cao điểm prorate theo thời gian thực tế trùng khung peak của gói.
+   * effectiveHourlyRate = basePrice / durationHours (đồng nhất cho mọi pricing mode);
+   * peakFee = Σ (số giờ trùng khung i × effectiveHourlyRate × rate khung i).
+   * Rate mỗi đoạn = max(multiplier-1) của các khung service_peak_hours trùng đoạn đó.
+   */
+  private calculatePeakFee(
+    scheduledStart: Date | undefined,
+    durationHours: number,
+    basePrice: number,
+    peakHours: ServicePeakHourEntity[],
+  ): { peakFee: number; peakBreakdown: PeakBreakdownItem[] } {
+    if (!scheduledStart || basePrice <= 0 || peakHours.length === 0) {
+      return { peakFee: 0, peakBreakdown: [] };
+    }
+
+    const bookingStartMs = new Date(scheduledStart).getTime();
+    if (Number.isNaN(bookingStartMs)) {
+      return { peakFee: 0, peakBreakdown: [] };
+    }
+    const bookingEndMs =
+      bookingStartMs + Math.max(durationHours, 0) * 60 * 60 * 1000;
+
+    const intervals = this.buildPeakIntervals(
+      bookingStartMs,
+      Math.max(bookingEndMs, bookingStartMs + 1),
+      peakHours,
+    );
+    if (intervals.length === 0) {
+      return { peakFee: 0, peakBreakdown: [] };
+    }
+
+    // Không có thời lượng (không xảy ra với flow hiện tại): giữ hành vi cũ,
+    // áp rate tại thời điểm bắt đầu lên toàn bộ basePrice
+    if (durationHours <= 0) {
+      const rate = this.peakRateAt(bookingStartMs, intervals);
+      const fee = rate > 0 ? Math.round(basePrice * rate) : 0;
+      if (fee <= 0) return { peakFee: 0, peakBreakdown: [] };
+      const label = this.toVietnamDateTimeLabel(bookingStartMs);
+      return {
+        peakFee: fee,
+        peakBreakdown: [{ from: label, to: label, hours: 0, rate, fee }],
+      };
+    }
+
+    // Cắt khoảng booking thành các đoạn tại mọi mốc biên của khung peak
+    const boundarySet = new Set<number>([bookingStartMs, bookingEndMs]);
+    for (const interval of intervals) {
+      boundarySet.add(interval.start);
+      boundarySet.add(interval.end);
+    }
+    const boundaries = [...boundarySet].sort((a, b) => a - b);
+
+    const segments: Array<{ start: number; end: number; rate: number }> = [];
+    for (let i = 0; i < boundaries.length - 1; i += 1) {
+      const start = boundaries[i];
+      const end = boundaries[i + 1];
+      if (end <= start) continue;
+      const rate = this.peakRateAt((start + end) / 2, intervals);
+      const last = segments[segments.length - 1];
+      if (last && last.rate === rate && last.end === start) {
+        last.end = end;
+      } else {
+        segments.push({ start, end, rate });
+      }
+    }
+
+    const hourlyRate = basePrice / durationHours;
+    let peakFee = 0;
+    const peakBreakdown: PeakBreakdownItem[] = [];
+    for (const segment of segments) {
+      if (segment.rate <= 0) continue;
+      const hours = (segment.end - segment.start) / (60 * 60 * 1000);
+      const fee = Math.round(hourlyRate * hours * segment.rate);
+      if (fee <= 0) continue;
+      peakFee += fee;
+      peakBreakdown.push({
+        from: this.toVietnamDateTimeLabel(segment.start),
+        to: this.toVietnamDateTimeLabel(segment.end),
+        hours: Math.round(hours * 100) / 100,
+        rate: segment.rate,
+        fee,
+      });
+    }
+
+    return { peakFee, peakBreakdown };
+  }
+
+  /**
+   * Chuyển các khung giờ cao điểm của gói (theo dayOfWeek/khung giờ) thành các
+   * khoảng datetime cụ thể đã clip vào khoảng booking. Khung peak tính theo [start, end).
+   */
+  private buildPeakIntervals(
+    bookingStartMs: number,
+    bookingEndMs: number,
+    peakHours: ServicePeakHourEntity[],
+  ): PeakInterval[] {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const minuteMs = 60 * 1000;
+    const intervals: PeakInterval[] = [];
+
+    // Sinh khung theo từng ngày (VN) booking chạm tới; lùi 1 ngày để bắt khung
+    // overnight của ngày hôm trước tràn sang (vd. 22:00–02:00)
+    const firstDayStart = createVietnamDateTime(
+      this.toDateKey(new Date(bookingStartMs - dayMs)),
+      '00:00',
+    ).getTime();
+
+    for (
+      let dayStart = firstDayStart;
+      dayStart < bookingEndMs;
+      dayStart += dayMs
+    ) {
+      const noon = new Date(dayStart + dayMs / 2);
+      const dayKey = this.toDateKey(noon);
+      const dayOfWeek = this.getVietnamDayOfWeek(noon);
+
+      for (const peakHour of peakHours) {
+        if (!this.isPeakDayMatch(peakHour.dayOfWeek, dayOfWeek)) continue;
+        if (
+          peakHour.startDate &&
+          dayKey < this.toDateKey(peakHour.startDate)
+        ) {
+          continue;
+        }
+        if (peakHour.endDate && dayKey > this.toDateKey(peakHour.endDate)) {
+          continue;
+        }
+
+        const startMin = this.timeToMinutes(peakHour.startHour);
+        const endMin = this.timeToMinutes(peakHour.endHour);
+        if (startMin === endMin) continue;
+        const start = dayStart + startMin * minuteMs;
+        const end =
+          endMin > startMin
+            ? dayStart + endMin * minuteMs
+            : dayStart + dayMs + endMin * minuteMs; // khung vắt qua nửa đêm
+
+        const clippedStart = Math.max(start, bookingStartMs);
+        const clippedEnd = Math.min(end, bookingEndMs);
+        // Làm tròn rate 4 chữ số để tránh sai số floating point (vd. 1.3 - 1)
+        const rate =
+          Math.round(
+            Math.max(toNumber(peakHour.multiplier) - 1, 0) * 10000,
+          ) / 10000;
+        if (rate > 0 && clippedStart < clippedEnd) {
+          intervals.push({ start: clippedStart, end: clippedEnd, rate });
+        }
+      }
+    }
+
+    return intervals;
+  }
+
+  private peakRateAt(timeMs: number, intervals: PeakInterval[]): number {
+    let rate = 0;
+    for (const interval of intervals) {
+      if (timeMs < interval.start || timeMs >= interval.end) continue;
+      rate = Math.max(rate, interval.rate);
+    }
+    return rate;
+  }
+
+  private toVietnamDateTimeLabel(timeMs: number): string {
+    const date = new Date(timeMs);
+    return `${formatVietnamDate(date)} ${formatVietnamTime(date)}`;
   }
 
   private validatePeakRange(

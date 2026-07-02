@@ -22,6 +22,7 @@ import type { BookingStatus } from "@/features/booking/types/booking.types";
 
 const STATUS_TEXT: Record<BookingStatus, string> = {
   POSTED: "Đang tìm nhân viên",
+  PENDING_CUSTOMER_CONFIRMATION: "Chờ bạn xác nhận",
   CONFIRMED: "Đã nhận đơn",
   TASKER_ON_THE_WAY: "Chuyên gia đang đến",
   CHECKED_IN: "Chuyên gia đã đến nơi",
@@ -33,6 +34,7 @@ const STATUS_TEXT: Record<BookingStatus, string> = {
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
   POSTED: "bg-blue-500/10 text-blue-600 border-blue-200/50",
+  PENDING_CUSTOMER_CONFIRMATION: "bg-amber-500/10 text-amber-700 border-amber-200/50",
   CONFIRMED: "bg-amber-500/10 text-amber-600 border-amber-200/50",
   TASKER_ON_THE_WAY: "bg-orange-500/10 text-orange-600 border-orange-200/50",
   CHECKED_IN: "bg-emerald-500/10 text-emerald-600 border-emerald-200/50",

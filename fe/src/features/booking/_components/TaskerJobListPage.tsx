@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -11,8 +11,10 @@ import {
   PawPrint,
   Zap,
   Calendar,
+  Plus,
 } from "lucide-react";
 import { usePostedBookingList } from "@/features/booking/hooks/useTaskerBooking";
+import { TaskerCreateBookingModal } from "@/features/booking/_components/TaskerCreateBookingModal";
 import type { TaskerPostedBookingItem } from "@/features/booking/types/booking.types";
 
 function fmtCurrency(n: number) {
@@ -101,6 +103,7 @@ function JobCard({
 export const TaskerJobListPage: React.FC = () => {
   const router = useRouter();
   const { data, isLoading, refetch, isFetching } = usePostedBookingList();
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -113,15 +116,25 @@ export const TaskerJobListPage: React.FC = () => {
               {data?.total ?? 0} đơn đang chờ trong khu vực
             </p>
           </div>
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground"
+            >
+              <Plus className="w-4 h-4" /> Tạo đơn cho khách
+            </button>
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
       </div>
+
+      <TaskerCreateBookingModal open={createOpen} onClose={() => setCreateOpen(false)} />
 
       {/* Content */}
       <div className="px-4 py-4 space-y-3">

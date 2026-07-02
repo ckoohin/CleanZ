@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
   },
   CUSTOMER: {
     PROFILE: "/customer/profile/me",
+    LOOKUP: "/customer/lookup", // tasker tra cứu khách theo SĐT
     ADDRESSES: "/customer/addresses",
     ADDRESS: (id: string) => `/customer/addresses/${id}`,
     DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
@@ -62,7 +63,13 @@ export const API_ENDPOINTS = {
     MOCK_PAY: (id: string) => `/booking/${id}/mock-pay`,
     CANCEL: (id: string) => `/booking/customer/${id}/cancel`,
     UPDATE_SCHEDULE: (id: string) => `/booking/${id}/schedule-address`,
+    // Flow tasker tạo đơn hộ customer
+    CONFIRM_TASKER_BOOKING: (id: string) =>
+      `/booking/customer/${id}/confirm-tasker-booking`,
+    DECLINE_TASKER_BOOKING: (id: string) =>
+      `/booking/customer/${id}/decline-tasker-booking`,
     // Tasker APIs
+    TASKER_CREATE_FOR_CUSTOMER: "/booking/tasker/create-for-customer",
     TASKER_ACTIVE: "/booking/tasker/active/current",
     TASKER_POSTED_LIST: "/booking/tasker/posted",
     TASKER_POSTED_DETAIL: (id: string) => `/booking/tasker/posted/${id}`,

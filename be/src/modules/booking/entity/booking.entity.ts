@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { BookingSource } from 'src/common/enums/booking-source.enum';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
@@ -111,6 +112,17 @@ export class BookingEntity {
   /** Mức giá (pricing tier) được chọn khi đặt booking */
   @Column({ name: 'pricing_tier_id', type: 'uuid', nullable: true })
   pricingTierId?: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: BookingSource,
+    enumName: 'booking_source',
+    default: BookingSource.CUSTOMER_APP,
+  })
+  source!: BookingSource;
+
+  @Column({ name: 'confirmation_deadline', type: 'timestamp', nullable: true })
+  confirmationDeadline?: Date | null;
 
   @Column({
     type: 'enum',

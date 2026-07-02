@@ -24,6 +24,8 @@ import { BookingDispatchService } from './services/booking-dispatch.service';
 import { BookingDispatchProcessor } from './processors/booking-dispatch.processor';
 import { BookingCheckinService } from './services/booking-checkin.service';
 import { BookingCheckinProcessor } from './processors/booking-checkin.processor';
+import { TaskerCreateBookingService } from './services/tasker-create-booking.service';
+import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-customer-booking.service';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { BookingCheckinProcessor } from './processors/booking-checkin.processor'
     BookingDispatchProcessor,
     BookingCheckinService,
     BookingCheckinProcessor,
+    TaskerCreateBookingService,
+    TaskerConfirmCustomerBookingService,
   ],
   exports: [
     BookingLocationPolicyService,

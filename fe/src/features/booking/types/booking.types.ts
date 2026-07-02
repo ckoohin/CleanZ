@@ -1,6 +1,7 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 export type BookingStatus =
   | "POSTED"
+  | "PENDING_CUSTOMER_CONFIRMATION"
   | "CONFIRMED"
   | "TASKER_ON_THE_WAY"
   | "CHECKED_IN"
@@ -8,6 +9,8 @@ export type BookingStatus =
   | "COMPLETED"
   | "CANCELLED"
   | "EXPIRED";
+
+export type BookingSource = "CUSTOMER_APP" | "TASKER_CREATED";
 
 export type PaymentMethod = "CASH" | "WALLET" | "ONLINE";
 export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED" | "FAILED";
@@ -171,6 +174,8 @@ export interface CustomerBookingDetail {
   tasker: BookingTasker | null;
   statusLogs: StatusLog[];
   note?: string | null;
+  source?: BookingSource;
+  confirmationDeadline?: string | null;
   createdAt: string;
   updatedAt: string;
   checkedInAt?: string | null;
@@ -283,4 +288,58 @@ export interface TaskerAssignedBookingDetail {
   updatedAt: string;
   checkedInAt?: string | null;
   completedAt?: string | null;
+}
+
+// ─── Tasker tạo đơn hộ customer ───────────────────────────────────────────────
+export interface CustomerLookupResult {
+  id: string;
+  fullName: string;
+  avatarUrl: string | null;
+  addresses: {
+    id: string;
+    label: string | null;
+    fullAddress: string;
+    isDefault: boolean;
+    hasPet: boolean;
+  }[];
+}
+
+export interface CreateBookingForCustomerDto {
+  customerPhone: string;
+  packageId: string;
+  addonIds?: string[];
+  addressId?: string;
+  address?: string;
+  scheduledDate?: string;
+  scheduledTime?: string;
+  durationHours?: number;
+  hasPet?: boolean;
+  areaM2?: number;
+  pricingTierId?: string;
+  note?: string;
+  paymentMethod?: PaymentMethod;
+}
+
+export interface TaskerCreatedBookingResponse {
+  id: string;
+  bookingCode: string;
+  status: BookingStatus;
+  source: BookingSource;
+  confirmationDeadline: string;
+  customer: { id: string; fullName: string };
+  tasker: { id: string; fullName: string | null };
+  service: { id: string; name: string };
+  address: { fullAddress: string; hasPet: boolean };
+  schedule: BookingSchedule;
+  price: {
+    basePrice: number;
+    addonPrice: number;
+    peakFee: number;
+    petFee: number;
+    discountAmount: number;
+    totalPrice: number;
+  };
+  payment: { method: PaymentMethod; status: PaymentStatus };
+  note: string | null;
+  createdAt: string;
 }

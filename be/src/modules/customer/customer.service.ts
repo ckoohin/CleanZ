@@ -30,6 +30,19 @@ export interface CustomerProfileResponse {
   updatedAt: Date;
 }
 
+export interface CustomerLookupResponse {
+  id: string;
+  fullName: string;
+  avatarUrl: string | null;
+  addresses: {
+    id: string;
+    label: string | null;
+    fullAddress: string;
+    isDefault: boolean;
+    hasPet: boolean;
+  }[];
+}
+
 export interface CustomerAddressResponse {
   id: string;
   label?: string | null;
@@ -336,6 +349,50 @@ export class CustomerService {
       createdAt: customer.createdAt,
       updatedAt: customer.updatedAt,
     };
+  }
+
+  async lookupByPhone(phone: string): Promise<CustomerLookupResponse> {
+    return asyncHandleOperation(async () => {
+      const user = await this.dataSource.getRepository(UserEntity).findOne({
+        where: { phone },
+      });
+
+      if (!user) {
+        throw new NotFoundException('Không tìm thấy khách hàng với số điện thoại này');
+      }
+
+      if (!user.isActive) {
+        throw new NotFoundException('Tài khoản khách hàng không còn hoạt động');
+      }
+
+      const customer = await this.dataSource
+        .getRepository(CustomerEntity)
+        .findOne({ where: { user: { id: user.id } } });
+
+      if (!customer) {
+        throw new NotFoundException('Không tìm thấy hồ sơ khách hàng');
+      }
+
+      const addresses = await this.dataSource
+        .getRepository(CustomerAddressEntity)
+        .find({
+          where: { customer: { id: customer.id } },
+          order: { isDefault: 'DESC', createdAt: 'ASC' },
+        });
+
+      return {
+        id: customer.id,
+        fullName: user.fullName,
+        avatarUrl: user.avatarUrl ?? null,
+        addresses: addresses.map((a) => ({
+          id: a.id,
+          label: a.label ?? null,
+          fullAddress: a.fullAddress,
+          isDefault: a.isDefault,
+          hasPet: a.hasPet,
+        })),
+      };
+    }, 'Không thể tra cứu khách hàng');
   }
 
   private mapAddress(address: CustomerAddressEntity): CustomerAddressResponse {

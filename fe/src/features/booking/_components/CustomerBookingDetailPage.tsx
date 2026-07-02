@@ -29,6 +29,8 @@ import {
 import {
   useBookingDetail,
   useCancelBooking,
+  useConfirmTaskerBooking,
+  useDeclineTaskerBooking,
   useUpdateBookingSchedule,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { GoongMap } from "@/components/maps/GoongMap";
@@ -70,6 +72,12 @@ const STATUS_CONFIG: Record<
     color: "text-blue-600",
     bg: "bg-blue-50",
     icon: <Clock className="w-4 h-4" />,
+  },
+  PENDING_CUSTOMER_CONFIRMATION: {
+    label: "Chờ bạn xác nhận",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    icon: <AlertTriangle className="w-4 h-4" />,
   },
   CONFIRMED: {
     label: "Đã xác nhận",
@@ -139,6 +147,94 @@ function getNext7Days() {
     });
   }
   return days;
+}
+
+// ─── Panel xác nhận đơn do tasker tạo hộ ──────────────────────────────────────
+function PendingConfirmationPanel({ booking }: { booking: CustomerBookingDetail }) {
+  const confirm = useConfirmTaskerBooking(booking.id);
+  const decline = useDeclineTaskerBooking(booking.id);
+  const [remainingSec, setRemainingSec] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!booking.confirmationDeadline) return;
+    const deadline = new Date(booking.confirmationDeadline).getTime();
+    const tick = () =>
+      setRemainingSec(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [booking.confirmationDeadline]);
+
+  const expired = remainingSec === 0;
+  const mm = remainingSec != null ? Math.floor(remainingSec / 60) : null;
+  const ss = remainingSec != null ? remainingSec % 60 : null;
+  const isBusy = confirm.isPending || decline.isPending;
+
+  return (
+    <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-5 shadow-sm space-y-3 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2">
+        <span className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-extrabold text-sm text-foreground">
+            {booking.tasker?.fullName
+              ? `Tasker ${booking.tasker.fullName} đã tạo đơn cho bạn`
+              : "Tasker đã tạo đơn cho bạn"}
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            Vui lòng xác nhận để tasker bắt đầu công việc
+          </p>
+        </div>
+        {remainingSec != null && !expired && (
+          <span className="shrink-0 rounded-xl bg-amber-100 px-2.5 py-1.5 text-sm font-black tabular-nums text-amber-700">
+            {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between rounded-2xl bg-card/80 px-4 py-3">
+        <span className="text-xs text-muted-foreground">
+          {booking.schedule.durationHours}h · {booking.schedule.scheduledStartDate}{" "}
+          {booking.schedule.scheduledStartTime?.slice(0, 5)}
+        </span>
+        <span className="text-base font-black text-primary">
+          {fmtCurrency(booking.price.totalPrice)}
+        </span>
+      </div>
+
+      {expired ? (
+        <p className="text-center text-xs font-semibold text-red-600">
+          Đã hết thời hạn xác nhận — đơn sẽ tự động hủy
+        </p>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            onClick={() => decline.mutate()}
+            disabled={isBusy}
+            className="flex-1 rounded-2xl border border-border bg-card py-3 text-sm font-bold text-foreground disabled:opacity-50"
+          >
+            {decline.isPending ? (
+              <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+            ) : (
+              "Từ chối"
+            )}
+          </button>
+          <button
+            onClick={() => confirm.mutate()}
+            disabled={isBusy}
+            className="flex-[2] rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {confirm.isPending ? (
+              <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+            ) : (
+              "Xác nhận đơn ✓"
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Cancel Dialog ─────────────────────────────────────────────────────────────
@@ -713,6 +809,10 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Panel xác nhận đơn do tasker tạo hộ */}
+        {booking.status === "PENDING_CUSTOMER_CONFIRMATION" && (
+          <PendingConfirmationPanel booking={booking} />
+        )}
         {/* Banner Đặt lịch thành công */}
         {booking.status === "POSTED" && (
           <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">

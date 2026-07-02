@@ -55,6 +55,7 @@ const STATUS_CONFIG: Record<
   { label: string; color: string; bg: string }
 > = {
   POSTED: { label: "Chờ nhận", color: "text-blue-600", bg: "bg-blue-50" },
+  PENDING_CUSTOMER_CONFIRMATION: { label: "Chờ khách xác nhận", color: "text-amber-600", bg: "bg-amber-50" },
   CONFIRMED: { label: "Đã xác nhận", color: "text-indigo-600", bg: "bg-indigo-50" },
   TASKER_ON_THE_WAY: { label: "Đang di chuyển", color: "text-amber-600", bg: "bg-amber-50" },
   CHECKED_IN: { label: "Đã đến nơi", color: "text-orange-600", bg: "bg-orange-50" },

@@ -19,6 +19,7 @@ const CHANNEL_MATRIX: Record<NotificationType, NotificationChannel[]> = {
   [NotificationType.SUPPORT_REPLY]: ['IN_APP'],
   [NotificationType.PROMOTION]: ['IN_APP'],
   [NotificationType.SYSTEM]: ['IN_APP'],
+  [NotificationType.BOOKING_PENDING_CONFIRMATION]: ['IN_APP'],
 };
 
 @Injectable()

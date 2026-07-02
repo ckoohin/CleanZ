@@ -457,6 +457,7 @@ export class AdminBookingRepository {
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
         .leftJoinAndSelect('b.customer', 'c')
+        .leftJoinAndSelect('c.user', 'cu')
         .leftJoinAndSelect('b.tasker', 't')
         .leftJoinAndSelect('t.user', 'tu')
         .setLock('pessimistic_write', undefined, ['b'])
@@ -515,11 +516,13 @@ export class AdminBookingRepository {
         bookingId: booking.id,
         bookingCode: booking.bookingCode,
         taskerUserId: booking.tasker?.user?.id,
+        customerUserId: booking.customer?.user?.id,
       };
     });
 
+    const notifications: Promise<unknown>[] = [];
     if (result.taskerUserId) {
-      await Promise.allSettled([
+      notifications.push(
         this.notificationService.notify({
           userId: result.taskerUserId,
           type: NotificationType.BOOKING_CANCELLED,
@@ -527,9 +530,25 @@ export class AdminBookingRepository {
           referenceType: NotificationRefType.BOOKING,
           title: 'Đơn hàng bị hủy bởi Admin',
           content: `Đơn ${result.bookingCode} đã bị quản trị viên hủy.`,
-          dedupeKey: `booking:${result.bookingId}:${NotificationType.BOOKING_CANCELLED}`,
+          dedupeKey: `booking:${result.bookingId}:${NotificationType.BOOKING_CANCELLED}:tasker`,
         }),
-      ]);
+      );
+    }
+    if (result.customerUserId) {
+      notifications.push(
+        this.notificationService.notify({
+          userId: result.customerUserId,
+          type: NotificationType.BOOKING_CANCELLED,
+          referenceId: result.bookingId,
+          referenceType: NotificationRefType.BOOKING,
+          title: 'Đơn hàng đã bị hủy',
+          content: `Đơn ${result.bookingCode} của bạn đã bị quản trị viên hủy. Liên hệ hỗ trợ nếu bạn cần thêm thông tin.`,
+          dedupeKey: `booking:${result.bookingId}:${NotificationType.BOOKING_CANCELLED}:customer`,
+        }),
+      );
+    }
+    if (notifications.length) {
+      await Promise.allSettled(notifications);
     }
 
     return result.response;

@@ -8,6 +8,7 @@ import { EntityManager, In } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
+import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -64,6 +65,7 @@ export const ACTIVE_BOOKING_STATUSES = Object.values(BookingStatus).filter(
 
 const CUSTOMER_CANCELABLE_STATUSES = [
   BookingStatus.POSTED,
+  BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
   BookingStatus.CONFIRMED,
 ];
 
@@ -172,6 +174,20 @@ export class BookingPolicyService {
     if (tasker.status !== TaskerStatus.ACTIVE) {
       throw new BadRequestException(
         'Chỉ tasker đang hoạt động mới có thể nhận booking',
+      );
+    }
+  }
+
+  assertTaskerCanCreateBookingForCustomer(tasker: TaskerEntity): void {
+    this.assertTaskerNotCancelSuspended(tasker);
+    if (tasker.status !== TaskerStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Chỉ tasker đang hoạt động mới có thể tạo đơn cho khách',
+      );
+    }
+    if (tasker.presenceStatus !== TASKER_PRESENCE_STATUS.ONLINE) {
+      throw new BadRequestException(
+        'Bạn cần bật trạng thái Online để tạo đơn cho khách',
       );
     }
   }

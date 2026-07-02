@@ -22,6 +22,7 @@ const ALL = "__all__"
 const STATUS_OPTIONS = [
   { value: ALL, label: "Tất cả trạng thái" },
   { value: "POSTED", label: "Đang tìm kiếm nhân viên" },
+  { value: "PENDING_CUSTOMER_CONFIRMATION", label: "Chờ khách xác nhận" },
   { value: "CONFIRMED", label: "Đã nhận đơn" },
   { value: "TASKER_ON_THE_WAY", label: "Nhân viên đang đến" },
   { value: "CHECKED_IN", label: "Đã đến nơi" },
@@ -41,6 +42,7 @@ const PAYMENT_OPTIONS = [
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   POSTED:            "warning",
+  PENDING_CUSTOMER_CONFIRMATION: "warning",
   CONFIRMED:         "info",
   TASKER_ON_THE_WAY: "info",
   CHECKED_IN:        "info",
@@ -52,6 +54,7 @@ const STATUS_TONE: Record<string, BadgeTone> = {
 
 const STATUS_LABEL: Record<string, string> = {
   POSTED:            "Đang tìm kiếm nhân viên",
+  PENDING_CUSTOMER_CONFIRMATION: "Chờ khách xác nhận",
   CONFIRMED:         "Đã nhận đơn",
   TASKER_ON_THE_WAY: "Nhân viên đang đến",
   CHECKED_IN:        "Đã đến nơi",

@@ -40,6 +40,7 @@ function fmtDate(dateStr: string | null) {
 
 const STATUS_MAP: Record<BookingStatus, { label: string; color: string; dotColor: string }> = {
   POSTED:            { label: "Đang tìm Tasker",  color: "text-blue-600",    dotColor: "bg-blue-500 animate-pulse" },
+  PENDING_CUSTOMER_CONFIRMATION: { label: "Chờ bạn xác nhận", color: "text-amber-600", dotColor: "bg-amber-500 animate-pulse" },
   CONFIRMED:         { label: "Đã xác nhận",       color: "text-indigo-600",  dotColor: "bg-indigo-500" },
   TASKER_ON_THE_WAY: { label: "Tasker đang đến",   color: "text-amber-600",   dotColor: "bg-amber-500 animate-pulse" },
   CHECKED_IN:        { label: "Tasker đã đến",     color: "text-orange-600",  dotColor: "bg-orange-500" },

@@ -7,11 +7,18 @@ import {
   IsNumber,
   IsArray,
   IsEnum,
+  IsUUID,
   Min,
+  Max,
+  Matches,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PricingMode } from '../../pricing/entity/pricing-tier.entity';
+
+const TIME_HH_MM_REGEX = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 export class CreateServicePackageDto {
   @ApiProperty({ example: 'Dọn dẹp nhà cửa' })
@@ -134,34 +141,46 @@ export class CreateServicePackageDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ServiceDurationDto)
   durations?: ServiceDurationDto[];
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ServiceAddonDto)
   addons?: ServiceAddonDto[];
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ServiceSubscriptionDto)
   subscriptions?: ServiceSubscriptionDto[];
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ServicePeakHourDto)
   peakHours?: ServicePeakHourDto[];
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ServiceSubServiceDto)
   subServices?: ServiceSubServiceDto[];
 }
 
 export class ServiceDurationDto {
   @IsNumber()
+  @Min(0.5, { message: 'durationHours phải lớn hơn 0' })
   durationHours!: number;
 
   @IsNumber()
+  @Min(0, { message: 'priceMultiplier không được âm' })
   priceMultiplier!: number;
 
   @IsOptional()
@@ -174,10 +193,12 @@ export class ServiceDurationDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0, { message: 'suggestedArea không được âm' })
   suggestedArea?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1, { message: 'taskerCount phải >= 1' })
   taskerCount?: number;
 
   @IsOptional()
@@ -191,6 +212,8 @@ export class ServiceDurationDto {
 
 export class ServiceAddonDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   name!: string;
 
   @IsOptional()
@@ -202,6 +225,7 @@ export class ServiceAddonDto {
   iconUrl?: string;
 
   @IsNumber()
+  @Min(0, { message: 'price không được âm' })
   price!: number;
 
   @IsOptional()
@@ -209,15 +233,18 @@ export class ServiceAddonDto {
   priceUnit?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0, { message: 'durationMinutes không được âm' })
   durationMinutes?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1, { message: 'maxQuantity phải >= 1' })
   maxQuantity?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   sortOrder?: number;
 
   @IsOptional()
@@ -227,6 +254,8 @@ export class ServiceAddonDto {
 
 export class ServiceSubscriptionDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   name!: string;
 
   @IsOptional()
@@ -238,6 +267,8 @@ export class ServiceSubscriptionDto {
   bonusDescription?: string;
 
   @IsNumber()
+  @Min(0, { message: 'discountPercent phải từ 0 đến 100' })
+  @Max(100, { message: 'discountPercent phải từ 0 đến 100' })
   discountPercent!: number;
 
   @IsOptional()
@@ -245,11 +276,13 @@ export class ServiceSubscriptionDto {
   billingCycle?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1, { message: 'sessionsPerCycle phải >= 1' })
   sessionsPerCycle?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0, { message: 'commitmentMonths không được âm' })
   commitmentMonths?: number;
 
   @IsOptional()
@@ -258,6 +291,7 @@ export class ServiceSubscriptionDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   sortOrder?: number;
 
   @IsOptional()
@@ -267,15 +301,26 @@ export class ServiceSubscriptionDto {
 
 export class ServicePeakHourDto {
   @IsInt()
+  @Min(0, { message: 'dayOfWeek phải từ 0 (CN) đến 6 (T7), hoặc 7 = mọi ngày' })
+  @Max(7, { message: 'dayOfWeek phải từ 0 (CN) đến 6 (T7), hoặc 7 = mọi ngày' })
   dayOfWeek!: number;
 
   @IsString()
+  @Matches(TIME_HH_MM_REGEX, {
+    message: 'startHour phải theo định dạng HH:mm (00:00–23:59)',
+  })
   startHour!: string;
 
   @IsString()
+  @Matches(TIME_HH_MM_REGEX, {
+    message: 'endHour phải theo định dạng HH:mm (00:00–23:59)',
+  })
   endHour!: string;
 
   @IsNumber()
+  @Min(1, {
+    message: 'multiplier phải >= 1 (1.5 = phụ thu 50% trong khung cao điểm)',
+  })
   multiplier!: number;
 
   @IsOptional()
@@ -292,10 +337,11 @@ export class ServicePeakHourDto {
 }
 
 export class ServiceSubServiceDto {
-  @IsString()
+  @IsUUID('4', { message: 'subServiceId phải là UUID hợp lệ' })
   subServiceId!: string;
 
   @IsNumber()
+  @Min(0, { message: 'price không được âm' })
   price!: number;
 
   @IsOptional()
