@@ -10,9 +10,22 @@ interface ImageUploadProps {
   onChange: (url: string) => void;
   onRemove: () => void;
   disabled?: boolean;
+  folder?: string;
+  onUploadComplete?: (result: { url: string; public_id: string }) => void;
+  onUploadError?: (error: unknown) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
 }
 
-export function ImageUpload({ value, onChange, onRemove, disabled }: ImageUploadProps) {
+export function ImageUpload({
+  value,
+  onChange,
+  onRemove,
+  disabled,
+  folder,
+  onUploadComplete,
+  onUploadError,
+  onUploadingChange,
+}: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -22,12 +35,16 @@ export function ImageUpload({ value, onChange, onRemove, disabled }: ImageUpload
 
     try {
       setIsUploading(true);
-      const url = await uploadApi.uploadImage(file);
-      onChange(url);
+      onUploadingChange?.(true);
+      const result = await uploadApi.uploadImageResult(file, { folder });
+      onChange(result.url);
+      onUploadComplete?.(result);
     } catch (error) {
       console.error("Upload failed", error);
+      onUploadError?.(error);
     } finally {
       setIsUploading(false);
+      onUploadingChange?.(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };

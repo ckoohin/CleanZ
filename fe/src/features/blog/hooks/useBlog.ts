@@ -12,6 +12,18 @@ export const blogKeys = {
   adminList: (params?: BlogListParams) => [...blogKeys.all, "admin", params] as const,
 };
 
+function getBlogErrorMessage(error: unknown, fallback: string): string {
+  const response = (error as { response?: { data?: { message?: string; errorCode?: string } } })?.response?.data;
+  const message = response?.message || response?.errorCode;
+
+  if (message === "BLOG_SLUG_EXISTS") return "Đường dẫn bài viết đã tồn tại.";
+  if (message === "BLOG_CATEGORY_NOT_FOUND") return "Danh mục không tồn tại.";
+  if (message === "BLOG_SLUG_REQUIRED") return "Vui lòng nhập đường dẫn bài viết.";
+  if (typeof message === "string" && message.trim()) return message;
+
+  return fallback;
+}
+
 export function usePublishedBlogs(params?: BlogListParams) {
   return useQuery({
     queryKey: blogKeys.published(params),
@@ -43,6 +55,9 @@ export function useSaveBlog() {
       toast.success("Đã lưu bài viết");
       void queryClient.invalidateQueries({ queryKey: blogKeys.all });
     },
+    onError: (error) => {
+      toast.error(getBlogErrorMessage(error, "Không thể lưu bài viết. Vui lòng kiểm tra lại thông tin."));
+    },
   });
 }
 
@@ -53,6 +68,9 @@ export function useDeleteBlog() {
     onSuccess: () => {
       toast.success("Đã xóa bài viết");
       void queryClient.invalidateQueries({ queryKey: blogKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getBlogErrorMessage(error, "Không thể xóa bài viết. Vui lòng thử lại."));
     },
   });
 }
@@ -65,6 +83,9 @@ export function useChangeBlogStatus() {
     onSuccess: () => {
       toast.success("Đã cập nhật trạng thái");
       void queryClient.invalidateQueries({ queryKey: blogKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getBlogErrorMessage(error, "Không thể cập nhật trạng thái. Vui lòng thử lại."));
     },
   });
 }
