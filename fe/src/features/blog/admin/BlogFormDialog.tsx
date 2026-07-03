@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useSaveBlog } from "../hooks/useBlog";
 import type { BlogFormInput, BlogPost, BlogStatus } from "../types/blog.types";
 import { fromDateTimeInputValue, toDateTimeInputValue } from "../utils/blog-format";
+import { BlogCategorySelect } from "./BlogCategorySelect";
 
 const BLOG_UPLOAD_FOLDER = "CleanZ/blog";
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
@@ -146,8 +147,8 @@ function BlogFormBody({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="blog-category-id">Danh mục</Label>
-            <Input id="blog-category-id" value={form.category_id} onChange={(event) => update("category_id", event.target.value)} placeholder="Nhập mã danh mục (nếu có)" disabled={isSubmitting} />
+            <Label>Danh mục</Label>
+            <BlogCategorySelect value={form.category_id} onChange={(categoryId) => update("category_id", categoryId)} disabled={isSubmitting} />
           </div>
         </div>
 

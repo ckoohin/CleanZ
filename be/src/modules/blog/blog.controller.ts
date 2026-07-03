@@ -19,8 +19,10 @@ import {
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BlogService } from './blog.service';
+import { CreateBlogCategoryDto } from './dto/create-blog-category.dto';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { QueryBlogDto } from './dto/query-blog.dto';
+import { UpdateBlogCategoryDto } from './dto/update-blog-category.dto';
 import { UpdateBlogStatusDto } from './dto/update-blog-status.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 
@@ -93,6 +95,41 @@ export class BlogController {
   ) {
     const blog = await this.blogService.updateStatus(id, dto.status);
     return successResponse(blog, 'Blog status updated');
+  }
+
+  @Get('admin/categories')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Danh sach category blog cho admin' })
+  async findCategories(@Query('q') q?: string) {
+    const categories = await this.blogService.findCategories(q);
+    return successResponse(categories);
+  }
+
+  @Post('admin/categories')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Tao category blog' })
+  async createCategory(@Body() dto: CreateBlogCategoryDto) {
+    const category = await this.blogService.createCategory(dto);
+    return successResponse(category, 'Blog category created');
+  }
+
+  @Patch('admin/categories/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Sua category blog' })
+  async updateCategory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateBlogCategoryDto,
+  ) {
+    const category = await this.blogService.updateCategory(id, dto);
+    return successResponse(category, 'Blog category updated');
+  }
+
+  @Delete('admin/categories/:id')
+  @AdminOnly()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Xoa category blog' })
+  async removeCategory(@Param('id', ParseUUIDPipe) id: string) {
+    await this.blogService.removeCategory(id);
   }
 
   @Get(':id')

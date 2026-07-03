@@ -1,12 +1,16 @@
 import http from "@/lib/api/http";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import type {
+  BlogCategory,
+  BlogCategoryFormInput,
   BlogFormInput,
   BlogListParams,
   BlogListResponse,
   BlogPost,
   BlogStatus,
 } from "../types/blog.types";
+
+const ADMIN_BLOG_CATEGORIES_ENDPOINT = "/blog/admin/categories";
 
 type ApiEnvelope<T> = {
   success?: boolean;
@@ -71,4 +75,24 @@ export const adminBlogApi = {
     http
       .patch(API_ENDPOINTS.BLOG.ADMIN_STATUS(id), { status })
       .then((r) => unwrap<BlogPost>(r.data)),
+};
+
+export const adminBlogCategoryApi = {
+  list: (q?: string): Promise<BlogCategory[]> =>
+    http
+      .get(ADMIN_BLOG_CATEGORIES_ENDPOINT, { params: { q: q || undefined } })
+      .then((r) => unwrap<BlogCategory[]>(r.data)),
+
+  create: (dto: BlogCategoryFormInput): Promise<BlogCategory> =>
+    http
+      .post(ADMIN_BLOG_CATEGORIES_ENDPOINT, dto)
+      .then((r) => unwrap<BlogCategory>(r.data)),
+
+  update: (id: string, dto: BlogCategoryFormInput): Promise<BlogCategory> =>
+    http
+      .patch(`${ADMIN_BLOG_CATEGORIES_ENDPOINT}/${id}`, dto)
+      .then((r) => unwrap<BlogCategory>(r.data)),
+
+  remove: (id: string): Promise<void> =>
+    http.delete(`${ADMIN_BLOG_CATEGORIES_ENDPOINT}/${id}`).then(() => undefined),
 };

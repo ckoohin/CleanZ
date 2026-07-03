@@ -18,6 +18,7 @@ import { ROUTES } from "@/constants/routes";
 import { useAdminBlogs, useChangeBlogStatus, useDeleteBlog } from "../hooks/useBlog";
 import type { BlogPost, BlogStatus } from "../types/blog.types";
 import { formatDate, getBlogAuthorName, getBlogCategoryName, getBlogThumbnail } from "../utils/blog-format";
+import { BlogCategoryManager } from "./BlogCategoryManager";
 import { BlogFormDialog } from "./BlogFormDialog";
 
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
@@ -141,6 +142,8 @@ export function AdminBlogPage() {
           title="Quản lý blog"
           description="Tạo, chỉnh sửa, xuất bản và lưu trữ bài viết hiển thị cho khách hàng CleanZ."
         />
+
+        <BlogCategoryManager />
 
         <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-3 shadow-sm sm:p-4">
           <div className="mb-4 flex flex-col gap-3 border-b border-[var(--c-line)] pb-4 sm:flex-row sm:items-center">

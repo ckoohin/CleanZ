@@ -5,6 +5,9 @@ export interface BlogCategory {
   name: string;
   slug: string;
   description?: string | null;
+  blog_count?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BlogAuthor {
@@ -59,4 +62,10 @@ export interface BlogFormInput {
   tags?: string[];
   status: BlogStatus;
   published_at?: string | null;
+}
+
+export interface BlogCategoryFormInput {
+  name: string;
+  slug: string;
+  description?: string | null;
 }
