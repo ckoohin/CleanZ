@@ -10,6 +10,7 @@ import {
   User,
   MapPin,
   LayoutGrid,
+  ScrollText,
 } from "lucide-react"
 
 import { NavMain } from "@/components/sidebar/nav-main"
@@ -70,6 +71,11 @@ const supportNav = [
     title: "Hỗ trợ",
     url: "/customer/support-tickets",
     icon: <Headphones />,
+  },
+  {
+    title: "Chính sách",
+    url: "/customer/policies",
+    icon: <ScrollText />,
   },
 ]
 

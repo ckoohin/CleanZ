@@ -6,7 +6,8 @@
 /.skills
 .env
 .env.local
-.env.local
 .env.production
 .env.development
 .codex
+.claude/
+fe/scratch/

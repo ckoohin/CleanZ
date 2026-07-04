@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,11 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useSaveBlog } from "../hooks/useBlog";
 import type { BlogFormInput, BlogPost, BlogStatus } from "../types/blog.types";
 import { fromDateTimeInputValue, toDateTimeInputValue } from "../utils/blog-format";
+import { BlogCategorySelect } from "./BlogCategorySelect";
+import { BlogContentEditor } from "./BlogContentEditor";
 
+const BLOG_UPLOAD_FOLDER = "CleanZ/blog";
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
 const STATUS_LABELS: Record<BlogStatus, string> = {
   DRAFT: "Bản nháp",
@@ -64,9 +68,11 @@ function BlogFormBody({
 }) {
   const [form, setForm] = useState<BlogFormInput>(() => getInitialForm(blog));
   const [tagInput, setTagInput] = useState(() => (blog?.tags ?? []).join(", "));
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const saveMutation = useSaveBlog();
   const dateValue = useMemo(() => toDateTimeInputValue(form.published_at), [form.published_at]);
   const isEditing = Boolean(blog?.id);
+  const isSubmitting = saveMutation.isPending || isUploadingThumbnail;
 
   const update = <K extends keyof BlogFormInput>(key: K, value: BlogFormInput[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -78,6 +84,8 @@ function BlogFormBody({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (isSubmitting) return;
+
     const tags = tagInput.split(",").map((tag) => tag.trim()).filter(Boolean);
     saveMutation.mutate(
       {
@@ -99,7 +107,7 @@ function BlogFormBody({
       <DialogHeader>
         <DialogTitle>{isEditing ? "Sửa bài viết" : "Thêm bài viết"}</DialogTitle>
         <DialogDescription>
-          Quản lý nội dung blog. Category hiện dùng `category_id` vì backend chưa có API quản lý category.
+          Soạn nội dung bằng Markdown cơ bản và chèn ảnh trực tiếp vào bài viết.
         </DialogDescription>
       </DialogHeader>
 
@@ -107,43 +115,51 @@ function BlogFormBody({
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="blog-title">Tiêu đề</Label>
-            <Input id="blog-title" value={form.title} onChange={(event) => handleTitleChange(event.target.value)} required />
+            <Input id="blog-title" value={form.title} onChange={(event) => handleTitleChange(event.target.value)} required disabled={isSubmitting} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="blog-slug">Đường dẫn</Label>
-            <Input id="blog-slug" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} required />
+            <Input id="blog-slug" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} required disabled={isSubmitting} />
           </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="blog-summary">Tóm tắt</Label>
-          <Textarea id="blog-summary" value={form.summary} onChange={(event) => update("summary", event.target.value)} rows={3} />
+          <Input id="blog-summary" value={form.summary} onChange={(event) => update("summary", event.target.value)} disabled={isSubmitting} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="blog-content">Nội dung</Label>
-          <Textarea id="blog-content" value={form.content} onChange={(event) => update("content", event.target.value)} rows={10} required />
+          <Label>Nội dung</Label>
+          <BlogContentEditor value={form.content} onChange={(content) => update("content", content)} disabled={isSubmitting} />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="blog-thumbnail">Ảnh đại diện</Label>
-            <Input id="blog-thumbnail" value={form.thumbnail_url} onChange={(event) => update("thumbnail_url", event.target.value)} placeholder="Nhập đường dẫn ảnh đại diện" />
+            <Label>Ảnh đại diện</Label>
+            <ImageUpload
+              value={form.thumbnail_url}
+              onChange={(url) => update("thumbnail_url", url)}
+              onRemove={() => update("thumbnail_url", "")}
+              disabled={saveMutation.isPending}
+              folder={BLOG_UPLOAD_FOLDER}
+              onUploadingChange={setIsUploadingThumbnail}
+              onUploadError={() => toast.error("Tải ảnh đại diện thất bại. Vui lòng thử lại.")}
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="blog-category-id">Danh mục</Label>
-            <Input id="blog-category-id" value={form.category_id} onChange={(event) => update("category_id", event.target.value)} placeholder="Nhập mã danh mục (nếu có)" />
+            <Label>Danh mục</Label>
+            <BlogCategorySelect value={form.category_id} onChange={(categoryId) => update("category_id", categoryId)} disabled={isSubmitting} />
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="blog-tags">Thẻ</Label>
-            <Input id="blog-tags" value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="Ví dụ: vệ sinh, mẹo hay" />
+            <Input id="blog-tags" value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="Ví dụ: vệ sinh, mẹo hay" disabled={isSubmitting} />
           </div>
           <div className="space-y-2">
             <Label>Trạng thái</Label>
-            <Select value={form.status} onValueChange={(value) => update("status", value as BlogStatus)}>
+            <Select value={form.status} onValueChange={(value) => update("status", value as BlogStatus)} disabled={isSubmitting}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{STATUS_LABELS[status]}</SelectItem>)}
@@ -154,13 +170,13 @@ function BlogFormBody({
 
         <div className="space-y-2">
           <Label htmlFor="blog-published-at">Ngày xuất bản</Label>
-          <Input id="blog-published-at" type="datetime-local" value={dateValue} onChange={(event) => update("published_at", fromDateTimeInputValue(event.target.value))} />
+          <Input id="blog-published-at" type="datetime-local" value={dateValue} onChange={(event) => update("published_at", fromDateTimeInputValue(event.target.value))} disabled={isSubmitting} />
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-          <Button type="submit" disabled={saveMutation.isPending}>
-            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Hủy</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Lưu
           </Button>
         </DialogFooter>

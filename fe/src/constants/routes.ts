@@ -51,6 +51,7 @@ export const ROUTES = {
     NOTIFICATIONS: "/customer/notifications",
     SUPPORT_TICKETS: "/customer/support-tickets",
     SUPPORT_TICKET_DETAIL: (id: string) => `/customer/support-tickets/${id}`,
+    POLICIES: "/customer/policies",
   },
   TASKER: {
     DASHBOARD: "/tasker",

@@ -1,21 +1,24 @@
 "use client";
 
+import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CalendarDays, Eye, Tag, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePublishedBlog } from "../hooks/useBlog";
+import { usePublishedBlogBySlug } from "../hooks/useBlog";
 import {
   formatDate,
   getBlogAuthorName,
   getBlogCategoryName,
   getBlogThumbnail,
 } from "../utils/blog-format";
+import { renderBlogContent } from "../utils/blog-content";
 
 export function BlogDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id: slug } = useParams<{ id: string }>();
   const router = useRouter();
-  const { data: blog, isLoading, isError } = usePublishedBlog(id);
+  const { data: blog, isLoading, isError } = usePublishedBlogBySlug(slug);
+  const contentHtml = useMemo(() => renderBlogContent(blog?.content ?? ""), [blog?.content]);
 
   if (isLoading) {
     return (
@@ -99,13 +102,10 @@ export function BlogDetailPage() {
           ))}
         </div>
 
-        <div className="mt-8 space-y-4 text-[15px] leading-8 text-[var(--c-ink)]">
-          {blog.content.split("\n").map((paragraph, index) => (
-            <p key={index} className="whitespace-pre-line">
-              {paragraph}
-            </p>
-          ))}
-        </div>
+        <div
+          className="blog-content mt-8 space-y-4 text-[15px] leading-8 text-[var(--c-ink)]"
+          dangerouslySetInnerHTML={{ __html: contentHtml }}
+        />
       </article>
     </main>
   );

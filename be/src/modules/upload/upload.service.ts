@@ -23,9 +23,12 @@ type CloudinaryDestroyResponse = {
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
 
-  async uploadImage(file: Express.Multer.File): Promise<UploadResult> {
+  async uploadImage(
+    file: Express.Multer.File,
+    folder = UPLOAD_FOLDER,
+  ): Promise<UploadResult> {
     return asyncHandleOperation(async () => {
-      const result = await this.uploadToCloudinary(file.buffer);
+      const result = await this.uploadToCloudinary(file.buffer, folder);
 
       this.logger.log(
         `Upload success | public_id: ${result.public_id} | url: ${result.secure_url}`,
@@ -57,11 +60,14 @@ export class UploadService {
     }, 'Failed to delete image from Cloudinary');
   }
 
-  private uploadToCloudinary(buffer: Buffer): Promise<UploadApiResponse> {
+  private uploadToCloudinary(
+    buffer: Buffer,
+    folder: string,
+  ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: UPLOAD_FOLDER,
+          folder,
           resource_type: 'image',
           quality: 'auto',
           fetch_format: 'auto',
