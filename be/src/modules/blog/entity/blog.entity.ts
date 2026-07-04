@@ -42,6 +42,7 @@ export class BlogEntity {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'thumbnail_url' })
   thumbnailUrl!: string | null;
 
+  @Index('idx_blogs_category')
   @Column({ type: 'uuid', nullable: true, name: 'category_id' })
   categoryId!: string | null;
 
@@ -60,9 +61,11 @@ export class BlogEntity {
   @Column({ type: 'int', default: 0, name: 'view_count' })
   viewCount!: number;
 
+  @Index('idx_blogs_published_at')
   @Column({ type: 'timestamp', nullable: true, name: 'published_at' })
   publishedAt!: Date | null;
 
+  @Index('idx_blogs_created_at')
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

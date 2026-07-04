@@ -22,10 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useSaveBlog } from "../hooks/useBlog";
 import type { BlogFormInput, BlogPost, BlogStatus } from "../types/blog.types";
 import { fromDateTimeInputValue, toDateTimeInputValue } from "../utils/blog-format";
+import { BlogCategorySelect } from "./BlogCategorySelect";
+import { BlogContentEditor } from "./BlogContentEditor";
 
 const BLOG_UPLOAD_FOLDER = "CleanZ/blog";
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
@@ -106,7 +107,7 @@ function BlogFormBody({
       <DialogHeader>
         <DialogTitle>{isEditing ? "Sửa bài viết" : "Thêm bài viết"}</DialogTitle>
         <DialogDescription>
-
+          Soạn nội dung bằng Markdown cơ bản và chèn ảnh trực tiếp vào bài viết.
         </DialogDescription>
       </DialogHeader>
 
@@ -124,12 +125,12 @@ function BlogFormBody({
 
         <div className="space-y-2">
           <Label htmlFor="blog-summary">Tóm tắt</Label>
-          <Textarea id="blog-summary" value={form.summary} onChange={(event) => update("summary", event.target.value)} rows={3} disabled={isSubmitting} />
+          <Input id="blog-summary" value={form.summary} onChange={(event) => update("summary", event.target.value)} disabled={isSubmitting} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="blog-content">Nội dung</Label>
-          <Textarea id="blog-content" value={form.content} onChange={(event) => update("content", event.target.value)} rows={10} required disabled={isSubmitting} />
+          <Label>Nội dung</Label>
+          <BlogContentEditor value={form.content} onChange={(content) => update("content", content)} disabled={isSubmitting} />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -146,8 +147,8 @@ function BlogFormBody({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="blog-category-id">Danh mục</Label>
-            <Input id="blog-category-id" value={form.category_id} onChange={(event) => update("category_id", event.target.value)} placeholder="Nhập mã danh mục (nếu có)" disabled={isSubmitting} />
+            <Label>Danh mục</Label>
+            <BlogCategorySelect value={form.category_id} onChange={(categoryId) => update("category_id", categoryId)} disabled={isSubmitting} />
           </div>
         </div>
 
