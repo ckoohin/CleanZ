@@ -30,6 +30,13 @@ export interface NearestTaskerRow {
   dist_meters: number;
 }
 
+export interface DispatchInvitationState {
+  bookingId: string;
+  ring: number;
+  invitedTaskerIds: string[];
+  expiresAt: Date | null;
+}
+
 interface RedisLike {
   set(
     key: string,
@@ -41,12 +48,8 @@ interface RedisLike {
   get(key: string): Promise<string | null>;
   del(...keys: string[]): Promise<number>;
   hset(key: string, values: Record<string, string>): Promise<number>;
+  hgetall(key: string): Promise<Record<string, string>>;
   expire(key: string, seconds: number): Promise<number>;
-}
-
-function isLocationSchemaUnavailable(error: unknown): boolean {
-  const code = (error as { code?: string })?.code;
-  return code === '42703' || code === '42883' || code === '42P01';
 }
 
 function dispatchJobId(bookingId: string, ring: number): string {
@@ -155,6 +158,8 @@ export class BookingDispatchService {
   async persistDispatchState(
     data: DispatchJobData,
     nextJobId?: string,
+    invitedTaskerIds: string[] = [],
+    expiresAt?: Date,
   ): Promise<void> {
     const redis = await this.redis();
     const key = dispatchStateKey(data.bookingId);
@@ -163,15 +168,47 @@ export class BookingDispatchService {
       ring: String(data.ring),
       radiusMeters: String(data.radiusMeters),
       excludedIds: JSON.stringify(data.excludedTaskerIds),
+      invitedTaskerIds: JSON.stringify(invitedTaskerIds),
+      expiresAt: expiresAt?.toISOString() ?? '',
       nextJobId: nextJobId ?? '',
       updatedAt: new Date().toISOString(),
     });
     await redis.expire(key, DISPATCH_STATE_TTL_SECONDS);
   }
 
+  async getDispatchInvitationState(
+    bookingId: string,
+  ): Promise<DispatchInvitationState | null> {
+    const redis = await this.redis();
+    const state = await redis.hgetall(dispatchStateKey(bookingId));
+    if (!state || Object.keys(state).length === 0) {
+      return null;
+    }
+
+    return {
+      bookingId,
+      ring: Number(state.ring) || 0,
+      invitedTaskerIds: this.parseStringArray(state.invitedTaskerIds),
+      expiresAt: state.expiresAt ? new Date(state.expiresAt) : null,
+    };
+  }
+
   async clearDispatchState(bookingId: string): Promise<void> {
     const redis = await this.redis();
     await redis.del(dispatchStateKey(bookingId), dispatchLockKey(bookingId));
+  }
+
+  private parseStringArray(value?: string): string[] {
+    if (!value) return [];
+
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed.filter((item): item is string => typeof item === 'string');
+    } catch {
+      return [];
+    }
   }
 
   async cancelPendingDispatch(bookingId: string): Promise<void> {
@@ -201,7 +238,7 @@ export class BookingDispatchService {
   ): Promise<NearestTaskerRow[]> {
     const exclusionClause =
       excludedTaskerIds.length > 0
-        ? `AND t.id NOT IN (${excludedTaskerIds.map((_, i) => `$${i + 3}`).join(', ')})`
+        ? `AND t.id NOT IN (${excludedTaskerIds.map((_, i) => `$${i + 4}`).join(', ')})`
         : '';
 
     const params: (number | string)[] = [
@@ -211,10 +248,8 @@ export class BookingDispatchService {
       ...excludedTaskerIds,
     ];
 
-    let rows: NearestTaskerRow[];
-    try {
-      rows = await this.dataSource.query<NearestTaskerRow[]>(
-        `
+    return this.dataSource.query<NearestTaskerRow[]>(
+      `
         SELECT
           t.id                                            AS tasker_id,
           t.user_id,
@@ -241,121 +276,7 @@ export class BookingDispatchService {
         ORDER BY dist_meters ASC
         LIMIT ${DISPATCH_RING_SIZE}
         `,
-        params,
-      );
-    } catch (error) {
-      if (!isLocationSchemaUnavailable(error)) {
-        throw error;
-      }
-
-      this.logger.warn(
-        'Dispatch location schema is unavailable; using ONLINE tasker fallback for test',
-      );
-      return this.findOnlineTaskersWithoutLocation(excludedTaskerIds);
-    }
-
-    if (rows.length > 0) {
-      return rows;
-    }
-
-    return this.findNearestOnlineTaskersWithoutRadius(
-      lat,
-      lng,
-      excludedTaskerIds,
+      params,
     );
-  }
-
-  private async findNearestOnlineTaskersWithoutRadius(
-    lat: number,
-    lng: number,
-    excludedTaskerIds: string[],
-  ): Promise<NearestTaskerRow[]> {
-    const exclusionClause =
-      excludedTaskerIds.length > 0
-        ? `AND t.id NOT IN (${excludedTaskerIds.map((_, i) => `$${i + 3}`).join(', ')})`
-        : '';
-
-    const params: (number | string)[] = [lng, lat, ...excludedTaskerIds];
-
-    let rows: NearestTaskerRow[];
-    try {
-      rows = await this.dataSource.query<NearestTaskerRow[]>(
-        `
-        SELECT
-          t.id                                            AS tasker_id,
-          t.user_id,
-          ST_Distance(
-            t.current_location,
-            ST_SetSRID(ST_Point($1, $2), 4326)::geography
-          )                                               AS dist_meters
-        FROM taskers t
-        WHERE
-          t.presence_status       = 'ONLINE'
-          AND t.status            = 'ACTIVE'
-          AND (
-            t.cancel_suspended_until IS NULL
-            OR t.cancel_suspended_until < NOW()
-          )
-          AND t.current_location  IS NOT NULL
-          AND t.location_updated_at > NOW() - INTERVAL '${LOCATION_STALE_MINUTES} minutes'
-          ${exclusionClause}
-        ORDER BY dist_meters ASC
-        LIMIT ${DISPATCH_RING_SIZE}
-        `,
-        params,
-      );
-    } catch (error) {
-      if (!isLocationSchemaUnavailable(error)) {
-        throw error;
-      }
-
-      return this.findOnlineTaskersWithoutLocation(excludedTaskerIds);
-    }
-
-    if (rows.length > 0) {
-      this.logger.warn(
-        `Dispatch used test fallback without radius; found ${rows.length} online tasker(s)`,
-      );
-    }
-
-    return rows;
-  }
-
-  private async findOnlineTaskersWithoutLocation(
-    excludedTaskerIds: string[],
-  ): Promise<NearestTaskerRow[]> {
-    const exclusionClause =
-      excludedTaskerIds.length > 0
-        ? `AND t.id NOT IN (${excludedTaskerIds.map((_, i) => `$${i + 1}`).join(', ')})`
-        : '';
-
-    const rows = await this.dataSource.query<NearestTaskerRow[]>(
-      `
-      SELECT
-        t.id        AS tasker_id,
-        t.user_id,
-        0::float    AS dist_meters
-      FROM taskers t
-      WHERE
-        t.presence_status       = 'ONLINE'
-        AND t.status            = 'ACTIVE'
-        AND (
-          t.cancel_suspended_until IS NULL
-          OR t.cancel_suspended_until < NOW()
-        )
-        ${exclusionClause}
-      ORDER BY t.updated_at DESC
-      LIMIT ${DISPATCH_RING_SIZE}
-      `,
-      excludedTaskerIds,
-    );
-
-    if (rows.length > 0) {
-      this.logger.warn(
-        `Dispatch used schema fallback without location; found ${rows.length} online tasker(s)`,
-      );
-    }
-
-    return rows;
   }
 }

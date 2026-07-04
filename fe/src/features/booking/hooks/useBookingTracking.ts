@@ -25,14 +25,6 @@ interface BrowserLocationSample {
   capturedAt: number;
 }
 
-// Fallback: 376 Thụy Khuê, Tây Hồ, Hà Nội
-const FALLBACK_LOCATION_SAMPLE: BrowserLocationSample = {
-  latitude: 21.0463,
-  longitude: 105.8374,
-  accuracy: 0,
-  capturedAt: 0,
-};
-
 function getTrackingErrorMessage(payload: TrackingErrorPayload): string {
   return payload.message?.trim() || "Không thể cập nhật vị trí realtime";
 }
@@ -255,13 +247,10 @@ export function useTaskerLocationTracking(
           setError("Bạn cần cấp quyền vị trí chính xác để bắt đầu tracking.");
           return;
         }
-        // GPS lỗi (timeout/unavailable) → dùng vị trí mặc định để không block tracking
-        const fallback = { ...FALLBACK_LOCATION_SAMPLE, capturedAt: Date.now() };
-        latestLocationRef.current = fallback;
-        setError(null);
-        if (pendingLocationRequestRef.current) {
-          emitLocation(fallback);
-        }
+        latestLocationRef.current = null;
+        setError(
+          "Không lấy được vị trí thật từ thiết bị. Hãy bật GPS/vị trí chính xác rồi thử lại.",
+        );
       },
       {
         enableHighAccuracy: true,

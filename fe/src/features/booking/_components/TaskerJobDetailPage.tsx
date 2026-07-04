@@ -238,10 +238,12 @@ function PostedDetailView({
   data,
   bookingId,
   onAccepted,
+  onUnavailable,
 }: {
   data: TaskerPostedBookingDetail;
   bookingId: string;
   onAccepted: () => void;
+  onUnavailable: () => void;
 }) {
   const accept = useAcceptBooking();
   const platformCommissionRate = data.price.platformCommissionRate ?? 20;
@@ -254,6 +256,11 @@ function PostedDetailView({
       await accept.mutateAsync(bookingId);
       onAccepted();
     } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 409 || status === 403 || status === 404) {
+        onUnavailable();
+      }
       throw err;
     }
   };
@@ -954,9 +961,6 @@ function AssignedDetailView({
   );
 }
 
-// Fallback: 376 Thụy Khuê, Tây Hồ, Hà Nội
-const FALLBACK_LOCATION = { currentLatitude: 21.0463, currentLongitude: 105.8374 };
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
@@ -1034,8 +1038,14 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
           setIsRequestingLocation(false);
           return;
         }
-        // GPS lỗi (timeout/unavailable) → dùng vị trí mặc định để không block
-        setLocation(FALLBACK_LOCATION);
+        setLocationError(
+          "Không lấy được vị trí thật từ thiết bị. Hãy bật GPS/vị trí chính xác rồi thử lại.",
+        );
+        setLocationErrorKind(
+          error.code === error.POSITION_UNAVAILABLE
+            ? "location-disabled"
+            : "timeout",
+        );
         setLocationResolved(true);
         setIsRequestingLocation(false);
       },
@@ -1099,11 +1109,9 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
           },
           (err) => {
             if (err.code !== err.PERMISSION_DENIED) {
-              trackingSocket.emit("tasker:location:update", {
-                bookingId,
-                latitude: FALLBACK_LOCATION.currentLatitude,
-                longitude: FALLBACK_LOCATION.currentLongitude,
-              });
+              setLocationError(
+                "Không lấy được vị trí thật để tracking. Hãy bật GPS/vị trí chính xác rồi thử lại.",
+              );
             }
           },
           { enableHighAccuracy: true }
@@ -1251,6 +1259,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
               data={postedQuery.data}
               bookingId={bookingId}
               onAccepted={() => router.replace(`/tasker/jobs/${bookingId}`)}
+              onUnavailable={() => router.replace("/tasker/jobs")}
             />
           ) : (
             <div className="text-center py-16 text-muted-foreground">

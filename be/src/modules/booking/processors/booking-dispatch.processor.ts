@@ -12,6 +12,7 @@ import {
   BOOKING_DISPATCH_JOB,
   BookingDispatchService,
   DISPATCH_MAX_RING,
+  DISPATCH_RING_TIMEOUT_MS,
   DispatchJobData,
   NearestTaskerRow,
 } from '../services/booking-dispatch.service';
@@ -99,6 +100,8 @@ export class BookingDispatchProcessor extends WorkerHost {
 
     // 3. Gửi thông báo cho từng tasker tìm được
     await this.notifyTaskers(booking, taskers, ring);
+    const invitedTaskerIds = taskers.map((t) => t.tasker_id);
+    const expiresAt = new Date(Date.now() + DISPATCH_RING_TIMEOUT_MS);
 
     // 4. Emit trạng thái tìm kiếm đến customer (ring > 1 = mở rộng bán kính)
     if (ring > 1) {
@@ -120,22 +123,25 @@ export class BookingDispatchProcessor extends WorkerHost {
         ...data,
         excludedTaskerIds: [
           ...excludedTaskerIds,
-          ...taskers.map((t) => t.tasker_id),
+          ...invitedTaskerIds,
         ],
       };
       const nextJobId =
         await this.bookingDispatchService.enqueueNextRing(nextData);
-      const scheduledData: DispatchJobData = {
-        ...nextData,
-        ring: ring + 1,
-        radiusMeters: Math.round(radiusMeters * 1.5),
-      };
       await this.bookingDispatchService.persistDispatchState(
-        scheduledData,
+        data,
         nextJobId,
+        invitedTaskerIds,
+        expiresAt,
       );
     } else {
       this.logger.log(`Dispatch completed all rings for booking=${bookingId}`);
+      await this.bookingDispatchService.persistDispatchState(
+        data,
+        undefined,
+        invitedTaskerIds,
+        expiresAt,
+      );
       // Không còn ring nào — customer FE đã có countdown, không thay đổi trạng thái
     }
   }

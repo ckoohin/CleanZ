@@ -108,7 +108,22 @@ export function useAcceptBooking() {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
-    onError: handleTaskerBookingError,
+    onError: (err: unknown, bookingId) => {
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 409) {
+        toast.warning("Đơn đã có người nhận");
+      } else if (status === 403) {
+        toast.warning(getErrorMsg(err));
+      } else {
+        handleTaskerBookingError(err);
+      }
+
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
+      void qc.invalidateQueries({
+        queryKey: TASKER_KEYS.postedDetail(bookingId),
+      });
+    },
   });
 }
 

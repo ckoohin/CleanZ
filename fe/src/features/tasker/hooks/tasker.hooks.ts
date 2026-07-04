@@ -12,12 +12,6 @@ import type { TaskerLocationPayload } from '../services/tasker.service';
 type ApiError = Error & { response?: { data?: { message?: string } } };
 type PresenceStatus = 'ONLINE' | 'OFFLINE';
 
-// Fallback: 376 Thụy Khuê, Tây Hồ, Hà Nội
-const TEST_TASKER_LOCATION: TaskerLocationPayload = {
-  lat: 21.0463,
-  lng: 105.8374,
-};
-
 export const taskerKeys = {
   all: ['tasker'] as const,
   profile: () => [...taskerKeys.all, 'profile'] as const,
@@ -173,20 +167,20 @@ export function useTaskerLocationHeartbeat(tasker?: TaskerProfile | null) {
   }, [isOnline]);
 }
 
-function getFallbackTaskerLocation(): TaskerLocationPayload {
-  return TEST_TASKER_LOCATION;
-}
-
 function getCurrentTaskerLocation(): Promise<TaskerLocationPayload> {
   if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-    return Promise.resolve(getFallbackTaskerLocation());
+    return Promise.reject(
+      new Error('Trình duyệt không hỗ trợ định vị vị trí thật.'),
+    );
   }
 
   if (!window.isSecureContext) {
-    return Promise.resolve(getFallbackTaskerLocation());
+    return Promise.reject(
+      new Error('Vui lòng mở ứng dụng bằng HTTPS để dùng vị trí thật.'),
+    );
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
@@ -195,7 +189,11 @@ function getCurrentTaskerLocation(): Promise<TaskerLocationPayload> {
         });
       },
       () => {
-        resolve(getFallbackTaskerLocation());
+        reject(
+          new Error(
+            'Không lấy được vị trí thật. Hãy bật GPS/vị trí chính xác rồi thử lại.',
+          ),
+        );
       },
       {
         enableHighAccuracy: true,

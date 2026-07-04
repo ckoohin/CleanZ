@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -471,10 +472,13 @@ export class TaskerBookingService {
         }
 
         if (booking.status !== BookingStatus.POSTED || booking.tasker) {
-          throw new ConflictException(
-            'Booking không còn khả dụng hoặc đã có tasker nhận',
-          );
+          throw new ConflictException('Đơn đã có người nhận');
         }
+
+        await this.assertTaskerHasActiveDispatchInvitation(
+          booking.id,
+          tasker.id,
+        );
 
         await this.bookingPolicyService.assertTaskerConcurrentAndOverlapConstraints(
           manager,
@@ -1057,6 +1061,25 @@ export class TaskerBookingService {
     }
 
     return tasker;
+  }
+
+  private async assertTaskerHasActiveDispatchInvitation(
+    bookingId: string,
+    taskerId: string,
+  ): Promise<void> {
+    const state =
+      await this.bookingDispatchService.getDispatchInvitationState(bookingId);
+    const isInvited = state?.invitedTaskerIds.includes(taskerId) ?? false;
+    const isExpired =
+      state?.expiresAt instanceof Date &&
+      Number.isFinite(state.expiresAt.getTime()) &&
+      state.expiresAt.getTime() < Date.now();
+
+    if (!isInvited || isExpired) {
+      throw new ForbiddenException(
+        'Đơn này chưa được gửi cho bạn hoặc lượt nhận đã hết',
+      );
+    }
   }
 
   private async findPackagesByBookingPackageIds(

@@ -45,11 +45,6 @@ interface RedisLike {
 
 const TASKER_LOCATION_TTL_SECONDS = 5 * 60;
 
-function isLocationSchemaUnavailable(error: unknown): boolean {
-  const code = (error as { code?: string })?.code;
-  return code === '42703' || code === '42883';
-}
-
 @Injectable()
 export class TaskerService {
   private readonly logger = new Logger(TaskerService.name);
@@ -352,23 +347,13 @@ export class TaskerService {
     lat: number,
     lng: number,
   ): Promise<void> {
-    try {
-      await this.dataSource.query(
-        `UPDATE taskers
+    await this.dataSource.query(
+      `UPDATE taskers
            SET current_location    = ST_SetSRID(ST_Point($1, $2), 4326)::geography,
                location_updated_at = NOW()
          WHERE id = $3`,
-        [lng, lat, taskerId],
-      );
-    } catch (error) {
-      if (!isLocationSchemaUnavailable(error)) {
-        throw error;
-      }
-
-      this.logger.warn(
-        'Tasker location columns/PostGIS are unavailable; cached location in Redis only',
-      );
-    }
+      [lng, lat, taskerId],
+    );
   }
 
   // ─── Admin: tasker management ─────────────────────────────────────────────
