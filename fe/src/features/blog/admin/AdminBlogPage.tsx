@@ -20,6 +20,7 @@ import type { BlogPost, BlogStatus } from "../types/blog.types";
 import { formatDate, getBlogAuthorName, getBlogCategoryName, getBlogThumbnail } from "../utils/blog-format";
 import { BlogCategoryManager } from "./BlogCategoryManager";
 import { BlogFormDialog } from "./BlogFormDialog";
+import { BlogPreviewDialog } from "./BlogPreviewDialog";
 
 const STATUS_OPTIONS: BlogStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
 const STATUS_LABELS: Record<BlogStatus, string> = {
@@ -34,6 +35,7 @@ export function AdminBlogPage() {
   const sp = useSearchParams();
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null);
   const [deletingBlog, setDeletingBlog] = useState<BlogPost | null>(null);
+  const [previewBlogId, setPreviewBlogId] = useState<string | undefined>();
   const [showForm, setShowForm] = useState(false);
 
   const page = Math.max(1, Number(sp.get("page") ?? 1));
@@ -116,10 +118,16 @@ export function AdminBlogPage() {
   const rowActions: RowAction<BlogPost>[] = [
     {
       type: "view",
+      label: "Preview admin",
+      icon: Eye,
+      onClick: (blog) => setPreviewBlogId(blog.id),
+    },
+    {
+      type: "view",
       label: "Xem trang khách hàng",
       icon: Eye,
       hidden: (blog) => blog.status !== "PUBLISHED",
-      onClick: (blog) => window.open(ROUTES.CUSTOMER.BLOG_DETAIL(blog.id), "_blank"),
+      onClick: (blog) => window.open(ROUTES.CUSTOMER.BLOG_DETAIL(blog.slug), "_blank"),
     },
     { type: "edit", label: "Sửa", icon: Pencil, onClick: openEdit },
     { type: "delete", label: "Xóa", icon: Trash2, variant: "destructive", onClick: setDeletingBlog },
@@ -186,12 +194,17 @@ export function AdminBlogPage() {
       </div>
 
       <BlogFormDialog open={showForm} onOpenChange={setShowForm} blog={editingBlog} />
+      <BlogPreviewDialog
+        blogId={previewBlogId}
+        open={Boolean(previewBlogId)}
+        onOpenChange={(open) => !open && setPreviewBlogId(undefined)}
+      />
       <ConfirmDialog
         isOpen={Boolean(deletingBlog)}
         onClose={() => setDeletingBlog(null)}
         onConfirm={confirmDelete}
         title="Xóa bài viết"
-        description={deletingBlog ? `Bạn có chắc chắn muốn xóa bài viết "${deletingBlog.title}"? Hành động này không thể hoàn tác` : ""}
+        description={deletingBlog ? `Bạn có chắc chắn muốn xóa bài viết "${deletingBlog.title}"? Hành động này không thể hoàn tác.` : ""}
         confirmLabel="Xóa bài viết"
         variant="destructive"
         isPending={deleteMutation.isPending}

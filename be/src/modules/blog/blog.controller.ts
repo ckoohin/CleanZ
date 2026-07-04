@@ -10,8 +10,10 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import {
   paginatedResponse,
   successResponse,
@@ -43,6 +45,20 @@ export class BlogController {
     );
   }
 
+  @Get('categories')
+  @ApiOperation({ summary: 'Danh sach category blog public' })
+  async findPublicCategories() {
+    const categories = await this.blogService.findPublicCategories();
+    return successResponse(categories);
+  }
+
+  @Get('tags')
+  @ApiOperation({ summary: 'Danh sach tag blog public' })
+  async findPublicTags() {
+    const tags = await this.blogService.findPublicTags();
+    return successResponse(tags);
+  }
+
   @Get('admin/all')
   @AdminOnly()
   @ApiOperation({ summary: 'Danh sách tất cả blog cho admin' })
@@ -54,6 +70,14 @@ export class BlogController {
       result.page,
       result.limit,
     );
+  }
+
+  @Get('admin/:id/preview')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Preview blog cho admin khong tang view' })
+  async previewForAdmin(@Param('id', ParseUUIDPipe) id: string) {
+    const blog = await this.blogService.findOneForPreview(id);
+    return successResponse(blog);
   }
 
   @Post('admin')
@@ -132,10 +156,32 @@ export class BlogController {
     await this.blogService.removeCategory(id);
   }
 
+  @Get('slug/:slug')
+  @ApiOperation({ summary: 'Chi tiet blog PUBLISHED theo slug cho customer' })
+  async findPublishedOneBySlug(
+    @Param('slug') slug: string,
+    @Req() request: Request,
+  ) {
+    const blog = await this.blogService.findPublishedOneBySlug(
+      slug,
+      this.getViewClientKey(request),
+    );
+    return successResponse(blog);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết blog PUBLISHED cho customer' })
   async findPublishedOne(@Param('id', ParseUUIDPipe) id: string) {
     const blog = await this.blogService.findPublishedOne(id);
     return successResponse(blog);
+  }
+
+  private getViewClientKey(request: Request): string {
+    const forwardedFor = request.headers['x-forwarded-for'];
+    const ip = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : forwardedFor?.split(',')[0] || request.ip || request.socket.remoteAddress || 'unknown';
+    const userAgent = request.headers['user-agent'] || 'unknown';
+    return `${ip}:${userAgent}`;
   }
 }

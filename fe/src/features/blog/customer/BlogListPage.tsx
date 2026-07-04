@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ROUTES } from "@/constants/routes";
-import { usePublishedBlogs } from "../hooks/useBlog";
+import { usePublishedBlogs, usePublicBlogCategories, usePublicBlogTags } from "../hooks/useBlog";
 import {
   formatDate,
   getBlogAuthorName,
@@ -21,6 +21,8 @@ export function BlogListPage() {
   const sp = useSearchParams();
   const page = Math.max(1, Number(sp.get("page") ?? 1));
   const q = sp.get("q") ?? "";
+  const categoryId = sp.get("category_id") ?? "";
+  const tag = sp.get("tag") ?? "";
 
   const setParams = (updates: Record<string, string | undefined>, resetPage = true) => {
     const next = new URLSearchParams(sp.toString());
@@ -32,7 +34,9 @@ export function BlogListPage() {
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   };
 
-  const { data, isLoading, isError, refetch } = usePublishedBlogs({ page, limit: 9, q });
+  const { data, isLoading, isError, refetch } = usePublishedBlogs({ page, limit: 9, q, category_id: categoryId, tag });
+  const { data: categories = [] } = usePublicBlogCategories();
+  const { data: tags = [] } = usePublicBlogTags();
   const blogs = data?.data ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
 
@@ -54,7 +58,7 @@ export function BlogListPage() {
       </section>
 
       <div className="sticky top-0 z-20 border-b border-[var(--c-line)] bg-[var(--c-bg)]/95 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 py-3">
+        <div className="mx-auto max-w-6xl space-y-3 px-4 py-3">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--c-muted)]" />
             <Input
@@ -74,6 +78,40 @@ export function BlogListPage() {
               </button>
             )}
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={!categoryId ? "default" : "outline"} onClick={() => setParams({ category_id: undefined })}>
+              Tất cả danh mục
+            </Button>
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                size="sm"
+                variant={categoryId === category.id ? "default" : "outline"}
+                onClick={() => setParams({ category_id: category.id })}
+              >
+                {category.name}
+              </Button>
+            ))}
+          </div>
+
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant={!tag ? "default" : "outline"} onClick={() => setParams({ tag: undefined })}>
+                Tất cả thẻ
+              </Button>
+              {tags.map((item) => (
+                <Button
+                  key={item.id}
+                  size="sm"
+                  variant={tag === item.slug ? "default" : "outline"}
+                  onClick={() => setParams({ tag: item.slug })}
+                >
+                  #{item.name}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -99,7 +137,7 @@ export function BlogListPage() {
           <div className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card)] px-4 py-16 text-center">
             <BookOpenText className="mx-auto mb-3 h-10 w-10 text-[var(--c-muted)]" />
             <h2 className="text-lg font-bold text-[var(--c-ink)]">Chưa có bài viết phù hợp</h2>
-            <p className="mt-1 text-sm text-[var(--c-muted)]">Thử thay đổi từ khóa tìm kiếm.</p>
+            <p className="mt-1 text-sm text-[var(--c-muted)]">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc.</p>
           </div>
         )}
 
@@ -109,7 +147,7 @@ export function BlogListPage() {
               {blogs.map((blog) => (
                 <Link
                   key={blog.id}
-                  href={ROUTES.CUSTOMER.BLOG_DETAIL(blog.id)}
+                  href={ROUTES.CUSTOMER.BLOG_DETAIL(blog.slug)}
                   className="group overflow-hidden rounded-lg border border-[var(--c-line)] bg-[var(--c-card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <div className="aspect-[16/10] overflow-hidden bg-[var(--c-soft)]">
@@ -137,9 +175,9 @@ export function BlogListPage() {
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {blog.tags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="rounded-md bg-[var(--c-soft)] px-2 py-1 text-[11px] text-[var(--c-muted)]">
-                          #{tag}
+                      {blog.tags.slice(0, 3).map((tagName) => (
+                        <span key={tagName} className="rounded-md bg-[var(--c-soft)] px-2 py-1 text-[11px] text-[var(--c-muted)]">
+                          #{tagName}
                         </span>
                       ))}
                     </div>

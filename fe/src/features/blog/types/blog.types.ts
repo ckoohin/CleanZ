@@ -10,6 +10,12 @@ export interface BlogCategory {
   updatedAt?: string;
 }
 
+export interface BlogTag {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface BlogAuthor {
   id: string;
   fullName: string;
@@ -39,6 +45,7 @@ export interface BlogListParams {
   limit?: number;
   q?: string;
   category_id?: string;
+  tag?: string;
   status?: BlogStatus;
 }
 

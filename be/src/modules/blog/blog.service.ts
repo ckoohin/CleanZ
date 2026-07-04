@@ -16,6 +16,7 @@ import { BlogCategoryEntity } from './entity/blog-category.entity';
 import { BlogTagRelationEntity } from './entity/blog-tag-relation.entity';
 import { BlogTagEntity } from './entity/blog-tag.entity';
 import { BlogEntity, BlogStatus } from './entity/blog.entity';
+import { sanitizeBlogContent } from './utils/blog-content.util';
 
 export interface BlogResponse {
   id: string;
@@ -49,11 +50,20 @@ export interface BlogCategoryResponse {
   updatedAt: Date;
 }
 
+export interface BlogTagResponse {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 const MAX_BLOG_TAGS = 8;
 const MAX_BLOG_TAG_LENGTH = 50;
+const VIEW_COUNT_TTL_MS = 30 * 60 * 1000;
 
 @Injectable()
 export class BlogService {
+  private readonly recentViews = new Map<string, number>();
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(BlogEntity)
@@ -67,7 +77,7 @@ export class BlogService {
   ) {}
 
   async findPublished(
-    query: QueryBlogDto,
+    query: QueryBlogDto & { tag?: string },
   ): Promise<PaginatedData<BlogResponse>> {
     return this.findWithPagination({ ...query, status: BlogStatus.PUBLISHED });
   }
@@ -78,10 +88,27 @@ export class BlogService {
       throw new NotFoundException('BLOG_NOT_FOUND');
     }
 
-    await this.blogRepo.increment({ id }, 'viewCount', 1);
-    blog.viewCount += 1;
+    await this.recordView(blog);
 
     return this.toResponse(blog);
+  }
+
+  async findPublishedOneBySlug(
+    slug: string,
+    clientKey?: string,
+  ): Promise<BlogResponse> {
+    const blog = await this.findEntityBySlug(slug);
+    if (blog.status !== BlogStatus.PUBLISHED) {
+      throw new NotFoundException('BLOG_NOT_FOUND');
+    }
+
+    await this.recordView(blog, clientKey);
+
+    return this.toResponse(blog);
+  }
+
+  async findOneForPreview(id: string): Promise<BlogResponse> {
+    return this.findOneForAdmin(id);
   }
 
   async findAllForAdmin(
@@ -101,7 +128,7 @@ export class BlogService {
         title: dto.title,
         slug: this.normalizeSlug(dto.slug),
         summary: dto.summary ?? null,
-        content: dto.content,
+        content: sanitizeBlogContent(dto.content),
         thumbnailUrl: dto.thumbnail_url ?? null,
         categoryId: dto.category_id ?? null,
         authorId: authorId ?? null,
@@ -132,7 +159,8 @@ export class BlogService {
 
       blog.title = dto.title ?? blog.title;
       blog.summary = dto.summary !== undefined ? dto.summary : blog.summary;
-      blog.content = dto.content ?? blog.content;
+      blog.content =
+        dto.content !== undefined ? sanitizeBlogContent(dto.content) : blog.content;
       blog.thumbnailUrl =
         dto.thumbnail_url !== undefined ? dto.thumbnail_url : blog.thumbnailUrl;
       blog.categoryId =
@@ -240,12 +268,51 @@ export class BlogService {
     await this.categoryRepo.remove(category);
   }
 
+  async findPublicCategories(): Promise<BlogCategoryResponse[]> {
+    const categories = await this.categoryRepo
+      .createQueryBuilder('category')
+      .innerJoin('category.blogs', 'blog', 'blog.status = :status', {
+        status: BlogStatus.PUBLISHED,
+      })
+      .loadRelationCountAndMap(
+        'category.blogCount',
+        'category.blogs',
+        'publishedBlogs',
+        (qb) =>
+          qb.andWhere('publishedBlogs.status = :status', {
+            status: BlogStatus.PUBLISHED,
+          }),
+      )
+      .orderBy('category.name', 'ASC')
+      .getMany();
+
+    return categories.map((category) => this.toCategoryResponse(category));
+  }
+
+  async findPublicTags(): Promise<BlogTagResponse[]> {
+    const tags = await this.tagRepo
+      .createQueryBuilder('tag')
+      .innerJoin('tag.blogRelations', 'relation')
+      .innerJoin('relation.blog', 'blog', 'blog.status = :status', {
+        status: BlogStatus.PUBLISHED,
+      })
+      .distinct(true)
+      .orderBy('tag.name', 'ASC')
+      .getMany();
+
+    return tags.map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      slug: tag.slug,
+    }));
+  }
+
   private async findOneForAdmin(id: string): Promise<BlogResponse> {
     return this.toResponse(await this.findEntityById(id));
   }
 
   private async findWithPagination(
-    query: QueryBlogDto,
+    query: QueryBlogDto & { tag?: string },
   ): Promise<PaginatedData<BlogResponse>> {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 10)));
@@ -269,6 +336,12 @@ export class BlogService {
     if (query.category_id) {
       qb.andWhere('blog.categoryId = :categoryId', {
         categoryId: query.category_id,
+      });
+    }
+
+    if (query.tag?.trim()) {
+      qb.andWhere('tag.slug = :tagSlug', {
+        tagSlug: this.normalizeSlug(query.tag),
       });
     }
 
@@ -302,6 +375,41 @@ export class BlogService {
 
     if (!blog) throw new NotFoundException('BLOG_NOT_FOUND');
     return blog;
+  }
+
+  private async findEntityBySlug(slug: string): Promise<BlogEntity> {
+    const blog = await this.blogRepo.findOne({
+      where: { slug: this.normalizeSlug(slug) },
+      relations: ['category', 'author', 'tagRelations', 'tagRelations.tag'],
+    });
+
+    if (!blog) throw new NotFoundException('BLOG_NOT_FOUND');
+    return blog;
+  }
+
+  private async recordView(
+    blog: BlogEntity,
+    clientKey = 'anonymous',
+  ): Promise<void> {
+    const now = Date.now();
+    const key = `${blog.id}:${clientKey}`;
+    const lastViewedAt = this.recentViews.get(key);
+
+    if (lastViewedAt && now - lastViewedAt < VIEW_COUNT_TTL_MS) {
+      return;
+    }
+
+    this.recentViews.set(key, now);
+    if (this.recentViews.size > 10000) {
+      for (const [viewKey, viewedAt] of this.recentViews) {
+        if (now - viewedAt > VIEW_COUNT_TTL_MS) {
+          this.recentViews.delete(viewKey);
+        }
+      }
+    }
+
+    await this.blogRepo.increment({ id: blog.id }, 'viewCount', 1);
+    blog.viewCount += 1;
   }
 
   private async assertSlugAvailable(

@@ -24,6 +24,11 @@ export class QueryBlogDto {
   @IsUUID()
   category_id?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  tag?: string;
+
   @ApiPropertyOptional({ enum: BlogStatus })
   @IsOptional()
   @IsEnum(BlogStatus)

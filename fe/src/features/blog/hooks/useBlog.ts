@@ -9,8 +9,12 @@ export const blogKeys = {
   all: ["blogs"] as const,
   published: (params?: BlogListParams) => [...blogKeys.all, "published", params] as const,
   detail: (id: string) => [...blogKeys.all, "detail", id] as const,
+  detailBySlug: (slug: string) => [...blogKeys.all, "detail-slug", slug] as const,
   adminList: (params?: BlogListParams) => [...blogKeys.all, "admin", params] as const,
+  adminPreview: (id: string) => [...blogKeys.all, "admin-preview", id] as const,
   categories: (q?: string) => [...blogKeys.all, "categories", q || ""] as const,
+  publicCategories: () => [...blogKeys.all, "public-categories"] as const,
+  publicTags: () => [...blogKeys.all, "public-tags"] as const,
 };
 
 function getBlogErrorMessage(error: unknown, fallback: string): string {
@@ -45,6 +49,14 @@ export function usePublishedBlog(id: string) {
   });
 }
 
+export function usePublishedBlogBySlug(slug: string) {
+  return useQuery({
+    queryKey: blogKeys.detailBySlug(slug),
+    queryFn: () => blogApi.findPublishedBySlug(slug),
+    enabled: Boolean(slug),
+  });
+}
+
 export function useAdminBlogs(params?: BlogListParams) {
   return useQuery({
     queryKey: blogKeys.adminList(params),
@@ -52,10 +64,32 @@ export function useAdminBlogs(params?: BlogListParams) {
   });
 }
 
+export function useAdminBlogPreview(id?: string) {
+  return useQuery({
+    queryKey: blogKeys.adminPreview(id || ""),
+    queryFn: () => adminBlogApi.preview(id || ""),
+    enabled: Boolean(id),
+  });
+}
+
 export function useAdminBlogCategories(q?: string) {
   return useQuery({
     queryKey: blogKeys.categories(q),
     queryFn: () => adminBlogCategoryApi.list(q),
+  });
+}
+
+export function usePublicBlogCategories() {
+  return useQuery({
+    queryKey: blogKeys.publicCategories(),
+    queryFn: () => blogApi.listCategories(),
+  });
+}
+
+export function usePublicBlogTags() {
+  return useQuery({
+    queryKey: blogKeys.publicTags(),
+    queryFn: () => blogApi.listTags(),
   });
 }
 
