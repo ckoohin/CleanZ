@@ -75,9 +75,11 @@ function SubServiceCard({ svc, isSelected, onToggle, onPreview }: {
   );
 }
 
-interface NewDurationState {
+export interface NewDurationState {
   durationHours: string;
   priceAdjustment: string;
+  priceMode: 'percent' | 'fixed';
+  fixedPriceInput: string;
   isPopular: boolean;
   suggestedArea: string;
   taskerCount: string;
@@ -158,6 +160,10 @@ export interface StepPricingConfigProps {
   setTempHours: React.Dispatch<React.SetStateAction<string>>;
   setTempArea: React.Dispatch<React.SetStateAction<string>>;
   setTempAdjustment: React.Dispatch<React.SetStateAction<string>>;
+  tempPriceMode: 'percent' | 'fixed';
+  setTempPriceMode: React.Dispatch<React.SetStateAction<'percent' | 'fixed'>>;
+  tempFixedPriceInput: string;
+  setTempFixedPriceInput: React.Dispatch<React.SetStateAction<string>>;
   setTempIsPopular: React.Dispatch<React.SetStateAction<boolean>>;
   setTempIsActive: React.Dispatch<React.SetStateAction<boolean>>;
   setTempTaskerCount: React.Dispatch<React.SetStateAction<string>>;
@@ -254,7 +260,9 @@ export function StepPricingConfig({
   handleSaveDuration, durations, setDurations, inlineEditingCell, setInlineEditingCell,
   inlineEditValue, setInlineEditValue, captureInlineRect, setIsOpenInlineHoursDropdown, handleInlineSave,
   setIsOpenInlineAreaDropdown, isOpenInlineAdjustmentDropdown, setIsOpenInlineAdjustmentDropdown,
-  setEditingDurationIndex, setTempHours, setTempArea, setTempAdjustment, setTempIsPopular, setTempIsActive,
+  setEditingDurationIndex, setTempHours, setTempArea, setTempAdjustment,
+  tempPriceMode, setTempPriceMode, tempFixedPriceInput, setTempFixedPriceInput,
+  setTempIsPopular, setTempIsActive,
   setTempTaskerCount, setViewingDuration,
   editingAddonIndex, setEditingAddonIndex, addons, setAddons, resetNewAddon, newAddon, setNewAddon,
   handleSaveAddon, handleEditAddon, ADDON_PRICE_UNIT_LABELS,
@@ -616,7 +624,7 @@ export function StepPricingConfig({
                     <Field
                       label={
                         <div className="flex items-center gap-1">
-                          <span>Tăng/Giảm giá (%)</span>
+                          <span>Điều chỉnh giá</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button type="button" className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full transition-colors cursor-help shrink-0">
@@ -624,51 +632,75 @@ export function StepPricingConfig({
                               </button>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[280px] bg-slate-900 text-white p-3 text-xs leading-relaxed border border-slate-800 shadow-lg rounded-lg z-50">
-                              Tỷ lệ % điều chỉnh giá so với đơn giá gốc chuẩn. Ví dụ: -5 = giảm 5% giá trị của mốc này (khuyến khích đặt mốc dài); 10 = tăng 10% giá trị của mốc này.
+                              Chọn điều chỉnh theo % so với đơn giá gốc chuẩn, hoặc nhập thẳng một mức giá cụ thể cho mốc thời lượng này.
                             </TooltipContent>
                           </Tooltip>
                         </div>
                       }
                       required
-                      hint="Chọn hoặc nhập phần trăm tăng/giảm giá"
+                      hint={newDuration.priceMode === "fixed" ? "Nhập số tiền cụ thể (VNĐ) cho mốc này" : "Chọn hoặc nhập phần trăm tăng/giảm giá"}
                     >
-                      <div className="relative">
-                        <Input
-                          type="text"
-                          placeholder="0"
-                          value={
-                            isOpenAdjustmentDropdown
-                              ? newDuration.priceAdjustment
-                              : adjustmentOptions.find(o => o.value === newDuration.priceAdjustment)?.label || (newDuration.priceAdjustment ? `${newDuration.priceAdjustment}%` : "Giá gốc (0%)")
-                          }
-                          onChange={e => {
-                            const val = e.target.value.replace(/[^0-9.-]/g, "");
-                            setNewDuration(p => ({ ...p, priceAdjustment: val }));
-                          }}
-                          onFocus={() => setIsOpenAdjustmentDropdown(true)}
-                          onBlur={() => setTimeout(() => setIsOpenAdjustmentDropdown(false), 200)}
-                          className="h-10 rounded-lg pr-8 font-bold"
-                        />
-                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Search className="w-3.5 h-3.5" />
+                      <div className="space-y-1.5">
+                        <div className="grid grid-cols-2 gap-1 p-1 bg-muted/30 border border-border/30 rounded-lg">
+                          <button type="button" onClick={() => setNewDuration(p => ({ ...p, priceMode: "percent" }))}
+                            className={cn("h-8 rounded-md text-xs font-bold transition-colors", newDuration.priceMode !== "fixed" ? "bg-white shadow-sm text-primary" : "text-slate-500")}
+                          >
+                            Theo %
+                          </button>
+                          <button type="button" onClick={() => setNewDuration(p => ({ ...p, priceMode: "fixed" }))}
+                            className={cn("h-8 rounded-md text-xs font-bold transition-colors", newDuration.priceMode === "fixed" ? "bg-white shadow-sm text-primary" : "text-slate-500")}
+                          >
+                            Nhập giá cụ thể
+                          </button>
                         </div>
-                        {isOpenAdjustmentDropdown && (
-                          <div className="absolute z-50 w-full mt-1 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
-                            {adjustmentOptions
-                              .filter(opt =>
-                                opt.label.toLowerCase().includes((newDuration.priceAdjustment || "").toLowerCase()) ||
-                                opt.value.includes(newDuration.priceAdjustment || "")
-                              )
-                              .map(opt => (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  onMouseDown={() => setNewDuration(p => ({ ...p, priceAdjustment: opt.value }))}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
+                        {newDuration.priceMode === "fixed" ? (
+                          <Input
+                            inputMode="numeric"
+                            placeholder="Ví dụ: 350000"
+                            value={newDuration.fixedPriceInput}
+                            onChange={e => setNewDuration(p => ({ ...p, fixedPriceInput: e.target.value.replace(/\D/g, "") }))}
+                            className="h-10 rounded-lg font-bold"
+                          />
+                        ) : (
+                          <div className="relative">
+                            <Input
+                              type="text"
+                              placeholder="0"
+                              value={
+                                isOpenAdjustmentDropdown
+                                  ? newDuration.priceAdjustment
+                                  : adjustmentOptions.find(o => o.value === newDuration.priceAdjustment)?.label || (newDuration.priceAdjustment ? `${newDuration.priceAdjustment}%` : "Giá gốc (0%)")
+                              }
+                              onChange={e => {
+                                const val = e.target.value.replace(/[^0-9.-]/g, "");
+                                setNewDuration(p => ({ ...p, priceAdjustment: val }));
+                              }}
+                              onFocus={() => setIsOpenAdjustmentDropdown(true)}
+                              onBlur={() => setTimeout(() => setIsOpenAdjustmentDropdown(false), 200)}
+                              className="h-10 rounded-lg pr-8 font-bold"
+                            />
+                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              <Search className="w-3.5 h-3.5" />
+                            </div>
+                            {isOpenAdjustmentDropdown && (
+                              <div className="absolute z-50 w-full mt-1 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                                {adjustmentOptions
+                                  .filter(opt =>
+                                    opt.label.toLowerCase().includes((newDuration.priceAdjustment || "").toLowerCase()) ||
+                                    opt.value.includes(newDuration.priceAdjustment || "")
+                                  )
+                                  .map(opt => (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onMouseDown={() => setNewDuration(p => ({ ...p, priceAdjustment: opt.value }))}
+                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 font-semibold text-slate-700"
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -735,17 +767,21 @@ export function StepPricingConfig({
                         <div className="bg-white border border-slate-200/60 p-2.5 rounded-lg">
                           <p className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Tiêu chuẩn (Standard)</p>
                           <p className="text-sm font-black text-slate-800">
-                            {vnd(Number(newDuration.durationHours) * baseHourlyRate * (1 + (Number(newDuration.priceAdjustment) || 0) / 100))}
+                            {newDuration.priceMode === "fixed"
+                              ? vnd(Number(newDuration.fixedPriceInput) || 0)
+                              : vnd(Number(newDuration.durationHours) * baseHourlyRate * (1 + (Number(newDuration.priceAdjustment) || 0) / 100))}
                           </p>
                         </div>
                         <div className="bg-primary/5 border border-primary/20 p-2.5 rounded-lg">
                           <p className="text-[10px] text-primary font-bold uppercase mb-0.5">Cao cấp (Premium)</p>
                           <p className="text-sm font-black text-primary">
-                            {vnd(Number(newDuration.durationHours) * premiumHourlyRate * (1 + (Number(newDuration.priceAdjustment) || 0) / 100))}
+                            {newDuration.priceMode === "fixed"
+                              ? vnd((Number(newDuration.fixedPriceInput) || 0) * (baseHourlyRate > 0 ? premiumHourlyRate / baseHourlyRate : 1))
+                              : vnd(Number(newDuration.durationHours) * premiumHourlyRate * (1 + (Number(newDuration.priceAdjustment) || 0) / 100))}
                           </p>
                         </div>
                       </div>
-                      {Number(newDuration.priceAdjustment) !== 0 && (
+                      {newDuration.priceMode !== "fixed" && Number(newDuration.priceAdjustment) !== 0 && (
                         <p className="text-[10px] text-slate-500 font-medium">
                           * Đã áp dụng tỷ lệ {Number(newDuration.priceAdjustment) < 0 ? `giảm ${Math.abs(Number(newDuration.priceAdjustment))}%` : `tăng ${Number(newDuration.priceAdjustment)}%`} so với đơn giá gốc chuẩn.
                         </p>
@@ -880,10 +916,20 @@ export function StepPricingConfig({
                               )}
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <p className="font-black text-slate-700 text-xs">{vnd(d.durationHours * baseHourlyRate * d.priceMultiplier)}</p>
-                              <p className="text-[10px] text-primary font-bold mt-0.5">{vnd(d.durationHours * premiumHourlyRate * d.priceMultiplier)} <span className="text-primary/60 font-semibold">Premium</span></p>
+                              {d.priceMode === "fixed" ? (
+                                <>
+                                  <p className="font-black text-slate-700 text-xs">{vnd(Number(d.fixedPrice ?? 0))}</p>
+                                  <p className="text-[10px] text-primary font-bold mt-0.5">{vnd(Number(d.fixedPrice ?? 0) * (baseHourlyRate > 0 ? premiumHourlyRate / baseHourlyRate : 1))} <span className="text-primary/60 font-semibold">Premium</span></p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="font-black text-slate-700 text-xs">{vnd(d.durationHours * baseHourlyRate * d.priceMultiplier)}</p>
+                                  <p className="text-[10px] text-primary font-bold mt-0.5">{vnd(d.durationHours * premiumHourlyRate * d.priceMultiplier)} <span className="text-primary/60 font-semibold">Premium</span></p>
+                                </>
+                              )}
                             </td>
                             <td className="py-3 px-4 text-center select-none min-w-[150px]" onDoubleClick={() => {
+                              if (d.priceMode === "fixed") return;
                               setInlineEditingCell({ rowIndex: i, field: 'adjustment' });
                               setInlineEditValue(d.priceMultiplier ? Math.round((d.priceMultiplier - 1) * 100).toString() : "0");
                             }}>
@@ -914,9 +960,11 @@ export function StepPricingConfig({
                                   </div>
                                 </div>
                               ) : (
-                                <div className="cursor-pointer group flex items-center justify-center gap-1" title="Nhấp đúp chuột để sửa nhanh">
+                                <div className="cursor-pointer group flex items-center justify-center gap-1" title={d.priceMode === "fixed" ? "Nhấp vào biểu tượng Sửa để thay đổi" : "Nhấp đúp chuột để sửa nhanh"}>
                                   <span>
-                                    {d.priceMultiplier === 1.0 ? (
+                                    {d.priceMode === "fixed" ? (
+                                      <span className="text-primary font-black">{vnd(Number(d.fixedPrice ?? 0))}</span>
+                                    ) : d.priceMultiplier === 1.0 ? (
                                       <span className="text-slate-500 font-semibold">Giá gốc</span>
                                     ) : d.priceMultiplier < 1.0 ? (
                                       <span className="text-emerald-600 font-black">Giảm {Math.round((1 - d.priceMultiplier) * 100)}%</span>
@@ -951,6 +999,8 @@ export function StepPricingConfig({
                                      setTempHours(d.durationHours.toString());
                                      setTempArea(d.suggestedArea ? d.suggestedArea.toString() : "");
                                      setTempAdjustment(Math.round((d.priceMultiplier - 1) * 100).toString());
+                                     setTempPriceMode(d.priceMode || "percent");
+                                     setTempFixedPriceInput(d.fixedPrice ? String(d.fixedPrice) : "");
                                      setTempIsPopular(d.isPopular || false);
                                      setTempIsActive(d.isActive ?? true);
                                      setTempTaskerCount(d.taskerCount ? d.taskerCount.toString() : "1");
@@ -1749,6 +1799,10 @@ export function StepPricingConfig({
         formatHoursToMinutes={formatHoursToMinutes}
         tempAdjustment={tempAdjustment}
         setTempAdjustment={setTempAdjustment}
+        tempPriceMode={tempPriceMode}
+        setTempPriceMode={setTempPriceMode}
+        tempFixedPriceInput={tempFixedPriceInput}
+        setTempFixedPriceInput={setTempFixedPriceInput}
         adjustmentOptions={adjustmentOptions}
         allowMultipleTaskers={allowMultipleTaskers}
         tempTaskerCount={tempTaskerCount}

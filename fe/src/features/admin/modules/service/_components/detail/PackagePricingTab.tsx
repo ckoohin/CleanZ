@@ -403,6 +403,8 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
         durations: durations.map(d => ({
           durationHours: Number(d.durationHours),
           priceMultiplier: Number(d.priceMultiplier),
+          priceMode: d.priceMode ?? "percent",
+          fixedPrice: d.fixedPrice ?? null,
           isPopular: !!d.isPopular,
           isActive: !!d.isActive,
           suggestedArea: d.suggestedArea ? Number(d.suggestedArea) : null,
@@ -1143,10 +1145,10 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                           )}
                         </td>
                         <td className="py-2.5 px-4 text-center font-black text-slate-700">
-                          {vnd(d.durationHours * baseHourlyRate * d.priceMultiplier)}
+                          {d.priceMode === "fixed" ? vnd(Number(d.fixedPrice ?? 0)) : vnd(d.durationHours * baseHourlyRate * d.priceMultiplier)}
                         </td>
                         <td className="py-2.5 px-4 text-center select-none min-w-[150px]" onDoubleClick={() => {
-                          if (!isEditing) return;
+                          if (!isEditing || d.priceMode === "fixed") return;
                           setInlineEditingCell({ rowIndex: i, field: 'adjustment' });
                           setInlineEditValue(d.priceMultiplier ? Math.round((d.priceMultiplier - 1) * 100).toString() : "0");
                         }}>
@@ -1198,9 +1200,11 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                               )}
                             </div>
                           ) : (
-                            <div className={cn("flex items-center justify-center gap-1", isEditing && "cursor-pointer group")} title={isEditing ? "Nhấp đúp chuột để sửa nhanh" : undefined}>
+                            <div className={cn("flex items-center justify-center gap-1", isEditing && d.priceMode !== "fixed" && "cursor-pointer group")} title={isEditing && d.priceMode !== "fixed" ? "Nhấp đúp chuột để sửa nhanh" : undefined}>
                               <span>
-                                {d.priceMultiplier === 1.0 ? (
+                                {d.priceMode === "fixed" ? (
+                                  <span className="text-primary font-black">{vnd(Number(d.fixedPrice ?? 0))}</span>
+                                ) : d.priceMultiplier === 1.0 ? (
                                   <span className="text-slate-500 font-semibold">Giá gốc</span>
                                 ) : d.priceMultiplier < 1.0 ? (
                                   <span className="text-emerald-600 font-black">Giảm {Math.round((1 - d.priceMultiplier) * 100)}%</span>
@@ -1208,7 +1212,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                                   <span className="text-amber-600 font-black">Tăng {Math.round((d.priceMultiplier - 1) * 100)}%</span>
                                 )}
                               </span>
-                              {isEditing && <Pencil className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                              {isEditing && d.priceMode !== "fixed" && <Pencil className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
                             </div>
                           )}
                         </td>
@@ -1721,7 +1725,9 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                   <div className="space-y-1">
                     <span className="font-bold text-slate-500">Điều chỉnh giá:</span>
                     <div>
-                      {viewingDuration.priceMultiplier === 1.0 ? (
+                      {viewingDuration.priceMode === "fixed" ? (
+                        <span className="text-primary font-black">{vnd(Number(viewingDuration.fixedPrice ?? 0))}</span>
+                      ) : viewingDuration.priceMultiplier === 1.0 ? (
                         <span className="text-slate-500 font-extrabold">Giá gốc</span>
                       ) : viewingDuration.priceMultiplier < 1.0 ? (
                         <span className="text-emerald-600 font-black">Giảm {Math.round((1 - viewingDuration.priceMultiplier) * 100)}%</span>
@@ -1733,7 +1739,11 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-200/50">
                   <span className="font-bold text-slate-500">Đơn giá ước tính:</span>
-                  <span className="font-black text-rose-600 text-sm">{vnd(viewingDuration.durationHours * baseHourlyRate * viewingDuration.priceMultiplier)}</span>
+                  <span className="font-black text-rose-600 text-sm">
+                    {viewingDuration.priceMode === "fixed"
+                      ? vnd(Number(viewingDuration.fixedPrice ?? 0))
+                      : vnd(viewingDuration.durationHours * baseHourlyRate * viewingDuration.priceMultiplier)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-200/50">
                   <span className="font-bold text-slate-500">Đặc trưng / Trạng thái:</span>

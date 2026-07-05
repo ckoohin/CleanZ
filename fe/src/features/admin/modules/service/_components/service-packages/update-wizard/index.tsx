@@ -33,7 +33,7 @@ import { vnd, slugify } from "./shared/helpers";
 import { SelectedSubService } from "./shared/types";
 import { SURCHARGE_ICONS } from "./steps/StepWorkflowTerms";
 import { StepBasicInfo } from "./steps/StepBasicInfo";
-import { StepPricingConfig } from "./steps/StepPricingConfig";
+import { StepPricingConfig, NewDurationState } from "./steps/StepPricingConfig";
 import { StepWorkflowTerms } from "./steps/StepWorkflowTerms";
 import { StepReviewSubmit } from "./steps/StepReviewSubmit";
 
@@ -376,9 +376,11 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
   }, [allowSubscription, allowSingleService, activeTab]);
 
   // Helper states for adding new configurations in tabs
-  const [newDuration, setNewDuration] = useState({
+  const [newDuration, setNewDuration] = useState<NewDurationState>({
     durationHours: "",
     priceAdjustment: "0",
+    priceMode: "percent",
+    fixedPriceInput: "",
     isPopular: false,
     suggestedArea: "",
     taskerCount: "1",
@@ -427,6 +429,8 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
   const [tempHours, setTempHours] = useState("");
   const [tempArea, setTempArea] = useState("");
   const [tempAdjustment, setTempAdjustment] = useState("0");
+  const [tempPriceMode, setTempPriceMode] = useState<'percent' | 'fixed'>("percent");
+  const [tempFixedPriceInput, setTempFixedPriceInput] = useState("");
   const [tempIsPopular, setTempIsPopular] = useState(false);
   const [tempIsActive, setTempIsActive] = useState(true);
   const [tempTaskerCount, setTempTaskerCount] = useState("1");
@@ -486,6 +490,8 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
           id: d.id,
           durationHours: d.durationHours,
           priceMultiplier: Number(d.priceMultiplier),
+          priceMode: d.priceMode || "percent",
+          fixedPrice: d.fixedPrice !== null && d.fixedPrice !== undefined ? Number(d.fixedPrice) : null,
           isPopular: !!d.isPopular,
           isActive: !!d.isActive,
           suggestedArea: d.suggestedArea ? Number(d.suggestedArea) : null,
@@ -947,8 +953,12 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
       toast.error(`Không được thiết lập giờ vượt quá giờ phục vụ tối đa của gói (${maxHours} giờ). Muốn tăng khung giờ hơn thì hãy đổi giờ phục vụ tối đa cao hơn.`);
       return;
     }
+    if (newDuration.priceMode === "fixed" && !(Number(newDuration.fixedPriceInput) > 0)) {
+      toast.error("Vui lòng nhập giá cụ thể hợp lệ!");
+      return;
+    }
     const adj = parseFloat(newDuration.priceAdjustment) || 0;
-    const multi = 1 + adj / 100;
+    const multi = newDuration.priceMode === "fixed" ? 1.0 : 1 + adj / 100;
 
     const area = newDuration.suggestedArea ? Number(newDuration.suggestedArea) : null;
     const taskers = allowMultipleTaskers && newDuration.taskerCount ? Number(newDuration.taskerCount) : 1;
@@ -958,6 +968,8 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
       return [...list, {
         durationHours: hours,
         priceMultiplier: multi,
+        priceMode: newDuration.priceMode,
+        fixedPrice: newDuration.priceMode === "fixed" ? Number(newDuration.fixedPriceInput) : null,
         isPopular: newDuration.isPopular,
         isActive: true,
         suggestedArea: area,
@@ -967,7 +979,7 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
       }].sort((a, b) => a.durationHours - b.durationHours);
     });
 
-    setNewDuration({ durationHours: "", priceAdjustment: "0", isPopular: false, suggestedArea: "", taskerCount: "1", title: "", description: "" });
+    setNewDuration({ durationHours: "", priceAdjustment: "0", priceMode: "percent", fixedPriceInput: "", isPopular: false, suggestedArea: "", taskerCount: "1", title: "", description: "" });
     toast.success("Đã thêm thời lượng mới");
   };
 
@@ -1210,6 +1222,8 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
         durations: durations.map(d => ({
           durationHours: d.durationHours,
           priceMultiplier: d.priceMultiplier,
+          priceMode: d.priceMode ?? "percent",
+          fixedPrice: d.fixedPrice ?? null,
           isPopular: d.isPopular,
           isActive: d.isActive,
           suggestedArea: d.suggestedArea ? Number(d.suggestedArea) : null,
@@ -1395,7 +1409,10 @@ export function ServicePackageUpdateWizard({ id }: { id: string }) {
           handleInlineSave={handleInlineSave} setIsOpenInlineAreaDropdown={setIsOpenInlineAreaDropdown}
           isOpenInlineAdjustmentDropdown={isOpenInlineAdjustmentDropdown} setIsOpenInlineAdjustmentDropdown={setIsOpenInlineAdjustmentDropdown}
           setEditingDurationIndex={setEditingDurationIndex} setTempHours={setTempHours} setTempArea={setTempArea}
-          setTempAdjustment={setTempAdjustment} setTempIsPopular={setTempIsPopular} setTempIsActive={setTempIsActive}
+          setTempAdjustment={setTempAdjustment}
+          tempPriceMode={tempPriceMode} setTempPriceMode={setTempPriceMode}
+          tempFixedPriceInput={tempFixedPriceInput} setTempFixedPriceInput={setTempFixedPriceInput}
+          setTempIsPopular={setTempIsPopular} setTempIsActive={setTempIsActive}
           setTempTaskerCount={setTempTaskerCount} setViewingDuration={setViewingDuration}
           editingAddonIndex={editingAddonIndex} setEditingAddonIndex={setEditingAddonIndex}
           addons={addons} setAddons={setAddons} resetNewAddon={resetNewAddon} newAddon={newAddon} setNewAddon={setNewAddon}

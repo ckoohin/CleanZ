@@ -157,12 +157,25 @@ export class CreateServicePackageDto {
   subServices?: ServiceSubServiceDto[];
 }
 
+export enum DurationPriceMode {
+  PERCENT = 'percent',
+  FIXED = 'fixed',
+}
+
 export class ServiceDurationDto {
   @IsNumber()
   durationHours!: number;
 
   @IsNumber()
   priceMultiplier!: number;
+
+  @IsOptional()
+  @IsEnum(DurationPriceMode)
+  priceMode?: DurationPriceMode;
+
+  @IsOptional()
+  @IsNumber()
+  fixedPrice?: number;
 
   @IsOptional()
   @IsBoolean()

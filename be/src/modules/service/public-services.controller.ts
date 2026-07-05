@@ -129,6 +129,11 @@ export class PublicServicesController {
         title: duration.title || null,
         description: duration.description || null,
         priceMultiplier: Number(duration.priceMultiplier),
+        priceMode: duration.priceMode,
+        fixedPrice:
+          duration.fixedPrice !== null && duration.fixedPrice !== undefined
+            ? Number(duration.fixedPrice)
+            : null,
         isPopular: duration.isPopular,
         suggestedArea: duration.suggestedArea ?? null,
         taskerCount: duration.taskerCount,
