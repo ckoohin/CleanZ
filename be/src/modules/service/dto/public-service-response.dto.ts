@@ -114,6 +114,12 @@ export class PublicDurationResponseDto {
   @ApiProperty({ example: 1 })
   priceMultiplier!: number;
 
+  @ApiPropertyOptional({ example: 'percent', enum: ['percent', 'fixed'] })
+  priceMode?: 'percent' | 'fixed';
+
+  @ApiPropertyOptional({ example: null })
+  fixedPrice?: number | null;
+
   @ApiProperty({ example: true })
   isPopular!: boolean;
 

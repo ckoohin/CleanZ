@@ -188,7 +188,9 @@ export function StepReviewSubmit({
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           <span>{d.durationHours}h {d.title ? `(${d.title})` : ""}</span>
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                          <span className="text-primary font-extrabold">x{d.priceMultiplier.toFixed(2)}</span>
+                          <span className="text-primary font-extrabold">
+                            {d.priceMode === "fixed" ? vnd(Number(d.fixedPrice ?? 0)) : `x${d.priceMultiplier.toFixed(2)}`}
+                          </span>
                         </div>
                       ))}
                       {durations.length === 0 && <span className="text-rose-500 italic text-xs">Chưa có mốc thời lượng</span>}
@@ -402,7 +404,7 @@ export function StepReviewSubmit({
               <div className="flex flex-wrap gap-1.5">
                 {durations.map((d, idx) => (
                   <Badge key={idx} variant="outline" className="bg-card text-foreground border-border/60 py-1 px-2 text-[10px] font-bold">
-                    {d.durationHours}h {d.title ? `(${d.title})` : ""} - nhân hệ số: x{d.priceMultiplier.toFixed(2)}
+                    {d.durationHours}h {d.title ? `(${d.title})` : ""} - {d.priceMode === "fixed" ? `giá cố định: ${vnd(Number(d.fixedPrice ?? 0))}` : `nhân hệ số: x${d.priceMultiplier.toFixed(2)}`}
                   </Badge>
                 ))}
                 {durations.length === 0 && <span className="text-rose-500 italic">Chưa có mốc thời lượng nào</span>}

@@ -177,6 +177,8 @@ export function ServicePackageCreateWizard() {
   const [newDuration, setNewDuration] = useState<NewDurationState>({
     durationHours: "",
     priceAdjustment: "0",
+    priceMode: "percent",
+    fixedPriceInput: "",
     isPopular: false,
     suggestedArea: "",
     taskerCount: "1",
@@ -250,6 +252,8 @@ export function ServicePackageCreateWizard() {
   const [tempArea, setTempArea] = useState("");
   const [isOpenTempAreaDropdown, setIsOpenTempAreaDropdown] = useState(false);
   const [tempAdjustment, setTempAdjustment] = useState("0");
+  const [tempPriceMode, setTempPriceMode] = useState<'percent' | 'fixed'>("percent");
+  const [tempFixedPriceInput, setTempFixedPriceInput] = useState("");
   const [tempIsPopular, setTempIsPopular] = useState(false);
   const [tempIsActive, setTempIsActive] = useState(true);
   const [tempTaskerCount, setTempTaskerCount] = useState("1");
@@ -374,11 +378,17 @@ export function ServicePackageCreateWizard() {
       toast.error("Mốc thời lượng này đã tồn tại!");
       return;
     }
-    const multiplier = 1 + (adj / 100);
+    if (newDuration.priceMode === "fixed" && !(Number(newDuration.fixedPriceInput) > 0)) {
+      toast.error("Vui lòng nhập giá cụ thể hợp lệ!");
+      return;
+    }
+    const multiplier = newDuration.priceMode === "fixed" ? 1.0 : 1 + (adj / 100);
 
     const newEntity: ServiceDurationEntity = {
       durationHours: hours,
       priceMultiplier: multiplier,
+      priceMode: newDuration.priceMode,
+      fixedPrice: newDuration.priceMode === "fixed" ? Number(newDuration.fixedPriceInput) : null,
       isPopular: newDuration.isPopular,
       suggestedArea: area,
       taskerCount: tasker,
@@ -388,7 +398,7 @@ export function ServicePackageCreateWizard() {
     };
 
     setDurations(prev => [...prev, newEntity].sort((a, b) => a.durationHours - b.durationHours));
-    setNewDuration({ durationHours: "", priceAdjustment: "0", isPopular: false, suggestedArea: "", taskerCount: "1", title: "", description: "" });
+    setNewDuration({ durationHours: "", priceAdjustment: "0", priceMode: "percent", fixedPriceInput: "", isPopular: false, suggestedArea: "", taskerCount: "1", title: "", description: "" });
     toast.success("Đã thêm mốc thời lượng mới");
   };
 
@@ -605,6 +615,8 @@ export function ServicePackageCreateWizard() {
         durations: durations.map(d => ({
           durationHours: d.durationHours,
           priceMultiplier: d.priceMultiplier,
+          priceMode: d.priceMode ?? "percent",
+          fixedPrice: d.fixedPrice ?? null,
           isPopular: d.isPopular,
           isActive: d.isActive,
           suggestedArea: d.suggestedArea ? Number(d.suggestedArea) : null,
@@ -930,6 +942,10 @@ export function ServicePackageCreateWizard() {
           setTempHours={setTempHours}
           setTempArea={setTempArea}
           setTempAdjustment={setTempAdjustment}
+          tempPriceMode={tempPriceMode}
+          setTempPriceMode={setTempPriceMode}
+          tempFixedPriceInput={tempFixedPriceInput}
+          setTempFixedPriceInput={setTempFixedPriceInput}
           setTempIsPopular={setTempIsPopular}
           setTempTaskerCount={setTempTaskerCount}
           setIsOpenMetaModal={setIsOpenMetaModal}

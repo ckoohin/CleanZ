@@ -87,6 +87,8 @@ export interface ServiceDurationEntity {
   id?: string;
   durationHours: number;
   priceMultiplier: number;
+  priceMode?: 'percent' | 'fixed';
+  fixedPrice?: number | null;
   isPopular: boolean;
   isActive: boolean;
   suggestedArea?: number | null;

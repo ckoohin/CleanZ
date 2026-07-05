@@ -34,6 +34,8 @@ import { PeakHourFormState } from "../shared/types";
 export interface NewDurationState {
   durationHours: string;
   priceAdjustment: string;
+  priceMode: 'percent' | 'fixed';
+  fixedPriceInput: string;
   isPopular: boolean;
   suggestedArea: string;
   taskerCount: string;
@@ -123,6 +125,10 @@ export interface StepPricingConfigModalsProps {
   formatHoursToMinutes: (hoursStr: string) => string;
   tempAdjustment: string;
   setTempAdjustment: React.Dispatch<React.SetStateAction<string>>;
+  tempPriceMode: 'percent' | 'fixed';
+  setTempPriceMode: React.Dispatch<React.SetStateAction<'percent' | 'fixed'>>;
+  tempFixedPriceInput: string;
+  setTempFixedPriceInput: React.Dispatch<React.SetStateAction<string>>;
   adjustmentOptions: { value: string; label: string }[];
   allowMultipleTaskers: boolean;
   tempTaskerCount: string;
@@ -188,7 +194,8 @@ export function StepPricingConfigModals({
   isOpenMetaModal, setIsOpenMetaModal, editingDurationIndex, setEditingDurationIndex,
   tempHours, setTempHours, isOpenTempHoursDropdown, setIsOpenTempHoursDropdown, hourOptions,
   tempArea, setTempArea, isOpenTempAreaDropdown, setIsOpenTempAreaDropdown, areaOptions,
-  formatHoursToMinutes, tempAdjustment, setTempAdjustment, adjustmentOptions,
+  formatHoursToMinutes, tempAdjustment, setTempAdjustment, tempPriceMode, setTempPriceMode,
+  tempFixedPriceInput, setTempFixedPriceInput, adjustmentOptions,
   allowMultipleTaskers, tempTaskerCount, setTempTaskerCount, tempIsPopular, setTempIsPopular,
   tempIsActive, setTempIsActive, tempTitle, setTempTitle, tempDescription, setTempDescription, maxHours,
   viewingDuration, setViewingDuration,
@@ -716,23 +723,54 @@ export function StepPricingConfigModals({
 
             {/* Row 2: Điều chỉnh giá */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-black text-slate-800">Điều chỉnh giá (%)</Label>
-              <Select value={tempAdjustment} onValueChange={setTempAdjustment}>
-                <SelectTrigger className="h-10 rounded-xl text-sm font-bold bg-white border-slate-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white max-h-60">
-                  {adjustmentOptions.map(o => (
-                    <SelectItem key={o.value} value={o.value} className="text-xs font-semibold cursor-pointer">
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {baseHourlyRate > 0 && tempHours && (
-                <p className="text-[10px] text-primary font-bold">
-                  Ước tính: {vnd(Number(tempHours) * baseHourlyRate * (1 + Number(tempAdjustment) / 100))}
-                </p>
+              <Label className="text-xs font-black text-slate-800">Điều chỉnh giá</Label>
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted/30 border border-border/30 rounded-xl">
+                <button type="button" onClick={() => setTempPriceMode("percent")}
+                  className={cn("h-8 rounded-lg text-xs font-bold transition-colors", tempPriceMode === "percent" ? "bg-white shadow-sm text-primary" : "text-slate-500")}
+                >
+                  Theo %
+                </button>
+                <button type="button" onClick={() => setTempPriceMode("fixed")}
+                  className={cn("h-8 rounded-lg text-xs font-bold transition-colors", tempPriceMode === "fixed" ? "bg-white shadow-sm text-primary" : "text-slate-500")}
+                >
+                  Nhập giá cụ thể
+                </button>
+              </div>
+              {tempPriceMode === "percent" ? (
+                <>
+                  <Select value={tempAdjustment} onValueChange={setTempAdjustment}>
+                    <SelectTrigger className="h-10 rounded-xl text-sm font-bold bg-white border-slate-300">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white max-h-60">
+                      {adjustmentOptions.map(o => (
+                        <SelectItem key={o.value} value={o.value} className="text-xs font-semibold cursor-pointer">
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {baseHourlyRate > 0 && tempHours && (
+                    <p className="text-[10px] text-primary font-bold">
+                      Ước tính: {vnd(Number(tempHours) * baseHourlyRate * (1 + Number(tempAdjustment) / 100))}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="Ví dụ: 350000"
+                    value={tempFixedPriceInput}
+                    onChange={e => setTempFixedPriceInput(e.target.value.replace(/\D/g, ""))}
+                    className="h-10 rounded-xl text-sm font-bold bg-white border-slate-300"
+                  />
+                  {baseHourlyRate > 0 && tempHours && Number(tempFixedPriceInput) > 0 && (
+                    <p className="text-[10px] text-primary font-bold">
+                      {vnd(Number(tempFixedPriceInput))} — ≈ {Math.round((Number(tempFixedPriceInput) / (Number(tempHours) * baseHourlyRate) - 1) * 100)}% so với giá chuẩn
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
@@ -815,6 +853,8 @@ export function StepPricingConfigModals({
                     durationHours: tempHours || prev.durationHours,
                     suggestedArea: tempArea || prev.suggestedArea,
                     priceAdjustment: tempAdjustment,
+                    priceMode: tempPriceMode,
+                    fixedPriceInput: tempFixedPriceInput,
                     isPopular: tempIsPopular,
                     taskerCount: tempTaskerCount,
                   }));
@@ -831,12 +871,18 @@ export function StepPricingConfigModals({
                   toast.error(`Không được thiết lập giờ vượt quá giờ phục vụ tối đa của gói (${maxHours} giờ). Muốn tăng khung giờ hơn thì hãy đổi giờ phục vụ tối đa cao hơn.`);
                   return;
                 }
+                if (tempPriceMode === "fixed" && !(Number(tempFixedPriceInput) > 0)) {
+                  toast.error("Vui lòng nhập giá cụ thể hợp lệ!");
+                  return;
+                }
                 const adj = parseFloat(tempAdjustment) || 0;
                 setDurations(prev => prev.map((x, idx) => idx === editingDurationIndex ? {
                   ...x,
                   durationHours: hours,
                   suggestedArea: tempArea ? Number(tempArea) : null,
-                  priceMultiplier: 1 + adj / 100,
+                  priceMultiplier: tempPriceMode === "fixed" ? 1.0 : 1 + adj / 100,
+                  priceMode: tempPriceMode,
+                  fixedPrice: tempPriceMode === "fixed" ? Number(tempFixedPriceInput) : null,
                   isPopular: tempIsPopular,
                   isActive: tempIsActive,
                   taskerCount: allowMultipleTaskers ? Number(tempTaskerCount) : x.taskerCount,
@@ -888,12 +934,19 @@ export function StepPricingConfigModals({
                   { label: "Số giờ làm việc", value: `${viewingDuration.durationHours} giờ`, sub: `${viewingDuration.durationHours * 60} phút` },
                   { label: "Diện tích mặc định", value: viewingDuration.suggestedArea ? `${viewingDuration.suggestedArea} m²` : "—", sub: "Diện tích gợi ý" },
                   { label: "Số lượng thợ", value: `${viewingDuration.taskerCount || 1} người`, sub: "Tasker thực hiện" },
-                  {
-                    label: "Điều chỉnh giá",
-                    value: viewingDuration.priceMultiplier === 1.0 ? "Giá gốc" : viewingDuration.priceMultiplier < 1.0 ? `−${Math.round((1 - viewingDuration.priceMultiplier) * 100)}%` : `+${Math.round((viewingDuration.priceMultiplier - 1) * 100)}%`,
-                    sub: viewingDuration.priceMultiplier === 1.0 ? "Không điều chỉnh" : "So với giá chuẩn",
-                    valueColor: viewingDuration.priceMultiplier === 1.0 ? "text-slate-600" : viewingDuration.priceMultiplier < 1.0 ? "text-emerald-600" : "text-rose-600",
-                  },
+                  viewingDuration.priceMode === "fixed"
+                    ? {
+                      label: "Điều chỉnh giá",
+                      value: vnd(Number(viewingDuration.fixedPrice ?? 0)),
+                      sub: "Giá cố định",
+                      valueColor: "text-primary",
+                    }
+                    : {
+                      label: "Điều chỉnh giá",
+                      value: viewingDuration.priceMultiplier === 1.0 ? "Giá gốc" : viewingDuration.priceMultiplier < 1.0 ? `−${Math.round((1 - viewingDuration.priceMultiplier) * 100)}%` : `+${Math.round((viewingDuration.priceMultiplier - 1) * 100)}%`,
+                      sub: viewingDuration.priceMultiplier === 1.0 ? "Không điều chỉnh" : "So với giá chuẩn",
+                      valueColor: viewingDuration.priceMultiplier === 1.0 ? "text-slate-600" : viewingDuration.priceMultiplier < 1.0 ? "text-emerald-600" : "text-rose-600",
+                    },
                 ].map(item => (
                   <div key={item.label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                     <p className="text-[10px] text-slate-400 font-semibold mb-1">{item.label}</p>
@@ -907,11 +960,19 @@ export function StepPricingConfigModals({
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
                   <p className="text-[10px] text-slate-400 font-semibold mb-1">Đơn giá Chuẩn</p>
-                  <p className="text-sm font-extrabold text-slate-800">{vnd(viewingDuration.durationHours * baseHourlyRate * viewingDuration.priceMultiplier)}</p>
+                  <p className="text-sm font-extrabold text-slate-800">
+                    {viewingDuration.priceMode === "fixed"
+                      ? vnd(Number(viewingDuration.fixedPrice ?? 0))
+                      : vnd(viewingDuration.durationHours * baseHourlyRate * viewingDuration.priceMultiplier)}
+                  </p>
                 </div>
                 <div className="bg-primary/5 rounded-xl px-4 py-3 border border-primary/15">
                   <p className="text-[10px] text-primary/70 font-semibold mb-1">Đơn giá Premium</p>
-                  <p className="text-sm font-extrabold text-primary">{vnd(viewingDuration.durationHours * premiumHourlyRate * viewingDuration.priceMultiplier)}</p>
+                  <p className="text-sm font-extrabold text-primary">
+                    {viewingDuration.priceMode === "fixed"
+                      ? vnd(Number(viewingDuration.fixedPrice ?? 0) * (baseHourlyRate > 0 ? premiumHourlyRate / baseHourlyRate : 1))
+                      : vnd(viewingDuration.durationHours * premiumHourlyRate * viewingDuration.priceMultiplier)}
+                  </p>
                 </div>
               </div>
 

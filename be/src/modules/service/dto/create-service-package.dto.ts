@@ -174,6 +174,11 @@ export class CreateServicePackageDto {
   subServices?: ServiceSubServiceDto[];
 }
 
+export enum DurationPriceMode {
+  PERCENT = 'percent',
+  FIXED = 'fixed',
+}
+
 export class ServiceDurationDto {
   @IsNumber()
   @Min(0.5, { message: 'durationHours phải lớn hơn 0' })
@@ -182,6 +187,14 @@ export class ServiceDurationDto {
   @IsNumber()
   @Min(0, { message: 'priceMultiplier không được âm' })
   priceMultiplier!: number;
+
+  @IsOptional()
+  @IsEnum(DurationPriceMode)
+  priceMode?: DurationPriceMode;
+
+  @IsOptional()
+  @IsNumber()
+  fixedPrice?: number;
 
   @IsOptional()
   @IsBoolean()

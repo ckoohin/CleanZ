@@ -35,6 +35,23 @@ export class ServiceDurationEntity {
   })
   priceMultiplier!: number;
 
+  @Column({
+    type: 'varchar',
+    length: 20,
+    name: 'price_mode',
+    default: 'percent',
+  })
+  priceMode!: 'percent' | 'fixed';
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'fixed_price',
+    nullable: true,
+  })
+  fixedPrice?: number | null;
+
   @Column({ type: 'boolean', default: false, name: 'is_popular' })
   isPopular!: boolean;
 
