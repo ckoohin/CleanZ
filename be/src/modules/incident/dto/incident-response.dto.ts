@@ -53,8 +53,8 @@ export interface IncidentAdminView extends IncidentSummary {
   tasker: {
     id: string;
     fullName?: string | null;
-    currentDepositBalance: number;
-    availableDeposit: number;
+    walletBalance: number;
+    availableFunds: number;
   };
   damageItems: DamageItemView[];
   statements: StatementView[];
@@ -130,8 +130,8 @@ export function toAdminView(
   items: IncidentDamageItemEntity[],
   evidencesByItem: Map<string, IncidentEvidenceEntity[]>,
   statements: IncidentStatementEntity[],
+  taskerWalletBalance = 0,
 ): IncidentAdminView {
-  const currentDeposit = toNumber(incident.tasker?.currentDepositBalance);
   return {
     ...toIncidentSummary(incident),
     description: incident.description,
@@ -142,8 +142,8 @@ export function toAdminView(
     tasker: {
       id: incident.tasker?.id,
       fullName: incident.tasker?.user?.fullName ?? null,
-      currentDepositBalance: currentDeposit,
-      availableDeposit: currentDeposit,
+      walletBalance: taskerWalletBalance,
+      availableFunds: taskerWalletBalance,
     },
     damageItems: toDamageItemViews(items, evidencesByItem),
     statements: statements.map((s) => ({

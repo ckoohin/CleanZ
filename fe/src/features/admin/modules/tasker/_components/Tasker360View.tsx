@@ -14,17 +14,24 @@ import {
   useAdminTaskerDetail,
   useAdminTaskerDocuments,
   useAdminTaskerPenalties,
+  useAdminTaskerWalletTransactions,
 } from "../hooks/admin-tasker.hooks";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
+import { TaskerCreditWalletDialog } from "./TaskerCreditWalletDialog";
 import { parseAdminNotes } from "./AdminRequestInfoModal";
 import {
   ACCOUNT_STATUS_LABELS,
   DOC_STATUS_LABELS,
   formatDateVN,
 } from "../constants";
-import type { AdminTaskerDetail } from "../types/admin-tasker.types";
+import type {
+  AdminTaskerDetail,
+  AdminWalletTransaction,
+} from "../types/admin-tasker.types";
 import {
   ArrowLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
   Phone,
   Mail,
   MapPin,
@@ -57,6 +64,7 @@ import {
   AlertCircle,
   RotateCcw,
   History,
+  PlusCircle,
 } from "lucide-react";
 
 interface Tasker360ViewProps {
@@ -87,6 +95,20 @@ const PENALTY_TYPE_LABELS: Record<string, string> = {
   DAYS_7: "Khóa 7 ngày",
   TEMPORARY: "Đình chỉ tạm thời",
   PERMANENT: "Khóa vĩnh viễn",
+};
+
+const WALLET_TX_LABELS: Record<string, string> = {
+  DEPOSIT: "Nạp tiền",
+  WITHDRAW: "Rút tiền",
+  PAYMENT: "Thanh toán",
+  REFUND: "Hoàn tiền",
+  PLATFORM_FEE: "Phí nền tảng",
+  TASKER_EARNING: "Thu nhập công việc",
+  DEPOSIT_HOLD: "Giữ tiền",
+  DEPOSIT_RELEASE: "Hoàn giữ tiền",
+  DEPOSIT_DEDUCT: "Khấu trừ",
+  CANCELLATION_FEE: "Phí hủy",
+  ADJUSTMENT: "Điều chỉnh",
 };
 
 // ─── Identity & legal document groups (đồng bộ với màn duyệt hồ sơ) ────────────
@@ -188,6 +210,54 @@ const StatCard: React.FC<{
       <div className="min-w-0">
         <p className="text-2xl font-black leading-none text-[var(--c-ink)]">{value}</p>
         <p className="text-xs font-medium text-[var(--c-muted)] mt-1.5">{label}</p>
+      </div>
+    </div>
+  );
+};
+
+const WalletTransactionRow: React.FC<{ transaction: AdminWalletTransaction }> = ({
+  transaction,
+}) => {
+  const isCredit =
+    Number(transaction.balanceAfter) >= Number(transaction.balanceBefore);
+  const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card p-4">
+      <div
+        className={cn(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          isCredit
+            ? "bg-emerald-500/10 text-emerald-600"
+            : "bg-red-500/10 text-red-600"
+        )}
+      >
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold">
+          {WALLET_TX_LABELS[transaction.type] ?? transaction.type}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {transaction.description || "Không có mô tả"}
+        </p>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {new Date(transaction.createdAt).toLocaleString("vi-VN")}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        <p
+          className={cn(
+            "font-black",
+            isCredit ? "text-emerald-600" : "text-red-600"
+          )}
+        >
+          {isCredit ? "+" : "-"}
+          {formatVND(Math.abs(Number(transaction.amount)))}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          Còn {formatVND(Number(transaction.balanceAfter))}
+        </p>
       </div>
     </div>
   );
@@ -309,7 +379,10 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
   const { data: docsData, isLoading: isDocsLoading } =
     useAdminTaskerDocuments(taskerId);
   const { data: penaltiesData } = useAdminTaskerPenalties(taskerId);
+  const { data: walletTxData, isLoading: isWalletTxLoading } =
+    useAdminTaskerWalletTransactions(taskerId);
   const [lightbox, setLightbox] = React.useState<string | null>(null);
+  const [creditOpen, setCreditOpen] = React.useState(false);
 
   if (isLoading) {
     return (
@@ -499,8 +572,8 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           <TabsTrigger value="reviews" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
             <Star className="w-3.5 h-3.5" aria-hidden="true" /> Đánh giá
           </TabsTrigger>
-          <TabsTrigger value="payroll" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
-            <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Bảng lương
+          <TabsTrigger value="wallet" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-border/50 bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=active]:font-bold">
+            <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Ví
           </TabsTrigger>
         </TabsList>
 
@@ -866,33 +939,77 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           </div>
         </TabsContent>
 
-        {/* ── Bảng lương ── */}
-        <TabsContent value="payroll" className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              icon={Wallet}
-              tone="emerald"
-              value={formatVND(detail.stats?.currentDepositBalance)}
-              label="Số dư cọc hiện tại"
+        {/* ── Ví ── */}
+        <TabsContent value="wallet" className="mt-5 space-y-4">
+          {/* Thẻ số dư ví (mô hình 1 ví) + nút ghi nhận nộp tiền mặt tại trụ sở */}
+          <div className="relative overflow-hidden rounded-3xl bg-[#0D1B3E] text-white p-6">
+            <div
+              className="absolute -right-12 -top-16 w-48 h-48 rounded-full bg-primary/25 blur-2xl"
+              aria-hidden="true"
             />
-            <StatCard
-              icon={CreditCard}
-              tone="blue"
-              value={formatVND(detail.stats?.depositAmount)}
-              label="Tiền cọc đã nộp"
-            />
-            <StatCard
-              icon={Receipt}
-              tone="amber"
-              value={detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0}
-              label="Số ca tính lương"
-            />
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="flex items-center gap-2 text-sm text-white/70">
+                  <Wallet className="h-4 w-4" aria-hidden="true" /> Số dư ví hiện tại
+                </p>
+                <p className="mt-3 text-4xl font-black tracking-tight">
+                  {formatVND(detail.stats?.walletBalance ?? 0)}
+                </p>
+              </div>
+              <Button
+                onClick={() => setCreditOpen(true)}
+                className="rounded-full self-start sm:self-auto"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                Ghi nhận nộp tiền mặt
+              </Button>
+            </div>
           </div>
-          <ComingSoon
-            icon={Receipt}
-            title="Bảng lương theo kỳ"
-            description="Doanh thu gộp, phí nền tảng, thực nhận và phiếu lương từng kỳ sẽ hiển thị tại đây khi module tài chính (finance) được kết nối."
-          />
+
+          {/* Lịch sử giao dịch ví */}
+          <div className="bg-card border border-border/50 rounded-2xl p-5">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <History className="w-4 h-4 text-primary" aria-hidden="true" />
+                  Lịch sử giao dịch
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tối đa 50 giao dịch gần nhất.
+                </p>
+              </div>
+              <Badge variant="outline" className="rounded-full shrink-0">
+                {walletTxData?.total ?? 0} giao dịch
+              </Badge>
+            </div>
+
+            <div className="space-y-2">
+              {isWalletTxLoading ? (
+                [...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 rounded-2xl" />
+                ))
+              ) : walletTxData?.items.length ? (
+                walletTxData.items.map((transaction) => (
+                  <WalletTransactionRow
+                    key={transaction.id}
+                    transaction={transaction}
+                  />
+                ))
+              ) : (
+                <div className="border border-dashed border-border/60 rounded-2xl py-12 px-6 flex flex-col items-center text-center gap-2 bg-muted/20">
+                  <Receipt
+                    className="w-9 h-9 text-muted-foreground/50"
+                    aria-hidden="true"
+                  />
+                  <p className="font-bold text-sm">Chưa có giao dịch</p>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Thu nhập từ đơn, phí nền tảng và các lần nộp tiền mặt sẽ hiển
+                    thị tại đây.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -909,6 +1026,15 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Ghi nhận nộp tiền mặt tại trụ sở → cộng ví */}
+      <TaskerCreditWalletDialog
+        isOpen={creditOpen}
+        onClose={() => setCreditOpen(false)}
+        taskerId={taskerId}
+        taskerName={detail.fullName}
+        currentBalance={detail.stats?.walletBalance ?? 0}
+      />
     </div>
   );
 };

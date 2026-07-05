@@ -68,12 +68,64 @@ export interface AdminTaskerDocument {
 }
 
 export interface AdminTaskerStats {
-  depositAmount: number;
-  currentDepositBalance: number;
+  /** Số dư ví hiện tại (mô hình 1 ví — thay cho hệ ký quỹ cũ). */
+  walletBalance: number;
   ratingAvg: number;
   totalCompletedJobs: number;
   totalWorkingHours: number;
   totalPoints: number;
+}
+
+/** Payload admin ghi nhận tasker nộp tiền mặt tại trụ sở (cộng thẳng vào ví). */
+export interface AdminCreditWalletPayload {
+  /** Số tiền (VND). BE giới hạn 1.000 – 2.000.000/lần. */
+  amount: number;
+  /** Lý do cộng tiền (bắt buộc). */
+  reason: string;
+  /** Số phiếu thu / mã chứng từ (tùy chọn). */
+  referenceCode?: string;
+}
+
+/** Ví trả về sau khi admin cộng tiền. */
+export interface AdminWalletResult {
+  id: string;
+  ownerType: string;
+  balance: number;
+  holdBalance: number;
+  taskerId?: string | null;
+}
+
+export type WalletTransactionType =
+  | "DEPOSIT"
+  | "WITHDRAW"
+  | "PAYMENT"
+  | "REFUND"
+  | "PLATFORM_FEE"
+  | "TASKER_EARNING"
+  | "DEPOSIT_HOLD"
+  | "DEPOSIT_RELEASE"
+  | "DEPOSIT_DEDUCT"
+  | "CANCELLATION_FEE"
+  | "ADJUSTMENT";
+
+/** Một bút toán trong lịch sử giao dịch ví tasker. */
+export interface AdminWalletTransaction {
+  id: string;
+  walletId: string;
+  bookingId?: string | null;
+  referenceId?: string | null;
+  referenceType?: string | null;
+  type: WalletTransactionType;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface AdminWalletTransactionList {
+  total: number;
+  items: AdminWalletTransaction[];
 }
 
 export interface AdminTaskerDetail extends AdminTasker {

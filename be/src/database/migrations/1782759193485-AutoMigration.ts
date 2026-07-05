@@ -5,29 +5,31 @@ export class AutoMigration1782759193485 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "vouchers" DROP CONSTRAINT "FK_820556fd3264ae9abfe7cbc0734"`,
+      `ALTER TABLE "vouchers" DROP CONSTRAINT IF EXISTS "FK_820556fd3264ae9abfe7cbc0734"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."idx_service_sub_services_package_id"`,
+      `DROP INDEX IF EXISTS "public"."idx_service_sub_services_package_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."idx_bookings_customer_status"`,
+      `DROP INDEX IF EXISTS "public"."idx_bookings_customer_status"`,
     );
-    await queryRunner.query(`DROP INDEX "public"."idx_bookings_tasker_status"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_bookings_tasker_status"`);
     await queryRunner.query(
-      `DROP INDEX "public"."idx_bookings_scheduled_start"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."idx_customer_vouchers_booking_status"`,
+      `DROP INDEX IF EXISTS "public"."idx_bookings_scheduled_start"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."idx_customer_vouchers_customer_voucher_status"`,
+      `DROP INDEX IF EXISTS "public"."idx_customer_vouchers_booking_status"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "vouchers" RENAME COLUMN "service_id" TO "customer_ids"`,
+      `DROP INDEX IF EXISTS "public"."idx_customer_vouchers_customer_voucher_status"`,
+    );
+    // service_id bị loại bỏ trong mô hình voucher mới; customer_ids (jsonb) đã
+    // được RefactorVoucherUsageRules thêm trước đó nên chỉ cần drop service_id.
+    await queryRunner.query(
+      `ALTER TABLE "vouchers" DROP COLUMN IF EXISTS "service_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "service_packages" DROP COLUMN "allow_single_service"`,
+      `ALTER TABLE "service_packages" DROP COLUMN IF EXISTS "allow_single_service"`,
     );
     await queryRunner.query(
       `ALTER TABLE "service_addons" ALTER COLUMN "price_unit" DROP NOT NULL`,
@@ -38,13 +40,20 @@ export class AutoMigration1782759193485 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "service_addons" ALTER COLUMN "icon_url" DROP DEFAULT`,
     );
-    await queryRunner.query(
-      `ALTER TABLE "vouchers" DROP COLUMN "customer_ids"`,
-    );
-    await queryRunner.query(`ALTER TABLE "vouchers" ADD "customer_ids" jsonb`);
-    await queryRunner.query(
-      `ALTER TABLE "customer_vouchers" ADD CONSTRAINT "FK_1d629abc2acdf8bc82a73be032a" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
-    );
+    // customer_ids (jsonb) đã tồn tại từ RefactorVoucherUsageRules — không drop/add lại.
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'FK_1d629abc2acdf8bc82a73be032a'
+        ) THEN
+          ALTER TABLE "customer_vouchers"
+            ADD CONSTRAINT "FK_1d629abc2acdf8bc82a73be032a"
+            FOREIGN KEY ("booking_id") REFERENCES "bookings"("id")
+            ON DELETE SET NULL ON UPDATE NO ACTION;
+        END IF;
+      END $$;
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

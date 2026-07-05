@@ -28,6 +28,8 @@ import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
 import { TaskerEntity } from './entity/tasker.entity';
 import { TaskerPenaltyEntity } from './entity/tasker-penalty.entity';
+import { WalletEntity } from '../wallet/entity/wallet.entity';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import {
   AutoUnbanJobData,
   TASKER_JOB_AUTO_UNBAN,
@@ -425,7 +427,8 @@ export class TaskerService {
         tasker.docReviewedBy,
         tasker.updatedBy,
       ]);
-      return this.mapProfile(tasker, adminNames);
+      const walletBalance = await this.getTaskerWalletBalance(id);
+      return this.mapProfile(tasker, adminNames, walletBalance);
     }, 'Không thể lấy chi tiết tasker');
   }
 
@@ -1116,9 +1119,18 @@ export class TaskerService {
     return phone;
   }
 
+  /** Số dư ví hiện tại của tasker (mô hình 1 ví). 0 nếu chưa có ví. */
+  private async getTaskerWalletBalance(taskerId: string): Promise<number> {
+    const wallet = await this.dataSource.getRepository(WalletEntity).findOne({
+      where: { tasker: { id: taskerId }, ownerType: WalletOwnerType.TASKER },
+    });
+    return wallet ? Number(wallet.balance) : 0;
+  }
+
   private mapProfile(
     tasker: TaskerEntity,
     adminNames?: Map<string, string>,
+    walletBalance = 0,
   ): TaskerProfileResponse {
     const fullName = tasker.user?.fullName ?? null;
     const phone = tasker.user?.phone ?? null;
@@ -1189,8 +1201,7 @@ export class TaskerService {
         note: tasker.docNote ?? null,
       },
       stats: {
-        depositAmount: Number(tasker.depositAmount),
-        currentDepositBalance: Number(tasker.currentDepositBalance),
+        walletBalance,
         ratingAvg: Number(tasker.ratingAvg),
         totalCompletedJobs: tasker.totalCompletedJobs,
         totalWorkingHours: Number(tasker.totalWorkingHours),

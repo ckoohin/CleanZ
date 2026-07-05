@@ -11,6 +11,8 @@ import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
+import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
 import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import {
@@ -164,10 +166,18 @@ export class IncidentDecisionService {
         'Phân bổ không khớp: tasker + platform phải bằng tổng tiền duyệt',
       );
     }
-    const availableDeposit = toNumber(incident.tasker?.currentDepositBalance);
-    if (taskerBorne > availableDeposit) {
+    const taskerWallet = incident.tasker?.id
+      ? await manager.getRepository(WalletEntity).findOne({
+          where: {
+            tasker: { id: incident.tasker.id },
+            ownerType: WalletOwnerType.TASKER,
+          },
+        })
+      : null;
+    const availableFunds = toNumber(taskerWallet?.balance);
+    if (taskerBorne > availableFunds) {
       throw new UnprocessableEntityException(
-        'Phần Tasker chịu vượt số dư cọc khả dụng',
+        'Phần Tasker chịu vượt số dư ví khả dụng',
       );
     }
     if (

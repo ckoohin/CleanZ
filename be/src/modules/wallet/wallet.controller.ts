@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -26,12 +27,17 @@ import {
 } from './wallet.service';
 import { WalletTransactionListQueryDto } from './dto/wallet-transaction-list-query.dto';
 import { WalletListQueryDto } from './dto/wallet-list-query.dto';
-import { paginatedResponse } from 'src/common/helpers/response.helper';
+import {
+  paginatedResponse,
+  successResponse,
+} from 'src/common/helpers/response.helper';
 import { CreateWithdrawalRequestDto } from './dto/create-withdrawal-request.dto';
 import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
-import { TaskerDepositService } from './tasker-deposit.service';
-import { DataSource } from 'typeorm';
-import { successResponse } from 'src/common/helpers/response.helper';
+import { WalletTopupService } from './wallet-topup.service';
+import { CreateTopupDto } from './dto/create-topup.dto';
+import { TopupListQueryDto } from './dto/topup-list-query.dto';
+import { AdminCreditWalletDto } from './dto/admin-credit-wallet.dto';
+import type { User } from '../users/entities/user.entity';
 
 @Controller('wallet')
 @ApiTags('Wallet')
@@ -39,8 +45,7 @@ import { successResponse } from 'src/common/helpers/response.helper';
 export class WalletController {
   constructor(
     private readonly walletService: WalletService,
-    private readonly taskerDepositService: TaskerDepositService,
-    private readonly dataSource: DataSource,
+    private readonly walletTopupService: WalletTopupService,
   ) {}
 
   @Get('admin')
@@ -54,6 +59,35 @@ export class WalletController {
       result.page,
       result.limit,
     );
+  }
+
+  @Post('admin/tasker/:taskerId/credit')
+  @Auth(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Admin ghi nhận tasker nộp tiền mặt tại trụ sở (cộng thẳng vào ví)',
+  })
+  @ApiCreatedResponse({ description: 'Cộng tiền vào ví tasker thành công' })
+  async adminCreditTaskerWallet(
+    @CurrentUser() admin: User,
+    @Param('taskerId', ParseUUIDPipe) taskerId: string,
+    @Body() dto: AdminCreditWalletDto,
+  ) {
+    const wallet = await this.walletService.adminCreditTaskerWallet(
+      { id: admin.id, email: admin.email },
+      taskerId,
+      dto,
+    );
+    return successResponse(wallet, 'Đã cộng tiền vào ví tasker');
+  }
+
+  @Get('admin/tasker/:taskerId/transactions')
+  @Auth(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin xem lịch sử giao dịch ví của tasker' })
+  @ApiOkResponse({ description: 'Lấy lịch sử giao dịch ví tasker thành công' })
+  getTaskerTransactions(
+    @Param('taskerId', ParseUUIDPipe) taskerId: string,
+  ): Promise<WalletTransactionListResponse> {
+    return this.walletService.getTaskerTransactions(taskerId);
   }
 
   @Get('tasker/me')
@@ -89,36 +123,6 @@ export class WalletController {
     @Body() dto: CreateWithdrawalRequestDto,
   ): Promise<WithdrawalRequestEntity> {
     return this.walletService.createTaskerWithdrawalRequest(userId, dto);
-  }
-
-  @Get('tasker/me/deposit/transactions')
-  @Auth(UserRole.TASKER)
-  @ApiOperation({ summary: 'Tasker xem lịch sử biến động ký quỹ' })
-  getMyDepositTransactions(@CurrentUser('id') userId: string) {
-    return this.taskerDepositService.getMyTransactions(userId);
-  }
-
-  @Get('admin/taskers/:taskerId/deposit/transactions')
-  @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Admin xem lịch sử ký quỹ của Tasker' })
-  getTaskerDepositTransactions(
-    @Param('taskerId', ParseUUIDPipe) taskerId: string,
-  ) {
-    return this.taskerDepositService.getTaskerTransactions(taskerId);
-  }
-
-  @Post('admin/taskers/:taskerId/deposit/refund')
-  @Auth(UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Admin hoàn ký quỹ cho Tasker đã nghỉ việc',
-  })
-  async refundTerminatedTaskerDeposit(
-    @Param('taskerId', ParseUUIDPipe) taskerId: string,
-  ) {
-    const amount = await this.dataSource.transaction((manager) =>
-      this.taskerDepositService.refundForTerminatedTasker(manager, taskerId),
-    );
-    return successResponse({ amount }, 'Đã hoàn ký quỹ vào ví Tasker');
   }
 
   @Get('tasker/me/transactions')
@@ -165,5 +169,71 @@ export class WalletController {
   @ApiUnauthorizedResponse({ description: 'Admin chưa đăng nhập' })
   getSystemTransactions(): Promise<WalletTransactionListResponse> {
     return this.walletService.getSystemTransactions();
+  }
+
+  // ── Nạp tiền vào ví (PayPal) ───────────────────────────────────────────────
+
+  @Post('tasker/me/topups')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({ summary: 'Tasker tạo đơn nạp tiền, trả link thanh toán' })
+  @ApiCreatedResponse({ description: 'Tạo đơn nạp thành công' })
+  async createTopup(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateTopupDto,
+  ) {
+    const result = await this.walletTopupService.createTopup(userId, dto);
+    return successResponse(result, 'Đã tạo đơn nạp tiền');
+  }
+
+  @Get('tasker/me/topups')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({ summary: 'Tasker xem lịch sử đơn nạp tiền' })
+  async getMyTopups(
+    @CurrentUser('id') userId: string,
+    @Query() query: TopupListQueryDto,
+  ) {
+    const result = await this.walletTopupService.listMyTopups(userId, query);
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  @Get('tasker/me/topups/:id')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker xem chi tiết 1 đơn nạp (tự verify với cổng)',
+  })
+  async getMyTopup(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const result = await this.walletTopupService.getTopupForUser(userId, id);
+    return successResponse(result, 'Lấy đơn nạp tiền thành công');
+  }
+
+  // Webhook công khai (không @Auth): bảo mật bằng verify chữ ký, không tin body.
+  @Post('topups/webhook/paypal')
+  @ApiOperation({ summary: 'Webhook PayPal — cộng ví (idempotent)' })
+  handlePayPalWebhook(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.walletTopupService.handlePayPalWebhook(headers, body);
+  }
+
+  @Get('admin/topups')
+  @Auth(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin xem/đối soát toàn bộ đơn nạp' })
+  async getAllTopups(@Query() query: TopupListQueryDto) {
+    const result = await this.walletTopupService.listAllTopups(query);
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 }

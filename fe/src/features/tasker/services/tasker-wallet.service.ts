@@ -1,7 +1,9 @@
 import http from "@/lib/api/http";
 import type {
+  CreateTaskerTopupPayload,
+  CreateTaskerTopupResult,
   CreateTaskerWithdrawalPayload,
-  TaskerDepositTransaction,
+  TaskerTopup,
   TaskerWallet,
   TaskerWalletTransactionList,
   TaskerWalletTransactionQuery,
@@ -21,15 +23,23 @@ export const taskerWalletApi = {
       .get<TaskerWalletTransactionList>(`${BASE}/transactions`, { params })
       .then((response) => response.data),
 
-  getDepositTransactions: (): Promise<TaskerDepositTransaction[]> =>
-    http
-      .get<TaskerDepositTransaction[]>(`${BASE}/deposit/transactions`)
-      .then((response) => response.data),
-
   createWithdrawal: (
     payload: CreateTaskerWithdrawalPayload,
   ): Promise<TaskerWithdrawalRequest> =>
     http
       .post<TaskerWithdrawalRequest>(`${BASE}/withdrawals`, payload)
       .then((response) => response.data),
+
+  // ── Nạp tiền (PayPal) — các endpoint này bọc trong successResponse → res.data.data
+  createTopup: (
+    payload: CreateTaskerTopupPayload,
+  ): Promise<CreateTaskerTopupResult> =>
+    http
+      .post(`${BASE}/topups`, payload)
+      .then((response) => response.data.data),
+
+  getTopup: (topupId: string): Promise<TaskerTopup> =>
+    http
+      .get(`${BASE}/topups/${topupId}`)
+      .then((response) => response.data.data),
 };

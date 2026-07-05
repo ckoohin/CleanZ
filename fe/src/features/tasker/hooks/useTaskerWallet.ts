@@ -3,17 +3,15 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 import { taskerWalletApi } from "../services/tasker-wallet.service";
 import type {
+  CreateTaskerTopupPayload,
   CreateTaskerWithdrawalPayload,
-  TaskerWalletTransactionQuery,
 } from "../types/tasker-wallet.types";
 
 export const taskerWalletKeys = {
   all: ["tasker-wallet"] as const,
   detail: () => [...taskerWalletKeys.all, "detail"] as const,
-  transactions: (query?: TaskerWalletTransactionQuery) =>
-    [...taskerWalletKeys.all, "transactions", query] as const,
-  depositTransactions: () =>
-    [...taskerWalletKeys.all, "deposit-transactions"] as const,
+  transactions: () => [...taskerWalletKeys.all, "transactions"] as const,
+  topup: (id: string) => [...taskerWalletKeys.all, "topup", id] as const,
 };
 
 export function useTaskerWallet() {
@@ -32,13 +30,6 @@ export function useTaskerWalletTransactions(
   });
 }
 
-export function useTaskerDepositTransactions() {
-  return useQuery({
-    queryKey: taskerWalletKeys.depositTransactions(),
-    queryFn: taskerWalletApi.getDepositTransactions,
-  });
-}
-
 export function useCreateTaskerWithdrawal() {
   const queryClient = useQueryClient();
 
@@ -50,5 +41,40 @@ export function useCreateTaskerWithdrawal() {
       queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
+
+/** Tạo đơn nạp → trả về approveUrl để redirect sang PayPal. */
+export function useCreateTaskerTopup() {
+  return useMutation({
+    mutationFn: (payload: CreateTaskerTopupPayload) =>
+      taskerWalletApi.createTopup(payload),
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
+
+/**
+ * Poll trạng thái 1 đơn nạp (dùng ở trang success sau khi PayPal redirect về).
+ * Backend tự verify với PayPal + cộng ví khi gọi endpoint này.
+ * Tự dừng poll khi đơn không còn ở trạng thái PENDING.
+ */
+export function useTaskerTopupStatus(topupId: string | null) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: taskerWalletKeys.topup(topupId ?? "none"),
+    queryFn: async () => {
+      const topup = await taskerWalletApi.getTopup(topupId as string);
+      if (topup.status === "PAID") {
+        // Ví vừa được cộng → làm mới số dư + lịch sử.
+        queryClient.invalidateQueries({ queryKey: taskerWalletKeys.detail() });
+        queryClient.invalidateQueries({
+          queryKey: taskerWalletKeys.transactions(),
+        });
+      }
+      return topup;
+    },
+    enabled: !!topupId,
+    refetchInterval: (query) =>
+      query.state.data?.status === "PENDING" ? 2500 : false,
   });
 }

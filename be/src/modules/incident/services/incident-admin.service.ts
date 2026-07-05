@@ -7,6 +7,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
+import { toNumber } from 'src/common/helpers/number.helper';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
+import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
 import { IncidentEntity } from '../entity/incident.entity';
@@ -341,6 +344,26 @@ export class IncidentAdminService {
       arr.push(e);
       byItem.set(key, arr);
     }
-    return toAdminView(incident, items, byItem, statements);
+    const taskerWalletBalance = incident.tasker?.id
+      ? toNumber(
+          (
+            await this.incidentRepo.manager
+              .getRepository(WalletEntity)
+              .findOne({
+                where: {
+                  tasker: { id: incident.tasker.id },
+                  ownerType: WalletOwnerType.TASKER,
+                },
+              })
+          )?.balance,
+        )
+      : 0;
+    return toAdminView(
+      incident,
+      items,
+      byItem,
+      statements,
+      taskerWalletBalance,
+    );
   }
 }

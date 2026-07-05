@@ -28,14 +28,12 @@ import { NotificationService } from 'src/modules/notification/notification.servi
 import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { BookingSubServiceEntity } from 'src/modules/booking/entity/booking-sub-service.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
-import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
@@ -94,7 +92,6 @@ interface AvailableTaskerRow {
   totalCompletedJobs: number;
   workingAddress: string | null;
   walletBalance: string;
-  depositBalance: string;
 }
 
 const ADMIN_ASSIGNABLE_BOOKING_STATUSES = [
@@ -129,7 +126,6 @@ export class AdminBookingRepository {
   constructor(
     private readonly dataSource: DataSource,
     private readonly pricingService: PricingService,
-    private readonly taskerDepositService: TaskerDepositService,
     private readonly notificationService: NotificationService,
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
@@ -314,7 +310,7 @@ export class AdminBookingRepository {
             manager,
             booking,
           );
-          await this.taskerDepositService.assertCanCoverCashCommission(
+          await this.walletService.assertCanCoverCashCommission(
             manager,
             assignedTasker.id,
             platformFee,
@@ -1133,10 +1129,9 @@ export class AdminBookingRepository {
       );
 
     if (booking.paymentMethod === PaymentMethod.CASH && platformFee > 0) {
-      query.andWhere(
-        '(COALESCE(wallet.balance, 0) + tasker.currentDepositBalance) >= :platformFee',
-        { platformFee },
-      );
+      query.andWhere('COALESCE(wallet.balance, 0) >= :platformFee', {
+        platformFee,
+      });
     }
 
     if (keyword) {
@@ -1164,7 +1159,6 @@ export class AdminBookingRepository {
         'tasker.totalCompletedJobs AS "totalCompletedJobs"',
         'tasker.workingAddress AS "workingAddress"',
         'COALESCE(wallet.balance, 0) AS "walletBalance"',
-        'tasker.currentDepositBalance AS "depositBalance"',
       ])
       .orderBy(
         `CASE WHEN tasker.presenceStatus = 'ONLINE' THEN 0 ELSE 1 END`,
@@ -1194,7 +1188,6 @@ export class AdminBookingRepository {
       },
       data: rows.map((row) => {
         const walletBalance = Number(row.walletBalance);
-        const depositBalance = Number(row.depositBalance);
         return {
           id: row.id,
           userId: row.userId,
@@ -1208,8 +1201,7 @@ export class AdminBookingRepository {
           workingAddress: row.workingAddress,
           financialCapacity: {
             walletBalance,
-            depositBalance,
-            availableAmount: walletBalance + depositBalance,
+            availableAmount: walletBalance,
           },
         };
       }),
@@ -1275,7 +1267,7 @@ export class AdminBookingRepository {
 
       if (booking.paymentMethod === PaymentMethod.CASH) {
         const platformFee = await this.getRequiredPlatformFee(manager, booking);
-        await this.taskerDepositService.assertCanCoverCashCommission(
+        await this.walletService.assertCanCoverCashCommission(
           manager,
           tasker.id,
           platformFee,
@@ -1609,7 +1601,7 @@ export class AdminBookingRepository {
 
     if (booking.paymentMethod === PaymentMethod.CASH) {
       if (platformFee > 0) {
-        await this.taskerDepositService.deductCashCommission(
+        await this.walletService.deductCashCommission(
           manager,
           booking.tasker.id,
           booking,

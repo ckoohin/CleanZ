@@ -19,6 +19,11 @@ import { CreateWithdrawalRequestDto } from './dto/create-withdrawal-request.dto'
 import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
 import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
 import { MAX_WEEKLY_WITHDRAWALS } from '../finance/services/finance.service';
+import { SystemConfigService } from '../system-config/system-config.service';
+import {
+  SYSTEM_CONFIG_KEYS,
+  TASKER_MIN_WALLET_BALANCE_DEFAULT,
+} from '../system-config/system-config.keys';
 
 interface WalletMutationInput {
   wallet: WalletEntity;
@@ -49,9 +54,6 @@ export interface WalletResponse {
   holdBalance: number;
   taskerId?: string | null;
   customerId?: string | null;
-  requiredDeposit?: number;
-  currentDepositBalance?: number;
-  depositTopupDue?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,7 +89,114 @@ export interface WalletTransactionQueryOpts {
 
 @Injectable()
 export class WalletService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly systemConfigService: SystemConfigService,
+  ) {}
+
+  /**
+   * Điều kiện nhận đơn TIỀN MẶT (mô hình 1 ví):
+   * ví phải có sẵn >= max(số dư tối thiểu cấu hình, hoa hồng của đơn này).
+   * Dùng `max` để đảm bảo lúc hoàn thành đơn, ví luôn đủ trả hoa hồng (không bao giờ âm).
+   */
+  async assertCanCoverCashCommission(
+    manager: EntityManager,
+    taskerId: string,
+    commissionAmount: number,
+  ): Promise<void> {
+    const wallet = await this.lockTaskerWalletById(manager, taskerId);
+    const balance = toNumber(wallet.balance);
+    const minBalance = await this.systemConfigService.getOptionalNumber(
+      manager,
+      SYSTEM_CONFIG_KEYS.TASKER_MIN_WALLET_BALANCE,
+      TASKER_MIN_WALLET_BALANCE_DEFAULT,
+    );
+    const required = Math.max(minBalance, toNumber(commissionAmount));
+
+    if (balance < required) {
+      throw new BadRequestException(
+        `Số dư ví không đủ để nhận đơn tiền mặt. Cần tối thiểu ${required}, hiện có ${balance}`,
+      );
+    }
+  }
+
+  /**
+   * Trừ hoa hồng nền tảng của đơn tiền mặt khỏi ví tasker (mô hình 1 ví).
+   * Ghi bút toán PLATFORM_FEE qua debitWallet (đã có pessimistic lock + transaction).
+   */
+  async deductCashCommission(
+    manager: EntityManager,
+    taskerId: string,
+    booking: BookingEntity,
+    commissionAmount: number,
+  ): Promise<WalletEntity> {
+    const wallet = await this.lockTaskerWalletById(manager, taskerId);
+    return this.debitWallet(manager, {
+      wallet,
+      amount: commissionAmount,
+      type: WalletTransactionType.PLATFORM_FEE,
+      booking,
+      description: `Khấu trừ phí nền tảng đơn tiền mặt cho booking ${booking.bookingCode}`,
+    });
+  }
+
+  /**
+   * Admin ghi nhận tasker nộp TIỀN MẶT tại trụ sở → cộng thẳng vào ví.
+   * Bút toán ADJUSTMENT, mô tả kèm lý do + số phiếu thu + admin thực hiện (để đối soát).
+   * Tự tạo ví nếu tasker chưa có (đúng cả case "lần đầu có tài khoản").
+   */
+  async adminCreditTaskerWallet(
+    admin: { id: string; email?: string | null },
+    taskerId: string,
+    input: { amount: number; reason: string; referenceCode?: string | null },
+  ): Promise<WalletResponse> {
+    return asyncHandleOperation(
+      () =>
+        this.dataSource.transaction(async (manager) => {
+          const tasker = await manager
+            .getRepository(TaskerEntity)
+            .findOne({ where: { id: taskerId } });
+          if (!tasker) {
+            throw new NotFoundException('Không tìm thấy hồ sơ Tasker');
+          }
+
+          const wallet = await this.getOrCreateTaskerWallet(manager, tasker);
+          const performedBy = admin.email ?? admin.id;
+          const receiptNote = input.referenceCode
+            ? ` (phiếu thu ${input.referenceCode})`
+            : '';
+          const description =
+            `Nộp tiền mặt tại trụ sở: ${input.reason}${receiptNote} — ghi nhận bởi admin ${performedBy}`;
+
+          const updated = await this.creditWallet(manager, {
+            wallet,
+            amount: input.amount,
+            type: WalletTransactionType.ADJUSTMENT,
+            referenceId: admin.id, // cột uuid — lưu admin thực hiện; số phiếu thu nằm trong description
+            referenceType: 'OFFICE_DEPOSIT',
+            description,
+          });
+
+          updated.tasker = tasker;
+          return this.mapWallet(updated);
+        }),
+      'Không thể ghi nhận cộng tiền vào ví tasker',
+    );
+  }
+
+  private async lockTaskerWalletById(
+    manager: EntityManager,
+    taskerId: string,
+  ): Promise<WalletEntity> {
+    const tasker = await manager.getRepository(TaskerEntity).findOne({
+      where: { id: taskerId },
+    });
+    if (!tasker) {
+      throw new NotFoundException('Không tìm thấy hồ sơ Tasker');
+    }
+    const wallet = await this.getOrCreateTaskerWallet(manager, tasker);
+    return this.lockWallet(manager, wallet.id);
+  }
 
   async findAllWallets(
     query: WalletListQueryDto,
@@ -290,6 +399,29 @@ export class WalletService {
 
       return this.getTransactionsByWalletId(wallet.id);
     }, 'Không thể lấy lịch sử ví hệ thống');
+  }
+
+  /**
+   * Admin xem lịch sử giao dịch ví của một tasker (theo taskerId).
+   * Tự tạo ví nếu tasker chưa có → trả danh sách rỗng thay vì lỗi.
+   */
+  async getTaskerTransactions(
+    taskerId: string,
+  ): Promise<WalletTransactionListResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.dataSource
+        .getRepository(TaskerEntity)
+        .findOne({ where: { id: taskerId } });
+      if (!tasker) {
+        throw new NotFoundException('Không tìm thấy hồ sơ Tasker');
+      }
+      const wallet = await this.getOrCreateTaskerWallet(
+        this.dataSource.manager,
+        tasker,
+      );
+
+      return this.getTransactionsByWalletId(wallet.id);
+    }, 'Không thể lấy lịch sử ví tasker');
   }
 
   async getOrCreateTaskerWallet(
@@ -603,13 +735,6 @@ export class WalletService {
       holdBalance: toNumber(wallet.holdBalance),
       taskerId: wallet.tasker?.id ?? null,
       customerId: wallet.customer?.id ?? null,
-      requiredDeposit: wallet.tasker
-        ? toNumber(wallet.tasker.depositAmount)
-        : undefined,
-      currentDepositBalance: wallet.tasker
-        ? toNumber(wallet.tasker.currentDepositBalance)
-        : undefined,
-      depositTopupDue: wallet.tasker?.depositTopupDue ?? null,
       createdAt: wallet.createdAt,
       updatedAt: wallet.updatedAt,
     };

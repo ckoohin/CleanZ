@@ -34,7 +34,6 @@ import {
 } from './booking-policy.service';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { BookingDispatchService } from './booking-dispatch.service';
 import { BookingCheckinService } from './booking-checkin.service';
@@ -269,7 +268,6 @@ export class TaskerBookingService {
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly walletService: WalletService,
-    private readonly taskerDepositService: TaskerDepositService,
     private readonly goongMapService: GoongMapService,
     private readonly trackingGateway: TrackingGateway,
     private readonly notificationService: NotificationService,
@@ -493,7 +491,7 @@ export class TaskerBookingService {
           const platformFee = Math.round(
             (subtotalForCommission * commissionRate) / 100,
           );
-          await this.taskerDepositService.assertCanCoverCashCommission(
+          await this.walletService.assertCanCoverCashCommission(
             manager,
             tasker.id,
             platformFee,
@@ -958,7 +956,7 @@ export class TaskerBookingService {
 
         if (savedBooking.paymentMethod === PaymentMethod.CASH) {
           if (platformFee > 0) {
-            await this.taskerDepositService.deductCashCommission(
+            await this.walletService.deductCashCommission(
               manager,
               tasker.id,
               savedBooking,

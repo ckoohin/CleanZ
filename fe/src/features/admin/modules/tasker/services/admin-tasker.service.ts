@@ -1,10 +1,13 @@
 import http from "@/lib/api/http";
 import type {
+  AdminCreditWalletPayload,
   AdminTasker,
   AdminTaskerDetail,
   AdminTaskerFilter,
   AdminUpdateTaskerPayload,
   UpdateTaskerWorkStatusPayload,
+  AdminWalletResult,
+  AdminWalletTransactionList,
   BanType,
   PaginatedTaskers,
 } from "../types/admin-tasker.types";
@@ -101,4 +104,22 @@ export const adminTaskerApi = {
 
   getTaskerPenalties: (id: string): Promise<unknown[]> =>
     http.get(`${BASE}/${id}/penalties`).then((res) => res.data?.data ?? []),
+
+  // Admin ghi nhận tasker nộp tiền mặt tại trụ sở → cộng thẳng vào ví.
+  // Endpoint ở module wallet, không phải BASE (/tasker/admin).
+  creditTaskerWallet: (
+    taskerId: string,
+    payload: AdminCreditWalletPayload
+  ): Promise<AdminWalletResult> =>
+    http
+      .post(`/wallet/admin/tasker/${taskerId}/credit`, payload)
+      .then((res) => res.data.data),
+
+  // Lịch sử giao dịch ví của tasker (tối đa 50 bút toán gần nhất).
+  getTaskerWalletTransactions: (
+    taskerId: string
+  ): Promise<AdminWalletTransactionList> =>
+    http
+      .get(`/wallet/admin/tasker/${taskerId}/transactions`)
+      .then((res) => res.data),
 };

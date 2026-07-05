@@ -43,24 +43,6 @@ export class TaskerEntity {
   status!: TaskerStatus;
 
   @Column({
-    name: 'deposit_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 400000,
-  })
-  depositAmount!: number;
-
-  @Column({
-    name: 'current_deposit_balance',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 400000,
-  })
-  currentDepositBalance!: number;
-
-  @Column({
     name: 'rating_avg',
     type: 'numeric',
     precision: 3,
@@ -158,14 +140,6 @@ export class TaskerEntity {
   @Column({ name: 'updated_by', type: 'uuid', nullable: true })
   updatedBy?: string | null;
 
-  // Hạn nạp bổ sung cọc sau khi cọc < tối thiểu (Phase 2 — FR-E4). NULL = không cần nạp.
-  @Column({ name: 'deposit_topup_due', type: 'timestamp', nullable: true })
-  depositTopupDue?: Date | null;
-
-  /** Hạn khóa do tự hủy quá 3 lần/tuần. NULL = không bị khóa theo luồng này. */
-  @Column({ name: 'cancel_suspended_until', type: 'timestamp', nullable: true })
-  cancelSuspendedUntil?: Date | null;
-
   @Column({
     name: 'presence_status',
     type: 'enum',
@@ -197,6 +171,10 @@ export class TaskerEntity {
   // current_location (GEOGRAPHY POINT) managed via raw SQL — không map vào entity để tránh xung đột TypeORM
   @Column({ name: 'location_updated_at', type: 'timestamptz', nullable: true })
   locationUpdatedAt?: Date | null;
+
+  /** Hạn khóa do tự hủy quá 3 lần/tuần. NULL = không bị khóa theo luồng này. */
+  @Column({ name: 'cancel_suspended_until', type: 'timestamp', nullable: true })
+  cancelSuspendedUntil?: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

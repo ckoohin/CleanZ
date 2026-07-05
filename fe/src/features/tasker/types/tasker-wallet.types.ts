@@ -4,9 +4,6 @@ export interface TaskerWallet {
   balance: number;
   holdBalance: number;
   taskerId: string | null;
-  requiredDeposit?: number;
-  currentDepositBalance?: number;
-  depositTopupDue?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,21 +51,36 @@ export interface TaskerWalletTransactionQuery {
 }
 
 export interface TaskerDepositTransaction {
+// ── Nạp tiền vào ví (PayPal) ────────────────────────────────────────────────
+
+export type TaskerTopupStatus =
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "EXPIRED"
+  | "CANCELLED";
+
+export interface CreateTaskerTopupPayload {
+  /** Số tiền muốn nạp (VND). BE giới hạn theo cấu hình (mặc định 10k–50tr). */
+  amountVnd: number;
+}
+
+export interface TaskerTopup {
   id: string;
-  type:
-    | "CASH_COMMISSION_DEDUCT"
-    | "INCIDENT_COMPENSATION_DEDUCT"
-    | "TOP_UP"
-    | "TERMINATION_REFUND";
-  amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
-  description?: string | null;
+  amountVnd: number;
+  amountUsd: number;
+  fxRate: number;
+  provider: "PAYPAL";
+  status: TaskerTopupStatus;
+  /** Link chuyển tới PayPal để thanh toán (chỉ có khi vừa tạo đơn). */
+  approveUrl: string | null;
+  paidAt: string | null;
   createdAt: string;
-  booking?: {
-    id: string;
-    bookingCode?: string;
-  } | null;
+}
+
+/** Kết quả tạo đơn nạp — kèm topupId để FE poll trạng thái. */
+export interface CreateTaskerTopupResult extends TaskerTopup {
+  topupId: string;
 }
 
 export interface CreateTaskerWithdrawalPayload {

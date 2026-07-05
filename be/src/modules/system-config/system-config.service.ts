@@ -55,6 +55,25 @@ export class SystemConfigService {
     return numberValue;
   }
 
+  /**
+   * Đọc cấu hình dạng số; trả về `defaultValue` nếu chưa cấu hình hoặc giá trị không hợp lệ.
+   * Dùng cho các ngưỡng có mặc định an toàn (vd số dư ví tối thiểu).
+   */
+  async getOptionalNumber(
+    manager: EntityManager,
+    key: string,
+    defaultValue: number,
+  ): Promise<number> {
+    const config = await manager.getRepository(SystemConfigEntity).findOne({
+      where: { configKey: key },
+    });
+    if (!config) {
+      return defaultValue;
+    }
+    const numberValue = Number(config.configValue.trim());
+    return Number.isFinite(numberValue) ? numberValue : defaultValue;
+  }
+
   async getRequiredStringList(
     manager: EntityManager,
     key: string,

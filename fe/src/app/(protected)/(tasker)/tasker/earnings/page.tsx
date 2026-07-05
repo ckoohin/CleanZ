@@ -12,8 +12,8 @@ import {
   Clock3,
   CreditCard,
   History,
-  LockKeyhole,
-  ShieldCheck,
+  Loader2,
+  PlusCircle,
   WalletCards,
   X,
 } from "lucide-react";
@@ -31,13 +31,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  useCreateTaskerTopup,
   useCreateTaskerWithdrawal,
-  useTaskerDepositTransactions,
   useTaskerWallet,
   useTaskerWalletTransactions,
 } from "@/features/tasker/hooks/useTaskerWallet";
 import type {
-  TaskerDepositTransaction,
   TaskerWalletTransaction,
   TaskerWithdrawalRequest,
 } from "@/features/tasker/types/tasker-wallet.types";
@@ -51,11 +50,15 @@ const TRANSACTION_LABELS: Record<string, string> = {
   PLATFORM_FEE: "Phí nền tảng",
   TASKER_EARNING: "Thu nhập công việc",
   DEPOSIT_HOLD: "Giữ tiền",
-  DEPOSIT_RELEASE: "Hoàn ký quỹ",
-  DEPOSIT_DEDUCT: "Khấu trừ ký quỹ",
+  DEPOSIT_RELEASE: "Hoàn giữ tiền",
+  DEPOSIT_DEDUCT: "Khấu trừ",
   CANCELLATION_FEE: "Phí hủy",
   ADJUSTMENT: "Điều chỉnh",
 };
+
+const TOPUP_MIN = 10_000;
+const TOPUP_QUICK = [50_000, 100_000, 200_000, 500_000];
+const WITHDRAW_MIN = 1_000;
 
 const formatCurrency = (value: number | undefined) =>
   new Intl.NumberFormat("vi-VN", {
@@ -68,6 +71,7 @@ const TX_LIMIT = 10;
 
 export default function TaskerEarningsPage() {
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
   const [recentRequest, setRecentRequest] =
     useState<TaskerWithdrawalRequest | null>(null);
   const [txPage, setTxPage] = useState(1);
@@ -83,9 +87,9 @@ export default function TaskerEarningsPage() {
 
   const { data: wallet, isLoading: walletLoading } = useTaskerWallet();
   const { data: transactions, isLoading: transactionsLoading } =
-    useTaskerWalletTransactions(txQuery);
-  const { data: depositTransactions, isLoading: depositTransactionsLoading } =
-    useTaskerDepositTransactions();
+    useTaskerWalletTransactions();
+
+  const balance = Number(wallet?.balance ?? 0);
 
   const totalPages = transactions?.totalPages ?? 1;
   const hasFilter = Boolean(fromDate || toDate);
@@ -108,102 +112,68 @@ export default function TaskerEarningsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-5 md:p-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h1
-            className="text-3xl font-light"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            Thu <span className="italic text-primary">nhập</span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Quản lý ví thu nhập, ký quỹ và yêu cầu rút tiền.
-          </p>
-        </div>
-        <Button
-          className="rounded-full"
-          onClick={() => setWithdrawalOpen(true)}
-          disabled={!wallet || Number(wallet.balance) <= 0}
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-5 md:p-8">
+      <div>
+        <h1
+          className="text-3xl font-light"
+          style={{ fontFamily: "var(--font-serif)" }}
         >
-          <BanknoteArrowDown className="size-4" />
-          Yêu cầu rút tiền
-        </Button>
+          Ví <span className="italic text-primary">của tôi</span>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Nạp tiền để nhận đơn, rút thu nhập và xem lịch sử giao dịch.
+        </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.45fr_1fr]">
-        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-800 to-slate-950 p-6 text-white shadow-xl">
-          <div className="absolute -right-12 -top-16 size-48 rounded-full bg-primary/20 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-white/70">
-                <WalletCards className="size-5" />
-                Ví thu nhập khả dụng
-              </div>
-              <Badge className="border-white/15 bg-white/10 text-white">
-                Có thể rút
-              </Badge>
-            </div>
-            {walletLoading ? (
-              <Skeleton className="mt-6 h-10 w-52 bg-white/15" />
-            ) : (
-              <p className="mt-6 text-4xl font-black tracking-tight">
-                {formatCurrency(Number(wallet?.balance ?? 0))}
-              </p>
-            )}
-            <div className="mt-8 flex items-center justify-between text-xs text-white/60">
-              <span>Tổng thu nhập ghi nhận</span>
-              <span className="font-bold text-white">
-                {formatCurrency(totalIncome)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-border/50 bg-card p-5 shadow-sm">
+      {/* Thẻ số dư */}
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-800 to-slate-950 p-6 text-white shadow-xl">
+        <div className="absolute -right-12 -top-16 size-48 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="rounded-xl bg-amber-500/10 p-2.5 text-amber-600">
-                <ShieldCheck className="size-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold">Ký quỹ hoạt động</p>
-                <p className="text-xs text-muted-foreground">
-                  Không thuộc số dư có thể rút
-                </p>
-              </div>
+            <div className="flex items-center gap-2 text-sm text-white/70">
+              <WalletCards className="size-5" />
+              Số dư ví
             </div>
-            <LockKeyhole className="size-4 text-muted-foreground" />
+            <Badge className="border-white/15 bg-white/10 text-white">
+              Khả dụng
+            </Badge>
           </div>
           {walletLoading ? (
-            <Skeleton className="mt-5 h-8 w-36" />
+            <Skeleton className="mt-6 h-11 w-52 bg-white/15" />
           ) : (
-            <>
-              <p className="mt-5 text-2xl font-black">
-                {formatCurrency(Number(wallet?.currentDepositBalance ?? 0))}
-              </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-amber-500"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      (Number(wallet?.currentDepositBalance ?? 0) /
-                        Math.max(Number(wallet?.requiredDeposit ?? 1), 1)) *
-                        100,
-                    )}%`,
-                  }}
-                />
-              </div>
-              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>Mức yêu cầu</span>
-                <span>
-                  {formatCurrency(Number(wallet?.requiredDeposit ?? 0))}
-                </span>
-              </div>
-            </>
+            <p className="mt-6 text-4xl font-black tracking-tight">
+              {formatCurrency(balance)}
+            </p>
           )}
+          <div className="mt-8 flex items-center justify-between text-xs text-white/60">
+            <span>Tổng thu nhập ghi nhận</span>
+            <span className="font-bold text-white">
+              {formatCurrency(totalIncome)}
+            </span>
+          </div>
         </div>
+      </div>
+
+      {/* Hành động: Nạp / Rút — mobile-first, 2 nút chia đôi */}
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          size="lg"
+          className="h-14 rounded-2xl text-base"
+          onClick={() => setTopupOpen(true)}
+        >
+          <PlusCircle className="size-5" />
+          Nạp tiền
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-14 rounded-2xl text-base"
+          onClick={() => setWithdrawalOpen(true)}
+          disabled={balance <= 0}
+        >
+          <BanknoteArrowDown className="size-5" />
+          Rút tiền
+        </Button>
       </div>
 
       {recentRequest && (
@@ -213,7 +183,7 @@ export default function TaskerEarningsPage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-bold">Yêu cầu đang chờ duyệt</p>
+              <p className="font-bold">Yêu cầu rút đang chờ duyệt</p>
               <Badge className="bg-amber-500/10 text-amber-700">PENDING</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -222,7 +192,7 @@ export default function TaskerEarningsPage() {
               {new Date(recentRequest.createdAt).toLocaleString("vi-VN")}
             </p>
           </div>
-          <CheckCircle2 className="size-5 text-amber-600" />
+          <CheckCircle2 className="size-5 shrink-0 text-amber-600" />
         </div>
       )}
 
@@ -231,7 +201,7 @@ export default function TaskerEarningsPage() {
           <div>
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <History className="size-5 text-primary" />
-              Lịch sử ví thu nhập
+              Lịch sử giao dịch
             </h2>
           </div>
           <Badge variant="outline" className="rounded-full">
@@ -291,7 +261,7 @@ export default function TaskerEarningsPage() {
                 {hasFilter ? "Không có giao dịch trong khoảng này" : "Chưa có giao dịch"}
               </p>
               <p className="text-sm text-muted-foreground">
-                {hasFilter ? "Thử chọn khoảng ngày khác." : "Thu nhập từ các booking online sẽ xuất hiện tại đây."}
+                Nạp tiền hoặc thu nhập từ booking sẽ xuất hiện tại đây.
               </p>
             </div>
           )}
@@ -327,47 +297,12 @@ export default function TaskerEarningsPage() {
         )}
       </section>
 
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold">
-              <ShieldCheck className="size-5 text-amber-600" />
-              Lịch sử ký quỹ
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Bao gồm phần phí nền tảng được khấu trừ khi ví thu nhập không đủ.
-            </p>
-          </div>
-          <Badge variant="outline" className="rounded-full">
-            {depositTransactions?.length ?? 0} giao dịch
-          </Badge>
-        </div>
-
-        <div className="space-y-2">
-          {depositTransactionsLoading ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-20 rounded-2xl" />
-            ))
-          ) : depositTransactions?.length ? (
-            depositTransactions.map((transaction) => (
-              <DepositTransactionRow
-                key={transaction.id}
-                transaction={transaction}
-              />
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center">
-              <ShieldCheck className="mx-auto size-8 text-muted-foreground/50" />
-              <p className="mt-3 font-bold">Ký quỹ chưa có biến động</p>
-            </div>
-          )}
-        </div>
-      </section>
+      <TopupDialog open={topupOpen} onClose={() => setTopupOpen(false)} />
 
       {wallet && (
         <WithdrawalDialog
           open={withdrawalOpen}
-          balance={Number(wallet.balance)}
+          balance={balance}
           onClose={() => setWithdrawalOpen(false)}
           onCreated={(request) => {
             setRecentRequest(request);
@@ -375,60 +310,6 @@ export default function TaskerEarningsPage() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function DepositTransactionRow({
-  transaction,
-}: {
-  transaction: TaskerDepositTransaction;
-}) {
-  const isCredit =
-    Number(transaction.balanceAfter) >= Number(transaction.balanceBefore);
-  const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
-  const label =
-    transaction.type === "CASH_COMMISSION_DEDUCT"
-      ? "Phí nền tảng từ ký quỹ"
-      : transaction.type === "TERMINATION_REFUND"
-        ? "Hoàn ký quỹ khi nghỉ việc"
-        : transaction.type === "TOP_UP"
-          ? "Nạp bổ sung ký quỹ"
-          : "Khấu trừ ký quỹ";
-
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-card p-4">
-      <div
-        className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${
-          isCredit
-            ? "bg-emerald-500/10 text-emerald-600"
-            : "bg-amber-500/10 text-amber-600"
-        }`}
-      >
-        <Icon className="size-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold">{label}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {transaction.description || "Biến động số dư ký quỹ"}
-        </p>
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          {new Date(transaction.createdAt).toLocaleString("vi-VN")}
-        </p>
-      </div>
-      <div className="text-right">
-        <p
-          className={`font-black ${
-            isCredit ? "text-emerald-600" : "text-amber-600"
-          }`}
-        >
-          {isCredit ? "+" : "-"}
-          {formatCurrency(Math.abs(Number(transaction.amount)))}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          Cọc còn {formatCurrency(Number(transaction.balanceAfter))}
-        </p>
-      </div>
     </div>
   );
 }
@@ -481,6 +362,128 @@ function TransactionRow({
   );
 }
 
+function TopupDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const mutation = useCreateTaskerTopup();
+
+  const amountNum = Number(amount);
+  const valid = Number.isInteger(amountNum) && amountNum >= TOPUP_MIN;
+
+  const submit = () => {
+    if (!valid) {
+      toast.error(`Số tiền nạp tối thiểu ${formatCurrency(TOPUP_MIN)}`);
+      return;
+    }
+    mutation.mutate(
+      { amountVnd: amountNum },
+      {
+        onSuccess: (result) => {
+          if (result.approveUrl) {
+            // Chuyển sang PayPal để thanh toán.
+            window.location.href = result.approveUrl;
+          } else {
+            toast.error("Không lấy được link thanh toán, thử lại sau");
+          }
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PlusCircle className="size-5 text-primary" />
+            Nạp tiền vào ví
+          </DialogTitle>
+          <DialogDescription>
+            Thanh toán an toàn qua PayPal. Sau khi thanh toán xong, số dư ví sẽ
+            được cộng tự động.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground">
+              Số tiền cần nạp
+            </label>
+            <div className="relative">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={TOPUP_MIN}
+                step={1000}
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                placeholder="Nhập số tiền"
+                className="rounded-xl pr-14"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                VND
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {TOPUP_QUICK.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setAmount(String(value))}
+                  className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition hover:bg-muted"
+                >
+                  {value.toLocaleString("vi-VN")}
+                </button>
+              ))}
+            </div>
+            {amount !== "" && !valid && (
+              <p className="text-xs text-destructive">
+                Số tiền phải là số nguyên, tối thiểu{" "}
+                {TOPUP_MIN.toLocaleString("vi-VN")}đ.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm text-foreground/80">
+            PayPal tính bằng USD nên số tiền sẽ được quy đổi theo tỷ giá hệ
+            thống. Bạn sẽ được chuyển sang trang PayPal để hoàn tất.
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            className="rounded-full"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
+            Hủy
+          </Button>
+          <Button
+            className="rounded-full"
+            onClick={submit}
+            disabled={mutation.isPending || !valid}
+          >
+            {mutation.isPending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Đang chuyển...
+              </>
+            ) : (
+              "Tiếp tục với PayPal"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function WithdrawalDialog({
   open,
   balance,
@@ -498,8 +501,8 @@ function WithdrawalDialog({
 
   const submit = () => {
     const numericAmount = Number(amount);
-    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      toast.error("Vui lòng nhập số tiền hợp lệ");
+    if (!Number.isFinite(numericAmount) || numericAmount < WITHDRAW_MIN) {
+      toast.error(`Số tiền rút tối thiểu ${formatCurrency(WITHDRAW_MIN)}`);
       return;
     }
     if (numericAmount > balance) {

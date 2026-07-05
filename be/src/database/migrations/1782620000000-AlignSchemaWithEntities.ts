@@ -93,11 +93,11 @@ export class AlignSchemaWithEntities1782620000000 implements MigrationInterface 
         DROP CONSTRAINT IF EXISTS "FK_workflows_package"
     `);
     await queryRunner.query(`
-      ALTER TABLE "tasker_deposit_transactions"
+      ALTER TABLE IF EXISTS "tasker_deposit_transactions"
         DROP CONSTRAINT IF EXISTS "FK_9a7ed9c8fc252a7312fc562aabd"
     `);
     await queryRunner.query(`
-      ALTER TABLE "tasker_deposit_transactions"
+      ALTER TABLE IF EXISTS "tasker_deposit_transactions"
         DROP CONSTRAINT IF EXISTS "FK_406ca47645b25213ee68058ed6f"
     `);
     await queryRunner.query(`
@@ -259,7 +259,9 @@ export class AlignSchemaWithEntities1782620000000 implements MigrationInterface 
     await queryRunner.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (
+        IF EXISTS (
+          SELECT 1 FROM information_schema.tables WHERE table_name = 'tasker_deposit_transactions'
+        ) AND NOT EXISTS (
           SELECT 1 FROM pg_constraint WHERE conname = 'FK_tasker_deposit_transactions_tasker'
         ) THEN
           ALTER TABLE "tasker_deposit_transactions"
@@ -273,7 +275,9 @@ export class AlignSchemaWithEntities1782620000000 implements MigrationInterface 
     await queryRunner.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (
+        IF EXISTS (
+          SELECT 1 FROM information_schema.tables WHERE table_name = 'tasker_deposit_transactions'
+        ) AND NOT EXISTS (
           SELECT 1 FROM pg_constraint WHERE conname = 'FK_tasker_deposit_transactions_booking'
         ) THEN
           ALTER TABLE "tasker_deposit_transactions"

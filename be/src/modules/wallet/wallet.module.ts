@@ -2,23 +2,31 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import { WalletEntity } from './entity/wallet.entity';
+import { WalletTopupEntity } from './entity/wallet-topup.entity';
 import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
+import { WalletTopupService } from './wallet-topup.service';
 import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
-import { TaskerDepositTransactionEntity } from './entity/tasker-deposit-transaction.entity';
-import { TaskerDepositService } from './tasker-deposit.service';
+import { SystemConfigModule } from '../system-config/system-config.module';
+import { PAYMENT_GATEWAY } from './gateways/payment-gateway.interface';
+import { PayPalGateway } from './gateways/paypal.gateway';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       WalletEntity,
       WalletTransactionEntity,
+      WalletTopupEntity,
       WithdrawalRequestEntity,
-      TaskerDepositTransactionEntity,
     ]),
+    SystemConfigModule,
   ],
   controllers: [WalletController],
-  providers: [WalletService, TaskerDepositService],
-  exports: [TypeOrmModule, WalletService, TaskerDepositService],
+  providers: [
+    WalletService,
+    WalletTopupService,
+    { provide: PAYMENT_GATEWAY, useClass: PayPalGateway },
+  ],
+  exports: [TypeOrmModule, WalletService],
 })
 export class WalletModule {}

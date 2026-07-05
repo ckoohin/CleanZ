@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { adminTaskerApi } from "../services/admin-tasker.service";
 import type {
+  AdminCreditWalletPayload,
   AdminTaskerFilter,
   AdminUpdateTaskerPayload,
   BanTaskerPayload,
@@ -14,6 +15,8 @@ export const adminTaskerKeys = {
   detail: (id: string) => [...adminTaskerKeys.all, "detail", id] as const,
   documents: (id: string) => [...adminTaskerKeys.all, "documents", id] as const,
   penalties: (id: string) => [...adminTaskerKeys.all, "penalties", id] as const,
+  walletTransactions: (id: string) =>
+    [...adminTaskerKeys.all, "wallet-transactions", id] as const,
 };
 
 const errorMessage = (error: unknown, fallback: string): string => {
@@ -48,6 +51,14 @@ export function useAdminTaskerPenalties(id: string) {
   return useQuery({
     queryKey: adminTaskerKeys.penalties(id),
     queryFn: () => adminTaskerApi.getTaskerPenalties(id),
+    enabled: !!id,
+  });
+}
+
+export function useAdminTaskerWalletTransactions(id: string) {
+  return useQuery({
+    queryKey: adminTaskerKeys.walletTransactions(id),
+    queryFn: () => adminTaskerApi.getTaskerWalletTransactions(id),
     enabled: !!id,
   });
 }
@@ -185,6 +196,33 @@ export function useReinstateTasker() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Lỗi khi khôi phục tài khoản"));
+    },
+  });
+}
+
+export function useCreditTaskerWallet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      taskerId,
+      payload,
+    }: {
+      taskerId: string;
+      payload: AdminCreditWalletPayload;
+    }) => adminTaskerApi.creditTaskerWallet(taskerId, payload),
+    onSuccess: (_data, { taskerId }) => {
+      // Làm mới chi tiết tasker (số dư ví) + danh sách + lịch sử giao dịch.
+      queryClient.invalidateQueries({ queryKey: adminTaskerKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: adminTaskerKeys.detail(taskerId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: adminTaskerKeys.walletTransactions(taskerId),
+      });
+      toast.success("Đã cộng tiền vào ví tasker!");
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Lỗi khi cộng tiền vào ví"));
     },
   });
 }
