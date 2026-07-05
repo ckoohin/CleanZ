@@ -6,7 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ServicePackageEntity } from '../entity/service-package.entity';
-import { CreateServicePackageDto } from '../dto/create-service-package.dto';
+import {
+  CreateServicePackageDto,
+  DurationPriceMode,
+} from '../dto/create-service-package.dto';
 import { UpdateServicePackageDto } from '../dto/update-service-package.dto';
 import { CoverageAreaEntity } from '../entity/coverage-area.entity';
 import { PackageSubServiceEntity } from '../entity/package-sub-service.entity';
@@ -105,6 +108,8 @@ export class ServicePackagesService {
           packageId: saved.id,
           durationHours: d.durationHours,
           priceMultiplier: d.priceMultiplier,
+          priceMode: d.priceMode ?? DurationPriceMode.PERCENT,
+          fixedPrice: d.fixedPrice ?? null,
           isPopular: d.isPopular ?? false,
           isActive: d.isActive ?? true,
           suggestedArea: d.suggestedArea || null,
@@ -360,6 +365,8 @@ export class ServicePackagesService {
             packageId: id,
             durationHours: d.durationHours,
             priceMultiplier: d.priceMultiplier,
+            priceMode: d.priceMode ?? DurationPriceMode.PERCENT,
+            fixedPrice: d.fixedPrice ?? null,
             isPopular: d.isPopular ?? false,
             isActive: d.isActive ?? true,
             suggestedArea: d.suggestedArea || null,
