@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   Clock,
   MapPin,
@@ -58,6 +60,7 @@ interface ServiceOption {
   id: string;
   name: string;
   description?: string | null;
+  maxHours: number | null;
   basePrice: number;
   baseHourlyRate: number;
   pricingTiers: PublicPricingTier[];
@@ -145,23 +148,44 @@ function getNext7Days() {
         month: "2-digit",
         timeZone: "Asia/Ho_Chi_Minh",
       }),
+      dayOfMonth: d.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        timeZone: "Asia/Ho_Chi_Minh",
+      }),
+      weekday: d
+        .toLocaleDateString("vi-VN", {
+          weekday: "short",
+          timeZone: "Asia/Ho_Chi_Minh",
+        })
+        .replace("Th ", "T"),
     });
   }
   return days;
 }
 
-const TIME_SLOTS = Array.from(
-  { length: 14 },
-  (_, index) => `${String(index + 7).padStart(2, "0")}:00`,
+const HOURS = Array.from({ length: 24 }, (_, index) =>
+  String(index).padStart(2, "0"),
 );
+const MINUTES = ["00", "15", "30", "45"];
+const MINUTE_STEP = 15;
+const SERVICE_DAY_START_MINUTES = 6 * 60;
+const SERVICE_DAY_END_MINUTES = 23 * 60;
+const MIN_SCHEDULE_LEAD_MINUTES = 60;
 
-function isPastSchedule(date: string, time = "00:00"): boolean {
+function getScheduleDateTime(date: string, time = "00:00"): Date {
+  return new Date(`${date}T${time}:00+07:00`);
+}
+
+function isBeforeMinimumScheduleLead(date: string, time = "00:00"): boolean {
   if (!date) return false;
 
-  const selectedDateTime = new Date(`${date}T${time}:00+07:00`);
+  const selectedDateTime = getScheduleDateTime(date, time);
+  const minimumDateTime =
+    Date.now() + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000;
+
   return (
     Number.isNaN(selectedDateTime.getTime()) ||
-    selectedDateTime.getTime() <= Date.now()
+    selectedDateTime.getTime() < minimumDateTime
   );
 }
 
@@ -179,9 +203,110 @@ function isConfiguredAddon(addon: PublicAddon): boolean {
   );
 }
 
+// Một số dịch vụ thêm phát sinh thời gian làm việc thật (addon.durationMinutes),
+// cộng dồn vào tổng giờ công việc để so với maxHours của gói — tránh chọn addon
+// khiến tổng thời lượng thực tế vượt quá số giờ tối đa gói cho phép.
+function getAddonExtraHours(addon: Pick<PublicAddon, "durationMinutes">): number {
+  return addon.durationMinutes ? addon.durationMinutes / 60 : 0;
+}
+
+function getSelectedAddonExtraHours(
+  addons: PublicAddon[],
+  addonIds: string[],
+): number {
+  return addons
+    .filter((addon) => addonIds.includes(addon.id))
+    .reduce((sum, addon) => sum + getAddonExtraHours(addon), 0);
+}
+
+function getTotalWorkHours(
+  addons: PublicAddon[],
+  durationHours: number | null,
+  addonIds: string[],
+): number {
+  return (durationHours ?? 0) + getSelectedAddonExtraHours(addons, addonIds);
+}
+
+// Giữ lại addon theo thứ tự đã chọn, bỏ dần addon nào khiến tổng giờ vượt quá
+// maxHours của gói (dùng khi đổi gói giờ/tier làm giảm số giờ còn trống).
+function filterAddonsWithinMaxHours(
+  service: Pick<ServiceOption, "maxHours" | "addons"> | undefined,
+  durationHours: number | null,
+  addonIds: string[],
+): string[] {
+  if (!service?.maxHours) return addonIds;
+  let usedHours = durationHours ?? 0;
+  const kept: string[] = [];
+  for (const id of addonIds) {
+    const addon = service.addons.find((item) => item.id === id);
+    const extra = addon ? getAddonExtraHours(addon) : 0;
+    if (usedHours + extra <= service.maxHours) {
+      kept.push(id);
+      usedHours += extra;
+    }
+  }
+  return kept;
+}
+
 function timeToMinutes(time: string): number {
   const [hour = "0", minute = "0"] = time.slice(0, 5).split(":");
   return Number(hour) * 60 + Number(minute);
+}
+
+function getVietnamTimeParts(date: Date): { hour: string; minute: string } {
+  const parts = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    hour: values.hour === "24" ? "00" : values.hour,
+    minute: values.minute,
+  };
+}
+
+function getTimeParts(time: string): { hour: string; minute: string } {
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    const [hour, minute] = time.split(":");
+    return {
+      hour,
+      minute: MINUTES.includes(minute) ? minute : "00",
+    };
+  }
+
+  return { hour: "08", minute: "00" };
+}
+
+function normalizeSelectableTime(time: string): string {
+  const { hour, minute } = getTimeParts(time);
+  return `${hour}:${minute}`;
+}
+
+function roundUpToMinuteStep(date: Date): Date {
+  const rounded = new Date(date);
+  const minute = rounded.getMinutes();
+  const remainder = minute % MINUTE_STEP;
+  if (remainder > 0) {
+    rounded.setMinutes(minute + (MINUTE_STEP - remainder));
+  }
+  rounded.setSeconds(0, 0);
+
+  return rounded;
+}
+
+function getEarliestSelectableTime(date: string): string {
+  if (date === formatVietnamDate(new Date())) {
+    const suggested = roundUpToMinuteStep(
+      new Date(Date.now() + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000),
+    );
+    const { hour, minute } = getVietnamTimeParts(suggested);
+    return `${hour}:${minute}`;
+  }
+
+  return "08:00";
 }
 
 function toDateKey(value: string | Date): string {
@@ -244,10 +369,44 @@ function isPeakTimeSlot(
     const endMinutes = timeToMinutes(peak.endHour);
 
     if (startMinutes <= endMinutes) {
-      return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
     }
 
-    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  });
+}
+
+function isFullDayPeakWindow(peak: PublicPeakHour): boolean {
+  const startMinutes = timeToMinutes(peak.startHour);
+  const endMinutes = timeToMinutes(peak.endHour);
+
+  return (
+    startMinutes <= SERVICE_DAY_START_MINUTES &&
+    endMinutes >= SERVICE_DAY_END_MINUTES
+  );
+}
+
+function hasFullDayPeakOnDate(
+  date: string,
+  peakHours: PublicPeakHour[] = [],
+): boolean {
+  if (!date || peakHours.length === 0) return false;
+
+  const dayOfWeek = getVietnamDayOfWeek(date);
+  if (dayOfWeek < 0) return false;
+
+  const selectedDateKey = toDateKey(date);
+  return peakHours.some((peak) => {
+    if (!isFullDayPeakWindow(peak)) return false;
+    if (!isPeakDayMatch(peak.dayOfWeek, dayOfWeek)) return false;
+    if (peak.startDate && selectedDateKey < toDateKey(peak.startDate)) {
+      return false;
+    }
+    if (peak.endDate && selectedDateKey > toDateKey(peak.endDate)) {
+      return false;
+    }
+
+    return true;
   });
 }
 
@@ -269,6 +428,7 @@ function StepService({
       id: service.id,
       name: service.name,
       description: service.shortDescription || service.policyDescription,
+      maxHours: service.maxHours,
       basePrice:
         (service.durations?.[0]?.durationHours ?? 0) *
           (service.baseHourlyRate ?? 0) ||
@@ -289,6 +449,21 @@ function StepService({
   const selectedTier = selectedService?.pricingTiers.find(
     (tier) => tier.id === form.pricingTierId,
   );
+  const selectedAddonExtraHours = getSelectedAddonExtraHours(
+    selectedService?.addons ?? [],
+    form.addonIds,
+  );
+  const remainingHoursForAddons =
+    selectedService?.maxHours != null
+      ? selectedService.maxHours -
+        (form.durationHours ?? 0) -
+        selectedAddonExtraHours
+      : null;
+  const addonSelectionLocked =
+    remainingHoursForAddons != null && remainingHoursForAddons <= 0;
+  const addonLockedMessage = selectedService?.maxHours
+    ? `Tổng thời lượng công việc đã đạt tối đa (${selectedService.maxHours} giờ) của gói. Vui lòng chọn gói giờ ít hơn hoặc bỏ bớt dịch vụ thêm.`
+    : "";
 
   const handleSelectPackage = (svc: ServiceOption) => {
     const defaultTier = svc.pricingTiers[0];
@@ -307,15 +482,65 @@ function StepService({
   };
 
   const handleSelectTier = (tier: PublicPricingTier) => {
+    const nextDurationHours =
+      tier.defaultHours ?? tier.minHours ?? form.durationHours;
+    const nextAddonIds = filterAddonsWithinMaxHours(
+      selectedService,
+      nextDurationHours,
+      form.addonIds,
+    );
+    const droppedCount = form.addonIds.length - nextAddonIds.length;
+
     onChange({
       pricingTierId: tier.id,
-      durationHours: tier.defaultHours ?? tier.minHours ?? form.durationHours,
+      durationHours: nextDurationHours,
       areaM2: tier.areaMinM2 ?? form.areaM2,
+      addonIds: nextAddonIds,
     });
+
+    if (droppedCount > 0) {
+      toast.warning(
+        `Đã bỏ ${droppedCount} dịch vụ thêm vì vượt quá tổng số giờ tối đa của gói (${selectedService?.maxHours} giờ).`,
+      );
+    }
+  };
+
+  const handleSelectDuration = (duration: PublicDuration) => {
+    const nextAddonIds = filterAddonsWithinMaxHours(
+      selectedService,
+      duration.durationHours,
+      form.addonIds,
+    );
+    const droppedCount = form.addonIds.length - nextAddonIds.length;
+
+    onChange({
+      durationHours: duration.durationHours,
+      areaM2: duration.suggestedArea ?? form.areaM2,
+      addonIds: nextAddonIds,
+    });
+
+    if (droppedCount > 0) {
+      toast.warning(
+        `Đã bỏ ${droppedCount} dịch vụ thêm vì vượt quá tổng số giờ tối đa của gói (${selectedService?.maxHours} giờ).`,
+      );
+    }
   };
 
   const toggleAddon = (addonId: string) => {
     const exists = form.addonIds.includes(addonId);
+    if (!exists && selectedService?.maxHours != null) {
+      const addon = selectedService.addons.find((item) => item.id === addonId);
+      const nextTotal =
+        getTotalWorkHours(selectedService.addons, form.durationHours, form.addonIds) +
+        (addon ? getAddonExtraHours(addon) : 0);
+      if (nextTotal > selectedService.maxHours) {
+        toast.warning(
+          `Không thể thêm "${addon?.name ?? "dịch vụ này"}" vì tổng thời lượng công việc sẽ vượt quá số giờ tối đa của gói (${selectedService.maxHours} giờ).`,
+        );
+        return;
+      }
+    }
+
     onChange({
       addonIds: exists
         ? form.addonIds.filter((id) => id !== addonId)
@@ -399,12 +624,7 @@ function StepService({
                     <button
                       key={duration.id}
                       type="button"
-                      onClick={() =>
-                        onChange({
-                          durationHours: duration.durationHours,
-                          areaM2: duration.suggestedArea ?? form.areaM2,
-                        })
-                      }
+                      onClick={() => handleSelectDuration(duration)}
                       className={`rounded-2xl border-2 p-4 text-left transition-all ${
                         selected
                           ? "border-primary bg-background shadow-sm"
@@ -526,46 +746,68 @@ function StepService({
               Dịch vụ thêm
             </h3>
             {selectedService.addons.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {selectedService.addons.map((addon) => {
-                  const selected = form.addonIds.includes(addon.id);
-                  return (
-                    <button
-                      key={addon.id}
-                      type="button"
-                      onClick={() => toggleAddon(addon.id)}
-                      className={`rounded-2xl border p-3 text-left transition-all ${
-                        selected
-                          ? "border-primary bg-background"
-                          : "border-border/50 bg-background/70 hover:border-primary/40"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{addon.name}</p>
-                          {addon.description && (
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                              {addon.description}
-                            </p>
-                          )}
-                          {addon.price > 0 && (
-                            <p className="mt-2 text-xs font-black text-primary">
-                              +{fmtCurrency(addon.price)}
-                            </p>
-                          )}
+              <>
+                {addonSelectionLocked && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                    {addonLockedMessage}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {selectedService.addons.map((addon) => {
+                    const selected = form.addonIds.includes(addon.id);
+                    const extraHours = getAddonExtraHours(addon);
+                    const disabled =
+                      !selected &&
+                      remainingHoursForAddons != null &&
+                      extraHours > remainingHoursForAddons;
+                    return (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() => toggleAddon(addon.id)}
+                        aria-disabled={disabled}
+                        className={`rounded-2xl border p-3 text-left transition-all ${
+                          selected
+                            ? "border-primary bg-background"
+                            : disabled
+                              ? "cursor-not-allowed border-border/40 bg-muted/40 opacity-60"
+                              : "border-border/50 bg-background/70 hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-bold text-foreground">{addon.name}</p>
+                            {addon.description && (
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                {addon.description}
+                              </p>
+                            )}
+                            {addon.price > 0 && (
+                              <p className="mt-2 text-xs font-black text-primary">
+                                +{fmtCurrency(addon.price)}
+                              </p>
+                            )}
+                            {extraHours > 0 && (
+                              <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                                <Clock className="mr-1 inline size-3" />
+                                +{addon.durationMinutes} phút làm việc
+                              </p>
+                            )}
+                          </div>
+                          <div
+                            className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
+                              selected ? "border-primary bg-primary text-white" : "border-border"
+                            }`}
+                          >
+                            {selected && <CheckCircle2 className="size-3.5" />}
+                          </div>
                         </div>
-                        <div
-                          className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
-                            selected ? "border-primary bg-primary text-white" : "border-border"
-                          }`}
-                        >
-                          {selected && <CheckCircle2 className="size-3.5" />}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <p className="text-xs text-muted-foreground">Gói này không có dịch vụ thêm.</p>
             )}
@@ -820,6 +1062,12 @@ function StepSchedule({
     (pkg) => pkg.id === form.serviceId,
   );
   const peakHours = selectedPackage?.peakHours ?? [];
+  const selectedTimeParts = getTimeParts(form.scheduledTime);
+  const selectedTimeIsPeak = isPeakTimeSlot(
+    form.scheduledDate,
+    form.scheduledTime,
+    peakHours,
+  );
 
   const handleDateSelect = (date: string) => {
     if (isPastDate(date)) {
@@ -827,15 +1075,23 @@ function StepSchedule({
       return;
     }
 
-    const currentTimeIsPast =
-      form.scheduledTime && isPastSchedule(date, form.scheduledTime);
+    const currentTimeIsTooSoon =
+      form.scheduledTime &&
+      isBeforeMinimumScheduleLead(date, form.scheduledTime);
+    const nextTime =
+      !form.scheduledTime || currentTimeIsTooSoon
+        ? getEarliestSelectableTime(date)
+        : normalizeSelectableTime(form.scheduledTime);
+
     onChange({
       scheduledDate: date,
-      scheduledTime: currentTimeIsPast ? "" : form.scheduledTime,
+      scheduledTime: nextTime,
     });
 
-    if (currentTimeIsPast) {
-      toast.warning("Khung giờ đã chọn đã qua, vui lòng chọn giờ khác");
+    if (currentTimeIsTooSoon) {
+      toast.warning(
+        "Khung giờ đã chọn cần cách hiện tại tối thiểu 1 tiếng.",
+      );
     }
   };
 
@@ -844,91 +1100,162 @@ function StepSchedule({
       toast.info("Vui lòng chọn ngày trước");
       return;
     }
-    if (isPastSchedule(form.scheduledDate, time)) {
-      toast.error("Không thể chọn thời gian trong quá khứ");
+    if (isBeforeMinimumScheduleLead(form.scheduledDate, time)) {
+      toast.error(
+        "Vui lòng chọn thời gian cách hiện tại tối thiểu 1 tiếng để tasker chuẩn bị.",
+      );
       return;
     }
 
     onChange({ scheduledTime: time });
   };
 
+  const handleTimePartSelect = (part: "hour" | "minute", value: string) => {
+    const nextTime =
+      part === "hour"
+        ? `${value}:${selectedTimeParts.minute}`
+        : `${selectedTimeParts.hour}:${value}`;
+    handleTimeSelect(nextTime);
+  };
+
+  const handleEarliestTimeSelect = () => {
+    if (!form.scheduledDate) {
+      toast.info("Vui lòng chọn ngày trước");
+      return;
+    }
+
+    handleTimeSelect(getEarliestSelectableTime(form.scheduledDate));
+  };
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="bg-card p-5 rounded-2xl border border-border/50">
-        <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" /> Chọn Ngày
+    <div className="space-y-5">
+      <div className="bg-card p-5 rounded-2xl border border-border/50 space-y-4">
+        <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-primary" /> Chọn ngày
         </h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4">
+
+        <div className="flex items-center gap-5 rounded-2xl border border-border/60 bg-background px-4 py-3 text-xs font-semibold text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            Hôm nay
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-amber-400" />
+            Ngày cao điểm
+          </span>
+        </div>
+
+        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
           {days.map((d) => {
             const selected = form.scheduledDate === d.date;
             const past = isPastDate(d.date);
+            const today = d.date === formatVietnamDate(new Date());
+            const peak = hasFullDayPeakOnDate(d.date, peakHours);
             return (
               <button
                 key={d.date}
                 onClick={() => handleDateSelect(d.date)}
                 aria-disabled={past}
-                className={`min-w-0 py-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${
+                className={`relative flex h-[90px] w-[58px] shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border transition-all ${
                   selected
                     ? "border-primary bg-primary text-white shadow-md shadow-primary/30"
                     : past
                       ? "cursor-not-allowed border-border/30 bg-muted/40 text-muted-foreground/50"
-                    : "border-border/50 text-muted-foreground hover:border-primary/40"
+                    : "border-border/60 bg-background text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                <span className="text-[10px] font-bold">{d.label}</span>
-                <span className="text-xs font-semibold">{d.dayNum}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="bg-card p-5 rounded-2xl border border-border/50">
-        <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" /> Giờ bắt đầu
-        </h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4">
-          {TIME_SLOTS.map((t) => {
-            const selected = form.scheduledTime === t;
-            const past =
-              !!form.scheduledDate &&
-              isPastSchedule(form.scheduledDate, t);
-            const peak = isPeakTimeSlot(form.scheduledDate, t, peakHours);
-            return (
-              <button
-                key={t}
-                onClick={() => handleTimeSelect(t)}
-                aria-disabled={past}
-                title={peak ? "Khung giờ cao điểm" : undefined}
-                className={`relative py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
-                  selected
-                    ? peak
-                      ? "border-amber-500 bg-primary text-white shadow-md shadow-amber-500/20"
-                      : "border-primary bg-primary text-white"
-                    : past
-                      ? "cursor-not-allowed border-border/30 bg-muted/40 text-muted-foreground/50 line-through"
-                    : peak
-                      ? "border-amber-300 bg-amber-50 text-amber-700 shadow-sm hover:border-amber-400"
-                      : "border-border/50 text-muted-foreground hover:border-primary/40"
-                }`}
-              >
-                <span>{t}</span>
-                {peak && !past && (
+                <span className="text-xs font-bold">{d.weekday}</span>
+                <span className="text-2xl font-black leading-none">
+                  {d.dayOfMonth}
+                </span>
+                {(today || peak) && !past && (
                   <span
-                    className={`mt-1 block text-[9px] font-black uppercase leading-none ${
-                      selected ? "text-white/85" : "text-amber-500"
-                    }`}
-                  >
-                    Cao điểm
-                  </span>
+                    className={`absolute bottom-2 size-2 rounded-full ${
+                      today ? "bg-emerald-500" : "bg-amber-400"
+                    } ${selected ? "ring-2 ring-white/80" : ""}`}
+                  />
                 )}
               </button>
             );
           })}
         </div>
+
+        <div className="rounded-xl border border-border/60 bg-background p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              Chọn giờ làm
+            </div>
+
+            <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/30 p-1.5 shadow-inner">
+              <label className="relative flex h-12 w-[74px] flex-col justify-center rounded-xl border border-border/60 bg-background px-3 pr-7 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
+                <span className="text-[9px] font-black uppercase leading-none text-muted-foreground">
+                  Giờ
+                </span>
+                <select
+                  aria-label="Giờ"
+                  value={selectedTimeParts.hour}
+                  onChange={(event) =>
+                    handleTimePartSelect("hour", event.target.value)
+                  }
+                  className="mt-0.5 h-6 w-full appearance-none bg-transparent text-base font-black leading-none text-foreground outline-none"
+                >
+                  {HOURS.map((hour) => (
+                    <option key={hour} value={hour}>
+                      {hour}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              </label>
+
+              <span className="text-lg font-black text-muted-foreground/70">
+                :
+              </span>
+
+              <label className="relative flex h-12 w-[74px] flex-col justify-center rounded-xl border border-border/60 bg-background px-3 pr-7 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
+                <span className="text-[9px] font-black uppercase leading-none text-muted-foreground">
+                  Phút
+                </span>
+                <select
+                  aria-label="Phút"
+                  value={selectedTimeParts.minute}
+                  onChange={(event) =>
+                    handleTimePartSelect("minute", event.target.value)
+                  }
+                  className="mt-0.5 h-6 w-full appearance-none bg-transparent text-base font-black leading-none text-foreground outline-none"
+                >
+                  {MINUTES.map((minute) => (
+                    <option key={minute} value={minute}>
+                      {minute}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleEarliestTimeSelect}
+          className="rounded-lg border border-border/70 bg-background px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          Sớm nhất có thể
+        </button>
+
+        {selectedTimeIsPeak && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 fill-amber-400 text-amber-500" />
+            <p>
+              Giá tăng do nhu cầu công việc tăng cao vào thời điểm này.
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className="bg-card p-5 rounded-2xl border border-border/50 lg:col-span-2">
+      <div className="bg-card p-5 rounded-2xl border border-border/50">
         <h2 className="text-base font-bold text-foreground mb-3">
           Ghi chú cho Tasker
         </h2>
@@ -1199,6 +1526,14 @@ export const BookingWizard = ({
   const selectedBookingDuration = selectedBookingPackage?.durations?.find(
     (duration) => duration.durationHours === form.durationHours,
   );
+  const totalBookingWorkHours = getTotalWorkHours(
+    selectedBookingPackage?.addons ?? [],
+    form.durationHours,
+    form.addonIds,
+  );
+  const addonSelectionInvalidAtMaxHours =
+    selectedBookingPackage?.maxHours != null &&
+    totalBookingWorkHours > selectedBookingPackage.maxHours;
 
   const update = (partial: Partial<WizardState>) =>
     setForm((prev) => ({ ...prev, ...partial }));
@@ -1210,14 +1545,15 @@ export const BookingWizard = ({
         ((form.durationHours ?? 0) > 0 || !!form.pricingTierId) &&
         (selectedBookingTier?.pricingMode !== "AREA_HOURLY" ||
           !!form.areaM2 ||
-          !!selectedBookingDuration?.suggestedArea)
+          !!selectedBookingDuration?.suggestedArea) &&
+        !addonSelectionInvalidAtMaxHours
       );
     if (step === 1) return !!form.addressId;
     if (step === 2)
       return (
         !!form.scheduledDate &&
         !!form.scheduledTime &&
-        !isPastSchedule(form.scheduledDate, form.scheduledTime)
+        !isBeforeMinimumScheduleLead(form.scheduledDate, form.scheduledTime)
       );
     if (step === 3) return true; // payment always ok
     if (step === 4) return !!quote; // cần có quote
@@ -1225,13 +1561,22 @@ export const BookingWizard = ({
   };
 
   const handleNext = async () => {
+    if (step === 0 && addonSelectionInvalidAtMaxHours) {
+      toast.warning(
+        `Tổng thời lượng công việc (${totalBookingWorkHours}h) vượt quá số giờ tối đa của gói (${selectedBookingPackage?.maxHours}h). Vui lòng bớt dịch vụ thêm hoặc chọn gói giờ ít hơn.`,
+      );
+      return;
+    }
+
     if (
       step === 2 &&
       form.scheduledDate &&
       form.scheduledTime &&
-      isPastSchedule(form.scheduledDate, form.scheduledTime)
+      isBeforeMinimumScheduleLead(form.scheduledDate, form.scheduledTime)
     ) {
-      toast.error("Thời gian đặt lịch phải ở tương lai");
+      toast.error(
+        "Thời gian đặt lịch phải cách hiện tại tối thiểu 1 tiếng.",
+      );
       return;
     }
 
@@ -1274,6 +1619,7 @@ export const BookingWizard = ({
         durationHours: form.durationHours ?? undefined,
         areaM2: form.areaM2 ?? undefined,
         hasPet: form.hasPet,
+        quoteId: quote?.quoteId,
       };
       try {
         const result = await createMutation.mutateAsync(dto);
@@ -1291,7 +1637,23 @@ export const BookingWizard = ({
 
           if (bookingId) {
             router.push(`/customer/booking/${bookingId}`);
+            return;
           }
+        }
+
+        // Báo giá hết hạn (410) hoặc thông tin đặt lịch đã đổi so với báo giá (400)
+        // → quay lại bước xác nhận và lấy báo giá mới thay vì để khách bấm lại vô ích.
+        if (
+          axios.isAxiosError(error) &&
+          (error.response?.status === 410 || error.response?.status === 400)
+        ) {
+          const message =
+            typeof error.response.data?.message === "string"
+              ? error.response.data.message
+              : "Báo giá đã thay đổi, vui lòng thử lại.";
+          toast.error(message);
+          setQuote(null);
+          setStep(3);
         }
       }
       return;

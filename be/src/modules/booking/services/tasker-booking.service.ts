@@ -37,7 +37,10 @@ import { ServicePackageEntity } from 'src/modules/service/entity/service-package
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
-import { BookingDispatchService } from './booking-dispatch.service';
+import {
+  BookingDispatchService,
+  POSTED_LIST_OPEN_TO_ALL_AFTER_MS,
+} from './booking-dispatch.service';
 import { BookingCheckinService } from './booking-checkin.service';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
@@ -353,6 +356,14 @@ export class TaskerBookingService {
     return asyncHandleOperation(async () => {
       await this.assertTaskerProfileExists(userId);
 
+      // Trong POSTED_LIST_OPEN_TO_ALL_AFTER_MS đầu tiên, đơn chỉ được gửi riêng
+      // cho các tasker nằm trong ring dispatch (qua notification → vào thẳng
+      // trang chi tiết để nhận). Chỉ hiện trong danh sách "Nhận đơn" chủ động
+      // (mọi tasker đều thấy) sau khi đã hết cửa sổ dispatch riêng này, tránh
+      // tasker khác thấy đơn nhưng bấm "Nhận" bị 403 vì chưa được mời.
+      // Dùng NOW() của Postgres thay vì Date của Node để tránh lệch múi giờ
+      // giữa TZ của process Node và TZ của session Postgres khi so sánh cột
+      // "timestamp without time zone".
       const bookings = await this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
@@ -360,6 +371,10 @@ export class TaskerBookingService {
         .leftJoinAndSelect('booking.tasker', 'tasker')
         .where('booking.status = :status', { status: BookingStatus.POSTED })
         .andWhere('tasker.id IS NULL')
+        .andWhere(
+          `booking.createdAt <= NOW() - (:openToAllAfterSeconds || ' seconds')::interval`,
+          { openToAllAfterSeconds: POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000 },
+        )
         .orderBy('booking.scheduledStartDate', 'ASC')
         .addOrderBy('booking.scheduledStartTime', 'ASC')
         .addOrderBy('booking.createdAt', 'ASC')
@@ -1067,6 +1082,13 @@ export class TaskerBookingService {
     bookingId: string,
     taskerId: string,
   ): Promise<void> {
+    // Đơn đã đủ tuổi để mở cho mọi tasker chủ động nhận (đồng bộ với điều kiện
+    // hiển thị trong findPostedBookings) — bỏ qua yêu cầu phải nằm trong ring
+    // dispatch hiện tại, tránh 403 dù đơn đã hiện trong danh sách "Nhận đơn".
+    if (await this.isBookingOpenToAllTaskers(bookingId)) {
+      return;
+    }
+
     const state =
       await this.bookingDispatchService.getDispatchInvitationState(bookingId);
     const isInvited = state?.invitedTaskerIds.includes(taskerId) ?? false;
@@ -1080,6 +1102,17 @@ export class TaskerBookingService {
         'Đơn này chưa được gửi cho bạn hoặc lượt nhận đã hết',
       );
     }
+  }
+
+  // So sánh bằng NOW() của Postgres (không dùng Date của Node) để tránh lệch
+  // múi giờ giữa TZ của process Node và TZ của session Postgres khi so sánh
+  // cột "timestamp without time zone".
+  private async isBookingOpenToAllTaskers(bookingId: string): Promise<boolean> {
+    const rows = await this.dataSource.query<{ is_open: boolean }[]>(
+      `SELECT (created_at <= NOW() - ($2 || ' seconds')::interval) AS is_open FROM bookings WHERE id = $1`,
+      [bookingId, POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000],
+    );
+    return rows[0]?.is_open ?? false;
   }
 
   private async findPackagesByBookingPackageIds(

@@ -136,6 +136,13 @@ export class PublicAddonResponseDto {
 
   @ApiProperty({ example: 50000 })
   price!: number;
+
+  @ApiPropertyOptional({
+    example: 30,
+    description:
+      'Thời gian phát sinh thêm (phút) khi chọn dịch vụ này — cộng vào tổng thời lượng công việc để so với maxHours của gói.',
+  })
+  durationMinutes!: number | null;
 }
 
 export class PublicPeakHourResponseDto {

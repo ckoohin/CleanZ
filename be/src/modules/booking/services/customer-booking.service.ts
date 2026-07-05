@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  GoneException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
 import { NotificationService } from 'src/modules/notification/notification.service';
@@ -42,6 +44,7 @@ import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity'
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
+import { BookingQuoteEntity } from '../entity/booking-quote.entity';
 import {
   PeakBreakdownItem,
   PricingService,
@@ -86,6 +89,9 @@ export interface CustomerActiveBookingResponse {
 }
 
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
+// Thời hạn khóa giá theo quote — cùng độ dài với confirmationDeadline của luồng
+// tasker tạo đơn hộ khách (15 phút) để nhất quán trải nghiệm chờ xác nhận.
+const QUOTE_TTL_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class CustomerBookingService {
@@ -115,7 +121,32 @@ export class CustomerBookingService {
         dto,
       );
 
+      const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);
+      const savedQuote = await this.dataSource
+        .getRepository(BookingQuoteEntity)
+        .save({
+          customerId: context.customer.id,
+          requestHash: this.buildQuoteRequestHash(context.customer.id, dto),
+          packageId: context.package.id,
+          pricingTierId: context.pricingTierId ?? null,
+          durationHours: context.durationHours,
+          areaM2: context.areaM2 ?? null,
+          basePrice: context.basePrice,
+          addonPrice: context.addonPrice,
+          peakFee: context.peakFee,
+          peakBreakdown: context.peakBreakdown,
+          petFee: context.petFee,
+          waitingFee: context.waitingFee,
+          subtotal: context.subtotal,
+          discountAmount: context.discountAmount,
+          totalPrice: context.totalPrice,
+          voucherId: context.voucher?.id ?? null,
+          expiresAt,
+        });
+
       return {
+        quoteId: savedQuote.id,
+        quoteExpiresAt: expiresAt.toISOString(),
         package: {
           id: context.package.id,
           name: context.package.name,
@@ -184,6 +215,10 @@ export class CustomerBookingService {
           userId,
           dto,
         );
+
+        if (dto.quoteId) {
+          await this.applyLockedQuotePrice(manager, context, dto);
+        }
 
         await this.bookingPolicyService.assertCustomerCanCreateBooking(
           manager,
@@ -810,6 +845,80 @@ export class CustomerBookingService {
 
       return { message: 'Booking đã được hủy thành công' };
     }, 'Không thể hủy booking');
+  }
+
+  // Hash các field ảnh hưởng giá — dùng để phát hiện customer đã đổi lựa chọn
+  // (gói/addon/lịch/voucher...) so với lúc quote, trước khi cho áp giá đã lock.
+  private buildQuoteRequestHash(
+    customerId: string,
+    dto: QuoteBookingDto | CreateBookingDto,
+  ): string {
+    const normalized = {
+      customerId,
+      packageId: dto.packageId ?? null,
+      subServiceIds: [...(dto.subServiceIds ?? [])].sort(),
+      addonIds: [...(dto.addonIds ?? [])].sort(),
+      addressId: dto.addressId ?? null,
+      scheduledDate: dto.scheduledDate ?? null,
+      scheduledTime: dto.scheduledTime ?? null,
+      durationHours: dto.durationHours ?? null,
+      areaM2: dto.areaM2 ?? null,
+      pricingTierId: dto.pricingTierId ?? null,
+      hasPet: dto.hasPet ?? null,
+      voucherCode: dto.voucherCode?.trim().toUpperCase() ?? null,
+    };
+    return createHash('sha256')
+      .update(JSON.stringify(normalized))
+      .digest('hex');
+  }
+
+  // Áp giá đã "khóa" từ quote trước đó (nếu hợp lệ) vào context, ghi đè giá vừa
+  // tính lại từ dữ liệu hiện tại — đảm bảo giá khách thấy lúc xác nhận booking
+  // khớp với giá đã xem ở bước review, kể cả khi admin đổi giá gói ở giữa.
+  private async applyLockedQuotePrice(
+    manager: EntityManager,
+    context: BookingPricingContext,
+    dto: CreateBookingDto,
+  ): Promise<void> {
+    const quoteRepository = manager.getRepository(BookingQuoteEntity);
+    const lockedQuote = await quoteRepository.findOne({
+      where: { id: dto.quoteId },
+    });
+
+    if (!lockedQuote || lockedQuote.customerId !== context.customer.id) {
+      throw new NotFoundException(
+        'Báo giá không tồn tại, vui lòng lấy báo giá mới',
+      );
+    }
+    if (lockedQuote.usedAt) {
+      throw new BadRequestException(
+        'Báo giá này đã được dùng để tạo booking khác, vui lòng lấy báo giá mới',
+      );
+    }
+    if (lockedQuote.expiresAt.getTime() < Date.now()) {
+      throw new GoneException('Báo giá đã hết hạn, vui lòng lấy báo giá mới');
+    }
+    if (
+      lockedQuote.requestHash !==
+      this.buildQuoteRequestHash(context.customer.id, dto)
+    ) {
+      throw new BadRequestException(
+        'Thông tin đặt lịch đã thay đổi so với báo giá, vui lòng lấy báo giá mới',
+      );
+    }
+
+    context.basePrice = lockedQuote.basePrice;
+    context.addonPrice = lockedQuote.addonPrice;
+    context.peakFee = lockedQuote.peakFee;
+    context.peakBreakdown = lockedQuote.peakBreakdown ?? [];
+    context.petFee = lockedQuote.petFee;
+    context.waitingFee = lockedQuote.waitingFee;
+    context.subtotal = lockedQuote.subtotal;
+    context.discountAmount = lockedQuote.discountAmount;
+    context.totalPrice = lockedQuote.totalPrice;
+
+    lockedQuote.usedAt = new Date();
+    await quoteRepository.save(lockedQuote);
   }
 
   private async buildBookingPricingContext(

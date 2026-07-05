@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingStatusLogEntity } from './entity/booking-status-log.entity';
 import { BookingEntity } from './entity/booking.entity';
 import { BookingSubServiceEntity } from './entity/booking-sub-service.entity';
+import { BookingQuoteEntity } from './entity/booking-quote.entity';
 import { BookingController } from './booking.controller';
 import { CustomerBookingService } from './services/customer-booking.service';
 import { TaskerBookingService } from './services/tasker-booking.service';
@@ -35,6 +36,7 @@ import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-c
       CustomerAddressEntity,
       CustomerEntity,
       BookingSubServiceEntity,
+      BookingQuoteEntity,
     ]),
     PaymentModule,
     PricingModule,

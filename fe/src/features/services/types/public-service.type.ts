@@ -51,6 +51,7 @@ export interface PublicAddon {
   name: string;
   description: string | null;
   price: number;
+  durationMinutes: number | null;
 }
 
 export interface PublicPeakHour {

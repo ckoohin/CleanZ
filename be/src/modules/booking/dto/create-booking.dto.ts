@@ -171,4 +171,13 @@ export class CreateBookingDto {
   @IsString()
   @MaxLength(50)
   voucherCode?: string;
+
+  @ApiPropertyOptional({
+    example: 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+    description:
+      'ID báo giá lấy từ POST /booking/quote — dùng để "khóa" giá đã báo, tránh giá bị thay đổi (vd. admin sửa giá gói) giữa lúc khách xem lại và lúc xác nhận đặt.',
+  })
+  @IsOptional()
+  @IsUUID()
+  quoteId?: string;
 }

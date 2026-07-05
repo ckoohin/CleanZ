@@ -121,10 +121,7 @@ export class BookingDispatchProcessor extends WorkerHost {
     if (ring < DISPATCH_MAX_RING) {
       const nextData: DispatchJobData = {
         ...data,
-        excludedTaskerIds: [
-          ...excludedTaskerIds,
-          ...invitedTaskerIds,
-        ],
+        excludedTaskerIds: [...excludedTaskerIds, ...invitedTaskerIds],
       };
       const nextJobId =
         await this.bookingDispatchService.enqueueNextRing(nextData);

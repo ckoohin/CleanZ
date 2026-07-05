@@ -1011,15 +1011,15 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        if (position.coords.accuracy > MAX_LOCATION_ACCURACY_METERS) {
-          setLocationError(
-            `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
-          );
-          setLocationErrorKind("inaccurate");
-          setLocationResolved(true);
-          setIsRequestingLocation(false);
-          return;
-        }
+        // if (position.coords.accuracy > MAX_LOCATION_ACCURACY_METERS) {
+        //   setLocationError(
+        //     `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
+        //   );
+        //   setLocationErrorKind("inaccurate");
+        //   setLocationResolved(true);
+        //   setIsRequestingLocation(false);
+        //   return;
+        // }
 
         setLocation({
           currentLatitude: position.coords.latitude,

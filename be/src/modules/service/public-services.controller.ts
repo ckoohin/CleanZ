@@ -138,6 +138,10 @@ export class PublicServicesController {
         name: addon.name,
         description: addon.description || null,
         price: Number(addon.price),
+        durationMinutes:
+          addon.durationMinutes !== null && addon.durationMinutes !== undefined
+            ? Number(addon.durationMinutes)
+            : null,
       })),
       peakHours: (pkg.peakHours || []).map((peakHour) => ({
         id: peakHour.id,

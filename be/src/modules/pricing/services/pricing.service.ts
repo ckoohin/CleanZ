@@ -413,10 +413,24 @@ export class PricingService {
       }
     }
 
+    // Dịch vụ thêm có thể cấu hình thời gian phát sinh (durationMinutes) — cộng
+    // vào tổng thời lượng công việc thực tế trước khi so với maxHours của gói,
+    // tránh trường hợp tổng giờ thực tế (giờ chính + giờ addon) vượt giới hạn
+    // gói mà hệ thống không phát hiện được.
+    const addonDurationHours = addons.reduce(
+      (sum, addon) => sum + toNumber(addon.durationMinutes ?? 0) / 60,
+      0,
+    );
+    durationHours += addonDurationHours;
+
     if (durationHours > toNumber(servicePackage.maxHours)) {
-      throw new BadRequestException(
-        `Tổng thời lượng công việc (${durationHours}h) vượt quá số giờ tối đa cho phép của gói (${servicePackage.maxHours}h)`,
-      );
+      const message =
+        addonDurationHours > 0
+          ? `Tổng thời lượng công việc (${durationHours}h, gồm ${
+              durationHours - addonDurationHours
+            }h công việc chính + ${addonDurationHours}h dịch vụ thêm) vượt quá số giờ tối đa cho phép của gói (${servicePackage.maxHours}h)`
+          : `Tổng thời lượng công việc (${durationHours}h) vượt quá số giờ tối đa cho phép của gói (${servicePackage.maxHours}h)`;
+      throw new BadRequestException(message);
     }
 
     // Dịch vụ thêm / phụ phí đêm/sớm
@@ -690,10 +704,7 @@ export class PricingService {
 
       for (const peakHour of peakHours) {
         if (!this.isPeakDayMatch(peakHour.dayOfWeek, dayOfWeek)) continue;
-        if (
-          peakHour.startDate &&
-          dayKey < this.toDateKey(peakHour.startDate)
-        ) {
+        if (peakHour.startDate && dayKey < this.toDateKey(peakHour.startDate)) {
           continue;
         }
         if (peakHour.endDate && dayKey > this.toDateKey(peakHour.endDate)) {
@@ -713,9 +724,8 @@ export class PricingService {
         const clippedEnd = Math.min(end, bookingEndMs);
         // Làm tròn rate 4 chữ số để tránh sai số floating point (vd. 1.3 - 1)
         const rate =
-          Math.round(
-            Math.max(toNumber(peakHour.multiplier) - 1, 0) * 10000,
-          ) / 10000;
+          Math.round(Math.max(toNumber(peakHour.multiplier) - 1, 0) * 10000) /
+          10000;
         if (rate > 0 && clippedStart < clippedEnd) {
           intervals.push({ start: clippedStart, end: clippedEnd, rate });
         }

@@ -100,6 +100,7 @@ export interface CreateBookingDto {
   pricingTierId?: string;
   durationHours?: number;
   hasPet?: boolean;
+  quoteId?: string; // ID báo giá từ POST /booking/quote — dùng để khóa giá
 }
 
 export interface QuoteBookingDto {
@@ -153,6 +154,8 @@ export interface BookingFormState {
 
 // ─── Customer Responses ───────────────────────────────────────────────────────
 export interface BookingQuoteResponse {
+  quoteId: string;
+  quoteExpiresAt: string;
   service: BookingService;
   addons?: BookingAddon[];
   address: BookingAddress;

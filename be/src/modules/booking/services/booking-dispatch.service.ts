@@ -9,6 +9,14 @@ export const DISPATCH_MAX_RING = 5;
 export const DISPATCH_INITIAL_RADIUS_METERS = 2_000;
 export const DISPATCH_RADIUS_FACTOR = 1.5;
 export const DISPATCH_RING_SIZE = 3;
+/**
+ * Booking mới POSTED chỉ hiển thị trong danh sách "Nhận đơn" (browse chủ động)
+ * cho MỌI tasker sau khoảng thời gian này kể từ lúc tạo — trong khoảng thời
+ * gian này, đơn chỉ được gửi riêng cho các tasker nằm trong ring dispatch hiện
+ * tại (qua notification), tránh tasker khác thấy đơn trong danh sách nhưng bấm
+ * "Nhận" lại bị 403 vì chưa được mời.
+ */
+export const POSTED_LIST_OPEN_TO_ALL_AFTER_MS = 60_000;
 /** Stale threshold: chỉ tính tasker cập nhật vị trí trong vòng 5 phút */
 const LOCATION_STALE_MINUTES = 5;
 const DISPATCH_STATE_TTL_SECONDS = 10 * 60;
