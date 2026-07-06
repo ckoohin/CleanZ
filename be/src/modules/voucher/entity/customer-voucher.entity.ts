@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -18,6 +19,12 @@ export enum CustomerVoucherStatus {
 }
 
 @Entity('customer_vouchers')
+@Index('idx_customer_vouchers_booking_status', ['bookingId', 'status'])
+@Index('idx_customer_vouchers_customer_voucher_status', [
+  'customerId',
+  'status',
+  'voucherId',
+])
 export class CustomerVoucherEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
