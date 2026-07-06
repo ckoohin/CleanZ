@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   CheckCircle2,
   Clock,
   MapPin,
@@ -1187,52 +1186,66 @@ function StepSchedule({
               Chọn giờ làm
             </div>
 
-            <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/30 p-1.5 shadow-inner">
-              <label className="relative flex h-12 w-[74px] flex-col justify-center rounded-xl border border-border/60 bg-background px-3 pr-7 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
-                <span className="text-[9px] font-black uppercase leading-none text-muted-foreground">
-                  Giờ
-                </span>
-                <select
+            <div className="flex h-12 w-[150px] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-primary/45 bg-background px-2">
+              <Select
+                value={selectedTimeParts.hour}
+                onValueChange={(value) =>
+                  handleTimePartSelect("hour", value)
+                }
+              >
+                <SelectTrigger
                   aria-label="Giờ"
-                  value={selectedTimeParts.hour}
-                  onChange={(event) =>
-                    handleTimePartSelect("hour", event.target.value)
-                  }
-                  className="mt-0.5 h-6 w-full appearance-none bg-transparent text-base font-black leading-none text-foreground outline-none"
+                  className="relative h-10 min-w-0 flex-1 justify-center rounded-lg border-0 bg-transparent px-1 pr-5 text-center text-base font-black shadow-none hover:bg-primary/5 focus:ring-2 focus:ring-primary/15 [&>svg]:absolute [&>svg]:right-1 [&>svg]:top-1/2 [&>svg]:size-3.5 [&>svg]:-translate-y-1/2 [&_[data-slot=select-value]]:justify-center [&_[data-slot=select-value]]:font-black"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  align="center"
+                  className="z-[80] max-h-56 min-w-[92px] rounded-2xl border-border/70 bg-card p-1 shadow-xl"
                 >
                   {HOURS.map((hour) => (
-                    <option key={hour} value={hour}>
+                    <SelectItem
+                      key={hour}
+                      value={hour}
+                      className="h-9 justify-center rounded-xl text-sm font-black focus:bg-primary/10 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground [&>span:first-child]:right-2"
+                    >
                       {hour}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              </label>
+                </SelectContent>
+              </Select>
 
-              <span className="text-lg font-black text-muted-foreground/70">
+              <span className="text-lg font-black text-foreground">
                 :
               </span>
 
-              <label className="relative flex h-12 w-[74px] flex-col justify-center rounded-xl border border-border/60 bg-background px-3 pr-7 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
-                <span className="text-[9px] font-black uppercase leading-none text-muted-foreground">
-                  Phút
-                </span>
-                <select
+              <Select
+                value={selectedTimeParts.minute}
+                onValueChange={(value) =>
+                  handleTimePartSelect("minute", value)
+                }
+              >
+                <SelectTrigger
                   aria-label="Phút"
-                  value={selectedTimeParts.minute}
-                  onChange={(event) =>
-                    handleTimePartSelect("minute", event.target.value)
-                  }
-                  className="mt-0.5 h-6 w-full appearance-none bg-transparent text-base font-black leading-none text-foreground outline-none"
+                  className="relative h-10 min-w-0 flex-1 justify-center rounded-lg border-0 bg-transparent px-1 pr-5 text-center text-base font-black shadow-none hover:bg-primary/5 focus:ring-2 focus:ring-primary/15 [&>svg]:absolute [&>svg]:right-1 [&>svg]:top-1/2 [&>svg]:size-3.5 [&>svg]:-translate-y-1/2 [&_[data-slot=select-value]]:justify-center [&_[data-slot=select-value]]:font-black"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  align="center"
+                  className="z-[80] min-w-[92px] rounded-2xl border-border/70 bg-card p-1 shadow-xl"
                 >
                   {MINUTES.map((minute) => (
-                    <option key={minute} value={minute}>
+                    <SelectItem
+                      key={minute}
+                      value={minute}
+                      className="h-9 justify-center rounded-xl text-sm font-black focus:bg-primary/10 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground [&>span:first-child]:right-2"
+                    >
                       {minute}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              </label>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

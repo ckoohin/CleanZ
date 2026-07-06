@@ -109,24 +109,26 @@ export const TaskerJobListPage: React.FC = () => {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="bg-card px-4 pt-12 pb-4 shadow-sm sticky top-0 z-20">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Đơn chờ nhận</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold leading-tight text-foreground">
+              Đơn chờ nhận
+            </h1>
+            <p className="mt-1 max-w-37.5 text-xs leading-snug text-muted-foreground">
               {data?.total ?? 0} đơn đang chờ trong khu vực
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={() => setCreateOpen(true)}
-              className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground"
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl bg-primary px-3 text-xs font-bold leading-none text-primary-foreground shadow-sm shadow-primary/20"
             >
-              <Plus className="w-4 h-4" /> Tạo đơn cho khách
+              <Plus className="h-4 w-4 shrink-0" /> Tạo đơn cho khách
             </button>
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
             >
               <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
