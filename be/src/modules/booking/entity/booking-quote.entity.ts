@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { PeakBreakdownItem } from 'src/modules/pricing/services/pricing.service';
@@ -16,6 +17,7 @@ export class BookingQuoteEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index('IDX_booking_quotes_customer_id')
   @Column({ name: 'customer_id', type: 'uuid' })
   customerId!: string;
 
@@ -108,6 +110,7 @@ export class BookingQuoteEntity {
   @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
   voucherId?: string | null;
 
+  @Index('IDX_booking_quotes_expires_at')
   @Column({ name: 'expires_at', type: 'timestamp' })
   expiresAt!: Date;
 

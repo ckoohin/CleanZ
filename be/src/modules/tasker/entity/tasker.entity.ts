@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -194,7 +195,20 @@ export class TaskerEntity {
   })
   bankAccountName?: string | null;
 
-  // current_location (GEOGRAPHY POINT) managed via raw SQL — không map vào entity để tránh xung đột TypeORM
+  @Index('idx_taskers_location_online', {
+    spatial: true,
+    where: `"presence_status" = 'ONLINE' AND "status" = 'ACTIVE'`,
+  })
+  @Column({
+    name: 'current_location',
+    type: 'geography',
+    spatialFeatureType: 'Point',
+    srid: 4326,
+    nullable: true,
+    select: false,
+  })
+  currentLocation?: { type: 'Point'; coordinates: [number, number] } | null;
+
   @Column({ name: 'location_updated_at', type: 'timestamptz', nullable: true })
   locationUpdatedAt?: Date | null;
 

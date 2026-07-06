@@ -9,6 +9,7 @@ import {
   MapPin,
   PawPrint,
   Clock,
+  CalendarIcon,
   Loader2,
   CheckCircle2,
   UserRound,
@@ -23,6 +24,15 @@ import {
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
 import { GOONG_API_KEY } from "@/lib/maps/goong-config";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import type { CustomerLookupResult } from "@/features/booking/types/booking.types";
 import type {
   PublicAddon,
@@ -33,6 +43,52 @@ import type { AvailableVoucher } from "@/features/customer/vouchers/useCustomerV
 
 function fmtCurrency(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
+}
+
+function formatVietnamDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function parseScheduleDate(date: string): Date | undefined {
+  if (!date) return undefined;
+  const parsed = new Date(`${date}T12:00:00+07:00`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function formatScheduleDateLabel(date: string): string {
+  const parsed = parseScheduleDate(date);
+  if (!parsed) return "Chọn ngày";
+
+  return parsed.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+}
+
+const HOURS = Array.from({ length: 24 }, (_, index) =>
+  String(index).padStart(2, "0"),
+);
+const MINUTES = ["00", "10", "20", "30", "40", "50"];
+
+function getTimeParts(time: string): { hour: string; minute: string } {
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    const [hour, minute] = time.split(":");
+    return {
+      hour: HOURS.includes(hour) ? hour : "08",
+      minute: MINUTES.includes(minute) ? minute : "00",
+    };
+  }
+
+  return { hour: "08", minute: "00" };
 }
 
 function getAddonExtraHours(addon: PublicAddon): number {
@@ -252,6 +308,7 @@ export function TaskerCreateBookingModal({
   onClose: () => void;
 }) {
   const [phone, setPhone] = useState("");
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [customer, setCustomer] = useState<CustomerLookupResult | null>(null);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [addressText, setAddressText] = useState("");
@@ -263,6 +320,7 @@ export function TaskerCreateBookingModal({
   const [durationHours, setDurationHours] = useState(2);
   const [startNow, setStartNow] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
   const [note, setNote] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
@@ -288,12 +346,14 @@ export function TaskerCreateBookingModal({
   const totalWorkHours = selectedPackage
     ? getTotalWorkHours(durationHours, selectedAddons, addonIds)
     : durationHours;
+  const scheduledTimeParts = getTimeParts(scheduledTime);
   const selectedAddressLabel =
     customer?.addresses.find((addr) => addr.id === addressId)?.fullAddress ??
     addressText;
 
   const reset = () => {
     setPhone("");
+    setPhoneFocused(false);
     setCustomer(null);
     setAddressId(null);
     setAddressText("");
@@ -305,6 +365,7 @@ export function TaskerCreateBookingModal({
     setDurationHours(2);
     setStartNow(true);
     setScheduledDate("");
+    setDatePickerOpen(false);
     setScheduledTime("");
     setNote("");
     setVoucherCode("");
@@ -320,6 +381,7 @@ export function TaskerCreateBookingModal({
     if (!phone.trim()) return;
     lookup.mutate(phone.trim(), {
       onSuccess: (data) => {
+        setPhoneFocused(false);
         setCustomer(data);
         const defaultAddr =
           data.addresses.find((a) => a.isDefault) ?? data.addresses[0];
@@ -356,6 +418,27 @@ export function TaskerCreateBookingModal({
         setAddressLat(null);
         setAddressLng(null);
       });
+  };
+
+  const handleScheduleModeChange = (nextStartNow: boolean) => {
+    setStartNow(nextStartNow);
+    if (!nextStartNow && !scheduledTime) {
+      setScheduledTime("08:00");
+    }
+  };
+
+  const handleTimePartSelect = (part: "hour" | "minute", value: string) => {
+    const nextTime =
+      part === "hour"
+        ? `${value}:${scheduledTimeParts.minute}`
+        : `${scheduledTimeParts.hour}:${value}`;
+    setScheduledTime(nextTime);
+  };
+
+  const handleScheduleDateSelect = (date?: Date) => {
+    if (!date) return;
+    setScheduledDate(formatVietnamDate(date));
+    setDatePickerOpen(false);
   };
 
   const handleSelectPackage = (pkg: PublicService) => {
@@ -400,6 +483,12 @@ export function TaskerCreateBookingModal({
     !!selectedAddressLabel &&
     (startNow || (!!scheduledDate && !!scheduledTime));
 
+  const sheetClassName = customer
+    ? "inset-x-0 bottom-0 max-h-[88dvh] rounded-t-3xl md:max-h-[92vh]"
+    : phoneFocused
+      ? "inset-x-3 bottom-auto top-[28dvh] max-h-[58dvh] rounded-3xl md:inset-x-0 md:bottom-0 md:top-auto md:max-h-[92vh] md:rounded-b-none md:rounded-t-3xl"
+      : "inset-x-3 bottom-auto top-[40dvh] max-h-[48dvh] rounded-3xl md:inset-x-0 md:bottom-0 md:top-auto md:max-h-[92vh] md:rounded-b-none md:rounded-t-3xl";
+
   const handleSubmit = () => {
     if (!canSubmit || !customer) return;
     create.mutate(
@@ -439,7 +528,7 @@ export function TaskerCreateBookingModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-40 bg-black/50"
+            className="fixed inset-0 z-[70] bg-black/50"
           />
           {/* Sheet */}
           <motion.div
@@ -447,7 +536,7 @@ export function TaskerCreateBookingModal({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto rounded-t-3xl bg-background"
+            className={`fixed z-[80] overflow-y-auto bg-background shadow-2xl transition-[top,bottom,border-radius,max-height] duration-200 ${sheetClassName}`}
           >
             {/* Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-background px-5 py-4">
@@ -485,6 +574,10 @@ export function TaskerCreateBookingModal({
                         setAddressLat(null);
                         setAddressLng(null);
                         setVoucherCode("");
+                      }}
+                      onFocus={() => setPhoneFocused(true)}
+                      onBlur={() => {
+                        window.setTimeout(() => setPhoneFocused(false), 120);
                       }}
                       onKeyDown={(e) => e.key === "Enter" && handleLookup()}
                       placeholder="Số điện thoại khách"
@@ -729,7 +822,7 @@ export function TaskerCreateBookingModal({
                   </p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setStartNow(true)}
+                      onClick={() => handleScheduleModeChange(true)}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
                         startNow
                           ? "border-primary bg-primary text-primary-foreground"
@@ -739,7 +832,7 @@ export function TaskerCreateBookingModal({
                       <Clock className="h-4 w-4" /> Làm ngay
                     </button>
                     <button
-                      onClick={() => setStartNow(false)}
+                      onClick={() => handleScheduleModeChange(false)}
                       className={`flex-1 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
                         !startNow
                           ? "border-primary bg-primary text-primary-foreground"
@@ -751,19 +844,101 @@ export function TaskerCreateBookingModal({
                   </div>
                   {!startNow && (
                     <div className="mt-2 flex gap-2">
-                      <input
-                        type="date"
-                        value={scheduledDate}
-                        min={new Date().toISOString().split("T")[0]}
-                        onChange={(e) => setScheduledDate(e.target.value)}
-                        className="flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary"
-                      />
-                      <input
-                        type="time"
-                        value={scheduledTime}
-                        onChange={(e) => setScheduledTime(e.target.value)}
-                        className="flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary"
-                      />
+                      <Popover
+                        open={datePickerOpen}
+                        onOpenChange={setDatePickerOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={`flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 text-left text-sm transition-colors ${
+                              scheduledDate
+                                ? "border-primary/50 text-foreground"
+                                : "border-border text-muted-foreground"
+                            } focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15`}
+                          >
+                            <span className="truncate font-semibold">
+                              {formatScheduleDateLabel(scheduledDate)}
+                            </span>
+                            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          className="z-[90] w-[min(calc(100vw-2rem),360px)] rounded-2xl border-border/70 bg-card p-0 shadow-xl"
+                        >
+                          <Calendar
+                            mode="single"
+                            selected={parseScheduleDate(scheduledDate)}
+                            onSelect={handleScheduleDateSelect}
+                            disabled={(date) =>
+                              formatVietnamDate(date) < formatVietnamDate(new Date())
+                            }
+                            className="rounded-2xl"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <div className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5 focus-within:border-primary">
+                        <Select
+                          value={scheduledTimeParts.hour}
+                          onValueChange={(value) =>
+                            handleTimePartSelect("hour", value)
+                          }
+                        >
+                          <SelectTrigger
+                            aria-label="Giờ"
+                            value={scheduledTimeParts.hour}
+                            className="relative h-9 min-w-0 flex-1 justify-center rounded-lg border-0 bg-background px-2 pr-6 text-center text-sm font-black shadow-none focus:ring-2 focus:ring-primary/15 [&>svg]:absolute [&>svg]:right-2 [&>svg]:h-3.5 [&>svg]:w-3.5 [&_[data-slot=select-value]]:justify-center"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent
+                            align="center"
+                            className="z-[80] max-h-56 min-w-[92px] rounded-2xl border-border/70 bg-card p-1 shadow-xl"
+                          >
+                            {HOURS.map((hour) => (
+                              <SelectItem
+                                key={hour}
+                                value={hour}
+                                className="h-9 justify-center rounded-xl text-sm font-black focus:bg-primary/10 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground [&>span:first-child]:right-2"
+                              >
+                                {hour}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-sm font-black text-muted-foreground">
+                          :
+                        </span>
+                        <Select
+                          value={scheduledTimeParts.minute}
+                          onValueChange={(value) =>
+                            handleTimePartSelect("minute", value)
+                          }
+                        >
+                          <SelectTrigger
+                            aria-label="Phút"
+                            value={scheduledTimeParts.minute}
+                            className="relative h-9 min-w-0 flex-1 justify-center rounded-lg border-0 bg-background px-2 pr-6 text-center text-sm font-black shadow-none focus:ring-2 focus:ring-primary/15 [&>svg]:absolute [&>svg]:right-2 [&>svg]:h-3.5 [&>svg]:w-3.5 [&_[data-slot=select-value]]:justify-center"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent
+                            align="center"
+                            className="z-[80] min-w-[92px] rounded-2xl border-border/70 bg-card p-1 shadow-xl"
+                          >
+                            {MINUTES.map((minute) => (
+                              <SelectItem
+                                key={minute}
+                                value={minute}
+                                className="h-9 justify-center rounded-xl text-sm font-black focus:bg-primary/10 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground [&>span:first-child]:right-2"
+                              >
+                                {minute}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   )}
 
