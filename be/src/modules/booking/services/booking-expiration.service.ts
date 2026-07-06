@@ -137,6 +137,10 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
           booking.cancelledBy = CancelledBy.SYSTEM_TIMEOUT;
           booking.cancelledAt = new Date();
           booking.confirmationDeadline = null;
+          await this.vouchersService.releaseReservationForBooking(
+            manager,
+            booking.id,
+          );
           await bookingRepository.save(booking);
 
           const statusLog = logRepository.create({

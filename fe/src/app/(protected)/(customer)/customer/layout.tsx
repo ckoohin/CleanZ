@@ -11,6 +11,7 @@ import { AvatarProfile } from '@/components/layouts/site/header/AvatarProfile'
 import { ActiveBookingWidget } from '@/features/booking/components/ActiveBookingWidget'
 import { CustomerRealtimeNotifications } from '@/features/customer/_components/CustomerRealtimeNotifications'
 import { NotificationBell } from '@/features/notifications/_components/NotificationBell'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 
 const CUSTOMER_NAV_LINKS = [
   { label: "Trang chủ",   href: "/customer" },
@@ -54,8 +55,11 @@ export default function CustomerLayout({
                     {/* Bottom Navigation dành cho Mobile */}
                     <BottomNav />
 
-                    {/* Widget theo dõi đơn hàng hoạt động */}
-                    <ActiveBookingWidget />
+                    {/* Widget theo dõi đơn hàng hoạt động — cô lập để lỗi widget
+                        (socket/query) không làm trắng cả layout customer. */}
+                    <ErrorBoundary fallback={null}>
+                        <ActiveBookingWidget />
+                    </ErrorBoundary>
                 </SidebarInset>
             </SidebarProvider>
 

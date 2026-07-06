@@ -17,6 +17,7 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingPolicyService } from './booking-policy.service';
@@ -33,6 +34,7 @@ export class TaskerConfirmCustomerBookingService {
     private readonly taskerDepositService: TaskerDepositService,
     private readonly pricingService: PricingService,
     private readonly notificationService: NotificationService,
+    private readonly vouchersService: VouchersService,
   ) {}
 
   async confirmByCustomer(
@@ -191,6 +193,10 @@ export class TaskerConfirmCustomerBookingService {
         booking.cancelledBy = CancelledBy.CUSTOMER_DECLINED;
         booking.cancelledAt = new Date();
         booking.confirmationDeadline = null;
+        await this.vouchersService.releaseReservationForBooking(
+          manager,
+          booking.id,
+        );
 
         const savedBooking = await manager.getRepository(BookingEntity).save(booking);
 

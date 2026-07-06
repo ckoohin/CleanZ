@@ -12,19 +12,237 @@ import {
   Loader2,
   CheckCircle2,
   UserRound,
+  Tag,
+  TicketPercent,
 } from "lucide-react";
 import {
   useCustomerLookup,
   useCreateBookingForCustomer,
+  useTaskerCustomerVouchers,
 } from "@/features/booking/hooks/useTaskerBooking";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
+import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
+import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import type { CustomerLookupResult } from "@/features/booking/types/booking.types";
+import type {
+  PublicAddon,
+  PublicDuration,
+  PublicService,
+} from "@/features/services/types/public-service.type";
+import type { AvailableVoucher } from "@/features/customer/vouchers/useCustomerVouchers";
 
 function fmtCurrency(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
 }
 
-const DURATION_OPTIONS = [2, 3, 4, 6, 8];
+function getAddonExtraHours(addon: PublicAddon): number {
+  return addon.durationMinutes ? addon.durationMinutes / 60 : 0;
+}
+
+function getTotalWorkHours(
+  durationHours: number,
+  addons: PublicAddon[],
+  addonIds: string[],
+): number {
+  return (
+    durationHours +
+    addons
+      .filter((addon) => addonIds.includes(addon.id))
+      .reduce((sum, addon) => sum + getAddonExtraHours(addon), 0)
+  );
+}
+
+function filterAddonsWithinMaxHours(
+  addons: PublicAddon[],
+  addonIds: string[],
+  durationHours: number,
+  maxHours?: number | null,
+): string[] {
+  if (maxHours == null) return addonIds;
+
+  let usedHours = durationHours;
+  const kept: string[] = [];
+  for (const id of addonIds) {
+    const addon = addons.find((item) => item.id === id);
+    const extraHours = addon ? getAddonExtraHours(addon) : 0;
+    if (usedHours + extraHours <= maxHours) {
+      kept.push(id);
+      usedHours += extraHours;
+    }
+  }
+
+  return kept;
+}
+
+function getDurationOptions(pkg?: PublicService): PublicDuration[] {
+  if (!pkg) return [];
+  if (pkg.durations?.length) return pkg.durations;
+
+  const fallbackHours =
+    pkg.pricingTiers?.[0]?.defaultHours ??
+    pkg.pricingTiers?.[0]?.minHours ??
+    pkg.baseDurationHours ??
+    2;
+
+  return [
+    {
+      id: "default",
+      durationHours: fallbackHours,
+      title: `${fallbackHours} giờ`,
+      description: null,
+      priceMultiplier: 1,
+      isPopular: false,
+      suggestedArea: null,
+      taskerCount: 1,
+    },
+  ];
+}
+
+function getVoucherDiscountLabel(voucher: AvailableVoucher): string {
+  if (voucher.type === "PERCENT") {
+    return `Giảm ${voucher.value}%${
+      voucher.maxDiscount ? ` tối đa ${fmtCurrency(voucher.maxDiscount)}` : ""
+    }`;
+  }
+
+  return `Giảm ${fmtCurrency(voucher.value)}`;
+}
+
+function TaskerVoucherPicker({
+  phone,
+  packageId,
+  selectedCode,
+  onSelect,
+  disabled,
+}: {
+  phone: string;
+  packageId?: string;
+  selectedCode: string;
+  onSelect: (code: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: vouchers = [], isLoading } = useTaskerCustomerVouchers(
+    phone,
+    packageId,
+    open && !disabled,
+  );
+  const selectedVoucher = vouchers.find((item) => item.code === selectedCode);
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-all disabled:opacity-50 ${
+          selectedCode
+            ? "border-primary bg-primary/5"
+            : "border-border/60 bg-card hover:border-primary/40"
+        }`}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Tag className={`h-4 w-4 shrink-0 ${selectedCode ? "text-primary" : "text-muted-foreground"}`} />
+          {selectedVoucher ? (
+            <span className="min-w-0">
+              <span className="block truncate font-semibold text-foreground">
+                {selectedVoucher.name}
+              </span>
+              <span className="block text-xs font-medium text-emerald-600">
+                {getVoucherDiscountLabel(selectedVoucher)}
+              </span>
+            </span>
+          ) : selectedCode ? (
+            <span className="font-mono font-semibold text-primary">
+              {selectedCode}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              Chọn hoặc nhập mã voucher
+            </span>
+          )}
+        </span>
+        <span className="text-xs font-semibold text-muted-foreground">
+          {open ? "Đóng" : "Mở"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-2 rounded-2xl border border-border/60 bg-card p-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={selectedCode}
+              onChange={(event) => onSelect(event.target.value.toUpperCase())}
+              placeholder="Nhập mã voucher..."
+              className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-mono uppercase outline-none focus:border-primary"
+            />
+            {selectedCode && (
+              <button
+                type="button"
+                onClick={() => onSelect("")}
+                className="rounded-xl border border-border/60 px-3 text-xs font-semibold text-muted-foreground"
+              >
+                Bỏ
+              </button>
+            )}
+          </div>
+
+          {isLoading && (
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Đang tải voucher...
+            </div>
+          )}
+
+          {!isLoading && vouchers.length === 0 && (
+            <p className="rounded-xl bg-muted/40 px-3 py-3 text-center text-xs text-muted-foreground">
+              Không có voucher khả dụng. Bạn vẫn có thể nhập mã thủ công.
+            </p>
+          )}
+
+          {!isLoading &&
+            vouchers
+              .filter((voucher) => voucher.canUse)
+              .map((voucher) => {
+                const selected = selectedCode === voucher.code;
+                return (
+                  <button
+                    key={voucher.id}
+                    type="button"
+                    onClick={() => {
+                      onSelect(selected ? "" : voucher.code);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-start gap-2 rounded-xl border p-3 text-left transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/5"
+                        : "border-border/60 bg-background hover:border-primary/40"
+                    }`}
+                  >
+                    <TicketPercent className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-xs font-bold text-primary">
+                        {voucher.code}
+                      </span>
+                      <span className="block text-sm font-semibold text-foreground">
+                        {voucher.name}
+                      </span>
+                      <span className="block text-xs font-medium text-emerald-600">
+                        {getVoucherDiscountLabel(voucher)}
+                      </span>
+                    </span>
+                    {selected && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    )}
+                  </button>
+                );
+              })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TaskerCreateBookingModal({
   open,
@@ -36,12 +254,19 @@ export function TaskerCreateBookingModal({
   const [phone, setPhone] = useState("");
   const [customer, setCustomer] = useState<CustomerLookupResult | null>(null);
   const [addressId, setAddressId] = useState<string | null>(null);
+  const [addressText, setAddressText] = useState("");
+  const [addressLat, setAddressLat] = useState<number | null>(null);
+  const [addressLng, setAddressLng] = useState<number | null>(null);
   const [packageId, setPackageId] = useState<string | null>(null);
+  const [addonIds, setAddonIds] = useState<string[]>([]);
+  const [pricingTierId, setPricingTierId] = useState<string | null>(null);
   const [durationHours, setDurationHours] = useState(2);
   const [startNow, setStartNow] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [note, setNote] = useState("");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [hasPet, setHasPet] = useState(false);
 
   const lookup = useCustomerLookup();
   const create = useCreateBookingForCustomer();
@@ -51,19 +276,39 @@ export function TaskerCreateBookingModal({
     () => servicesData?.data ?? [],
     [servicesData],
   );
-
-  const selectedAddress = customer?.addresses.find((a) => a.id === addressId);
+  const selectedPackage = useMemo(
+    () => packages.find((pkg) => pkg.id === packageId),
+    [packageId, packages],
+  );
+  const durationOptions = useMemo(
+    () => getDurationOptions(selectedPackage),
+    [selectedPackage],
+  );
+  const selectedAddons = selectedPackage?.addons ?? [];
+  const totalWorkHours = selectedPackage
+    ? getTotalWorkHours(durationHours, selectedAddons, addonIds)
+    : durationHours;
+  const selectedAddressLabel =
+    customer?.addresses.find((addr) => addr.id === addressId)?.fullAddress ??
+    addressText;
 
   const reset = () => {
     setPhone("");
     setCustomer(null);
     setAddressId(null);
+    setAddressText("");
+    setAddressLat(null);
+    setAddressLng(null);
     setPackageId(null);
+    setAddonIds([]);
+    setPricingTierId(null);
     setDurationHours(2);
     setStartNow(true);
     setScheduledDate("");
     setScheduledTime("");
     setNote("");
+    setVoucherCode("");
+    setHasPet(false);
   };
 
   const handleClose = () => {
@@ -79,12 +324,81 @@ export function TaskerCreateBookingModal({
         const defaultAddr =
           data.addresses.find((a) => a.isDefault) ?? data.addresses[0];
         setAddressId(defaultAddr?.id ?? null);
+        setAddressText(defaultAddr?.fullAddress ?? "");
+        setAddressLat(null);
+        setAddressLng(null);
+        setHasPet(defaultAddr?.hasPet ?? false);
       },
     });
   };
 
+  const handleSearchAddressSelect = (placeId: string, description: string) => {
+    setAddressId(null);
+    setAddressText(description);
+    setAddressLat(null);
+    setAddressLng(null);
+
+    fetch(
+      `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${GOONG_API_KEY}`,
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        const loc = data?.result?.geometry?.location;
+        if (
+          typeof loc?.lat === "number" &&
+          typeof loc?.lng === "number"
+        ) {
+          setAddressLat(loc.lat);
+          setAddressLng(loc.lng);
+        }
+      })
+      .catch(() => {
+        setAddressLat(null);
+        setAddressLng(null);
+      });
+  };
+
+  const handleSelectPackage = (pkg: PublicService) => {
+    const defaultDuration =
+      pkg.durations?.find((duration) => duration.isPopular) ??
+      pkg.durations?.[0];
+    const defaultTier = pkg.pricingTiers?.[0];
+    const nextDurationHours =
+      defaultDuration?.durationHours ??
+      defaultTier?.defaultHours ??
+      defaultTier?.minHours ??
+      pkg.baseDurationHours ??
+      2;
+
+    setPackageId(pkg.id);
+    setPricingTierId(defaultTier?.id ?? null);
+    setDurationHours(nextDurationHours);
+    setAddonIds([]);
+    setVoucherCode("");
+  };
+
+  const toggleAddon = (addon: PublicAddon) => {
+    const exists = addonIds.includes(addon.id);
+    if (exists) {
+      setAddonIds((current) => current.filter((id) => id !== addon.id));
+      return;
+    }
+
+    if (selectedPackage?.maxHours != null) {
+      const nextTotal = totalWorkHours + getAddonExtraHours(addon);
+      if (nextTotal > selectedPackage.maxHours) {
+        return;
+      }
+    }
+
+    setAddonIds((current) => [...current, addon.id]);
+  };
+
   const canSubmit =
-    !!customer && !!addressId && !!packageId && (startNow || (!!scheduledDate && !!scheduledTime));
+    !!customer &&
+    !!packageId &&
+    !!selectedAddressLabel &&
+    (startNow || (!!scheduledDate && !!scheduledTime));
 
   const handleSubmit = () => {
     if (!canSubmit || !customer) return;
@@ -92,9 +406,19 @@ export function TaskerCreateBookingModal({
       {
         customerPhone: phone.trim(),
         packageId: packageId!,
-        addressId: addressId!,
+        addonIds: addonIds.length > 0 ? addonIds : undefined,
+        ...(addressId
+          ? { addressId }
+          : {
+              address: addressText.trim(),
+              latitude: addressLat ?? undefined,
+              longitude: addressLng ?? undefined,
+            }),
         durationHours,
+        pricingTierId: pricingTierId ?? undefined,
+        hasPet,
         note: note.trim() || undefined,
+        voucherCode: voucherCode.trim() || undefined,
         ...(startNow
           ? {}
           : { scheduledDate, scheduledTime }),
@@ -156,6 +480,11 @@ export function TaskerCreateBookingModal({
                       onChange={(e) => {
                         setPhone(e.target.value);
                         setCustomer(null);
+                        setAddressId(null);
+                        setAddressText("");
+                        setAddressLat(null);
+                        setAddressLng(null);
+                        setVoucherCode("");
                       }}
                       onKeyDown={(e) => e.key === "Enter" && handleLookup()}
                       placeholder="Số điện thoại khách"
@@ -201,7 +530,13 @@ export function TaskerCreateBookingModal({
                         {customer.addresses.map((addr) => (
                           <button
                             key={addr.id}
-                            onClick={() => setAddressId(addr.id)}
+                            onClick={() => {
+                              setAddressId(addr.id);
+                              setAddressText(addr.fullAddress);
+                              setAddressLat(null);
+                              setAddressLng(null);
+                              setHasPet(addr.hasPet);
+                            }}
                             className={`flex w-full items-start gap-2 rounded-xl border p-2.5 text-left text-xs transition-colors ${
                               addressId === addr.id
                                 ? "border-primary bg-primary/5"
@@ -222,10 +557,27 @@ export function TaskerCreateBookingModal({
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-2 text-xs text-red-600">
-                        Khách chưa có địa chỉ — không thể tạo đơn
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Khách chưa có địa chỉ đã lưu.
                       </p>
                     )}
+
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-semibold text-emerald-800">
+                        Tìm địa chỉ khác
+                      </p>
+                      <GoongAutocomplete
+                        placeholder="Tìm địa chỉ tại Hà Nội..."
+                        className="z-30"
+                        onSelect={handleSearchAddressSelect}
+                      />
+                      {!addressId && addressText && (
+                        <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-xs text-foreground">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                          <span className="leading-relaxed">{addressText}</span>
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </div>
@@ -240,7 +592,7 @@ export function TaskerCreateBookingModal({
                     {packages.map((pkg) => (
                       <button
                         key={pkg.id}
-                        onClick={() => setPackageId(pkg.id)}
+                        onClick={() => handleSelectPackage(pkg)}
                         className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
                           packageId === pkg.id
                             ? "border-primary bg-primary/5"
@@ -265,24 +617,107 @@ export function TaskerCreateBookingModal({
                   </div>
 
                   {/* Số giờ */}
-                  <div className="mt-3">
-                    <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Số giờ làm</p>
-                    <div className="flex gap-2">
-                      {DURATION_OPTIONS.map((h) => (
-                        <button
-                          key={h}
-                          onClick={() => setDurationHours(h)}
-                          className={`flex-1 rounded-xl border py-2 text-sm font-bold transition-colors ${
-                            durationHours === h
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border/60 bg-card text-foreground"
-                          }`}
-                        >
-                          {h}h
-                        </button>
-                      ))}
+                  {selectedPackage && (
+                    <div className="mt-3">
+                      <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">
+                        Số giờ làm
+                      </p>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {durationOptions.map((duration) => (
+                          <button
+                            key={duration.id}
+                            onClick={() => {
+                              setDurationHours(duration.durationHours);
+                              setAddonIds((current) =>
+                                filterAddonsWithinMaxHours(
+                                  selectedAddons,
+                                  current,
+                                  duration.durationHours,
+                                  selectedPackage.maxHours,
+                                ),
+                              );
+                            }}
+                            className={`min-w-[64px] flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition-colors ${
+                              durationHours === duration.durationHours
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border/60 bg-card text-foreground"
+                            }`}
+                          >
+                            {duration.durationHours}h
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {selectedPackage && selectedAddons.length > 0 && (
+                    <div className="mt-3">
+                      <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">
+                        Dịch vụ thêm
+                      </p>
+                      <div className="space-y-2">
+                        {selectedAddons.map((addon) => {
+                          const selected = addonIds.includes(addon.id);
+                          const extraHours = getAddonExtraHours(addon);
+                          const disabled =
+                            !selected &&
+                            selectedPackage.maxHours != null &&
+                            totalWorkHours + extraHours >
+                              selectedPackage.maxHours;
+                          return (
+                            <button
+                              key={addon.id}
+                              type="button"
+                              onClick={() => toggleAddon(addon)}
+                              aria-disabled={disabled}
+                              className={`flex w-full items-start gap-2 rounded-xl border p-3 text-left transition-colors ${
+                                selected
+                                  ? "border-primary bg-primary/5"
+                                  : disabled
+                                    ? "cursor-not-allowed border-border/40 bg-muted/40 opacity-60"
+                                    : "border-border/60 bg-card hover:border-primary/40"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-foreground">
+                                  {addon.name}
+                                </p>
+                                {addon.description && (
+                                  <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                                    {addon.description}
+                                  </p>
+                                )}
+                                <p className="mt-1 text-[11px] font-bold text-primary">
+                                  +{fmtCurrency(addon.price)}
+                                  {addon.durationMinutes
+                                    ? ` · +${addon.durationMinutes} phút`
+                                    : ""}
+                                </p>
+                              </div>
+                              <span
+                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                                  selected
+                                    ? "border-primary bg-primary text-white"
+                                    : "border-border"
+                                }`}
+                              >
+                                {selected && (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPackage?.maxHours != null && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Tổng thời lượng: {totalWorkHours}h / tối đa{" "}
+                      {selectedPackage.maxHours}h
+                    </p>
+                  )}
                 </motion.div>
               )}
 
@@ -332,13 +767,50 @@ export function TaskerCreateBookingModal({
                     </div>
                   )}
 
+                  {/* Thú cưng — mặc định theo địa chỉ, tasker có thể tích tay */}
+                  <button
+                    type="button"
+                    onClick={() => setHasPet((v) => !v)}
+                    className={`mt-3 flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+                      hasPet
+                        ? "border-amber-300 bg-amber-50 text-amber-800"
+                        : "border-border/60 bg-card text-foreground"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <PawPrint className="h-4 w-4" /> Nhà có thú cưng
+                    </span>
+                    <span
+                      className={`relative h-5 w-9 rounded-full transition-colors ${
+                        hasPet ? "bg-amber-500" : "bg-muted-foreground/30"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                          hasPet ? "left-4" : "left-0.5"
+                        }`}
+                      />
+                    </span>
+                  </button>
+
+                  {/* Voucher — mã tasker áp cho khách */}
+                  <div className="mt-2">
+                    <TaskerVoucherPicker
+                      phone={phone.trim()}
+                      packageId={packageId ?? undefined}
+                      selectedCode={voucherCode}
+                      onSelect={setVoucherCode}
+                      disabled={!packageId || !customer}
+                    />
+                  </div>
+
                   {/* Ghi chú */}
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Ghi chú cho đơn (tùy chọn)"
                     rows={2}
-                    className="mt-3 w-full resize-none rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    className="mt-2 w-full resize-none rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </motion.div>
               )}
@@ -346,9 +818,9 @@ export function TaskerCreateBookingModal({
               {/* Submit */}
               {customer && (
                 <div className="space-y-2">
-                  {selectedAddress?.hasPet && (
+                  {hasPet && (
                     <p className="flex items-center gap-1.5 text-[11px] text-amber-700">
-                      <PawPrint className="h-3.5 w-3.5" /> Địa chỉ có thú cưng — phụ phí sẽ được cộng tự động
+                      <PawPrint className="h-3.5 w-3.5" /> Nhà có thú cưng — phụ phí sẽ được cộng tự động
                     </p>
                   )}
                   <button

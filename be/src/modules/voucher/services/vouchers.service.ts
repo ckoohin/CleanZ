@@ -503,14 +503,20 @@ export class VouchersService {
     userId: string,
     packageId?: string,
   ): Promise<AvailableVoucherItem[]> {
-    const now = new Date();
-
     const customer = await this.dataSource
       .getRepository(CustomerEntity)
       .findOne({ where: { user: { id: userId } } });
 
     if (!customer) return [];
-    const customerId = customer.id;
+
+    return this.findAvailableForCustomerId(customer.id, packageId);
+  }
+
+  async findAvailableForCustomerId(
+    customerId: string,
+    packageId?: string,
+  ): Promise<AvailableVoucherItem[]> {
+    const now = new Date();
 
     // 1. Vouchers được admin phát riêng cho customer này (ISSUED)
     const issuedRows = await this.customerVoucherRepo

@@ -124,10 +124,10 @@ export interface CancelBookingDto {
   reason?: string;
 }
 
+// BE chỉ nhận addressId (địa chỉ đã lưu, có tọa độ validated) — không nhận
+// tọa độ tự do vì dispatch tasker cần địa chỉ chuẩn hoá.
 export interface UpdateBookingScheduleDto {
   addressId?: string;
-  latitude?: number;
-  longitude?: number;
   scheduledDate?: string;
   scheduledTime?: string;
 }
@@ -313,6 +313,8 @@ export interface CreateBookingForCustomerDto {
   addonIds?: string[];
   addressId?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   scheduledDate?: string;
   scheduledTime?: string;
   durationHours?: number;
@@ -321,6 +323,7 @@ export interface CreateBookingForCustomerDto {
   pricingTierId?: string;
   note?: string;
   paymentMethod?: PaymentMethod;
+  voucherCode?: string;
 }
 
 export interface TaskerCreatedBookingResponse {
@@ -343,6 +346,7 @@ export interface TaskerCreatedBookingResponse {
     totalPrice: number;
   };
   payment: { method: PaymentMethod; status: PaymentStatus };
+  voucher: { id: string; code: string; name: string } | null;
   note: string | null;
   createdAt: string;
 }

@@ -17,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -178,6 +179,30 @@ export class BookingController {
     @Body() dto: CreateBookingForCustomerDto,
   ): Promise<TaskerCreatedBookingResponse> {
     return this.taskerCreateBookingService.createForCustomer(userId, dto);
+  }
+
+  @Get('tasker/customer-vouchers/available')
+  @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker lấy voucher khả dụng của customer theo số điện thoại',
+    description:
+      'Dùng trong flow tasker tạo đơn hộ customer. Trả về voucher public + voucher đã phát riêng cho customer, lọc theo packageId nếu có.',
+  })
+  @ApiQuery({ name: 'phone', required: true })
+  @ApiQuery({ name: 'packageId', required: false })
+  @ApiOkResponse({ description: 'Danh sách voucher khả dụng của customer' })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  findAvailableCustomerVouchersForTasker(
+    @CurrentUser('id') userId: string,
+    @Query('phone') phone: string,
+    @Query('packageId') packageId?: string,
+  ) {
+    return this.taskerCreateBookingService.findAvailableVouchersForCustomer(
+      userId,
+      phone,
+      packageId,
+    );
   }
 
   @Patch('customer/:id/confirm-tasker-booking')

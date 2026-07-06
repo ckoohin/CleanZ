@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  connectBookingTrackingSocket,
-  disconnectBookingTrackingSocket,
+  acquireBookingTrackingSocket,
+  releaseBookingTrackingSocket,
   getBookingTrackingSocket,
 } from "@/lib/socket/socket.client";
 import type {
@@ -119,7 +119,7 @@ export function useCustomerBookingTracking(
     socket.on("booking:completed", handleArrived);
     socket.on("booking:status_updated", handleStatusUpdated);
 
-    connectBookingTrackingSocket();
+    acquireBookingTrackingSocket();
     if (socket.connected) {
       joinRoom();
     }
@@ -133,7 +133,7 @@ export function useCustomerBookingTracking(
       socket.off("booking:in_progress", handleArrived);
       socket.off("booking:completed", handleArrived);
       socket.off("booking:status_updated", handleStatusUpdated);
-      disconnectBookingTrackingSocket();
+      releaseBookingTrackingSocket();
     };
   }, [bookingId, enabled, queryClient]);
 
@@ -259,7 +259,7 @@ export function useTaskerLocationTracking(
       },
     );
 
-    connectBookingTrackingSocket();
+    acquireBookingTrackingSocket();
     if (socket.connected) {
       startTracking();
     }
@@ -275,7 +275,7 @@ export function useTaskerLocationTracking(
       navigator.geolocation.clearWatch(watchId);
       latestLocationRef.current = null;
       pendingLocationRequestRef.current = false;
-      disconnectBookingTrackingSocket();
+      releaseBookingTrackingSocket();
     };
   }, [bookingId, enabled]);
 

@@ -97,6 +97,27 @@ export function disconnectBookingTrackingSocket(): void {
     bookingTrackingSocket.disconnect();
   }
 }
+let trackingRefCount = 0;
+let trackingIdleTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function acquireBookingTrackingSocket(): Socket {
+  trackingRefCount += 1;
+  if (trackingIdleTimer) {
+    clearTimeout(trackingIdleTimer);
+    trackingIdleTimer = null;
+  }
+  return connectBookingTrackingSocket();
+}
+
+export function releaseBookingTrackingSocket(): void {
+  trackingRefCount = Math.max(0, trackingRefCount - 1);
+  if (trackingRefCount > 0) return;
+  if (trackingIdleTimer) clearTimeout(trackingIdleTimer);
+  trackingIdleTimer = setTimeout(() => {
+    trackingIdleTimer = null;
+    if (trackingRefCount === 0) disconnectBookingTrackingSocket();
+  }, IDLE_GRACE_MS);
+}
 
 // Backward-compatible aliases. Prefer the explicit names above in new code.
 export const getSocket = getAppRealtimeSocket;

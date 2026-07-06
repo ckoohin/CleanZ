@@ -70,6 +70,8 @@ export const API_ENDPOINTS = {
       `/booking/customer/${id}/decline-tasker-booking`,
     // Tasker APIs
     TASKER_CREATE_FOR_CUSTOMER: "/booking/tasker/create-for-customer",
+    TASKER_CUSTOMER_VOUCHERS_AVAILABLE:
+      "/booking/tasker/customer-vouchers/available",
     TASKER_ACTIVE: "/booking/tasker/active/current",
     TASKER_POSTED_LIST: "/booking/tasker/posted",
     TASKER_POSTED_DETAIL: (id: string) => `/booking/tasker/posted/${id}`,

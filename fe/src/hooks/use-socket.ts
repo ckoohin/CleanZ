@@ -4,8 +4,8 @@ import {
   acquireAppRealtimeSocket,
   releaseAppRealtimeSocket,
   getAppRealtimeSocket,
-  connectBookingTrackingSocket,
-  disconnectBookingTrackingSocket,
+  acquireBookingTrackingSocket,
+  releaseBookingTrackingSocket,
   getBookingTrackingSocket,
 } from '@/lib/socket/socket.client';
 
@@ -59,12 +59,10 @@ export function useTrackingSocket(autoConnect = true): Socket {
   const socket = useMemo(() => getBookingTrackingSocket(), []);
 
   useEffect(() => {
-    if (autoConnect) {
-      connectBookingTrackingSocket();
-    }
-
+    if (!autoConnect) return;
+    acquireBookingTrackingSocket();
     return () => {
-      disconnectBookingTrackingSocket();
+      releaseBookingTrackingSocket();
     };
   }, [autoConnect]);
 

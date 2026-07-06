@@ -16,7 +16,7 @@ import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
@@ -243,6 +243,7 @@ export class CustomerBookingService {
           durationHours: context.durationHours,
           areaM2: context.areaM2,
           pricingTierId: context.pricingTierId,
+          addonIds: context.addons.map((addon) => addon.id),
           status: BookingStatus.POSTED,
           basePrice: context.basePrice,
           addonPrice: context.addonPrice,
@@ -693,10 +694,22 @@ export class CustomerBookingService {
         const voucher = booking.voucherId
           ? await this.voucherService.getById(manager, booking.voucherId)
           : null;
+        let addonExtraHours = 0;
+        if (booking.addonIds?.length) {
+          const addons = await manager.getRepository(ServiceAddonEntity).find({
+            where: { id: In(booking.addonIds) },
+          });
+          addonExtraHours = addons.reduce(
+            (sum, addon) => sum + toNumber(addon.durationMinutes ?? 0) / 60,
+            0,
+          );
+        }
+
         const draft = this.bookingScheduleService.buildUpdateDraft(
           booking,
           dto,
           voucher,
+          addonExtraHours,
         );
         const context = await this.buildBookingPricingContext(
           manager,

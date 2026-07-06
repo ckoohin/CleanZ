@@ -42,6 +42,7 @@ import type {
 } from "@/features/booking/types/booking.types";
 import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTracking";
 import { BookingTrackingMap } from "./BookingTrackingMap";
+import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
 import { toast } from "sonner";
 
@@ -561,19 +562,37 @@ function AssignedDetailView({
     return (
       <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
         <div className="relative min-h-[calc(100svh-88px)] overflow-hidden bg-background md:rounded-3xl md:border md:border-border/50 md:shadow-md">
-          <BookingTrackingMap
-            viewer="tasker"
-            tracking={tracking}
-            mobileFull
-            grabFull
-            isConnected={isGpsOnline}
-            error={trackingError}
-            fallbackDestination={{
-              latitude: data.address?.latitude,
-              longitude: data.address?.longitude,
-              address: data.address?.fullAddress,
-            }}
-          />
+          <ErrorBoundary
+            fallback={(reset) => (
+              <div className="m-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 shadow-sm">
+                <p className="font-semibold">Không thể tải bản đồ điều hướng</p>
+                <p className="mt-1 text-xs text-amber-600">
+                  Bản đồ vừa gặp sự cố hiển thị. Bạn vẫn có thể thao tác các phần khác của đơn.
+                </p>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="mt-3 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  Thử lại bản đồ
+                </button>
+              </div>
+            )}
+          >
+            <BookingTrackingMap
+              viewer="tasker"
+              tracking={tracking}
+              mobileFull
+              grabFull
+              isConnected={isGpsOnline}
+              error={trackingError}
+              fallbackDestination={{
+                latitude: data.address?.latitude,
+                longitude: data.address?.longitude,
+                address: data.address?.fullAddress,
+              }}
+            />
+          </ErrorBoundary>
 
           <div className="relative z-20 -mt-28 rounded-t-[32px] border-t border-border/50 bg-card px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-14px_44px_rgba(15,23,42,0.16)] md:mx-4 md:mb-4 md:rounded-[28px] md:border md:px-5 md:shadow-lg">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/20 md:hidden" />

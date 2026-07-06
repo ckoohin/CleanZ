@@ -12,6 +12,12 @@ const TASKER_KEYS = {
   postedDetail: (id: string) => ["tasker-booking", "posted", id],
   assigned: (id: string) => ["tasker-booking", "assigned", id],
   active: ["tasker-booking", "active"],
+  customerVouchers: (phone: string, packageId?: string) => [
+    "tasker-booking",
+    "customer-vouchers",
+    phone,
+    packageId,
+  ],
 };
 
 function getErrorMsg(err: unknown): string {
@@ -27,6 +33,15 @@ function getErrorMsg(err: unknown): string {
   }
 
   return "Có lỗi xảy ra";
+}
+
+function getCustomerLookupErrorMsg(err: unknown): string {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  if (status === 404) {
+    return "Không tìm thấy khách hàng với số điện thoại này";
+  }
+
+  return getErrorMsg(err);
 }
 
 export function isSilentTaskerBookingError(err: unknown): boolean {
@@ -243,7 +258,21 @@ export function useMarkComplete(bookingId: string) {
 export function useCustomerLookup() {
   return useMutation({
     mutationFn: (phone: string) => taskerBookingApi.lookupCustomer(phone),
-    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+    onError: (err: unknown) => toast.error(getCustomerLookupErrorMsg(err)),
+  });
+}
+
+/** 13b. Voucher khả dụng của customer trong flow tasker tạo đơn hộ */
+export function useTaskerCustomerVouchers(
+  phone: string,
+  packageId?: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: TASKER_KEYS.customerVouchers(phone, packageId),
+    queryFn: () => taskerBookingApi.findCustomerVouchers(phone, packageId),
+    enabled: enabled && !!phone.trim() && !!packageId,
+    staleTime: 30_000,
   });
 }
 

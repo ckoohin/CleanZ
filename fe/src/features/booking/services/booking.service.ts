@@ -17,6 +17,7 @@ import type {
   TaskerPostedBookingListResponse,
   UpdateBookingScheduleDto,
 } from "../types/booking.types";
+import type { AvailableVoucher } from "@/features/customer/vouchers/useCustomerVouchers";
 
 // ─── Customer Booking APIs ─────────────────────────────────────────────────────
 export const customerBookingApi = {
@@ -140,6 +141,18 @@ export const taskerBookingApi = {
     http
       .get(API_ENDPOINTS.CUSTOMER.LOOKUP, {
         params: { phone },
+        skipErrorToast: true,
+      } as Parameters<typeof http.get>[1])
+      .then((r) => r.data.data ?? r.data),
+
+  /** 13b. Lấy voucher khả dụng của customer khi tasker tạo đơn hộ */
+  findCustomerVouchers: (
+    phone: string,
+    packageId?: string,
+  ): Promise<AvailableVoucher[]> =>
+    http
+      .get(API_ENDPOINTS.BOOKING.TASKER_CUSTOMER_VOUCHERS_AVAILABLE, {
+        params: packageId ? { phone, packageId } : { phone },
         skipErrorToast: true,
       } as Parameters<typeof http.get>[1])
       .then((r) => r.data.data ?? r.data),

@@ -85,6 +85,7 @@ export class BookingScheduleService {
     booking: BookingEntity,
     dto: UpdateBookingScheduleAddressDto,
     voucher: VoucherEntity | null,
+    addonExtraHours = 0,
   ): BookingScheduleDraft {
     const currentStartDate = booking.scheduledStartDate;
     const currentStartTime = this.normalizeTimeValue(
@@ -126,6 +127,7 @@ export class BookingScheduleService {
       packageId: booking.packageId,
       subServiceIds:
         booking.bookingSubServices?.map((bss) => bss.subServiceId) || [],
+      addonIds: booking.addonIds ?? undefined,
       addressId,
       address,
       provinceCode: dto.provinceCode,
@@ -136,7 +138,10 @@ export class BookingScheduleService {
       scheduledTime: dto.scheduledStart
         ? undefined
         : (dto.scheduledTime ?? currentStartTime),
-      durationHours: toNumber(booking.durationHours),
+      durationHours: Math.max(
+        toNumber(booking.durationHours) - addonExtraHours,
+        0.5,
+      ),
       voucherCode: voucher?.code,
       areaM2: booking.areaM2 ? toNumber(booking.areaM2) : undefined,
       pricingTierId: booking.pricingTierId ?? undefined,

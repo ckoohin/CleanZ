@@ -28,7 +28,10 @@ import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
-import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
+import {
+  AvailableVoucherItem,
+  VouchersService,
+} from 'src/modules/voucher/services/vouchers.service';
 import { CreateBookingForCustomerDto } from '../dto/create-booking-for-customer.dto';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
@@ -80,6 +83,11 @@ export interface TaskerCreatedBookingResponse {
     method: PaymentMethod;
     status: PaymentStatus;
   };
+  voucher: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
   note: string | null;
   createdAt: Date;
 }
@@ -148,6 +156,7 @@ export class TaskerCreateBookingService {
           scheduledStart,
           scheduledStartTime,
           hasPet,
+          voucherCode: dto.voucherCode,
           customerId: customer.id,
         },
       );
@@ -171,6 +180,13 @@ export class TaskerCreateBookingService {
       const result = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
 
+        // Cùng ràng buộc như luồng customer tự đặt: mỗi khách chỉ được có 1 đơn
+        // chưa kết thúc tại một thời điểm — chặn ngay lúc tasker tạo hộ.
+        await this.bookingPolicyService.assertCustomerCanCreateBooking(
+          manager,
+          customer.id,
+        );
+
         const bookingCode = await this.generateUniqueBookingCode(bookingRepository);
 
         const booking = bookingRepository.create({
@@ -190,6 +206,7 @@ export class TaskerCreateBookingService {
           durationHours,
           areaM2: dto.areaM2,
           pricingTierId: price.pricingTierId,
+          addonIds: price.addons.map((addon) => addon.id),
           status: BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
           source: BookingSource.TASKER_CREATED,
           confirmationDeadline,
@@ -202,9 +219,27 @@ export class TaskerCreateBookingService {
           totalPrice: price.totalPrice,
           paymentMethod,
           paymentStatus: PaymentStatus.PENDING,
+          voucherId: price.voucher?.id ?? null,
           isRecurring: false,
         });
+
+        // Đồng bộ hasPet về địa chỉ đã lưu khi tasker tích tay khác với cấu hình
+        // hiện tại — giống luồng customer tự đặt.
+        if (
+          addressRef &&
+          typeof dto.hasPet === 'boolean' &&
+          addressRef.hasPet !== dto.hasPet
+        ) {
+          addressRef.hasPet = dto.hasPet;
+          await manager.getRepository(CustomerAddressEntity).save(addressRef);
+        }
+
         const savedBooking = await bookingRepository.save(booking);
+        await this.vouchersService.reserveForBooking(manager, {
+          bookingId: savedBooking.id,
+          customerId: customer.id,
+          voucherId: savedBooking.voucherId,
+        });
 
         // Snapshot sub-services
         const bookingSubServiceRepository = manager.getRepository(BookingSubServiceEntity);
@@ -306,10 +341,33 @@ export class TaskerCreateBookingService {
           method: paymentMethod,
           status: PaymentStatus.PENDING,
         },
+        voucher: price.voucher
+          ? {
+              id: price.voucher.id,
+              code: price.voucher.code,
+              name: price.voucher.name,
+            }
+          : null,
         note: dto.note ?? null,
         createdAt: result.createdAt,
       };
     }, 'Không thể tạo đơn cho khách hàng');
+  }
+
+  async findAvailableVouchersForCustomer(
+    taskerUserId: string,
+    customerPhone: string,
+    packageId?: string,
+  ): Promise<AvailableVoucherItem[]> {
+    return asyncHandleOperation(async () => {
+      await this.findAndValidateTasker(taskerUserId);
+      const { customer } = await this.findCustomerByPhone(customerPhone);
+
+      return this.vouchersService.findAvailableForCustomerId(
+        customer.id,
+        packageId,
+      );
+    }, 'Không thể lấy voucher khả dụng của khách hàng');
   }
 
   private async findAndValidateTasker(userId: string): Promise<TaskerEntity> {
@@ -368,6 +426,24 @@ export class TaskerCreateBookingService {
     }
 
     if (dto.address) {
+      if (
+        typeof dto.latitude === 'number' &&
+        typeof dto.longitude === 'number'
+      ) {
+        const addressRef = await addressRepository.save(
+          addressRepository.create({
+            customer: { id: customerId } as CustomerEntity,
+            label: 'Địa chỉ đặt hộ',
+            fullAddress: dto.address,
+            latitude: dto.latitude,
+            longitude: dto.longitude,
+            hasPet: dto.hasPet ?? false,
+            isDefault: false,
+          }),
+        );
+        return { addressRef, bookingAddress: addressRef.fullAddress };
+      }
+
       return { addressRef: null, bookingAddress: dto.address };
     }
 

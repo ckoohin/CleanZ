@@ -33,10 +33,9 @@ import {
   useDeclineTaskerBooking,
   useUpdateBookingSchedule,
 } from "@/features/booking/hooks/useCustomerBooking";
-import { GoongMap } from "@/components/maps/GoongMap";
 import { TaskerTrackingMap } from "./TaskerTrackingMap";
-import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
-import { GOONG_API_KEY } from "@/lib/maps/goong-config";
+import { toast } from "sonner";
+import { useCustomerAddresses } from "@/features/customer/profile/hooks/useCustomerAddresses";
 import type {
   BookingStatus,
   CustomerBookingDetail,
@@ -45,6 +44,7 @@ import type {
 } from "@/features/booking/types/booking.types";
 import { useCustomerBookingTracking } from "@/features/booking/hooks/useBookingTracking";
 import { BookingTrackingMap } from "./BookingTrackingMap";
+import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTrackingSocket } from "@/hooks/use-socket";
 import type { BookingStatusUpdatedPayload } from "@/features/booking/types/tracking.types";
@@ -127,22 +127,39 @@ const TIME_SLOTS = [
   "07:00","08:00","09:00","10:00","13:00","14:00","15:00","16:00",
 ];
 
+// Format ngày theo giờ VN — không dùng toISOString() (UTC) vì từ 00:00-07:00
+// giờ VN, ngày UTC vẫn là hôm trước → value gửi lên BE lệch 1 ngày so với
+// label hiển thị cho user.
+function formatVietnamDateString(date: Date): string {
+  const parts = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function getNext7Days() {
   const days = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
+    const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
     days.push({
-      date: d.toISOString().split("T")[0],
+      date: formatVietnamDateString(d),
       label:
         i === 0
           ? "Hôm nay"
           : i === 1
           ? "Ngày mai"
-          : d.toLocaleDateString("vi-VN", { weekday: "short" }),
+          : d.toLocaleDateString("vi-VN", {
+              weekday: "short",
+              timeZone: "Asia/Ho_Chi_Minh",
+            }),
       dayNum: d.toLocaleDateString("vi-VN", {
         day: "2-digit",
         month: "2-digit",
+        timeZone: "Asia/Ho_Chi_Minh",
       }),
     });
   }
@@ -321,58 +338,58 @@ function CancelDialog({
 }
 
 // ─── Edit Schedule & Address Sheet ────────────────────────────────────────────
+const MIN_EDIT_LEAD_MINUTES = 60;
+
+function isBeforeEditLead(date: string, time: string): boolean {
+  if (!date || !time) return false;
+  const selected = new Date(`${date}T${time}:00+07:00`);
+  return (
+    Number.isNaN(selected.getTime()) ||
+    selected.getTime() < Date.now() + MIN_EDIT_LEAD_MINUTES * 60 * 1000
+  );
+}
+
 function EditScheduleSheet({
   bookingId,
   currentDate,
   currentTime,
+  currentAddressId,
   open,
   onClose,
 }: {
   bookingId: string;
   currentDate: string;
   currentTime: string;
+  currentAddressId: string | null;
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(currentDate);
   const [selectedTime, setSelectedTime] = useState(currentTime);
-  const [selectedAddress, setSelectedAddress] = useState("");
-  const [selectedLat, setSelectedLat] = useState<number | null>(null);
-  const [selectedLng, setSelectedLng] = useState<number | null>(null);
-  const [showMap, setShowMap] = useState(false);
+  // null = giữ nguyên địa chỉ hiện tại; khác null = đổi sang địa chỉ đã lưu này
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null,
+  );
 
   const update = useUpdateBookingSchedule(bookingId);
+  const { data: addresses = [], isLoading: isAddressesLoading } =
+    useCustomerAddresses();
   const days = getNext7Days();
 
-  const handleMapSelect = (lat: number, lng: number, address: string) => {
-    setSelectedLat(lat);
-    setSelectedLng(lng);
-    setSelectedAddress(address);
-  };
-
-  const handleAutoSelect = (placeId: string, description: string) => {
-    fetch(
-      `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${GOONG_API_KEY}`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        const loc = data?.result?.geometry?.location;
-        setSelectedAddress(description);
-        if (loc) {
-          setSelectedLat(loc.lat);
-          setSelectedLng(loc.lng);
-        }
-      })
-      .catch(() => setSelectedAddress(description));
-  };
-
   const handleSave = () => {
+    if (isBeforeEditLead(selectedDate, selectedTime)) {
+      toast.error("Thời gian đặt lịch phải cách hiện tại tối thiểu 1 tiếng.");
+      return;
+    }
+
     const dto: UpdateBookingScheduleDto = {
       scheduledDate: selectedDate,
       scheduledTime: selectedTime,
     };
-    if (selectedLat !== null) dto.latitude = selectedLat;
-    if (selectedLng !== null) dto.longitude = selectedLng;
+    if (selectedAddressId && selectedAddressId !== currentAddressId) {
+      dto.addressId = selectedAddressId;
+    }
     update.mutate(dto, { onSuccess: onClose });
   };
 
@@ -452,46 +469,70 @@ function EditScheduleSheet({
                 </div>
               </div>
 
-              {/* Địa chỉ */}
+              {/* Địa chỉ — chọn từ sổ địa chỉ đã lưu (BE cần addressId có tọa độ
+                  đã validate để dispatch tasker; không nhận địa chỉ tự do) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" /> Địa chỉ (tuỳ chọn)
                   </p>
                   <button
-                    onClick={() => setShowMap(!showMap)}
+                    onClick={() => router.push("/customer/addresses")}
                     className="text-xs text-primary font-semibold"
                   >
-                    {showMap ? "Ẩn bản đồ" : "Mở bản đồ GoongMap"}
+                    + Thêm địa chỉ mới
                   </button>
                 </div>
 
-                <GoongAutocomplete
-                  onSelect={handleAutoSelect}
-                  placeholder="Tìm địa chỉ mới..."
-                  className="mb-2"
-                />
-
-                {showMap && (
-                  <div className="rounded-xl overflow-hidden border border-border/50 mb-2">
-                    <GoongMap
-                      initialLat={selectedLat ?? 21.028511}
-                      initialLng={selectedLng ?? 105.804817}
-                      onLocationSelect={handleMapSelect}
-                    />
+                {isAddressesLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   </div>
-                )}
-
-                {selectedAddress && (
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-start gap-2">
-                    <Navigation className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <p className="text-xs text-foreground">{selectedAddress}</p>
+                ) : addresses.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {addresses.map((addr) => {
+                      const isCurrent = addr.id === currentAddressId;
+                      const selected = selectedAddressId
+                        ? selectedAddressId === addr.id
+                        : isCurrent;
+                      return (
+                        <button
+                          key={addr.id}
+                          type="button"
+                          onClick={() => setSelectedAddressId(addr.id)}
+                          className={`w-full text-left rounded-xl border-2 p-3 flex items-start gap-2 transition-all ${
+                            selected
+                              ? "border-primary bg-primary/5"
+                              : "border-border/50 hover:border-primary/40"
+                          }`}
+                        >
+                          <Navigation
+                            className={`w-4 h-4 shrink-0 mt-0.5 ${selected ? "text-primary" : "text-muted-foreground"}`}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-bold text-foreground">
+                              {addr.label || "Địa chỉ"}
+                              {isCurrent && (
+                                <span className="ml-1 text-[10px] font-semibold text-muted-foreground">
+                                  (hiện tại)
+                                </span>
+                              )}
+                            </span>
+                            <span className="block text-xs text-muted-foreground line-clamp-2">
+                              {addr.fullAddress}
+                            </span>
+                          </span>
+                          {selected && (
+                            <CheckCircle2 className="w-4 h-4 shrink-0 text-primary" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-
-                {!selectedAddress && (
+                ) : (
                   <p className="text-xs text-muted-foreground">
-                    Để trống nếu không muốn thay đổi địa chỉ
+                    Chưa có địa chỉ đã lưu. Thêm địa chỉ mới để thay đổi nơi làm
+                    việc.
                   </p>
                 )}
               </div>
@@ -827,16 +868,34 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
         )}
         {/* Realtime Tracking Map — ưu tiên full map trên mobile giống Grab */}
         {booking.status === "TASKER_ON_THE_WAY" && (
-          <BookingTrackingMap
-            tracking={tracking}
-            isConnected={isTrackingConnected}
-            error={trackingError}
-            fallbackDestination={{
-              latitude: booking.address.latitude,
-              longitude: booking.address.longitude,
-              address: booking.address.fullAddress,
-            }}
-          />
+          <ErrorBoundary
+            fallback={(reset) => (
+              <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 shadow-sm">
+                <p className="font-semibold">Không thể tải bản đồ hành trình</p>
+                <p className="mt-1 text-xs text-amber-600">
+                  Bản đồ vừa gặp sự cố hiển thị. Bạn vẫn có thể thao tác các phần khác của đơn.
+                </p>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="mt-3 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  Thử lại bản đồ
+                </button>
+              </div>
+            )}
+          >
+            <BookingTrackingMap
+              tracking={tracking}
+              isConnected={isTrackingConnected}
+              error={trackingError}
+              fallbackDestination={{
+                latitude: booking.address.latitude,
+                longitude: booking.address.longitude,
+                address: booking.address.fullAddress,
+              }}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Tasker card */}
@@ -1099,7 +1158,8 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
         <EditScheduleSheet
           bookingId={bookingId}
           currentDate={booking.schedule.scheduledStartDate ?? ""}
-          currentTime={booking.schedule.scheduledStartTime ?? ""}
+          currentTime={booking.schedule.scheduledStartTime?.slice(0, 5) ?? ""}
+          currentAddressId={booking.address?.id ?? null}
           open={showEdit}
           onClose={() => setShowEdit(false)}
         />

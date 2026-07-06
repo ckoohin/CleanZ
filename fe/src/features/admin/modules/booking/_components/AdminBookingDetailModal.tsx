@@ -277,8 +277,8 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
                 <span className="text-xs text-[var(--c-muted)] mb-0.5 flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> Địa chỉ làm việc
                 </span>
-                <div className="flex items-start gap-2 mt-1">
-                  <span className="text-sm bg-[var(--c-card)] p-2 rounded border border-[var(--c-line)] flex-1">
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm bg-[var(--c-card)] p-2 rounded border border-[var(--c-line)] flex-1 min-w-0">
                     {booking.address?.fullAddress ?? "N/A"}
                   </span>
                   {booking.address?.hasPet && (
@@ -383,10 +383,10 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
                 >
                   {booking.tasker ? "Thay Tasker" : "Gán Tasker"}
                 </AdminButton> */}
-                <AdminButton variant="secondary" onClick={() => setIsChangeStatusOpen(true)}>
+                <AdminButton className ="hidden" variant="secondary" onClick={() => setIsChangeStatusOpen(true)}>
                   Đổi trạng thái
                 </AdminButton>
-                <div className="ml-auto">
+                <div className="m-auto">
                   <AdminButton
                     variant="danger"
                     onClick={() => setConfirmCancel(true)}

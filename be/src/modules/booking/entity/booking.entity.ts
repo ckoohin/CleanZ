@@ -113,6 +113,9 @@ export class BookingEntity {
   @Column({ name: 'pricing_tier_id', type: 'uuid', nullable: true })
   pricingTierId?: string | null;
 
+  @Column({ name: 'addon_ids', type: 'jsonb', nullable: true })
+  addonIds?: string[] | null;
+
   @Column({
     type: 'enum',
     enum: BookingSource,

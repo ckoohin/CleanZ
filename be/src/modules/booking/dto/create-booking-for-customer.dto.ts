@@ -61,6 +61,24 @@ export class CreateBookingForCustomerDto {
   address?: string;
 
   @ApiPropertyOptional({
+    example: 21.028511,
+    description:
+      'Vĩ độ của địa chỉ nhập/search mới. Nếu có cùng longitude, hệ thống sẽ lưu địa chỉ này vào sổ địa chỉ customer để booking có tọa độ.',
+  })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: 105.804817,
+    description:
+      'Kinh độ của địa chỉ nhập/search mới. Nếu có cùng latitude, hệ thống sẽ lưu địa chỉ này vào sổ địa chỉ customer để booking có tọa độ.',
+  })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @ApiPropertyOptional({
     example: '2026-06-17T07:00:00.000Z',
     description: 'Thời gian bắt đầu dạng ISO. Bỏ trống để đặt ngay bây giờ.',
   })
@@ -145,4 +163,13 @@ export class CreateBookingForCustomerDto {
   @IsOptional()
   @IsEnum(PaymentMethod)
   paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({
+    example: 'WELCOME50',
+    description: 'Mã voucher tasker áp cho khách (nếu có).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  voucherCode?: string;
 }

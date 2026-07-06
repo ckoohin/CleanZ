@@ -200,10 +200,19 @@ export function useUpdateBookingSchedule(bookingId: string) {
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.detail(bookingId) });
     },
     onError: (err: unknown) => {
+      const raw = (err as { response?: { data?: { message?: unknown } } })
+        ?.response?.data?.message;
+      // Lỗi validation (422) trả message dạng object {field: "mô tả lỗi"} —
+      // phải nối các mô tả lại, không thì toast hiển thị "[object Object]".
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Không thể cập nhật";
-      toast.error(message);
+        typeof raw === "string"
+          ? raw
+          : raw && typeof raw === "object"
+            ? Object.values(raw as Record<string, unknown>)
+                .filter((v): v is string => typeof v === "string")
+                .join("; ")
+            : "";
+      toast.error(message || "Không thể cập nhật");
     },
   });
 }
