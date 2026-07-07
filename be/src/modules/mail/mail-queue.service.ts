@@ -21,7 +21,11 @@ export class MailQueueService {
   async enqueueTempPassword(data: TempPasswordJobData): Promise<void> {
     this.logger.log(`[TempPassword] Đang enqueue job cho email=${data.email}`);
     try {
-      const job = await this.mailQueue.add(MAIL_JOB_TEMP_PASSWORD, data, MAIL_JOB_OPTS);
+      const job = await this.mailQueue.add(
+        MAIL_JOB_TEMP_PASSWORD,
+        data,
+        MAIL_JOB_OPTS,
+      );
       this.logger.log(
         `[TempPassword] Job added to mailQueue | jobId=${job.id} email=${data.email}`,
       );

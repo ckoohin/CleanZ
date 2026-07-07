@@ -24,7 +24,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    // 401/403 từ auth guard là hành vi bình thường — không log
     if (
       exception instanceof UnauthorizedException ||
       exception instanceof ForbiddenException
@@ -37,7 +36,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       });
     }
 
-    // 4xx client errors → warn, 5xx → error với stack trace
     if (status >= 400 && status < 500) {
       logger.warn(
         `[${status}] ${request.url} — ${

@@ -9,10 +9,16 @@ import { DataSource, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
+import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
+import { IncidentDamageItemVerificationStatus } from 'src/common/enums/incident-damage-item-verification-status.enum';
 import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
 import { IncidentStatementEntity } from '../entity/incident-statement.entity';
+import { IncidentDecisionResponseEntity } from '../entity/incident-decision-response.entity';
+import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
+import { toNumber } from 'src/common/helpers/number.helper';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { SupportTicketEntity } from 'src/modules/support-ticket/entity/support-ticket.entity';
@@ -31,6 +37,9 @@ import { IncidentStateService } from './incident-state.service';
 import { IncidentConfigService } from './incident-config.service';
 import { IncidentCodeService } from './incident-code.service';
 import { FraudStrikeService } from './fraud-strike.service';
+import { IncidentEvidenceLifecycleService } from './incident-evidence-lifecycle.service';
+import { IncidentDepositHoldService } from './incident-deposit-hold.service';
+import { IncidentNotifier } from './incident-notifier.service';
 
 @Injectable()
 export class IncidentAdminService {
@@ -44,6 +53,10 @@ export class IncidentAdminService {
     private readonly evidenceRepo: Repository<IncidentEvidenceEntity>,
     @InjectRepository(IncidentStatementEntity)
     private readonly statementRepo: Repository<IncidentStatementEntity>,
+    @InjectRepository(IncidentDecisionResponseEntity)
+    private readonly decisionResponseRepo: Repository<IncidentDecisionResponseEntity>,
+    @InjectRepository(WalletEntity)
+    private readonly walletRepo: Repository<WalletEntity>,
     @InjectRepository(BookingEntity)
     private readonly bookingRepo: Repository<BookingEntity>,
     @InjectRepository(SupportTicketEntity)
@@ -52,6 +65,9 @@ export class IncidentAdminService {
     private readonly config: IncidentConfigService,
     private readonly code: IncidentCodeService,
     private readonly fraudStrike: FraudStrikeService,
+    private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
+    private readonly depositHold: IncidentDepositHoldService,
+    private readonly notifier: IncidentNotifier,
   ) {}
 
   async createFromTicket(
@@ -232,6 +248,7 @@ export class IncidentAdminService {
         const incident = await manager
           .getRepository(IncidentEntity)
           .createQueryBuilder('i')
+          .leftJoinAndSelect('i.tasker', 'tasker')
           .setLock('pessimistic_write', undefined, ['i'])
           .where('i.id = :id', { id: incidentId })
           .getOne();
@@ -251,6 +268,16 @@ export class IncidentAdminService {
         incident.status = IncidentStatus.INVESTIGATING;
         incident.statementDueAt = new Date(now + sla.statementMins * 60000);
         incident.decisionDueAt = new Date(now + sla.decisionMins * 60000);
+
+        // P0.2 — HOLD ví Tasker để chống rút trốn nghĩa vụ trong lúc điều tra.
+        let heldAmount = 0;
+        if (incident.tasker) {
+          heldAmount = await this.depositHold.holdForAccept(
+            manager,
+            incident,
+            incident.tasker,
+          );
+        }
         await manager.getRepository(IncidentEntity).save(incident);
 
         await this.state.log(
@@ -260,7 +287,7 @@ export class IncidentAdminService {
           from,
           IncidentStatus.INVESTIGATING,
           adminUserId,
-          'Admin tiếp nhận thẩm định (ghi nhận ý định hold cọc — Phase 2)',
+          `Admin tiếp nhận thẩm định — tạm giữ ví Tasker ${heldAmount} VND`,
         );
       });
       return this.findOne(incidentId);
@@ -272,9 +299,14 @@ export class IncidentAdminService {
     dto: VerifyItemsDto,
   ): Promise<IncidentAdminView> {
     return asyncHandleOperation(async () => {
+      // P1.4 — item bị đánh dấu NEED_MORE_EVIDENCE → notify khách bổ sung (sau commit).
+      const needEvidenceItems: { id: string; description: string }[] = [];
+      let customerUserId: string | null = null;
+      let incidentCode: string | null = null;
       await this.dataSource.transaction(async (manager) => {
         const incident = await manager.getRepository(IncidentEntity).findOne({
           where: { id: incidentId },
+          relations: ['customer', 'customer.user'],
         });
         if (!incident) throw new NotFoundException('Không tìm thấy sự cố');
         if (incident.status !== IncidentStatus.INVESTIGATING) {
@@ -282,6 +314,8 @@ export class IncidentAdminService {
             'Chỉ xác minh khi sự cố đang được thẩm định',
           );
         }
+        customerUserId = incident.customer?.user?.id ?? null;
+        incidentCode = incident.incidentCode ?? null;
         const items = await manager
           .getRepository(IncidentDamageItemEntity)
           .find({
@@ -300,10 +334,44 @@ export class IncidentAdminService {
               'Giá trị xác minh không được vượt số tiền yêu cầu',
             );
           }
-          item.verifiedAmount = input.verifiedAmount;
+          // Suy trạng thái thẩm định nếu admin không truyền tường minh:
+          // >0 ⇒ VERIFIED, =0 ⇒ REJECTED. NEED_MORE_EVIDENCE giữ item chưa quyết được.
+          const status =
+            input.status ??
+            (input.verifiedAmount > 0
+              ? IncidentDamageItemVerificationStatus.VERIFIED
+              : IncidentDamageItemVerificationStatus.REJECTED);
+          if (status === IncidentDamageItemVerificationStatus.REJECTED) {
+            item.verifiedAmount = 0;
+          } else if (
+            status === IncidentDamageItemVerificationStatus.NEED_MORE_EVIDENCE
+          ) {
+            item.verifiedAmount = null;
+            needEvidenceItems.push({
+              id: item.id,
+              description: item.description,
+            });
+          } else {
+            item.verifiedAmount = input.verifiedAmount;
+          }
+          item.verificationStatus = status;
           await manager.getRepository(IncidentDamageItemEntity).save(item);
         }
       });
+
+      // Sau commit: nhắc khách bổ sung bằng chứng (dedupe theo item + ngày, tránh spam khi retry).
+      if (customerUserId && needEvidenceItems.length > 0) {
+        const day = new Date().toISOString().slice(0, 10);
+        for (const it of needEvidenceItems) {
+          this.notifier.notify(
+            customerUserId,
+            incidentId,
+            'Cần bổ sung bằng chứng',
+            `CleanZ cần thêm bằng chứng cho hạng mục "${it.description}" của sự cố ${incidentCode ?? ''}. Vui lòng mở sự cố và tải lên ảnh bổ sung để tiếp tục thẩm định.`,
+            `need-evidence-${it.id}-${day}`,
+          );
+        }
+      }
       return this.findOne(incidentId);
     }, 'Lỗi khi xác minh thiệt hại');
   }
@@ -325,22 +393,61 @@ export class IncidentAdminService {
       order: { createdAt: 'ASC' },
     });
     const evidences = await this.evidenceRepo.find({
-      where: { incident: { id: incident.id } },
+      where: { incident: { id: incident.id }, isSoftDeleted: false },
       relations: ['damageItem'],
     });
+    const visibleEvidences = this.evidenceLifecycle.filterForAudience(
+      evidences,
+      'ADMIN',
+    );
     const statements = await this.statementRepo.find({
       where: { incident: { id: incident.id } },
       relations: ['submittedBy'],
       order: { createdAt: 'ASC' },
     });
+    const decisionResponses = await this.decisionResponseRepo.find({
+      where: { incident: { id: incident.id } },
+      relations: ['tasker', 'evidences'],
+      order: { decisionVersion: 'ASC', responseRevision: 'ASC' },
+    });
     const byItem = new Map<string, IncidentEvidenceEntity[]>();
-    for (const e of evidences) {
+    for (const e of visibleEvidences) {
       const key = e.damageItem?.id;
       if (!key) continue;
       const arr = byItem.get(key) ?? [];
       arr.push(e);
       byItem.set(key, arr);
     }
-    return toAdminView(incident, items, byItem, statements);
+    // Ảnh giải trình của Tasker gắn ở cấp sự cố (không thuộc hạng mục nào) → tách riêng
+    // để hiển thị trong phụ lục Giải trình bên Admin (trước đây bị rơi mất).
+    const statementEvidences = visibleEvidences.filter(
+      (e) =>
+        !e.damageItem &&
+        e.purpose === IncidentEvidencePurpose.TASKER_STATEMENT,
+    );
+    // P0.4 — ảnh minh chứng chuyển khoản thủ công (audit).
+    const transferProofEvidences = visibleEvidences.filter(
+      (e) =>
+        e.purpose === IncidentEvidencePurpose.COMPENSATION_TRANSFER_PROOF,
+    );
+    // Số dư ví Tasker (read-only) để tính quỹ khả dụng = ví + cọc gốc.
+    const taskerWallet = incident.tasker
+      ? await this.walletRepo.findOne({
+          where: {
+            tasker: { id: incident.tasker.id },
+            ownerType: WalletOwnerType.TASKER,
+          },
+        })
+      : null;
+    return toAdminView(
+      incident,
+      items,
+      byItem,
+      statements,
+      decisionResponses,
+      statementEvidences,
+      toNumber(taskerWallet?.balance),
+      transferProofEvidences,
+    );
   }
 }

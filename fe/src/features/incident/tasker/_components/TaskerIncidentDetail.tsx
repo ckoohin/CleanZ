@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock, Wallet } from "lucide-react";
 import { useTaskerIncidentDetail } from "../hooks/useTaskerIncident";
 import { StatementComposer } from "./StatementComposer";
+import { DecisionResponseComposer } from "./DecisionResponseComposer";
 import {
   IncidentStatusBadge,
   CompensationBadge,
@@ -87,19 +88,22 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
           <div className="flex items-center gap-1.5">
             <Wallet className="size-4 text-muted-foreground" />
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Cọc tạm giữ</p>
-              <p className="font-semibold">{formatVnd(inc.myDepositHold)}</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Phần bạn chịu (ghi nhận)</p>
+              <p className="font-semibold text-red-600">
+                {inc.myBorneAmount == null ? "—" : formatVnd(inc.myBorneAmount)}
+              </p>
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Đã trừ cọc</p>
-            <p className="font-semibold text-red-600">{formatVnd(inc.myDepositDeducted)}</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Cọc trừ thực tế (Phase 2)</p>
+            <p className="font-semibold">{formatVnd(inc.myDepositDeducted)}</p>
           </div>
         </div>
 
         {/* Giải trình */}
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Giải trình / đối chất</p>
+          <DecisionResponseComposer incident={inc} />
           <StatementThread statements={inc.statements} />
           <StatementComposer incidentId={incidentId} canSubmit={inc.canSubmitStatement} />
         </div>

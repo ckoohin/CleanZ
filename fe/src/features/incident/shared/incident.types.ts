@@ -9,9 +9,18 @@ import type {
   CompensationSource,
   CompensationStatus,
   Decision,
+  DecisionResponseType,
   IncidentStatus,
+  IncidentDecisionStatus,
+  ResponseReviewResult,
+  ResponseWindowStatus,
+  ResponsibilityParty,
+  SecondApprovalAction,
   Severity,
 } from './incident.enums';
+
+// Re-export các type dùng lại ở tầng component (import gọn từ incident.types).
+export type { ResponsibilityParty, ResponseReviewResult };
 
 // ─── Pagination (chuẩn dự án) ────────────────────────────────────────────────
 export interface PaginationMeta {
@@ -30,18 +39,28 @@ export interface Evidence {
   id: string;
   url: string;
   fileType?: string | null;
+  purpose?: string | null;
+  decisionVersion?: number | null;
 }
+export type DamageItemVerificationStatus =
+  | "PENDING"
+  | "VERIFIED"
+  | "REJECTED"
+  | "NEED_MORE_EVIDENCE";
 export interface DamageItem {
   id: string;
   description: string;
   claimedAmount: number;
   verifiedAmount: number | null;
   approvedAmount: number | null;
+  verificationStatus: DamageItemVerificationStatus;
   evidences: Evidence[];
 }
 export interface Statement {
   id: string;
   submittedByUserId: string | null;
+  submittedByName: string | null;
+  submittedByRole: string | null;
   body: string;
   createdAt: string;
 }
@@ -58,6 +77,8 @@ export interface IncidentSummary {
   severity: Severity;
   status: IncidentStatus;
   compensationStatus: CompensationStatus;
+  decisionStatus: IncidentDecisionStatus;
+  decisionVersion: number;
   closureReason: ClosureReason | null;
   claimedAmount: number | null;
   approvedAmount: number | null;
@@ -78,9 +99,89 @@ export interface IncidentTaskerView extends IncidentSummary {
   damageItems: DamageItem[];
   statements: Statement[];
   statementDueAt: string | null;
+  responseWindowStatus: ResponseWindowStatus;
+  taskerResponseDeadline: string | null;
   canSubmitStatement: boolean;
+  canRespondToDecision: boolean;
+  /** Phần Tasker chịu đã ghi nhận (record-only); null khi quyết định chưa gửi cho Tasker. */
+  myBorneAmount: number | null;
   myDepositHold: number | null;
   myDepositDeducted: number | null;
+}
+
+// NOTE: các hằng phải khớp chính xác chuỗi BE emit trong
+// getIncidentDecisionActionView (incident-decision.helpers.ts).
+export type IncidentDecisionAction =
+  | 'SAVE_DRAFT'
+  | 'SUBMIT_DRAFT'
+  | 'RESPOND'
+  | 'REVIEW_RESPONSE'
+  | 'REVISE_DECISION'
+  | 'EXTEND_RESPONSE'
+  | 'FINALIZE'
+  | 'SECOND_APPROVE'
+  | 'REQUEST_CHANGES'
+  | 'COMPENSATE';
+
+export interface IncidentDecisionView {
+  status: IncidentDecisionStatus;
+  version: number;
+  responseWindowStatus: ResponseWindowStatus;
+  taskerResponseDeadline: string | null;
+  taskerResponseReviewedAt: string | null;
+  responsibilityParty: ResponsibilityParty | null;
+  responsibilityReason: string | null;
+  internalDecisionNote: string | null;
+  taskerDecisionReason: string | null;
+  customerDecisionSummary: string | null;
+  depositBalanceSnapshot: number | null;
+  recoverableFromDepositAmount: number | null;
+  uncoveredLiabilityAmount: number | null;
+  secondApprovalNote: string | null;
+  secondApprovalRequestedAt: string | null;
+  secondApprovalDueAt: string | null;
+  secondApprovedAt: string | null;
+  finalizedAt: string | null;
+  policyVersion: string | null;
+  dualApprovalThresholdSnapshot: number | null;
+  policyCapSnapshot: number | null;
+  responseWindowHoursSnapshot: number | null;
+  severityRuleSnapshot: Record<string, unknown> | null;
+  isAdverseToTasker: boolean;
+  requiresSecondAdmin: boolean;
+  requiresTaskerResponse: boolean;
+  allowedActions: IncidentDecisionAction[];
+  blockedReasons: string[];
+}
+
+export interface DecisionResponseView {
+  id: string;
+  incidentId: string | null;
+  decisionVersion: number;
+  responseType: DecisionResponseType;
+  content: string | null;
+  responseRevision: number;
+  submittedAt: string;
+  updatedAt: string;
+  reviewResult: ResponseReviewResult | null;
+  reviewedAt: string | null;
+  evidences: Evidence[];
+  canEdit: boolean;
+}
+
+/** Phản hồi quyết định của Tasker theo góc nhìn Admin (kèm ghi chú review). */
+export interface AdminDecisionResponse {
+  id: string;
+  decisionVersion: number;
+  responseType: DecisionResponseType;
+  content: string | null;
+  responseRevision: number;
+  submittedByName: string | null;
+  submittedAt: string;
+  reviewResult: ResponseReviewResult | null;
+  reviewedAt: string | null;
+  adminReviewNote: string | null;
+  evidences: Evidence[];
 }
 
 // ─── Admin view (đầy đủ) ─────────────────────────────────────────────────────
@@ -90,13 +191,22 @@ export interface IncidentAdminView extends IncidentSummary {
   tasker: PartyRef & {
     currentDepositBalance: number;
     availableDeposit: number;
+    depositTopupDue: string | null;
   };
   damageItems: DamageItem[];
   statements: Statement[];
+  /** Ảnh Tasker đính kèm khi giải trình (không thuộc hạng mục nào). */
+  statementEvidences: Evidence[];
+  /** P0.4 — ảnh minh chứng chuyển khoản thủ công (chỉ admin thấy). */
+  transferProofEvidences: Evidence[];
+  decisionResponses: AdminDecisionResponse[];
+  taskerWalletHoldAmount: number | null;
+  uncoveredRecoveredAmount: number;
   taskerBorneAmount: number | null;
   platformBorneAmount: number | null;
   allocationReason: string | null;
   compensationSource: CompensationSource | null;
+  decision: IncidentDecisionView;
   coolingUntil: string | null;
   receivedDueAt: string | null;
   statementDueAt: string | null;
@@ -128,19 +238,55 @@ export interface AcceptInput {
   severity: Severity;
 }
 export interface VerifyItemsInput {
-  items: { itemId: string; verifiedAmount: number }[];
+  items: {
+    itemId: string;
+    verifiedAmount: number;
+    status?: Exclude<DamageItemVerificationStatus, "PENDING">;
+  }[];
 }
-export interface DecideInput {
+export interface DecisionDraftItemInput {
+  // BE DTO (SaveIncidentDecisionDraftDto) dùng `damageItemId`, khác với verify/decide (`itemId`).
+  damageItemId: string;
+  approvedAmount: number;
+}
+export interface DecisionDraftInput {
+  expectedDecisionVersion: number;
   decision: Decision;
-  items?: { itemId: string; approvedAmount: number }[];
+  items?: DecisionDraftItemInput[];
+  responsibilityParty?: ResponsibilityParty | null;
+  responsibilityReason?: string | null;
   taskerBorneAmount?: number;
   platformBorneAmount?: number;
-  allocationReason?: string;
-  reason?: string;
+  allocationReason?: string | null;
+  internalDecisionNote?: string | null;
+  taskerDecisionReason?: string | null;
+  customerDecisionSummary?: string | null;
+}
+export interface SubmitDecisionDraftInput {
+  expectedDecisionVersion: number;
+}
+export interface ReviewDecisionResponseInput {
+  expectedDecisionVersion: number;
+  responseId: string;
+  result: ResponseReviewResult;
+  adminReviewNote: string;
+}
+export type ReviseDecisionInput = DecisionDraftInput;
+export interface FinalizeDecisionInput {
+  expectedDecisionVersion: number;
+  /** Chỉ khi finalize draft REJECT: đánh dấu báo cáo sai → cộng strike gian lận. */
   rejectAsFraud?: boolean;
 }
-export interface ApproveCompensationInput {
-  confirm: true;
+export interface SecondApprovalInput {
+  expectedDecisionVersion: number;
+  action: SecondApprovalAction;
+  note?: string;
+}
+export interface UpsertDecisionResponseInput {
+  decisionVersion: number;
+  responseType: DecisionResponseType;
+  content?: string | null;
+  evidenceIds?: string[];
 }
 /** from-ticket: damage item KHÔNG kèm evidence (kế thừa bằng chứng từ ticket). */
 export interface FromTicketDamageItem {

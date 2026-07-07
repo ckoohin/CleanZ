@@ -145,15 +145,24 @@ export class SubServicesService {
       pricingConfig: await (async () => {
         if (dto.basePrice !== undefined && dto.basePrice >= 0) {
           if (service.pricingConfig?.id) {
-            await this.pricingConfigRepo.update(service.pricingConfig.id, { basePrice: dto.basePrice, name: dto.name ?? service.name });
+            await this.pricingConfigRepo.update(service.pricingConfig.id, {
+              basePrice: dto.basePrice,
+              name: dto.name ?? service.name,
+            });
             return service.pricingConfig;
           }
           return await this.pricingConfigRepo.save(
-            this.pricingConfigRepo.create({ name: dto.name ?? service.name, basePrice: dto.basePrice, isActive: true }),
+            this.pricingConfigRepo.create({
+              name: dto.name ?? service.name,
+              basePrice: dto.basePrice,
+              isActive: true,
+            }),
           );
         }
         if (dto.pricingConfigId !== undefined) {
-          return dto.pricingConfigId ? ({ id: dto.pricingConfigId } as any) : null;
+          return dto.pricingConfigId
+            ? ({ id: dto.pricingConfigId } as any)
+            : null;
         }
         return service.pricingConfig;
       })(),

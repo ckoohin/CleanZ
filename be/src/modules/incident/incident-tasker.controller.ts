@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UploadedFile,
   UseInterceptors,
@@ -24,6 +25,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { IncidentTaskerService } from './services/incident-tasker.service';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { SubmitStatementDto } from './dto/submit-statement.dto';
+import { UpsertIncidentDecisionResponseDto } from './dto/upsert-incident-decision-response.dto';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/jpg'];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -81,5 +83,15 @@ export class IncidentTaskerController {
     @Body() dto: SubmitStatementDto,
   ) {
     return this.taskerService.submitStatement(userId, id, dto);
+  }
+
+  @Put(':id/decision-response')
+  @ApiOperation({ summary: 'Tasker phan hoi draft quyet dinh bat loi' })
+  upsertDecisionResponse(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertIncidentDecisionResponseDto,
+  ) {
+    return this.taskerService.upsertDecisionResponse(userId, id, dto);
   }
 }

@@ -1,0 +1,16 @@
+# Chuẩn hoá line-ending: mọi file text lưu & checkout dạng LF (override core.autocrlf).
+# Tránh drift CRLF/LF khiến prettier/eslint báo lỗi trên máy Windows.
+* text=auto eol=lf
+
+# Binary — git tự nhận diện, khai báo tường minh cho chắc.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
