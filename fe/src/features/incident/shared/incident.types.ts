@@ -235,7 +235,7 @@ export interface SubmitStatementInput {
   evidenceIds?: string[];
 }
 export interface AcceptInput {
-  severity: Severity;
+  note?: string;
 }
 export interface VerifyItemsInput {
   items: {
@@ -274,7 +274,6 @@ export interface ReviewDecisionResponseInput {
 export type ReviseDecisionInput = DecisionDraftInput;
 export interface FinalizeDecisionInput {
   expectedDecisionVersion: number;
-  /** Chỉ khi finalize draft REJECT: đánh dấu báo cáo sai → cộng strike gian lận. */
   rejectAsFraud?: boolean;
 }
 export interface SecondApprovalInput {
@@ -288,7 +287,6 @@ export interface UpsertDecisionResponseInput {
   content?: string | null;
   evidenceIds?: string[];
 }
-/** from-ticket: damage item KHÔNG kèm evidence (kế thừa bằng chứng từ ticket). */
 export interface FromTicketDamageItem {
   description: string;
   claimedAmount: number;
@@ -299,7 +297,6 @@ export interface FromTicketInput {
   damageItems: FromTicketDamageItem[];
 }
 
-/** Config = key→value phẳng (BE trả Record<string,string|null>). */
 export type IncidentConfigMap = Record<string, string | null>;
 
 // ─── Query params ─────────────────────────────────────────────────────────────
@@ -321,7 +318,6 @@ export interface AdminIncidentQuery {
   sort?: 'severity' | 'reportedAt' | 'decisionDueAt';
 }
 
-// ─── Config (đối chiếu khi làm ConfigForm) ───────────────────────────────────
 export interface IncidentConfig {
   reportWindowHours?: number;
   reportWindowSevereHours?: number;

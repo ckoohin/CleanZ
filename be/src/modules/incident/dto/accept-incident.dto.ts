@@ -1,8 +1,9 @@
-import { IsEnum, IsOptional } from 'class-validator';
-import { IncidentSeverity } from 'src/common/enums/incident-severity.enum';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class AcceptIncidentDto {
+  
   @IsOptional()
-  @IsEnum(IncidentSeverity)
-  severity?: IncidentSeverity;
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

@@ -223,7 +223,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             {/* Phụ lục 2: Thẩm định & xử lý */}
             <TabsContent value="assessment" className="min-h-0 flex-1 overflow-y-auto p-6">
               <div className="mx-auto w-full max-w-3xl space-y-5">
-                {canAccept && <AcceptPanel id={inc.id} defaultSeverity={inc.severity} />}
+                {canAccept && <AcceptPanel id={inc.id} severity={inc.severity} />}
                 {canVerify && <VerifyItemsPanel id={inc.id} items={inc.damageItems} />}
                 {showDecision && <DecisionPanel incident={inc} />}
                 {inc.status === "APPROVED" && (

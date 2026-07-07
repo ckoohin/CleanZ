@@ -142,29 +142,29 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
     decision: mode,
     ...(mode === "APPROVE"
       ? {
-          items: incident.damageItems.map((it) => ({
-            damageItemId: it.id,
-            // Chỉ hạng mục VERIFIED mới được duyệt tiền; còn lại ép 0.
-            approvedAmount:
-              it.verificationStatus === "VERIFIED"
-                ? Number(approved[it.id]) || 0
-                : 0,
-          })),
-          responsibilityParty: responsibilityParty || null,
-          responsibilityReason: responsibilityReason.trim() || null,
-          taskerBorneAmount: Number(taskerBorne) || 0,
-          platformBorneAmount: Number(platformBorne) || 0,
-          allocationReason: allocationReason.trim() || null,
-          taskerDecisionReason: taskerDecisionReason.trim() || null,
-          customerDecisionSummary: customerDecisionSummary.trim(),
-        }
+        items: incident.damageItems.map((it) => ({
+          damageItemId: it.id,
+          // Chỉ hạng mục VERIFIED mới được duyệt tiền; còn lại ép 0.
+          approvedAmount:
+            it.verificationStatus === "VERIFIED"
+              ? Number(approved[it.id]) || 0
+              : 0,
+        })),
+        responsibilityParty: responsibilityParty || null,
+        responsibilityReason: responsibilityReason.trim() || null,
+        taskerBorneAmount: Number(taskerBorne) || 0,
+        platformBorneAmount: Number(platformBorne) || 0,
+        allocationReason: allocationReason.trim() || null,
+        taskerDecisionReason: taskerDecisionReason.trim() || null,
+        customerDecisionSummary: customerDecisionSummary.trim(),
+      }
       : {
-          items: incident.damageItems.map((it) => ({
-            damageItemId: it.id,
-            approvedAmount: 0,
-          })),
-          customerDecisionSummary: customerDecisionSummary.trim(),
-        }),
+        items: incident.damageItems.map((it) => ({
+          damageItemId: it.id,
+          approvedAmount: 0,
+        })),
+        customerDecisionSummary: customerDecisionSummary.trim(),
+      }),
     internalDecisionNote: internalDecisionNote.trim() || null,
   });
 
@@ -229,14 +229,14 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
   const draftInvalid =
     mode === "APPROVE"
       ? sumApproved <= 0 ||
-        hasUnresolvedItems ||
-        !responsibilityParty ||
-        responsibilityReasonTooShort ||
-        !allocation.ok ||
-        !!allocationRuleError ||
-        overCap ||
-        summaryTooShort ||
-        taskerReasonMissing
+      hasUnresolvedItems ||
+      !responsibilityParty ||
+      responsibilityReasonTooShort ||
+      !allocation.ok ||
+      !!allocationRuleError ||
+      overCap ||
+      summaryTooShort ||
+      taskerReasonMissing
       : summaryTooShort;
 
   return (
@@ -262,7 +262,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
           <Check className="size-3.5" /> Duyệt
         </AdminButton>
         <AdminButton size="sm" variant={mode === "APPROVE_NO_COMPENSATION" ? "primary" : "secondary"} className="rounded-lg gap-1" onClick={() => setMode("APPROVE_NO_COMPENSATION")}>
-          <Check className="size-3.5" /> Không BT
+          <Check className="size-3.5" /> Không bồi thường
         </AdminButton>
         <AdminButton size="sm" variant={mode === "REJECT" ? "danger" : "secondary"} className="rounded-lg gap-1.5" onClick={() => setMode("REJECT")}>
           <X className="size-3.5" /> Từ chối
@@ -283,9 +283,9 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
           <div className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5 text-[11px] leading-snug text-[var(--c-muted)]">
             <p className="mb-1 font-bold text-[var(--c-ink)]">Yêu cầu duyệt bồi thường</p>
             <ul className="list-disc space-y-0.5 pl-4">
-              <li>Số duyệt mỗi hạng mục là số nguyên ≥ 0 và <b>không vượt số đã xác minh</b>.</li>
+              <li>Số duyệt mỗi hạng mục phải luôn lớn hơn 0 và <b>không vượt số đã xác minh</b>.</li>
               <li>Tổng duyệt phải &gt; 0 và <b>không vượt trần chính sách</b> {policyCap != null ? `(${formatVnd(policyCap)})` : ""}.</li>
-              <li>Bắt buộc chọn <b>bên chịu trách nhiệm</b> và nhập <b>lý do quy trách nhiệm ≥ 10 ký tự</b>.</li>
+              <li>Bắt buộc chọn <b>bên chịu trách nhiệm</b> và nhập <b>lý do quy trách nhiệm (tối thiểu 10 kí tự)</b>.</li>
               <li>Tasker chịu + Quỹ chịu <b>phải bằng tổng duyệt</b> (theo bên chịu: Nền tảng ⇒ Tasker = 0; Chưa xác định ⇒ Quỹ chịu toàn bộ + lý do phân bổ).</li>
               <li>Nếu Tasker chịu &gt; 0 thì bắt buộc nhập <b>lý do gửi Tasker</b>.</li>
               <li>Bắt buộc nhập <b>tóm tắt gửi khách hàng ≥ 10 ký tự</b>.</li>
@@ -308,13 +308,12 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm">{it.description}</p>
                   <span
-                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                      it.verificationStatus === "VERIFIED"
-                        ? "bg-[#10B981]/15 text-[#047857]"
-                        : it.verificationStatus === "REJECTED"
-                          ? "bg-[#DC2626]/15 text-[#B91C1C]"
-                          : "bg-[#F59E0B]/15 text-[#B45309]"
-                    }`}
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${it.verificationStatus === "VERIFIED"
+                      ? "bg-[#10B981]/15 text-[#047857]"
+                      : it.verificationStatus === "REJECTED"
+                        ? "bg-[#DC2626]/15 text-[#B91C1C]"
+                        : "bg-[#F59E0B]/15 text-[#B45309]"
+                      }`}
                   >
                     {VERIFICATION_STATUS_LABEL[it.verificationStatus] ?? it.verificationStatus}
                   </span>
@@ -344,9 +343,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                   <FieldHint hint="Hạng mục bị từ chối — không duyệt tiền (số duyệt = 0)." />
                 ) : (
                   <FieldHint
-                    error={`Hạng mục chưa thẩm định xong (${
-                      VERIFICATION_STATUS_LABEL[it.verificationStatus] ?? it.verificationStatus
-                    }). Quay lại bước "Thẩm định thiệt hại" xử lý trước — nếu không sẽ bị chặn khi chốt.`}
+                    error={`Hạng mục chưa thẩm định xong (${VERIFICATION_STATUS_LABEL[it.verificationStatus] ?? it.verificationStatus
+                      }). Quay lại bước "Thẩm định thiệt hại" xử lý trước — nếu không sẽ bị chặn khi chốt.`}
                   />
                 )}
               </div>
