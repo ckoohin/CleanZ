@@ -8,6 +8,8 @@ import type {
   Paginated,
   Statement,
   SubmitStatementInput,
+  DecisionResponseView,
+  UpsertDecisionResponseInput,
 } from "@/features/incident/shared/incident.types";
 
 const EP = API_ENDPOINTS.TASKER_INCIDENTS;
@@ -32,4 +34,10 @@ export const taskerIncidentApi = {
 
   submitStatement: (id: string, dto: SubmitStatementInput): Promise<Statement> =>
     http.post<Statement>(EP.STATEMENTS(id), dto).then((r) => r.data),
+
+  upsertDecisionResponse: (
+    id: string,
+    dto: UpsertDecisionResponseInput,
+  ): Promise<DecisionResponseView> =>
+    http.put<DecisionResponseView>(EP.DECISION_RESPONSE(id), dto).then((r) => r.data),
 };

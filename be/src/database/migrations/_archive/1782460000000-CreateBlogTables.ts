@@ -112,14 +112,30 @@ export class CreateBlogTables1782460000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "blog_bookmarks" DROP CONSTRAINT "FK_blog_bookmarks_user"`);
-    await queryRunner.query(`ALTER TABLE "blog_bookmarks" DROP CONSTRAINT "FK_blog_bookmarks_blog"`);
-    await queryRunner.query(`ALTER TABLE "blog_comments" DROP CONSTRAINT "FK_blog_comments_user"`);
-    await queryRunner.query(`ALTER TABLE "blog_comments" DROP CONSTRAINT "FK_blog_comments_blog"`);
-    await queryRunner.query(`ALTER TABLE "blog_tag_relations" DROP CONSTRAINT "FK_blog_tag_relations_tag"`);
-    await queryRunner.query(`ALTER TABLE "blog_tag_relations" DROP CONSTRAINT "FK_blog_tag_relations_blog"`);
-    await queryRunner.query(`ALTER TABLE "blogs" DROP CONSTRAINT "FK_blogs_author"`);
-    await queryRunner.query(`ALTER TABLE "blogs" DROP CONSTRAINT "FK_blogs_category"`);
+    await queryRunner.query(
+      `ALTER TABLE "blog_bookmarks" DROP CONSTRAINT "FK_blog_bookmarks_user"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blog_bookmarks" DROP CONSTRAINT "FK_blog_bookmarks_blog"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blog_comments" DROP CONSTRAINT "FK_blog_comments_user"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blog_comments" DROP CONSTRAINT "FK_blog_comments_blog"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blog_tag_relations" DROP CONSTRAINT "FK_blog_tag_relations_tag"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blog_tag_relations" DROP CONSTRAINT "FK_blog_tag_relations_blog"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blogs" DROP CONSTRAINT "FK_blogs_author"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "blogs" DROP CONSTRAINT "FK_blogs_category"`,
+    );
     await queryRunner.query(`DROP INDEX "public"."idx_blogs_category"`);
     await queryRunner.query(`DROP INDEX "public"."idx_blogs_status"`);
     await queryRunner.query(`DROP TABLE "blog_bookmarks"`);

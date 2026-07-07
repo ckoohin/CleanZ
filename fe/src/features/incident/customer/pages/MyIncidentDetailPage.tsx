@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, ImagePlus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,7 +13,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  useAttachItemEvidence,
   useIncidentDetail,
+  useUploadEvidence,
   useWithdrawIncident,
 } from "../hooks/useCustomerIncident";
 import {
@@ -61,6 +63,75 @@ function WithdrawDialog({ id, open, onClose }: { id: string; open: boolean; onCl
   );
 }
 
+/** P1.4 — Uploader bổ sung bằng chứng cho hạng mục Admin yêu cầu (NEED_MORE_EVIDENCE). */
+function NeedEvidenceUploader({
+  incidentId,
+  itemId,
+}: {
+  incidentId: string;
+  itemId: string;
+}) {
+  const upload = useUploadEvidence();
+  const attach = useAttachItemEvidence(incidentId);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const busy = upload.isPending || attach.isPending;
+
+  const submit = async () => {
+    if (files.length === 0) return;
+    const ids: string[] = [];
+    for (const f of files) {
+      const ev = await upload.mutateAsync(f);
+      ids.push(ev.id);
+    }
+    attach.mutate(
+      { itemId, evidenceIds: ids },
+      { onSuccess: () => setFiles([]) },
+    );
+  };
+
+  return (
+    <div className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2.5 dark:bg-amber-500/10">
+      <p className="flex items-start gap-1.5 text-xs font-medium text-amber-700">
+        <AlertTriangle className="mt-px size-3.5 shrink-0" />
+        CleanZ cần thêm bằng chứng cho hạng mục này để tiếp tục thẩm định.
+      </p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png"
+        multiple
+        className="hidden"
+        onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 10))}
+      />
+      <div className="mt-2 flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rounded-full gap-1.5"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+        >
+          <ImagePlus className="size-4" /> Chọn ảnh
+        </Button>
+        {files.length > 0 && (
+          <span className="text-xs text-muted-foreground">{files.length} ảnh đã chọn</span>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          className="ml-auto rounded-full"
+          disabled={busy || files.length === 0}
+          onClick={() => void submit()}
+        >
+          {busy ? "Đang gửi..." : "Gửi bổ sung"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
   const router = useRouter();
   const { data: inc, isLoading } = useIncidentDetail(incidentId);
@@ -82,7 +153,11 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
     );
   }
 
-  const withdrawable = canWithdraw(inc.status, inc.compensationStatus);
+  const withdrawable = canWithdraw(
+    inc.status,
+    inc.compensationStatus,
+    inc.decisionStatus,
+  );
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -116,7 +191,19 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Hạng mục thiệt hại</p>
           {inc.damageItems.map((it) => (
             <div key={it.id} className="rounded-xl border border-border/50 p-3">
-              <p className="text-sm font-medium">{it.description}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">{it.description}</p>
+                {it.verificationStatus === "NEED_MORE_EVIDENCE" && (
+                  <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                    Cần thêm bằng chứng
+                  </span>
+                )}
+                {it.verificationStatus === "REJECTED" && (
+                  <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                    Không được chấp nhận
+                  </span>
+                )}
+              </div>
               <div className="mt-1 flex items-center gap-3 text-xs">
                 <span className="text-muted-foreground">Yêu cầu: <b className="text-foreground/80">{formatVnd(it.claimedAmount)}</b></span>
                 {it.approvedAmount != null && (
@@ -131,6 +218,10 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
                   ))}
                 </div>
               )}
+              {inc.status === "INVESTIGATING" &&
+                it.verificationStatus === "NEED_MORE_EVIDENCE" && (
+                  <NeedEvidenceUploader incidentId={incidentId} itemId={it.id} />
+                )}
             </div>
           ))}
         </div>

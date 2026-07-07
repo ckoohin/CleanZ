@@ -1,4 +1,3 @@
-// Giá trị hợp lệ cho cột reference_type (CHECK trong CleanZ/data.sql) — DR-4
 export enum NotificationRefType {
   BOOKING = 'BOOKING',
   INCIDENT = 'INCIDENT',

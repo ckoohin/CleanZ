@@ -6,7 +6,12 @@ import {
   type ClosureReason,
   type CompensationSource,
   type CompensationStatus,
+  type DecisionResponseType,
+  type IncidentDecisionStatus,
   type IncidentStatus,
+  type ResponseReviewResult,
+  type ResponseWindowStatus,
+  type ResponsibilityParty,
   type Severity,
 } from './incident.enums';
 
@@ -58,6 +63,7 @@ export const SEVERITY_TONE: Record<Severity, Tone> = {
 export const CLOSURE_LABEL: Record<ClosureReason, string> = {
   COMPENSATED: 'Đã bồi thường',
   REJECTED: 'Bị từ chối',
+  NO_COMPENSATION: 'Không bồi thường',
   WITHDRAWN: 'Khách đã rút',
   DUPLICATE: 'Trùng lặp',
   INVALID_BOOKING: 'Đơn không hợp lệ',
@@ -68,6 +74,47 @@ export const COMP_SOURCE_LABEL: Record<CompensationSource, string> = {
   TASKER_DEPOSIT: 'Cọc Tasker',
   PLATFORM_FUND: 'Quỹ nền tảng',
   MIXED: 'Kết hợp',
+};
+
+export const VERIFICATION_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Chờ thẩm định',
+  VERIFIED: 'Đã xác minh',
+  REJECTED: 'Từ chối',
+  NEED_MORE_EVIDENCE: 'Cần thêm bằng chứng',
+};
+
+// ─── Nhãn luồng quyết định trách nhiệm (Slice 5b) ────────────────────────────
+export const DECISION_STATUS_LABEL: Record<IncidentDecisionStatus, string> = {
+  NONE: 'Chưa có quyết định',
+  DRAFT: 'Bản nháp',
+  PENDING_TASKER_RESPONSE: 'Chờ Tasker phản hồi',
+  PENDING_ADMIN_APPROVAL: 'Chờ duyệt cấp 2',
+  FINAL: 'Đã chốt',
+};
+
+export const RESPONSE_WINDOW_LABEL: Record<ResponseWindowStatus, string> = {
+  NONE: 'Chưa mở',
+  OPEN: 'Đang mở',
+  RESPONDED: 'Đã phản hồi',
+  REVIEWED: 'Đã xem xét',
+  EXPIRED: 'Hết hạn',
+};
+
+export const RESPONSIBILITY_LABEL: Record<ResponsibilityParty, string> = {
+  TASKER: 'Tasker chịu',
+  PLATFORM: 'Nền tảng chịu',
+  SHARED: 'Chia sẻ',
+  UNDETERMINED: 'Chưa xác định (CleanZ chịu)',
+};
+
+export const RESPONSE_TYPE_LABEL: Record<DecisionResponseType, string> = {
+  AGREE: 'Đồng ý',
+  DISAGREE: 'Không đồng ý',
+};
+
+export const REVIEW_RESULT_LABEL: Record<ResponseReviewResult, string> = {
+  KEEP_DECISION: 'Giữ nguyên quyết định',
+  REVISE_DECISION: 'Sửa lại quyết định',
 };
 
 /** Class badge theo tone — token semantic (frontend-rules 07). Dùng chung table/drawer. */

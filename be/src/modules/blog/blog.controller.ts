@@ -83,10 +83,7 @@ export class BlogController {
   @Post('admin')
   @AdminOnly()
   @ApiOperation({ summary: 'Tạo blog' })
-  async create(
-    @Body() dto: CreateBlogDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async create(@Body() dto: CreateBlogDto, @CurrentUser('id') userId: string) {
     const blog = await this.blogService.create(dto, userId);
     return successResponse(blog, 'Blog created');
   }

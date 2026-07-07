@@ -22,6 +22,10 @@ export function AcceptPanel({ id, defaultSeverity }: { id: string; defaultSeveri
   return (
     <section className="space-y-2">
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Tiếp nhận thẩm định</p>
+      <p className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5 text-[11px] leading-snug text-[var(--c-muted)]">
+        Chọn <b>mức độ nghiêm trọng</b> rồi tiếp nhận. Trường không bắt buộc — nếu giữ nguyên,
+        hệ thống dùng mức mặc định. Khi tiếp nhận, sự cố chuyển sang <b>Đang điều tra</b>.
+      </p>
       <div className="flex gap-2">
         <Select value={severity} onValueChange={(v) => setSeverity(v as Severity)}>
           <SelectTrigger className="h-9 flex-1 rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm text-[var(--c-ink)]" aria-label="Mức độ nghiêm trọng">

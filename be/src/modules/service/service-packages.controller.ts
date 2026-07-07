@@ -84,7 +84,12 @@ export class ServicePackagesController {
     @Query('to') to?: string,
     @Query('taskerId') taskerId?: string,
   ) {
-    const data = await this.servicePackagesService.getAnalytics(id, from, to, taskerId);
+    const data = await this.servicePackagesService.getAnalytics(
+      id,
+      from,
+      to,
+      taskerId,
+    );
     return successResponse(data);
   }
 

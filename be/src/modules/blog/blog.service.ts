@@ -420,8 +420,14 @@ export class BlogService {
     const normalized = this.normalizeSlug(slug);
     if (!normalized) throw new BadRequestException('BLOG_SLUG_REQUIRED');
 
+<<<<<<< Updated upstream
     const repo = manager?.getRepository(BlogEntity) ?? this.blogRepo;
     const existing = await repo.findOne({ where: { slug: normalized } });
+=======
+    const existing = await this.blogRepo.findOne({
+      where: { slug: normalized },
+    });
+>>>>>>> Stashed changes
     if (existing && existing.id !== excludeId) {
       throw new ConflictException('BLOG_SLUG_EXISTS');
     }

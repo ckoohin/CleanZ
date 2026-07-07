@@ -25,7 +25,6 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Cho phép Postman / server-to-server request (không có origin)
       if (!origin) {
         return callback(null, true);
       }

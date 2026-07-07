@@ -12,9 +12,13 @@ import {
 import type {
   AcceptInput,
   AdminIncidentQuery,
-  ApproveCompensationInput,
-  DecideInput,
+  DecisionDraftInput,
+  FinalizeDecisionInput,
   FromTicketInput,
+  ReviewDecisionResponseInput,
+  ReviseDecisionInput,
+  SecondApprovalInput,
+  SubmitDecisionDraftInput,
   VerifyItemsInput,
 } from "@/features/incident/shared/incident.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
@@ -55,7 +59,16 @@ function useIncidentAction<TInput>(
       qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
       qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
     },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+    onError: (e: unknown) => {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
+        qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+        toast.error("Phiên bản quyết định đã thay đổi. Dữ liệu đã được tải lại.");
+        return;
+      }
+      toast.error(getErrorMessage(e));
+    },
   });
 }
 
@@ -63,17 +76,61 @@ export const useAcceptIncident = (id: string) =>
   useIncidentAction<AcceptInput>(id, adminIncidentApi.accept, "Đã tiếp nhận thẩm định");
 export const useVerifyItems = (id: string) =>
   useIncidentAction<VerifyItemsInput>(id, adminIncidentApi.verifyItems, "Đã xác minh thiệt hại");
-export const useDecideIncident = (id: string) =>
-  useIncidentAction<DecideInput>(id, adminIncidentApi.decide, "Đã ghi nhận quyết định");
-export const useApproveCompensation = (id: string) =>
-  useIncidentAction<ApproveCompensationInput>(id, adminIncidentApi.approveCompensation, "Đã duyệt cấp 2");
+export const useSaveDecisionDraft = (id: string) =>
+  useIncidentAction<DecisionDraftInput>(id, adminIncidentApi.saveDecisionDraft, "Đã lưu bản nháp quyết định");
+export const useSubmitDecisionDraft = (id: string) =>
+  useIncidentAction<SubmitDecisionDraftInput>(id, adminIncidentApi.submitDecisionDraft, "Đã gửi bản nháp cho Tasker phản hồi");
+export const useReviewDecisionResponse = (id: string) =>
+  useIncidentAction<ReviewDecisionResponseInput>(id, adminIncidentApi.reviewDecisionResponse, "Đã xem xét phản hồi của Tasker");
+export const useReviseDecision = (id: string) =>
+  useIncidentAction<ReviseDecisionInput>(id, adminIncidentApi.reviseDecision, "Đã sửa lại quyết định");
+export const useExtendTaskerResponse = (id: string) =>
+  useIncidentAction<SubmitDecisionDraftInput>(id, adminIncidentApi.extendTaskerResponse, "Đã gia hạn và nhắc Tasker phản hồi");
+export const useFinalizeDecision = (id: string) =>
+  useIncidentAction<FinalizeDecisionInput>(id, adminIncidentApi.finalizeDecision, "Đã chốt quyết định");
+export const useSecondApproval = (id: string) =>
+  useIncidentAction<SecondApprovalInput>(id, adminIncidentApi.secondApproval, "Đã xử lý duyệt cấp 2");
 
 export function useCompensate(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => adminIncidentApi.compensate(id),
     onSuccess: () => {
-      toast.success("Đã thực thi bồi thường");
+      toast.success("Đã chi trả bồi thường");
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+    },
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+export function useUploadTransferProof() {
+  return useMutation({
+    mutationFn: (file: File) => adminIncidentApi.uploadTransferProof(file),
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+export function useCompensateManual(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: { proofEvidenceId: string; note?: string }) =>
+      adminIncidentApi.compensateManual(id, dto),
+    onSuccess: () => {
+      toast.success("Đã ghi nhận chi trả thủ công (chuyển khoản ngoài)");
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+    },
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+export function useReverseCompensation(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => adminIncidentApi.reverseCompensation(id, reason),
+    onSuccess: () => {
+      toast.success("Đã thu hồi bồi thường — sự cố mở lại để soạn quyết định mới");
       qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
       qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
     },

@@ -49,3 +49,25 @@ export interface CustomerWalletTransactionQuery {
   fromDate?: string;
   toDate?: string;
 }
+
+export type WithdrawalStatus = "PENDING" | "APPROVED" | "REJECTED" | "PROCESSED";
+
+export interface CustomerWithdrawal {
+  id: string;
+  amount: number;
+  status: WithdrawalStatus;
+  bankAccount: string | null;
+  bankName: string | null;
+  note: string | null;
+  adminNote: string | null;
+  reviewedAt: string | null;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateCustomerWithdrawalInput {
+  amount: number;
+  bankAccount: string;
+  bankName: string;
+  note?: string;
+}

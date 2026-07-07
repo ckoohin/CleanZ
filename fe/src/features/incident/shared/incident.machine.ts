@@ -4,10 +4,10 @@
  * Chiều A: IncidentStatus (vòng đời). Chiều B: CompensationStatus (dòng tiền).
  * Dùng để FE chặn trước & hiển thị lý do; BE là chốt chặn cuối (409/422).
  */
-import {
-  DUAL_APPROVAL_THRESHOLD,
-  type CompensationStatus,
-  type IncidentStatus,
+import type {
+  CompensationStatus,
+  IncidentStatus,
+  IncidentDecisionStatus,
 } from './incident.enums';
 
 // ─── Chiều A — chuyển trạng thái hợp lệ ──────────────────────────────────────
@@ -22,64 +22,26 @@ export const STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
 
 // ─── Customer ────────────────────────────────────────────────────────────────
 /** Rút báo cáo chỉ khi REPORTED|INVESTIGATING và cọc CHƯA chuyển hold→deduct (comp=NONE). */
+/**
+ * BR29 — Customer tự rút (WITHDRAWN) chỉ khi REPORTED, hoặc INVESTIGATING với
+ * decisionStatus ∈ {NONE, DRAFT} và compensationStatus=NONE. Sau khi quyết định đã
+ * submit cho Tasker / chờ duyệt cấp 2 / final → BE trả 409 nên ẩn nút.
+ */
 export function canWithdraw(
   status: IncidentStatus,
   comp: CompensationStatus,
+  decisionStatus?: IncidentDecisionStatus,
 ): boolean {
-  return (
-    (status === 'REPORTED' || status === 'INVESTIGATING') && comp === 'NONE'
-  );
-}
-
-// ─── Cooling ─────────────────────────────────────────────────────────────────
-export function coolingPassed(coolingUntil: string | null | undefined): boolean {
-  if (!coolingUntil) return true;
-  return new Date(coolingUntil).getTime() <= Date.now();
-}
-
-// ─── Admin — gate hành động theo (status, comp, claim, cooling) ───────────────
-export interface IncidentActionGate {
-  canAccept: boolean;
-  canVerify: boolean;
-  canDecide: boolean;
-  canApproveCompensation: boolean;
-  canCompensate: boolean;
-  /** Lý do chặn compensate (nếu có) để hiển thị. */
-  compensateReason?: string;
-  /** Claim ≥ ngưỡng ⇒ cần maker-checker. */
-  needsDualApproval: boolean;
-}
-
-export function adminActions(i: {
-  status: IncidentStatus;
-  compensationStatus: CompensationStatus;
-  claimedAmount: number | null;
-  coolingUntil: string | null;
-}): IncidentActionGate {
-  const claim = i.claimedAmount ?? 0;
-  const needsDualApproval = claim >= DUAL_APPROVAL_THRESHOLD;
-  const cooled = coolingPassed(i.coolingUntil);
-
-  let compensateReason: string | undefined;
-  const compEligibleStatus =
-    i.status === 'APPROVED' &&
-    (i.compensationStatus === 'PENDING' || i.compensationStatus === 'FAILED');
-  if (!compEligibleStatus)
-    compensateReason = 'Chỉ bồi thường khi đã duyệt và đang chờ/thất bại';
-  else if (!cooled) compensateReason = 'Chưa tới hạn cooling';
-
-  return {
-    canAccept: i.status === 'REPORTED',
-    canVerify: i.status === 'INVESTIGATING',
-    canDecide: i.status === 'INVESTIGATING',
-    canApproveCompensation:
-      i.status === 'APPROVED' &&
-      i.compensationStatus === 'PENDING' &&
-      needsDualApproval,
-    canCompensate: compEligibleStatus && cooled,
-    compensateReason,
-    needsDualApproval,
-  };
+  if (comp !== 'NONE') return false;
+  if (status === 'REPORTED') return true;
+  if (status === 'INVESTIGATING') {
+    return (
+      decisionStatus === undefined ||
+      decisionStatus === 'NONE' ||
+      decisionStatus === 'DRAFT'
+    );
+  }
+  return false;
 }
 
 // ─── Bất biến phân bổ tiền (dùng cho DecisionPanel + zod) ─────────────────────
