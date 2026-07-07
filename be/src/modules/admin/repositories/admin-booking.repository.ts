@@ -54,11 +54,15 @@ interface BookingStatusCountRow {
 interface AdminBookingListRow {
   id: string;
   bookingCode: string;
-  customerId: string;
-  customerUserId: string;
-  customerName: string;
-  customerEmail: string;
+  // null cho đơn offline/vãng lai (không gắn tài khoản khách).
+  customerId: string | null;
+  customerUserId: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
   customerPhone: string | null;
+  // Thông tin khách vãng lai lưu trực tiếp trên đơn.
+  guestName: string | null;
+  guestPhone: string | null;
   taskerId: string | null;
   taskerUserId: string | null;
   taskerName: string | null;
@@ -381,7 +385,7 @@ export class AdminBookingRepository {
       id: result.booking.id,
       bookingCode: result.booking.bookingCode,
       status: result.booking.status,
-      customerId: result.booking.customer.id,
+      customerId: result.booking.customer?.id ?? null,
       taskerId: result.booking.tasker?.id ?? null,
       service: {
         id: result.package.id,
@@ -491,12 +495,15 @@ export class AdminBookingRepository {
         .getRepository(BookingEntity)
         .save(booking);
 
-      await manager.increment(
-        CustomerEntity,
-        { id: booking.customer.id },
-        'totalCancelled',
-        1,
-      );
+      // Đơn offline/vãng lai không gắn customer → bỏ qua cập nhật thống kê.
+      if (booking.customer) {
+        await manager.increment(
+          CustomerEntity,
+          { id: booking.customer.id },
+          'totalCancelled',
+          1,
+        );
+      }
 
       const statusLog = manager.getRepository(BookingStatusLogEntity).create({
         booking: savedBooking,
@@ -678,8 +685,9 @@ export class AdminBookingRepository {
     const query = this.dataSource
       .getRepository(BookingEntity)
       .createQueryBuilder('booking')
-      .innerJoin('booking.customer', 'customer')
-      .innerJoin('customer.user', 'customerUser')
+      // leftJoin để đơn offline/vãng lai (customer_id NULL) vẫn hiện trong list admin.
+      .leftJoin('booking.customer', 'customer')
+      .leftJoin('customer.user', 'customerUser')
       .leftJoin('booking.tasker', 'tasker')
       .leftJoin('tasker.user', 'taskerUser')
       .leftJoin(
@@ -700,6 +708,8 @@ export class AdminBookingRepository {
           OR taskerUser.fullName ILIKE :keyword
           OR taskerUser.email ILIKE :keyword
           OR taskerUser.phone ILIKE :keyword
+          OR booking.guestName ILIKE :keyword
+          OR booking.guestPhone ILIKE :keyword
         )`,
         )
         .setParameter('keyword', `%${normalizedKeyword}%`);
@@ -767,6 +777,8 @@ export class AdminBookingRepository {
         'customerUser.fullName AS "customerName"',
         'customerUser.email AS "customerEmail"',
         'customerUser.phone AS "customerPhone"',
+        'booking.guestName AS "guestName"',
+        'booking.guestPhone AS "guestPhone"',
         'tasker.id AS "taskerId"',
         'taskerUser.id AS "taskerUserId"',
         'taskerUser.fullName AS "taskerName"',
@@ -799,16 +811,17 @@ export class AdminBookingRepository {
         id: row.id,
         bookingCode: row.bookingCode,
         // Giữ các trường phẳng để không làm hỏng autocomplete booking hiện có.
-        customerName: row.customerName,
+        // Đơn vãng lai: hiển thị tên/SĐT khách lưu trên đơn.
+        customerName: row.customerName ?? row.guestName ?? 'Khách vãng lai',
         taskerName: row.taskerName,
         serviceName: row.serviceName,
         scheduledStart: row.scheduledStart,
         customer: {
           id: row.customerId,
           userId: row.customerUserId,
-          fullName: row.customerName,
+          fullName: row.customerName ?? row.guestName ?? 'Khách vãng lai',
           email: row.customerEmail,
-          phone: row.customerPhone,
+          phone: row.customerPhone ?? row.guestPhone,
         },
         tasker: row.taskerId
           ? {
@@ -854,8 +867,9 @@ export class AdminBookingRepository {
     const booking = await this.dataSource
       .getRepository(BookingEntity)
       .createQueryBuilder('booking')
-      .innerJoinAndSelect('booking.customer', 'customer')
-      .innerJoinAndSelect('customer.user', 'customerUser')
+      // leftJoin để xem được cả đơn offline/vãng lai (customer_id NULL).
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'customerUser')
       .leftJoinAndSelect('booking.tasker', 'tasker')
       .leftJoinAndSelect('tasker.user', 'taskerUser')
       .leftJoinAndSelect('booking.addressRef', 'addressRef')
@@ -933,12 +947,16 @@ export class AdminBookingRepository {
       bookingCode: booking.bookingCode,
       status: booking.status,
       customer: {
-        id: booking.customer.id,
-        userId: booking.customer.user.id,
-        fullName: booking.customer.user.fullName,
-        email: booking.customer.user.email,
-        phone: booking.customer.user.phone,
-        avatarUrl: booking.customer.user.avatarUrl ?? null,
+        // Guest (đơn offline/vãng lai): lấy tên/SĐT lưu trên đơn, không có tài khoản.
+        id: booking.customer?.id ?? null,
+        userId: booking.customer?.user?.id ?? null,
+        fullName:
+          booking.customer?.user?.fullName ??
+          booking.guestName ??
+          'Khách vãng lai',
+        email: booking.customer?.user?.email ?? null,
+        phone: booking.customer?.user?.phone ?? booking.guestPhone ?? null,
+        avatarUrl: booking.customer?.user?.avatarUrl ?? null,
       },
       tasker: booking.tasker
         ? {
@@ -1252,8 +1270,8 @@ export class AdminBookingRepository {
         .createQueryBuilder('booking')
         .leftJoinAndSelect('booking.tasker', 'currentTasker')
         .leftJoinAndSelect('currentTasker.user', 'currentTaskerUser')
-        .innerJoinAndSelect('booking.customer', 'customer')
-        .innerJoinAndSelect('customer.user', 'customerUser')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'customerUser')
         .setLock('pessimistic_write', undefined, ['booking'])
         .where('booking.id = :bookingId', { bookingId })
         .getOne();
@@ -1330,7 +1348,7 @@ export class AdminBookingRepository {
 
       return {
         booking: savedBooking,
-        customerUserId: booking.customer.user.id,
+        customerUserId: booking.customer?.user?.id ?? null,
         previousTasker,
         tasker: {
           id: tasker.id,
@@ -1345,15 +1363,20 @@ export class AdminBookingRepository {
     });
 
     await Promise.allSettled([
-      this.notificationService.notify({
-        userId: assignment.customerUserId,
-        type: NotificationType.BOOKING_CONFIRMED,
-        title: 'Đơn đặt lịch đã được xác nhận',
-        content: `${assignment.tasker.fullName} đã được gán cho đơn ${assignment.booking.bookingCode}.`,
-        referenceType: NotificationRefType.BOOKING,
-        referenceId: assignment.booking.id,
-        dedupeKey: `admin-assignment:${assignment.booking.id}:${assignment.tasker.id}:customer`,
-      }),
+      // Đơn offline/vãng lai không có tài khoản khách → chỉ thông báo tasker.
+      ...(assignment.customerUserId
+        ? [
+            this.notificationService.notify({
+              userId: assignment.customerUserId,
+              type: NotificationType.BOOKING_CONFIRMED,
+              title: 'Đơn đặt lịch đã được xác nhận',
+              content: `${assignment.tasker.fullName} đã được gán cho đơn ${assignment.booking.bookingCode}.`,
+              referenceType: NotificationRefType.BOOKING,
+              referenceId: assignment.booking.id,
+              dedupeKey: `admin-assignment:${assignment.booking.id}:${assignment.tasker.id}:customer`,
+            }),
+          ]
+        : []),
       this.notificationService.notify({
         userId: assignment.tasker.userId,
         type: NotificationType.BOOKING_CONFIRMED,
@@ -1398,8 +1421,8 @@ export class AdminBookingRepository {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
-        .innerJoinAndSelect('booking.customer', 'customer')
-        .innerJoinAndSelect('customer.user', 'customerUser')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'customerUser')
         .leftJoinAndSelect('booking.tasker', 'tasker')
         .leftJoinAndSelect('tasker.user', 'taskerUser')
         .setLock('pessimistic_write', undefined, ['booking'])
@@ -1443,12 +1466,14 @@ export class AdminBookingRepository {
           latestPayment?.status === PaymentStatus.PAID
             ? Number(latestPayment.amount)
             : 0;
-        await manager.increment(
-          CustomerEntity,
-          { id: booking.customer.id },
-          'totalCancelled',
-          1,
-        );
+        if (booking.customer) {
+          await manager.increment(
+            CustomerEntity,
+            { id: booking.customer.id },
+            'totalCancelled',
+            1,
+          );
+        }
       } else if (dto.status === BookingStatus.POSTED) {
         if (
           oldStatus !== BookingStatus.CANCELLED &&
@@ -1486,7 +1511,7 @@ export class AdminBookingRepository {
         booking.cancelledByUserId = null;
         booking.checkedInAt = null;
         booking.completedAt = null;
-        if (oldStatus === BookingStatus.CANCELLED) {
+        if (oldStatus === BookingStatus.CANCELLED && booking.customer) {
           await manager.query(
             `UPDATE customers
              SET total_cancelled = GREATEST(total_cancelled - 1, 0)
@@ -1544,7 +1569,7 @@ export class AdminBookingRepository {
 
       return {
         booking: savedBooking,
-        customerUserId: booking.customer.user.id,
+        customerUserId: booking.customer?.user?.id ?? null,
         taskerUserId: booking.tasker?.user?.id ?? originalTaskerUserId,
         audit: {
           id: savedLog.id,
@@ -1663,18 +1688,21 @@ export class AdminBookingRepository {
       'totalCompletedJobs',
       1,
     );
-    await manager.increment(
-      CustomerEntity,
-      { id: booking.customer.id },
-      'totalBookings',
-      1,
-    );
+    if (booking.customer) {
+      await manager.increment(
+        CustomerEntity,
+        { id: booking.customer.id },
+        'totalBookings',
+        1,
+      );
+    }
   }
 
   private async notifyAdminStatusChange(
     result: {
       booking: BookingEntity;
-      customerUserId: string;
+      // null cho đơn offline/vãng lai (không có tài khoản khách để thông báo).
+      customerUserId: string | null;
       taskerUserId?: string;
     },
     status: BookingStatus,
@@ -1694,7 +1722,7 @@ export class AdminBookingRepository {
         : 'Trạng thái booking đã được cập nhật';
     const content = `Đơn ${result.booking.bookingCode} đã chuyển sang ${status}.`;
     const receivers = [
-      result.customerUserId,
+      ...(result.customerUserId ? [result.customerUserId] : []),
       ...(result.taskerUserId ? [result.taskerUserId] : []),
     ];
 

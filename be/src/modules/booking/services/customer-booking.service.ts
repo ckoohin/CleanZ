@@ -740,7 +740,8 @@ export class CustomerBookingService {
           .save(booking);
         await this.voucherService.reserveForBooking(manager, {
           bookingId: savedBooking.id,
-          customerId: savedBooking.customer.id,
+          // Luồng customer tự đặt → luôn có customer (không phải đơn guest).
+          customerId: savedBooking.customer!.id,
           voucherId: savedBooking.voucherId,
         });
 
@@ -809,7 +810,8 @@ export class CustomerBookingService {
           .save(booking);
         await manager.increment(
           CustomerEntity,
-          { id: booking.customer.id },
+          // Luồng customer tự hủy → luôn có customer.
+          { id: booking.customer!.id },
           'totalCancelled',
           1,
         );

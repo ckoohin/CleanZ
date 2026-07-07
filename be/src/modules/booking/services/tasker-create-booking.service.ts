@@ -32,6 +32,7 @@ import {
   AvailableVoucherItem,
   VouchersService,
 } from 'src/modules/voucher/services/vouchers.service';
+import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
 import { CreateBookingForCustomerDto } from '../dto/create-booking-for-customer.dto';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
@@ -41,15 +42,18 @@ import { BookingPolicyService } from './booking-policy.service';
 
 const CONFIRMATION_DEADLINE_MINUTES = 15;
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
+const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
 export interface TaskerCreatedBookingResponse {
   id: string;
   bookingCode: string;
   status: BookingStatus;
   source: BookingSource;
-  confirmationDeadline: Date;
+  // null cho đơn offline/vãng lai (guest) — vào thẳng CONFIRMED, không chờ xác nhận.
+  confirmationDeadline: Date | null;
   customer: {
-    id: string;
+    // null khi là khách vãng lai chưa có tài khoản.
+    id: string | null;
     fullName: string;
   };
   tasker: {
@@ -104,6 +108,7 @@ export class TaskerCreateBookingService {
     private readonly paymentService: PaymentService,
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
+    private readonly taskerDepositService: TaskerDepositService,
   ) {}
 
   async createForCustomer(
@@ -114,15 +119,15 @@ export class TaskerCreateBookingService {
       // 1. Validate tasker
       const tasker = await this.findAndValidateTasker(taskerUserId);
 
-      // 2. Tra cứu customer theo SĐT
-      const { customer, customerUser } = await this.findCustomerByPhone(
-        dto.customerPhone,
-      );
+      // 2. Tra cứu customer theo SĐT. Nếu chưa có tài khoản mà tasker nhập tên
+      //    khách → tạo đơn offline/vãng lai (guest), không gắn customer.
+      const { customer, customerUser, isGuest, guestName, guestPhone } =
+        await this.resolveBookingCustomer(dto);
 
-      // 3. Resolve địa chỉ
+      // 3. Resolve địa chỉ (guest không có địa chỉ đã lưu → dùng free-text)
       const { addressRef, bookingAddress } = await this.resolveAddress(
         dto,
-        customer.id,
+        customer?.id ?? null,
       );
 
       // 4. Validate coverage area
@@ -156,8 +161,9 @@ export class TaskerCreateBookingService {
           scheduledStart,
           scheduledStartTime,
           hasPet,
-          voucherCode: dto.voucherCode,
-          customerId: customer.id,
+          // Guest không áp voucher (voucher gắn theo tài khoản khách).
+          voucherCode: isGuest ? undefined : dto.voucherCode,
+          customerId: customer?.id,
         },
       );
       const durationHours = price.durationHours;
@@ -175,27 +181,37 @@ export class TaskerCreateBookingService {
 
       // 7. Transaction: tạo booking
       let createdBookingId: string | undefined;
-      let customerUserId: string = customerUser.id;
+      const customerUserId: string | undefined = customerUser?.id;
 
       const result = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
 
         // Cùng ràng buộc như luồng customer tự đặt: mỗi khách chỉ được có 1 đơn
         // chưa kết thúc tại một thời điểm — chặn ngay lúc tasker tạo hộ.
-        await this.bookingPolicyService.assertCustomerCanCreateBooking(
-          manager,
-          customer.id,
-        );
+        // Guest chưa có tài khoản nên không áp ràng buộc này.
+        if (!isGuest && customer) {
+          await this.bookingPolicyService.assertCustomerCanCreateBooking(
+            manager,
+            customer.id,
+          );
+        }
 
         const bookingCode = await this.generateUniqueBookingCode(bookingRepository);
 
         const booking = bookingRepository.create({
           bookingCode,
-          customer,
+          // Guest: không gắn customer, lưu tên+SĐT khách trực tiếp trên đơn.
+          customer: customer ?? null,
+          guestName: isGuest ? (guestName ?? null) : null,
+          guestPhone: isGuest ? (guestPhone ?? null) : null,
           tasker,
           packageId: price.package.id,
           address: bookingAddress,
           addressRef: addressRef ?? undefined,
+          // Giữ toạ độ đích trực tiếp trên đơn để tracking hoạt động cả khi
+          // không có addressRef (đơn guest dùng địa chỉ free-text từ Goong).
+          latitude: addressRef?.latitude ?? dto.latitude ?? null,
+          longitude: addressRef?.longitude ?? dto.longitude ?? null,
           note: dto.note,
           scheduledStart,
           scheduledEnd: finalScheduledEnd,
@@ -207,9 +223,13 @@ export class TaskerCreateBookingService {
           areaM2: dto.areaM2,
           pricingTierId: price.pricingTierId,
           addonIds: price.addons.map((addon) => addon.id),
-          status: BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
+          // Guest vào thẳng CONFIRMED (offline, không cần khách xác nhận);
+          // đơn cho khách có tài khoản vẫn chờ khách xác nhận như cũ.
+          status: isGuest
+            ? BookingStatus.CONFIRMED
+            : BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
           source: BookingSource.TASKER_CREATED,
-          confirmationDeadline,
+          confirmationDeadline: isGuest ? null : confirmationDeadline,
           basePrice: price.basePrice,
           addonPrice: price.addonPrice,
           peakFee: price.peakFee,
@@ -219,7 +239,7 @@ export class TaskerCreateBookingService {
           totalPrice: price.totalPrice,
           paymentMethod,
           paymentStatus: PaymentStatus.PENDING,
-          voucherId: price.voucher?.id ?? null,
+          voucherId: isGuest ? null : (price.voucher?.id ?? null),
           isRecurring: false,
         });
 
@@ -234,12 +254,49 @@ export class TaskerCreateBookingService {
           await manager.getRepository(CustomerAddressEntity).save(addressRef);
         }
 
+        // Guest vào thẳng CONFIRMED (không có bước khách xác nhận) nên phải
+        // chạy đúng các guard mà luồng customer-confirm chạy: chống tasker trùng
+        // lịch và (CASH) kiểm tra tasker đủ cọc trả hoa hồng nền tảng.
+        if (isGuest) {
+          await this.bookingPolicyService.assertTaskerConcurrentAndOverlapConstraints(
+            manager,
+            tasker.id,
+            booking,
+          );
+          if (paymentMethod === PaymentMethod.CASH) {
+            const subServiceId = price.subServices[0]?.id;
+            let commissionRate = DEFAULT_PLATFORM_COMMISSION_RATE;
+            if (subServiceId) {
+              try {
+                commissionRate =
+                  await this.pricingService.getPlatformCommissionRateByServiceId(
+                    manager,
+                    subServiceId,
+                  );
+              } catch {
+                commissionRate = DEFAULT_PLATFORM_COMMISSION_RATE;
+              }
+            }
+            const subtotal =
+              toNumber(price.totalPrice) + toNumber(price.discountAmount);
+            const platformFee = Math.round((subtotal * commissionRate) / 100);
+            await this.taskerDepositService.assertCanCoverCashCommission(
+              manager,
+              tasker.id,
+              platformFee,
+            );
+          }
+        }
+
         const savedBooking = await bookingRepository.save(booking);
-        await this.vouchersService.reserveForBooking(manager, {
-          bookingId: savedBooking.id,
-          customerId: customer.id,
-          voucherId: savedBooking.voucherId,
-        });
+        // Voucher gắn theo tài khoản khách → chỉ reserve cho đơn có customer.
+        if (!isGuest && customer) {
+          await this.vouchersService.reserveForBooking(manager, {
+            bookingId: savedBooking.id,
+            customerId: customer.id,
+            voucherId: savedBooking.voucherId,
+          });
+        }
 
         // Snapshot sub-services
         const bookingSubServiceRepository = manager.getRepository(BookingSubServiceEntity);
@@ -256,11 +313,11 @@ export class TaskerCreateBookingService {
           await bookingSubServiceRepository.save(bookingSubServices);
         }
 
-        // Payment
+        // Payment (guest: customer = null)
         await this.paymentService.createPendingPayment(
           manager,
           savedBooking,
-          customer,
+          customer ?? null,
           paymentMethod,
           price.totalPrice,
         );
@@ -269,9 +326,13 @@ export class TaskerCreateBookingService {
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,
           oldStatus: null,
-          newStatus: BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
+          newStatus: isGuest
+            ? BookingStatus.CONFIRMED
+            : BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
           changedByUser: { id: taskerUserId } as UserEntity,
-          note: 'Tasker tạo đơn cho khách',
+          note: isGuest
+            ? 'Tasker tạo đơn offline cho khách vãng lai'
+            : 'Tasker tạo đơn cho khách',
           cancellationFee: 0,
           refundAmount: 0,
         });
@@ -281,8 +342,8 @@ export class TaskerCreateBookingService {
         return savedBooking;
       });
 
-      // 8. Notify customer
-      if (createdBookingId) {
+      // 8. Notify customer — guest không có tài khoản để nhận thông báo.
+      if (createdBookingId && !isGuest && customerUserId) {
         void this.notificationService
           .notify({
             userId: customerUserId,
@@ -305,10 +366,10 @@ export class TaskerCreateBookingService {
         bookingCode: result.bookingCode,
         status: result.status,
         source: result.source,
-        confirmationDeadline: result.confirmationDeadline!,
+        confirmationDeadline: result.confirmationDeadline ?? null,
         customer: {
-          id: customer.id,
-          fullName: customerUser.fullName,
+          id: customer?.id ?? null,
+          fullName: customerUser?.fullName ?? guestName ?? '',
         },
         tasker: {
           id: tasker.id,
@@ -407,13 +468,61 @@ export class TaskerCreateBookingService {
     return { customer, customerUser: user };
   }
 
+  /**
+   * Phân giải khách cho đơn tasker tạo hộ.
+   * - Có tài khoản khách hợp lệ → luồng thường (isGuest=false).
+   * - Chưa có tài khoản mà tasker nhập tên khách → đơn offline/vãng lai
+   *   (isGuest=true, customer=null, lưu guestName/guestPhone trên đơn).
+   * - Chưa có tài khoản và không có tên khách → ném NotFound như cũ.
+   */
+  private async resolveBookingCustomer(
+    dto: CreateBookingForCustomerDto,
+  ): Promise<{
+    customer: CustomerEntity | null;
+    customerUser: UserEntity | null;
+    isGuest: boolean;
+    guestName?: string;
+    guestPhone?: string;
+  }> {
+    const phone = dto.customerPhone;
+    const user = await this.dataSource
+      .getRepository(UserEntity)
+      .findOne({ where: { phone } });
+
+    const customer =
+      user && user.isActive
+        ? await this.dataSource
+            .getRepository(CustomerEntity)
+            .findOne({ where: { user: { id: user.id } } })
+        : null;
+
+    if (user && user.isActive && customer) {
+      return { customer, customerUser: user, isGuest: false };
+    }
+
+    const guestName = dto.customerName?.trim();
+    if (guestName) {
+      return {
+        customer: null,
+        customerUser: null,
+        isGuest: true,
+        guestName,
+        guestPhone: phone,
+      };
+    }
+
+    throw new NotFoundException(
+      'Không tìm thấy khách hàng với số điện thoại này. Nhập tên khách để tạo đơn cho khách vãng lai.',
+    );
+  }
+
   private async resolveAddress(
     dto: CreateBookingForCustomerDto,
-    customerId: string,
+    customerId: string | null,
   ): Promise<{ addressRef: CustomerAddressEntity | null; bookingAddress: string }> {
     const addressRepository = this.dataSource.getRepository(CustomerAddressEntity);
 
-    if (dto.addressId) {
+    if (dto.addressId && customerId) {
       const addressRef = await addressRepository.findOne({
         where: { id: dto.addressId, customer: { id: customerId } },
       });
@@ -426,7 +535,9 @@ export class TaskerCreateBookingService {
     }
 
     if (dto.address) {
+      // Chỉ lưu vào sổ địa chỉ khi có customer (guest không có sổ địa chỉ).
       if (
+        customerId &&
         typeof dto.latitude === 'number' &&
         typeof dto.longitude === 'number'
       ) {
@@ -445,6 +556,13 @@ export class TaskerCreateBookingService {
       }
 
       return { addressRef: null, bookingAddress: dto.address };
+    }
+
+    // Guest bắt buộc nhập địa chỉ (không có sổ địa chỉ mặc định).
+    if (!customerId) {
+      throw new BadRequestException(
+        'Khách vãng lai chưa có địa chỉ. Vui lòng nhập địa chỉ.',
+      );
     }
 
     // Dùng địa chỉ mặc định của customer

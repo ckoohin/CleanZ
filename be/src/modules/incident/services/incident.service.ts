@@ -163,7 +163,7 @@ export class IncidentService {
             manager.getRepository(IncidentEntity).create({
               incidentCode: code,
               booking: { id: booking.id } as BookingEntity,
-              customer: { id: booking.customer.id },
+              customer: { id: booking.customer!.id },
               tasker: { id: booking.tasker!.id },
               title: dto.title,
               description: dto.description,

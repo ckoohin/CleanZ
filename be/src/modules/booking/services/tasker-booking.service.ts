@@ -181,7 +181,8 @@ export interface TaskerAssignedBookingDetailResponse {
     status: string;
   };
   customer?: {
-    id: string;
+    // id = null khi là khách vãng lai (đơn offline không gắn tài khoản).
+    id: string | null;
     fullName?: string | null;
     phone?: string | null;
     avatarUrl?: string | null;
@@ -1018,9 +1019,12 @@ export class TaskerBookingService {
         await manager
           .getRepository(TaskerEntity)
           .increment({ id: tasker.id }, 'totalCompletedJobs', 1);
-        await manager
-          .getRepository(CustomerEntity)
-          .increment({ id: savedBooking.customer.id }, 'totalBookings', 1);
+        // Đơn offline/vãng lai không gắn customer → bỏ qua cộng totalBookings.
+        if (savedBooking.customer) {
+          await manager
+            .getRepository(CustomerEntity)
+            .increment({ id: savedBooking.customer.id }, 'totalBookings', 1);
+        }
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,
@@ -1246,8 +1250,9 @@ export class TaskerBookingService {
           displayAddress: this.buildPublicAreaText(booking),
         },
         customer: {
-          id: booking.customer.id,
-          fullName: booking.customer.user?.fullName ?? null,
+          id: booking.customer?.id ?? null,
+          fullName:
+            booking.customer?.user?.fullName ?? booking.guestName ?? null,
         },
       };
     }
@@ -1271,10 +1276,11 @@ export class TaskerBookingService {
         status: booking.paymentStatus,
       },
       customer: {
-        id: booking.customer.id,
-        fullName: booking.customer.user?.fullName ?? null,
-        phone: booking.customer.user?.phone ?? null,
-        avatarUrl: booking.customer.user?.avatarUrl ?? null,
+        // Guest: lấy tên/SĐT từ thông tin lưu trên đơn để tasker liên hệ.
+        id: booking.customer?.id ?? null,
+        fullName: booking.customer?.user?.fullName ?? booking.guestName ?? null,
+        phone: booking.customer?.user?.phone ?? booking.guestPhone ?? null,
+        avatarUrl: booking.customer?.user?.avatarUrl ?? null,
       },
       note: booking.note,
     };
@@ -1501,14 +1507,23 @@ export class TaskerBookingService {
         penaltyAmount =
           this.bookingPolicyService.resolveCancelPenaltyAmount(thisCancel);
 
-        // 1. Re-post booking
+        // 1. Hủy đơn. Đơn offline/vãng lai (không gắn customer) KHÔNG re-post lên
+        //    chợ — không có khách thật để phục vụ lại → hủy chốt luôn.
         const oldStatus = booking.status;
-        booking.status = BookingStatus.POSTED;
-        booking.tasker = null;
-        await this.vouchersService.releaseReservationForBooking(
-          manager,
-          booking.id,
-        );
+        const isGuestBooking = !booking.customer;
+        if (isGuestBooking) {
+          booking.status = BookingStatus.CANCELLED;
+          booking.cancelledBy = CancelledBy.TASKER;
+          booking.cancelledByUserId = userId;
+          booking.cancelledAt = new Date();
+        } else {
+          booking.status = BookingStatus.POSTED;
+          booking.tasker = null;
+          await this.vouchersService.releaseReservationForBooking(
+            manager,
+            booking.id,
+          );
+        }
         const savedBooking = await manager
           .getRepository(BookingEntity)
           .save(booking);
@@ -1517,9 +1532,13 @@ export class TaskerBookingService {
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,
           oldStatus,
-          newStatus: BookingStatus.POSTED,
+          newStatus: isGuestBooking
+            ? BookingStatus.CANCELLED
+            : BookingStatus.POSTED,
           changedByUser: { id: userId } as UserEntity,
-          note: `Tasker hủy đơn (lần ${thisCancel}/tuần) — phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ`,
+          note: isGuestBooking
+            ? `Tasker hủy đơn offline (lần ${thisCancel}/tuần) — phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ`
+            : `Tasker hủy đơn (lần ${thisCancel}/tuần) — phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ`,
           cancelledBy: CancelledBy.TASKER,
           cancelledByUser: { id: userId } as UserEntity,
           cancelReason: dto.reason?.trim() || null,

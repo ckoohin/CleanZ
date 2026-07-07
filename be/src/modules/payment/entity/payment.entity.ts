@@ -24,11 +24,12 @@ export class PaymentEntity {
   booking!: BookingEntity;
 
   @ManyToOne(() => CustomerEntity, {
+    nullable: true,
     onDelete: 'RESTRICT',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'customer_id' })
-  customer!: CustomerEntity;
+  customer?: CustomerEntity | null;
 
   @Column({ type: 'enum', enum: PaymentMethod, enumName: 'payment_method' })
   method!: PaymentMethod;

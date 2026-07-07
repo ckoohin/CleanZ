@@ -28,11 +28,18 @@ export class BookingEntity {
   bookingCode!: string;
 
   @ManyToOne(() => CustomerEntity, {
+    nullable: true,
     onDelete: 'RESTRICT',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'customer_id' })
-  customer!: CustomerEntity;
+  customer?: CustomerEntity | null;
+
+  @Column({ name: 'guest_name', type: 'varchar', length: 100, nullable: true })
+  guestName?: string | null;
+
+  @Column({ name: 'guest_phone', type: 'varchar', length: 20, nullable: true })
+  guestPhone?: string | null;
 
   @ManyToOne(() => TaskerEntity, {
     nullable: true,
@@ -69,6 +76,14 @@ export class BookingEntity {
   })
   @JoinColumn({ name: 'address_id' })
   addressRef?: CustomerAddressEntity | null;
+
+  // Toạ độ đích của đơn. Đơn guest không có addressRef (không lưu sổ địa chỉ)
+  // nên giữ lat/lng ngay trên đơn để tracking bản đồ hoạt động.
+  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  latitude?: number | null;
+
+  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  longitude?: number | null;
 
   @Column({ type: 'text', nullable: true })
   note?: string | null;

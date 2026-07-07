@@ -26,6 +26,16 @@ export class CreateBookingForCustomerDto {
   @IsNotEmpty()
   customerPhone!: string;
 
+  @ApiPropertyOptional({
+    example: 'Chị Lan',
+    description:
+      'Tên khách vãng lai. Chỉ dùng khi SĐT chưa có tài khoản — tasker tạo đơn offline (guest). Có tên thì tạo đơn guest thay vì báo lỗi không tìm thấy khách.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  customerName?: string;
+
   @ApiProperty({
     example: '6224bfaf-ed46-4770-88c0-ff1a645cc279',
     description: 'ID gói dịch vụ (ServicePackage).',

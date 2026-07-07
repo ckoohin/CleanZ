@@ -325,6 +325,9 @@ export function TaskerCreateBookingModal({
   const [note, setNote] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
   const [hasPet, setHasPet] = useState(false);
+  // Chế độ khách vãng lai: SĐT chưa có tài khoản → tạo đơn offline.
+  const [isWalkin, setIsWalkin] = useState(false);
+  const [walkinName, setWalkinName] = useState("");
 
   const lookup = useCustomerLookup();
   const create = useCreateBookingForCustomer();
@@ -370,6 +373,8 @@ export function TaskerCreateBookingModal({
     setNote("");
     setVoucherCode("");
     setHasPet(false);
+    setIsWalkin(false);
+    setWalkinName("");
   };
 
   const handleClose = () => {
@@ -382,6 +387,8 @@ export function TaskerCreateBookingModal({
     lookup.mutate(phone.trim(), {
       onSuccess: (data) => {
         setPhoneFocused(false);
+        setIsWalkin(false);
+        setWalkinName("");
         setCustomer(data);
         const defaultAddr =
           data.addresses.find((a) => a.isDefault) ?? data.addresses[0];
@@ -390,6 +397,21 @@ export function TaskerCreateBookingModal({
         setAddressLat(null);
         setAddressLng(null);
         setHasPet(defaultAddr?.hasPet ?? false);
+      },
+      onError: (err: unknown) => {
+        const status = (err as { response?: { status?: number } })?.response
+          ?.status;
+        if (status === 404) {
+          setPhoneFocused(false);
+          setCustomer(null);
+          setIsWalkin(true);
+          setAddressId(null);
+          setAddressText("");
+          setAddressLat(null);
+          setAddressLng(null);
+          setVoucherCode("");
+          setHasPet(false);
+        }
       },
     });
   };
@@ -478,25 +500,29 @@ export function TaskerCreateBookingModal({
   };
 
   const canSubmit =
-    !!customer &&
+    (!!customer || isWalkin) &&
+    (!isWalkin || !!walkinName.trim()) &&
     !!packageId &&
     !!selectedAddressLabel &&
     (startNow || (!!scheduledDate && !!scheduledTime));
 
-  const sheetClassName = customer
+  const sheetClassName = customer || isWalkin
     ? "inset-x-0 bottom-0 max-h-[88dvh] rounded-t-3xl md:max-h-[92vh]"
     : phoneFocused
       ? "inset-x-3 bottom-auto top-[28dvh] max-h-[58dvh] rounded-3xl md:inset-x-0 md:bottom-0 md:top-auto md:max-h-[92vh] md:rounded-b-none md:rounded-t-3xl"
       : "inset-x-3 bottom-auto top-[40dvh] max-h-[48dvh] rounded-3xl md:inset-x-0 md:bottom-0 md:top-auto md:max-h-[92vh] md:rounded-b-none md:rounded-t-3xl";
 
   const handleSubmit = () => {
-    if (!canSubmit || !customer) return;
+    if (!canSubmit || (!customer && !isWalkin)) return;
     create.mutate(
       {
         customerPhone: phone.trim(),
+        // Khách vãng lai: gửi tên khách → BE tạo đơn offline; không áp voucher,
+        // luôn dùng địa chỉ nhập tay (khách không có sổ địa chỉ).
+        ...(isWalkin ? { customerName: walkinName.trim() } : {}),
         packageId: packageId!,
         addonIds: addonIds.length > 0 ? addonIds : undefined,
-        ...(addressId
+        ...(!isWalkin && addressId
           ? { addressId }
           : {
               address: addressText.trim(),
@@ -507,7 +533,7 @@ export function TaskerCreateBookingModal({
         pricingTierId: pricingTierId ?? undefined,
         hasPet,
         note: note.trim() || undefined,
-        voucherCode: voucherCode.trim() || undefined,
+        voucherCode: isWalkin ? undefined : voucherCode.trim() || undefined,
         ...(startNow
           ? {}
           : { scheduledDate, scheduledTime }),
@@ -574,6 +600,8 @@ export function TaskerCreateBookingModal({
                         setAddressLat(null);
                         setAddressLng(null);
                         setVoucherCode("");
+                        setIsWalkin(false);
+                        setWalkinName("");
                       }}
                       onFocus={() => setPhoneFocused(true)}
                       onBlur={() => {
@@ -673,10 +701,65 @@ export function TaskerCreateBookingModal({
                     </div>
                   </motion.div>
                 )}
+
+                {/* Khách vãng lai — chưa có tài khoản, tạo đơn offline */}
+                {isWalkin && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100">
+                        <UserRound className="h-4 w-4 text-amber-700" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-amber-900">
+                          Khách vãng lai
+                        </p>
+                        <p className="text-[11px] text-amber-700">
+                          {phone} · chưa có tài khoản → tạo đơn offline
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Tên khách */}
+                    <div className="mt-3">
+                      <label className="text-[11px] font-semibold text-amber-800">
+                        Tên khách <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={walkinName}
+                        onChange={(e) => setWalkinName(e.target.value)}
+                        placeholder="Nhập tên khách"
+                        className="mt-1 w-full rounded-xl border border-amber-300 bg-card px-3 py-2.5 text-sm outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Địa chỉ nhập tay (khách không có sổ địa chỉ) */}
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-semibold text-amber-800">
+                        Địa chỉ làm việc <span className="text-red-500">*</span>
+                      </p>
+                      <GoongAutocomplete
+                        placeholder="Tìm địa chỉ tại Hà Nội..."
+                        className="z-30"
+                        onSelect={handleSearchAddressSelect}
+                      />
+                      {addressText && (
+                        <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-xs text-foreground">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                          <span className="leading-relaxed">{addressText}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* Bước 2: dịch vụ */}
-              {customer && (
+              {(customer || isWalkin) && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     2. Dịch vụ
@@ -815,7 +898,7 @@ export function TaskerCreateBookingModal({
               )}
 
               {/* Bước 3: thời gian */}
-              {customer && (
+              {(customer || isWalkin) && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     3. Thời gian
@@ -968,16 +1051,18 @@ export function TaskerCreateBookingModal({
                     </span>
                   </button>
 
-                  {/* Voucher — mã tasker áp cho khách */}
-                  <div className="mt-2">
-                    <TaskerVoucherPicker
-                      phone={phone.trim()}
-                      packageId={packageId ?? undefined}
-                      selectedCode={voucherCode}
-                      onSelect={setVoucherCode}
-                      disabled={!packageId || !customer}
-                    />
-                  </div>
+                  {/* Voucher — mã tasker áp cho khách (khách vãng lai không áp) */}
+                  {!isWalkin && (
+                    <div className="mt-2">
+                      <TaskerVoucherPicker
+                        phone={phone.trim()}
+                        packageId={packageId ?? undefined}
+                        selectedCode={voucherCode}
+                        onSelect={setVoucherCode}
+                        disabled={!packageId || !customer}
+                      />
+                    </div>
+                  )}
 
                   {/* Ghi chú */}
                   <textarea
@@ -991,7 +1076,7 @@ export function TaskerCreateBookingModal({
               )}
 
               {/* Submit */}
-              {customer && (
+              {(customer || isWalkin) && (
                 <div className="space-y-2">
                   {hasPet && (
                     <p className="flex items-center gap-1.5 text-[11px] text-amber-700">
@@ -1004,7 +1089,9 @@ export function TaskerCreateBookingModal({
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
                   >
                     {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Tạo đơn — chờ khách xác nhận
+                    {isWalkin
+                      ? "Tạo đơn offline cho khách vãng lai"
+                      : "Tạo đơn — chờ khách xác nhận"}
                   </button>
                 </div>
               )}

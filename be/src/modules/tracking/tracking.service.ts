@@ -282,8 +282,13 @@ export class TrackingService {
       throw new NotFoundException('Booking chưa có tasker nhận');
     }
 
-    const destinationLatitude = Number(booking.addressRef?.latitude);
-    const destinationLongitude = Number(booking.addressRef?.longitude);
+    // Đơn guest không có addressRef → dùng toạ độ lưu trực tiếp trên đơn.
+    const destinationLatitude = Number(
+      booking.addressRef?.latitude ?? booking.latitude,
+    );
+    const destinationLongitude = Number(
+      booking.addressRef?.longitude ?? booking.longitude,
+    );
     if (
       !Number.isFinite(destinationLatitude) ||
       !Number.isFinite(destinationLongitude)
