@@ -172,6 +172,12 @@ export class PublicPeakHourResponseDto {
 
   @ApiPropertyOptional()
   endDate!: string | null;
+
+  @ApiPropertyOptional()
+  title!: string | null;
+
+  @ApiPropertyOptional()
+  description!: string | null;
 }
 
 export class PublicPackageResponseDto {

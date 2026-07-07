@@ -3,7 +3,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import {
-  Loader2, MapPin, Edit, Search, Clock, ExternalLink, Calendar, Check, Plus, Sparkles, X,
+  Loader2, MapPin, Edit, Search, Clock, ExternalLink, Calendar, Check, Plus, Sparkles, X, ScrollText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ import {
 } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { Field } from "../shared/FormField";
 import { vnd } from "../shared/helpers";
+import { TimeSelect } from "../shared/TimeSelect";
 import { PeakHourFormState } from "../shared/types";
 
 export interface NewDurationState {
@@ -45,6 +46,17 @@ export interface NewDurationState {
 
 export interface EditAddonModalState {
   idx: number;
+  name: string;
+  description: string;
+  price: string;
+  priceUnit: AddonPriceUnit;
+  durationMinutes: string;
+  maxQuantity: string;
+  sortOrder: string;
+  isActive: boolean;
+}
+
+export interface NewAddonState {
   name: string;
   description: string;
   price: string;
@@ -153,6 +165,12 @@ export interface StepPricingConfigModalsProps {
   ADDON_PRICE_UNIT_LABELS: Record<AddonPriceUnit, string>;
   setAddons: React.Dispatch<React.SetStateAction<ServiceAddonEntity[]>>;
 
+  // isOpenAddonDetailModal: cấu hình chi tiết đầy đủ cho addon mới (form thêm mới)
+  newAddon: NewAddonState;
+  setNewAddon: React.Dispatch<React.SetStateAction<NewAddonState>>;
+  isOpenAddonDetailModal: boolean;
+  setIsOpenAddonDetailModal: React.Dispatch<React.SetStateAction<boolean>>;
+
   // viewingAddon: xem chi tiết 1 addon
   viewingAddon: ServiceAddonEntity | null;
   setViewingAddon: React.Dispatch<React.SetStateAction<ServiceAddonEntity | null>>;
@@ -168,12 +186,18 @@ export interface StepPricingConfigModalsProps {
   setViewingPeakHour: React.Dispatch<React.SetStateAction<ServicePeakHourEntity | null>>;
   peakHours: ServicePeakHourEntity[];
   setPeakHours: React.Dispatch<React.SetStateAction<ServicePeakHourEntity[]>>;
+  newPeakHour: PeakHourFormState;
+  setNewPeakHour: React.Dispatch<React.SetStateAction<PeakHourFormState>>;
   setEditPeakHour: React.Dispatch<React.SetStateAction<PeakHourFormState>>;
   setEditingPeakHourIdx: React.Dispatch<React.SetStateAction<number | null>>;
 
   // editingPeakHourIdx modal
   editingPeakHourIdx: number | null;
   editPeakHour: PeakHourFormState;
+
+  // Thêm chi tiết đầy đủ cho khung giờ cao điểm (form thêm mới)
+  isOpenPeakHourDetailModal: boolean;
+  setIsOpenPeakHourDetailModal: React.Dispatch<React.SetStateAction<boolean>>;
 
   // Inline table dropdowns rendered via portal
   inlineDdRect: { top: number; left: number; width: number } | null;
@@ -200,10 +224,12 @@ export function StepPricingConfigModals({
   tempIsActive, setTempIsActive, tempTitle, setTempTitle, tempDescription, setTempDescription, maxHours,
   viewingDuration, setViewingDuration,
   editAddonModal, setEditAddonModal, ADDON_PRICE_UNIT_LABELS, setAddons,
+  newAddon, setNewAddon, isOpenAddonDetailModal, setIsOpenAddonDetailModal,
   viewingAddon, setViewingAddon, addons, handleEditAddon,
   previewSubService, setPreviewSubService,
-  viewingPeakHour, setViewingPeakHour, peakHours, setPeakHours, setEditPeakHour, setEditingPeakHourIdx,
+  viewingPeakHour, setViewingPeakHour, peakHours, setPeakHours, newPeakHour, setNewPeakHour, setEditPeakHour, setEditingPeakHourIdx,
   editingPeakHourIdx, editPeakHour,
+  isOpenPeakHourDetailModal, setIsOpenPeakHourDetailModal,
   inlineDdRect, isOpenInlineHoursDropdown, inlineEditValue, inlineEditingCell, handleInlineSave,
   isOpenInlineAreaDropdown, isOpenInlineAdjustmentDropdown,
 }: StepPricingConfigModalsProps) {
@@ -1127,6 +1153,110 @@ export function StepPricingConfigModals({
         </DialogContent>
       </Dialog>
 
+      {/* ── Dialog Cấu hình chi tiết dịch vụ thêm (form thêm mới) ── */}
+      <Dialog open={isOpenAddonDetailModal} onOpenChange={setIsOpenAddonDetailModal}>
+        <DialogContent className="w-full sm:max-w-[600px] rounded-2xl p-0 overflow-hidden bg-card border border-border">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <ScrollText className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-foreground">Cấu hình chi tiết dịch vụ thêm</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">Xem và chỉnh sửa đầy đủ thông tin trước khi thêm</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
+            {/* Row 1: Tên + Giá + Đơn vị */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-1 space-y-1">
+                <label className="text-xs font-bold text-foreground">Tên dịch vụ thêm <span className="text-destructive">*</span></label>
+                <Input placeholder="Lau kính ban công" value={newAddon.name}
+                  onChange={e => setNewAddon(p => ({ ...p, name: e.target.value }))}
+                  className="h-10 rounded-xl" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Đơn giá phụ thu (₫) <span className="text-destructive">*</span></label>
+                <Input inputMode="numeric" placeholder="50000" value={newAddon.price}
+                  onChange={e => setNewAddon(p => ({ ...p, price: e.target.value.replace(/\D/g, "") }))}
+                  className="h-10 rounded-xl" />
+                {newAddon.price && Number(newAddon.price) > 0 && (
+                  <p className="text-[10px] text-muted-foreground">{vnd(Number(newAddon.price))}</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Đơn vị tính</label>
+                <Select value={newAddon.priceUnit} onValueChange={v => setNewAddon(p => ({ ...p, priceUnit: v as AddonPriceUnit }))}>
+                  <SelectTrigger className="h-10 rounded-xl text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(ADDON_PRICE_UNIT_LABELS) as [AddonPriceUnit, string][]).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {/* Row 2: Thời gian + Số lượng + Thứ tự + Trạng thái */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Thời gian thêm (phút)</label>
+                <div className="relative">
+                  <Input inputMode="numeric" placeholder="30" value={newAddon.durationMinutes}
+                    onChange={e => setNewAddon(p => ({ ...p, durationMinutes: e.target.value.replace(/\D/g, "") }))}
+                    className="h-10 rounded-xl pr-12" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">phút</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Số lượng tối đa</label>
+                <Input inputMode="numeric" placeholder="∞ Không giới hạn" value={newAddon.maxQuantity}
+                  onChange={e => setNewAddon(p => ({ ...p, maxQuantity: e.target.value.replace(/\D/g, "") }))}
+                  className="h-10 rounded-xl" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Thứ tự hiển thị</label>
+                <Input inputMode="numeric" placeholder="0" value={newAddon.sortOrder}
+                  onChange={e => setNewAddon(p => ({ ...p, sortOrder: e.target.value.replace(/\D/g, "") }))}
+                  className="h-10 rounded-xl" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Trạng thái</label>
+                <div className="h-10 flex items-center gap-2">
+                  <Switch checked={newAddon.isActive} onCheckedChange={v => setNewAddon(p => ({ ...p, isActive: v }))} />
+                  <span className={cn("text-xs font-bold", newAddon.isActive ? "text-emerald-600" : "text-muted-foreground")}>
+                    {newAddon.isActive ? "Đang bật" : "Đã tắt"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {/* Mô tả */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-foreground">Mô tả chi tiết</label>
+              <Textarea placeholder="Mô tả ngắn về dịch vụ thêm này..." value={newAddon.description}
+                onChange={e => setNewAddon(p => ({ ...p, description: e.target.value }))}
+                className="rounded-xl text-sm resize-none" rows={2} />
+            </div>
+            {/* Preview */}
+            {newAddon.price && Number(newAddon.price) > 0 && (
+              <div className="flex items-center gap-2 bg-primary/5 border border-primary/15 rounded-xl px-4 py-2.5">
+                <span className="text-xs text-muted-foreground">Giá hiển thị:</span>
+                <span className="text-sm font-black text-primary">{vnd(Number(newAddon.price))}</span>
+                <span className="text-xs text-slate-400">/ {ADDON_PRICE_UNIT_LABELS[newAddon.priceUnit]?.replace("Theo ", "")}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 pb-5 flex gap-2 border-t border-border/40 pt-4">
+            <BaseButton type="button" variant="primary" className="h-9 px-6 rounded-xl text-xs font-bold gap-1.5 w-full"
+              onClick={() => setIsOpenAddonDetailModal(false)}>
+              <Check className="w-3.5 h-3.5" /> Xong
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog Xem chi tiết addon */}
       <Dialog open={!!viewingAddon} onOpenChange={(open) => !open && setViewingAddon(null)}>
         <DialogContent className="w-full sm:max-w-[440px] rounded-2xl p-6 bg-card border border-border">
@@ -1296,6 +1426,12 @@ export function StepPricingConfigModals({
             const durText = mins > 0 ? (Math.floor(mins / 60) > 0 ? `${Math.floor(mins / 60)} giờ${mins % 60 > 0 ? ` ${mins % 60} phút` : ""}` : `${mins} phút`) : "";
             return (
               <div className="px-6 py-5 space-y-3">
+                {(viewingPeakHour.title || viewingPeakHour.description) && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                    {viewingPeakHour.title && <p className="text-sm font-extrabold text-emerald-800">{viewingPeakHour.title}</p>}
+                    {viewingPeakHour.description && <p className="text-xs text-emerald-700/80 mt-1 whitespace-pre-line">{viewingPeakHour.description}</p>}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-muted/40 rounded-xl p-3">
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Ngày áp dụng</p>
@@ -1346,7 +1482,7 @@ export function StepPricingConfigModals({
                 <BaseButton type="button" variant="outline" className="flex-1 h-9 rounded-xl text-xs font-bold gap-1.5"
                   onClick={() => {
                     const p = viewingPeakHour;
-                    setEditPeakHour({ dayOfWeek: String(p.dayOfWeek), startHour: p.startHour, endHour: p.endHour, multiplier: String(p.multiplier), startDate: p.startDate ?? "", endDate: p.endDate ?? "", isActive: p.isActive });
+                    setEditPeakHour({ dayOfWeek: String(p.dayOfWeek), startHour: p.startHour, endHour: p.endHour, multiplier: String(p.multiplier), startDate: p.startDate ?? "", endDate: p.endDate ?? "", isActive: p.isActive, title: p.title ?? "", description: p.description ?? "" });
                     setEditingPeakHourIdx(idx);
                     setViewingPeakHour(null);
                   }}>
@@ -1396,23 +1532,10 @@ export function StepPricingConfigModals({
               <div className="px-4 py-3 flex items-start gap-3">
                 <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-1">Khung giờ</span>
                 <div className="space-y-2 flex-1">
-                  <div className="flex flex-wrap gap-1.5">
-                    {[["Sáng sớm","06:00","08:00"],["Buổi sáng","08:00","11:00"],["Buổi trưa","11:00","14:00"],["Buổi chiều","14:00","17:00"],["Chiều tối","17:00","20:00"],["Buổi tối","19:00","22:00"],["Cả ngày","06:00","22:00"]].map(([label, s, e]) => (
-                      <button key={label} type="button"
-                        onClick={() => setEditPeakHour(p => ({ ...p, startHour: s, endHour: e }))}
-                        className={cn("px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors",
-                          editPeakHour.startHour === s && editPeakHour.endHour === e
-                            ? "bg-primary text-white border-primary"
-                            : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
-                        )}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
                   <div className="flex items-center gap-2">
-                    <Input type="time" value={editPeakHour.startHour} onChange={e => setEditPeakHour(p => ({ ...p, startHour: e.target.value }))} className="h-8 rounded-lg text-xs w-32" />
+                    <TimeSelect value={editPeakHour.startHour} onChange={v => setEditPeakHour(p => ({ ...p, startHour: v }))} />
                     <span className="text-slate-400 font-bold text-sm">→</span>
-                    <Input type="time" value={editPeakHour.endHour} onChange={e => setEditPeakHour(p => ({ ...p, endHour: e.target.value }))} className="h-8 rounded-lg text-xs w-32" />
+                    <TimeSelect value={editPeakHour.endHour} onChange={v => setEditPeakHour(p => ({ ...p, endHour: v }))} />
                   </div>
                 </div>
               </div>
@@ -1468,6 +1591,26 @@ export function StepPricingConfigModals({
                   <span className="text-xs font-semibold text-muted-foreground">{editPeakHour.isActive ? "Đang hoạt động" : "Đã tắt"}</span>
                 </div>
               </div>
+              {/* Tên & Mô tả */}
+              <div className="px-4 py-3 space-y-1.5">
+                <Label className="text-xs font-black text-slate-800">Tên (Tùy chọn)</Label>
+                <Input
+                  placeholder="Ví dụ: Khung giờ vàng cuối tuần"
+                  value={editPeakHour.title || ""}
+                  onChange={e => setEditPeakHour(p => ({ ...p, title: e.target.value }))}
+                  className="h-9 rounded-lg text-sm font-semibold"
+                />
+              </div>
+              <div className="px-4 py-3 space-y-1.5">
+                <Label className="text-xs font-black text-slate-800">Mô tả (Tùy chọn)</Label>
+                <Textarea
+                  placeholder="Ghi chú thêm về khung giờ cao điểm này..."
+                  value={editPeakHour.description || ""}
+                  onChange={e => setEditPeakHour(p => ({ ...p, description: e.target.value }))}
+                  rows={2}
+                  className="text-xs font-semibold resize-none"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter className="px-6 pb-5 flex gap-2 border-t border-border/40 pt-4">
@@ -1477,13 +1620,152 @@ export function StepPricingConfigModals({
                 if (editingPeakHourIdx === null) return;
                 setPeakHours(prev => prev.map((item, idx) =>
                   idx === editingPeakHourIdx
-                    ? { ...item, dayOfWeek: parseInt(editPeakHour.dayOfWeek), startHour: editPeakHour.startHour, endHour: editPeakHour.endHour, multiplier: parseFloat(editPeakHour.multiplier), startDate: editPeakHour.startDate || null, endDate: editPeakHour.endDate || null, isActive: editPeakHour.isActive }
+                    ? { ...item, dayOfWeek: parseInt(editPeakHour.dayOfWeek), startHour: editPeakHour.startHour, endHour: editPeakHour.endHour, multiplier: parseFloat(editPeakHour.multiplier), startDate: editPeakHour.startDate || null, endDate: editPeakHour.endDate || null, isActive: editPeakHour.isActive, title: editPeakHour.title?.trim() || null, description: editPeakHour.description?.trim() || null }
                     : item
                 ));
                 setEditingPeakHourIdx(null);
                 toast.success("Đã cập nhật khung giờ cao điểm");
               }}>
               <Check className="w-3.5 h-3.5" /> Lưu thay đổi
+            </BaseButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Cấu hình chi tiết khung giờ cao điểm (form thêm mới) ── */}
+      <Dialog open={isOpenPeakHourDetailModal} onOpenChange={setIsOpenPeakHourDetailModal}>
+        <DialogContent className="w-full sm:max-w-[560px] rounded-2xl p-0 overflow-hidden bg-card border border-border">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-foreground">Cấu hình chi tiết khung giờ cao điểm</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">Xem và chỉnh sửa đầy đủ thông tin trước khi thêm</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="px-6 py-5 max-h-[65vh] overflow-y-auto">
+            <div className="border border-border/40 rounded-xl bg-background divide-y divide-border/30">
+              {/* Ngày */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Ngày</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { value: "1", label: "Thứ 2" }, { value: "2", label: "Thứ 3" },
+                    { value: "3", label: "Thứ 4" }, { value: "4", label: "Thứ 5" },
+                    { value: "5", label: "Thứ 6" }, { value: "6", label: "Thứ 7" },
+                    { value: "0", label: "Chủ nhật" }, { value: "7", label: "Hàng ngày" },
+                  ].map(d => {
+                    const selectedDays = newPeakHour.selectedDays ?? [];
+                    const active = selectedDays.includes(d.value);
+                    return (
+                      <button type="button" key={d.value}
+                        onClick={() => setNewPeakHour(p => {
+                          const current = p.selectedDays ?? [];
+                          if (d.value === "7") {
+                            return { ...p, selectedDays: current.includes("7") ? [] : ["7"] };
+                          }
+                          const withoutEveryday = current.filter(v => v !== "7");
+                          const next = withoutEveryday.includes(d.value)
+                            ? withoutEveryday.filter(v => v !== d.value)
+                            : [...withoutEveryday, d.value];
+                          return { ...p, selectedDays: next };
+                        })}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors inline-flex items-center gap-1",
+                          active
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                        )}>
+                        {active && <Check className="w-3 h-3" />}
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Khung giờ */}
+              <div className="px-4 py-3 flex items-start gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-1">Khung giờ</span>
+                <div className="flex items-center gap-2">
+                  <TimeSelect value={newPeakHour.startHour} onChange={v => setNewPeakHour(p => ({ ...p, startHour: v }))} />
+                  <span className="text-slate-400 font-bold text-sm">→</span>
+                  <TimeSelect value={newPeakHour.endHour} onChange={v => setNewPeakHour(p => ({ ...p, endHour: v }))} />
+                </div>
+              </div>
+              {/* Tăng giá */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Tăng giá</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[["10%","1.1"],["+15%","1.15"],["+20%","1.2"],["+25%","1.25"],["+30%","1.3"],["+50%","1.5"]].map(([label, val]) => (
+                    <button key={val} type="button"
+                      onClick={() => setNewPeakHour(p => ({ ...p, multiplier: val }))}
+                      className={cn("px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors",
+                        newPeakHour.multiplier === val
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                      )}>
+                      +{label}
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-colors h-8 px-2.5">
+                    <span className="text-xs font-extrabold text-primary select-none">+</span>
+                    <input type="number" step="5" min="5" max="200"
+                      value={String(Math.round((parseFloat(newPeakHour.multiplier || "1") - 1) * 100))}
+                      onChange={e => {
+                        const pct = Math.max(5, Math.min(200, parseInt(e.target.value || "5")));
+                        setNewPeakHour(p => ({ ...p, multiplier: ((100 + pct) / 100).toFixed(2) }));
+                      }}
+                      className="w-10 text-xs font-extrabold bg-transparent outline-none text-center text-foreground" />
+                    <span className="text-xs font-extrabold text-slate-400 select-none">%</span>
+                  </div>
+                  {parseFloat(newPeakHour.multiplier) > 1 && (
+                    <span className="text-xs font-semibold text-muted-foreground bg-muted/50 rounded-md px-2 py-1">
+                      × {parseFloat(newPeakHour.multiplier).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Thời hạn */}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Thời hạn</span>
+                <DateRangePicker
+                  startDate={newPeakHour.startDate}
+                  endDate={newPeakHour.endDate}
+                  onStartChange={v => setNewPeakHour(p => ({ ...p, startDate: v }))}
+                  onEndChange={v => setNewPeakHour(p => ({ ...p, endDate: v }))}
+                  placeholder="Không giới hạn (để trống)"
+                />
+              </div>
+              {/* Tên */}
+              <div className="px-4 py-3 space-y-1.5">
+                <Label className="text-xs font-black text-slate-800">Tên (Tùy chọn)</Label>
+                <Input
+                  placeholder="Ví dụ: Khung giờ vàng cuối tuần"
+                  value={newPeakHour.title || ""}
+                  onChange={e => setNewPeakHour(p => ({ ...p, title: e.target.value }))}
+                  className="h-9 rounded-lg text-sm font-semibold"
+                />
+              </div>
+              {/* Mô tả */}
+              <div className="px-4 py-3 space-y-1.5">
+                <Label className="text-xs font-black text-slate-800">Mô tả (Tùy chọn)</Label>
+                <Textarea
+                  placeholder="Ghi chú thêm về khung giờ cao điểm này..."
+                  value={newPeakHour.description || ""}
+                  onChange={e => setNewPeakHour(p => ({ ...p, description: e.target.value }))}
+                  rows={2}
+                  className="text-xs font-semibold resize-none"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="px-6 pb-5 flex gap-2 border-t border-border/40 pt-4">
+            <BaseButton type="button" variant="primary" className="h-9 px-6 rounded-xl text-xs font-bold gap-1.5 w-full"
+              onClick={() => setIsOpenPeakHourDetailModal(false)}>
+              <Check className="w-3.5 h-3.5" /> Xong
             </BaseButton>
           </DialogFooter>
         </DialogContent>

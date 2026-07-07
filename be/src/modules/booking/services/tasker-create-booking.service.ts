@@ -140,8 +140,14 @@ export class TaskerCreateBookingService {
       );
 
       // 5. Tính schedule — cho phép now() nếu không truyền giờ
-      const { scheduledStart, scheduledEnd, scheduledStartDate, scheduledStartTime, scheduledEndDate, scheduledEndTime } =
-        this.resolveSchedule(dto);
+      const {
+        scheduledStart,
+        scheduledEnd,
+        scheduledStartDate,
+        scheduledStartTime,
+        scheduledEndDate,
+        scheduledEndTime,
+      } = this.resolveSchedule(dto);
 
       // 6. Tính giá
       const hasPet = dto.hasPet ?? addressRef?.hasPet ?? false;
@@ -175,7 +181,7 @@ export class TaskerCreateBookingService {
 
       // 7. Transaction: tạo booking
       let createdBookingId: string | undefined;
-      let customerUserId: string = customerUser.id;
+      const customerUserId: string = customerUser.id;
 
       const result = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -187,7 +193,8 @@ export class TaskerCreateBookingService {
           customer.id,
         );
 
-        const bookingCode = await this.generateUniqueBookingCode(bookingRepository);
+        const bookingCode =
+          await this.generateUniqueBookingCode(bookingRepository);
 
         const booking = bookingRepository.create({
           bookingCode,
@@ -242,7 +249,9 @@ export class TaskerCreateBookingService {
         });
 
         // Snapshot sub-services
-        const bookingSubServiceRepository = manager.getRepository(BookingSubServiceEntity);
+        const bookingSubServiceRepository = manager.getRepository(
+          BookingSubServiceEntity,
+        );
         const bookingSubServices = price.subServices.map((sub) =>
           bookingSubServiceRepository.create({
             booking: savedBooking,
@@ -401,7 +410,9 @@ export class TaskerCreateBookingService {
       .findOne({ where: { user: { id: user.id } } });
 
     if (!customer) {
-      throw new NotFoundException('Số điện thoại này chưa đăng ký tài khoản khách hàng');
+      throw new NotFoundException(
+        'Số điện thoại này chưa đăng ký tài khoản khách hàng',
+      );
     }
 
     return { customer, customerUser: user };
@@ -410,8 +421,13 @@ export class TaskerCreateBookingService {
   private async resolveAddress(
     dto: CreateBookingForCustomerDto,
     customerId: string,
-  ): Promise<{ addressRef: CustomerAddressEntity | null; bookingAddress: string }> {
-    const addressRepository = this.dataSource.getRepository(CustomerAddressEntity);
+  ): Promise<{
+    addressRef: CustomerAddressEntity | null;
+    bookingAddress: string;
+  }> {
+    const addressRepository = this.dataSource.getRepository(
+      CustomerAddressEntity,
+    );
 
     if (dto.addressId) {
       const addressRef = await addressRepository.findOne({
@@ -459,7 +475,10 @@ export class TaskerCreateBookingService {
       );
     }
 
-    return { addressRef: defaultAddress, bookingAddress: defaultAddress.fullAddress };
+    return {
+      addressRef: defaultAddress,
+      bookingAddress: defaultAddress.fullAddress,
+    };
   }
 
   private resolveSchedule(dto: CreateBookingForCustomerDto): {
@@ -473,7 +492,9 @@ export class TaskerCreateBookingService {
     let scheduledStart: Date;
 
     if (dto.scheduledDate && dto.scheduledTime) {
-      const parsed = new Date(`${dto.scheduledDate}T${dto.scheduledTime}:00+07:00`);
+      const parsed = new Date(
+        `${dto.scheduledDate}T${dto.scheduledTime}:00+07:00`,
+      );
       if (Number.isNaN(parsed.getTime())) {
         throw new BadRequestException('Thời gian bắt đầu không hợp lệ');
       }
@@ -513,7 +534,9 @@ export class TaskerCreateBookingService {
   ): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const bookingCode = generateOrderCode();
-      const existing = await bookingRepository.findOne({ where: { bookingCode } });
+      const existing = await bookingRepository.findOne({
+        where: { bookingCode },
+      });
       if (!existing) return bookingCode;
     }
     throw new BadRequestException('Không thể tạo mã booking, vui lòng thử lại');

@@ -26,7 +26,9 @@ const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
 @Injectable()
 export class TaskerConfirmCustomerBookingService {
-  private readonly logger = new Logger(TaskerConfirmCustomerBookingService.name);
+  private readonly logger = new Logger(
+    TaskerConfirmCustomerBookingService.name,
+  );
 
   constructor(
     private readonly dataSource: DataSource,
@@ -84,7 +86,9 @@ export class TaskerConfirmCustomerBookingService {
         if (!tasker) {
           throw new BadRequestException('Booking không có tasker được gắn');
         }
-        this.bookingPolicyService.assertTaskerCanCreateBookingForCustomer(tasker);
+        this.bookingPolicyService.assertTaskerCanCreateBookingForCustomer(
+          tasker,
+        );
 
         // Check concurrent/overlap constraints
         await this.bookingPolicyService.assertTaskerConcurrentAndOverlapConstraints(
@@ -95,7 +99,10 @@ export class TaskerConfirmCustomerBookingService {
 
         // Check deposit nếu thanh toán CASH
         if (booking.paymentMethod === PaymentMethod.CASH) {
-          const commissionRate = await this.resolvePlatformCommissionRate(manager, booking);
+          const commissionRate = await this.resolvePlatformCommissionRate(
+            manager,
+            booking,
+          );
           const subtotal =
             toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
           const platformFee = Math.round((subtotal * commissionRate) / 100);
@@ -111,7 +118,9 @@ export class TaskerConfirmCustomerBookingService {
         booking.confirmationDeadline = null;
         taskerUserId = tasker.user?.id;
 
-        const savedBooking = await manager.getRepository(BookingEntity).save(booking);
+        const savedBooking = await manager
+          .getRepository(BookingEntity)
+          .save(booking);
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,
@@ -198,7 +207,9 @@ export class TaskerConfirmCustomerBookingService {
           booking.id,
         );
 
-        const savedBooking = await manager.getRepository(BookingEntity).save(booking);
+        const savedBooking = await manager
+          .getRepository(BookingEntity)
+          .save(booking);
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,

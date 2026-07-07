@@ -90,7 +90,8 @@ export class UploadController {
       throw new AppException('No file uploaded. Field name must be "file".');
     }
 
-    const folder = body?.folder === BLOG_UPLOAD_FOLDER ? BLOG_UPLOAD_FOLDER : undefined;
+    const folder =
+      body?.folder === BLOG_UPLOAD_FOLDER ? BLOG_UPLOAD_FOLDER : undefined;
     const result = await this.uploadService.uploadImage(file, folder);
 
     return ResponseHelper.success(result, 'Image uploaded successfully');

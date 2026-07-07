@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddTaskerCreatedBookingFlow1782993031983
-  implements MigrationInterface
-{
+export class AddTaskerCreatedBookingFlow1782993031983 implements MigrationInterface {
   name = 'AddTaskerCreatedBookingFlow1782993031983';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

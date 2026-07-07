@@ -177,7 +177,10 @@ export class BlogController {
     const forwardedFor = request.headers['x-forwarded-for'];
     const ip = Array.isArray(forwardedFor)
       ? forwardedFor[0]
-      : forwardedFor?.split(',')[0] || request.ip || request.socket.remoteAddress || 'unknown';
+      : forwardedFor?.split(',')[0] ||
+        request.ip ||
+        request.socket.remoteAddress ||
+        'unknown';
     const userAgent = request.headers['user-agent'] || 'unknown';
     return `${ip}:${userAgent}`;
   }

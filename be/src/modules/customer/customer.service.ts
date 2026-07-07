@@ -358,7 +358,9 @@ export class CustomerService {
       });
 
       if (!user) {
-        throw new NotFoundException('Không tìm thấy khách hàng với số điện thoại này');
+        throw new NotFoundException(
+          'Không tìm thấy khách hàng với số điện thoại này',
+        );
       }
 
       if (!user.isActive) {

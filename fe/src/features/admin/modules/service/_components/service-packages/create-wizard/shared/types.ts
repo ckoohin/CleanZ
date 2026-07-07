@@ -11,10 +11,13 @@ export interface SelectedSubService {
 
 export interface PeakHourFormState {
   dayOfWeek: string;
+  selectedDays?: string[];
   startHour: string;
   endHour: string;
   multiplier: string;
   startDate: string;
   endDate: string;
   isActive: boolean;
+  title?: string;
+  description?: string;
 }

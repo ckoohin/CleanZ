@@ -151,6 +151,8 @@ export interface ServicePeakHourEntity {
   isActive: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  title?: string | null;
+  description?: string | null;
 }
 
 export interface ServiceSubServiceEntity {
