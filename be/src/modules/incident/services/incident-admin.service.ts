@@ -260,16 +260,13 @@ export class IncidentAdminService {
         );
 
         const from = incident.status;
-        const severity = dto.severity ?? incident.severity;
-        const sla = await this.config.getSla(severity);
+        const sla = await this.config.getSla(incident.severity);
         const now = Date.now();
 
-        incident.severity = severity;
         incident.status = IncidentStatus.INVESTIGATING;
         incident.statementDueAt = new Date(now + sla.statementMins * 60000);
         incident.decisionDueAt = new Date(now + sla.decisionMins * 60000);
 
-        // P0.2 — HOLD ví Tasker để chống rút trốn nghĩa vụ trong lúc điều tra.
         let heldAmount = 0;
         if (incident.tasker) {
           heldAmount = await this.depositHold.holdForAccept(
@@ -287,7 +284,8 @@ export class IncidentAdminService {
           from,
           IncidentStatus.INVESTIGATING,
           adminUserId,
-          `Admin tiếp nhận thẩm định — tạm giữ ví Tasker ${heldAmount} VND`,
+          `Admin tiếp nhận thẩm định — tạm giữ ví Tasker ${heldAmount} VND` +
+            (dto.note?.trim() ? ` — ghi chú: ${dto.note.trim()}` : ''),
         );
       });
       return this.findOne(incidentId);
@@ -299,7 +297,6 @@ export class IncidentAdminService {
     dto: VerifyItemsDto,
   ): Promise<IncidentAdminView> {
     return asyncHandleOperation(async () => {
-      // P1.4 — item bị đánh dấu NEED_MORE_EVIDENCE → notify khách bổ sung (sau commit).
       const needEvidenceItems: { id: string; description: string }[] = [];
       let customerUserId: string | null = null;
       let incidentCode: string | null = null;
@@ -334,8 +331,6 @@ export class IncidentAdminService {
               'Giá trị xác minh không được vượt số tiền yêu cầu',
             );
           }
-          // Suy trạng thái thẩm định nếu admin không truyền tường minh:
-          // >0 ⇒ VERIFIED, =0 ⇒ REJECTED. NEED_MORE_EVIDENCE giữ item chưa quyết được.
           const status =
             input.status ??
             (input.verifiedAmount > 0
@@ -359,7 +354,6 @@ export class IncidentAdminService {
         }
       });
 
-      // Sau commit: nhắc khách bổ sung bằng chứng (dedupe theo item + ngày, tránh spam khi retry).
       if (customerUserId && needEvidenceItems.length > 0) {
         const day = new Date().toISOString().slice(0, 10);
         for (const it of needEvidenceItems) {
@@ -418,19 +412,15 @@ export class IncidentAdminService {
       arr.push(e);
       byItem.set(key, arr);
     }
-    // Ảnh giải trình của Tasker gắn ở cấp sự cố (không thuộc hạng mục nào) → tách riêng
-    // để hiển thị trong phụ lục Giải trình bên Admin (trước đây bị rơi mất).
     const statementEvidences = visibleEvidences.filter(
       (e) =>
         !e.damageItem &&
         e.purpose === IncidentEvidencePurpose.TASKER_STATEMENT,
     );
-    // P0.4 — ảnh minh chứng chuyển khoản thủ công (audit).
     const transferProofEvidences = visibleEvidences.filter(
       (e) =>
         e.purpose === IncidentEvidencePurpose.COMPENSATION_TRANSFER_PROOF,
     );
-    // Số dư ví Tasker (read-only) để tính quỹ khả dụng = ví + cọc gốc.
     const taskerWallet = incident.tasker
       ? await this.walletRepo.findOne({
           where: {
