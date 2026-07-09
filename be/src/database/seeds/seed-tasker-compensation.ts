@@ -106,7 +106,8 @@ async function getCustomer(
          FROM customers ORDER BY created_at LIMIT 1`,
     )
   )[0] as { customer_id: string; reporter_user_id: string } | undefined;
-  if (!c) throw new Error('Không có customer nào — hãy seed tài khoản khách trước.');
+  if (!c)
+    throw new Error('Không có customer nào — hãy seed tài khoản khách trước.');
   return { customerId: c.customer_id, reporterUserId: c.reporter_user_id };
 }
 
@@ -114,7 +115,8 @@ async function getPackageId(ds: DataSource): Promise<string> {
   const pkg = (await ds.query(`SELECT id FROM service_packages LIMIT 1`))[0] as
     | { id: string }
     | undefined;
-  if (!pkg) throw new Error('Không có service_packages — hãy seed gói dịch vụ trước.');
+  if (!pkg)
+    throw new Error('Không có service_packages — hãy seed gói dịch vụ trước.');
   return pkg.id;
 }
 
@@ -130,7 +132,9 @@ async function main() {
 
     const force = process.env.FORCE === '1';
     const admin = (
-      await ds.query(`SELECT id FROM users WHERE role='ADMIN' ORDER BY created_at LIMIT 1`)
+      await ds.query(
+        `SELECT id FROM users WHERE role='ADMIN' ORDER BY created_at LIMIT 1`,
+      )
     )[0] as { id: string } | undefined;
     if (!admin) throw new Error('Không tìm thấy ADMIN.');
 
@@ -194,7 +198,9 @@ async function main() {
       title: `${SEED_TAG} Vỡ TV — Tasker chịu, chờ bồi thường`,
       description:
         'Sự cố vỡ TV do Tasker gây ra khi lau dọn. Đã đẩy tới trạng thái APPROVED/FINAL để test luồng ghi nhận bồi thường.',
-      damageItems: [{ description: 'TV 43 inch bị vỡ màn hình', claimedAmount: claimed }],
+      damageItems: [
+        { description: 'TV 43 inch bị vỡ màn hình', claimedAmount: claimed },
+      ],
     });
     const itemId = view.damageItems[0].id;
 
@@ -206,11 +212,19 @@ async function main() {
     );
     await ds.query(
       `INSERT INTO incident_statements (incident_id, submitted_by_user_id, body) VALUES ($1,$2,$3)`,
-      [view.id, reporterUserId, 'Khách hàng: TV đang dùng bình thường, sau ca dọn thì vỡ màn hình.'],
+      [
+        view.id,
+        reporterUserId,
+        'Khách hàng: TV đang dùng bình thường, sau ca dọn thì vỡ màn hình.',
+      ],
     );
     await ds.query(
       `INSERT INTO incident_statements (incident_id, submitted_by_user_id, body) VALUES ($1,$2,$3)`,
-      [view.id, taskerUserId, 'Tasker: Em nhận trách nhiệm, mong được trừ vào cọc theo quy định.'],
+      [
+        view.id,
+        taskerUserId,
+        'Tasker: Em nhận trách nhiệm, mong được trừ vào cọc theo quy định.',
+      ],
     );
 
     // 2) Tiếp nhận + xác minh.
@@ -226,11 +240,13 @@ async function main() {
       decision: 'APPROVE' as never,
       items: [{ damageItemId: itemId, approvedAmount: approved }],
       responsibilityParty: 'TASKER' as never,
-      responsibilityReason: 'Tasker trực tiếp làm rơi TV, chịu hoàn toàn trách nhiệm.',
+      responsibilityReason:
+        'Tasker trực tiếp làm rơi TV, chịu hoàn toàn trách nhiệm.',
       taskerBorneAmount: approved,
       platformBorneAmount: 0,
       taskerDecisionReason: 'Đề nghị trừ 1.500.000đ vào cọc của Tasker.',
-      customerDecisionSummary: 'CleanZ duyệt bồi thường 1.500.000đ cho TV bị vỡ.',
+      customerDecisionSummary:
+        'CleanZ duyệt bồi thường 1.500.000đ cho TV bị vỡ.',
       internalDecisionNote: 'Seed test luồng bồi thường.',
     } as never);
 

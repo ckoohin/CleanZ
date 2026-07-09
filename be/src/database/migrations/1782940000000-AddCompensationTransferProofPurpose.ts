@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * minh chứng chuyển khoản. PG12+: ADD VALUE chạy được trong transaction miễn là
  * không dùng value mới trong cùng transaction (migration này chỉ ADD).
  */
-export class AddCompensationTransferProofPurpose1782940000000
-  implements MigrationInterface
-{
+export class AddCompensationTransferProofPurpose1782940000000 implements MigrationInterface {
   name = 'AddCompensationTransferProofPurpose1782940000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

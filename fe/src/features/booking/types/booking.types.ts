@@ -280,7 +280,8 @@ export interface TaskerAssignedBookingDetail {
   };
   payment?: { method: string; status: string };
   customer?: {
-    id: string;
+    // null khi là khách vãng lai (đơn offline không gắn tài khoản).
+    id: string | null;
     fullName?: string | null;
     phone?: string | null;
     avatarUrl?: string | null;
@@ -309,6 +310,8 @@ export interface CustomerLookupResult {
 
 export interface CreateBookingForCustomerDto {
   customerPhone: string;
+  // Tên khách vãng lai — chỉ gửi khi SĐT chưa có tài khoản (tạo đơn offline).
+  customerName?: string;
   packageId: string;
   addonIds?: string[];
   addressId?: string;
@@ -331,8 +334,9 @@ export interface TaskerCreatedBookingResponse {
   bookingCode: string;
   status: BookingStatus;
   source: BookingSource;
-  confirmationDeadline: string;
-  customer: { id: string; fullName: string };
+  // null cho đơn offline/vãng lai (vào thẳng CONFIRMED, không chờ xác nhận).
+  confirmationDeadline: string | null;
+  customer: { id: string | null; fullName: string };
   tasker: { id: string; fullName: string | null };
   service: { id: string; name: string };
   address: { fullAddress: string; hasPet: boolean };

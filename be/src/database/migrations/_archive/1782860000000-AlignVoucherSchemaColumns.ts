@@ -9,9 +9,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * `current_location` (cột orphan, entity không map — vô hại). Việc dọn cột thừa
  * + FK/index churn thuộc nợ migration voucher/booking riêng.
  */
-export class AlignVoucherSchemaColumns1782860000000
-  implements MigrationInterface
-{
+export class AlignVoucherSchemaColumns1782860000000 implements MigrationInterface {
   name = 'AlignVoucherSchemaColumns1782860000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -11,14 +11,14 @@ export class PaymentService {
   createPendingPayment(
     manager: EntityManager,
     booking: BookingEntity,
-    customer: CustomerEntity,
+    customer: CustomerEntity | null,
     method: PaymentMethod,
     amount: number,
   ): Promise<PaymentEntity> {
     const paymentRepository = manager.getRepository(PaymentEntity);
     const payment = paymentRepository.create({
       booking,
-      customer,
+      customer: customer ?? null,
       method,
       status: PaymentStatus.PENDING,
       amount,

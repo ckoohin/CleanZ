@@ -4,9 +4,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * P0.3 — Thu hồi nợ uncovered: `uncovered_recovered_amount` = phần nghĩa vụ Tasker còn nợ
  * (quỹ SYSTEM đã ứng) đã thu hồi được. Outstanding = uncovered_liability - uncovered_recovered.
  */
-export class AddUncoveredRecoveredAmount1782910000000
-  implements MigrationInterface
-{
+export class AddUncoveredRecoveredAmount1782910000000 implements MigrationInterface {
   name = 'AddUncoveredRecoveredAmount1782910000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

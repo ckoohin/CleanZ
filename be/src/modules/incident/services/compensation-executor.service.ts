@@ -173,12 +173,12 @@ export class CompensationExecutorService {
         this.assertCompensationInvariant(incident);
 
         // Proof bắt buộc: do admin upload, đúng purpose, chưa gắn, chưa xoá.
-        const proof = (await manager.query(
+        const proof = await manager.query(
           `SELECT id FROM incident_evidences
             WHERE id=$1 AND purpose='COMPENSATION_TRANSFER_PROOF'
               AND incident_id IS NULL AND is_soft_deleted=false`,
           [proofEvidenceId],
-        )) as Array<{ id: string }>;
+        );
         if (proof.length === 0) {
           throw new UnprocessableEntityException({
             code: 'TRANSFER_PROOF_REQUIRED',
@@ -341,14 +341,11 @@ export class CompensationExecutorService {
         }
         // P0.4 — chi trả THỦ CÔNG (không có bút toán REFUND vào ví khách) không tự đảo được:
         // tiền đã chuyển ngoài hệ thống, phải thu hồi thủ công.
-        const refundTx = (await manager.query(
+        const refundTx = await manager.query(
           `SELECT 1 FROM wallet_transactions
             WHERE reference_id=$1 AND reference_type=$2 AND type='REFUND' LIMIT 1`,
-          [
-            incident.id,
-            `INCIDENT_COMPENSATION:v${incident.decisionVersion}`,
-          ],
-        )) as unknown[];
+          [incident.id, `INCIDENT_COMPENSATION:v${incident.decisionVersion}`],
+        );
         if (
           toNumber(incident.approvedCompensationAmount) > 0 &&
           refundTx.length === 0
@@ -405,11 +402,10 @@ export class CompensationExecutorService {
         }
         // 2) Trả lại phần đã trừ cho ví Tasker.
         if (recoverable > 0 && incident.tasker) {
-          const taskerWallet =
-            await this.walletService.getOrCreateTaskerWallet(
-              manager,
-              incident.tasker,
-            );
+          const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+            manager,
+            incident.tasker,
+          );
           await this.walletService.creditWallet(manager, {
             wallet: taskerWallet,
             amount: recoverable,
@@ -464,10 +460,7 @@ export class CompensationExecutorService {
           if (stillOwing[0]?.n === 0) {
             await manager
               .getRepository(TaskerEntity)
-              .update(
-                { id: incident.tasker.id },
-                { depositTopupDue: null },
-              );
+              .update({ id: incident.tasker.id }, { depositTopupDue: null });
           }
         }
 
@@ -797,9 +790,7 @@ export class CompensationExecutorService {
   }
 
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = (await manager.query('SELECT now() AS now')) as Array<{
-      now: Date | string;
-    }>;
+    const rows = await manager.query('SELECT now() AS now');
     return new Date(rows[0].now);
   }
 }

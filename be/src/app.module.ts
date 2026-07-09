@@ -40,7 +40,7 @@ import { BlogModule } from './modules/blog/blog.module';
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],        
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: getDatabaseConfig,
     }),

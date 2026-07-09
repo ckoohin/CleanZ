@@ -50,7 +50,9 @@ export function getIncidentDecisionActionView(
       break;
     case IncidentDecisionStatus.PENDING_TASKER_RESPONSE:
       allowedActions.push('REVISE_DECISION');
-      if (state.responseWindowStatus === IncidentResponseWindowStatus.REVIEWED) {
+      if (
+        state.responseWindowStatus === IncidentResponseWindowStatus.REVIEWED
+      ) {
         // Admin đã review phản hồi Tasker → sẵn sàng chốt.
         allowedActions.push('FINALIZE');
       } else if (isResponseWindowExpired(state, now)) {

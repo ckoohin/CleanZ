@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** P1.2 — Bảng yêu cầu rút tiền của Khách hàng (rút phần hoàn bồi thường từ ví). */
-export class AddCustomerWithdrawalRequests1782930000000
-  implements MigrationInterface
-{
+export class AddCustomerWithdrawalRequests1782930000000 implements MigrationInterface {
   name = 'AddCustomerWithdrawalRequests1782930000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

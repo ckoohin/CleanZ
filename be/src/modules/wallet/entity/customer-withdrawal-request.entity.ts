@@ -48,7 +48,12 @@ export class CustomerWithdrawalRequestEntity {
   })
   status!: WithdrawalStatus;
 
-  @Column({ type: 'varchar', length: 255, nullable: true, name: 'bank_account' })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    name: 'bank_account',
+  })
   bankAccount!: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'bank_name' })
@@ -60,7 +65,12 @@ export class CustomerWithdrawalRequestEntity {
   @Column({ type: 'text', nullable: true, name: 'admin_note' })
   adminNote!: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true, name: 'proof_image_url' })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    name: 'proof_image_url',
+  })
   proofImageUrl!: string | null;
 
   @Column({ type: 'timestamp', nullable: true, name: 'reviewed_at' })

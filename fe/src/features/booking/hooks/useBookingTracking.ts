@@ -220,13 +220,13 @@ export function useTaskerLocationTracking(
         const accuracy = Math.round(position.coords.accuracy);
         setLocationAccuracy(accuracy);
 
-        if (accuracy > MAX_TRACKING_ACCURACY_METERS) {
-          latestLocationRef.current = null;
-          setError(
-            `GPS chưa đủ chính xác (sai số khoảng ${accuracy} m). Hãy bật Vị trí chính xác và chờ tín hiệu ổn định.`,
-          );
-          return;
-        }
+        // if (accuracy > MAX_TRACKING_ACCURACY_METERS) {
+        //   latestLocationRef.current = null;
+        //   setError(
+        //     `GPS chưa đủ chính xác (sai số khoảng ${accuracy} m). Hãy bật Vị trí chính xác và chờ tín hiệu ổn định.`,
+        //   );
+        //   return;
+        // }
 
         const sample: BrowserLocationSample = {
           latitude: position.coords.latitude,

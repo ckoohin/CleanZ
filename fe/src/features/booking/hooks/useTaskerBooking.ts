@@ -258,7 +258,14 @@ export function useMarkComplete(bookingId: string) {
 export function useCustomerLookup() {
   return useMutation({
     mutationFn: (phone: string) => taskerBookingApi.lookupCustomer(phone),
-    onError: (err: unknown) => toast.error(getCustomerLookupErrorMsg(err)),
+    onError: (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      // 404 = khách chưa có tài khoản → modal tự chuyển sang tạo đơn offline,
+      // không hiện toast lỗi.
+      if (status === 404) return;
+      toast.error(getCustomerLookupErrorMsg(err));
+    },
   });
 }
 
@@ -283,10 +290,18 @@ export function useCreateBookingForCustomer() {
     mutationFn: (dto: CreateBookingForCustomerDto) =>
       taskerBookingApi.createForCustomer(dto),
     onSuccess: (data) => {
-      toast.success(
-        `Đã tạo đơn ${data.bookingCode}! Chờ khách xác nhận trong 15 phút ⏳`,
-        { duration: 7000 },
-      );
+      // Guest/offline → vào thẳng CONFIRMED (không có confirmationDeadline).
+      if (data.confirmationDeadline == null) {
+        toast.success(
+          `Đã tạo đơn offline ${data.bookingCode} cho khách vãng lai ✅`,
+          { duration: 6000 },
+        );
+      } else {
+        toast.success(
+          `Đã tạo đơn ${data.bookingCode}! Chờ khách xác nhận trong 15 phút ⏳`,
+          { duration: 7000 },
+        );
+      }
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
     },
     onError: (err: unknown) => toast.error(getErrorMsg(err)),

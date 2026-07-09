@@ -50,7 +50,9 @@ export class CustomerWithdrawalService {
             WithdrawalStatus.PROCESSED,
           ],
         })
-        .andWhere(`DATE_TRUNC('week', w.created_at) = DATE_TRUNC('week', NOW())`)
+        .andWhere(
+          `DATE_TRUNC('week', w.created_at) = DATE_TRUNC('week', NOW())`,
+        )
         .getCount();
       if (weekly >= MAX_WEEKLY_WITHDRAWALS) {
         throw new BadRequestException(
@@ -66,7 +68,8 @@ export class CustomerWithdrawalService {
         .getRawOne<{ total: string }>();
 
       const amount = Number(dto.amount);
-      const available = toNumber(wallet.balance) - toNumber(pending?.total ?? 0);
+      const available =
+        toNumber(wallet.balance) - toNumber(pending?.total ?? 0);
       if (amount > available) {
         throw new BadRequestException(
           `Số dư khả dụng không đủ. Có thể rút: ${available}`,
@@ -164,7 +167,8 @@ export class CustomerWithdrawalService {
     const customer = await manager
       .getRepository(CustomerEntity)
       .findOne({ where: { user: { id: userId } }, relations: ['user'] });
-    if (!customer) throw new NotFoundException('Không tìm thấy hồ sơ khách hàng');
+    if (!customer)
+      throw new NotFoundException('Không tìm thấy hồ sơ khách hàng');
     return customer;
   }
 }

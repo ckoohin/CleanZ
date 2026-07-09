@@ -6,9 +6,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *  - cột `decision_outcome` để finalize phân biệt APPROVE / APPROVE_NO_COMPENSATION / REJECT
  *    (trước đây suy từ approved=0 nên nhập nhằng với REJECT).
  */
-export class AddApproveNoCompensation1782950000000
-  implements MigrationInterface
-{
+export class AddApproveNoCompensation1782950000000 implements MigrationInterface {
   name = 'AddApproveNoCompensation1782950000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -69,7 +69,7 @@ export class ReviewService {
     });
     if (!booking) throw new NotFoundException('Không tìm thấy đơn hàng');
 
-    if (booking.customer.user.id !== userId)
+    if (!booking.customer || booking.customer.user.id !== userId)
       throw new ForbiddenException('Bạn không có quyền đánh giá đơn hàng này');
 
     if (booking.status !== BookingStatus.COMPLETED)
@@ -111,7 +111,7 @@ export class ReviewService {
       relations: ['customer', 'customer.user'],
     });
     if (!booking) throw new NotFoundException('Không tìm thấy đơn hàng');
-    if (booking.customer.user.id !== userId)
+    if (!booking.customer || booking.customer.user.id !== userId)
       throw new ForbiddenException('Bạn không có quyền xem đánh giá này');
 
     const review = await this.reviewRepo.findOne({ where: { bookingId } });

@@ -26,7 +26,9 @@ export class CustomerWithdrawalController {
 
   @Post('customer/me/withdrawals')
   @Auth(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'Khách tạo yêu cầu rút tiền (phần hoàn bồi thường)' })
+  @ApiOperation({
+    summary: 'Khách tạo yêu cầu rút tiền (phần hoàn bồi thường)',
+  })
   create(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateCustomerWithdrawalDto,

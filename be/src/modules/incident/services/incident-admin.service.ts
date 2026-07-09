@@ -414,12 +414,10 @@ export class IncidentAdminService {
     }
     const statementEvidences = visibleEvidences.filter(
       (e) =>
-        !e.damageItem &&
-        e.purpose === IncidentEvidencePurpose.TASKER_STATEMENT,
+        !e.damageItem && e.purpose === IncidentEvidencePurpose.TASKER_STATEMENT,
     );
     const transferProofEvidences = visibleEvidences.filter(
-      (e) =>
-        e.purpose === IncidentEvidencePurpose.COMPENSATION_TRANSFER_PROOF,
+      (e) => e.purpose === IncidentEvidencePurpose.COMPENSATION_TRANSFER_PROOF,
     );
     const taskerWallet = incident.tasker
       ? await this.walletRepo.findOne({

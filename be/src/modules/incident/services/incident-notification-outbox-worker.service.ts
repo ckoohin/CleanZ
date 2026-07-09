@@ -188,32 +188,34 @@ export class IncidentNotificationOutboxWorkerService
     manager: EntityManager,
   ): Promise<NotificationOutboxEntity | null> {
     const now = new Date();
-    return manager
-      .getRepository(NotificationOutboxEntity)
-      .createQueryBuilder('outbox')
-      .leftJoinAndSelect('outbox.recipient', 'recipient')
-      // Postgres cấm FOR UPDATE trên nhánh nullable của outer join (recipient là
-      // ManyToOne nullable) → chỉ khóa bảng outbox: FOR UPDATE OF outbox SKIP LOCKED.
-      .setLock('pessimistic_write', undefined, ['outbox'])
-      .setOnLocked('skip_locked')
-      .where(
-        '(outbox.status = :pending AND (outbox.nextRetryAt IS NULL OR outbox.nextRetryAt <= :now))',
-        {
-          pending: NotificationOutboxStatus.PENDING,
-          now,
-        },
-      )
-      .orWhere(
-        '(outbox.status = :failed AND outbox.retryCount < :maxRetries AND outbox.nextRetryAt IS NOT NULL AND outbox.nextRetryAt <= :now)',
-        {
-          failed: NotificationOutboxStatus.FAILED,
-          maxRetries: this.maxRetries,
-          now,
-        },
-      )
-      .orderBy('outbox.createdAt', 'ASC')
-      .addOrderBy('outbox.id', 'ASC')
-      .getOne();
+    return (
+      manager
+        .getRepository(NotificationOutboxEntity)
+        .createQueryBuilder('outbox')
+        .leftJoinAndSelect('outbox.recipient', 'recipient')
+        // Postgres cấm FOR UPDATE trên nhánh nullable của outer join (recipient là
+        // ManyToOne nullable) → chỉ khóa bảng outbox: FOR UPDATE OF outbox SKIP LOCKED.
+        .setLock('pessimistic_write', undefined, ['outbox'])
+        .setOnLocked('skip_locked')
+        .where(
+          '(outbox.status = :pending AND (outbox.nextRetryAt IS NULL OR outbox.nextRetryAt <= :now))',
+          {
+            pending: NotificationOutboxStatus.PENDING,
+            now,
+          },
+        )
+        .orWhere(
+          '(outbox.status = :failed AND outbox.retryCount < :maxRetries AND outbox.nextRetryAt IS NOT NULL AND outbox.nextRetryAt <= :now)',
+          {
+            failed: NotificationOutboxStatus.FAILED,
+            maxRetries: this.maxRetries,
+            now,
+          },
+        )
+        .orderBy('outbox.createdAt', 'ASC')
+        .addOrderBy('outbox.id', 'ASC')
+        .getOne()
+    );
   }
 
   private toNotifyInput(row: NotificationOutboxEntity): NotifyInput {
@@ -364,9 +366,7 @@ export class IncidentNotificationOutboxWorkerService
   }
 
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = (await manager.query('SELECT now() AS now')) as Array<{
-      now: Date | string;
-    }>;
+    const rows = await manager.query('SELECT now() AS now');
     return new Date(rows[0].now);
   }
 }

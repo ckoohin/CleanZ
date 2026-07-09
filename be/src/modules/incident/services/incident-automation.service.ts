@@ -329,9 +329,9 @@ export class IncidentAutomationService
    * tránh spam). Quỹ SYSTEM ứng bồi thường; thấp → có thể chặn compensate digital.
    */
   private async sweepSystemWalletFloat(): Promise<number> {
-    const row = (await this.dataSource.query(
+    const row = await this.dataSource.query(
       `SELECT balance FROM wallets WHERE owner_type='SYSTEM' LIMIT 1`,
-    )) as Array<{ balance: string }>;
+    );
     if (row.length === 0) return 0;
     const balance = Number(row[0].balance);
     const threshold = await this.config.getSystemWalletMinBalance();

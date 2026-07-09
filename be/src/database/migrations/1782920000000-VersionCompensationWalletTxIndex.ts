@@ -7,9 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * sau reverse (bump version) re-compensate ở version mới không đụng. Reversal/debt-recovery ref
  * không khớp pattern nên không bị ràng buộc.
  */
-export class VersionCompensationWalletTxIndex1782920000000
-  implements MigrationInterface
-{
+export class VersionCompensationWalletTxIndex1782920000000 implements MigrationInterface {
   name = 'VersionCompensationWalletTxIndex1782920000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

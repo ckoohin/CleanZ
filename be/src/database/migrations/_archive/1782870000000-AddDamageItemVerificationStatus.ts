@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Cho phép finalize chỉ khi mọi item đã VERIFIED/REJECTED (không còn PENDING/NEED_MORE_EVIDENCE).
  * Backfill: item đã có verified_amount → VERIFIED (nếu >0) / REJECTED (nếu =0); còn lại PENDING.
  */
-export class AddDamageItemVerificationStatus1782870000000
-  implements MigrationInterface
-{
+export class AddDamageItemVerificationStatus1782870000000 implements MigrationInterface {
   name = 'AddDamageItemVerificationStatus1782870000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -34,10 +34,7 @@ export class IncidentDepositHoldService {
       tasker,
     );
     const claimed = toNumber(incident.claimedAmount);
-    const holdAmount = Math.max(
-      0,
-      Math.min(claimed, toNumber(wallet.balance)),
-    );
+    const holdAmount = Math.max(0, Math.min(claimed, toNumber(wallet.balance)));
     if (holdAmount > 0) {
       await this.walletService.holdFunds(manager, {
         wallet,

@@ -96,7 +96,9 @@ async function main() {
 
     const force = process.env.FORCE === '1';
     const admin = (
-      await ds.query(`SELECT id FROM users WHERE role='ADMIN' ORDER BY created_at LIMIT 1`)
+      await ds.query(
+        `SELECT id FROM users WHERE role='ADMIN' ORDER BY created_at LIMIT 1`,
+      )
     )[0] as { id: string } | undefined;
     if (!admin) throw new Error('Không tìm thấy ADMIN.');
 
@@ -104,9 +106,10 @@ async function main() {
 
     if (!force) {
       const existing = (
-        await ds.query(`SELECT count(*)::int n FROM incidents WHERE title LIKE $1`, [
-          `${SEED_TAG}%`,
-        ])
+        await ds.query(
+          `SELECT count(*)::int n FROM incidents WHERE title LIKE $1`,
+          [`${SEED_TAG}%`],
+        )
       )[0] as { n: number };
       if (existing.n > 0) {
         console.log(
@@ -122,11 +125,12 @@ async function main() {
            FROM customers ORDER BY created_at LIMIT 1`,
       )
     )[0] as { customer_id: string; reporter_user_id: string } | undefined;
-    if (!customer) throw new Error('Không có customer — hãy seed tài khoản khách trước.');
+    if (!customer)
+      throw new Error('Không có customer — hãy seed tài khoản khách trước.');
 
-    const pkg = (await ds.query(`SELECT id FROM service_packages LIMIT 1`))[0] as
-      | { id: string }
-      | undefined;
+    const pkg = (
+      await ds.query(`SELECT id FROM service_packages LIMIT 1`)
+    )[0] as { id: string } | undefined;
     if (!pkg) throw new Error('Không có service_packages.');
 
     // Booking COMPLETED gắn đúng tasker demo.
@@ -197,7 +201,11 @@ async function main() {
         await ds.query(
           `INSERT INTO incident_evidences (incident_id, damage_item_id, file_url, file_type, purpose)
            VALUES ($1,$2,$3,'IMAGE','DAMAGE_PHOTO')`,
-          [view.id, di.id, `https://picsum.photos/seed/ff-${i}-${p}-${rand(3)}/480/360`],
+          [
+            view.id,
+            di.id,
+            `https://picsum.photos/seed/ff-${i}-${p}-${rand(3)}/480/360`,
+          ],
         );
       }
     }
@@ -217,8 +225,12 @@ async function main() {
       `  ✓ ${view.incidentCode ?? view.id} — REPORTED, ${items.length} hạng mục, tổng yêu cầu ${totalClaimed.toLocaleString('vi-VN')}đ`,
     );
     console.log('✅ Sẵn sàng test trọn luồng:');
-    console.log(`   • Admin: mở ${view.incidentCode ?? view.id} → Tiếp nhận → Xác minh → Quyết định → Gửi Tasker → Chốt → Bồi thường`);
-    console.log(`   • Tasker (${TASKER_EMAIL} / ${TASKER_PASSWORD}): Giải trình + Phản hồi quyết định`);
+    console.log(
+      `   • Admin: mở ${view.incidentCode ?? view.id} → Tiếp nhận → Xác minh → Quyết định → Gửi Tasker → Chốt → Bồi thường`,
+    );
+    console.log(
+      `   • Tasker (${TASKER_EMAIL} / ${TASKER_PASSWORD}): Giải trình + Phản hồi quyết định`,
+    );
   } finally {
     await app.close();
   }

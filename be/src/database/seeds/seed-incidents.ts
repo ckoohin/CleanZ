@@ -79,7 +79,11 @@ const SCENARIOS: Scenario[] = [
     description:
       'Nứt bồn rửa mặt khi vệ sinh. Đã xác minh, tổng duyệt dự kiến dưới ngưỡng 2tr nên chỉ cần duyệt 1 cấp — test toàn bộ luồng Quyết định → Chốt.',
     items: [
-      { description: 'Bồn rửa lavabo bị nứt mép', claimed: 1_500_000, verified: 1_200_000 },
+      {
+        description: 'Bồn rửa lavabo bị nứt mép',
+        claimed: 1_500_000,
+        verified: 1_200_000,
+      },
     ],
     advanceTo: 'INVESTIGATING_VERIFIED',
   },
@@ -89,8 +93,16 @@ const SCENARIOS: Scenario[] = [
     description:
       'Rách sofa da + hỏng khung khi vệ sinh. Đã xác minh, tổng duyệt dự kiến ≥ 2tr nên bắt buộc Duyệt cấp 2 (cần Admin #2 khác người chốt).',
     items: [
-      { description: 'Mặt ngồi sofa da bị rách', claimed: 4_000_000, verified: 3_500_000 },
-      { description: 'Khung gỗ sofa bị nứt', claimed: 2_500_000, verified: 2_000_000 },
+      {
+        description: 'Mặt ngồi sofa da bị rách',
+        claimed: 4_000_000,
+        verified: 3_500_000,
+      },
+      {
+        description: 'Khung gỗ sofa bị nứt',
+        claimed: 2_500_000,
+        verified: 2_000_000,
+      },
     ],
     advanceTo: 'INVESTIGATING_VERIFIED',
   },
@@ -131,7 +143,9 @@ async function getPairs(ds: DataSource, need: number): Promise<Pair[]> {
     [need],
   );
   if (pairs.length === 0)
-    throw new Error('Không có customer/tasker — hãy chạy seed tài khoản trước.');
+    throw new Error(
+      'Không có customer/tasker — hãy chạy seed tài khoản trước.',
+    );
   return pairs;
 }
 
@@ -140,7 +154,9 @@ async function getPackageId(ds: DataSource): Promise<string> {
     | { id: string }
     | undefined;
   if (!pkg)
-    throw new Error('Không có service_packages — hãy seed gói dịch vụ trước khi tạo booking.');
+    throw new Error(
+      'Không có service_packages — hãy seed gói dịch vụ trước khi tạo booking.',
+    );
   return pkg.id;
 }
 
@@ -252,7 +268,9 @@ async function main() {
     }
 
     const admin = (
-      await ds.query(`SELECT id FROM users WHERE role = 'ADMIN' ORDER BY created_at LIMIT 1`)
+      await ds.query(
+        `SELECT id FROM users WHERE role = 'ADMIN' ORDER BY created_at LIMIT 1`,
+      )
     )[0] as { id: string } | undefined;
     if (!admin) throw new Error('Không tìm thấy ADMIN trong users.');
 
@@ -286,7 +304,12 @@ async function main() {
 
       // Bằng chứng + giải trình.
       for (let k = 0; k < view.damageItems.length; k++) {
-        await addEvidence(ds, view.id, view.damageItems[k].id, `${sc.key}-${k}-${rand(3)}`);
+        await addEvidence(
+          ds,
+          view.id,
+          view.damageItems[k].id,
+          `${sc.key}-${k}-${rand(3)}`,
+        );
       }
       await addStatements(ds, view.id, pair);
 
@@ -304,11 +327,15 @@ async function main() {
         void after;
       }
 
-      console.log(`  ✓ ${sc.key}  ${view.incidentCode ?? view.id}  — ${sc.advanceTo}`);
+      console.log(
+        `  ✓ ${sc.key}  ${view.incidentCode ?? view.id}  — ${sc.advanceTo}`,
+      );
       n++;
     }
 
-    console.log(`✅ Đã seed ${n} sự cố ở đủ các trạng thái để test luồng thẩm định.`);
+    console.log(
+      `✅ Đã seed ${n} sự cố ở đủ các trạng thái để test luồng thẩm định.`,
+    );
   } finally {
     await app.close();
   }

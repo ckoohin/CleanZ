@@ -3805,6 +3805,8 @@ ALTER TABLE ONLY public.tasker_penalties
 --`);
   }
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;`);
+    await queryRunner.query(
+      `DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;`,
+    );
   }
 }

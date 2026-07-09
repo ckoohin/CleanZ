@@ -573,7 +573,7 @@ export class IncidentDecisionService {
         if (rejectedAsFraud) {
           await this.fraudStrike.addStrike(
             manager,
-            incident.customer!.id,
+            incident.customer.id,
             incident.id,
             `Từ chối sự cố v${incident.decisionVersion} — báo cáo sai sự thật`,
           );
@@ -872,9 +872,7 @@ export class IncidentDecisionService {
   }
 
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = (await manager.query('SELECT now() AS now')) as Array<{
-      now: Date | string;
-    }>;
+    const rows = await manager.query('SELECT now() AS now');
     return new Date(rows[0].now);
   }
 

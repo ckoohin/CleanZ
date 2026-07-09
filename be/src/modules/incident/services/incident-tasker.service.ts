@@ -470,20 +470,22 @@ export class IncidentTaskerService {
     decisionVersion: number,
     taskerUserId: string,
   ): Promise<IncidentDecisionResponseEntity | null> {
-    return manager
-      .getRepository(IncidentDecisionResponseEntity)
-      .createQueryBuilder('response')
-      .leftJoinAndSelect('response.incident', 'incident')
-      .leftJoinAndSelect('response.tasker', 'tasker')
-      // Chỉ khóa bảng response (FOR UPDATE OF response) — tránh lỗi FOR UPDATE
-      // trên nhánh nullable của outer join (incident/tasker).
-      .setLock('pessimistic_write', undefined, ['response'])
-      .where('incident.id = :incidentId', { incidentId })
-      .andWhere('response.decisionVersion = :decisionVersion', {
-        decisionVersion,
-      })
-      .andWhere('tasker.id = :taskerUserId', { taskerUserId })
-      .getOne();
+    return (
+      manager
+        .getRepository(IncidentDecisionResponseEntity)
+        .createQueryBuilder('response')
+        .leftJoinAndSelect('response.incident', 'incident')
+        .leftJoinAndSelect('response.tasker', 'tasker')
+        // Chỉ khóa bảng response (FOR UPDATE OF response) — tránh lỗi FOR UPDATE
+        // trên nhánh nullable của outer join (incident/tasker).
+        .setLock('pessimistic_write', undefined, ['response'])
+        .where('incident.id = :incidentId', { incidentId })
+        .andWhere('response.decisionVersion = :decisionVersion', {
+          decisionVersion,
+        })
+        .andWhere('tasker.id = :taskerUserId', { taskerUserId })
+        .getOne()
+    );
   }
 
   private async getActiveResponseEvidenceIds(
@@ -598,9 +600,7 @@ export class IncidentTaskerService {
   }
 
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = (await manager.query('SELECT now() AS now')) as Array<{
-      now: Date | string;
-    }>;
+    const rows = await manager.query('SELECT now() AS now');
     return new Date(rows[0].now);
   }
 

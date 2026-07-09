@@ -22,7 +22,6 @@ export const getDatabaseConfig = (
     autoLoadEntities: true,
     synchronize: false,
 
-
     logging: false,
   };
 };

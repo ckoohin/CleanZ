@@ -204,11 +204,10 @@ describe('Money path integration (P1.5)', () => {
       const w = await wallet.getOrCreateTaskerWallet(m, {
         id: taskerId,
       } as never);
-      await m.query(`UPDATE wallets SET balance=$2, hold_balance=$3 WHERE id=$1`, [
-        w.id,
-        balance,
-        hold,
-      ]);
+      await m.query(
+        `UPDATE wallets SET balance=$2, hold_balance=$3 WHERE id=$1`,
+        [w.id, balance, hold],
+      );
     });
   }
 
@@ -217,14 +216,20 @@ describe('Money path integration (P1.5)', () => {
       const w = await wallet.getOrCreateCustomerWallet(m, {
         id: customerId,
       } as never);
-      await m.query(`UPDATE wallets SET balance=$2 WHERE id=$1`, [w.id, balance]);
+      await m.query(`UPDATE wallets SET balance=$2 WHERE id=$1`, [
+        w.id,
+        balance,
+      ]);
     });
   }
 
   async function setSystemWallet(balance: number): Promise<void> {
     await ds.transaction(async (m) => {
       const w = await wallet.getOrCreateSystemWallet(m);
-      await m.query(`UPDATE wallets SET balance=$2 WHERE id=$1`, [w.id, balance]);
+      await m.query(`UPDATE wallets SET balance=$2 WHERE id=$1`, [
+        w.id,
+        balance,
+      ]);
     });
   }
 
@@ -439,10 +444,9 @@ describe('Money path integration (P1.5)', () => {
     await setTaskerWallet(0);
     await setCustomerWallet(0);
     await setSystemWallet(0);
-    await ds.query(
-      `UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`,
-      [taskerId],
-    );
+    await ds.query(`UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`, [
+      taskerId,
+    ]);
 
     const inc = await mintIncident(1_000_000);
     await adminSvc.accept(admin1, inc, {});
@@ -478,10 +482,9 @@ describe('Money path integration (P1.5)', () => {
     await setTaskerWallet(0);
     await setCustomerWallet(0);
     await setSystemWallet(3_000_000);
-    await ds.query(
-      `UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`,
-      [taskerId],
-    );
+    await ds.query(`UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`, [
+      taskerId,
+    ]);
 
     const inc = await mintIncident(1_000_000);
     await adminSvc.accept(admin1, inc, {}); // ví 0 → hold 0
@@ -659,8 +662,11 @@ describe('Money path integration (P1.5)', () => {
     expect(clean.checkedCount).toBeGreaterThan(0);
     if (clean.discrepancyCount !== 0) {
       // In ra để debug nếu có hồi quy.
-      // eslint-disable-next-line no-console
-      console.error('DISCREPANCIES:', JSON.stringify(clean.discrepancies, null, 2));
+
+      console.error(
+        'DISCREPANCIES:',
+        JSON.stringify(clean.discrepancies, null, 2),
+      );
     }
     expect(clean.discrepancyCount).toBe(0);
 
@@ -745,13 +751,17 @@ describe('Money path integration (P1.5)', () => {
 
     // reconciliation không tính sự cố CLOSED (chỉ COMPENSATED/RECORDED) → không cờ.
     const recon = await reconciliation.reconcile();
-    expect(recon.discrepancies.find((d) => d.incidentId === inc)).toBeUndefined();
+    expect(
+      recon.discrepancies.find((d) => d.incidentId === inc),
+    ).toBeUndefined();
   });
 
   it('10. BR29: Customer tự rút ở REPORTED; chặn sau khi quyết định đã submit', async () => {
     // Rút được ở REPORTED → CLOSED/WITHDRAWN.
     const inc = await mintIncident(500_000);
-    await incidentSvc.withdraw(customerUserId, inc, { reason: 'Đổi ý' } as never);
+    await incidentSvc.withdraw(customerUserId, inc, {
+      reason: 'Đổi ý',
+    } as never);
     const [st] = await ds.query(
       `SELECT status, closure_reason cr FROM incidents WHERE id=$1`,
       [inc],
@@ -800,7 +810,9 @@ describe('Money path integration (P1.5)', () => {
 
     // Bơm số dư ví lẻ xu SAU accept (tránh ảnh hưởng hold).
     await ds.transaction(async (m) => {
-      const w = await wallet.getOrCreateTaskerWallet(m, { id: taskerId } as never);
+      const w = await wallet.getOrCreateTaskerWallet(m, {
+        id: taskerId,
+      } as never);
       await m.query(`UPDATE wallets SET balance=500000.50 WHERE id=$1`, [w.id]);
     });
 

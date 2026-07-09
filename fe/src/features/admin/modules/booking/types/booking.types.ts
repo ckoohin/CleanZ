@@ -36,10 +36,11 @@ export interface AdminBookingItem {
   id: string;
   bookingCode: string;
   customer?: {
-    id: string;
-    userId: string;
+    // null cho đơn offline/vãng lai (không gắn tài khoản khách).
+    id: string | null;
+    userId: string | null;
     fullName: string;
-    email: string;
+    email: string | null;
     phone: string | null;
   };
   tasker?: {
@@ -96,10 +97,11 @@ export interface AdminBookingDetail {
   createdAt?: string;
 
   customer?: {
-    id: string;
-    userId: string;
+    // null cho đơn offline/vãng lai (không gắn tài khoản khách).
+    id: string | null;
+    userId: string | null;
     fullName?: string;
-    email?: string;
+    email?: string | null;
     phone?: string | null;
     avatarUrl?: string | null;
   };

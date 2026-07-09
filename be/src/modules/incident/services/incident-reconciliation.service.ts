@@ -126,7 +126,11 @@ export class IncidentReconciliationService {
       const taskerDeduct = toNumber(pick('TASKER', 'DEPOSIT_DEDUCT')?.amount);
 
       const mode: ReconciliationDiscrepancy['settlementMode'] =
-        refundAmt > EPS ? 'DIGITAL' : hasProof.has(inc.id) ? 'MANUAL' : 'UNKNOWN';
+        refundAmt > EPS
+          ? 'DIGITAL'
+          : hasProof.has(inc.id)
+            ? 'MANUAL'
+            : 'UNKNOWN';
 
       const add = (
         kind: string,

@@ -34,7 +34,9 @@ export class AutoMigration1782969489734 implements MigrationInterface {
     await queryRunner.query(
       `DROP INDEX IF EXISTS "public"."idx_taskers_location_online"`,
     );
-    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_blogs_category"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "public"."idx_blogs_category"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "taskers" DROP COLUMN IF EXISTS "current_location"`,
     );

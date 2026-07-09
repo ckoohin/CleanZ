@@ -165,7 +165,8 @@ export class IncidentAdminController {
   @Post(':id/decision/extend-response')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'C6 — Gia hạn bắt buộc cho Tasker phản hồi (draft bất lợi, đã hết hạn)',
+    summary:
+      'C6 — Gia hạn bắt buộc cho Tasker phản hồi (draft bất lợi, đã hết hạn)',
   })
   extendTaskerResponse(
     @CurrentUser('id') adminUserId: string,

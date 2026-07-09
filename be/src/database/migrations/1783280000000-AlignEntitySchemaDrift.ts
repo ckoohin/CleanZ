@@ -22,7 +22,9 @@ export class AlignEntitySchemaDrift1783280000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_blogs_category"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "public"."idx_blogs_category"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "service_durations" ALTER COLUMN "fixed_price" SET DEFAULT NULL`,
     );

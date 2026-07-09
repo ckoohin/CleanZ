@@ -6,9 +6,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * DEPOSIT_DEDUCT (Tasker), REFUND (Customer), ADJUSTMENT (quỹ SYSTEM) — mỗi loại 1 lần.
  * Reversal/adjust dùng reference_type khác nên không đụng index này.
  */
-export class AddIncidentCompensationWalletTxUniqueIndex1782890000000
-  implements MigrationInterface
-{
+export class AddIncidentCompensationWalletTxUniqueIndex1782890000000 implements MigrationInterface {
   name = 'AddIncidentCompensationWalletTxUniqueIndex1782890000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

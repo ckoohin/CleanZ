@@ -94,7 +94,8 @@ export class IncidentController {
 
   @Post(':id/damage-items/:itemId/evidences')
   @ApiOperation({
-    summary: 'P1.4 — Bổ sung bằng chứng cho hạng mục bị yêu cầu (NEED_MORE_EVIDENCE)',
+    summary:
+      'P1.4 — Bổ sung bằng chứng cho hạng mục bị yêu cầu (NEED_MORE_EVIDENCE)',
   })
   attachItemEvidence(
     @CurrentUser('id') userId: string,

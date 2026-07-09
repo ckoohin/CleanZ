@@ -150,7 +150,12 @@ export class IncidentEntity {
 
   /** P2 — outcome quyết định (APPROVE / APPROVE_NO_COMPENSATION / REJECT) để finalize
    * phân biệt được nhánh approved=0. Null khi chưa có quyết định. */
-  @Column({ name: 'decision_outcome', type: 'varchar', length: 32, nullable: true })
+  @Column({
+    name: 'decision_outcome',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
   decisionOutcome?: string | null;
 
   @Column({
