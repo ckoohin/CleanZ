@@ -432,21 +432,24 @@ export class VouchersService {
     manager: EntityManager,
     bookingId: string,
   ): Promise<void> {
-    const reservationRepo = manager.getRepository(CustomerVoucherEntity);
-    const reservation = await reservationRepo.findOne({
-      where: {
-        bookingId,
-        status: CustomerVoucherStatus.RESERVED,
-      },
-    });
+    // UPDATE có điều kiện status (atomic): hai transaction đồng thời cùng release
+    // một booking thì chỉ một bên match RESERVED, tránh decrement reservedCount 2 lần.
+    const result = await manager
+      .getRepository(CustomerVoucherEntity)
+      .createQueryBuilder()
+      .update()
+      .set({ status: CustomerVoucherStatus.RELEASED })
+      .where('booking_id = :bookingId', { bookingId })
+      .andWhere('status = :status', { status: CustomerVoucherStatus.RESERVED })
+      .returning('voucher_id')
+      .execute();
 
-    if (!reservation) return;
-
-    reservation.status = CustomerVoucherStatus.RELEASED;
-    await reservationRepo.save(reservation);
-    await manager
-      .getRepository(VoucherEntity)
-      .decrement({ id: reservation.voucherId }, 'reservedCount', 1);
+    const releasedRows = result.raw as { voucher_id: string }[];
+    for (const row of releasedRows) {
+      await manager
+        .getRepository(VoucherEntity)
+        .decrement({ id: row.voucher_id }, 'reservedCount', 1);
+    }
   }
 
   async markBookingVoucherUsed(
@@ -454,49 +457,53 @@ export class VouchersService {
     bookingId: string,
   ): Promise<void> {
     const reservationRepo = manager.getRepository(CustomerVoucherEntity);
-    const reservation = await reservationRepo.findOne({
-      where: {
-        bookingId,
-        status: CustomerVoucherStatus.RESERVED,
-      },
-    });
+    const voucherRepo = manager.getRepository(VoucherEntity);
+    const result = await reservationRepo
+      .createQueryBuilder()
+      .update()
+      .set({
+        status: CustomerVoucherStatus.USED,
+        isUsed: true,
+        usedAt: new Date(),
+      })
+      .where('booking_id = :bookingId', { bookingId })
+      .andWhere('status = :status', { status: CustomerVoucherStatus.RESERVED })
+      .returning('voucher_id')
+      .execute();
 
-    if (!reservation) {
-      const booking = await manager.getRepository(BookingEntity).findOne({
-        where: { id: bookingId },
-        relations: ['customer'],
-      });
-
-      if (!booking?.voucherId || !booking.customer?.id) return;
-
-      await reservationRepo.save(
-        reservationRepo.create({
-          customerId: booking.customer.id,
-          voucherId: booking.voucherId,
-          bookingId,
-          isUsed: true,
-          status: CustomerVoucherStatus.USED,
-          usedAt: new Date(),
-        }),
-      );
-      await manager
-        .getRepository(VoucherEntity)
-        .increment({ id: booking.voucherId }, 'usedCount', 1);
+    const usedRows = result.raw as { voucher_id: string }[];
+    if (usedRows.length > 0) {
+      for (const row of usedRows) {
+        await voucherRepo.decrement({ id: row.voucher_id }, 'reservedCount', 1);
+        await voucherRepo.increment({ id: row.voucher_id }, 'usedCount', 1);
+      }
       return;
     }
 
-    reservation.status = CustomerVoucherStatus.USED;
-    reservation.isUsed = true;
-    reservation.usedAt = new Date();
-    await reservationRepo.save(reservation);
+    const alreadyUsed = await reservationRepo.existsBy({
+      bookingId,
+      status: CustomerVoucherStatus.USED,
+    });
+    if (alreadyUsed) return;
 
-    const voucherRepo = manager.getRepository(VoucherEntity);
-    await voucherRepo.decrement(
-      { id: reservation.voucherId },
-      'reservedCount',
-      1,
+    const booking = await manager.getRepository(BookingEntity).findOne({
+      where: { id: bookingId },
+      relations: ['customer'],
+    });
+
+    if (!booking?.voucherId || !booking.customer?.id) return;
+
+    await reservationRepo.save(
+      reservationRepo.create({
+        customerId: booking.customer.id,
+        voucherId: booking.voucherId,
+        bookingId,
+        isUsed: true,
+        status: CustomerVoucherStatus.USED,
+        usedAt: new Date(),
+      }),
     );
-    await voucherRepo.increment({ id: reservation.voucherId }, 'usedCount', 1);
+    await voucherRepo.increment({ id: booking.voucherId }, 'usedCount', 1);
   }
 
   async findAvailableForCustomer(
