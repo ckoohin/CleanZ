@@ -4,6 +4,7 @@ import { BookingStatusLogEntity } from './entity/booking-status-log.entity';
 import { BookingEntity } from './entity/booking.entity';
 import { BookingSubServiceEntity } from './entity/booking-sub-service.entity';
 import { BookingQuoteEntity } from './entity/booking-quote.entity';
+import { BookingAddonEntity } from './entity/booking-addon.entity';
 import { BookingController } from './booking.controller';
 import { CustomerBookingService } from './services/customer-booking.service';
 import { TaskerBookingService } from './services/tasker-booking.service';
@@ -37,6 +38,7 @@ import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-c
       CustomerEntity,
       BookingSubServiceEntity,
       BookingQuoteEntity,
+      BookingAddonEntity,
     ]),
     PaymentModule,
     PricingModule,
