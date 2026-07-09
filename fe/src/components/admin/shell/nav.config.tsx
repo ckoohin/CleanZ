@@ -59,6 +59,7 @@ export const navGroups: NavGroup[] = [
         children: [
           { title: "Gói dịch vụ", href: A.SERVICES.SERVICE_PACKAGES.BASE },
           { title: "Tạo gói mới", href: A.SERVICES.SERVICE_PACKAGES.CREATE },
+          { title: "Báo cáo thống kê", href: A.SERVICES.SERVICE_PACKAGES.REPORTS },
           // { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES.BASE },
         ],
       },

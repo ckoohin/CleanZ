@@ -90,6 +90,7 @@ export const ROUTES = {
         CREATE: "/admin/services/service-packages/create",
         DETAIL: (id: string) => `/admin/services/service-packages/${id}`,
         UPDATE: (id: string) => `/admin/services/service-packages/${id}/update`,
+        REPORTS: "/admin/services/service-packages/reports",
       },
       SUB_SERVICES: {
         BASE: "/admin/services/sub-services",
