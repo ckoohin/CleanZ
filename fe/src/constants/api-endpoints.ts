@@ -183,6 +183,31 @@ export const API_ENDPOINTS = {
     SUB_SERVICES: (id: string) => `/admin/service-packages/${id}/sub-services`,
     REMOVE_SUB_SERVICE: (id: string, subServiceId: string) =>
       `/admin/service-packages/${id}/sub-services/${subServiceId}`,
+    REPORTS: {
+      OVERVIEW: "/admin/service-packages/reports/overview",
+      REVENUE_TREND: "/admin/service-packages/reports/revenue-trend",
+      BY_PACKAGE: "/admin/service-packages/reports/by-package",
+      BOOKING_STATUS: "/admin/service-packages/reports/booking-status",
+      HOURLY_DISTRIBUTION:
+        "/admin/service-packages/reports/hourly-distribution",
+      ADDON_POPULARITY: "/admin/service-packages/reports/addon-popularity",
+      DURATION_POPULARITY:
+        "/admin/service-packages/reports/duration-popularity",
+      TOP_TASKERS: "/admin/service-packages/reports/top-taskers",
+      EXPORT: {
+        REVENUE_TREND: "/admin/service-packages/reports/export/revenue-trend",
+        BY_PACKAGE: "/admin/service-packages/reports/export/by-package",
+        BOOKING_STATUS: "/admin/service-packages/reports/export/booking-status",
+        HOURLY_DISTRIBUTION:
+          "/admin/service-packages/reports/export/hourly-distribution",
+        ADDON_POPULARITY:
+          "/admin/service-packages/reports/export/addon-popularity",
+        DURATION_POPULARITY:
+          "/admin/service-packages/reports/export/duration-popularity",
+        TOP_TASKERS: "/admin/service-packages/reports/export/top-taskers",
+        ALL: "/admin/service-packages/reports/export/all",
+      },
+    },
   },
   ADMIN_BOOKINGS: {
     BASE: "/admin/bookings",
