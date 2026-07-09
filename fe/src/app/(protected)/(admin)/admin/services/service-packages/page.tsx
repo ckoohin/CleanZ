@@ -1,7 +1,7 @@
 "use client";
 import { ROUTES } from "@/constants/routes";
 import * as React from "react";
-import { Plus, Package, TrendingUp, PowerOff } from "lucide-react";
+import { Plus, Package, TrendingUp, PowerOff, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import {
@@ -27,7 +27,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-function PageHeader({ onAdd }: { onAdd: () => void }) {
+function PageHeader({ onAdd, onViewReports }: { onAdd: () => void; onViewReports: () => void }) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
@@ -38,14 +38,24 @@ function PageHeader({ onAdd }: { onAdd: () => void }) {
           Thiết lập, quản lý bảng giá và thống kê cho từng gói dịch vụ.
         </p>
       </div>
-      <BaseButton
-        variant="primary"
-        onClick={onAdd}
-        className="rounded-xl shadow-lg shadow-primary/20 gap-2 h-11 px-6"
-      >
-        <Plus className="w-4 h-4" aria-hidden="true" />
-        <span className="font-bold uppercase tracking-widest text-[10px]">Tạo gói mới</span>
-      </BaseButton>
+      <div className="flex items-center gap-2">
+        <BaseButton
+          variant="outline"
+          onClick={onViewReports}
+          className="rounded-xl gap-2 h-11 px-5 border-(--c-line)/50"
+        >
+          <BarChart3 className="w-4 h-4" aria-hidden="true" />
+          <span className="font-bold uppercase tracking-widest text-[10px]">Xem báo cáo</span>
+        </BaseButton>
+        <BaseButton
+          variant="primary"
+          onClick={onAdd}
+          className="rounded-xl shadow-lg shadow-primary/20 gap-2 h-11 px-6"
+        >
+          <Plus className="w-4 h-4" aria-hidden="true" />
+          <span className="font-bold uppercase tracking-widest text-[10px]">Tạo gói mới</span>
+        </BaseButton>
+      </div>
     </div>
   );
 }
@@ -184,7 +194,10 @@ export default function AdminServicesPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader onAdd={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.CREATE)} />
+        <PageHeader
+          onAdd={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.CREATE)}
+          onViewReports={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.REPORTS)}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-64 rounded-2xl bg-(--c-card-2) animate-pulse" />
@@ -196,7 +209,10 @@ export default function AdminServicesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader onAdd={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.CREATE)} />
+      <PageHeader
+        onAdd={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.CREATE)}
+        onViewReports={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.REPORTS)}
+      />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
