@@ -175,6 +175,8 @@ export class ServicePackagesService {
           startDate: p.startDate ? new Date(p.startDate) : null,
           endDate: p.endDate ? new Date(p.endDate) : null,
           isActive: p.isActive ?? true,
+          title: p.title ?? null,
+          description: p.description ?? null,
         }),
       );
       await this.peakHourRepository.save(peakEntities);
@@ -442,6 +444,8 @@ export class ServicePackagesService {
             startDate: p.startDate ? new Date(p.startDate) : null,
             endDate: p.endDate ? new Date(p.endDate) : null,
             isActive: p.isActive ?? true,
+            title: p.title ?? null,
+            description: p.description ?? null,
           }),
         );
         await this.peakHourRepository.save(peakEntities);

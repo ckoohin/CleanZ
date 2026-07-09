@@ -125,7 +125,9 @@ export const ROUTES = {
     FINANCES: {
       BASE: "/admin/finances",
       WITHDRAWALS: "/admin/withdrawals",
+      CUSTOMER_WITHDRAWALS: "/admin/customer-withdrawals",
       WALLETS: "/admin/wallets",
+      RECONCILIATION: "/admin/reconciliation",
     },
     VOUCHERS: {
       BASE: "/admin/vouchers",

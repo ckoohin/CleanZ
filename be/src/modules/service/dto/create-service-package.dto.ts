@@ -347,6 +347,14 @@ export class ServicePeakHourDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
 
 export class ServiceSubServiceDto {

@@ -8,6 +8,8 @@
 .env.local
 .env.production
 .env.development
-.codex
-.claude/
+/.codex
+/.claude/
 fe/scratch/
+CLAUDE.md
+AGENTS.md

@@ -473,9 +473,7 @@ export class AdminCustomerRepository {
         tempPassword,
         loginUrl: this.loginUrl(),
       });
-      this.logger.log(
-        `[TempPassword] Enqueue thành công → email=${dto.email}`,
-      );
+      this.logger.log(`[TempPassword] Enqueue thành công → email=${dto.email}`);
 
       return this.getCustomerDetail(createdId);
     }, 'Lỗi khi tạo khách hàng');

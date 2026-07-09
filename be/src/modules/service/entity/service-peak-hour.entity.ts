@@ -50,6 +50,12 @@ export class ServicePeakHourEntity {
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive!: boolean;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  title?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

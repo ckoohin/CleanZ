@@ -39,7 +39,12 @@ export class BlogEntity {
   @Column({ type: 'text' })
   content!: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true, name: 'thumbnail_url' })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    name: 'thumbnail_url',
+  })
   thumbnailUrl!: string | null;
 
   @Index('idx_blogs_category')

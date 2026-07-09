@@ -38,7 +38,6 @@ import { BlogModule } from './modules/blog/blog.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    // Rate-limit (áp cục bộ qua @UseGuards(ThrottlerGuard) ở route cần chặn flood).
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

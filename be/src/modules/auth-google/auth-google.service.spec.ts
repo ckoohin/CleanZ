@@ -3,6 +3,9 @@ import { AuthGoogleService } from './auth-google.service';
 import { UsersService } from '../users/users.service';
 import { AuthTokenService } from '../auth/auth-token.service';
 
+import { DataSource } from 'typeorm';
+import { CustomerService } from '../customer/customer.service';
+
 describe('AuthGoogleService', () => {
   let service: AuthGoogleService;
 
@@ -16,6 +19,14 @@ describe('AuthGoogleService', () => {
         },
         {
           provide: AuthTokenService,
+          useValue: {},
+        },
+        {
+          provide: CustomerService,
+          useValue: {},
+        },
+        {
+          provide: DataSource,
           useValue: {},
         },
       ],

@@ -10,10 +10,13 @@ import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
-import { UploadService } from 'src/modules/upload/upload.service';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
+import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
+import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
+import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
+import { IncidentDamageItemVerificationStatus } from 'src/common/enums/incident-damage-item-verification-status.enum';
 import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
@@ -30,6 +33,11 @@ import {
 import { IncidentCodeService } from './incident-code.service';
 import { IncidentConfigService } from './incident-config.service';
 import { IncidentNotifier } from './incident-notifier.service';
+import { IncidentDepositHoldService } from './incident-deposit-hold.service';
+import {
+  INCIDENT_EVIDENCE_VISIBILITY,
+  IncidentEvidenceLifecycleService,
+} from './incident-evidence-lifecycle.service';
 
 const WITHDRAWABLE_STATUSES = [
   IncidentStatus.REPORTED,
@@ -50,8 +58,9 @@ export class IncidentService {
     private readonly bookingRepo: Repository<BookingEntity>,
     private readonly incidentCode: IncidentCodeService,
     private readonly config: IncidentConfigService,
-    private readonly uploadService: UploadService,
+    private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
     private readonly notifier: IncidentNotifier,
+    private readonly depositHold: IncidentDepositHoldService,
   ) {}
 
   async uploadEvidence(
@@ -59,18 +68,97 @@ export class IncidentService {
     file: Express.Multer.File,
   ): Promise<{ id: string; url: string; fileType: string }> {
     return asyncHandleOperation(async () => {
-      const uploaded = await this.uploadService.uploadImage(file);
-      const evidence = await this.evidenceRepo.save(
-        this.evidenceRepo.create({
-          incident: null,
-          damageItem: null,
-          fileUrl: uploaded.url,
-          fileType: 'IMAGE',
-          uploadedBy: { id: userId },
-        }),
-      );
-      return { id: evidence.id, url: evidence.fileUrl, fileType: 'IMAGE' };
+      return this.evidenceLifecycle.uploadDetachedEvidence(userId, file, {
+        purpose: IncidentEvidencePurpose.DAMAGE_PHOTO,
+        visibility: INCIDENT_EVIDENCE_VISIBILITY.INCIDENT_PARTIES,
+      });
     }, 'Lỗi khi tải bằng chứng');
+  }
+
+  /**
+   * P1.4 — Khách bổ sung bằng chứng cho hạng mục Admin yêu cầu (NEED_MORE_EVIDENCE).
+   * Gắn các evidence đã upload (detached) vào hạng mục; hạng mục quay về PENDING chờ
+   * Admin thẩm định lại (finalize vẫn bị chặn cho tới khi thẩm định xong).
+   */
+  async attachItemEvidence(
+    customerUserId: string,
+    incidentId: string,
+    itemId: string,
+    evidenceIds: string[],
+  ): Promise<IncidentCustomerView> {
+    return asyncHandleOperation(async () => {
+      await this.dataSource.transaction(async (manager) => {
+        const incident = await this.loadOwned(incidentId, customerUserId);
+        if (incident.status !== IncidentStatus.INVESTIGATING) {
+          throw new ConflictException({
+            code: 'INCIDENT_NOT_EDITABLE',
+            message: 'Chỉ bổ sung bằng chứng khi sự cố đang được thẩm định',
+          });
+        }
+        const item = await manager
+          .getRepository(IncidentDamageItemEntity)
+          .findOne({
+            where: { id: itemId, incident: { id: incidentId } },
+          });
+        if (!item) {
+          throw new NotFoundException('Không tìm thấy hạng mục thiệt hại');
+        }
+        if (
+          item.verificationStatus !==
+          IncidentDamageItemVerificationStatus.NEED_MORE_EVIDENCE
+        ) {
+          throw new ConflictException({
+            code: 'ITEM_NOT_AWAITING_EVIDENCE',
+            message: 'Hạng mục này không ở trạng thái chờ bổ sung bằng chứng',
+          });
+        }
+
+        // Chỉ nhận evidence do chính khách upload, còn detached, chưa xoá.
+        const owned = await manager.getRepository(IncidentEvidenceEntity).find({
+          where: {
+            id: In(evidenceIds),
+            uploadedBy: { id: customerUserId },
+            incident: IsNull(),
+            isSoftDeleted: false,
+          },
+        });
+        if (owned.length !== evidenceIds.length) {
+          throw new UnprocessableEntityException({
+            code: 'INVALID_EVIDENCE',
+            message: 'Bằng chứng không hợp lệ hoặc không thuộc về bạn',
+          });
+        }
+
+        await manager
+          .getRepository(IncidentEvidenceEntity)
+          .createQueryBuilder()
+          .update()
+          .set({
+            incident: { id: incidentId },
+            damageItem: { id: itemId },
+            purpose: IncidentEvidencePurpose.DAMAGE_PHOTO,
+            visibility: INCIDENT_EVIDENCE_VISIBILITY.INCIDENT_PARTIES,
+          })
+          .whereInIds(evidenceIds)
+          .execute();
+
+        // Quay về PENDING chờ Admin thẩm định lại.
+        item.verificationStatus = IncidentDamageItemVerificationStatus.PENDING;
+        await manager.getRepository(IncidentDamageItemEntity).save(item);
+
+        await manager.getRepository(IncidentStatusLogEntity).save(
+          manager.getRepository(IncidentStatusLogEntity).create({
+            incident: { id: incidentId },
+            dimension: IncidentLogDimension.STATUS,
+            oldValue: IncidentDamageItemVerificationStatus.NEED_MORE_EVIDENCE,
+            newValue: IncidentDamageItemVerificationStatus.PENDING,
+            changedBy: { id: customerUserId },
+            reason: `Khách bổ sung ${evidenceIds.length} bằng chứng cho hạng mục "${item.description}"`,
+          }),
+        );
+      });
+      return this.findOneForCustomer(customerUserId, incidentId);
+    }, 'Lỗi khi bổ sung bằng chứng');
   }
 
   async create(
@@ -140,7 +228,11 @@ export class IncidentService {
 
       const allEvidenceIds = dto.damageItems.flatMap((d) => d.evidenceIds);
       const evidences = await this.evidenceRepo.find({
-        where: { id: In(allEvidenceIds), incident: IsNull() },
+        where: {
+          id: In(allEvidenceIds),
+          incident: IsNull(),
+          isSoftDeleted: false,
+        },
         relations: ['uploadedBy'],
       });
       const evidenceById = new Map(evidences.map((e) => [e.id, e]));
@@ -193,6 +285,8 @@ export class IncidentService {
               .set({
                 incident: { id: incident.id },
                 damageItem: { id: item.id },
+                purpose: IncidentEvidencePurpose.DAMAGE_PHOTO,
+                visibility: INCIDENT_EVIDENCE_VISIBILITY.INCIDENT_PARTIES,
               })
               .whereInIds(itemDto.evidenceIds)
               .execute();
@@ -265,11 +359,18 @@ export class IncidentService {
         order: { createdAt: 'ASC' },
       });
       const evidences = await this.evidenceRepo.find({
-        where: { incident: { id: incidentId } },
+        where: {
+          incident: { id: incidentId },
+          isSoftDeleted: false,
+        },
         relations: ['damageItem'],
       });
+      const visibleEvidences = this.evidenceLifecycle.filterForAudience(
+        evidences,
+        'CUSTOMER',
+      );
       const byItem = new Map<string, IncidentEvidenceEntity[]>();
-      for (const e of evidences) {
+      for (const e of visibleEvidences) {
         const key = e.damageItem?.id;
         if (!key) continue;
         const arr = byItem.get(key) ?? [];
@@ -305,9 +406,30 @@ export class IncidentService {
           );
         }
 
+        if (
+          ![IncidentDecisionStatus.NONE, IncidentDecisionStatus.DRAFT].includes(
+            incident.decisionStatus,
+          )
+        ) {
+          throw new ConflictException({
+            code: 'DECISION_ALREADY_SUBMITTED',
+            message: 'Không thể rút sau khi quyết định đã được submit',
+          });
+        }
+
+        // BR29 — chỉ tự rút khi chưa phát sinh bồi thường (compensation_status=NONE).
+        if (incident.compensationStatus !== IncidentCompensationStatus.NONE) {
+          throw new ConflictException({
+            code: 'COMPENSATION_IN_PROGRESS',
+            message: 'Không thể rút khi đã phát sinh xử lý bồi thường',
+          });
+        }
+
         const from = incident.status;
         incident.status = IncidentStatus.CLOSED;
         incident.closureReason = IncidentClosureReason.WITHDRAWN;
+        // P0.2 — rút báo cáo khi đang điều tra → giải phóng phần ví đã HOLD.
+        await this.depositHold.release(manager, incident);
         await manager.getRepository(IncidentEntity).save(incident);
         await manager.getRepository(IncidentStatusLogEntity).save(
           manager.getRepository(IncidentStatusLogEntity).create({

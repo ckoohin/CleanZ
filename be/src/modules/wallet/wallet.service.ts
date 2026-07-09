@@ -163,6 +163,19 @@ export class WalletService {
         const tasker = await this.findTaskerByUserId(manager, userId);
         const wallet = await this.getOrCreateTaskerWallet(manager, tasker);
         const lockedWallet = await this.lockWallet(manager, wallet.id);
+
+        // P0.2 — khóa rút tiền khi Tasker đang có sự cố bồi thường điều tra / chờ chi trả,
+        // chống rút trốn nghĩa vụ. Dùng raw query để không tạo phụ thuộc vòng vào IncidentModule.
+        const activeIncident: unknown[] = await manager.query(
+          `SELECT 1 FROM incidents WHERE tasker_id = $1 AND status IN ('INVESTIGATING','APPROVED') LIMIT 1`,
+          [tasker.id],
+        );
+        if (activeIncident.length > 0) {
+          throw new BadRequestException(
+            'Bạn đang có sự cố bồi thường đang xử lý — tạm khóa rút tiền cho tới khi hoàn tất.',
+          );
+        }
+
         const withdrawalRepository = manager.getRepository(
           WithdrawalRequestEntity,
         );
@@ -432,6 +445,99 @@ export class WalletService {
       booking,
       description,
     });
+  }
+
+  /**
+   * Tạm giữ tiền: chuyển `amount` từ `balance` → `hold_balance` (ghi DEPOSIT_HOLD).
+   * Dùng để giữ nghĩa vụ tiềm năng (vd: bồi thường sự cố khi đang điều tra).
+   */
+  async holdFunds(
+    manager: EntityManager,
+    input: WalletMutationInput,
+  ): Promise<WalletEntity> {
+    const amount = this.normalizeAmount(input.amount);
+    const wallet = await this.lockWallet(manager, input.wallet.id);
+    const balanceBefore = toNumber(wallet.balance);
+    if (balanceBefore < amount) {
+      throw new BadRequestException('Số dư ví không đủ để tạm giữ');
+    }
+    wallet.balance = balanceBefore - amount;
+    wallet.holdBalance = toNumber(wallet.holdBalance) + amount;
+    const saved = await manager.getRepository(WalletEntity).save(wallet);
+    await this.createTransaction(manager, {
+      wallet: saved,
+      type: WalletTransactionType.DEPOSIT_HOLD,
+      amount,
+      balanceBefore,
+      balanceAfter: toNumber(saved.balance),
+      booking: input.booking,
+      referenceId: input.referenceId,
+      referenceType: input.referenceType,
+      description: input.description,
+    });
+    return saved;
+  }
+
+  /**
+   * Giải phóng tiền tạm giữ: chuyển `amount` từ `hold_balance` → `balance` (ghi DEPOSIT_RELEASE).
+   */
+  async releaseFunds(
+    manager: EntityManager,
+    input: WalletMutationInput,
+  ): Promise<WalletEntity> {
+    const amount = this.normalizeAmount(input.amount);
+    const wallet = await this.lockWallet(manager, input.wallet.id);
+    const holdBefore = toNumber(wallet.holdBalance);
+    if (holdBefore < amount) {
+      throw new BadRequestException('Số tiền tạm giữ không đủ để giải phóng');
+    }
+    const balanceBefore = toNumber(wallet.balance);
+    wallet.holdBalance = holdBefore - amount;
+    wallet.balance = balanceBefore + amount;
+    const saved = await manager.getRepository(WalletEntity).save(wallet);
+    await this.createTransaction(manager, {
+      wallet: saved,
+      type: WalletTransactionType.DEPOSIT_RELEASE,
+      amount,
+      balanceBefore,
+      balanceAfter: toNumber(saved.balance),
+      booking: input.booking,
+      referenceId: input.referenceId,
+      referenceType: input.referenceType,
+      description: input.description,
+    });
+    return saved;
+  }
+
+  /**
+   * Thu tiền đang tạm giữ (hold → ra khỏi ví, KHÔNG trả lại balance): giảm `hold_balance`
+   * và ghi bút toán `type` (thường DEPOSIT_DEDUCT). Dùng khi chuyển HOLD → trừ thật lúc chốt.
+   */
+  async captureHeldFunds(
+    manager: EntityManager,
+    input: WalletMutationInput,
+  ): Promise<WalletEntity> {
+    const amount = this.normalizeAmount(input.amount);
+    const wallet = await this.lockWallet(manager, input.wallet.id);
+    const holdBefore = toNumber(wallet.holdBalance);
+    if (holdBefore < amount) {
+      throw new BadRequestException('Số tiền tạm giữ không đủ để thu');
+    }
+    const balanceUnchanged = toNumber(wallet.balance);
+    wallet.holdBalance = holdBefore - amount;
+    const saved = await manager.getRepository(WalletEntity).save(wallet);
+    await this.createTransaction(manager, {
+      wallet: saved,
+      type: input.type,
+      amount,
+      balanceBefore: balanceUnchanged,
+      balanceAfter: balanceUnchanged,
+      booking: input.booking,
+      referenceId: input.referenceId,
+      referenceType: input.referenceType,
+      description: input.description,
+    });
+    return saved;
   }
 
   private async applyBalanceChange(

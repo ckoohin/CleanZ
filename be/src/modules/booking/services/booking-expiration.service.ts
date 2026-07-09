@@ -69,13 +69,42 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
       }
 
       this.isRunning = true;
+      let bookings: BookingEntity[];
       try {
-        return await this.dataSource.transaction((manager) =>
+        bookings = await this.dataSource.transaction((manager) =>
           this.expireBatch(manager),
         );
       } finally {
         this.isRunning = false;
       }
+
+      // Notify customers sau khi transaction commit.
+      // Đơn tạo hộ cho khách không có tài khoản thì customer là null → bỏ qua.
+      for (const booking of bookings) {
+        const customerUserId = booking.customer?.user?.id;
+        if (customerUserId) {
+          void this.notificationService
+            .notify({
+              userId: customerUserId,
+              type: NotificationType.BOOKING_CANCELLED,
+              title: 'Đơn đã hết hạn',
+              content: `Đơn ${booking.bookingCode} đã hết hạn do chưa có tasker nhận. Vui lòng đặt đơn mới nếu bạn vẫn cần dịch vụ.`,
+              referenceType: NotificationRefType.BOOKING,
+              referenceId: booking.id,
+              dedupeKey: `booking:${booking.id}:expired`,
+            })
+            .catch((err) =>
+              this.logger.error(
+                `Không thể gửi thông báo hết hạn booking=${booking.id}: ${err}`,
+              ),
+            );
+        }
+      }
+
+      return {
+        expiredCount: bookings.length,
+        bookingIds: bookings.map((booking) => booking.id),
+      };
     }, 'Không thể xử lý booking quá hạn');
   }
 
@@ -121,6 +150,8 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.tasker', 'tasker')
           .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
           .setLock('pessimistic_write', undefined, ['booking'])
           .setOnLocked('skip_locked')
           .where('booking.status = :status', {
@@ -163,7 +194,8 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
         return { cancelledCount: 0, bookingIds: [] };
       }
 
-      // Notify taskers sau khi transaction commit
+      // Notify tasker và customer sau khi transaction commit.
+      // Đơn tạo hộ cho khách không có tài khoản thì customer là null → chỉ báo tasker.
       for (const booking of bookings) {
         const taskerUserId = booking.tasker?.user?.id;
         if (taskerUserId) {
@@ -183,6 +215,25 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
               ),
             );
         }
+
+        const customerUserId = booking.customer?.user?.id;
+        if (customerUserId) {
+          void this.notificationService
+            .notify({
+              userId: customerUserId,
+              type: NotificationType.BOOKING_CANCELLED,
+              title: 'Đơn đã tự động hủy',
+              content: `Đơn ${booking.bookingCode} đã tự động hủy do bạn không xác nhận trong thời hạn.`,
+              referenceType: NotificationRefType.BOOKING,
+              referenceId: booking.id,
+              dedupeKey: `booking:${booking.id}:system_timeout:customer`,
+            })
+            .catch((err) =>
+              this.logger.error(
+                `Không thể gửi thông báo timeout booking=${booking.id}: ${err}`,
+              ),
+            );
+        }
       }
 
       return {
@@ -192,14 +243,14 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     }, 'Không thể hủy booking hết hạn xác nhận');
   }
 
-  private async expireBatch(
-    manager: EntityManager,
-  ): Promise<ExpireOverdueBookingsResponse> {
+  private async expireBatch(manager: EntityManager): Promise<BookingEntity[]> {
     const bookingRepository = manager.getRepository(BookingEntity);
     const logRepository = manager.getRepository(BookingStatusLogEntity);
 
     const bookings = await bookingRepository
       .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'customerUser')
       .setLock('pessimistic_write', undefined, ['booking'])
       .setOnLocked('skip_locked')
       .where('booking.status = :status', { status: BookingStatus.POSTED })
@@ -215,7 +266,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
       .getMany();
 
     if (!bookings.length) {
-      return { expiredCount: 0, bookingIds: [] };
+      return [];
     }
 
     for (const booking of bookings) {
@@ -239,9 +290,6 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
       await logRepository.save(statusLog);
     }
 
-    return {
-      expiredCount: bookings.length,
-      bookingIds: bookings.map((booking) => booking.id),
-    };
+    return bookings;
   }
 }

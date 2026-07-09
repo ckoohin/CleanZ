@@ -49,6 +49,20 @@ export function useCreateIncident() {
   });
 }
 
+/** P1.4 — Bổ sung bằng chứng cho hạng mục bị yêu cầu (NEED_MORE_EVIDENCE). */
+export function useAttachItemEvidence(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, evidenceIds }: { itemId: string; evidenceIds: string[] }) =>
+      customerIncidentApi.attachItemEvidence(id, itemId, evidenceIds),
+    onSuccess: () => {
+      toast.success("Đã gửi bằng chứng bổ sung — chờ CleanZ thẩm định lại");
+      qc.invalidateQueries({ queryKey: incidentKeys.detail(id) });
+    },
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
 export function useWithdrawIncident(id: string) {
   const qc = useQueryClient();
   return useMutation({

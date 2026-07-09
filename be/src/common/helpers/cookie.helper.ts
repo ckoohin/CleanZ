@@ -54,8 +54,6 @@ export class CookieHelper {
       .replace(/^\.+/, '')
       .toLowerCase();
 
-    // Trình duyệt tự quản lý cookie host-only khi chạy local. Truyền
-    // localhost vào thuộc tính Domain vừa không cần thiết, vừa dễ bị từ chối.
     if (!hostname || hostname === 'localhost' || hostname.includes(':')) {
       return undefined;
     }
@@ -70,8 +68,6 @@ export class CookieHelper {
       .split(':')[0]
       .toLowerCase();
 
-    // Chỉ gắn Domain khi request thực sự đến từ domain đã cấu hình.
-    // Localhost sẽ dùng cookie host-only và vẫn chia sẻ được giữa các port.
     if (requestHost !== hostname && !requestHost?.endsWith(`.${hostname}`)) {
       return undefined;
     }
@@ -90,9 +86,7 @@ export class CookieHelper {
       'JWT_REFRESH_EXPIRES_IN',
     ) as StringValue;
 
-    // Xóa cookie host-only cũ của api subdomain trước khi chuyển sang cookie
-    // dùng chung parent domain. Nếu giữ cả hai cookie trùng tên, cookie-parser
-    // có thể đọc nhầm token cũ và tạo vòng lặp 401 -> refresh thất bại.
+    // Clear old host-only cookies from api subdomain before switching to shared parent domain cookies
     res.clearCookie('access_token', hostOnlyOptions);
     res.clearCookie('refresh_token', hostOnlyOptions);
 

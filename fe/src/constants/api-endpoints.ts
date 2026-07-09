@@ -127,23 +127,44 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/incidents/${id}`,
     EVIDENCES: "/incidents/evidences", // upload trước khi tạo (không có :id)
     WITHDRAW: (id: string) => `/incidents/${id}/withdraw`,
+    ITEM_EVIDENCES: (id: string, itemId: string) =>
+      `/incidents/${id}/damage-items/${itemId}/evidences`,
   },
   TASKER_INCIDENTS: {
     MINE: "/tasker/incidents/mine",
     DETAIL: (id: string) => `/tasker/incidents/${id}`,
     EVIDENCES: "/tasker/incidents/evidences",
     STATEMENTS: (id: string) => `/tasker/incidents/${id}/statements`,
+    DECISION_RESPONSE: (id: string) =>
+      `/tasker/incidents/${id}/decision-response`,
   },
   ADMIN_INCIDENTS: {
     BASE: "/admin/incidents",
     CONFIG: "/admin/incidents/config",
+    RECONCILIATION: "/admin/incidents/reconciliation",
     DETAIL: (id: string) => `/admin/incidents/${id}`,
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
     VERIFY: (id: string) => `/admin/incidents/${id}/items/verify`,
-    DECIDE: (id: string) => `/admin/incidents/${id}/decide`,
-    APPROVE_COMPENSATION: (id: string) =>
-      `/admin/incidents/${id}/approve-compensation`,
+    DECISION_DRAFT: (id: string) =>
+      `/admin/incidents/${id}/decision-draft`,
+    DECISION_DRAFT_SUBMIT: (id: string) =>
+      `/admin/incidents/${id}/decision-draft/submit`,
+    DECISION_RESPONSE_REVIEW: (id: string) =>
+      `/admin/incidents/${id}/decision-response/review`,
+    DECISION_REVISE: (id: string) =>
+      `/admin/incidents/${id}/decision/revise`,
+    DECISION_EXTEND_RESPONSE: (id: string) =>
+      `/admin/incidents/${id}/decision/extend-response`,
+    DECISION_FINALIZE: (id: string) =>
+      `/admin/incidents/${id}/decision/finalize`,
+    SECOND_APPROVAL: (id: string) =>
+      `/admin/incidents/${id}/second-approval`,
     COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
+    COMPENSATE_MANUAL: (id: string) =>
+      `/admin/incidents/${id}/compensate/manual`,
+    TRANSFER_PROOF: "/admin/incidents/evidences/transfer-proof",
+    COMPENSATION_REVERSE: (id: string) =>
+      `/admin/incidents/${id}/compensation/reverse`,
     UNLOCK_REPORTER: (id: string) => `/admin/incidents/${id}/unlock-reporter`,
     FROM_TICKET: (ticketId: string) =>
       `/admin/incidents/from-ticket/${ticketId}`,

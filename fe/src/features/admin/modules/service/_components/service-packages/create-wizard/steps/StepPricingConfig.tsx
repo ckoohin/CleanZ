@@ -31,9 +31,10 @@ import {
 import { SectionCard } from "../shared/SectionCard";
 import { Field } from "../shared/FormField";
 import { vnd } from "../shared/helpers";
+import { TimeSelect } from "../shared/TimeSelect";
 import { SelectedSubService, PeakHourFormState } from "../shared/types";
 import {
-  StepPricingConfigModals, NewDurationState, EditAddonModalState, CrudFormState,
+  StepPricingConfigModals, NewDurationState, EditAddonModalState, CrudFormState, NewAddonState,
 } from "./StepPricingConfig.modals";
 
 // ─── SubServiceCard ───────────────────────────────────────────────────────────
@@ -129,16 +130,6 @@ function SubServiceCard({ svc, isSelected, config, onToggle, onUpdate, onInfo }:
   );
 }
 
-interface NewAddonState {
-  name: string;
-  description: string;
-  price: string;
-  priceUnit: AddonPriceUnit;
-  durationMinutes: string;
-  maxQuantity: string;
-  sortOrder: string;
-  isActive: boolean;
-}
 
 interface NewSubscriptionState {
   name: string;
@@ -210,9 +201,6 @@ export interface StepPricingConfigProps {
   setEditingDurationIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setViewingDuration: React.Dispatch<React.SetStateAction<ServiceDurationEntity | null>>;
 
-  showAddonPresets: boolean;
-  setShowAddonPresets: React.Dispatch<React.SetStateAction<boolean>>;
-  ADDON_PRESETS: { group: string; icon: React.ElementType; items: Omit<ServiceAddonEntity, 'isActive'>[] }[];
   addons: ServiceAddonEntity[];
   setAddons: React.Dispatch<React.SetStateAction<ServiceAddonEntity[]>>;
   ADDON_PRICE_UNIT_LABELS: Record<AddonPriceUnit, string>;
@@ -222,6 +210,8 @@ export interface StepPricingConfigProps {
   handleEditAddon: (i: number) => void;
   editAddonModal: EditAddonModalState | null;
   setEditAddonModal: React.Dispatch<React.SetStateAction<EditAddonModalState | null>>;
+  isOpenAddonDetailModal: boolean;
+  setIsOpenAddonDetailModal: React.Dispatch<React.SetStateAction<boolean>>;
   setViewingAddon: React.Dispatch<React.SetStateAction<ServiceAddonEntity | null>>;
 
   searchSvc: string;
@@ -247,11 +237,6 @@ export interface StepPricingConfigProps {
   showSubscriptionModal: boolean;
   setShowSubscriptionModal: React.Dispatch<React.SetStateAction<boolean>>;
 
-  PEAK_HOUR_QUICK_PRESETS: {
-    label: string; icon: React.ElementType; multiplier: string;
-    entries?: ServicePeakHourEntity[];
-    dayOfWeek?: string; startHour?: string; endHour?: string;
-  }[];
   peakHours: ServicePeakHourEntity[];
   setPeakHours: React.Dispatch<React.SetStateAction<ServicePeakHourEntity[]>>;
   newPeakHour: PeakHourFormState;
@@ -260,6 +245,8 @@ export interface StepPricingConfigProps {
   setViewingPeakHour: React.Dispatch<React.SetStateAction<ServicePeakHourEntity | null>>;
   setEditPeakHour: React.Dispatch<React.SetStateAction<PeakHourFormState>>;
   setEditingPeakHourIdx: React.Dispatch<React.SetStateAction<number | null>>;
+  isOpenPeakHourDetailModal: boolean;
+  setIsOpenPeakHourDetailModal: React.Dispatch<React.SetStateAction<boolean>>;
 
   setStep: (v: number) => void;
 
@@ -325,16 +312,17 @@ export function StepPricingConfig({
   inlineEditValue, setInlineEditValue, captureInlineRect, setIsOpenInlineHoursDropdown, handleInlineSave,
   setIsOpenInlineAreaDropdown, isOpenInlineAdjustmentDropdown, setIsOpenInlineAdjustmentDropdown,
   setEditingDurationIndex, setViewingDuration,
-  showAddonPresets, setShowAddonPresets, ADDON_PRESETS,
   addons, setAddons, ADDON_PRICE_UNIT_LABELS, newAddon, setNewAddon,
   handleSaveAddon, handleEditAddon, editAddonModal, setEditAddonModal, setViewingAddon,
+  isOpenAddonDetailModal, setIsOpenAddonDetailModal,
   searchSvc, setSearchSvc, filteredSvcs, selectedSubServices, toggleSelect, updateSelected,
   openCrudCreate, setDetailSvc,
   SUBSCRIPTION_PRESETS, editingSubscriptionIndex, setEditingSubscriptionIndex, subscriptions, setSubscriptions,
   resetNewSubscription, newSubscription, setNewSubscription, handleSaveSubscription, handleEditSubscription,
   BILLING_CYCLE_LABELS, showSubscriptionModal, setShowSubscriptionModal,
-  PEAK_HOUR_QUICK_PRESETS, peakHours, setPeakHours, newPeakHour, setNewPeakHour, handleSavePeakHour,
+  peakHours, setPeakHours, newPeakHour, setNewPeakHour, handleSavePeakHour,
   setViewingPeakHour, setEditPeakHour, setEditingPeakHourIdx,
+  isOpenPeakHourDetailModal, setIsOpenPeakHourDetailModal,
   setStep,
   detailSvc, deleteConfirm, setDeleteConfirm, deleteService, handleDeleteSvc,
   crudModal, setCrudModal, crudForm, setCrudForm, CRUD_EMPTY, handleCrudSubmit, createService, updateService, openCrudEdit,
@@ -1101,70 +1089,6 @@ export function StepPricingConfig({
               {/* TAB 2: ADDONS */}
               <TabsContent value="addons" className="space-y-4">
 
-                {/* ── Chọn nhanh từ thư viện preset ── */}
-                <div className="border border-border/40 rounded-xl overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddonPresets(p => !p)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-extrabold text-slate-800">Thêm nhanh từ thư viện dịch vụ phổ biến</span>
-                      <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-                        {ADDON_PRESETS.reduce((acc, g) => acc + g.items.length, 0)} mẫu
-                      </span>
-                    </div>
-                    <ChevronRight className={cn("w-4 h-4 text-slate-500 transition-transform", showAddonPresets && "rotate-90")} />
-                  </button>
-
-                  {showAddonPresets && (
-                    <div className="p-4 space-y-4 border-t border-border/30 bg-white">
-                      {ADDON_PRESETS.map((group) => (
-                        <div key={group.group}>
-                          <div className="flex items-center gap-2 mb-2.5">
-                            <group.icon className="w-3.5 h-3.5 text-primary/70" />
-                            <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">{group.group}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {group.items.map((preset) => {
-                              const alreadyAdded = addons.some(a => a.name === preset.name);
-                              return (
-                                <button
-                                  key={preset.name}
-                                  type="button"
-                                  disabled={alreadyAdded}
-                                  onClick={() => {
-                                    if (alreadyAdded) return;
-                                    setAddons(prev => [...prev, { ...preset, isActive: true }]);
-                                    toast.success(`Đã thêm "${preset.name}"`);
-                                  }}
-                                  className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
-                                    alreadyAdded
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-default opacity-70"
-                                      : "border-border/50 bg-white hover:border-primary hover:bg-primary/5 hover:text-primary text-slate-700 cursor-pointer shadow-2xs"
-                                  )}
-                                >
-                                  {alreadyAdded
-                                    ? <Check className="w-3 h-3 text-emerald-500 shrink-0" />
-                                    : <Plus className="w-3 h-3 shrink-0" />
-                                  }
-                                  <span>{preset.name}</span>
-                                  <span className={cn("font-bold ml-0.5", alreadyAdded ? "text-emerald-600" : "text-primary")}>
-                                    {vnd(preset.price)}
-                                  </span>
-                                  <span className="text-[10px] opacity-60 shrink-0">/{ADDON_PRICE_UNIT_LABELS[preset.priceUnit as AddonPriceUnit]?.replace("Theo ", "")}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* ── Form thêm addon ── */}
                 <div className="p-4 border rounded-2xl space-y-4 bg-muted/10 border-border/30">
                   <p className="text-xs font-bold text-foreground">Thêm dịch vụ thêm tuỳ chỉnh</p>
@@ -1240,11 +1164,24 @@ export function StepPricingConfig({
                     </Field>
                   </div>
 
-                  {/* Row 3: Mô tả */}
-                  <Field label="Mô tả chi tiết">
-                    <Input placeholder="Mô tả ngắn về dịch vụ thêm này..." value={newAddon.description}
-                      onChange={e => setNewAddon(p => ({ ...p, description: e.target.value }))} className="h-10 rounded-xl" />
-                  </Field>
+                  {/* Row 3: Chi tiết */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-foreground">Chi tiết</span>
+                    <BaseButton
+                      type="button"
+                      variant={newAddon.description ? "primary" : "outline"}
+                      onClick={() => setIsOpenAddonDetailModal(true)}
+                      className={cn(
+                        "h-9 text-xs font-extrabold rounded-lg gap-1.5 transition-all shadow-2xs border-slate-300 px-4",
+                        newAddon.description
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 hover:text-white"
+                          : "hover:bg-slate-50 text-slate-700 bg-white"
+                      )}
+                    >
+                      <ScrollText className="w-3.5 h-3.5" />
+                      {newAddon.description ? "Đã có mô tả" : "Thêm chi tiết"}
+                    </BaseButton>
+                  </div>
 
                   <div className="flex items-center justify-between">
                     {newAddon.name && newAddon.price ? (
@@ -1265,7 +1202,7 @@ export function StepPricingConfig({
                   <div className="py-10 text-center text-muted-foreground text-xs bg-muted/5 border border-dashed border-border/40 rounded-2xl space-y-2">
                     <Plus className="w-8 h-8 mx-auto text-muted-foreground/30" />
                     <p className="font-semibold">Chưa có dịch vụ thêm nào.</p>
-                    <p>Chọn nhanh từ thư viện bên trên hoặc tự điền form.</p>
+                    <p>Điền form bên trên để thêm dịch vụ thêm đầu tiên.</p>
                   </div>
                 ) : (
                   <div className="border border-border/30 rounded-xl overflow-hidden bg-card shadow-2xs">
@@ -1664,36 +1601,7 @@ export function StepPricingConfig({
               <TabsContent value="peakhours" className="space-y-3">
                 <div className="border border-border/40 rounded-xl bg-card divide-y divide-border/30">
 
-                  {/* ── Preset nhanh ── */}
-                  <div className="px-4 py-3 flex items-start gap-3">
-                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-0.5">Chọn nhanh</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PEAK_HOUR_QUICK_PRESETS.map(preset => (
-                        <button type="button" key={preset.label}
-                          onClick={() => {
-                            if (preset.entries) {
-                              const toAdd = preset.entries.filter(e =>
-                                !peakHours.some(p => p.dayOfWeek === e.dayOfWeek && p.startHour === e.startHour && p.endHour === e.endHour)
-                              );
-                              if (toAdd.length === 0) { toast.info("Cấu hình này đã được thêm rồi"); return; }
-                              setPeakHours(prev => [...prev, ...toAdd]);
-                              toast.success(`Đã thêm "${preset.label}"`);
-                            } else {
-                              setNewPeakHour(p => ({
-                                ...p, dayOfWeek: preset.dayOfWeek!,
-                                startHour: preset.startHour!, endHour: preset.endHour!, multiplier: preset.multiplier,
-                              }));
-                            }
-                          }}
-                          className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors"
-                        >
-                          {preset.label} <span className="text-slate-400 font-normal">·</span> +{Math.round((parseFloat(preset.multiplier) - 1) * 100)}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* ── Ngày áp dụng ── */}
+                  {/* ── Ngày áp dụng (chọn nhiều ngày) ── */}
                   <div className="px-4 py-3 flex items-center gap-3">
                     <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Ngày</span>
                     <div className="flex flex-wrap gap-1.5">
@@ -1702,18 +1610,33 @@ export function StepPricingConfig({
                         { value: "3", label: "Thứ 4" }, { value: "4", label: "Thứ 5" },
                         { value: "5", label: "Thứ 6" }, { value: "6", label: "Thứ 7" },
                         { value: "0", label: "Chủ nhật" }, { value: "7", label: "Hàng ngày" },
-                      ].map(d => (
-                        <button type="button" key={d.value}
-                          onClick={() => setNewPeakHour(p => ({ ...p, dayOfWeek: d.value }))}
-                          className={cn(
-                            "px-3 py-1 rounded-lg border text-sm font-semibold transition-colors",
-                            newPeakHour.dayOfWeek === d.value
-                              ? "bg-primary text-white border-primary"
-                              : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
-                          )}>
-                          {d.label}
-                        </button>
-                      ))}
+                      ].map(d => {
+                        const selectedDays = newPeakHour.selectedDays ?? [];
+                        const active = selectedDays.includes(d.value);
+                        return (
+                          <button type="button" key={d.value}
+                            onClick={() => setNewPeakHour(p => {
+                              const current = p.selectedDays ?? [];
+                              if (d.value === "7") {
+                                return { ...p, selectedDays: current.includes("7") ? [] : ["7"] };
+                              }
+                              const withoutEveryday = current.filter(v => v !== "7");
+                              const next = withoutEveryday.includes(d.value)
+                                ? withoutEveryday.filter(v => v !== d.value)
+                                : [...withoutEveryday, d.value];
+                              return { ...p, selectedDays: next };
+                            })}
+                            className={cn(
+                              "px-3 py-1 rounded-lg border text-sm font-semibold transition-colors inline-flex items-center gap-1",
+                              active
+                                ? "bg-primary text-white border-primary"
+                                : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
+                            )}>
+                            {active && <Check className="w-3 h-3" />}
+                            {d.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1721,45 +1644,15 @@ export function StepPricingConfig({
                   <div className="px-4 py-3 flex items-start gap-3">
                     <span className="text-sm font-extrabold text-foreground w-28 shrink-0 pt-1">Khung giờ</span>
                     <div className="flex-1 space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          { label: "Sáng sớm", start: "06:00", end: "09:00" },
-                          { label: "Buổi sáng", start: "08:00", end: "11:00" },
-                          { label: "Buổi trưa", start: "11:00", end: "14:00" },
-                          { label: "Buổi chiều", start: "14:00", end: "18:00" },
-                          { label: "Chiều tối", start: "17:00", end: "20:00" },
-                          { label: "Buổi tối", start: "19:00", end: "22:00" },
-                          { label: "Cả ngày", start: "06:00", end: "22:00" },
-                        ].map(t => {
-                          const active = newPeakHour.startHour === t.start && newPeakHour.endHour === t.end;
-                          return (
-                            <button type="button" key={t.label}
-                              onClick={() => setNewPeakHour(p => ({ ...p, startHour: t.start, endHour: t.end }))}
-                              className={cn(
-                                "px-2.5 py-1 rounded-lg border text-sm font-semibold transition-colors",
-                                active
-                                  ? "bg-primary text-white border-primary"
-                                  : "bg-white text-slate-700 border-slate-200 hover:border-primary/60 hover:text-primary"
-                              )}>
-                              {t.label}
-                              <span className={cn("ml-1 font-mono text-xs", active ? "opacity-70" : "text-slate-400")}>{t.start}–{t.end}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 h-9 focus-within:border-slate-500 transition-colors">
+                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg pl-3 pr-1.5 h-9 focus-within:border-slate-500 transition-colors">
                           <span className="text-xs text-slate-400 font-medium shrink-0">từ</span>
-                          <input type="time" value={newPeakHour.startHour}
-                            onChange={e => setNewPeakHour(p => ({ ...p, startHour: e.target.value }))}
-                            className="text-sm font-bold bg-transparent outline-none w-24" />
+                          <TimeSelect value={newPeakHour.startHour} onChange={v => setNewPeakHour(p => ({ ...p, startHour: v }))} />
                         </div>
                         <span className="text-slate-400 font-bold">→</span>
-                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 h-9 focus-within:border-slate-500 transition-colors">
+                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg pl-3 pr-1.5 h-9 focus-within:border-slate-500 transition-colors">
                           <span className="text-xs text-slate-400 font-medium shrink-0">đến</span>
-                          <input type="time" value={newPeakHour.endHour}
-                            onChange={e => setNewPeakHour(p => ({ ...p, endHour: e.target.value }))}
-                            className="text-sm font-bold bg-transparent outline-none w-24" />
+                          <TimeSelect value={newPeakHour.endHour} onChange={v => setNewPeakHour(p => ({ ...p, endHour: v }))} />
                         </div>
                       </div>
                     </div>
@@ -1816,11 +1709,34 @@ export function StepPricingConfig({
                     />
                   </div>
 
+                  {/* ── Chi tiết (tuỳ chọn) ── */}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <span className="text-sm font-extrabold text-foreground w-28 shrink-0">Chi tiết</span>
+                    <BaseButton
+                      type="button"
+                      variant={newPeakHour.title ? "primary" : "outline"}
+                      onClick={() => setIsOpenPeakHourDetailModal(true)}
+                      className={cn(
+                        "h-9 text-xs font-extrabold rounded-lg gap-1.5 transition-all shadow-2xs border-slate-300 px-4",
+                        newPeakHour.title
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 hover:text-white"
+                          : "hover:bg-slate-50 text-slate-700 bg-white"
+                      )}
+                    >
+                      <ScrollText className="w-3.5 h-3.5" />
+                      {newPeakHour.title ? `Đã đặt tên: ${newPeakHour.title}` : "Thêm tên & mô tả"}
+                    </BaseButton>
+                  </div>
+
                   {/* ── Submit ── */}
                   <div className="px-4 py-3 flex items-center justify-between bg-slate-50/50">
                     <p className="text-sm text-slate-500">
-                      {newPeakHour.startHour && newPeakHour.endHour && newPeakHour.multiplier && parseFloat(newPeakHour.multiplier) > 1
-                        ? <><span className="font-bold text-foreground">{["CN","T2","T3","T4","T5","T6","T7","Hàng ngày"][parseInt(newPeakHour.dayOfWeek)]}</span>
+                      {newPeakHour.startHour && newPeakHour.endHour && newPeakHour.multiplier && parseFloat(newPeakHour.multiplier) > 1 && (newPeakHour.selectedDays?.length ?? 0) > 0
+                        ? <><span className="font-bold text-foreground">
+                            {(newPeakHour.selectedDays ?? []).includes("7")
+                              ? "Hàng ngày"
+                              : (newPeakHour.selectedDays ?? []).map(d => ["CN","T2","T3","T4","T5","T6","T7"][parseInt(d)]).join(", ")}
+                          </span>
                           <span className="mx-1.5 text-muted-foreground/40">·</span>
                           <span className="font-bold text-foreground">{newPeakHour.startHour} – {newPeakHour.endHour}</span>
                           <span className="mx-1.5 text-muted-foreground/40">·</span>
@@ -1863,7 +1779,7 @@ export function StepPricingConfig({
                               <td className="py-3.5 px-4">
                                 <span className="font-extrabold text-foreground text-[13px] block leading-tight">{daysText[p.dayOfWeek]}</span>
                                 <span className="text-[10px] text-muted-foreground/70 font-medium block mt-0.5">
-                                  {p.dayOfWeek === 7 ? "Áp dụng tất cả các ngày trong tuần" : `Chỉ áp dụng vào ${daysText[p.dayOfWeek]}`}
+                                  {p.title || (p.dayOfWeek === 7 ? "Áp dụng tất cả các ngày trong tuần" : `Chỉ áp dụng vào ${daysText[p.dayOfWeek]}`)}
                                 </span>
                               </td>
                               {/* Khung giờ */}
@@ -1926,7 +1842,7 @@ export function StepPricingConfig({
                                       <TooltipTrigger asChild>
                                         <button type="button"
                                           onClick={() => {
-                                            setEditPeakHour({ dayOfWeek: String(p.dayOfWeek), startHour: p.startHour, endHour: p.endHour, multiplier: String(p.multiplier), startDate: p.startDate ?? "", endDate: p.endDate ?? "", isActive: p.isActive });
+                                            setEditPeakHour({ dayOfWeek: String(p.dayOfWeek), startHour: p.startHour, endHour: p.endHour, multiplier: String(p.multiplier), startDate: p.startDate ?? "", endDate: p.endDate ?? "", isActive: p.isActive, title: p.title ?? "", description: p.description ?? "" });
                                             setEditingPeakHourIdx(i);
                                           }}
                                           className="p-1.5 rounded-lg hover:bg-amber-50 text-muted-foreground hover:text-amber-600 transition-colors">
@@ -2036,6 +1952,10 @@ export function StepPricingConfig({
         setEditAddonModal={setEditAddonModal}
         ADDON_PRICE_UNIT_LABELS={ADDON_PRICE_UNIT_LABELS}
         setAddons={setAddons}
+        newAddon={newAddon}
+        setNewAddon={setNewAddon}
+        isOpenAddonDetailModal={isOpenAddonDetailModal}
+        setIsOpenAddonDetailModal={setIsOpenAddonDetailModal}
         viewingAddon={viewingAddon}
         setViewingAddon={setViewingAddon}
         addons={addons}
@@ -2046,10 +1966,14 @@ export function StepPricingConfig({
         setViewingPeakHour={setViewingPeakHour}
         peakHours={peakHours}
         setPeakHours={setPeakHours}
+        newPeakHour={newPeakHour}
+        setNewPeakHour={setNewPeakHour}
         setEditPeakHour={setEditPeakHour}
         setEditingPeakHourIdx={setEditingPeakHourIdx}
         editingPeakHourIdx={editingPeakHourIdx}
         editPeakHour={editPeakHour}
+        isOpenPeakHourDetailModal={isOpenPeakHourDetailModal}
+        setIsOpenPeakHourDetailModal={setIsOpenPeakHourDetailModal}
         inlineDdRect={inlineDdRect}
         isOpenInlineHoursDropdown={isOpenInlineHoursDropdown}
         inlineEditValue={inlineEditValue}

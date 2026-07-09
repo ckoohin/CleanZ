@@ -3,7 +3,6 @@ import { UserRole } from '../enums/user-role.enum';
 import { ForbiddenException } from '@nestjs/common';
 
 export const assertCanAccess = (
-  //check quyeen truy cập
   requestUserId: string,
   targetUserId: string,
   requestUserRole: UserRole,

@@ -35,4 +35,14 @@ export const customerIncidentApi = {
 
   withdraw: (id: string, dto: WithdrawInput): Promise<IncidentCustomerView> =>
     http.patch<IncidentCustomerView>(EP.WITHDRAW(id), dto).then((r) => r.data),
+
+  /** P1.4 — Gắn evidence đã upload vào hạng mục bị yêu cầu bổ sung. */
+  attachItemEvidence: (
+    id: string,
+    itemId: string,
+    evidenceIds: string[],
+  ): Promise<IncidentCustomerView> =>
+    http
+      .post<IncidentCustomerView>(EP.ITEM_EVIDENCES(id, itemId), { evidenceIds })
+      .then((r) => r.data),
 };

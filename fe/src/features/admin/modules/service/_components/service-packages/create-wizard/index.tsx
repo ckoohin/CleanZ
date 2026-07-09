@@ -199,6 +199,7 @@ export function ServicePackageCreateWizard() {
 
   const [editingAddonIndex, setEditingAddonIndex] = useState<number | null>(null);
   const [editAddonModal, setEditAddonModal] = useState<EditAddonModalState | null>(null);
+  const [isOpenAddonDetailModal, setIsOpenAddonDetailModal] = useState(false);
   const [newSubscription, setNewSubscription] = useState({
     name: "",
     description: "",
@@ -214,7 +215,6 @@ export function ServicePackageCreateWizard() {
 
   const [editingSubscriptionIndex, setEditingSubscriptionIndex] = useState<number | null>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [showAddonPresets, setShowAddonPresets] = useState(false);
   const [viewingAddon, setViewingAddon] = useState<ServiceAddonEntity | null>(null);
   const [detailSvc, setDetailSvc] = useState<AdminServiceEntity | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<AdminServiceEntity | null>(null);
@@ -229,7 +229,7 @@ export function ServicePackageCreateWizard() {
   const [crudForm, setCrudForm] = useState<CrudFormState>(CRUD_EMPTY);
 
   const [newPeakHour, setNewPeakHour] = useState<PeakHourFormState>({
-    dayOfWeek: "1", startHour: "08:00", endHour: "22:00", multiplier: "1.1",
+    dayOfWeek: "1", selectedDays: ["1"], startHour: "08:00", endHour: "22:00", multiplier: "1.1",
     startDate: "", endDate: "", isActive: true
   });
   const [editingPeakHourIdx, setEditingPeakHourIdx] = useState<number | null>(null);
@@ -238,6 +238,7 @@ export function ServicePackageCreateWizard() {
     startDate: "", endDate: "", isActive: true
   });
   const [viewingPeakHour, setViewingPeakHour] = useState<ServicePeakHourEntity | null>(null);
+  const [isOpenPeakHourDetailModal, setIsOpenPeakHourDetailModal] = useState(false);
 
   // Dropdown visibility states for searchable select inputs
   const [isOpenAreaDropdown, setIsOpenAreaDropdown] = useState(false);
@@ -546,7 +547,11 @@ export function ServicePackageCreateWizard() {
   };
 
   const handleSavePeakHour = () => {
-    const day = Number(newPeakHour.dayOfWeek);
+    const days = newPeakHour.selectedDays ?? [];
+    if (days.length === 0) {
+      toast.error("Vui lòng chọn ít nhất 1 ngày áp dụng");
+      return;
+    }
     const mult = parseFloat(newPeakHour.multiplier);
     if (isNaN(mult) || mult < 1) {
       toast.error("Hệ số nhân phải từ 1.0 trở lên");
@@ -557,18 +562,29 @@ export function ServicePackageCreateWizard() {
       return;
     }
 
-    setPeakHours(prev => [...prev, {
-      dayOfWeek: day,
-      startHour: newPeakHour.startHour,
-      endHour: newPeakHour.endHour,
-      multiplier: mult,
-      startDate: newPeakHour.startDate || null,
-      endDate: newPeakHour.endDate || null,
-      isActive: newPeakHour.isActive,
-    }]);
+    const newEntries = days
+      .map(Number)
+      .filter(day => !peakHours.some(p => p.dayOfWeek === day && p.startHour === newPeakHour.startHour && p.endHour === newPeakHour.endHour))
+      .map(day => ({
+        dayOfWeek: day,
+        startHour: newPeakHour.startHour,
+        endHour: newPeakHour.endHour,
+        multiplier: mult,
+        startDate: newPeakHour.startDate || null,
+        endDate: newPeakHour.endDate || null,
+        isActive: newPeakHour.isActive,
+        title: newPeakHour.title?.trim() || null,
+        description: newPeakHour.description?.trim() || null,
+      }));
 
-    setNewPeakHour({ dayOfWeek: "1", startHour: "08:00", endHour: "22:00", multiplier: "1.1", startDate: "", endDate: "", isActive: true });
-    toast.success("Đã thêm khung giờ cao điểm");
+    if (newEntries.length === 0) {
+      toast.info("Các ngày đã chọn đều đã có cấu hình khung giờ này rồi");
+      return;
+    }
+
+    setPeakHours(prev => [...prev, ...newEntries]);
+    setNewPeakHour({ dayOfWeek: "1", selectedDays: ["1"], startHour: "08:00", endHour: "22:00", multiplier: "1.1", startDate: "", endDate: "", isActive: true, title: "", description: "" });
+    toast.success(newEntries.length > 1 ? `Đã thêm ${newEntries.length} khung giờ cao điểm` : "Đã thêm khung giờ cao điểm");
   };
 
   const handleSubmit = async () => {
@@ -657,6 +673,8 @@ export function ServicePackageCreateWizard() {
           startDate: p.startDate || null,
           endDate: p.endDate || null,
           isActive: p.isActive,
+          title: p.title || undefined,
+          description: p.description || undefined,
         })),
 
         subServices: selectedSubServices.map(s => ({
@@ -811,34 +829,6 @@ export function ServicePackageCreateWizard() {
     yearly: "Năm",
   };
 
-  const PEAK_HOUR_QUICK_PRESETS = [
-    {
-      label: "Tối Thứ Bảy & Cả Ngày Chủ Nhật (Hệ số x1.15)",
-      icon: DollarSign,
-      multiplier: "1.15",
-      entries: [
-        { dayOfWeek: 6, startHour: "18:00", endHour: "22:00", multiplier: 1.15, isActive: true },
-        { dayOfWeek: 0, startHour: "08:00", endHour: "22:00", multiplier: 1.15, isActive: true },
-      ],
-    },
-    {
-      label: "Mọi ngày khung giờ vàng (17h - 20h, Hệ số x1.1)",
-      icon: DollarSign,
-      multiplier: "1.1",
-      entries: Array.from({ length: 7 }, (_, i) => ({
-        dayOfWeek: i, startHour: "17:00", endHour: "20:00", multiplier: 1.1, isActive: true
-      })),
-    },
-    {
-      label: "Giờ cao điểm trưa (11h - 13h, Hệ số x1.05)",
-      icon: DollarSign,
-      multiplier: "1.05",
-      entries: Array.from({ length: 7 }, (_, i) => ({
-        dayOfWeek: i, startHour: "11:00", endHour: "13:00", multiplier: 1.05, isActive: true
-      })),
-    },
-  ];
-
   const resetNewSubscription = () => {
     setNewSubscription({ name: "", description: "", bonusDescription: "", discountPercent: "", billingCycle: "monthly", sessionsPerCycle: "", commitmentMonths: "", isPopular: false, sortOrder: "", isActive: true });
   };
@@ -964,9 +954,6 @@ export function ServicePackageCreateWizard() {
           setIsOpenInlineAdjustmentDropdown={setIsOpenInlineAdjustmentDropdown}
           setEditingDurationIndex={setEditingDurationIndex}
           setViewingDuration={setViewingDuration}
-          showAddonPresets={showAddonPresets}
-          setShowAddonPresets={setShowAddonPresets}
-          ADDON_PRESETS={[]} // Optional mock preset if any
           addons={addons}
           setAddons={setAddons}
           ADDON_PRICE_UNIT_LABELS={ADDON_PRICE_UNIT_LABELS}
@@ -976,6 +963,8 @@ export function ServicePackageCreateWizard() {
           handleEditAddon={handleEditAddon}
           editAddonModal={editAddonModal}
           setEditAddonModal={setEditAddonModal}
+          isOpenAddonDetailModal={isOpenAddonDetailModal}
+          setIsOpenAddonDetailModal={setIsOpenAddonDetailModal}
           setViewingAddon={setViewingAddon}
           searchSvc={searchSvc}
           setSearchSvc={setSearchSvc}
@@ -998,7 +987,6 @@ export function ServicePackageCreateWizard() {
           BILLING_CYCLE_LABELS={BILLING_CYCLE_LABELS}
           showSubscriptionModal={showSubscriptionModal}
           setShowSubscriptionModal={setShowSubscriptionModal}
-          PEAK_HOUR_QUICK_PRESETS={PEAK_HOUR_QUICK_PRESETS}
           peakHours={peakHours}
           setPeakHours={setPeakHours}
           newPeakHour={newPeakHour}
@@ -1007,6 +995,8 @@ export function ServicePackageCreateWizard() {
           setViewingPeakHour={setViewingPeakHour}
           setEditPeakHour={setEditPeakHour}
           setEditingPeakHourIdx={setEditingPeakHourIdx}
+          isOpenPeakHourDetailModal={isOpenPeakHourDetailModal}
+          setIsOpenPeakHourDetailModal={setIsOpenPeakHourDetailModal}
           setStep={setStep}
           detailSvc={detailSvc}
           deleteConfirm={deleteConfirm}

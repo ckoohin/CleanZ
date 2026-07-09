@@ -215,7 +215,9 @@ export class BookingController {
       'Chỉ booking ở trạng thái PENDING_CUSTOMER_CONFIRMATION mới được xác nhận. Sau khi xác nhận, booking chuyển sang CONFIRMED.',
   })
   @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
-  @ApiOkResponse({ description: 'Booking chuyển PENDING_CUSTOMER_CONFIRMATION → CONFIRMED' })
+  @ApiOkResponse({
+    description: 'Booking chuyển PENDING_CUSTOMER_CONFIRMATION → CONFIRMED',
+  })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   confirmTaskerBooking(
     @CurrentUser('id') userId: string,
@@ -237,7 +239,9 @@ export class BookingController {
       'Chỉ booking ở trạng thái PENDING_CUSTOMER_CONFIRMATION mới được từ chối. Booking chuyển sang CANCELLED.',
   })
   @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
-  @ApiOkResponse({ description: 'Booking chuyển PENDING_CUSTOMER_CONFIRMATION → CANCELLED' })
+  @ApiOkResponse({
+    description: 'Booking chuyển PENDING_CUSTOMER_CONFIRMATION → CANCELLED',
+  })
   @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
   declineTaskerBooking(
     @CurrentUser('id') userId: string,

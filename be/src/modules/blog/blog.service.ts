@@ -160,7 +160,9 @@ export class BlogService {
       blog.title = dto.title ?? blog.title;
       blog.summary = dto.summary !== undefined ? dto.summary : blog.summary;
       blog.content =
-        dto.content !== undefined ? sanitizeBlogContent(dto.content) : blog.content;
+        dto.content !== undefined
+          ? sanitizeBlogContent(dto.content)
+          : blog.content;
       blog.thumbnailUrl =
         dto.thumbnail_url !== undefined ? dto.thumbnail_url : blog.thumbnailUrl;
       blog.categoryId =
@@ -432,7 +434,8 @@ export class BlogService {
     manager?: EntityManager,
   ): Promise<void> {
     if (!categoryId) return;
-    const repo = manager?.getRepository(BlogCategoryEntity) ?? this.categoryRepo;
+    const repo =
+      manager?.getRepository(BlogCategoryEntity) ?? this.categoryRepo;
     const exists = await repo.exist({ where: { id: categoryId } });
     if (!exists) throw new BadRequestException('BLOG_CATEGORY_NOT_FOUND');
   }
@@ -462,9 +465,7 @@ export class BlogService {
       if (found) {
         tagEntities.push(found);
       } else {
-        const created = await tagRepo.save(
-          tagRepo.create({ name, slug }),
-        );
+        const created = await tagRepo.save(tagRepo.create({ name, slug }));
         tagEntities.push(created);
       }
     }

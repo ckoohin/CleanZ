@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { BookingSource } from 'src/common/enums/booking-source.enum';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
@@ -24,10 +24,6 @@ import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { PaymentService } from 'src/modules/payment/payment.service';
-import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
-import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
-import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import {
   AvailableVoucherItem,
   VouchersService,
@@ -39,6 +35,7 @@ import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingLocationPolicyService } from './booking-location-policy.service';
 import { BookingPolicyService } from './booking-policy.service';
+import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
 const CONFIRMATION_DEADLINE_MINUTES = 15;
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
@@ -145,9 +142,8 @@ export class TaskerCreateBookingService {
       );
 
       // 5. Tính schedule — cho phép now() nếu không truyền giờ
-      const { scheduledStart, scheduledEnd, scheduledStartDate, scheduledStartTime, scheduledEndDate, scheduledEndTime } =
+      const { scheduledStart, scheduledStartDate, scheduledStartTime } =
         this.resolveSchedule(dto);
-
       // 6. Tính giá
       const hasPet = dto.hasPet ?? addressRef?.hasPet ?? false;
       const price = await this.pricingService.calculateBookingPrice(
@@ -196,7 +192,8 @@ export class TaskerCreateBookingService {
           );
         }
 
-        const bookingCode = await this.generateUniqueBookingCode(bookingRepository);
+        const bookingCode =
+          await this.generateUniqueBookingCode(bookingRepository);
 
         const booking = bookingRepository.create({
           bookingCode,
@@ -299,7 +296,9 @@ export class TaskerCreateBookingService {
         }
 
         // Snapshot sub-services
-        const bookingSubServiceRepository = manager.getRepository(BookingSubServiceEntity);
+        const bookingSubServiceRepository = manager.getRepository(
+          BookingSubServiceEntity,
+        );
         const bookingSubServices = price.subServices.map((sub) =>
           bookingSubServiceRepository.create({
             booking: savedBooking,
@@ -462,7 +461,9 @@ export class TaskerCreateBookingService {
       .findOne({ where: { user: { id: user.id } } });
 
     if (!customer) {
-      throw new NotFoundException('Số điện thoại này chưa đăng ký tài khoản khách hàng');
+      throw new NotFoundException(
+        'Số điện thoại này chưa đăng ký tài khoản khách hàng',
+      );
     }
 
     return { customer, customerUser: user };
@@ -519,8 +520,13 @@ export class TaskerCreateBookingService {
   private async resolveAddress(
     dto: CreateBookingForCustomerDto,
     customerId: string | null,
-  ): Promise<{ addressRef: CustomerAddressEntity | null; bookingAddress: string }> {
-    const addressRepository = this.dataSource.getRepository(CustomerAddressEntity);
+  ): Promise<{
+    addressRef: CustomerAddressEntity | null;
+    bookingAddress: string;
+  }> {
+    const addressRepository = this.dataSource.getRepository(
+      CustomerAddressEntity,
+    );
 
     if (dto.addressId && customerId) {
       const addressRef = await addressRepository.findOne({
@@ -577,7 +583,10 @@ export class TaskerCreateBookingService {
       );
     }
 
-    return { addressRef: defaultAddress, bookingAddress: defaultAddress.fullAddress };
+    return {
+      addressRef: defaultAddress,
+      bookingAddress: defaultAddress.fullAddress,
+    };
   }
 
   private resolveSchedule(dto: CreateBookingForCustomerDto): {
@@ -591,7 +600,9 @@ export class TaskerCreateBookingService {
     let scheduledStart: Date;
 
     if (dto.scheduledDate && dto.scheduledTime) {
-      const parsed = new Date(`${dto.scheduledDate}T${dto.scheduledTime}:00+07:00`);
+      const parsed = new Date(
+        `${dto.scheduledDate}T${dto.scheduledTime}:00+07:00`,
+      );
       if (Number.isNaN(parsed.getTime())) {
         throw new BadRequestException('Thời gian bắt đầu không hợp lệ');
       }
@@ -631,7 +642,9 @@ export class TaskerCreateBookingService {
   ): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const bookingCode = generateOrderCode();
-      const existing = await bookingRepository.findOne({ where: { bookingCode } });
+      const existing = await bookingRepository.findOne({
+        where: { bookingCode },
+      });
       if (!existing) return bookingCode;
     }
     throw new BadRequestException('Không thể tạo mã booking, vui lòng thử lại');

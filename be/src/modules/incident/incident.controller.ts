@@ -26,6 +26,7 @@ import { IncidentService } from './services/incident.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { WithdrawIncidentDto } from './dto/withdraw-incident.dto';
+import { AttachItemEvidenceDto } from './dto/attach-item-evidence.dto';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/jpg'];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -89,5 +90,24 @@ export class IncidentController {
     @Body() dto: WithdrawIncidentDto,
   ) {
     return this.incidentService.withdraw(userId, id, dto);
+  }
+
+  @Post(':id/damage-items/:itemId/evidences')
+  @ApiOperation({
+    summary:
+      'P1.4 — Bổ sung bằng chứng cho hạng mục bị yêu cầu (NEED_MORE_EVIDENCE)',
+  })
+  attachItemEvidence(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() dto: AttachItemEvidenceDto,
+  ) {
+    return this.incidentService.attachItemEvidence(
+      userId,
+      id,
+      itemId,
+      dto.evidenceIds,
+    );
   }
 }

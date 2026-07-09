@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -10,8 +11,17 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -23,8 +33,21 @@ import { IncidentConfigService } from './services/incident-config.service';
 import { QueryAdminIncidentDto } from './dto/query-admin-incident.dto';
 import { AcceptIncidentDto } from './dto/accept-incident.dto';
 import { VerifyItemsDto } from './dto/verify-items.dto';
-import { DecideIncidentDto } from './dto/decide-incident.dto';
 import { CreateFromTicketDto } from './dto/create-from-ticket.dto';
+import { SaveIncidentDecisionDraftDto } from './dto/save-incident-decision-draft.dto';
+import { SubmitIncidentDecisionDraftDto } from './dto/submit-incident-decision-draft.dto';
+import { ReviewIncidentDecisionResponseDto } from './dto/review-incident-decision-response.dto';
+import { ReviseIncidentDecisionDto } from './dto/revise-incident-decision.dto';
+import { FinalizeIncidentDecisionDto } from './dto/finalize-incident-decision.dto';
+import { ReverseCompensationDto } from './dto/reverse-compensation.dto';
+import { ManualCompensateDto } from './dto/manual-compensate.dto';
+import { SecondApprovalIncidentDecisionDto } from './dto/second-approval-incident-decision.dto';
+import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
+import { IncidentReconciliationService } from './services/incident-reconciliation.service';
+import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
+
+const PROOF_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/jpg'];
+const PROOF_MAX_SIZE = 5 * 1024 * 1024;
 
 @Controller('admin/incidents')
 @ApiTags('Admin Incidents')
@@ -37,6 +60,8 @@ export class IncidentAdminController {
     private readonly compensationExecutor: CompensationExecutorService,
     private readonly automation: IncidentAutomationService,
     private readonly config: IncidentConfigService,
+    private readonly reconciliation_: IncidentReconciliationService,
+    private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
   ) {}
 
   @Get()
@@ -56,6 +81,14 @@ export class IncidentAdminController {
   async updateConfig(@Body() body: Record<string, string | number>) {
     await this.config.updateConfig(body);
     return this.config.getEffectiveConfig();
+  }
+
+  @Get('reconciliation')
+  @ApiOperation({
+    summary: 'P2 — Đối soát allocation ↔ bút toán ví (audit tiền bồi thường)',
+  })
+  reconciliation() {
+    return this.reconciliation_.reconcile();
   }
 
   @Post('run-housekeeping')
@@ -104,37 +137,153 @@ export class IncidentAdminController {
     return this.adminService.verifyItems(id, dto);
   }
 
-  @Patch(':id/decide')
-  @ApiOperation({
-    summary: 'Quyết định (APPROVE: phân bổ nguồn / REJECT: lý do)',
-  })
-  decide(
+  @Patch(':id/decision-draft')
+  @ApiOperation({ summary: 'Luu/sua draft quyet dinh incident v1.4.2' })
+  saveDecisionDraft(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: DecideIncidentDto,
+    @Body() dto: SaveIncidentDecisionDraftDto,
   ) {
-    return this.decisionService.decide(adminUserId, id, dto);
+    return this.decisionService.saveDraft(adminUserId, id, dto);
   }
 
-  @Patch(':id/approve-compensation')
-  @ApiOperation({ summary: 'Duyệt cấp 2 (maker-checker) cho claim lớn' })
-  approveCompensation(
+  @Post(':id/decision-draft/submit')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Submit draft bat loi cho Tasker phan hoi' })
+  submitDecisionDraft(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitIncidentDecisionDraftDto,
   ) {
-    return this.decisionService.approveCompensation(adminUserId, id);
+    return this.decisionService.submitDraftForTaskerResponse(
+      adminUserId,
+      id,
+      dto,
+    );
+  }
+
+  @Post(':id/decision/extend-response')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'C6 — Gia hạn bắt buộc cho Tasker phản hồi (draft bất lợi, đã hết hạn)',
+  })
+  extendTaskerResponse(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitIncidentDecisionDraftDto,
+  ) {
+    return this.decisionService.extendTaskerResponse(adminUserId, id, dto);
+  }
+
+  @Patch(':id/decision-response/review')
+  @ApiOperation({ summary: 'Admin review phan hoi quyet dinh cua Tasker' })
+  reviewDecisionResponse(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewIncidentDecisionResponseDto,
+  ) {
+    return this.decisionService.reviewDecisionResponse(adminUserId, id, dto);
+  }
+
+  @Patch(':id/decision/revise')
+  @ApiOperation({
+    summary: 'Admin revise noi dung decision va tao version moi',
+  })
+  reviseDecision(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviseIncidentDecisionDto,
+  ) {
+    return this.decisionService.reviseDecision(adminUserId, id, dto);
+  }
+
+  @Post(':id/decision/finalize')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Finalize decision hoac chuyen sang Admin #2' })
+  finalizeDecision(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: FinalizeIncidentDecisionDto,
+  ) {
+    return this.decisionService.finalizeDecision(adminUserId, id, dto);
+  }
+
+  @Patch(':id/second-approval')
+  @ApiOperation({ summary: 'Admin #2 approve hoac request changes decision' })
+  secondApproval(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SecondApprovalIncidentDecisionDto,
+  ) {
+    return this.decisionService.secondApproval(adminUserId, id, dto);
   }
 
   @Post(':id/compensate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Thực thi bồi thường (record-only — wallet mock Phase 1)',
-  })
+  @ApiOperation({ summary: 'Chi trả bồi thường (chuyển tiền thật qua ví)' })
   compensate(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.compensationExecutor.execute(adminUserId, id);
+  }
+
+  @Post(':id/compensation/reverse')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'P1.1 — Thu hồi/đảo bồi thường đã chi (Admin #2), reopen để sửa',
+  })
+  reverseCompensation(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReverseCompensationDto,
+  ) {
+    return this.compensationExecutor.reverse(adminUserId, id, dto.reason);
+  }
+
+  @Post('evidences/transfer-proof')
+  @ApiOperation({
+    summary: 'P0.4 — Upload ảnh minh chứng chuyển khoản (chi trả thủ công)',
+  })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: PROOF_MAX_SIZE },
+    }),
+  )
+  uploadTransferProof(
+    @CurrentUser('id') adminUserId: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Thiếu ảnh minh chứng');
+    if (!PROOF_ALLOWED_MIME.includes(file.mimetype)) {
+      throw new BadRequestException('Chỉ chấp nhận ảnh (jpg/png)');
+    }
+    return this.evidenceLifecycle.uploadDetachedEvidence(adminUserId, file, {
+      purpose: IncidentEvidencePurpose.COMPENSATION_TRANSFER_PROOF,
+      visibility: 'ADMIN_ONLY',
+    });
+  }
+
+  @Post(':id/compensate/manual')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'P0.4 — Chi trả thủ công (chuyển khoản ngoài + ảnh minh chứng) khi quỹ SYSTEM không đủ',
+  })
+  compensateManual(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ManualCompensateDto,
+  ) {
+    return this.compensationExecutor.executeManual(
+      adminUserId,
+      id,
+      dto.proofEvidenceId,
+      dto.note,
+    );
   }
 
   @Patch(':id/unlock-reporter')

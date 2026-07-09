@@ -2,15 +2,18 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { IncidentEntity } from './entity/incident.entity';
 import { IncidentDamageItemEntity } from './entity/incident-damage-item.entity';
+import { IncidentDecisionResponseEntity } from './entity/incident-decision-response.entity';
 import { IncidentEvidenceEntity } from './entity/incident-evidence.entity';
 import { IncidentStatementEntity } from './entity/incident-statement.entity';
 import { IncidentStatusLogEntity } from './entity/incident-status-log.entity';
+import { NotificationOutboxEntity } from './entity/notification-outbox.entity';
 import { CustomerIncidentStrikeEntity } from './entity/customer-incident-strike.entity';
 import { BookingEntity } from '../booking/entity/booking.entity';
 import { SupportTicketEntity } from '../support-ticket/entity/support-ticket.entity';
 import { UploadModule } from '../upload/upload.module';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { NotificationModule } from '../notification/notification.module';
+import { WalletModule } from '../wallet/wallet.module';
 import { IncidentController } from './incident.controller';
 import { IncidentAdminController } from './incident-admin.controller';
 import { IncidentTaskerController } from './incident-tasker.controller';
@@ -25,15 +28,23 @@ import { IncidentStateService } from './services/incident-state.service';
 import { FraudStrikeService } from './services/fraud-strike.service';
 import { IncidentNotifier } from './services/incident-notifier.service';
 import { IncidentAutomationService } from './services/incident-automation.service';
+import { IncidentNotificationOutboxWorkerService } from './services/incident-notification-outbox-worker.service';
+import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
+import { IncidentDepositHoldService } from './services/incident-deposit-hold.service';
+import { IncidentDebtRecoveryService } from './services/incident-debt-recovery.service';
+import { IncidentReconciliationService } from './services/incident-reconciliation.service';
+import { IncidentAlertService } from './services/incident-alert.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       IncidentEntity,
       IncidentDamageItemEntity,
+      IncidentDecisionResponseEntity,
       IncidentEvidenceEntity,
       IncidentStatementEntity,
       IncidentStatusLogEntity,
+      NotificationOutboxEntity,
       CustomerIncidentStrikeEntity,
       BookingEntity,
       SupportTicketEntity,
@@ -41,6 +52,7 @@ import { IncidentAutomationService } from './services/incident-automation.servic
     UploadModule,
     SystemConfigModule,
     NotificationModule,
+    WalletModule,
   ],
   controllers: [
     IncidentController,
@@ -59,6 +71,12 @@ import { IncidentAutomationService } from './services/incident-automation.servic
     FraudStrikeService,
     IncidentNotifier,
     IncidentAutomationService,
+    IncidentNotificationOutboxWorkerService,
+    IncidentEvidenceLifecycleService,
+    IncidentDepositHoldService,
+    IncidentDebtRecoveryService,
+    IncidentReconciliationService,
+    IncidentAlertService,
   ],
   exports: [TypeOrmModule],
 })

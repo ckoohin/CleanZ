@@ -185,6 +185,20 @@ export class IncidentConfigService {
     );
   }
 
+  getSystemWalletMinBalance(): Promise<number> {
+    return this.getNumber(
+      IC_CONFIG_KEYS.SYSTEM_WALLET_MIN_BALANCE,
+      IC_DEFAULTS.SYSTEM_WALLET_MIN_BALANCE,
+    );
+  }
+
+  getResponseWindowHours(): Promise<number> {
+    return this.getNumber(
+      IC_CONFIG_KEYS.RESPONSE_WINDOW_HOURS,
+      IC_DEFAULTS.RESPONSE_WINDOW_HOURS,
+    );
+  }
+
   getCoolingPeriodHours(): Promise<number> {
     return this.getNumber(
       IC_CONFIG_KEYS.COOLING_PERIOD_HOURS,

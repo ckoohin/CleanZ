@@ -5,7 +5,6 @@ export enum TicketCategory {
   PROPERTY_DAMAGE = 'PROPERTY_DAMAGE',
   PAYMENT_BILLING = 'PAYMENT_BILLING',
   ACCOUNT_TECHNICAL = 'ACCOUNT_TECHNICAL',
-  /** Kháng cáo của tasker bị khóa/chấm dứt vĩnh viễn — không gắn booking. */
   APPEAL = 'APPEAL',
   OTHER = 'OTHER',
 }

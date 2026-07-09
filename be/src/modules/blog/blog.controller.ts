@@ -83,10 +83,7 @@ export class BlogController {
   @Post('admin')
   @AdminOnly()
   @ApiOperation({ summary: 'Tạo blog' })
-  async create(
-    @Body() dto: CreateBlogDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async create(@Body() dto: CreateBlogDto, @CurrentUser('id') userId: string) {
     const blog = await this.blogService.create(dto, userId);
     return successResponse(blog, 'Blog created');
   }
@@ -180,7 +177,10 @@ export class BlogController {
     const forwardedFor = request.headers['x-forwarded-for'];
     const ip = Array.isArray(forwardedFor)
       ? forwardedFor[0]
-      : forwardedFor?.split(',')[0] || request.ip || request.socket.remoteAddress || 'unknown';
+      : forwardedFor?.split(',')[0] ||
+        request.ip ||
+        request.socket.remoteAddress ||
+        'unknown';
     const userAgent = request.headers['user-agent'] || 'unknown';
     return `${ip}:${userAgent}`;
   }
