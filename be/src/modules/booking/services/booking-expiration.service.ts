@@ -10,8 +10,10 @@ import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
+import { UserRole } from 'src/common/enums/user-role.enum';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { NotificationService } from 'src/modules/notification/notification.service';
+import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
@@ -26,8 +28,10 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BookingExpirationService.name);
   private readonly intervalMs: number;
   private readonly batchSize: number;
+  private readonly alertThreshold: number;
   private interval?: NodeJS.Timeout;
   private isRunning = false;
+  private consecutiveFailures = 0;
 
   constructor(
     private readonly dataSource: DataSource,
@@ -40,6 +44,9 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     );
     this.batchSize = Number(
       configService.get<string>('BOOKING_EXPIRATION_BATCH_SIZE') ?? 100,
+    );
+    this.alertThreshold = Number(
+      configService.get<string>('BOOKING_EXPIRATION_ALERT_THRESHOLD') ?? 3,
     );
   }
 
@@ -109,12 +116,15 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async expireOverduePostedBookingsSilently(): Promise<void> {
+    let hadFailure = false;
+
     try {
       const result = await this.expireOverduePostedBookings();
       if (result.expiredCount > 0) {
         this.logger.log(`Expired ${result.expiredCount} overdue bookings`);
       }
     } catch (error) {
+      hadFailure = true;
       this.logger.error(
         'Failed to expire overdue bookings',
         error instanceof Error ? error.stack : undefined,
@@ -129,8 +139,41 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
         );
       }
     } catch (error) {
+      hadFailure = true;
       this.logger.error(
         'Failed to cancel expired pending confirmation bookings',
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+
+    if (!hadFailure) {
+      this.consecutiveFailures = 0;
+      return;
+    }
+    this.consecutiveFailures += 1;
+    if (this.consecutiveFailures === this.alertThreshold) {
+      await this.notifyAdminsOfRepeatedFailures();
+    }
+  }
+  private async notifyAdminsOfRepeatedFailures(): Promise<void> {
+    try {
+      const admins = await this.dataSource.getRepository(UserEntity).find({
+        select: ['id'],
+        where: { role: UserRole.ADMIN },
+      });
+      const dateKey = new Date().toISOString().slice(0, 10);
+      await this.notificationService.notifyMany(
+        admins.map((admin) => admin.id),
+        {
+          type: NotificationType.SYSTEM,
+          title: 'Job xử lý booking quá hạn đang lỗi',
+          content: `Job tự động xử lý booking quá hạn đã thất bại ${this.alertThreshold} lần liên tiếp. Vui lòng kiểm tra log backend.`,
+          dedupeKey: `booking-expiration:job-failure:${dateKey}`,
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        'Không thể gửi cảnh báo job expire cho admin',
         error instanceof Error ? error.stack : undefined,
       );
     }

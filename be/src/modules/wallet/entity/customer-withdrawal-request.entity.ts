@@ -43,7 +43,6 @@ export class CustomerWithdrawalRequestEntity {
   @Column({
     type: 'enum',
     enum: WithdrawalStatus,
-    enumName: 'customer_withdrawal_requests_status_enum',
     default: WithdrawalStatus.PENDING,
   })
   status!: WithdrawalStatus;
