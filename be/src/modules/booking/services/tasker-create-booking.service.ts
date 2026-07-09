@@ -36,6 +36,7 @@ import { CreateBookingForCustomerDto } from '../dto/create-booking-for-customer.
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { BookingEntity } from '../entity/booking.entity';
+import { saveBookingAddons } from '../helpers/save-booking-addons.helper';
 import { BookingLocationPolicyService } from './booking-location-policy.service';
 import { BookingPolicyService } from './booking-policy.service';
 
@@ -264,6 +265,7 @@ export class TaskerCreateBookingService {
         if (bookingSubServices.length) {
           await bookingSubServiceRepository.save(bookingSubServices);
         }
+        await saveBookingAddons(manager, savedBooking, price.addons);
 
         // Payment
         await this.paymentService.createPendingPayment(

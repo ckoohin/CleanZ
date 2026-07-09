@@ -43,6 +43,7 @@ import { BookingLocationPolicyService } from './booking-location-policy.service'
 import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
+import { saveBookingAddons } from '../helpers/save-booking-addons.helper';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { BookingQuoteEntity } from '../entity/booking-quote.entity';
 import {
@@ -288,6 +289,7 @@ export class CustomerBookingService {
           });
         });
         await bookingSubServiceRepository.save(bookingSubServices);
+        await saveBookingAddons(manager, savedBooking, context.addons);
 
         await this.paymentService.createPendingPayment(
           manager,
