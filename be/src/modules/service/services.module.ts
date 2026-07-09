@@ -10,12 +10,16 @@ import { ServiceAddonEntity } from './entity/service-addon.entity';
 import { ServiceSubscriptionEntity } from './entity/service-subscription.entity';
 import { ServicePeakHourEntity } from './entity/service-peak-hour.entity';
 import { ServiceSubServiceEntity } from './entity/service-sub-service.entity';
+import { BookingEntity } from '../booking/entity/booking.entity';
+import { BookingAddonEntity } from '../booking/entity/booking-addon.entity';
 import { ServiceRepository } from './service.repository';
 import { SubServicesService } from './services/sub-services.service';
 import { SubServicesController } from './sub-services.controller';
 import { PublicServicesController } from './public-services.controller';
 import { ServicePackagesService } from './services/service-packages.service';
 import { ServicePackagesController } from './service-packages.controller';
+import { ServicePackageReportsService } from './services/service-package-reports.service';
+import { ServicePackageReportsController } from './service-package-reports.controller';
 import { CoverageAreasService } from './services/coverage-areas.service';
 import { CoverageAreasController } from './coverage-areas.controller';
 
@@ -32,18 +36,22 @@ import { CoverageAreasController } from './coverage-areas.controller';
       ServiceSubscriptionEntity,
       ServicePeakHourEntity,
       ServiceSubServiceEntity,
+      BookingEntity,
+      BookingAddonEntity,
     ]),
   ],
   controllers: [
     SubServicesController,
     PublicServicesController,
     ServicePackagesController,
+    ServicePackageReportsController,
     CoverageAreasController,
   ],
   providers: [
     SubServicesService,
     ServiceRepository,
     ServicePackagesService,
+    ServicePackageReportsService,
     CoverageAreasService,
   ],
   exports: [
