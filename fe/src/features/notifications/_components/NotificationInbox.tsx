@@ -39,6 +39,7 @@ function fmtTime(d: string) {
 
 const ICON: Record<NotificationType, React.ElementType> = {
   BOOKING_NEW_AVAILABLE: CalendarCheck,
+  BOOKING_PENDING_CONFIRMATION: CalendarCheck,
   BOOKING_CONFIRMED: CalendarCheck,
   TASKER_ON_THE_WAY: CalendarCheck,
   BOOKING_COMPLETED: CalendarCheck,

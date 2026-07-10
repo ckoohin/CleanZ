@@ -1,15 +1,22 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CalendarCheck } from "lucide-react";
 import { useSocketEvent } from "@/hooks/use-socket";
+import { RealtimeActionDialog } from "@/components/realtime/RealtimeActionDialog";
 import { customerNotificationKeys } from "@/features/customer/notifications/hooks/useCustomerNotifications";
 import { notificationKeys } from "@/features/notifications/useNotifications";
 import {
   NOTIFICATION_EVENT_NEW,
   NOTIFICATION_EVENT_UNREAD,
 } from "@/features/notifications/types";
+import type {
+  CustomerActiveBookingResponse,
+  CustomerBookingDetail,
+} from "@/features/booking/types/booking.types";
 
 interface NotificationPayload {
   id: string;
@@ -33,27 +40,89 @@ interface BookingSearchingPayload {
   exhausted?: boolean;
 }
 
+interface PendingConfirmation {
+  title: string;
+  content: string;
+  bookingId: string;
+}
+
 export function CustomerRealtimeNotifications() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const [pendingConfirmation, setPendingConfirmation] =
+    useState<PendingConfirmation | null>(null);
 
   const handleNewNotification = useCallback(
-    (notification: NotificationPayload) => {
-      toast.info(notification.title, {
-        id: `notification-${notification.id}`,
-        description: notification.content ?? undefined,
-      });
+    (notification?: NotificationPayload | null) => {
+      if (!notification?.id || !notification.title) return;
+
       void queryClient.invalidateQueries({
         queryKey: customerNotificationKeys.all,
       });
       void queryClient.invalidateQueries({
         queryKey: notificationKeys.all,
       });
+
+      if (
+        notification.type === "BOOKING_COMPLETED" &&
+        notification.referenceId
+      ) {
+        const bookingId = notification.referenceId;
+        queryClient.setQueryData<CustomerActiveBookingResponse | undefined>(
+          ["booking", "my-active"],
+          (current) =>
+            current?.booking?.id === bookingId
+              ? { ...current, booking: null }
+              : current,
+        );
+        queryClient.setQueryData<CustomerBookingDetail | undefined>(
+          ["booking", bookingId],
+          (current) =>
+            current ? { ...current, status: "COMPLETED" } : current,
+        );
+        void queryClient.invalidateQueries({
+          queryKey: ["booking", "my-active"],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["booking", "my-list"],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["booking", bookingId],
+        });
+      }
+
+      if (
+        notification.type === "BOOKING_PENDING_CONFIRMATION" &&
+        notification.referenceId
+      ) {
+        // Đơn tasker tạo hộ cần khách xác nhận trong thời hạn → modal giữa
+        // màn hình có xác nhận/hủy thay vì toast (đồng nhất UI luồng booking).
+        setPendingConfirmation({
+          title: notification.title,
+          content:
+            notification.content ??
+            "Bạn có một đơn đang chờ xác nhận. Vui lòng xác nhận trong thời hạn để giữ lịch.",
+          bookingId: notification.referenceId,
+        });
+        return;
+      }
+
+      const descriptionParts = [notification.content];
+      if (notification.referenceType === "BOOKING" && notification.referenceId) {
+        descriptionParts.push("Nhấn để xem chi tiết.");
+      }
+
+      toast.info(notification.title, {
+        id: `notification-${notification.id}`,
+        description: descriptionParts.filter(Boolean).join(" "),
+      });
     },
     [queryClient],
   );
 
   const handleUnreadCount = useCallback(
-    (payload: UnreadCountPayload) => {
+    (payload?: UnreadCountPayload | null) => {
+      if (typeof payload?.count !== "number") return;
       queryClient.setQueryData(customerNotificationKeys.unreadCount, payload);
       queryClient.setQueryData(notificationKeys.unread, payload);
     },
@@ -61,7 +130,8 @@ export function CustomerRealtimeNotifications() {
   );
 
   const handleBookingSearching = useCallback(
-    (payload: BookingSearchingPayload) => {
+    (payload?: BookingSearchingPayload | null) => {
+      if (!payload) return;
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-list"] });
       if (payload.bookingId) {
@@ -81,7 +151,8 @@ export function CustomerRealtimeNotifications() {
   );
 
   const handleBookingStillSearching = useCallback(
-    (payload: BookingSearchingPayload) => {
+    (payload?: BookingSearchingPayload | null) => {
+      if (!payload) return;
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-list"] });
       if (payload.bookingId) {
@@ -123,5 +194,26 @@ export function CustomerRealtimeNotifications() {
     handleBookingStillSearching,
   );
 
-  return null;
+  const closeConfirmation = useCallback(
+    () => setPendingConfirmation(null),
+    [],
+  );
+
+  return (
+    <RealtimeActionDialog
+      open={pendingConfirmation !== null}
+      icon={<CalendarCheck className="size-5" />}
+      title={pendingConfirmation?.title ?? ""}
+      description={pendingConfirmation?.content}
+      confirmLabel="Xem & xác nhận"
+      cancelLabel="Để sau"
+      onConfirm={() => {
+        closeConfirmation();
+        if (pendingConfirmation) {
+          router.push(`/customer/booking/${pendingConfirmation.bookingId}`);
+        }
+      }}
+      onCancel={closeConfirmation}
+    />
+  );
 }

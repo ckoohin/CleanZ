@@ -674,20 +674,20 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       void refetch();
     };
 
-    const handleRefresh = (payload?: { bookingId?: string }) => {
+    const handleRefresh = (payload?: { bookingId?: string } | null) => {
       if (payload?.bookingId && payload.bookingId !== bookingId) return;
       refreshBooking();
     };
 
     const applyStatusToCache = (
-      payload: {
+      payload?: {
         bookingId?: string;
         status?: BookingStatus;
         changedAt?: string;
         checkedInAt?: string | null;
         completedAt?: string | null;
         paymentStatus?: CustomerBookingDetail["payment"]["status"] | null;
-      },
+      } | null,
     ) => {
       if (!payload?.bookingId || payload.bookingId !== bookingId) return;
 
@@ -719,8 +719,12 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       updatedAt?: string;
     }
 
-    const handleLocationUpdated = (data: TaskerLocationPayload) => {
-      if (data && data.bookingId === bookingId && data.latitude && data.longitude) {
+    const handleLocationUpdated = (data?: TaskerLocationPayload | null) => {
+      if (
+        data?.bookingId === bookingId &&
+        Number.isFinite(data.latitude) &&
+        Number.isFinite(data.longitude)
+      ) {
         setTaskerLocation({
           latitude: data.latitude,
           longitude: data.longitude,
@@ -728,11 +732,11 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       }
     };
 
-    const handleStatusChanged = (payload: { bookingId?: string; status?: BookingStatus }) => {
+    const handleStatusChanged = (payload?: { bookingId?: string; status?: BookingStatus } | null) => {
       applyStatusToCache(payload);
     };
 
-    const handleStatusUpdated = (payload: BookingStatusUpdatedPayload) => {
+    const handleStatusUpdated = (payload?: BookingStatusUpdatedPayload | null) => {
       applyStatusToCache(payload);
     };
 
@@ -752,6 +756,9 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
     }
 
     return () => {
+      if (socket.connected) {
+        socket.emit("booking:leave", { bookingId });
+      }
       socket.off("connect", joinBookingRoom);
       socket.off("booking:status_changed", handleStatusChanged);
       socket.off("booking:status_updated", handleStatusUpdated);

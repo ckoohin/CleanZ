@@ -1,6 +1,7 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 export type NotificationType =
   | "BOOKING_NEW_AVAILABLE"
+  | "BOOKING_PENDING_CONFIRMATION"
   | "BOOKING_CONFIRMED"
   | "TASKER_ON_THE_WAY"
   | "BOOKING_COMPLETED"

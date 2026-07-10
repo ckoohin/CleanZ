@@ -109,9 +109,14 @@ export function BookingTrackingMap({
     Number.isFinite(destination.latitude) &&
     Number.isFinite(destination.longitude);
   const taskerLocation = tracking?.currentLocation;
+  const routeSummary =
+    tracking?.route?.distance?.kilometers !== undefined &&
+    tracking.route.duration?.minutes !== undefined
+      ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
+      : "Đang tính toán...";
 
   const routeCoordinates = useMemo<[number, number][] | null>(() => {
-    if (!tracking || !hasDestination) return null;
+    if (!tracking?.currentLocation || !hasDestination) return null;
 
     const origin: [number, number] = [
       tracking.currentLocation.longitude,
@@ -121,7 +126,7 @@ export function BookingTrackingMap({
       destination.longitude,
       destination.latitude,
     ];
-    const encoded = tracking.route.encodedPolyline;
+    const encoded = tracking.route?.encodedPolyline;
     if (!encoded) return [origin, target];
 
     const decoded = decodePolyline(encoded).filter(
@@ -412,9 +417,7 @@ export function BookingTrackingMap({
                   Dự kiến còn lại
                 </p>
                 <p className="mt-1 text-sm font-black text-blue-700">
-                  {tracking
-                    ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
-                    : "Đang tính toán..."}
+                  {routeSummary}
                 </p>
               </div>
             </div>
@@ -436,9 +439,7 @@ export function BookingTrackingMap({
             Dự kiến còn lại
           </p>
           <p className="mt-1 text-sm font-black text-blue-700">
-            {tracking
-              ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
-              : "Đang tính toán..."}
+            {routeSummary}
           </p>
         </div>
       </div>

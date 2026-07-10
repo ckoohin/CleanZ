@@ -488,6 +488,14 @@ export class TaskerBookingService {
         }
 
         if (booking.status !== BookingStatus.POSTED || booking.tasker) {
+          if (booking.status === BookingStatus.EXPIRED) {
+            throw new ConflictException(
+              'Đơn đã hết hạn do quá giờ hẹn mà chưa có ai nhận',
+            );
+          }
+          if (booking.status === BookingStatus.CANCELLED) {
+            throw new ConflictException('Đơn đã bị hủy');
+          }
           throw new ConflictException('Đơn đã có người nhận');
         }
 

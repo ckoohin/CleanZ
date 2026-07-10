@@ -15,7 +15,6 @@ import type {
 } from "../types/tracking.types";
 import type { CustomerBookingDetail } from "../types/booking.types";
 
-const MAX_TRACKING_ACCURACY_METERS = 100;
 const MAX_LOCATION_AGE_MS = 20_000;
 
 interface BrowserLocationSample {
@@ -25,8 +24,8 @@ interface BrowserLocationSample {
   capturedAt: number;
 }
 
-function getTrackingErrorMessage(payload: TrackingErrorPayload): string {
-  return payload.message?.trim() || "Không thể cập nhật vị trí realtime";
+function getTrackingErrorMessage(payload?: TrackingErrorPayload | null): string {
+  return payload?.message?.trim() || "Không thể cập nhật vị trí realtime";
 }
 
 const CUSTOMER_STATUS_TOAST: Partial<Record<BookingStatusUpdatedPayload["status"], string>> = {
@@ -59,17 +58,17 @@ export function useCustomerBookingTracking(
       socket.emit("booking:join", { bookingId });
     };
     const handleDisconnect = () => setIsConnected(false);
-    const handleLocation = (payload: BookingTrackingPayload) => {
-      if (payload.bookingId === bookingId) {
+    const handleLocation = (payload: BookingTrackingPayload | null | undefined) => {
+      if (payload?.bookingId === bookingId) {
         setTracking(payload);
         setError(null);
       }
     };
-    const handleError = (payload: TrackingErrorPayload) => {
+    const handleError = (payload?: TrackingErrorPayload | null) => {
       setError(getTrackingErrorMessage(payload));
     };
-    const handleArrived = (payload: { bookingId?: string }) => {
-      if (payload.bookingId === bookingId) {
+    const handleArrived = (payload?: { bookingId?: string } | null) => {
+      if (payload?.bookingId === bookingId) {
         void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       }
     };
@@ -77,8 +76,8 @@ export function useCustomerBookingTracking(
       void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
     };
-    const handleStatusUpdated = (payload: BookingStatusUpdatedPayload) => {
-      if (payload.bookingId !== bookingId) {
+    const handleStatusUpdated = (payload?: BookingStatusUpdatedPayload | null) => {
+      if (payload?.bookingId !== bookingId) {
         return;
       }
 
@@ -125,6 +124,9 @@ export function useCustomerBookingTracking(
     }
 
     return () => {
+      if (socket.connected) {
+        socket.emit("booking:leave", { bookingId });
+      }
       socket.off("connect", joinRoom);
       socket.off("disconnect", handleDisconnect);
       socket.off("tasker:location:updated", handleLocation);
@@ -170,7 +172,7 @@ export function useTaskerLocationTracking(
       pendingLocationRequestRef.current = false;
     };
 
-    const publishCurrentLocation = (payload?: { bookingId?: string }) => {
+    const publishCurrentLocation = (payload?: { bookingId?: string } | null) => {
       if (payload?.bookingId && payload.bookingId !== bookingId) {
         return;
       }
@@ -189,19 +191,19 @@ export function useTaskerLocationTracking(
       socket.emit("tasker:tracking:start", { bookingId });
     };
     const handleDisconnect = () => setIsConnected(false);
-    const handleAccepted = (payload: BookingTrackingPayload) => {
-      if (payload.bookingId === bookingId) {
+    const handleAccepted = (payload: BookingTrackingPayload | null | undefined) => {
+      if (payload?.bookingId === bookingId) {
         setTracking(payload);
         setLastUpdatedAt(payload.updatedAt);
         setError(null);
       }
     };
-    const handleLocation = (payload: BookingTrackingPayload) => {
-      if (payload.bookingId === bookingId) {
+    const handleLocation = (payload: BookingTrackingPayload | null | undefined) => {
+      if (payload?.bookingId === bookingId) {
         setTracking(payload);
       }
     };
-    const handleError = (payload: TrackingErrorPayload) => {
+    const handleError = (payload?: TrackingErrorPayload | null) => {
       setError(getTrackingErrorMessage(payload));
     };
 
@@ -212,52 +214,70 @@ export function useTaskerLocationTracking(
     socket.on("tasker:location:updated", handleLocation);
     socket.on("tracking:error", handleError);
 
+    let unsupportedBrowserTimer: ReturnType<typeof setTimeout> | null = null;
+    if (!navigator.geolocation) {
+      latestLocationRef.current = null;
+      unsupportedBrowserTimer = setTimeout(() => {
+        setError("Trình duyệt không hỗ trợ chia sẻ vị trí GPS.");
+      }, 0);
+    }
+
     // Giữ GPS hoạt động liên tục để trình duyệt có thời gian chuyển từ vị trí
     // ước lượng Wi-Fi/IP sang mẫu GPS chính xác, thay vì lấy lại mẫu đầu tiên
     // bằng getCurrentPosition mỗi 10 giây.
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const accuracy = Math.round(position.coords.accuracy);
-        setLocationAccuracy(accuracy);
+    let watchId: number | null = null;
+    try {
+      watchId = navigator.geolocation
+        ? navigator.geolocation.watchPosition(
+            (position) => {
+              const accuracy = Math.round(position.coords.accuracy);
+              setLocationAccuracy(accuracy);
 
-        // if (accuracy > MAX_TRACKING_ACCURACY_METERS) {
-        //   latestLocationRef.current = null;
-        //   setError(
-        //     `GPS chưa đủ chính xác (sai số khoảng ${accuracy} m). Hãy bật Vị trí chính xác và chờ tín hiệu ổn định.`,
-        //   );
-        //   return;
-        // }
+              // if (accuracy > MAX_TRACKING_ACCURACY_METERS) {
+              //   latestLocationRef.current = null;
+              //   setError(
+              //     `GPS chưa đủ chính xác (sai số khoảng ${accuracy} m). Hãy bật Vị trí chính xác và chờ tín hiệu ổn định.`,
+              //   );
+              //   return;
+              // }
 
-        const sample: BrowserLocationSample = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy,
-          capturedAt: position.timestamp || Date.now(),
-        };
-        latestLocationRef.current = sample;
-        setError(null);
+              const sample: BrowserLocationSample = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy,
+                capturedAt: position.timestamp || Date.now(),
+              };
+              latestLocationRef.current = sample;
+              setError(null);
 
-        if (pendingLocationRequestRef.current) {
-          emitLocation(sample);
-        }
-      },
-      (geolocationError) => {
-        if (geolocationError.code === geolocationError.PERMISSION_DENIED) {
-          latestLocationRef.current = null;
-          setError("Bạn cần cấp quyền vị trí chính xác để bắt đầu tracking.");
-          return;
-        }
-        latestLocationRef.current = null;
-        setError(
-          "Không lấy được vị trí thật từ thiết bị. Hãy bật GPS/vị trí chính xác rồi thử lại.",
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 20_000,
-      },
-    );
+              if (pendingLocationRequestRef.current) {
+                emitLocation(sample);
+              }
+            },
+            (geolocationError) => {
+              if (geolocationError.code === geolocationError.PERMISSION_DENIED) {
+                latestLocationRef.current = null;
+                setError("Bạn cần cấp quyền vị trí chính xác để bắt đầu tracking.");
+                return;
+              }
+              latestLocationRef.current = null;
+              setError(
+                "Không lấy được vị trí thật từ thiết bị. Hãy bật GPS/vị trí chính xác rồi thử lại.",
+              );
+            },
+            {
+              enableHighAccuracy: true,
+              maximumAge: 0,
+              timeout: 20_000,
+            },
+          )
+        : null;
+    } catch {
+      latestLocationRef.current = null;
+      unsupportedBrowserTimer = setTimeout(() => {
+        setError("Không thể khởi động chia sẻ vị trí trên thiết bị này.");
+      }, 0);
+    }
 
     acquireBookingTrackingSocket();
     if (socket.connected) {
@@ -266,13 +286,21 @@ export function useTaskerLocationTracking(
 
     return () => {
       socket.emit("tasker:tracking:stop");
+      if (socket.connected) {
+        socket.emit("booking:leave", { bookingId });
+      }
       socket.off("connect", startTracking);
       socket.off("disconnect", handleDisconnect);
       socket.off("tasker:location:request", publishCurrentLocation);
       socket.off("tasker:location:accepted", handleAccepted);
       socket.off("tasker:location:updated", handleLocation);
       socket.off("tracking:error", handleError);
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+      if (unsupportedBrowserTimer !== null) {
+        clearTimeout(unsupportedBrowserTimer);
+      }
       latestLocationRef.current = null;
       pendingLocationRequestRef.current = false;
       releaseBookingTrackingSocket();

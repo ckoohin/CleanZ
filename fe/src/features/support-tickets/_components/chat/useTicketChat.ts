@@ -121,12 +121,12 @@ export function useTicketChat({
   useEffect(() => {
     if (!socket) return;
 
-    const onMessage = (evt: TicketMessageEvent) => {
-      if (evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
+    const onMessage = (evt?: TicketMessageEvent | null) => {
+      if (!evt?.message || evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
       setMessages((prev) => dedupeById([...prev, evt.message]));
     };
-    const onTyping = (evt: TicketTypingEvent) => {
-      if (evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
+    const onTyping = (evt?: TicketTypingEvent | null) => {
+      if (!evt || evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
       if (evt.fromUserId === currentUserId) return;
       setTypingFrom(evt.fromRole);
       if (typingClearRef.current) clearTimeout(typingClearRef.current);
@@ -135,8 +135,8 @@ export function useTicketChat({
         TYPING_TIMEOUT,
       );
     };
-    const onRead = (evt: TicketReadEvent) => {
-      if (evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
+    const onRead = (evt?: TicketReadEvent | null) => {
+      if (!evt || evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
       if (evt.byUserId === currentUserId) return;
       setOtherLastReadId(evt.lastReadMessageId);
     };

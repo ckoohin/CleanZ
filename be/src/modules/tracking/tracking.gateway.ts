@@ -161,6 +161,28 @@ export class TrackingGateway
     }
   }
 
+  @SubscribeMessage('booking:leave')
+  async leaveBookingRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: JoinRoomDto | string,
+  ): Promise<void> {
+    // Rời room chỉ ảnh hưởng chính client nên không cần validate quyền như join.
+    try {
+      const data = this.parseSocketPayload<JoinRoomDto>(payload);
+      const bookingId = data.bookingId?.trim();
+      if (!bookingId) {
+        return;
+      }
+      const room = this.trackingService.getBookingRoom(bookingId);
+      await client.leave(room);
+      this.logger.log(`Socket ${client.id} left room ${room}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Không thể leave booking room';
+      this.logger.warn(`Socket ${client.id} failed booking:leave: ${message}`);
+    }
+  }
+
   @SubscribeMessage('tasker:tracking:start')
   async startTaskerTracking(
     @ConnectedSocket() client: Socket,

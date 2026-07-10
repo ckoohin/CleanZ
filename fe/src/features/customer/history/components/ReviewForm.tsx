@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
-  Camera,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -12,9 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { useBookingDetail } from "@/features/booking/hooks/useCustomerBooking";
-import { uploadApi } from "@/lib/api/upload.service";
 import { useMyReview, useCreateReview } from "../hooks/useReview";
 
 const CRITERIA = [
@@ -25,8 +22,53 @@ const CRITERIA = [
 ];
 
 const RATING_LABELS = ["", "Rất tệ", "Tệ", "Bình thường", "Tốt", "Tuyệt vời!"];
+const BOOKING_SYNC_INTERVAL_MS = 1500;
+const BOOKING_SYNC_TIMEOUT_MS = 15_000;
 
-const MAX_IMAGES = 5;
+function ReviewHeader({
+  title = "Đánh giá Dịch vụ",
+  onBack,
+}: {
+  title?: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="px-4 py-4 sticky top-0 bg-background z-10 border-b border-border/50 flex items-center gap-3">
+      <button
+        onClick={onBack}
+        className="p-2 -ml-2 rounded-full hover:bg-muted"
+      >
+        <X className="w-5 h-5 text-foreground/90" />
+      </button>
+      <h1 className="text-lg font-bold text-foreground">{title}</h1>
+    </div>
+  );
+}
+
+function ReviewStateCard({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="p-6 max-w-md mx-auto">
+      <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          {icon}
+        </div>
+        <p className="font-bold text-foreground">{title}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+        {action}
+      </div>
+    </div>
+  );
+}
 
 function StarPicker({
   value,
@@ -69,6 +111,8 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
     data: bookingData,
     error: bookingError,
     isLoading: isBookingLoading,
+    isFetching: isBookingFetching,
+    refetch: refetchBooking,
   } = useBookingDetail(bookingId, {
     staleTime: 0,
     refetchOnMount: "always",
@@ -77,6 +121,8 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
     data: existingReview,
     error: reviewError,
     isLoading: isReviewLoading,
+    isFetching: isReviewFetching,
+    refetch: refetchReview,
   } = useMyReview(bookingId);
   const createReview = useCreateReview(bookingId);
 
@@ -89,43 +135,62 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
   });
   const [comment, setComment] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [images, setImages] = useState<string[]>([]);
-  const [uploadingCount, setUploadingCount] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [images] = useState<string[]>([]);
+  const [uploadingCount] = useState(0);
+  const [syncTimedOut, setSyncTimedOut] = useState(false);
+  const [syncCycle, setSyncCycle] = useState(0);
+  const syncStartedAtRef = useRef<number | null>(null);
 
   const isLoading = isBookingLoading || isReviewLoading;
   const booking = bookingData;
   const tasker = booking?.tasker;
   const alreadyReviewed = !!existingReview?.review;
 
-  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    const remaining = MAX_IMAGES - images.length;
-    const toUpload = files.slice(0, remaining);
-    if (files.length > remaining) {
-      toast.warning(`Tối đa ${MAX_IMAGES} ảnh, chỉ upload ${remaining} ảnh đầu`);
+  useEffect(() => {
+    if (
+      !bookingId ||
+      isBookingLoading ||
+      bookingError ||
+      booking?.status === "COMPLETED"
+    ) {
+      syncStartedAtRef.current = null;
+      setSyncTimedOut(false);
+      return;
     }
 
-    setUploadingCount((c) => c + toUpload.length);
-    const results = await Promise.allSettled(
-      toUpload.map((f) => uploadApi.uploadImage(f)),
-    );
-    results.forEach((r) => {
-      if (r.status === "fulfilled") {
-        setImages((prev) => [...prev, r.value]);
-      } else {
-        toast.error("Tải ảnh thất bại, vui lòng thử lại");
+    syncStartedAtRef.current ??= Date.now();
+    const timer = window.setInterval(() => {
+      const syncStartedAt = syncStartedAtRef.current;
+      if (
+        syncStartedAt !== null &&
+        Date.now() - syncStartedAt >= BOOKING_SYNC_TIMEOUT_MS
+      ) {
+        window.clearInterval(timer);
+        setSyncTimedOut(true);
+        return;
       }
-    });
-    setUploadingCount((c) => c - toUpload.length);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+      void refetchBooking();
+    }, BOOKING_SYNC_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [
+    booking?.status,
+    bookingError,
+    bookingId,
+    isBookingLoading,
+    refetchBooking,
+    syncCycle,
+  ]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <ReviewHeader onBack={() => router.back()} />
+        <ReviewStateCard
+          icon={<Loader2 className="w-7 h-7 animate-spin" />}
+          title="Đang mở đánh giá"
+          description="CleanZ đang tải dữ liệu đơn hàng và kiểm tra đánh giá hiện có."
+        />
       </div>
     );
   }
@@ -133,33 +198,24 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
   if (bookingError || reviewError) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="px-4 py-4 sticky top-0 bg-background z-10 border-b border-border/50 flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 rounded-full hover:bg-muted"
-          >
-            <X className="w-5 h-5 text-foreground/90" />
-          </button>
-          <h1 className="text-lg font-bold text-foreground">Đánh giá Dịch vụ</h1>
-        </div>
-        <div className="p-6 max-w-md mx-auto">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
-            <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-amber-500" />
-            <p className="font-bold text-foreground">
-              Chưa thể mở đánh giá
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Dữ liệu đơn hàng vừa được cập nhật. Vui lòng thử lại sau vài giây.
-            </p>
+        <ReviewHeader onBack={() => router.back()} />
+        <ReviewStateCard
+          icon={<AlertTriangle className="h-7 w-7 text-amber-500" />}
+          title="Chưa thể mở đánh giá"
+          description="Dữ liệu đơn hàng vừa được cập nhật. Vui lòng thử lại sau vài giây."
+          action={
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                void Promise.all([refetchBooking(), refetchReview()]);
+              }}
+              disabled={isBookingFetching || isReviewFetching}
               className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
             >
-              Tải lại
+              {isBookingFetching || isReviewFetching ? "Đang thử lại..." : "Thử lại"}
             </button>
-          </div>
-        </div>
+          }
+        />
       </div>
     );
   }
@@ -167,26 +223,42 @@ export const ReviewForm = ({ bookingId }: { bookingId: string }) => {
   if (!booking || booking.status !== "COMPLETED") {
     return (
       <div className="min-h-screen bg-background">
-        <div className="px-4 py-4 sticky top-0 bg-background z-10 border-b border-border/50 flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 rounded-full hover:bg-muted"
-          >
-            <X className="w-5 h-5 text-foreground/90" />
-          </button>
-          <h1 className="text-lg font-bold text-foreground">Đánh giá Dịch vụ</h1>
-        </div>
-        <div className="p-6 max-w-md mx-auto">
-          <div className="rounded-2xl border border-border bg-card p-5 text-center">
-            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-primary" />
-            <p className="font-bold text-foreground">
-              Đang đồng bộ trạng thái đơn hàng
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Bạn có thể đánh giá sau khi đơn được ghi nhận hoàn thành.
-            </p>
-          </div>
-        </div>
+        <ReviewHeader onBack={() => router.back()} />
+        <ReviewStateCard
+          icon={
+            isBookingFetching && !syncTimedOut ? (
+              <Loader2 className="h-7 w-7 animate-spin" />
+            ) : (
+              <AlertTriangle className="h-7 w-7" />
+            )
+          }
+          title={
+            syncTimedOut
+              ? "Chưa thể đồng bộ đơn hàng"
+              : booking
+              ? "Đang đồng bộ trạng thái đơn hàng"
+              : "Chưa tìm thấy dữ liệu đơn hàng"
+          }
+          description={
+            syncTimedOut
+              ? "Hệ thống chưa nhận được trạng thái hoàn thành. Bạn có thể kiểm tra lại hoặc quay về chi tiết đơn."
+              : "Nếu Tasker vừa hoàn thành đơn, hệ thống sẽ tự cập nhật trong vài giây trước khi mở form đánh giá."
+          }
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                syncStartedAtRef.current = Date.now();
+                setSyncCycle((cycle) => cycle + 1);
+                void refetchBooking();
+              }}
+              disabled={isBookingFetching}
+              className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
+            >
+              {isBookingFetching ? "Đang kiểm tra..." : "Kiểm tra lại"}
+            </button>
+          }
+        />
       </div>
     );
   }

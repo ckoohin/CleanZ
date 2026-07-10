@@ -7,9 +7,7 @@ import { usePathname } from 'next/navigation';
 export default function Template({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Bỏ qua hiệu ứng template gốc cho các route admin để tránh việc re-mount toàn bộ Admin Layout
-  // (Giúp Sidebar và Header không bị chớp/loading lại toàn trang)
-  if (pathname.startsWith('/admin')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/customer')) {
     return <>{children}</>;
   }
 

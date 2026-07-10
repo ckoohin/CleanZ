@@ -33,7 +33,6 @@ import {
   useCancelByTasker,
   isSilentTaskerBookingError,
 } from "@/features/booking/hooks/useTaskerBooking";
-import { useTrackingSocket } from "@/hooks/use-socket";
 import type {
   BookingSchedule,
   BookingStatus,
@@ -555,9 +554,11 @@ function AssignedDetailView({
       !trackingError &&
       locationAccuracy !== null &&
       locationAccuracy <= 100;
-    const routeSummary = tracking
-      ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
-      : "Đang tính tuyến đường";
+    const routeSummary =
+      tracking?.route?.distance?.kilometers !== undefined &&
+      tracking.route.duration?.minutes !== undefined
+        ? `${tracking.route.distance.kilometers.toFixed(1)} km · ${tracking.route.duration.minutes} phút`
+        : "Đang tính tuyến đường";
 
     return (
       <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
@@ -988,7 +989,6 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   const router = useRouter();
   const searchParams = useSearchParams();
   const isPostedMode = searchParams.get("mode") === "posted";
-  const trackingSocket = useTrackingSocket();
 
   // Geolocation (optional — chỉ gửi nếu user cho phép)
   const [location, setLocation] = useState<{
@@ -1106,45 +1106,6 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     }
     prevStatusRef.current = current;
   }, [assignedQuery.data?.status]);
-
-  useEffect(() => {
-    if (isPostedMode || !trackingSocket) return;
-
-    const currentStatus = assignedQuery.data?.status;
-    if (currentStatus !== "TASKER_ON_THE_WAY") return;
-
-    // Join tracking room
-    trackingSocket.emit("tasker:tracking:start", { bookingId });
-
-    const handleLocationRequest = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            trackingSocket.emit("tasker:location:update", {
-              bookingId,
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            });
-          },
-          (err) => {
-            if (err.code !== err.PERMISSION_DENIED) {
-              setLocationError(
-                "Không lấy được vị trí thật để tracking. Hãy bật GPS/vị trí chính xác rồi thử lại.",
-              );
-            }
-          },
-          { enableHighAccuracy: true }
-        );
-      }
-    };
-
-    trackingSocket.on("tasker:location:request", handleLocationRequest);
-
-    return () => {
-      trackingSocket.emit("tasker:tracking:stop");
-      trackingSocket.off("tasker:location:request", handleLocationRequest);
-    };
-  }, [assignedQuery.data?.status, bookingId, trackingSocket, isPostedMode]);
 
   const isWaitingForLocation =
     isPostedMode &&

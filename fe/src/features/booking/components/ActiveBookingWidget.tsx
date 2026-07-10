@@ -52,6 +52,8 @@ export function ActiveBookingWidget() {
   const [showTaskerModal, setShowTaskerModal] = useState(false);
   const [showAvatarZoom, setShowAvatarZoom] = useState(false);
 
+  if (pathname.startsWith("/customer/history/review/")) return null;
+
   // Chỉ hiển thị nếu có đơn hoạt động
   const booking = data?.booking;
   if (isLoading || !booking) return null;

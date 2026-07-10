@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Info } from "lucide-react";
+import { BellRing } from "lucide-react";
 import { useSocketEvent } from "@/hooks/use-socket";
 import { NOTIFICATION_EVENT_NEW } from "@/features/notifications/types";
 import { notificationKeys } from "@/features/notifications/useNotifications";
+import { RealtimeActionDialog } from "@/components/realtime/RealtimeActionDialog";
 
 interface NotificationPayload {
   id: string;
@@ -18,12 +19,24 @@ interface NotificationPayload {
   referenceId?: string | null;
 }
 
+interface PendingInvitation {
+  title: string;
+  content: string;
+  href: string;
+}
+
+// Khớp DISPATCH_RING_TIMEOUT_MS phía backend: lời mời chỉ có hiệu lực 15 giây.
+const INVITATION_AUTO_CLOSE_MS = 15_000;
+
 export function TaskerRealtimeDispatch() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [invitation, setInvitation] = useState<PendingInvitation | null>(null);
 
   const handleNewNotification = useCallback(
-    (notification: NotificationPayload) => {
+    (notification?: NotificationPayload | null) => {
+      if (!notification?.id || !notification.title) return;
+
       void queryClient.invalidateQueries({
         queryKey: ["tasker-booking", "posted-list"],
       });
@@ -31,42 +44,27 @@ export function TaskerRealtimeDispatch() {
         queryKey: notificationKeys.all,
       });
 
-      if (
-        notification.type !== "BOOKING_NEW_AVAILABLE" ||
-        notification.referenceType !== "BOOKING" ||
-        !notification.referenceId
-      ) {
+      if (notification.referenceType !== "BOOKING" || !notification.referenceId) {
         return;
       }
 
-      const href = `/tasker/jobs/${notification.referenceId}?mode=posted`;
-      toast.custom((toastId) => (
-        <button
-          type="button"
-          onClick={() => {
-            toast.dismiss(toastId);
-            router.push(href);
-          }}
-          className="flex w-[min(360px,calc(100vw-32px))] items-start gap-3 rounded-2xl border border-primary/20 bg-card px-4 py-3 text-left text-card-foreground shadow-lg shadow-primary/10 transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Info className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold leading-5 text-foreground">
-              {notification.title || "Có đơn mới gần bạn"}
-            </p>
-            <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">
-              {notification.content ?? "Mở chi tiết đơn để nhận trong 15 giây."}
-            </p>
-          </div>
-        </button>
-      ), {
+      if (notification.type === "BOOKING_NEW_AVAILABLE") {
+        setInvitation({
+          title: notification.title || "Có đơn mới gần bạn",
+          content:
+            notification.content ?? "Mở chi tiết đơn để nhận trong 15 giây.",
+          href: `/tasker/jobs/${notification.referenceId}?mode=posted`,
+        });
+        return;
+      }
+
+      // Cập nhật đơn thuần thông tin → giữ toast.
+      toast.info(notification.title, {
         id: `dispatch-${notification.referenceId}`,
-        duration: 15_000,
+        description: notification.content ?? "Nhấn chuông thông báo để xem chi tiết.",
       });
     },
-    [queryClient, router],
+    [queryClient],
   );
 
   useSocketEvent<NotificationPayload>(
@@ -74,5 +72,22 @@ export function TaskerRealtimeDispatch() {
     handleNewNotification,
   );
 
-  return null;
+  const closeInvitation = useCallback(() => setInvitation(null), []);
+
+  return (
+    <RealtimeActionDialog
+      open={invitation !== null}
+      icon={<BellRing className="size-5" />}
+      title={invitation?.title ?? ""}
+      description={invitation?.content}
+      confirmLabel="Xem & nhận đơn"
+      cancelLabel="Bỏ qua"
+      autoCloseMs={INVITATION_AUTO_CLOSE_MS}
+      onConfirm={() => {
+        closeInvitation();
+        if (invitation) router.push(invitation.href);
+      }}
+      onCancel={closeInvitation}
+    />
+  );
 }

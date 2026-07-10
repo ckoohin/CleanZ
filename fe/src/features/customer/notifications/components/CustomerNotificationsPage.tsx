@@ -46,6 +46,7 @@ const TAB_CONFIG: Array<{
 
 const TYPE_LABELS: Record<NotificationType, string> = {
   BOOKING_NEW_AVAILABLE: "Đơn mới",
+  BOOKING_PENDING_CONFIRMATION: "Cần xác nhận",
   BOOKING_CONFIRMED: "Booking",
   TASKER_ON_THE_WAY: "Tasker",
   BOOKING_COMPLETED: "Hoàn thành",
@@ -60,6 +61,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
 
 const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   BOOKING_NEW_AVAILABLE: BellDot,
+  BOOKING_PENDING_CONFIRMATION: BellDot,
   BOOKING_CONFIRMED: BellDot,
   TASKER_ON_THE_WAY: BellDot,
   BOOKING_COMPLETED: BellDot,

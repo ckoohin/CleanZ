@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import {
   acquireAppRealtimeSocket,
@@ -42,14 +42,20 @@ export function useSocketEvent<T = unknown>(
   autoConnect = true,
 ): void {
   const socket = useSocket(autoConnect);
+  const handlerRef = useRef(handler);
+
+  useEffect(() => {
+    handlerRef.current = handler;
+  });
 
   useEffect(() => {
     if (!autoConnect) return;
-    socket.on(event, handler);
+    const listener = (data: T) => handlerRef.current(data);
+    socket.on(event, listener);
     return () => {
-      socket.off(event, handler);
+      socket.off(event, listener);
     };
-  }, [autoConnect, event, handler, socket]);
+  }, [autoConnect, event, socket]);
 }
 
 /**
@@ -77,11 +83,17 @@ export function useTrackingSocketEvent<T = unknown>(
   handler: (data: T) => void,
 ): void {
   const socket = useTrackingSocket();
+  const handlerRef = useRef(handler);
 
   useEffect(() => {
-    socket.on(event, handler);
+    handlerRef.current = handler;
+  });
+
+  useEffect(() => {
+    const listener = (data: T) => handlerRef.current(data);
+    socket.on(event, listener);
     return () => {
-      socket.off(event, handler);
+      socket.off(event, listener);
     };
-  }, [event, handler, socket]);
+  }, [event, socket]);
 }
