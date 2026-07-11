@@ -18,6 +18,12 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
+import {
+  assessCheckinLateness,
+  CheckinAssessment,
+  CheckinTimingPolicy,
+  resolveCheckinTimingPolicy,
+} from './booking-checkin.policy';
 
 export const BOOKING_CHECKIN_QUEUE = 'bookingCheckinQueue';
 
@@ -35,8 +41,6 @@ const AUTO_CANCEL_MINUTES = 45; // hủy ở T+45
 const AUTO_CHECKOUT_AFTER_END_MINUTES = 30; // nhắc checkout T_end+30
 
 // Điểm cảnh báo
-const WARN_LATE_MINOR = 1; // muộn 1-15 phút
-const WARN_LATE_MAJOR = 2; // muộn >15 phút
 const WARN_NO_SHOW = 3; // không check-in
 
 export interface CheckinJobData {
@@ -60,6 +64,7 @@ export class BookingCheckinService {
 
     const now = Date.now();
     const startMs = scheduledStart.getTime();
+    const timingPolicy = this.getTimingPolicy(booking, scheduledStart);
     const endMs =
       this.resolveScheduledEnd(booking)?.getTime() ??
       startMs + toNumber(booking.durationHours) * 3_600_000;
@@ -73,11 +78,6 @@ export class BookingCheckinService {
         jobId: `${booking.id}:remind`,
       },
       {
-        name: CHECKIN_JOB.LATE_WARNING,
-        delayMs: startMs + LATE_WARNING_MINUTES * 60_000 - now,
-        jobId: `${booking.id}:late-warning`,
-      },
-      {
         name: CHECKIN_JOB.AUTO_CANCEL,
         delayMs: startMs + AUTO_CANCEL_MINUTES * 60_000 - now,
         jobId: `${booking.id}:auto-cancel`,
@@ -88,6 +88,14 @@ export class BookingCheckinService {
         jobId: `${booking.id}:auto-checkout`,
       },
     ];
+
+    if (!timingPolicy.exemptFromLatePenalty) {
+      jobs.push({
+        name: CHECKIN_JOB.LATE_WARNING,
+        delayMs: startMs + LATE_WARNING_MINUTES * 60_000 - now,
+        jobId: `${booking.id}:late-warning`,
+      });
+    }
 
     await Promise.all(
       jobs
@@ -119,7 +127,7 @@ export class BookingCheckinService {
     userId: string,
     bookingId: string,
     manager: EntityManager,
-  ): Promise<{ minutesLate: number; warningPoints: number }> {
+  ): Promise<CheckinAssessment> {
     const bookingRepo = manager.getRepository(BookingEntity);
 
     const booking = await bookingRepo
@@ -132,6 +140,14 @@ export class BookingCheckinService {
 
     if (!booking) {
       throw new NotFoundException('Booking không tồn tại');
+    }
+
+    if (booking.status === BookingStatus.CHECKED_IN) {
+      return {
+        minutesLate: 0,
+        warningPoints: 0,
+        alreadyCheckedIn: true,
+      };
     }
 
     if (booking.status !== BookingStatus.TASKER_ON_THE_WAY) {
@@ -161,13 +177,11 @@ export class BookingCheckinService {
       );
     }
 
-    const minutesLate = Math.max(0, minutesDiff);
-    const warningPoints =
-      minutesLate > 15
-        ? WARN_LATE_MAJOR
-        : minutesLate > 0
-          ? WARN_LATE_MINOR
-          : 0;
+    const timingPolicy = this.getTimingPolicy(booking, scheduledStart);
+    const { minutesLate, warningPoints } = assessCheckinLateness(
+      minutesDiff,
+      timingPolicy,
+    );
 
     booking.status = BookingStatus.CHECKED_IN;
     booking.checkedInAt = now;
@@ -212,6 +226,21 @@ export class BookingCheckinService {
       booking.scheduledStartDate,
       booking.scheduledStartTime,
     );
+  }
+
+  getTimingPolicy(
+    booking: BookingEntity,
+    scheduledStart = this.resolveScheduledStart(booking),
+  ): CheckinTimingPolicy {
+    if (!scheduledStart) {
+      return { exemptFromLatePenalty: false, lateGraceMinutes: 5 };
+    }
+
+    return resolveCheckinTimingPolicy({
+      source: booking.source,
+      scheduledStart,
+      createdAt: booking.createdAt,
+    });
   }
 
   private resolveScheduledEnd(booking: BookingEntity): Date | null {
@@ -263,6 +292,7 @@ export class BookingCheckinService {
   async handleLateWarning(bookingId: string): Promise<void> {
     const booking = await this.findBookingWithParties(bookingId);
     if (!booking || booking.status !== BookingStatus.TASKER_ON_THE_WAY) return;
+    if (this.getTimingPolicy(booking).exemptFromLatePenalty) return;
 
     const taskerUserId = booking.tasker?.user?.id;
     const customerUserId = booking.customer?.user?.id;

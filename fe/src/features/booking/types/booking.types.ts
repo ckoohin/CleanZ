@@ -253,7 +253,17 @@ export interface TaskerAssignedBookingDetail {
   id: string;
   bookingCode: string;
   status: BookingStatus;
+  source: BookingSource;
   canContactCustomer: boolean;
+  checkinPolicy: {
+    exemptFromLatePenalty: boolean;
+    lateGraceMinutes: number;
+  };
+  checkinResult?: {
+    minutesLate: number;
+    warningPoints: number;
+    alreadyCheckedIn?: boolean;
+  };
   service: BookingService;
   distance: { meters: number; kilometers: number } | null;
   area?: { displayAddress?: string | null };

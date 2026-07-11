@@ -113,7 +113,7 @@ function ActionButton({
 }
 
 // ─── Checkin Window Banner ────────────────────────────────────────────────────
-const CHECKIN_OPEN_BEFORE = 3000;  // T-30
+const CHECKIN_OPEN_BEFORE = 30; // T-30
 const CHECKIN_AUTO_CANCEL = 45; // T+45
 
 function parseScheduledStart(schedule: BookingSchedule): Date | null {
@@ -132,8 +132,18 @@ function fmtCountdown(totalSeconds: number): string {
   return m > 0 ? `${m} phút ${s} giây` : `${s} giây`;
 }
 
-function CheckinWindowBanner({ schedule }: { schedule: BookingSchedule }) {
+function CheckinWindowBanner({
+  schedule,
+  policy,
+}: {
+  schedule: BookingSchedule;
+  policy?: TaskerAssignedBookingDetail["checkinPolicy"];
+}) {
   const [now, setNow] = useState(() => Date.now());
+  const timingPolicy = policy ?? {
+    exemptFromLatePenalty: false,
+    lateGraceMinutes: 5,
+  };
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -148,6 +158,25 @@ function CheckinWindowBanner({ schedule }: { schedule: BookingSchedule }) {
 
   const windowOpenTime = new Date(startMs - CHECKIN_OPEN_BEFORE * 60_000);
   const autoCancelTime = new Date(startMs + CHECKIN_AUTO_CANCEL * 60_000);
+
+  if (
+    timingPolicy.exemptFromLatePenalty &&
+    diffMin <= CHECKIN_AUTO_CANCEL
+  ) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
+            Đơn làm ngay
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-emerald-800">
+          Check-in khi đến nơi, không áp dụng điểm phạt đến muộn.
+        </p>
+      </div>
+    );
+  }
 
   if (diffMin < -CHECKIN_OPEN_BEFORE) {
     const secsUntilOpen = Math.ceil((-diffMin - CHECKIN_OPEN_BEFORE) * 60);
@@ -170,14 +199,14 @@ function CheckinWindowBanner({ schedule }: { schedule: BookingSchedule }) {
     );
   }
 
-  if (diffMin <= 0) {
+  if (diffMin <= timingPolicy.lateGraceMinutes) {
     const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <div className="flex items-center gap-2 mb-1">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-xs font-black text-emerald-700 uppercase tracking-wide">
-            Cửa sổ check-in đang mở
+            Đúng giờ
           </p>
         </div>
         <p className="text-sm font-semibold text-emerald-800">
@@ -514,10 +543,11 @@ function AssignedDetailView({
 }) {
   const router = useRouter();
   const markOnWay = useMarkOnTheWay(bookingId);
-  const markCheckedIn = useMarkCheckedIn(bookingId, data.schedule);
+  const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
   const cancelByTasker = useCancelByTasker(bookingId);
+  const checkinRequestLockRef = useRef(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const {
@@ -540,6 +570,16 @@ function AssignedDetailView({
       onSuccess: () => {
         setShowConfirmComplete(false);
         router.push("/tasker/jobs");
+      },
+    });
+  };
+
+  const handleCheckin = () => {
+    if (checkinRequestLockRef.current || markCheckedIn.isPending) return;
+    checkinRequestLockRef.current = true;
+    markCheckedIn.mutate(undefined, {
+      onSettled: () => {
+        checkinRequestLockRef.current = false;
       },
     });
   };
@@ -700,13 +740,16 @@ function AssignedDetailView({
             </div>
 
             <div className="mb-3">
-              <CheckinWindowBanner schedule={data.schedule} />
+              <CheckinWindowBanner
+                schedule={data.schedule}
+                policy={data.checkinPolicy}
+              />
             </div>
 
             <ActionButton
               label="Check-in — Tôi đã đến nơi"
               icon={MapPin}
-              onClick={() => markCheckedIn.mutate()}
+              onClick={handleCheckin}
               isPending={markCheckedIn.isPending}
               color="amber"
             />
@@ -985,7 +1028,6 @@ function AssignedDetailView({
 export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
 }) => {
-  const MAX_LOCATION_ACCURACY_METERS = 500;
   const router = useRouter();
   const searchParams = useSearchParams();
   const isPostedMode = searchParams.get("mode") === "posted";
@@ -1030,16 +1072,6 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // if (position.coords.accuracy > MAX_LOCATION_ACCURACY_METERS) {
-        //   setLocationError(
-        //     `Vị trí hiện tại có sai số khoảng ${Math.round(position.coords.accuracy)} m. Hãy bật vị trí chính xác rồi thử lại.`,
-        //   );
-        //   setLocationErrorKind("inaccurate");
-        //   setLocationResolved(true);
-        //   setIsRequestingLocation(false);
-        //   return;
-        // }
-
         setLocation({
           currentLatitude: position.coords.latitude,
           currentLongitude: position.coords.longitude,

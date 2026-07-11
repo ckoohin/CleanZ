@@ -2,10 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
-import type {
-  BookingSchedule,
-  CreateBookingForCustomerDto,
-} from "../types/booking.types";
+import type { CreateBookingForCustomerDto } from "../types/booking.types";
 
 const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
@@ -187,36 +184,20 @@ export function useMarkOnTheWay(bookingId: string) {
 }
 
 /** 09. Check-in khi đến nơi */
-export function useMarkCheckedIn(bookingId: string, schedule?: BookingSchedule) {
+export function useMarkCheckedIn(bookingId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => taskerBookingApi.markCheckedIn(bookingId),
-    onSuccess: () => {
-      if (schedule?.scheduledStartDate && schedule?.scheduledStartTime) {
-        const scheduledStart = new Date(
-          `${schedule.scheduledStartDate}T${schedule.scheduledStartTime}`,
+    onSuccess: (response) => {
+      const result = response.checkinResult;
+      if (result?.alreadyCheckedIn) return;
+      if (result?.warningPoints) {
+        toast.warning(
+          `Check-in muộn ${result.minutesLate} phút — bạn bị cộng ${result.warningPoints} điểm cảnh báo`,
+          { duration: 7000 },
         );
-        if (!isNaN(scheduledStart.getTime())) {
-          const diffMin = (Date.now() - scheduledStart.getTime()) / 60_000;
-          const minutesLate = Math.max(0, Math.round(diffMin));
-          if (minutesLate > 15) {
-            toast.warning(
-              `Check-in muộn ${minutesLate} phút — bạn bị cộng 2 điểm cảnh báo`,
-              { duration: 7000 },
-            );
-          } else if (minutesLate > 0) {
-            toast.warning(
-              `Check-in muộn ${minutesLate} phút — bạn bị cộng 1 điểm cảnh báo`,
-              { duration: 7000 },
-            );
-          } else {
-            toast.success("Check-in thành công! Bạn đến đúng giờ 👍");
-          }
-        } else {
-          toast.success("Check-in thành công! Bạn đã đến nơi");
-        }
       } else {
-        toast.success("Check-in thành công! Bạn đã đến nơi");
+        toast.success("Check-in thành công! Bạn đến đúng giờ");
       }
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });

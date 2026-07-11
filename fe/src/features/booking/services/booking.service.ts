@@ -126,7 +126,11 @@ export const taskerBookingApi = {
 
   /** 09. Check-in khi đến nơi */
   markCheckedIn: (id: string): Promise<TaskerAssignedBookingDetail> =>
-    http.patch(API_ENDPOINTS.BOOKING.TASKER_CHECKIN(id)).then((r) => r.data.data ?? r.data),
+    http
+      .patch(API_ENDPOINTS.BOOKING.TASKER_CHECKIN(id), undefined, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2])
+      .then((r) => r.data.data ?? r.data),
 
   /** 10. Bắt đầu làm việc */
   markStart: (id: string): Promise<TaskerAssignedBookingDetail> =>

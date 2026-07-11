@@ -42,6 +42,10 @@ import {
   POSTED_LIST_OPEN_TO_ALL_AFTER_MS,
 } from './booking-dispatch.service';
 import { BookingCheckinService } from './booking-checkin.service';
+import type {
+  CheckinAssessment,
+  CheckinTimingPolicy,
+} from './booking-checkin.policy';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
@@ -136,7 +140,10 @@ export interface TaskerAssignedBookingDetailResponse {
   id: string;
   bookingCode: string;
   status: BookingStatus;
+  source: BookingEntity['source'];
   canContactCustomer: boolean;
+  checkinPolicy: CheckinTimingPolicy;
+  checkinResult?: CheckinAssessment;
   service: {
     id: string;
     name: string;
@@ -616,6 +623,8 @@ export class TaskerBookingService {
           select: [
             'id',
             'bookingCode',
+            'source',
+            'createdAt',
             'scheduledStart',
             'scheduledEnd',
             'scheduledStartDate',
@@ -800,15 +809,15 @@ export class TaskerBookingService {
       }
 
       // Delegate sang BookingCheckinService để validate time window + ghi log
-      const booking = await this.dataSource.transaction(async (manager) => {
-        await this.bookingCheckinService.performCheckin(
+      const checkin = await this.dataSource.transaction(async (manager) => {
+        const result = await this.bookingCheckinService.performCheckin(
           userId,
           bookingId,
           manager,
         );
 
         // Load lại booking với đầy đủ relations để map response
-        return manager
+        const booking = await manager
           .getRepository(BookingEntity)
           .createQueryBuilder('booking')
           .leftJoinAndSelect('booking.tasker', 'tasker')
@@ -818,25 +827,29 @@ export class TaskerBookingService {
           .leftJoinAndSelect('booking.addressRef', 'addressRef')
           .where('booking.id = :bookingId', { bookingId })
           .getOne();
+        return { booking, result };
       });
 
+      const { booking, result } = checkin;
       if (!booking)
         throw new NotFoundException('Booking không tìm thấy sau check-in');
 
       const arrivedAt =
         booking.checkedInAt?.toISOString() ?? new Date().toISOString();
-      await this.trackingGateway.emitTaskerArrived(booking.id, {
-        bookingId: booking.id,
-        status: booking.status,
-        arrivedAt,
-        trackingStopped: true,
-      });
-      await this.emitCustomerBookingStatusChanged({
-        booking,
-        previousStatus: BookingStatus.TASKER_ON_THE_WAY,
-        changedAt: booking.checkedInAt ?? new Date(),
-        actorUserId: userId,
-      });
+      if (!result.alreadyCheckedIn) {
+        await this.trackingGateway.emitTaskerArrived(booking.id, {
+          bookingId: booking.id,
+          status: booking.status,
+          arrivedAt,
+          trackingStopped: true,
+        });
+        await this.emitCustomerBookingStatusChanged({
+          booking,
+          previousStatus: BookingStatus.TASKER_ON_THE_WAY,
+          changedAt: booking.checkedInAt ?? new Date(),
+          actorUserId: userId,
+        });
+      }
 
       // Hủy auto-cancel job vì đã check-in thành công
       void this.bookingCheckinService
@@ -844,7 +857,10 @@ export class TaskerBookingService {
         .catch(() => null);
 
       const service = await this.findServiceByBooking(booking);
-      return this.mapAssignedBookingDetail(booking, service, null);
+      return {
+        ...this.mapAssignedBookingDetail(booking, service, null),
+        checkinResult: result,
+      };
     }, 'Không thể check-in booking');
   }
 
@@ -1226,7 +1242,9 @@ export class TaskerBookingService {
       id: booking.id,
       bookingCode: booking.bookingCode,
       status: booking.status,
+      source: booking.source,
       canContactCustomer,
+      checkinPolicy: this.bookingCheckinService.getTimingPolicy(booking),
       service,
       distance,
       schedule: {

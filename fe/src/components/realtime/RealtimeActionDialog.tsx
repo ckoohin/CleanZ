@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Clock3 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,8 +22,59 @@ interface RealtimeActionDialogProps {
   cancelLabel?: string;
   /** Tự đóng (coi như hủy) sau N ms — dùng cho lời mời có thời hạn như dispatch. */
   autoCloseMs?: number;
+  /** Reset thời hạn khi một realtime event mới thay thế event đang hiển thị. */
+  autoCloseKey?: string | number;
+  showCountdown?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+}
+
+function AutoCloseTimer({
+  durationMs,
+  showCountdown,
+  onExpire,
+}: {
+  durationMs: number;
+  showCountdown: boolean;
+  onExpire: () => void;
+}) {
+  const deadlineRef = useRef<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(() =>
+    Math.max(0, Math.ceil(durationMs / 1000)),
+  );
+
+  useEffect(() => {
+    deadlineRef.current = Date.now() + durationMs;
+    const timer = window.setInterval(() => {
+      const deadline = deadlineRef.current;
+      if (deadline === null) return;
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
+        window.clearInterval(timer);
+        setRemainingSeconds(0);
+        onExpire();
+        return;
+      }
+      setRemainingSeconds(Math.ceil(remainingMs / 1000));
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [durationMs, onExpire]);
+
+  if (!showCountdown) return null;
+
+  return (
+    <div
+      className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700"
+      role="timer"
+      aria-live="polite"
+    >
+      <Clock3 className="size-4 shrink-0" />
+      <span>
+        Còn <strong>{remainingSeconds} giây</strong> để phản hồi
+      </span>
+    </div>
+  );
 }
 
 /**
@@ -38,15 +90,11 @@ export function RealtimeActionDialog({
   confirmLabel,
   cancelLabel = "Để sau",
   autoCloseMs,
+  autoCloseKey,
+  showCountdown = false,
   onConfirm,
   onCancel,
 }: RealtimeActionDialogProps) {
-  useEffect(() => {
-    if (!open || !autoCloseMs) return;
-    const timer = setTimeout(onCancel, autoCloseMs);
-    return () => clearTimeout(timer);
-  }, [open, autoCloseMs, onCancel]);
-
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onCancel()}>
       <AlertDialogContent className="max-w-md">
@@ -63,6 +111,14 @@ export function RealtimeActionDialog({
           </div>
           {description ? (
             <AlertDialogDescription>{description}</AlertDialogDescription>
+          ) : null}
+          {open && autoCloseMs ? (
+            <AutoCloseTimer
+              key={autoCloseKey}
+              durationMs={autoCloseMs}
+              showCountdown={showCountdown}
+              onExpire={onCancel}
+            />
           ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>

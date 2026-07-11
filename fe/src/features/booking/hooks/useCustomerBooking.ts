@@ -103,7 +103,14 @@ export function useMyActiveBooking() {
     queryKey: QUERY_KEYS.myActive,
     queryFn: () => customerBookingApi.findMyActive(),
     enabled: isCustomerReady,
-    refetchInterval: isCustomerReady ? 30_000 : false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: (query) => {
+      if (!isCustomerReady) return false;
+      return query.state.data?.booking ? 5_000 : 30_000;
+    },
   });
 }
 

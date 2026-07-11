@@ -1090,7 +1090,7 @@ export function TaskerCreateBookingModal({
                   >
                     {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isWalkin
-                      ? "Tạo đơn offline cho khách vãng lai"
+                      ? "Tạo đơn cho khách vãng lai"
                       : "Tạo đơn — chờ khách xác nhận"}
                   </button>
                 </div>

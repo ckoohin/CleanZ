@@ -20,6 +20,7 @@ interface NotificationPayload {
 }
 
 interface PendingInvitation {
+  id: string;
   title: string;
   content: string;
   href: string;
@@ -50,6 +51,7 @@ export function TaskerRealtimeDispatch() {
 
       if (notification.type === "BOOKING_NEW_AVAILABLE") {
         setInvitation({
+          id: notification.id,
           title: notification.title || "Có đơn mới gần bạn",
           content:
             notification.content ?? "Mở chi tiết đơn để nhận trong 15 giây.",
@@ -83,6 +85,8 @@ export function TaskerRealtimeDispatch() {
       confirmLabel="Xem & nhận đơn"
       cancelLabel="Bỏ qua"
       autoCloseMs={INVITATION_AUTO_CLOSE_MS}
+      autoCloseKey={invitation?.id}
+      showCountdown
       onConfirm={() => {
         closeInvitation();
         if (invitation) router.push(invitation.href);
