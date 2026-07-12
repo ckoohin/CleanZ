@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { customerWalletApi } from "../services/customer-wallet.service";
 import type {
   CreateCustomerWithdrawalInput,
+  CreateTopupInput,
   CustomerWalletTransactionQuery,
 } from "../types/customer-wallet.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
@@ -13,6 +14,9 @@ export const customerWalletKeys = {
   transactions: (query?: CustomerWalletTransactionQuery) =>
     [...customerWalletKeys.all, "transactions", query] as const,
   withdrawals: () => [...customerWalletKeys.all, "withdrawals"] as const,
+  topupConfig: () => [...customerWalletKeys.all, "topup-config"] as const,
+  topups: (page: number) =>
+    [...customerWalletKeys.all, "topups", page] as const,
 };
 
 export function useCustomerWallet() {
@@ -49,5 +53,43 @@ export function useCreateCustomerWithdrawal() {
       qc.invalidateQueries({ queryKey: customerWalletKeys.detail() });
     },
     onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+/* ─── Nạp tiền PayPal ───────────────────────────────────────────────────────
+ * Luồng: createTopup → điều hướng sang approveUrl (PayPal) → PayPal đá về
+ * /customer/wallet/topup/return?topupId=... → trang đó gọi captureTopup để cộng ví.
+ * Capture là idempotent nên F5 hay bấm lại không nhân đôi tiền.
+ * -------------------------------------------------------------------------- */
+
+export function useTopupConfig() {
+  return useQuery({
+    queryKey: customerWalletKeys.topupConfig(),
+    queryFn: customerWalletApi.getTopupConfig,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useMyTopups(page = 1) {
+  return useQuery({
+    queryKey: customerWalletKeys.topups(page),
+    queryFn: () => customerWalletApi.listTopups(page),
+  });
+}
+
+export function useCreateTopup() {
+  return useMutation({
+    mutationFn: (dto: CreateTopupInput) => customerWalletApi.createTopup(dto),
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+export function useCaptureTopup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (topupId: string) => customerWalletApi.captureTopup(topupId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: customerWalletKeys.all });
+    },
   });
 }

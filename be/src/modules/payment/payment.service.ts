@@ -72,6 +72,54 @@ export class PaymentService {
     return paymentRepository.save(payment);
   }
 
+  /**
+   * Cập nhật số tiền của bản ghi thanh toán mới nhất bất kể trạng thái.
+   * Dùng cho đơn trả bằng ví (đã PAID) khi khách đổi lịch làm giá thay đổi —
+   * `updateLatestPendingPaymentAmount` sẽ bỏ qua vì không còn bản ghi PENDING nào.
+   */
+  async updateLatestPaymentAmount(
+    manager: EntityManager,
+    bookingId: string,
+    amount: number,
+  ): Promise<PaymentEntity | null> {
+    const paymentRepository = manager.getRepository(PaymentEntity);
+    const payment = await paymentRepository.findOne({
+      where: { booking: { id: bookingId } },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!payment) {
+      return null;
+    }
+
+    payment.amount = amount;
+    return paymentRepository.save(payment);
+  }
+
+  /** Hoàn tiền đơn đã thanh toán (dùng cho booking trả bằng ví bị hủy). */
+  async markLatestPaidPaymentAsRefunded(
+    manager: EntityManager,
+    bookingId: string,
+    refundedAt: Date,
+  ): Promise<PaymentEntity | null> {
+    const paymentRepository = manager.getRepository(PaymentEntity);
+    const payment = await paymentRepository.findOne({
+      where: {
+        booking: { id: bookingId },
+        status: PaymentStatus.PAID,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!payment) {
+      return null;
+    }
+
+    payment.status = PaymentStatus.REFUNDED;
+    payment.refundedAt = refundedAt;
+    return paymentRepository.save(payment);
+  }
+
   async markLatestPendingPaymentAsPaid(
     manager: EntityManager,
     bookingId: string,

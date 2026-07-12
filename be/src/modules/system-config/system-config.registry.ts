@@ -1,0 +1,113 @@
+import { SYSTEM_CONFIG_KEYS } from './system-config.keys';
+
+/**
+ * Khai báo các cấu hình admin được phép chỉnh runtime.
+ * Thêm setting mới = thêm 1 dòng ở đây (controller/validate/FE tự ăn theo).
+ * Key không nằm trong registry sẽ bị từ chối khi admin cập nhật.
+ */
+export type SystemConfigGroup = 'TOPUP' | 'WITHDRAWAL' | 'TASKER';
+
+export interface SystemConfigDefinition {
+  key: string;
+  group: SystemConfigGroup;
+  label: string;
+  description: string;
+  /** Đơn vị hiển thị cho FE (VND, %, giờ...) */
+  unit?: string;
+  defaultValue: number;
+  min: number;
+  max: number;
+}
+
+export const SYSTEM_CONFIG_GROUP_LABELS: Record<SystemConfigGroup, string> = {
+  TOPUP: 'Nạp tiền vào ví',
+  WITHDRAWAL: 'Rút tiền khỏi ví',
+  TASKER: 'Điều kiện nhận đơn của Tasker',
+};
+
+export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
+  {
+    key: SYSTEM_CONFIG_KEYS.TOPUP_VND_PER_USD,
+    group: 'TOPUP',
+    label: 'Tỷ giá quy đổi (VND / 1 USD)',
+    description:
+      'PayPal thu bằng USD nên số tiền nạp (VND) được quy đổi theo tỷ giá này.',
+    unit: 'VND',
+    defaultValue: 25_000,
+    min: 1_000,
+    max: 200_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.TOPUP_MIN_VND,
+    group: 'TOPUP',
+    label: 'Số tiền nạp tối thiểu',
+    description: 'Khách hàng không thể tạo đơn nạp thấp hơn mức này.',
+    unit: 'VND',
+    defaultValue: 10_000,
+    min: 1_000,
+    max: 100_000_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.TOPUP_MAX_VND,
+    group: 'TOPUP',
+    label: 'Số tiền nạp tối đa',
+    description: 'Giới hạn trần cho mỗi đơn nạp tiền.',
+    unit: 'VND',
+    defaultValue: 50_000_000,
+    min: 10_000,
+    max: 1_000_000_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.WITHDRAWAL_MIN_VND,
+    group: 'WITHDRAWAL',
+    label: 'Số tiền rút tối thiểu',
+    description:
+      'Áp dụng cho cả yêu cầu rút của Tasker và Khách hàng (mỗi lần rút).',
+    unit: 'VND',
+    defaultValue: 10_000,
+    min: 1_000,
+    max: 100_000_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.WITHDRAWAL_MAX_VND,
+    group: 'WITHDRAWAL',
+    label: 'Số tiền rút tối đa',
+    description: 'Trần cho mỗi yêu cầu rút tiền (không giới hạn tổng số dư).',
+    unit: 'VND',
+    defaultValue: 20_000_000,
+    min: 10_000,
+    max: 1_000_000_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.WITHDRAWAL_MAX_PER_WEEK,
+    group: 'WITHDRAWAL',
+    label: 'Số lần rút tối đa mỗi tuần',
+    description:
+      'Đếm các yêu cầu PENDING/APPROVED/PROCESSED trong tuần hiện tại.',
+    unit: 'lần',
+    defaultValue: 5,
+    min: 1,
+    max: 50,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.TASKER_MIN_ACCEPT_BALANCE_VND,
+    group: 'TASKER',
+    label: 'Số dư ví tối thiểu để nhận đơn',
+    description:
+      'Tasker phải giữ ít nhất mức này trong ví mới được nhận đơn mới, và không được rút xuống dưới mức này (trừ khi đã nghỉ việc). Đặt 0 để tắt giới hạn.',
+    unit: 'VND',
+    defaultValue: 50_000,
+    min: 0,
+    max: 50_000_000,
+  },
+];
+
+const DEFINITION_BY_KEY = new Map(
+  SYSTEM_CONFIG_DEFINITIONS.map((item) => [item.key, item]),
+);
+
+export function findSystemConfigDefinition(
+  key: string,
+): SystemConfigDefinition | undefined {
+  return DEFINITION_BY_KEY.get(key);
+}

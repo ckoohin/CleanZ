@@ -11,6 +11,7 @@ import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
+import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import { WalletEntity } from './entity/wallet.entity';
 import { PaginatedData } from 'src/common/helpers/response.interface';
@@ -18,7 +19,8 @@ import { WalletListQueryDto } from './dto/wallet-list-query.dto';
 import { CreateWithdrawalRequestDto } from './dto/create-withdrawal-request.dto';
 import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
 import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
-import { MAX_WEEKLY_WITHDRAWALS } from '../finance/services/finance.service';
+import { SYSTEM_CONFIG_KEYS } from '../system-config/system-config.keys';
+import { SystemConfigService } from '../system-config/system-config.service';
 
 interface WalletMutationInput {
   wallet: WalletEntity;
@@ -42,6 +44,12 @@ interface WalletTransferInput {
   description?: string | null;
 }
 
+export interface WithdrawalLimits {
+  minVnd: number;
+  maxVnd: number;
+  maxPerWeek: number;
+}
+
 export interface WalletResponse {
   id: string;
   ownerType: WalletOwnerType;
@@ -49,9 +57,10 @@ export interface WalletResponse {
   holdBalance: number;
   taskerId?: string | null;
   customerId?: string | null;
-  requiredDeposit?: number;
-  currentDepositBalance?: number;
-  depositTopupDue?: Date | null;
+  /** Chỉ có ở ví Tasker: sàn phải giữ lại để còn nhận đơn (0 nếu đã nghỉ việc). */
+  minAcceptBalance?: number;
+  /** Chỉ có ở ví Tasker: balance − minAcceptBalance. */
+  withdrawableBalance?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,7 +96,10 @@ export interface WalletTransactionQueryOpts {
 
 @Injectable()
 export class WalletService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly systemConfig: SystemConfigService,
+  ) {}
 
   async findAllWallets(
     query: WalletListQueryDto,
@@ -135,7 +147,23 @@ export class WalletService {
         tasker,
       );
 
-      return this.mapWallet(wallet);
+      // Tasker cần biết sàn phải giữ lại (để nhận đơn) và phần thật sự rút được.
+      const minAcceptBalance =
+        tasker.status === TaskerStatus.TERMINATED
+          ? 0
+          : await this.systemConfig.getRegisteredNumber(
+              this.dataSource.manager,
+              SYSTEM_CONFIG_KEYS.TASKER_MIN_ACCEPT_BALANCE_VND,
+            );
+
+      return {
+        ...this.mapWallet(wallet),
+        minAcceptBalance,
+        withdrawableBalance: Math.max(
+          0,
+          toNumber(wallet.balance) - minAcceptBalance,
+        ),
+      };
     }, 'Không thể lấy ví tasker');
   }
 
@@ -152,6 +180,40 @@ export class WalletService {
 
       return this.mapWallet(wallet);
     }, 'Không thể lấy ví customer');
+  }
+
+  /** Hạn mức rút tiền do admin cấu hình (system_configs) — dùng chung Tasker & Customer. */
+  async getWithdrawalLimits(manager: EntityManager): Promise<WithdrawalLimits> {
+    const [minVnd, maxVnd, maxPerWeek] = await Promise.all([
+      this.systemConfig.getRegisteredNumber(
+        manager,
+        SYSTEM_CONFIG_KEYS.WITHDRAWAL_MIN_VND,
+      ),
+      this.systemConfig.getRegisteredNumber(
+        manager,
+        SYSTEM_CONFIG_KEYS.WITHDRAWAL_MAX_VND,
+      ),
+      this.systemConfig.getRegisteredNumber(
+        manager,
+        SYSTEM_CONFIG_KEYS.WITHDRAWAL_MAX_PER_WEEK,
+      ),
+    ]);
+
+    return { minVnd, maxVnd, maxPerWeek };
+  }
+
+  assertWithdrawalAmount(amount: number, limits: WithdrawalLimits): void {
+    if (amount < limits.minVnd) {
+      throw new BadRequestException(
+        `Số tiền rút tối thiểu là ${limits.minVnd.toLocaleString('vi-VN')}đ`,
+      );
+    }
+
+    if (amount > limits.maxVnd) {
+      throw new BadRequestException(
+        `Số tiền rút tối đa mỗi lần là ${limits.maxVnd.toLocaleString('vi-VN')}đ`,
+      );
+    }
   }
 
   async createTaskerWithdrawalRequest(
@@ -195,9 +257,11 @@ export class WalletService {
           )
           .getCount();
 
-        if (weeklyCount >= MAX_WEEKLY_WITHDRAWALS) {
+        const limits = await this.getWithdrawalLimits(manager);
+
+        if (weeklyCount >= limits.maxPerWeek) {
           throw new BadRequestException(
-            `Bạn chỉ được gửi tối đa ${MAX_WEEKLY_WITHDRAWALS} yêu cầu rút tiền mỗi tuần`,
+            `Bạn chỉ được gửi tối đa ${limits.maxPerWeek} yêu cầu rút tiền mỗi tuần`,
           );
         }
 
@@ -213,12 +277,32 @@ export class WalletService {
           .getRawOne<{ total: string }>();
 
         const amount = this.normalizeAmount(dto.amount);
+        this.assertWithdrawalAmount(amount, limits);
+
         const pendingAmount = toNumber(pendingResult?.total ?? 0);
-        const availableBalance = toNumber(lockedWallet.balance) - pendingAmount;
+
+        // Tasker đang làm phải giữ lại sàn số dư để còn nhận được đơn; nghỉ việc
+        // (TERMINATED) thì được rút sạch ví.
+        const reserve =
+          tasker.status === TaskerStatus.TERMINATED
+            ? 0
+            : await this.systemConfig.getRegisteredNumber(
+                manager,
+                SYSTEM_CONFIG_KEYS.TASKER_MIN_ACCEPT_BALANCE_VND,
+              );
+
+        const availableBalance = Math.max(
+          0,
+          toNumber(lockedWallet.balance) - pendingAmount - reserve,
+        );
 
         if (amount > availableBalance) {
+          const reserveNote =
+            reserve > 0
+              ? ` (phải giữ tối thiểu ${reserve.toLocaleString('vi-VN')}đ trong ví để tiếp tục nhận đơn)`
+              : '';
           throw new BadRequestException(
-            `Số dư khả dụng không đủ. Số dư có thể rút: ${availableBalance}`,
+            `Số dư khả dụng không đủ. Số tiền có thể rút: ${availableBalance.toLocaleString('vi-VN')}đ${reserveNote}`,
           );
         }
 
@@ -295,13 +379,15 @@ export class WalletService {
     }, 'Không thể lấy lịch sử ví customer');
   }
 
-  async getSystemTransactions(): Promise<WalletTransactionListResponse> {
+  async getSystemTransactions(
+    opts: WalletTransactionQueryOpts = {},
+  ): Promise<WalletTransactionListResponse> {
     return asyncHandleOperation(async () => {
       const wallet = await this.getOrCreateSystemWallet(
         this.dataSource.manager,
       );
 
-      return this.getTransactionsByWalletId(wallet.id);
+      return this.getTransactionsByWalletId(wallet.id, opts);
     }, 'Không thể lấy lịch sử ví hệ thống');
   }
 
@@ -709,13 +795,6 @@ export class WalletService {
       holdBalance: toNumber(wallet.holdBalance),
       taskerId: wallet.tasker?.id ?? null,
       customerId: wallet.customer?.id ?? null,
-      requiredDeposit: wallet.tasker
-        ? toNumber(wallet.tasker.depositAmount)
-        : undefined,
-      currentDepositBalance: wallet.tasker
-        ? toNumber(wallet.tasker.currentDepositBalance)
-        : undefined,
-      depositTopupDue: wallet.tasker?.depositTopupDue ?? null,
       createdAt: wallet.createdAt,
       updatedAt: wallet.updatedAt,
     };

@@ -21,10 +21,9 @@ import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
 import { RevenueQueryDto } from '../dto/revenue-query.dto';
 import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
 import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
+import { WalletService } from 'src/modules/wallet/wallet.service';
 import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
 import { User } from '../../users/entities/user.entity';
-
-export const MAX_WEEKLY_WITHDRAWALS = 5;
 
 @Injectable()
 export class FinanceService {
@@ -33,6 +32,7 @@ export class FinanceService {
     private readonly transactionRepo: WalletTransactionRepository,
     private readonly withdrawalRepo: WithdrawalRequestRepository,
     private readonly dataSource: DataSource,
+    private readonly walletService: WalletService,
   ) {}
 
   async findAllWithdrawals(
@@ -50,58 +50,63 @@ export class FinanceService {
     return wr;
   }
 
+  /**
+   * Admin duyệt yêu cầu rút tiền của Tasker.
+   *
+   * Khóa row yêu cầu (FOR UPDATE) rồi mới kiểm tra trạng thái — trước đây đọc ngoài
+   * transaction nên hai admin bấm duyệt cùng lúc đều thấy PENDING và ví bị trừ HAI lần.
+   * Việc trừ ví giao cho `walletService.debitWallet` (khóa ví + tính lại số dư) thay vì
+   * ghi đè `balance` bằng giá trị đọc từ trước — cách cũ có thể xóa trắng khoản thu nhập
+   * vừa được cộng vào ví ở một transaction khác (lost update).
+   */
   async reviewWithdrawal(
     id: string,
     dto: ReviewWithdrawalDto,
   ): Promise<WithdrawalRequestEntity> {
-    const withdrawal = await this.findOneWithdrawal(id);
-
-    if (withdrawal.status !== WithdrawalStatus.PENDING) {
-      throw new ConflictException(
-        `WITHDRAWAL_NOT_PENDING: Cannot review a request with status "${withdrawal.status}"`,
+    await this.dataSource.transaction(async (manager) => {
+      const withdrawalRepository = manager.getRepository(
+        WithdrawalRequestEntity,
       );
-    }
 
-    if (!withdrawal.taskerId) {
-      throw new BadRequestException('WITHDRAWAL_TASKER_NOT_FOUND');
-    }
+      const withdrawal = await withdrawalRepository.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
+      if (!withdrawal) {
+        throw new NotFoundException('WITHDRAWAL_NOT_FOUND');
+      }
+
+      if (withdrawal.status !== WithdrawalStatus.PENDING) {
+        throw new ConflictException(
+          `WITHDRAWAL_NOT_PENDING: Cannot review a request with status "${withdrawal.status}"`,
+        );
+      }
+
+      if (!withdrawal.taskerId) {
+        throw new BadRequestException('WITHDRAWAL_TASKER_NOT_FOUND');
+      }
+
       if (dto.status === WithdrawalStatus.APPROVED) {
-        const wallet = withdrawal.wallet;
-        const amount = Number(withdrawal.amount);
-        const balance = Number(wallet.balance);
-
-        if (balance < amount) {
-          throw new BadRequestException(
-            'INSUFFICIENT_BALANCE: Wallet balance is lower than requested withdrawal amount',
-          );
-        }
-
-        const balanceBefore = Number(wallet.balance);
-        const balanceAfter = balanceBefore - Number(withdrawal.amount);
-
-        await queryRunner.manager.update(WalletEntity, wallet.id, {
-          balance: balanceAfter,
+        const wallet = await manager.getRepository(WalletEntity).findOne({
+          where: { id: withdrawal.walletId },
         });
 
-        const tx = queryRunner.manager.create(WalletTransactionEntity, {
+        if (!wallet) {
+          throw new NotFoundException('WALLET_NOT_FOUND');
+        }
+
+        await this.walletService.debitWallet(manager, {
           wallet,
+          amount: Number(withdrawal.amount),
           type: WalletTransactionType.WITHDRAW,
-          amount: -withdrawal.amount,
-          balanceBefore,
-          balanceAfter,
           referenceId: withdrawal.id,
           referenceType: 'WITHDRAWAL_REQUEST',
           description: `Rút tiền về ${withdrawal.bankName ?? 'tài khoản'} - ${withdrawal.bankAccount ?? ''}`,
         });
-        await queryRunner.manager.save(WalletTransactionEntity, tx);
       }
 
-      await queryRunner.manager.update(WithdrawalRequestEntity, id, {
+      await withdrawalRepository.update(id, {
         status: dto.status,
         // note gốc của tasker giữ nguyên, chỉ lưu adminNote và proof riêng
         ...(dto.note !== undefined ? { note: dto.note } : {}),
@@ -114,16 +119,9 @@ export class FinanceService {
           ? { processedAt: new Date() }
           : {}),
       });
+    });
 
-      await queryRunner.commitTransaction();
-
-      return this.findOneWithdrawal(id);
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-      throw err;
-    } finally {
-      await queryRunner.release();
-    }
+    return this.findOneWithdrawal(id);
   }
 
   async getRevenueSummary(

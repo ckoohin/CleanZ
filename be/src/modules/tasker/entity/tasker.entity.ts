@@ -43,23 +43,8 @@ export class TaskerEntity {
   })
   status!: TaskerStatus;
 
-  @Column({
-    name: 'deposit_amount',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 400000,
-  })
-  depositAmount!: number;
-
-  @Column({
-    name: 'current_deposit_balance',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    default: 400000,
-  })
-  currentDepositBalance!: number;
+  // Ký quỹ đã bị bỏ — Tasker chỉ còn MỘT ví (wallets). Sàn số dư để nhận đơn nằm ở
+  // system_configs.TASKER_MIN_ACCEPT_BALANCE_VND. Xem migration MergeTaskerDepositIntoWallet.
 
   @Column({
     name: 'rating_avg',
@@ -158,10 +143,6 @@ export class TaskerEntity {
   // Audit: admin (users.id) đã tác động gần nhất (duyệt/khóa/sửa...).
   @Column({ name: 'updated_by', type: 'uuid', nullable: true })
   updatedBy?: string | null;
-
-  // Hạn nạp bổ sung cọc sau khi cọc < tối thiểu (Phase 2 — FR-E4). NULL = không cần nạp.
-  @Column({ name: 'deposit_topup_due', type: 'timestamp', nullable: true })
-  depositTopupDue?: Date | null;
 
   /** Hạn khóa do tự hủy quá 3 lần/tuần. NULL = không bị khóa theo luồng này. */
   @Column({ name: 'cancel_suspended_until', type: 'timestamp', nullable: true })

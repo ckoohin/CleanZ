@@ -10,9 +10,11 @@ import {
 import { WithdrawalStatus } from '../../../common/enums/with-drawal-status.enum';
 
 export class CreateCustomerWithdrawalDto {
+  // Hạn mức min/max thật nằm ở system_configs (WITHDRAWAL_MIN_VND/WITHDRAWAL_MAX_VND),
+  // service kiểm tra runtime — ở đây chỉ chặn số âm/0.
   @ApiProperty({ example: 500000 })
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(10000)
+  @Min(1)
   amount!: number;
 
   @ApiProperty({ example: '0123456789' })

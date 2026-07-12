@@ -35,7 +35,8 @@ import {
 } from './booking-policy.service';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
+import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import {
   BookingDispatchService,
@@ -281,7 +282,8 @@ export class TaskerBookingService {
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly walletService: WalletService,
-    private readonly taskerDepositService: TaskerDepositService,
+    private readonly taskerBalanceService: TaskerBalanceService,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly goongMapService: GoongMapService,
     private readonly trackingGateway: TrackingGateway,
     private readonly notificationService: NotificationService,
@@ -517,6 +519,11 @@ export class TaskerBookingService {
           booking,
         );
 
+        await this.taskerBalanceService.assertMeetsMinAcceptBalance(
+          manager,
+          tasker.id,
+        );
+
         if (booking.paymentMethod === PaymentMethod.CASH) {
           const commissionRate = await this.resolvePlatformCommissionRate(
             manager,
@@ -528,7 +535,7 @@ export class TaskerBookingService {
           const platformFee = Math.round(
             (subtotalForCommission * commissionRate) / 100,
           );
-          await this.taskerDepositService.assertCanCoverCashCommission(
+          await this.taskerBalanceService.assertCanCoverCashCommission(
             manager,
             tasker.id,
             platformFee,
@@ -1000,44 +1007,55 @@ export class TaskerBookingService {
         const platformFee = Math.round((subtotal * commissionRate) / 100);
         const taskerEarning = Math.max(subtotal - platformFee, 0);
 
-        if (savedBooking.paymentMethod === PaymentMethod.CASH) {
+        // Đơn trả bằng ví: tiền khách đã nằm sẵn ở ví SYSTEM từ lúc tạo đơn, nên
+        // chỉ cần chuyển phần công cho tasker. Hoa hồng (trừ đi voucher nền tảng
+        // chịu) tự động ở lại SYSTEM — không ghi thêm income/expense, nếu không sẽ
+        // cộng khống lần hai.
+        const settledFromWallet =
+          await this.bookingWalletPaymentService.settleOnCompletion(
+            manager,
+            savedBooking,
+            taskerEarning,
+          );
+
+        if (!settledFromWallet) {
+          if (savedBooking.paymentMethod === PaymentMethod.CASH) {
+            if (platformFee > 0) {
+              await this.taskerBalanceService.deductCashCommission(
+                manager,
+                tasker.id,
+                savedBooking,
+                platformFee,
+              );
+            }
+          } else {
+            const taskerWallet =
+              await this.walletService.getOrCreateTaskerWallet(manager, tasker);
+            await this.walletService.creditWallet(manager, {
+              wallet: taskerWallet,
+              amount: taskerEarning,
+              type: WalletTransactionType.TASKER_EARNING,
+              booking: savedBooking,
+              description: `Thu nhập tasker từ booking ${savedBooking.bookingCode}`,
+            });
+          }
           if (platformFee > 0) {
-            await this.taskerDepositService.deductCashCommission(
+            await this.walletService.recordPlatformIncome(
               manager,
-              tasker.id,
-              savedBooking,
               platformFee,
+              savedBooking,
+              `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
             );
           }
-        } else {
-          const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
-            manager,
-            tasker,
-          );
-          await this.walletService.creditWallet(manager, {
-            wallet: taskerWallet,
-            amount: taskerEarning,
-            type: WalletTransactionType.TASKER_EARNING,
-            booking: savedBooking,
-            description: `Thu nhập tasker từ booking ${savedBooking.bookingCode}`,
-          });
-        }
-        if (platformFee > 0) {
-          await this.walletService.recordPlatformIncome(
-            manager,
-            platformFee,
-            savedBooking,
-            `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
-          );
-        }
-        // Ghi nhận chi phí voucher nền tảng chịu
-        if (discountAmount > 0) {
-          await this.walletService.recordPlatformExpense(
-            manager,
-            discountAmount,
-            savedBooking,
-            `Nền tảng chịu voucher cho booking ${savedBooking.bookingCode}`,
-          );
+          // Ghi nhận chi phí voucher nền tảng chịu
+          if (discountAmount > 0) {
+            await this.walletService.recordPlatformExpense(
+              manager,
+              discountAmount,
+              savedBooking,
+              `Nền tảng chịu voucher cho booking ${savedBooking.bookingCode}`,
+            );
+          }
         }
 
         await manager
@@ -1542,6 +1560,11 @@ export class TaskerBookingService {
           booking.cancelledBy = CancelledBy.TASKER;
           booking.cancelledByUserId = userId;
           booking.cancelledAt = new Date();
+          await this.bookingWalletPaymentService.refundEscrow(
+            manager,
+            booking,
+            'tasker hủy đơn',
+          );
         } else {
           booking.status = BookingStatus.POSTED;
           booking.tasker = null;

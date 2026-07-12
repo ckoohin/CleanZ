@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, Clock, FileText, ClipboardCheck, MessageSquare, AlertTriangle } from "lucide-react";
+import { Wallet, Clock, FileText, ClipboardCheck, MessageSquare } from "lucide-react";
 import { useAdminIncidentDetail } from "../hooks/useAdminIncident";
 import {
   IncidentStatusBadge,
@@ -123,27 +123,19 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <Item label="Khách hàng">{inc.customer.fullName ?? "—"}</Item>
                   <Item label="Tasker">{inc.tasker.fullName ?? "—"}</Item>
-                  <Item label="Cọc khả dụng (Tasker)">{formatVnd(inc.tasker.availableDeposit)}</Item>
-                  <Item label="Số dư cọc (Tasker)">{formatVnd(inc.tasker.currentDepositBalance)}</Item>
+                  <Item label="Số dư ví (Tasker)">{formatVnd(inc.tasker.walletBalance)}</Item>
                   <Item label="Cửa sổ báo cáo">{fmt(inc.reportWindowUntil)}</Item>
                   <Item label="Hạn quyết định (SLA)">{fmt(inc.decisionDueAt)}</Item>
                   <Item label="Hạn giải trình">{fmt(inc.statementDueAt)}</Item>
                   <Item label="Cooling đến">{fmt(inc.coolingUntil)}</Item>
                 </div>
 
-                {/* Tình trạng tiền: tạm giữ + khóa nhận đơn do nợ */}
-                {((inc.taskerWalletHoldAmount ?? 0) > 0 || inc.tasker.depositTopupDue) && (
+                {/* Tình trạng tiền: phần ví đang tạm giữ chờ xử lý bồi thường */}
+                {(inc.taskerWalletHoldAmount ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {(inc.taskerWalletHoldAmount ?? 0) > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#3B82F6]/15 px-2.5 py-1 text-xs font-semibold text-[#1D4ED8]">
-                        <Wallet className="size-3.5" /> Đang tạm giữ ví: {formatVnd(inc.taskerWalletHoldAmount)}
-                      </span>
-                    )}
-                    {inc.tasker.depositTopupDue && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#DC2626]/15 px-2.5 py-1 text-xs font-semibold text-[#B91C1C]">
-                        <AlertTriangle className="size-3.5" /> Tasker bị khóa nhận đơn (hạn nạp bù {fmt(inc.tasker.depositTopupDue)})
-                      </span>
-                    )}
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#3B82F6]/15 px-2.5 py-1 text-xs font-semibold text-[#1D4ED8]">
+                      <Wallet className="size-3.5" /> Đang tạm giữ ví: {formatVnd(inc.taskerWalletHoldAmount)}
+                    </span>
                   </div>
                 )}
 

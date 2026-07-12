@@ -72,27 +72,35 @@ async function ensureTasker(
       await ds.query(
         `INSERT INTO taskers
            (user_id, working_address, bio, skills, status, doc_status, doc_reviewed_at,
-            doc_issued_date, doc_expired_date, deposit_amount, current_deposit_balance,
+            doc_issued_date, doc_expired_date,
             doc_front_url, doc_back_url)
          VALUES ($1,'Quận 1, TP.HCM','Tasker demo phục vụ test bồi thường','Dọn nhà, vệ sinh',
                  'ACTIVE','APPROVED', now(), now() - interval '1 year', now() + interval '4 years',
-                 5000000, 5000000,
                  'https://picsum.photos/seed/kyc-front/600/400',
                  'https://picsum.photos/seed/kyc-back/600/400')
          RETURNING id`,
         [user.id],
       )
     )[0] as { id: string };
-    console.log('• Đã tạo hồ sơ tasker KYC APPROVED, cọc 5.000.000đ.');
+    console.log('• Đã tạo hồ sơ tasker KYC APPROVED.');
   } else {
     await ds.query(
-      `UPDATE taskers SET status='ACTIVE', doc_status='APPROVED', doc_reviewed_at=now(),
-              deposit_amount=5000000, current_deposit_balance=5000000
+      `UPDATE taskers SET status='ACTIVE', doc_status='APPROVED', doc_reviewed_at=now()
         WHERE id = $1`,
       [tasker.id],
     );
-    console.log('• Cập nhật tasker hiện có → KYC APPROVED, cọc 5.000.000đ.');
+    console.log('• Cập nhật tasker hiện có → KYC APPROVED.');
   }
+
+  // Ký quỹ đã bỏ — nạp thẳng ví để có nguồn thu hồi bồi thường.
+  await ds.query(
+    `INSERT INTO wallets (owner_type, tasker_id, balance, hold_balance)
+     VALUES ('TASKER'::wallets_owner_type_enum, $1, 5000000, 0)
+     ON CONFLICT (tasker_id) WHERE tasker_id IS NOT NULL
+     DO UPDATE SET balance = 5000000`,
+    [tasker.id],
+  );
+  console.log('• Ví tasker: 5.000.000đ.');
 
   return { taskerId: tasker.id, taskerUserId: user.id };
 }

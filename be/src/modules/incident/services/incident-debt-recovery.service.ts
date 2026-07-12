@@ -88,20 +88,6 @@ export class IncidentDebtRecoveryService {
       totalRecovered += pay;
     }
 
-    // Hết nợ toàn bộ → gỡ soft-block nhận đơn.
-    const stillOwing = await incidentRepo
-      .createQueryBuilder('i')
-      .where('i.tasker_id = :taskerId', { taskerId })
-      .andWhere(
-        'COALESCE(i.uncovered_liability_amount,0) > COALESCE(i.uncovered_recovered_amount,0)',
-      )
-      .getCount();
-    if (stillOwing === 0 && tasker.depositTopupDue != null) {
-      await manager
-        .getRepository(TaskerEntity)
-        .update({ id: taskerId }, { depositTopupDue: null });
-    }
-
     return totalRecovered;
   }
 }

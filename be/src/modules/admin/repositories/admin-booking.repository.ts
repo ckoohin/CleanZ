@@ -35,7 +35,8 @@ import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
-import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
+import { BookingWalletPaymentService } from 'src/modules/booking/services/booking-wallet-payment.service';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
@@ -133,7 +134,8 @@ export class AdminBookingRepository {
   constructor(
     private readonly dataSource: DataSource,
     private readonly pricingService: PricingService,
-    private readonly taskerDepositService: TaskerDepositService,
+    private readonly taskerBalanceService: TaskerBalanceService,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly notificationService: NotificationService,
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
@@ -318,7 +320,7 @@ export class AdminBookingRepository {
             manager,
             booking,
           );
-          await this.taskerDepositService.assertCanCoverCashCommission(
+          await this.taskerBalanceService.assertCanCoverCashCommission(
             manager,
             assignedTasker.id,
             platformFee,
@@ -489,6 +491,11 @@ export class AdminBookingRepository {
       await this.vouchersService.releaseReservationForBooking(
         manager,
         booking.id,
+      );
+      await this.bookingWalletPaymentService.refundEscrow(
+        manager,
+        booking,
+        'admin hủy đơn',
       );
 
       const savedBooking = await manager
@@ -1170,10 +1177,9 @@ export class AdminBookingRepository {
       );
 
     if (booking.paymentMethod === PaymentMethod.CASH && platformFee > 0) {
-      query.andWhere(
-        '(COALESCE(wallet.balance, 0) + tasker.currentDepositBalance) >= :platformFee',
-        { platformFee },
-      );
+      query.andWhere('COALESCE(wallet.balance, 0) >= :platformFee', {
+        platformFee,
+      });
     }
 
     if (keyword) {
@@ -1201,7 +1207,6 @@ export class AdminBookingRepository {
         'tasker.totalCompletedJobs AS "totalCompletedJobs"',
         'tasker.workingAddress AS "workingAddress"',
         'COALESCE(wallet.balance, 0) AS "walletBalance"',
-        'tasker.currentDepositBalance AS "depositBalance"',
       ])
       .orderBy(
         `CASE WHEN tasker.presenceStatus = 'ONLINE' THEN 0 ELSE 1 END`,
@@ -1312,7 +1317,7 @@ export class AdminBookingRepository {
 
       if (booking.paymentMethod === PaymentMethod.CASH) {
         const platformFee = await this.getRequiredPlatformFee(manager, booking);
-        await this.taskerDepositService.assertCanCoverCashCommission(
+        await this.taskerBalanceService.assertCanCoverCashCommission(
           manager,
           tasker.id,
           platformFee,
@@ -1457,6 +1462,11 @@ export class AdminBookingRepository {
         await this.vouchersService.releaseReservationForBooking(
           manager,
           booking.id,
+        );
+        await this.bookingWalletPaymentService.refundEscrow(
+          manager,
+          booking,
+          'admin hủy đơn',
         );
         latestPayment = await this.paymentService.findLatestByBookingId(
           manager,
@@ -1651,35 +1661,44 @@ export class AdminBookingRepository {
     const platformFee = Math.round((totalPrice * commissionRate) / 100);
     const taskerIncome = Math.max(totalPrice - platformFee, 0);
 
-    if (booking.paymentMethod === PaymentMethod.CASH) {
-      if (platformFee > 0) {
-        await this.taskerDepositService.deductCashCommission(
+    // Đơn trả bằng ví: tiền đã giữ ở ví SYSTEM → chỉ chuyển công cho tasker.
+    const settledFromWallet =
+      await this.bookingWalletPaymentService.settleOnCompletion(
+        manager,
+        booking,
+        taskerIncome,
+      );
+    if (!settledFromWallet) {
+      if (booking.paymentMethod === PaymentMethod.CASH) {
+        if (platformFee > 0) {
+          await this.taskerBalanceService.deductCashCommission(
+            manager,
+            booking.tasker.id,
+            booking,
+            platformFee,
+          );
+        }
+      } else {
+        const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
           manager,
-          booking.tasker.id,
+          booking.tasker,
+        );
+        await this.walletService.creditWallet(manager, {
+          wallet: taskerWallet,
+          amount: taskerIncome,
+          type: WalletTransactionType.TASKER_EARNING,
           booking,
+          description: `Thu nhập tasker từ booking ${booking.bookingCode} do Admin hoàn thành`,
+        });
+      }
+      if (platformFee > 0) {
+        await this.walletService.recordPlatformIncome(
+          manager,
           platformFee,
+          booking,
+          `Phí nền tảng từ booking ${booking.bookingCode} do Admin hoàn thành`,
         );
       }
-    } else {
-      const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
-        manager,
-        booking.tasker,
-      );
-      await this.walletService.creditWallet(manager, {
-        wallet: taskerWallet,
-        amount: taskerIncome,
-        type: WalletTransactionType.TASKER_EARNING,
-        booking,
-        description: `Thu nhập tasker từ booking ${booking.bookingCode} do Admin hoàn thành`,
-      });
-    }
-    if (platformFee > 0) {
-      await this.walletService.recordPlatformIncome(
-        manager,
-        platformFee,
-        booking,
-        `Phí nền tảng từ booking ${booking.bookingCode} do Admin hoàn thành`,
-      );
     }
 
     await manager.increment(
@@ -1915,6 +1934,11 @@ export class AdminBookingRepository {
         const oldStatus = booking.status;
         booking.status = BookingStatus.EXPIRED;
         await manager.getRepository(BookingEntity).save(booking);
+        await this.bookingWalletPaymentService.refundEscrow(
+          manager,
+          booking,
+          'đơn hết hạn',
+        );
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking,

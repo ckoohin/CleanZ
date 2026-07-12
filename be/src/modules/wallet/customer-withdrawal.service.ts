@@ -10,8 +10,8 @@ import { toNumber } from 'src/common/helpers/number.helper';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
 import { CustomerEntity } from '../customer/entity/customer.entity';
-import { MAX_WEEKLY_WITHDRAWALS } from '../finance/services/finance.service';
 import { CustomerWithdrawalRequestEntity } from './entity/customer-withdrawal-request.entity';
+import { WalletEntity } from './entity/wallet.entity';
 import { WalletService } from './wallet.service';
 import {
   CreateCustomerWithdrawalDto,
@@ -39,6 +39,7 @@ export class CustomerWithdrawalService {
         customer,
       );
       const reqRepo = manager.getRepository(CustomerWithdrawalRequestEntity);
+      const limits = await this.walletService.getWithdrawalLimits(manager);
 
       const weekly = await reqRepo
         .createQueryBuilder('w')
@@ -54,9 +55,9 @@ export class CustomerWithdrawalService {
           `DATE_TRUNC('week', w.created_at) = DATE_TRUNC('week', NOW())`,
         )
         .getCount();
-      if (weekly >= MAX_WEEKLY_WITHDRAWALS) {
+      if (weekly >= limits.maxPerWeek) {
         throw new BadRequestException(
-          `Bạn chỉ được gửi tối đa ${MAX_WEEKLY_WITHDRAWALS} yêu cầu rút tiền mỗi tuần`,
+          `Bạn chỉ được gửi tối đa ${limits.maxPerWeek} yêu cầu rút tiền mỗi tuần`,
         );
       }
 
@@ -68,6 +69,8 @@ export class CustomerWithdrawalService {
         .getRawOne<{ total: string }>();
 
       const amount = Number(dto.amount);
+      this.walletService.assertWithdrawalAmount(amount, limits);
+
       const available =
         toNumber(wallet.balance) - toNumber(pending?.total ?? 0);
       if (amount > available) {
@@ -121,9 +124,13 @@ export class CustomerWithdrawalService {
   ): Promise<CustomerWithdrawalRequestEntity> {
     return this.dataSource.transaction(async (manager) => {
       const reqRepo = manager.getRepository(CustomerWithdrawalRequestEntity);
+      // Khóa row trước khi đọc trạng thái: không có FOR UPDATE thì hai admin bấm
+      // duyệt cùng lúc đều thấy PENDING và ví khách bị trừ hai lần.
+      // Không kèm `relations` vì Postgres không cho FOR UPDATE trên vế nullable của
+      // LEFT JOIN — nạp ví bằng một truy vấn riêng.
       const request = await reqRepo.findOne({
         where: { id },
-        relations: ['wallet'],
+        lock: { mode: 'pessimistic_write' },
       });
       if (!request) throw new NotFoundException('Không tìm thấy yêu cầu rút');
       if (request.status !== WithdrawalStatus.PENDING) {
@@ -133,8 +140,13 @@ export class CustomerWithdrawalService {
       }
 
       if (dto.status === WithdrawalStatus.APPROVED) {
+        const wallet = await manager
+          .getRepository(WalletEntity)
+          .findOne({ where: { id: request.walletId } });
+        if (!wallet) throw new NotFoundException('Không tìm thấy ví khách');
+
         await this.walletService.debitWallet(manager, {
-          wallet: request.wallet,
+          wallet,
           amount: toNumber(request.amount),
           type: WalletTransactionType.WITHDRAW,
           referenceId: request.id,

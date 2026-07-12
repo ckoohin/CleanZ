@@ -22,7 +22,6 @@ import { IncidentAdminService } from './incident-admin.service';
 import { WalletService } from '../../wallet/wallet.service';
 import { WalletEntity } from '../../wallet/entity/wallet.entity';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
-import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { IncidentDepositHoldService } from './incident-deposit-hold.service';
 
 const INCIDENT_COMPENSATION_REF = 'INCIDENT_COMPENSATION';
@@ -87,20 +86,20 @@ export class CompensationExecutorService {
         // P0.2 — giải phóng phần đã HOLD lúc accept, trả về balance để trừ bồi thường.
         await this.depositHold.release(manager, incident, incident.tasker);
 
-        // C2 — chốt snapshot khả năng thu hồi. Nguồn tiền Tasker THẬT = số dư ví
-        // (nạp qua PayPal) + cọc gốc `currentDepositBalance` (khớp TaskerDepositService).
+        // C2 — chốt snapshot khả năng thu hồi. Ký quỹ đã bỏ nên nguồn tiền Tasker
+        // THẬT = số dư ví (một ví duy nhất).
         const taskerWallet = incident.tasker
           ? await this.walletService.getOrCreateTaskerWallet(
               manager,
               incident.tasker,
             )
           : null;
-        const availableDeposit =
-          toNumber(taskerWallet?.balance) +
-          toNumber(incident.tasker?.currentDepositBalance);
-        this.applyDepositRecoverySnapshot(incident, availableDeposit);
+        this.applyDepositRecoverySnapshot(
+          incident,
+          toNumber(taskerWallet?.balance),
+        );
 
-        // P2.1 — CHUYỂN TIỀN THẬT qua ví: trừ Tasker (ví→cọc), chi quỹ SYSTEM, hoàn ví Customer.
+        // P2.1 — CHUYỂN TIỀN THẬT qua ví: trừ Tasker, chi quỹ SYSTEM, hoàn ví Customer.
         await this.settleCompensation(manager, incident, taskerWallet);
 
         this.state.assertStatusTransition(
@@ -213,10 +212,10 @@ export class CompensationExecutorService {
               incident.tasker,
             )
           : null;
-        const availableDeposit =
-          toNumber(taskerWallet?.balance) +
-          toNumber(incident.tasker?.currentDepositBalance);
-        this.applyDepositRecoverySnapshot(incident, availableDeposit);
+        this.applyDepositRecoverySnapshot(
+          incident,
+          toNumber(taskerWallet?.balance),
+        );
 
         await this.settleManual(manager, incident, taskerWallet);
 
@@ -259,33 +258,18 @@ export class CompensationExecutorService {
     const refType = `${INCIDENT_COMPENSATION_REF}:v${incident.decisionVersion}`;
     const code = incident.incidentCode ?? incident.id;
     const recoverable = toNumber(incident.recoverableFromDepositAmount);
-    const uncovered = toNumber(incident.uncoveredLiabilityAmount);
 
     if (recoverable > 0 && taskerWallet && incident.tasker) {
-      // Nguyên hóa VND: floor số dư ví để phần trừ luôn nguyên & không vượt số dư thật.
-      const walletBalance = Math.floor(toNumber(taskerWallet.balance));
-      const walletDeduction = Math.min(walletBalance, recoverable);
-      if (walletDeduction > 0) {
-        await this.walletService.debitWallet(manager, {
-          wallet: taskerWallet,
-          amount: walletDeduction,
-          type: WalletTransactionType.DEPOSIT_DEDUCT,
-          referenceId: refId,
-          referenceType: refType,
-          description: `Trừ ví Tasker (chi trả thủ công) sự cố ${code}`,
-        });
-      }
-      const depositDeduction = recoverable - walletDeduction;
-      if (depositDeduction > 0) {
-        const newDeposit =
-          toNumber(incident.tasker.currentDepositBalance) - depositDeduction;
-        await manager
-          .getRepository(TaskerEntity)
-          .update(
-            { id: incident.tasker.id },
-            { currentDepositBalance: newDeposit },
-          );
-      }
+      // `recoverable` đã được snapshot chặn ≤ floor(số dư ví) nên trừ trọn từ ví.
+      await this.walletService.debitWallet(manager, {
+        wallet: taskerWallet,
+        amount: recoverable,
+        type: WalletTransactionType.DEPOSIT_DEDUCT,
+        referenceId: refId,
+        referenceType: refType,
+        description: `Trừ ví Tasker (chi trả thủ công) sự cố ${code}`,
+      });
+
       // Phần thu từ Tasker chảy về ví SYSTEM — bù khoản công ty đã chuyển ngoài cho khách.
       const systemWallet =
         await this.walletService.getOrCreateSystemWallet(manager);
@@ -299,13 +283,8 @@ export class CompensationExecutorService {
       });
     }
 
-    if (uncovered > 0 && incident.tasker) {
-      const due = new Date();
-      due.setDate(due.getDate() + 7);
-      await manager
-        .getRepository(TaskerEntity)
-        .update({ id: incident.tasker.id }, { depositTopupDue: due });
-    }
+    // Phần chưa thu hồi được vẫn là nợ của Tasker với quỹ SYSTEM — thu dần qua
+    // IncidentDebtRecoveryService khi Tasker có thu nhập mới.
   }
 
   /**
@@ -430,7 +409,6 @@ export class CompensationExecutorService {
         }
 
         // Gỡ soft-block nếu sau khi xoá nợ sự cố này, Tasker không còn nợ nào khác.
-        const hadUncovered = toNumber(incident.uncoveredLiabilityAmount) > 0;
 
         // Xoá số liệu tiền + reopen ở version mới để soạn lại quyết định.
         incident.recoverableFromDepositAmount = null;
@@ -450,19 +428,6 @@ export class CompensationExecutorService {
         incident.secondApprovedByAdmin = null;
         incident.secondApprovalRequestedAt = null;
         await manager.getRepository(IncidentEntity).save(incident);
-
-        if (hadUncovered && incident.tasker) {
-          const stillOwing: Array<{ n: number }> = await manager.query(
-            `SELECT count(*)::int n FROM incidents WHERE tasker_id=$1
-               AND COALESCE(uncovered_liability_amount,0) > COALESCE(uncovered_recovered_amount,0)`,
-            [incident.tasker.id],
-          );
-          if (stillOwing[0]?.n === 0) {
-            await manager
-              .getRepository(TaskerEntity)
-              .update({ id: incident.tasker.id }, { depositTopupDue: null });
-          }
-        }
 
         await this.state.log(
           manager,
@@ -699,41 +664,17 @@ export class CompensationExecutorService {
     const uncovered = toNumber(incident.uncoveredLiabilityAmount);
     const platformBorne = toNumber(incident.platformBorneAmount);
 
-    // 1) Trừ Tasker phần thu hồi được: ví trước, cọc gốc sau.
+    // 1) Trừ Tasker phần thu hồi được — chỉ từ ví (ký quỹ đã bỏ). `recoverable` đã
+    // được snapshot chặn ≤ floor(số dư ví) nên luôn trừ trọn.
     if (recoverable > 0 && taskerWallet && incident.tasker) {
-      // Nguyên hóa VND: floor số dư ví để phần trừ luôn nguyên & không vượt số dư thật.
-      const walletBalance = Math.floor(toNumber(taskerWallet.balance));
-      const walletDeduction = Math.min(walletBalance, recoverable);
-      if (walletDeduction > 0) {
-        await this.walletService.debitWallet(manager, {
-          wallet: taskerWallet,
-          amount: walletDeduction,
-          type: WalletTransactionType.DEPOSIT_DEDUCT,
-          referenceId: refId,
-          referenceType: refType,
-          description: `Trừ ví Tasker cho bồi thường sự cố ${code}`,
-        });
-      }
-      const depositDeduction = recoverable - walletDeduction;
-      if (depositDeduction > 0) {
-        const newDeposit =
-          toNumber(incident.tasker.currentDepositBalance) - depositDeduction;
-        await manager
-          .getRepository(TaskerEntity)
-          .update(
-            { id: incident.tasker.id },
-            { currentDepositBalance: newDeposit },
-          );
-      }
-    }
-
-    // P0.3 — còn nợ (quỹ SYSTEM ứng) → soft-block Tasker nhận đơn mới tới khi nạp bù (grace 7 ngày).
-    if (uncovered > 0 && incident.tasker) {
-      const due = new Date();
-      due.setDate(due.getDate() + 7);
-      await manager
-        .getRepository(TaskerEntity)
-        .update({ id: incident.tasker.id }, { depositTopupDue: due });
+      await this.walletService.debitWallet(manager, {
+        wallet: taskerWallet,
+        amount: recoverable,
+        type: WalletTransactionType.DEPOSIT_DEDUCT,
+        referenceId: refId,
+        referenceType: refType,
+        description: `Trừ ví Tasker cho bồi thường sự cố ${code}`,
+      });
     }
 
     // 2) Hoàn ví Customer toàn bộ approved.

@@ -28,7 +28,7 @@ import {
   AvailableVoucherItem,
   VouchersService,
 } from 'src/modules/voucher/services/vouchers.service';
-import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
 import { CreateBookingForCustomerDto } from '../dto/create-booking-for-customer.dto';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
@@ -106,7 +106,7 @@ export class TaskerCreateBookingService {
     private readonly paymentService: PaymentService,
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
-    private readonly taskerDepositService: TaskerDepositService,
+    private readonly taskerBalanceService: TaskerBalanceService,
   ) {}
 
   async createForCustomer(
@@ -252,6 +252,13 @@ export class TaskerCreateBookingService {
           await manager.getRepository(CustomerAddressEntity).save(addressRef);
         }
 
+        // Tasker tự tạo đơn = tự nhận việc, nên phải qua sàn số dư như khi nhận
+        // đơn trên sàn (áp cho cả guest lẫn đơn chờ khách xác nhận).
+        await this.taskerBalanceService.assertMeetsMinAcceptBalance(
+          manager,
+          tasker.id,
+        );
+
         // Guest vào thẳng CONFIRMED (không có bước khách xác nhận) nên phải
         // chạy đúng các guard mà luồng customer-confirm chạy: chống tasker trùng
         // lịch và (CASH) kiểm tra tasker đủ cọc trả hoa hồng nền tảng.
@@ -278,7 +285,7 @@ export class TaskerCreateBookingService {
             const subtotal =
               toNumber(price.totalPrice) + toNumber(price.discountAmount);
             const platformFee = Math.round((subtotal * commissionRate) / 100);
-            await this.taskerDepositService.assertCanCoverCashCommission(
+            await this.taskerBalanceService.assertCanCoverCashCommission(
               manager,
               tasker.id,
               platformFee,

@@ -12,7 +12,8 @@ export type BookingStatus =
 
 export type BookingSource = "CUSTOMER_APP" | "TASKER_CREATED";
 
-export type PaymentMethod = "CASH" | "WALLET" | "ONLINE";
+/** Chỉ còn 2 hình thức cân sổ. Các cổng MOMO/VNPAY/ZaloPay/VietQR chưa từng được tích hợp nên đã bỏ. */
+export type PaymentMethod = "CASH" | "WALLET";
 export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED" | "FAILED";
 
 // ─── Shared sub-types ─────────────────────────────────────────────────────────

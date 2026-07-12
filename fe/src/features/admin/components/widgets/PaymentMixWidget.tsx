@@ -5,13 +5,10 @@ import { useFinanceBreakdown } from "../../hooks/useDashboard";
 import { useDashboardStore } from "../../stores/dashboard.store";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 
-const METHOD_COLORS: Record<string, string> = {
-  CASH: "#8A95A8",
-  MOMO: "#7C3AED",
-  VNPAY: "#2563EB",
-  ZALOPAY: "#0E9F6E",
-  VIETQR: "#D97706",
-};
+const METHODS: { key: string; label: string; color: string }[] = [
+  { key: "CASH", label: "Tiền mặt", color: "#8A95A8" },
+  { key: "WALLET", label: "Ví CleanZ", color: "#2563EB" },
+];
 
 export function PaymentMixWidget() {
   const { dateRange } = useDashboardStore();
@@ -22,15 +19,12 @@ export function PaymentMixWidget() {
   const backendMix = data?.paymentMix ?? [];
   const mixMap = new Map(backendMix.map((p) => [p.method.toUpperCase(), p.percent]));
 
-  // Standard template items with DB values overlaid, or mockup as fallback
-  const items = Object.entries(METHOD_COLORS).map(([method, color]) => {
-    const dbPercent = mixMap.get(method);
-    return {
-      label: method,
-      percent: dbPercent !== undefined ? dbPercent : (method === "CASH" ? 38 : method === "MOMO" ? 24 : method === "VNPAY" ? 18 : method === "ZALOPAY" ? 13 : 7),
-      color,
-    };
-  });
+  // Số liệu thật từ backend; chưa có đơn nào thì hiện 0 chứ không bịa số.
+  const items = METHODS.map(({ key, label, color }) => ({
+    label,
+    percent: mixMap.get(key) ?? 0,
+    color,
+  }));
 
   return (
     <SectionCard

@@ -83,6 +83,7 @@ const operationsNav = [
     url: "/admin/finances",
     icon: <Wallet />,
     items: [
+      { title: "Ví hệ thống", url: "/admin/system-wallet" },
       { title: "Lịch sử giao dịch", url: "/admin/finances" },
       { title: "Yêu cầu rút tiền", url: "/admin/withdrawals" },
     ],

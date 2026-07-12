@@ -60,7 +60,6 @@ export const API_ENDPOINTS = {
     MY_ACTIVE: "/booking/my-booking",
     MY_LIST: "/booking/my-bookings",
     DETAIL: (id: string) => `/booking/${id}`,
-    MOCK_PAY: (id: string) => `/booking/${id}/mock-pay`,
     CANCEL: (id: string) => `/booking/customer/${id}/cancel`,
     UPDATE_SCHEDULE: (id: string) => `/booking/${id}/schedule-address`,
     // Flow tasker tạo đơn hộ customer

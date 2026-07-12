@@ -189,9 +189,8 @@ export interface IncidentAdminView extends IncidentSummary {
   description: string;
   customer: PartyRef;
   tasker: PartyRef & {
-    currentDepositBalance: number;
-    availableDeposit: number;
-    depositTopupDue: string | null;
+    /** Ký quỹ đã bỏ — nguồn thu hồi duy nhất từ Tasker là số dư ví. */
+    walletBalance: number;
   };
   damageItems: DamageItem[];
   statements: Statement[];

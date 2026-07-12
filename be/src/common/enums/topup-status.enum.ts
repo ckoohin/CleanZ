@@ -1,0 +1,7 @@
+export enum TopupStatus {
+  CREATED = 'CREATED',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
+}

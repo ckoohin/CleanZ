@@ -89,15 +89,37 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
     };
     const trunc = truncMap[granularity] ?? 'month';
 
+    // Mỗi lần chuyển tiền ghi 2 bút toán (một bên trừ, một bên cộng) với CÙNG loại.
+    // Vì amount luôn lưu số dương, cộng cả hai vế sẽ nhân đôi số liệu — nên phải
+    // lọc theo ví: doanh thu/hoa hồng lấy ở vế ví SYSTEM, thu nhập lấy ở vế ví TASKER.
+    //
+    // Hoa hồng = phí thu từ đơn tiền mặt (PLATFORM_FEE về SYSTEM)
+    //          + phần còn lại của đơn trả bằng ví (tiền khách nạp vào SYSTEM
+    //            trừ đi phần đã chi cho tasker và phần đã hoàn khách).
     const sql = `
       SELECT
         TO_CHAR(DATE_TRUNC($1, wt.created_at), 'YYYY-MM-DD') AS period,
-        COALESCE(SUM(CASE WHEN wt.type = 'PAYMENT' THEN wt.amount ELSE 0 END), 0) AS "totalRevenue",
-        COALESCE(SUM(CASE WHEN wt.type = 'PLATFORM_FEE' THEN ABS(wt.amount) ELSE 0 END), 0) AS "totalPlatformCommission",
-        COALESCE(SUM(CASE WHEN wt.type = 'TASKER_EARNING' THEN wt.amount ELSE 0 END), 0) AS "totalTaskerEarnings",
+        COALESCE(SUM(
+          CASE
+            WHEN w.owner_type = 'SYSTEM' AND wt.type = 'PAYMENT' THEN wt.amount
+            WHEN w.owner_type = 'SYSTEM' AND wt.type = 'REFUND' THEN -wt.amount
+            ELSE 0
+          END
+        ), 0) AS "totalRevenue",
+        COALESCE(SUM(
+          CASE
+            WHEN w.owner_type = 'SYSTEM' AND wt.type IN ('PLATFORM_FEE', 'PAYMENT') THEN wt.amount
+            WHEN w.owner_type = 'SYSTEM' AND wt.type IN ('TASKER_EARNING', 'REFUND') THEN -wt.amount
+            ELSE 0
+          END
+        ), 0) AS "totalPlatformCommission",
+        COALESCE(SUM(
+          CASE WHEN w.owner_type = 'TASKER' AND wt.type = 'TASKER_EARNING' THEN wt.amount ELSE 0 END
+        ), 0) AS "totalTaskerEarnings",
         COUNT(DISTINCT wt.booking_id) AS "totalTransactions"
       FROM wallet_transactions wt
-      WHERE wt.type IN ('PAYMENT', 'PLATFORM_FEE', 'TASKER_EARNING')
+      JOIN wallets w ON w.id = wt.wallet_id
+      WHERE wt.type IN ('PAYMENT', 'PLATFORM_FEE', 'TASKER_EARNING', 'REFUND')
         ${fromDate ? `AND wt.created_at >= '${fromDate}'` : ''}
         ${toDate ? `AND wt.created_at <= '${toDate} 23:59:59'` : ''}
       GROUP BY DATE_TRUNC($1, wt.created_at)

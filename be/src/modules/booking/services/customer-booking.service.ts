@@ -52,6 +52,7 @@ import {
 } from 'src/modules/pricing/services/pricing.service';
 import { NotificationGateway } from 'src/modules/notification/notification.gateway';
 import { BookingDispatchService } from './booking-dispatch.service';
+import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -107,6 +108,7 @@ export class CustomerBookingService {
     private readonly notificationService: NotificationService,
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly notificationGateway: NotificationGateway,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -297,6 +299,14 @@ export class CustomerBookingService {
           context.customer,
           paymentMethod,
           context.totalPrice,
+        );
+
+        // Trả bằng ví → trừ tiền ngay, giữ ở ví SYSTEM tới khi đơn xong hoặc bị hủy.
+        // Ví không đủ sẽ ném lỗi ở đây và cả transaction rollback → không tạo đơn treo.
+        await this.bookingWalletPaymentService.chargeEscrow(
+          manager,
+          savedBooking,
+          context.customer,
         );
 
         const statusLog = logRepository.create({
@@ -722,6 +732,9 @@ export class CustomerBookingService {
 
         booking.address = context.bookingAddress;
         booking.addressRef = context.addressRef;
+        // Giá trước khi đổi lịch — cần để bù chênh lệch cho đơn đã trả bằng ví.
+        const previousTotalPrice = toNumber(booking.totalPrice);
+
         booking.scheduledStartDate = context.scheduledStartDate;
         booking.scheduledStartTime = context.scheduledStartTime;
         booking.scheduledEndDate = context.scheduledEndDate;
@@ -751,6 +764,13 @@ export class CustomerBookingService {
           manager,
           savedBooking.id,
           context.totalPrice,
+        );
+
+        // Đơn đã trả bằng ví: thu thêm / trả lại đúng phần giá chênh lệch.
+        await this.bookingWalletPaymentService.adjustEscrow(
+          manager,
+          savedBooking,
+          previousTotalPrice,
         );
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
@@ -818,14 +838,24 @@ export class CustomerBookingService {
           1,
         );
 
+        // Đơn trả bằng ví: trả lại tiền đang giữ ở ví SYSTEM cho khách.
+        const walletRefund =
+          await this.bookingWalletPaymentService.refundEscrow(
+            manager,
+            savedBooking,
+            'khách hủy đơn',
+          );
+
         const latestPayment = await this.paymentService.findLatestByBookingId(
           manager,
           savedBooking.id,
         );
         const refundAmount =
-          latestPayment?.status === PaymentStatus.PAID
-            ? toNumber(latestPayment.amount)
-            : 0;
+          walletRefund > 0
+            ? walletRefund
+            : latestPayment?.status === PaymentStatus.PAID
+              ? toNumber(latestPayment.amount)
+              : 0;
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,

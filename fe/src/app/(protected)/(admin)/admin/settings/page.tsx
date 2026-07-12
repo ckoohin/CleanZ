@@ -4,10 +4,11 @@ import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { 
-  Save, 
-  Wallet, 
-  Settings2, 
+import {
+  Save,
+  Wallet,
+  Banknote,
+  Settings2,
   CalendarClock, 
   Users, 
   ShieldAlert,
@@ -36,6 +37,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { toast } from "sonner"
+import { SystemConfigGroupCard } from "@/features/admin/modules/system-config/_components/SystemConfigGroupCard"
 
 // Giả lập Schema cấu hình hệ thống
 const settingsSchema = z.object({
@@ -236,6 +238,18 @@ export default function AdminSettingsPage() {
                     />
                   </CardContent>
                 </Card>
+
+                <SystemConfigGroupCard
+                  group="TOPUP"
+                  description="Tỷ giá quy đổi PayPal và hạn mức mỗi đơn nạp của khách hàng."
+                  icon={<Wallet className="w-5 h-5 text-[var(--c-primary-strong)]" />}
+                />
+
+                <SystemConfigGroupCard
+                  group="WITHDRAWAL"
+                  description="Hạn mức và tần suất rút tiền, áp dụng cho cả Tasker và Khách hàng."
+                  icon={<Banknote className="w-5 h-5 text-[var(--c-primary-strong)]" />}
+                />
               </div>
             </TabsContent>
 
@@ -330,6 +344,12 @@ export default function AdminSettingsPage() {
             {/* TAB TASKER */}
             <TabsContent value="taskers" className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
               <div className="grid gap-6 md:grid-cols-2">
+                <SystemConfigGroupCard
+                  group="TASKER"
+                  description="Sàn số dư ví Tasker phải giữ để được nhận đơn, và không được rút xuống dưới mức này."
+                  icon={<Wallet className="w-5 h-5 text-[var(--c-primary-strong)]" />}
+                />
+
                 <Card className="border-[var(--c-line)] bg-[var(--c-card)] backdrop-blur-sm shadow-xl shadow-primary/5 rounded-[2rem] overflow-hidden">
                   <CardHeader>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">

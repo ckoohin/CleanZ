@@ -29,9 +29,11 @@ import { WalletListQueryDto } from './dto/wallet-list-query.dto';
 import { paginatedResponse } from 'src/common/helpers/response.helper';
 import { CreateWithdrawalRequestDto } from './dto/create-withdrawal-request.dto';
 import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
-import { TaskerDepositService } from './tasker-deposit.service';
+import { TaskerBalanceService } from './tasker-balance.service';
 import { DataSource } from 'typeorm';
 import { successResponse } from 'src/common/helpers/response.helper';
+import { WalletTopupService } from './wallet-topup.service';
+import { CreateTopupDto } from './dto/create-topup.dto';
 
 @Controller('wallet')
 @ApiTags('Wallet')
@@ -39,9 +41,72 @@ import { successResponse } from 'src/common/helpers/response.helper';
 export class WalletController {
   constructor(
     private readonly walletService: WalletService,
-    private readonly taskerDepositService: TaskerDepositService,
+    private readonly taskerBalanceService: TaskerBalanceService,
+    private readonly walletTopupService: WalletTopupService,
     private readonly dataSource: DataSource,
   ) {}
+
+  @Get('customer/me/topup-config')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Customer xem hạn mức & tỷ giá nạp tiền' })
+  async getTopupConfig() {
+    const config = await this.walletTopupService.getTopupConfig();
+    return successResponse(config, 'Lấy cấu hình nạp tiền thành công');
+  }
+
+  @Post('customer/me/topups')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Customer tạo đơn nạp tiền vào ví qua PayPal' })
+  @ApiCreatedResponse({ description: 'Tạo đơn nạp tiền thành công' })
+  async createTopup(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateTopupDto,
+  ) {
+    const result = await this.walletTopupService.createTopup(
+      userId,
+      dto.amountVnd,
+      dto.bookingId,
+    );
+    return successResponse(
+      result,
+      'Đã tạo đơn nạp tiền, chờ thanh toán PayPal',
+    );
+  }
+
+  @Post('customer/me/topups/:id/capture')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({
+    summary: 'Customer xác nhận (capture) thanh toán PayPal và cộng ví',
+  })
+  @ApiOkResponse({ description: 'Nạp tiền thành công' })
+  async captureTopup(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const result = await this.walletTopupService.captureTopup(userId, id);
+    return successResponse(result, 'Nạp tiền thành công');
+  }
+
+  @Get('customer/me/topups')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Customer xem lịch sử đơn nạp tiền' })
+  async listMyTopups(
+    @CurrentUser('id') userId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.walletTopupService.listMyTopups(
+      userId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20,
+    );
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
 
   @Get('admin')
   @Auth(UserRole.ADMIN)
@@ -91,34 +156,23 @@ export class WalletController {
     return this.walletService.createTaskerWithdrawalRequest(userId, dto);
   }
 
+  // Ký quỹ đã bị bỏ (gộp vào ví). 2 endpoint dưới chỉ còn để TRA CỨU lịch sử cũ.
   @Get('tasker/me/deposit/transactions')
   @Auth(UserRole.TASKER)
-  @ApiOperation({ summary: 'Tasker xem lịch sử biến động ký quỹ' })
+  @ApiOperation({
+    summary: 'Tasker xem lịch sử ký quỹ cũ (đã ngừng phát sinh)',
+  })
   getMyDepositTransactions(@CurrentUser('id') userId: string) {
-    return this.taskerDepositService.getMyTransactions(userId);
+    return this.taskerBalanceService.getMyLegacyDepositTransactions(userId);
   }
 
   @Get('admin/taskers/:taskerId/deposit/transactions')
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Admin xem lịch sử ký quỹ của Tasker' })
+  @ApiOperation({ summary: 'Admin xem lịch sử ký quỹ cũ của Tasker' })
   getTaskerDepositTransactions(
     @Param('taskerId', ParseUUIDPipe) taskerId: string,
   ) {
-    return this.taskerDepositService.getTaskerTransactions(taskerId);
-  }
-
-  @Post('admin/taskers/:taskerId/deposit/refund')
-  @Auth(UserRole.ADMIN)
-  @ApiOperation({
-    summary: 'Admin hoàn ký quỹ cho Tasker đã nghỉ việc',
-  })
-  async refundTerminatedTaskerDeposit(
-    @Param('taskerId', ParseUUIDPipe) taskerId: string,
-  ) {
-    const amount = await this.dataSource.transaction((manager) =>
-      this.taskerDepositService.refundForTerminatedTasker(manager, taskerId),
-    );
-    return successResponse({ amount }, 'Đã hoàn ký quỹ vào ví Tasker');
+    return this.taskerBalanceService.getLegacyDepositTransactions(taskerId);
   }
 
   @Get('tasker/me/transactions')
@@ -163,7 +217,9 @@ export class WalletController {
     description: 'Lấy lịch sử giao dịch ví hệ thống thành công',
   })
   @ApiUnauthorizedResponse({ description: 'Admin chưa đăng nhập' })
-  getSystemTransactions(): Promise<WalletTransactionListResponse> {
-    return this.walletService.getSystemTransactions();
+  getSystemTransactions(
+    @Query() query: WalletTransactionListQueryDto,
+  ): Promise<WalletTransactionListResponse> {
+    return this.walletService.getSystemTransactions(query);
   }
 }
