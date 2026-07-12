@@ -4,6 +4,7 @@ import { AdminController } from './admin.controller';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
 import { AdminBookingRepository } from './repositories/admin-booking.repository';
+import { AdminDashboardReportService } from './services/admin-dashboard-report.service';
 import { UsersModule } from 'src/modules/users/users.module';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
@@ -54,6 +55,7 @@ import { VoucherModule } from 'src/modules/voucher/voucher.module';
     AdminDashboardRepository,
     AdminCustomerRepository,
     AdminBookingRepository,
+    AdminDashboardReportService,
   ],
 })
 export class AdminModule {}

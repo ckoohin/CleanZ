@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { X, Hammer } from 'lucide-react';
 import { Sidebar, SidebarContent } from '../_components/Sidebar';
 import { Topbar } from '../_components/Topbar';
-import { DashboardGrid } from '../_components/DashboardGrid';
 import { CustomerManagement } from '../_components/CustomerManagement';
 import { navGroups } from '../_lib/nav';
 
@@ -148,9 +147,7 @@ export default function TestAdminPage() {
           onOpenMobile={() => setMobileOpen(true)}
         />
         <main className="cz-scroll flex-1 overflow-y-auto p-4 md:p-6">
-          {active === '/admin' ? (
-            <DashboardGrid />
-          ) : active === '/admin/customers' ? (
+          {active === '/admin/customers' ? (
             <CustomerManagement />
           ) : (
             <ComingSoon title={titleFor(active)} />

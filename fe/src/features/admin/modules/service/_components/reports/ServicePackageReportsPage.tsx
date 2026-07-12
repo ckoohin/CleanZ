@@ -67,7 +67,9 @@ export function ServicePackageReportsPage({ embedded = false }: Props) {
         <BaseButton
           onClick={handleExportAll}
           disabled={exportingAll}
-          className="rounded-xl gap-2.5 h-12 px-6 shrink-0 bg-[#0E9F6E] hover:bg-[#0C8B5F] text-white border-0 shadow-lg shadow-[#0E9F6E]/30 hover:shadow-xl hover:shadow-[#0E9F6E]/40 hover:-translate-y-0.5"
+          // ml-auto: khi nhúng vào dashboard, khối tiêu đề bị ẩn nên justify-between
+          // sẽ đẩy nút này sang trái — ml-auto giữ nó ở bên phải như trang gốc.
+          className="rounded-xl gap-2.5 h-12 px-6 shrink-0 md:ml-auto bg-[#0E9F6E] hover:bg-[#0C8B5F] text-white border-0 shadow-lg shadow-[#0E9F6E]/30 hover:shadow-xl hover:shadow-[#0E9F6E]/40 hover:-translate-y-0.5"
         >
           {exportingAll ? (
             <Loader2 className="w-5 h-5 animate-spin" />

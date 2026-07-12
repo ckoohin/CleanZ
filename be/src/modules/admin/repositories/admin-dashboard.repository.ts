@@ -156,7 +156,10 @@ export class AdminDashboardRepository {
           'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
           'COALESCE(SUM(CASE WHEN b.payment_status = :refunded THEN b.total_price ELSE 0 END), 0) AS total_refund',
         ])
-        .where('b.createdAt BETWEEN :from AND :to', { from, to })
+        // scheduled_start (ngày HẸN làm), không phải createdAt (ngày ĐẶT đơn):
+        // tiền ghi nhận vào kỳ dịch vụ thực sự diễn ra, và phải khớp cột ngày mà
+        // getGmvChart dùng — nếu không, thẻ KPI và biểu đồ sẽ không bao giờ cộng khớp.
+        .where('b.scheduled_start BETWEEN :from AND :to', { from, to })
         .setParameter('completed', BookingStatus.COMPLETED)
         .setParameter('cancelled', [
           BookingStatus.CANCELLED,
@@ -174,7 +177,7 @@ export class AdminDashboardRepository {
           'COUNT(*) AS total_orders',
           'COUNT(CASE WHEN b.status IN (:...cancelled) THEN 1 END) AS cancelled_orders',
         ])
-        .where('b.createdAt BETWEEN :from AND :to', {
+        .where('b.scheduled_start BETWEEN :from AND :to', {
           from: prevFrom,
           to: prevTo,
         })
@@ -233,7 +236,7 @@ export class AdminDashboardRepository {
       .getRepository(BookingEntity)
       .createQueryBuilder('b')
       .where('b.status = :status', { status: BookingStatus.COMPLETED })
-      .andWhere('b.createdAt BETWEEN :from AND :to', { from, to })
+      .andWhere('b.scheduled_start BETWEEN :from AND :to', { from, to })
       .getCount();
     const aov = completedOrders > 0 ? Math.round(gmv / completedOrders) : 0;
 
@@ -265,7 +268,7 @@ export class AdminDashboardRepository {
           'commission',
         )
         .where('b.status = :completed', { completed: BookingStatus.COMPLETED })
-        .andWhere('b.createdAt BETWEEN :f AND :t', { f, t })
+        .andWhere('b.scheduled_start BETWEEN :f AND :t', { f, t })
         .getRawOne<{ commission: string }>();
 
     const [commissionCur, commissionPrev, npsRow] = await Promise.all([
@@ -345,10 +348,26 @@ export class AdminDashboardRepository {
       .createQueryBuilder('b')
       .select([
         `DATE_TRUNC('${trunc}', b.scheduled_start) AS period`,
-        'COALESCE(SUM(b.total_price), 0) AS gmv',
+        // GMV = tiền THẬT SỰ chảy qua sàn → chỉ đơn hoàn tất. Trước đây câu này
+        // SUM tất cả status, nên đơn khách huỷ vẫn được tính là doanh thu và
+        // biểu đồ lệch hẳn so với thẻ KPI.
+        `COALESCE(SUM(CASE WHEN b.status = :completed THEN b.total_price ELSE 0 END), 0) AS gmv`,
+        // Giá trị đã mất vì huỷ/hết hạn — tách riêng thay vì trộn vào GMV.
+        `COALESCE(SUM(CASE WHEN b.status IN (:...lost) THEN b.total_price ELSE 0 END), 0) AS lost`,
+        // Đơn chưa chốt (posted/confirmed/đang làm...): chưa thành GMV, cũng chưa
+        // mất. Không có cột này thì một tuần toàn đơn đang chờ sẽ ra cột TRỐNG dù
+        // vẫn có tiền treo ở đó — người xem tưởng biểu đồ hỏng.
+        `COALESCE(SUM(CASE WHEN b.status NOT IN (:...settled) THEN b.total_price ELSE 0 END), 0) AS pending`,
         'COUNT(*) AS orders',
       ])
       .where('b.scheduled_start BETWEEN :from AND :to', { from, to })
+      .setParameter('completed', BookingStatus.COMPLETED)
+      .setParameter('lost', [BookingStatus.CANCELLED, BookingStatus.EXPIRED])
+      .setParameter('settled', [
+        BookingStatus.COMPLETED,
+        BookingStatus.CANCELLED,
+        BookingStatus.EXPIRED,
+      ])
       .groupBy(`DATE_TRUNC('${trunc}', b.scheduled_start)`)
       .orderBy(`DATE_TRUNC('${trunc}', b.scheduled_start)`, 'ASC')
       .getRawMany();
@@ -362,6 +381,8 @@ export class AdminDashboardRepository {
           : {}),
       }),
       gmv: Number(r.gmv),
+      lost: Number(r.lost),
+      pending: Number(r.pending),
       orders: Number(r.orders),
     }));
   }
@@ -392,9 +413,11 @@ export class AdminDashboardRepository {
         .createQueryBuilder('b')
         .leftJoin('b.customer', 'c')
         .leftJoin('c.user', 'u')
+        .leftJoin('b.package', 'p')
         .select([
           'b.booking_code AS "bookingCode"',
           'u.full_name AS "customerName"',
+          'p.name AS "serviceName"',
           'b.total_price AS "totalPrice"',
           'b.status AS status',
           'b.scheduled_start AS "scheduledStart"',
@@ -449,7 +472,7 @@ export class AdminDashboardRepository {
       recent: recent.map((r) => ({
         bookingCode: r.bookingCode,
         customerName: r.customerName,
-        serviceName: null,
+        serviceName: r.serviceName ?? null,
         totalPrice: Number(r.totalPrice),
         status: r.status,
         scheduledStart: r.scheduledStart,

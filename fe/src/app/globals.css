@@ -188,49 +188,6 @@
 
 }
 
-/* --- react-grid-layout (admin dashboard) theme overrides --- */
-.dashboard-grid {
-    position: relative;
-    transition: height 200ms ease;
-}
-
-/* Drop target preview while dragging/resizing */
-.dashboard-grid .react-grid-placeholder {
-    background: var(--primary) !important;
-    opacity: 0.12;
-    border-radius: 1rem;
-    transition-duration: 120ms;
-}
-
-/* The corner resize affordance — only meaningful in edit mode */
-.dashboard-grid .react-resizable-handle {
-    opacity: 0;
-    transition: opacity 150ms ease;
-}
-
-.dashboard-grid.is-editing .react-resizable-handle {
-    opacity: 0.55;
-}
-
-.dashboard-grid .react-grid-item:hover .react-resizable-handle {
-    opacity: 1;
-}
-
-/* Recolor the default handle arrow to follow the theme */
-.dashboard-grid .react-resizable-handle::after {
-    border-right-color: var(--muted-foreground);
-    border-bottom-color: var(--muted-foreground);
-}
-
-/* Smooth position/size transitions when not actively dragging */
-.dashboard-grid .react-grid-item.cssTransforms {
-    transition-property: transform, width, height;
-}
-
-.dashboard-grid .react-grid-item.react-grid-placeholder {
-    transition: none;
-}
-
 /* ---- Skeleton shimmer animation ---- */
 @keyframes shimmer {
     0%   { transform: translateX(-100%); }
@@ -327,7 +284,3 @@
     .kos-rise, .kos-ping, .cz-bulkbar { animation: none; }
 }
 
-/* react-grid-layout overrides scoped to admin (the global .dashboard-grid block
-   above uses shadcn tokens; re-point them at cz-tokens inside .cz-admin) */
-.cz-admin .dashboard-grid .react-grid-placeholder { background: var(--c-primary) !important; opacity: 0.14; }
-.cz-admin .dashboard-grid .react-resizable-handle::after { border-right-color: var(--c-muted); border-bottom-color: var(--c-muted); }

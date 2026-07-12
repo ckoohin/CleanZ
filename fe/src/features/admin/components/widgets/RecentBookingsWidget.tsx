@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { AdminCard, StatusBadge, type BadgeTone } from "@/components/admin";
-import { useBookingDetails } from "../../hooks/useDashboard";
-import { useDashboardStore } from "../../stores/dashboard.store";
+import { useBookingDetails, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 import { MoreHorizontal } from "lucide-react";
 
@@ -29,11 +29,12 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function RecentBookingsWidget() {
-  const { dateRange } = useDashboardStore();
+  const dateRange = useDashboardRange();
   const { data, isLoading } = useBookingDetails(dateRange, 5); // display 5 rows like HTML
 
   if (isLoading) return <WidgetSkeleton rows={4} />;
-  if (!data?.recent?.length) return null;
+
+  const recent = data?.recent ?? [];
 
   return (
     <AdminCard className="h-full flex flex-col justify-between">
@@ -43,8 +44,19 @@ export function RecentBookingsWidget() {
             <div>
               <h3 className="text-[15px] font-bold text-[var(--c-ink)]">Đơn hàng gần đây</h3>
             </div>
-            <span className="text-xs text-[var(--c-primary)] font-medium cursor-pointer hover:underline">Xem tất cả</span>
+            <Link
+              href="/admin/bookings"
+              className="text-xs font-medium text-[var(--c-primary-strong)] hover:underline"
+            >
+              Xem tất cả
+            </Link>
           </div>
+
+          {recent.length === 0 ? (
+            <p className="py-6 text-center text-xs text-[var(--c-muted)]">
+              Chưa có đơn hàng trong kỳ
+            </p>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13.5px]">
               <thead>
@@ -58,11 +70,11 @@ export function RecentBookingsWidget() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--c-line)]">
-                {data.recent.map((b) => (
+                {recent.map((b) => (
                   <tr key={b.bookingCode} className="hover:bg-[var(--c-card-2)] transition-colors">
                     <td className="py-2.5 px-2.5 font-semibold text-[var(--c-ink)] tabular-nums">{b.bookingCode}</td>
                     <td className="py-2.5 px-2.5 text-[var(--c-muted)] text-[12.5px] truncate max-w-[120px]">{b.customerName}</td>
-                    <td className="py-2.5 px-2.5 text-[var(--c-ink)]">{b.serviceName ?? "Dọn dẹp nhà"}</td>
+                    <td className="py-2.5 px-2.5 text-[var(--c-ink)]">{b.serviceName ?? "—"}</td>
                     <td className="py-2.5 px-2.5 font-medium text-[var(--c-ink)] tabular-nums">
                       {b.totalPrice >= 1000
                         ? `${(b.totalPrice / 1000).toFixed(0)}k`
@@ -73,14 +85,23 @@ export function RecentBookingsWidget() {
                         {STATUS_LABELS[b.status] ?? b.status}
                       </StatusBadge>
                     </td>
-                    <td className="py-2.5 px-2.5 text-[var(--c-muted)] text-right">
-                      <MoreHorizontal className="w-4 h-4 cursor-pointer inline-block" />
+                    <td className="py-2.5 px-2.5 text-right">
+                      {/* Mở thẳng trang booking đã lọc sẵn đúng mã đơn này.
+                          Trước đây chỉ là một icon trang trí, bấm không ra gì. */}
+                      <Link
+                        href={`/admin/bookings?keyword=${encodeURIComponent(b.bookingCode)}`}
+                        title={`Mở đơn ${b.bookingCode}`}
+                        className="inline-block rounded p-1 text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          )}
         </div>
       </div>
     </AdminCard>

@@ -12,7 +12,17 @@ import type {
   AreaPerfItem,
   VoucherPerfItem,
   GroupBy,
+  ExportableCategory,
 } from '../types/dashboard.types';
+
+export type ExportMode = 'multi' | 'combined';
+
+export interface ExportReportParams {
+  category: ExportableCategory;
+  fromDate: string;
+  toDate: string;
+  mode: ExportMode;
+}
 
 const BASE = '/admin/dashboard';
 
@@ -49,4 +59,13 @@ export const dashboardApi = {
 
   getVoucherPerformance: (limit = 6): Promise<VoucherPerfItem[]> =>
     http.get(`${BASE}/voucher-performance`, { params: { limit } }).then((r) => r.data),
+
+  /**
+   * Xuất Excel cho một danh mục. Gửi ĐÚNG 4 tham số này — ValidationPipe của
+   * backend bật `forbidNonWhitelisted`, thừa một field là 422.
+   */
+  exportReport: (params: ExportReportParams): Promise<Blob> =>
+    http
+      .get(`${BASE}/export`, { params, responseType: 'blob' })
+      .then((r) => r.data as Blob),
 };

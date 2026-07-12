@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { RefreshCw, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -142,8 +143,22 @@ function LookupCombobox({
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function AdminBookingPage() {
-  const [keyword, setKeyword] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState(ALL)
+  // Cho phép mở trang này kèm sẵn bộ lọc qua URL, ví dụ từ dashboard:
+  //   /admin/bookings?status=POSTED       (ô trạng thái trên widget)
+  //   /admin/bookings?keyword=BK2607200030 (một dòng trong "Đơn hàng gần đây")
+  // Chỉ nhận status nằm trong STATUS_OPTIONS — tránh URL bịa đẩy filter rác vào API.
+  const searchParams = useSearchParams()
+  const initialStatus = React.useMemo(() => {
+    const s = searchParams.get("status")
+    return s && STATUS_OPTIONS.some((o) => o.value === s) ? s : ALL
+  }, [searchParams])
+  const initialKeyword = React.useMemo(
+    () => searchParams.get("keyword") ?? "",
+    [searchParams],
+  )
+
+  const [keyword, setKeyword] = React.useState(initialKeyword)
+  const [statusFilter, setStatusFilter] = React.useState(initialStatus)
   const [paymentFilter, setPaymentFilter] = React.useState(ALL)
   const [fromDate, setFromDate] = React.useState("")
   const [toDate, setToDate] = React.useState("")
