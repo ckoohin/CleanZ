@@ -17,7 +17,7 @@ import {
   buildCombinedSingleSheetBuffer,
   excelFilename,
   ExcelSheetSpec,
-} from './helpers/excel-report.helper';
+} from 'src/common/helpers/excel-report.helper';
 
 @ApiTags('Admin – Service Package Reports')
 @ApiBearerAuth()

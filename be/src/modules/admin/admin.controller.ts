@@ -7,20 +7,36 @@ import {
   Param,
   Query,
   Body,
+  Res,
   NotFoundException,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AdminOnly } from 'src/modules/auth/decorators/admin-only.decorator';
 import { CurrentUser } from 'src/modules/auth/decorators/current-user.decorator';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
 import { AdminCustomerRepository } from './repositories/admin-customer.repository';
 import { AdminBookingRepository } from './repositories/admin-booking.repository';
+import { AdminDashboardReportService } from './services/admin-dashboard-report.service';
 import { UsersService } from 'src/modules/users/users.service';
 import {
   DateRangeQueryDto,
   RevenueChartQueryDto,
   BookingDetailsQueryDto,
 } from './dto/date-range-query.dto';
+import {
+  DashboardExportQueryDto,
+  DashboardExportMode,
+} from './dto/dashboard-export-query.dto';
+import {
+  vietnamStartOfDay,
+  vietnamEndOfDay,
+} from 'src/common/helpers/vietnam-time.helper';
+import {
+  buildReportWorkbookBuffer,
+  buildCombinedSingleSheetBuffer,
+  excelFilename,
+} from 'src/common/helpers/excel-report.helper';
 import { CustomerQueryDto } from './dto/customer-query.dto';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -42,9 +58,18 @@ export class AdminController {
     private readonly customerRepo: AdminCustomerRepository,
     private readonly bookingRepo: AdminBookingRepository,
     private readonly usersService: UsersService,
+    private readonly dashboardReport: AdminDashboardReportService,
   ) {}
 
   // ─── Dashboard Endpoints ───
+
+  /**
+   * Biên của kỳ lọc, tính theo giờ VN. `new Date('2026-07-31')` là nửa đêm UTC
+   * = 07:00 sáng giờ VN, nên dùng thẳng làm cận trên sẽ cắt mất gần trọn ngày cuối.
+   */
+  private range(query: DateRangeQueryDto): [Date, Date] {
+    return [vietnamStartOfDay(query.fromDate), vietnamEndOfDay(query.toDate)];
+  }
 
   @Get('dashboard/alerts')
   getAlerts() {
@@ -53,19 +78,13 @@ export class AdminController {
 
   @Get('dashboard/kpis')
   getKpis(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getKpis(
-      new Date(query.fromDate),
-      new Date(query.toDate),
-    );
+    return this.dashboardRepo.getKpis(...this.range(query));
   }
 
   @Get('dashboard/gmv-chart')
   getGmvChart(@Query() query: RevenueChartQueryDto) {
-    return this.dashboardRepo.getGmvChart(
-      new Date(query.fromDate),
-      new Date(query.toDate),
-      query.groupBy,
-    );
+    const [from, to] = this.range(query);
+    return this.dashboardRepo.getGmvChart(from, to, query.groupBy);
   }
 
   @Get('dashboard/booking-status-snapshot')
@@ -75,19 +94,17 @@ export class AdminController {
 
   @Get('dashboard/booking-details')
   getBookingDetails(@Query() query: BookingDetailsQueryDto) {
+    const [from, to] = this.range(query);
     return this.dashboardRepo.getBookingDetails(
-      new Date(query.fromDate),
-      new Date(query.toDate),
+      from,
+      to,
       query.limit ? Math.min(query.limit, 50) : 10,
     );
   }
 
   @Get('dashboard/finance-breakdown')
   getFinanceBreakdown(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getFinanceBreakdown(
-      new Date(query.fromDate),
-      new Date(query.toDate),
-    );
+    return this.dashboardRepo.getFinanceBreakdown(...this.range(query));
   }
 
   @Get('dashboard/tasker-stats')
@@ -99,10 +116,7 @@ export class AdminController {
 
   @Get('dashboard/reviews')
   getReviews(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getReviews(
-      new Date(query.fromDate),
-      new Date(query.toDate),
-    );
+    return this.dashboardRepo.getReviews(...this.range(query));
   }
 
   @Get('dashboard/tasker-levels')
@@ -112,10 +126,7 @@ export class AdminController {
 
   @Get('dashboard/area-performance')
   getAreaPerformance(@Query() query: DateRangeQueryDto) {
-    return this.dashboardRepo.getAreaPerformance(
-      new Date(query.fromDate),
-      new Date(query.toDate),
-    );
+    return this.dashboardRepo.getAreaPerformance(...this.range(query));
   }
 
   @Get('dashboard/voucher-performance')
@@ -123,6 +134,50 @@ export class AdminController {
     return this.dashboardRepo.getVoucherPerformance(
       limit ? Math.min(parseInt(limit, 10), 20) : 6,
     );
+  }
+
+  /**
+   * Xuất báo cáo Excel cho một danh mục dashboard. `mode=multi` → mỗi mục một
+   * tab; `mode=combined` → mọi mục xếp chồng trong một trang tính.
+   * Dùng `@Res()` nên bỏ qua ClassSerializerInterceptor toàn cục — cần thiết vì
+   * các route còn lại của controller trả JSON.
+   */
+  @Get('dashboard/export')
+  @ApiOperation({
+    summary: 'Xuất Excel báo cáo dashboard theo danh mục',
+    description:
+      'Số liệu lấy từ đúng các hàm mà widget trên dashboard đang gọi, nên file khớp với những gì admin nhìn thấy.',
+  })
+  async exportDashboard(
+    @Query() query: DashboardExportQueryDto,
+    @Res() res: Response,
+  ) {
+    const [from, to] = this.range(query);
+    const sheets = await this.dashboardReport.buildSheets(
+      query.category,
+      from,
+      to,
+    );
+
+    const isCombined = query.mode === DashboardExportMode.COMBINED;
+    const buffer = isCombined
+      ? await buildCombinedSingleSheetBuffer(
+          sheets,
+          this.dashboardReport.getReportTitle(query.category),
+          this.dashboardReport.getFilterSummary(query.category, from, to),
+        )
+      : await buildReportWorkbookBuffer(sheets);
+
+    const name = `bao-cao-${query.category}${isCombined ? '-gop' : ''}`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${excelFilename(name)}"`,
+    );
+    res.send(buffer);
   }
 
   // ─── Booking Search (autocomplete) ───

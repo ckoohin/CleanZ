@@ -3,8 +3,7 @@
 import { Wallet, Coins, Receipt, Undo2, Package, TrendingDown, Users, UserPlus, Repeat, Star, TrendingUp, Minus } from "lucide-react";
 import { AdminCard } from "@/components/admin";
 import { cn } from "@/lib/utils";
-import { useKpis } from "../../hooks/useDashboard";
-import { useDashboardStore } from "../../stores/dashboard.store";
+import { useKpis, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 import type { WidgetId } from "../../types/dashboard.types";
 
@@ -50,7 +49,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     feature: true,
   },
   kpiGMV: {
-    label: "GMV (tháng)",
+    label: "GMV (kỳ)",
     icon: Coins,
     getValue: (d) => d.gmv.value,
     getMeta: (d) => (
@@ -75,7 +74,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     isMoney: true,
   },
   kpiRefund: {
-    label: "Tiền hoàn (tháng)",
+    label: "Tiền hoàn (kỳ)",
     icon: Undo2,
     getValue: (d) => d.totalRefund.value,
     getMeta: () => "Tổng hoàn tiền trong kỳ",
@@ -123,7 +122,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
     status: "healthy",
   },
   kpiNewCust: {
-    label: "Khách mới (tháng)",
+    label: "Khách mới (kỳ)",
     icon: UserPlus,
     getValue: (d) => d.newCustomers.value,
     getMeta: (d) => (
@@ -156,7 +155,7 @@ const KPI_CONFIGS: Record<string, KpiConfig> = {
 };
 
 export function KpiCard({ id }: { id: WidgetId }) {
-  const { dateRange } = useDashboardStore();
+  const dateRange = useDashboardRange();
   const { data, isLoading } = useKpis(dateRange);
 
   const config = KPI_CONFIGS[id];

@@ -1,21 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../services/dashboard.service';
-import { calcGroupBy } from '../stores/dashboard.store';
+import { useDashboardStore } from '../stores/dashboard.store';
+import { calcGroupBy } from '../lib/date-ranges';
 import type { DateRange } from '../types/dashboard.types';
 import { useAuth } from '@/features/auth/hooks/auth.hooks';
 
+/**
+ * Kỳ thống kê dùng chung cho cả trang. Mọi widget theo kỳ đều đọc qua đây, nên
+ * chúng không phụ thuộc vào hình dạng store.
+ */
+export function useDashboardRange(): DateRange {
+  return useDashboardStore((s) => s.dateRange);
+}
+
+/**
+ * `limit` PHẢI nằm trong key: TopTaskers xin 4 còn DocExpiry xin 3 từ cùng một
+ * endpoint — bỏ limit ra ngoài thì hai widget dùng chung cache và widget mount
+ * sau sẽ hiển thị lát cắt của widget kia.
+ */
 export const dashboardKeys = {
   alerts: ['dashboard', 'alerts'] as const,
   kpis: (r: DateRange) => ['dashboard', 'kpis', r] as const,
   gmvChart: (r: DateRange) => ['dashboard', 'gmv-chart', r] as const,
   bookingStatus: ['dashboard', 'booking-status'] as const,
-  bookingDetails: (r: DateRange) => ['dashboard', 'booking-details', r] as const,
+  bookingDetails: (r: DateRange, limit: number) =>
+    ['dashboard', 'booking-details', r, limit] as const,
   financeBreakdown: (r: DateRange) => ['dashboard', 'finance-breakdown', r] as const,
-  taskerStats: ['dashboard', 'tasker-stats'] as const,
+  taskerStats: (limit: number) => ['dashboard', 'tasker-stats', limit] as const,
   reviews: (r: DateRange) => ['dashboard', 'reviews', r] as const,
   taskerLevels: ['dashboard', 'tasker-levels'] as const,
   areaPerformance: (r: DateRange) => ['dashboard', 'area-performance', r] as const,
-  voucherPerformance: ['dashboard', 'voucher-performance'] as const,
+  voucherPerformance: (limit: number) =>
+    ['dashboard', 'voucher-performance', limit] as const,
 };
 
 function useAdminQueryEnabled() {
@@ -70,7 +86,7 @@ export function useBookingDetails(dateRange: DateRange, limit = 10) {
   const isAdminReady = useAdminQueryEnabled();
 
   return useQuery({
-    queryKey: dashboardKeys.bookingDetails(dateRange),
+    queryKey: dashboardKeys.bookingDetails(dateRange, limit),
     queryFn: () => dashboardApi.getBookingDetails(dateRange.fromDate, dateRange.toDate, limit),
     enabled: isAdminReady,
   });
@@ -90,7 +106,7 @@ export function useTaskerStats(limit = 5) {
   const isAdminReady = useAdminQueryEnabled();
 
   return useQuery({
-    queryKey: dashboardKeys.taskerStats,
+    queryKey: dashboardKeys.taskerStats(limit),
     queryFn: () => dashboardApi.getTaskerStats(limit),
     enabled: isAdminReady,
   });
@@ -130,7 +146,7 @@ export function useVoucherPerformance(limit = 6) {
   const isAdminReady = useAdminQueryEnabled();
 
   return useQuery({
-    queryKey: dashboardKeys.voucherPerformance,
+    queryKey: dashboardKeys.voucherPerformance(limit),
     queryFn: () => dashboardApi.getVoucherPerformance(limit),
     enabled: isAdminReady,
   });

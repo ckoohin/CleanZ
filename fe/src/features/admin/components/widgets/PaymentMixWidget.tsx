@@ -1,8 +1,7 @@
 "use client";
 
 import { SectionCard, HorizontalBarChart } from "@/components/admin";
-import { useFinanceBreakdown } from "../../hooks/useDashboard";
-import { useDashboardStore } from "../../stores/dashboard.store";
+import { useFinanceBreakdown, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 
 const METHODS: { key: string; label: string; color: string }[] = [
@@ -11,7 +10,7 @@ const METHODS: { key: string; label: string; color: string }[] = [
 ];
 
 export function PaymentMixWidget() {
-  const { dateRange } = useDashboardStore();
+  const dateRange = useDashboardRange();
   const { data, isLoading } = useFinanceBreakdown(dateRange);
 
   if (isLoading) return <WidgetSkeleton rows={4} />;

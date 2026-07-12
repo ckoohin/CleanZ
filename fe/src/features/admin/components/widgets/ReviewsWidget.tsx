@@ -1,8 +1,7 @@
 "use client";
 
 import { AdminCard } from "@/components/admin";
-import { useReviews } from "../../hooks/useDashboard";
-import { useDashboardStore } from "../../stores/dashboard.store";
+import { useReviews, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 
 const CRITERIA_LABELS: { key: keyof Criteria; label: string }[] = [
@@ -20,7 +19,7 @@ type Criteria = {
 };
 
 export function ReviewsWidget() {
-  const { dateRange } = useDashboardStore();
+  const dateRange = useDashboardRange();
   const { data, isLoading } = useReviews(dateRange);
 
   if (isLoading) return <WidgetSkeleton rows={4} />;

@@ -178,12 +178,6 @@ export const servicePackageReportsApi = {
       .then((r) => r.data),
 };
 
-/** Kích hoạt tải file blob trực tiếp trên trình duyệt (dùng chung cho mọi nút Xuất Excel). */
-export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+// downloadBlob đã chuyển sang @/features/admin/lib/download (dùng chung cho cả
+// dashboard lẫn báo cáo dịch vụ). Re-export để các import cũ vẫn chạy.
+export { downloadBlob } from '@/features/admin/lib/download';

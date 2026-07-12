@@ -1,8 +1,7 @@
 "use client";
 
 import { SectionCard, HorizontalBarChart } from "@/components/admin";
-import { useBookingDetails } from "../../hooks/useDashboard";
-import { useDashboardStore } from "../../stores/dashboard.store";
+import { useBookingDetails, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 
 const CANCEL_ROLES: Record<string, { label: string; color: string }> = {
@@ -13,34 +12,45 @@ const CANCEL_ROLES: Record<string, { label: string; color: string }> = {
 };
 
 export function CancelReasonsWidget() {
-  const { dateRange } = useDashboardStore();
+  const dateRange = useDashboardRange();
   const { data, isLoading } = useBookingDetails(dateRange);
 
   if (isLoading) return <WidgetSkeleton rows={4} />;
 
-  const backendReasons = data?.cancelReasons ?? [];
-  const reasonsMap = new Map(backendReasons.map((r) => [r.cancelledBy, r.count]));
+  const reasonsMap = new Map(
+    (data?.cancelReasons ?? []).map((r) => [r.cancelledBy, r.count]),
+  );
 
-  // Standard template items with DB values overlaid, or mockup as fallback
-  const items = Object.entries(CANCEL_ROLES).map(([role, cfg]) => {
-    const dbCount = reasonsMap.get(role);
-    return {
-      label: cfg.label,
-      count: dbCount !== undefined ? dbCount : (role === "CUSTOMER" ? 18 : role === "TASKER" ? 7 : role === "SYSTEM" ? 5 : 2),
-      color: cfg.color,
-    };
-  });
+  const items = Object.entries(CANCEL_ROLES).map(([role, cfg]) => ({
+    label: cfg.label,
+    count: reasonsMap.get(role) ?? 0,
+    color: cfg.color,
+  }));
 
   const total = items.reduce((sum, item) => sum + item.count, 0);
   const max = Math.max(...items.map((item) => item.count), 1);
 
   return (
-    <SectionCard title="Lý do huỷ đơn" hint={`${total} đơn huỷ trong kỳ`} cardClassName="h-full">
-      <HorizontalBarChart
-        className="mt-3"
-        max={max}
-        items={items.map((r) => ({ label: r.label, value: r.count, color: r.color }))}
-      />
+    <SectionCard
+      title="Lý do huỷ đơn"
+      hint={total > 0 ? `${total} đơn huỷ trong kỳ` : "Trong kỳ"}
+      cardClassName="h-full"
+    >
+      {total === 0 ? (
+        <p className="py-6 text-center text-xs text-[var(--c-muted)]">
+          Không có đơn huỷ trong kỳ
+        </p>
+      ) : (
+        <HorizontalBarChart
+          className="mt-3"
+          max={max}
+          items={items.map((r) => ({
+            label: r.label,
+            value: r.count,
+            color: r.color,
+          }))}
+        />
+      )}
     </SectionCard>
   );
 }

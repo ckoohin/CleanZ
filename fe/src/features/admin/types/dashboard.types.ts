@@ -5,16 +5,18 @@ export interface DateRange {
 
 export type GroupBy = 'day' | 'week' | 'month';
 
-export type PresetKey = 'overview' | 'finance' | 'operations' | 'tasker' | 'cs' | 'marketing' | 'services';
+/** Danh mục dashboard. 'services' là tab đặc biệt: render ServicePackageReportsPage. */
+export type CategoryKey =
+  | 'overview'
+  | 'cs'
+  | 'finance'
+  | 'operations'
+  | 'tasker'
+  | 'marketing'
+  | 'services';
 
-/** A widget placed on the grid. x/y/w/h are in react-grid-layout units (12-col grid). */
-export interface GridLayoutItem {
-  id: WidgetId;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+/** Danh mục xuất được báo cáo Excel — khớp enum DashboardCategory phía backend. */
+export type ExportableCategory = Exclude<CategoryKey, 'services'>;
 
 export type WidgetId =
   | 'alerts'
@@ -42,8 +44,7 @@ export type WidgetId =
   | 'feedback'
   | 'voucherPerf'
   | 'areaPerf'
-  | 'peakHours'
-  | 'extras';
+  | 'peakHours';
 
 // --- Alerts ---
 export interface AlertsResponse {
@@ -108,7 +109,12 @@ export interface VoucherPerfItem {
 // --- GMV Chart ---
 export interface GmvChartItem {
   label: string;
+  /** Tiền thật chảy qua sàn — CHỈ đơn hoàn tất. */
   gmv: number;
+  /** Giá trị đơn huỷ / hết hạn — tiền đã mất, không phải GMV. */
+  lost: number;
+  /** Giá trị đơn chưa chốt (chờ nhận / đang làm) — chưa thành GMV, cũng chưa mất. */
+  pending: number;
   orders: number;
 }
 

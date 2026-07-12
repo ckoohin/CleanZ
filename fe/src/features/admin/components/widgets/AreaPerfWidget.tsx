@@ -1,14 +1,13 @@
 "use client";
 
 import { SectionCard, HorizontalBarChart } from "@/components/admin";
-import { useAreaPerformance } from "../../hooks/useDashboard";
-import { useDashboardStore } from "../../stores/dashboard.store";
+import { useAreaPerformance, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
 
 const COLORS = ["#0E9F6E", "#2563EB", "#7C3AED", "#D97706", "#E11D48", "#FFA000"];
 
 export function AreaPerfWidget() {
-  const { dateRange } = useDashboardStore();
+  const dateRange = useDashboardRange();
   const { data, isLoading } = useAreaPerformance(dateRange);
 
   if (isLoading) return <WidgetSkeleton rows={5} />;

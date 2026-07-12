@@ -147,31 +147,35 @@ export function Donut({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const sum = segments.reduce((a, s) => a + s.value, 0) || 1;
-  let acc = 0;
+
+  // Offset của mỗi cung = tổng các cung đứng trước nó. Tính thuần bằng prefix-sum
+  // thay vì cộng dồn một biến trong callback: gán lại biến lúc render là side-effect,
+  // React chạy lại callback là các cung vẽ chồng lệch lên nhau.
+  const arcs = segments.map((s, i) => ({
+    label: s.label,
+    color: s.color,
+    dash: (s.value / sum) * c,
+    offset:
+      (segments.slice(0, i).reduce((acc, p) => acc + p.value, 0) / sum) * c,
+  }));
 
   return (
     <svg viewBox={`0 0 ${size} ${size}`} className={cn("shrink-0", className)} width={size} height={size} aria-hidden="true">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(148,163,184,0.16)" strokeWidth={stroke} />
-      {segments.map((s) => {
-        const frac = s.value / sum;
-        const dash = frac * c;
-        const el = (
-          <circle
-            key={s.label}
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={stroke}
-            strokeDasharray={`${dash} ${c - dash}`}
-            strokeDashoffset={-acc}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          />
-        );
-        acc += dash;
-        return el;
-      })}
+      {arcs.map((a) => (
+        <circle
+          key={a.label}
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={a.color}
+          strokeWidth={stroke}
+          strokeDasharray={`${a.dash} ${c - a.dash}`}
+          strokeDashoffset={-a.offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      ))}
       <text x="50%" y="46%" textAnchor="middle" fontSize={34} fontWeight={700} fill="currentColor">
         {total}
       </text>
