@@ -5,7 +5,7 @@ export interface DateRange {
 
 export type GroupBy = 'day' | 'week' | 'month';
 
-export type PresetKey = 'overview' | 'finance' | 'operations' | 'tasker' | 'cs' | 'marketing';
+export type PresetKey = 'overview' | 'finance' | 'operations' | 'tasker' | 'cs' | 'marketing' | 'services';
 
 /** A widget placed on the grid. x/y/w/h are in react-grid-layout units (12-col grid). */
 export interface GridLayoutItem {

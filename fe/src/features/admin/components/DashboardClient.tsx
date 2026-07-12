@@ -51,6 +51,7 @@ import { ReviewsWidget } from "./widgets/ReviewsWidget";
 import { FeedbackWidget } from "./widgets/FeedbackWidget";
 import { VoucherPerfWidget } from "./widgets/VoucherPerfWidget";
 import { AreaPerfWidget } from "./widgets/AreaPerfWidget";
+import { ServicePackageReportsPage } from "../modules/service/_components/reports/ServicePackageReportsPage";
 
 // react-grid-layout grid metrics — keep in sync with the store's grid units.
 const ROW_HEIGHT = 60;
@@ -183,6 +184,9 @@ export function DashboardClient() {
   const layout = presets[currentPreset] || { label: "", layout: [] };
   const visibleWidgets = layout.layout;
 
+  /** Preset này không dùng widget grid — render ServicePackageReportsPage thay thế */
+  const isServiceReport = currentPreset === 'services';
+
   // Map our stored grid items into react-grid-layout's Layout[] shape.
   const rglLayout: Layout[] = React.useMemo(
     () =>
@@ -244,28 +248,32 @@ export function DashboardClient() {
         actions={
           <>
             <PresetSelect />
-            <AdminButton
-              variant={isEditMode ? "primary" : "secondary"}
-              onClick={() => setEditMode(!isEditMode)}
-              icon={isEditMode ? <Check className="size-4" /> : <LayoutGrid className="size-4" />}
-            >
-              {isEditMode ? "Xong sắp xếp" : "Sắp xếp"}
-            </AdminButton>
-            <AdminButton
-              variant="secondary"
-              onClick={handleOpenCustomize}
-              icon={<Settings2 className="size-4" />}
-            >
-              Tuỳ chỉnh
-            </AdminButton>
-            <DateRangeFilter />
-            <AdminButton
-              variant="primary"
-              onClick={() => toast.success("Đang xuất báo cáo...")}
-              icon={<Download className="size-4" />}
-            >
-              Xuất báo cáo
-            </AdminButton>
+            {!isServiceReport && (
+              <>
+                <AdminButton
+                  variant={isEditMode ? "primary" : "secondary"}
+                  onClick={() => setEditMode(!isEditMode)}
+                  icon={isEditMode ? <Check className="size-4" /> : <LayoutGrid className="size-4" />}
+                >
+                  {isEditMode ? "Xong sắp xếp" : "Sắp xếp"}
+                </AdminButton>
+                <AdminButton
+                  variant="secondary"
+                  onClick={handleOpenCustomize}
+                  icon={<Settings2 className="size-4" />}
+                >
+                  Tuỳ chỉnh
+                </AdminButton>
+                <DateRangeFilter />
+                <AdminButton
+                  variant="primary"
+                  onClick={() => toast.success("Đang xuất báo cáo...")}
+                  icon={<Download className="size-4" />}
+                >
+                  Xuất báo cáo
+                </AdminButton>
+              </>
+            )}
           </>
         }
       />
@@ -290,8 +298,13 @@ export function DashboardClient() {
         </div>
       )}
 
-      {/* Widgets Grid */}
-      {mounted && (
+      {/* Service Reports — render khi chọn preset 'services' */}
+      {isServiceReport && (
+        <ServicePackageReportsPage embedded />
+      )}
+
+      {/* Widgets Grid — render khi các preset thông thường */}
+      {!isServiceReport && mounted && (
         <GridResponsive
           className={cn("dashboard-grid -mx-1", isEditMode && "is-editing")}
           layout={rglLayout}

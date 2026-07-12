@@ -147,6 +147,11 @@ export const DEFAULT_PRESETS: Record<PresetKey, { label: string; layout: GridLay
       { id: 'chart', colSpan: 6 },
     ]),
   },
+  // Preset đặc biệt: không dùng widget grid — DashboardClient sẽ render ServicePackageReportsPage
+  services: {
+    label: 'Báo cáo Dịch vụ',
+    layout: [],
+  },
 };
 
 // Aliased as PRESETS for backwards compatibility

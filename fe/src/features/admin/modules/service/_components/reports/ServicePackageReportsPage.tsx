@@ -17,7 +17,12 @@ import { BookingStatusDonut } from "./BookingStatusDonut";
 import { TopTaskersPanel } from "./TopTaskersPanel";
 import { downloadBlob, servicePackageReportsApi, type ServicePackageReportFilter } from "../../services/service-package-reports.service";
 
-export function ServicePackageReportsPage() {
+interface Props {
+  /** Khi true: ẩn nút Back và tiêu đề trang (đã có PageHeader của Dashboard) */
+  embedded?: boolean;
+}
+
+export function ServicePackageReportsPage({ embedded = false }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<ServicePackageReportFilter>({});
   const [exportingAll, setExportingAll] = useState(false);
@@ -37,25 +42,27 @@ export function ServicePackageReportsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <BaseButton
-            variant="ghost"
-            onClick={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.BASE)}
-            className="h-8 px-2 mb-2 -ml-2 rounded-lg text-xs font-bold gap-1.5 text-(--c-muted) hover:text-(--c-ink)"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Quay lại danh sách gói dịch vụ
-          </BaseButton>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-(--c-ink) flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-(--c-primary-soft)">
-              <BarChart3 className="w-6 h-6 text-(--c-primary-strong)" />
-            </span>
-            Báo cáo thống kê Gói dịch vụ
-          </h1>
-          <p className="text-(--c-muted) text-sm mt-1 pl-11">
-            Doanh thu, booking và hiệu suất toàn bộ hệ thống gói dịch vụ.
-          </p>
-        </div>
+        {!embedded && (
+          <div>
+            <BaseButton
+              variant="ghost"
+              onClick={() => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.BASE)}
+              className="h-8 px-2 mb-2 -ml-2 rounded-lg text-xs font-bold gap-1.5 text-(--c-muted) hover:text-(--c-ink)"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Quay lại danh sách gói dịch vụ
+            </BaseButton>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-(--c-ink) flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-(--c-primary-soft)">
+                <BarChart3 className="w-6 h-6 text-(--c-primary-strong)" />
+              </span>
+              Báo cáo thống kê Gói dịch vụ
+            </h1>
+            <p className="text-(--c-muted) text-sm mt-1 pl-11">
+              Doanh thu, booking và hiệu suất toàn bộ hệ thống gói dịch vụ.
+            </p>
+          </div>
+        )}
 
         <BaseButton
           onClick={handleExportAll}
