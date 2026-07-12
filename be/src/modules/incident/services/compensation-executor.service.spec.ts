@@ -166,7 +166,7 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
         recoverableFromDepositAmount: 1_000_000,
         uncoveredLiabilityAmount: 500_000,
         platformBorneAmount: 0,
-        tasker: { id: 'tk-1', currentDepositBalance: 0 },
+        tasker: { id: 'tk-1' },
         customer: { id: 'cus-1' },
       } as unknown as IncidentEntity;
 
@@ -219,7 +219,7 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
         recoverableFromDepositAmount: 1_000_000,
         uncoveredLiabilityAmount: 500_000,
         platformBorneAmount: 0,
-        tasker: { id: 'tk', currentDepositBalance: 0 },
+        tasker: { id: 'tk' },
         customer: { id: 'cus' },
       } as unknown as IncidentEntity;
 

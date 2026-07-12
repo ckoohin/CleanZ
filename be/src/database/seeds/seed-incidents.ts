@@ -278,14 +278,17 @@ async function main() {
     const pairs = await getPairs(ds, SCENARIOS.length);
     const packageId = await getPackageId(ds);
 
-    // Nạp cọc cho các tasker liên quan để UI hiển thị "Cọc khả dụng" hợp lý.
+    // Nạp ví cho các tasker liên quan (ký quỹ đã bỏ — nguồn thu hồi duy nhất là ví).
     const taskerIds = [...new Set(pairs.map((p) => p.tasker_id))];
     await ds.query(
-      `UPDATE taskers SET current_deposit_balance = 5000000, deposit_amount = 5000000
-        WHERE id = ANY($1)`,
+      `INSERT INTO wallets (owner_type, tasker_id, balance, hold_balance)
+       SELECT 'TASKER'::wallets_owner_type_enum, t.id, 5000000, 0
+       FROM taskers t WHERE t.id = ANY($1)
+       ON CONFLICT (tasker_id) WHERE tasker_id IS NOT NULL
+       DO UPDATE SET balance = 5000000`,
       [taskerIds],
     );
-    console.log(`• Đã nạp cọc 5.000.000đ cho ${taskerIds.length} tasker.`);
+    console.log(`• Đã nạp ví 5.000.000đ cho ${taskerIds.length} tasker.`);
 
     let n = 0;
     for (let i = 0; i < SCENARIOS.length; i++) {

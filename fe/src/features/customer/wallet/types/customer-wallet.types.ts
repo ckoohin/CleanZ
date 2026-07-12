@@ -71,3 +71,64 @@ export interface CreateCustomerWithdrawalInput {
   bankName: string;
   note?: string;
 }
+
+/* ─── Nạp tiền qua PayPal ─────────────────────────────────────────────────── */
+
+export type TopupStatus =
+  | "CREATED"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED"
+  | "EXPIRED";
+
+/** Hạn mức + tỷ giá do admin cấu hình (system_configs). */
+export interface TopupConfig {
+  minVnd: number;
+  maxVnd: number;
+  /** VND cho 1 USD — PayPal thu bằng USD. */
+  fxRate: number;
+}
+
+export interface CreateTopupInput {
+  amountVnd: number;
+  /** Nạp để trả cho một booking cụ thể (luồng thiếu số dư). */
+  bookingId?: string;
+}
+
+export interface CreateTopupResult {
+  topupId: string;
+  paypalOrderId: string;
+  amountVnd: number;
+  amountUsd: number;
+  /** Link PayPal để khách duyệt thanh toán. */
+  approveUrl: string | null;
+}
+
+export interface CaptureTopupResult {
+  topupId: string;
+  status: TopupStatus;
+  amountVnd: number;
+  /** Số dư ví sau khi cộng tiền. */
+  balance: number;
+}
+
+export interface TopupOrder {
+  id: string;
+  provider: string;
+  status: TopupStatus;
+  amountVnd: number;
+  amountUsd: number;
+  fxRate: number;
+  paypalOrderId: string | null;
+  bookingId: string | null;
+  failReason: string | null;
+  createdAt: string;
+}
+
+export interface TopupOrderList {
+  items: TopupOrder[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

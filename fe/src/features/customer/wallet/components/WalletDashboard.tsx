@@ -19,24 +19,24 @@ import {
   CalendarDays,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
   useCustomerWallet,
   useCustomerWalletTransactions,
 } from "../hooks/useCustomerWallet";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
-import { toast } from "sonner";
 import { useRef } from "react";
+import { TopupDialog } from "./TopupDialog";
 
 const LIMIT = 10;
 
 export const WalletDashboard = () => {
-  const router = useRouter();
+
   const historyRef = useRef<HTMLDivElement>(null);
 
   const [page, setPage] = useState(1);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [topupOpen, setTopupOpen] = useState(false);
 
   const query = {
     page,
@@ -130,11 +130,7 @@ export const WalletDashboard = () => {
     }
   };
 
-  const handleDepositClick = () => {
-    toast.info(
-      "Tính năng nạp tiền VNPay đang được tích hợp. Vui lòng quay lại sau!",
-    );
-  };
+  const handleDepositClick = () => setTopupOpen(true);
 
   const handleScrollToHistory = () => {
     historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -431,6 +427,8 @@ export const WalletDashboard = () => {
           </div>
         )}
       </div>
+
+      <TopupDialog open={topupOpen} onClose={() => setTopupOpen(false)} />
     </div>
   );
 };

@@ -6,10 +6,14 @@ import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
 import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.entity';
 import { TaskerDepositTransactionEntity } from './entity/tasker-deposit-transaction.entity';
-import { TaskerDepositService } from './tasker-deposit.service';
+import { TaskerBalanceService } from './tasker-balance.service';
 import { CustomerWithdrawalRequestEntity } from './entity/customer-withdrawal-request.entity';
 import { CustomerWithdrawalService } from './customer-withdrawal.service';
 import { CustomerWithdrawalController } from './customer-withdrawal.controller';
+import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
+import { WalletTopupService } from './wallet-topup.service';
+import { PaypalService } from './paypal.service';
+import { SystemConfigModule } from '../system-config/system-config.module';
 
 @Module({
   imports: [
@@ -19,10 +23,18 @@ import { CustomerWithdrawalController } from './customer-withdrawal.controller';
       WithdrawalRequestEntity,
       TaskerDepositTransactionEntity,
       CustomerWithdrawalRequestEntity,
+      WalletTopupOrderEntity,
     ]),
+    SystemConfigModule,
   ],
   controllers: [WalletController, CustomerWithdrawalController],
-  providers: [WalletService, TaskerDepositService, CustomerWithdrawalService],
-  exports: [TypeOrmModule, WalletService, TaskerDepositService],
+  providers: [
+    WalletService,
+    TaskerBalanceService,
+    CustomerWithdrawalService,
+    WalletTopupService,
+    PaypalService,
+  ],
+  exports: [TypeOrmModule, WalletService, TaskerBalanceService],
 })
 export class WalletModule {}

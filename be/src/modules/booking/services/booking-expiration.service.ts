@@ -16,6 +16,7 @@ import { NotificationService } from 'src/modules/notification/notification.servi
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
+import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 
 export interface ExpireOverdueBookingsResponse {
@@ -37,6 +38,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     private readonly dataSource: DataSource,
     private readonly vouchersService: VouchersService,
     private readonly notificationService: NotificationService,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     configService: ConfigService,
   ) {
     this.intervalMs = Number(
@@ -216,6 +218,11 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
             booking.id,
           );
           await bookingRepository.save(booking);
+          await this.bookingWalletPaymentService.refundEscrow(
+            manager,
+            booking,
+            'quá hạn khách xác nhận',
+          );
 
           const statusLog = logRepository.create({
             booking,
@@ -320,6 +327,11 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
         booking.id,
       );
       await bookingRepository.save(booking);
+      await this.bookingWalletPaymentService.refundEscrow(
+        manager,
+        booking,
+        'đơn hết hạn không có tasker nhận',
+      );
 
       const statusLog = logRepository.create({
         booking,

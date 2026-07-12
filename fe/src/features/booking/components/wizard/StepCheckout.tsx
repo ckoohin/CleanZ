@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, CreditCard, Banknote, ShieldCheck, CheckCircle2, Ticket, Loader2, Wallet, AlertCircle } from "lucide-react";
 import { useBookingQuote, useCreateBooking } from "@/features/booking/hooks/useCustomerBooking";
 import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
+import { TopupDialog } from "@/features/customer/wallet/components/TopupDialog";
 import { useRouter } from "next/navigation";
 import type { PaymentMethod } from "@/features/booking/types/booking.types";
 import { PublicService } from "@/features/public/hooks/usePublicData";
@@ -26,6 +27,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
   const createMutation = useCreateBooking();
   const { data: wallet, isLoading: isWalletLoading } = useCustomerWallet();
   const [voucherInput, setVoucherInput] = useState(formData.voucherCode ?? "");
+  const [topupOpen, setTopupOpen] = useState(false);
 
   const [inputPhone, setInputPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -130,6 +132,9 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
   const totalPrice = quoteData?.price?.totalPrice ?? 0;
   const isUsingWallet = formData.paymentMethod === "WALLET";
   const isWalletInsufficient = isUsingWallet && walletBalance < totalPrice;
+  const missingAmount = Math.max(0, totalPrice - walletBalance);
+  // Làm tròn lên bội số 10k cho gọn số tiền khách phải nạp.
+  const suggestedTopup = Math.ceil(missingAmount / 10_000) * 10_000;
 
   const isSubmitDisabled = isCreating || isQuoting || !quoteData || isWalletInsufficient;
 
@@ -172,7 +177,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                 Phương thức thanh toán
               </label>
               
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {/* 1. Tiền mặt */}
                 <button
                   type="button"
@@ -208,33 +213,28 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                   )}
                 </button>
 
-                {/* 3. Cổng VNPay */}
-                <button
-                  type="button"
-                  onClick={() => updateForm({ paymentMethod: "ONLINE" })}
-                  className={`h-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 font-bold text-[10px] sm:text-xs transition-all duration-300 active:scale-95
-                    ${formData.paymentMethod === "ONLINE" 
-                      ? "border-blue-500 bg-blue-500/5 text-blue-600 shadow-sm shadow-blue-500/10" 
-                      : "border-border/50 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground/90"}
-                  `}
-                >
-                  <div className="flex items-center gap-0.5 font-black italic text-sm select-none tracking-tight">
-                    <span className="text-blue-600">VN</span>
-                    <span className="text-red-500">PAY</span>
-                  </div>
-                  <span className="text-[10px] sm:text-xs font-bold">VNPay Online</span>
-                </button>
               </div>
             </div>
           </div>
 
           {/* Hiển thị cảnh báo số dư ví không đủ */}
           {isWalletInsufficient && (
-            <div className="p-4 bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-2xl text-xs font-semibold text-destructive leading-relaxed flex items-start gap-2.5 mt-4 shadow-sm animate-pulse">
+            <div className="p-4 bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-2xl text-xs font-semibold text-destructive leading-relaxed flex items-start gap-2.5 mt-4 shadow-sm">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="font-bold">Số dư Ví không đủ thanh toán</p>
-                <p className="text-[11px] text-destructive/90 mt-0.5">Bạn đang thiếu {formatVND(totalPrice - walletBalance)}. Vui lòng nạp thêm tiền vào ví hoặc chọn hình thức Tiền mặt / VNPay.</p>
+                <p className="text-[11px] text-destructive/90 mt-0.5">
+                  Bạn đang thiếu {formatVND(missingAmount)}. Nạp thêm để trả bằng ví, hoặc chọn Tiền mặt.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setTopupOpen(true)}
+                  className="mt-3 h-8 rounded-xl text-[11px] font-bold"
+                >
+                  <Wallet className="w-3.5 h-3.5" />
+                  Nạp {formatVND(suggestedTopup)} vào ví
+                </Button>
               </div>
             </div>
           )}
@@ -396,6 +396,12 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
           </div>
         </div>
       </div>
+
+      <TopupDialog
+        open={topupOpen}
+        onClose={() => setTopupOpen(false)}
+        defaultAmountVnd={suggestedTopup}
+      />
     </div>
   );
 };

@@ -11,7 +11,7 @@ const INCIDENT_HOLD_REF = 'INCIDENT_HOLD';
 /**
  * P0.2 — Tạm giữ (HOLD) một phần ví Tasker khi tiếp nhận điều tra, để Tasker không rút trốn
  * nghĩa vụ bồi thường. Release lại khi sự cố kết thúc (bồi thường/từ chối/đóng).
- * Chỉ giữ được từ `wallet.balance` (cọc gốc `currentDepositBalance` vốn không rút qua ví).
+ * Chỉ giữ trên `wallet.balance` — Tasker chỉ còn một ví (ký quỹ đã gộp vào ví).
  */
 @Injectable()
 export class IncidentDepositHoldService {

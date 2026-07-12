@@ -68,8 +68,6 @@ export interface AdminTaskerDocument {
 }
 
 export interface AdminTaskerStats {
-  depositAmount: number;
-  currentDepositBalance: number;
   ratingAvg: number;
   totalCompletedJobs: number;
   totalWorkingHours: number;

@@ -43,19 +43,13 @@ export const formatDateTimeFull = (value?: string | null) =>
 
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CASH: "Tiền mặt",
-  MOMO: "MoMo",
-  ZALOPAY: "ZaloPay",
-  VNPAY: "VNPay",
-  VIETQR: "VietQR",
+  WALLET: "Ví CleanZ",
 };
 
 /** Ordered options for the customer form's payment-method select. */
 export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
   "CASH",
-  "MOMO",
-  "ZALOPAY",
-  "VNPAY",
-  "VIETQR",
+  "WALLET",
 ].map((value) => ({
   value: value as PaymentMethod,
   label: PAYMENT_METHOD_LABELS[value],

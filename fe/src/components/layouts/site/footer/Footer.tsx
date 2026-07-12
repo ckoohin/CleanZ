@@ -185,7 +185,7 @@ export default function Footer() {
         {/* ── PARTNERS / CERTS ── */}
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <span className="text-xs text-muted-foreground font-medium mr-2">Chứng nhận & Đối tác:</span>
-          {["VNPAY", "ZaloPay", "MoMo", "Visa / MC", "Bộ Công Thương"].map((p) => (
+          {["PayPal", "Visa / MC", "Bộ Công Thương"].map((p) => (
             <Badge key={p} variant="secondary" className="text-xs font-semibold rounded-full px-3 py-1">
               {p}
             </Badge>

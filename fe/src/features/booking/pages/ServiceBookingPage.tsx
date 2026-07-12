@@ -122,8 +122,7 @@ const TIME_SLOTS = ["08:00", "09:00", "10:00", "13:00", "14:00", "15:00", "16:00
 
 const PAYMENT_METHODS = [
   { id: 'CASH' as const, name: 'Tiền mặt', icon: Wallet, desc: 'Trả sau khi hoàn thành ca làm' },
-  { id: 'WALLET' as const, name: 'Ví điện tử', icon: Smartphone, desc: 'Khấu trừ trực tiếp từ ví CleanZ' },
-  { id: 'ONLINE' as const, name: 'Thanh toán Online', icon: CreditCard, desc: 'Visa, Master, VNPAY, VietQR' },
+  { id: 'WALLET' as const, name: 'Ví CleanZ', icon: Smartphone, desc: 'Trừ thẳng số dư ví, nạp bằng PayPal' },
 ];
 
 interface ServiceBookingPageProps {
@@ -165,7 +164,7 @@ export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
   const [userSelectedAddressId, setUserSelectedAddressId] = useState<string | null>(null);
   const [customAddressInput, setCustomAddressInput] = useState<string>("");
 
-  const [selectedPayment, setSelectedPayment] = useState<'CASH' | 'WALLET' | 'ONLINE'>('CASH');
+  const [selectedPayment, setSelectedPayment] = useState<'CASH' | 'WALLET'>('CASH');
   const [voucher, setVoucher] = useState("");
   const [note, setNote] = useState("");
   const [hasPet, setHasPet] = useState(false);
@@ -874,8 +873,7 @@ export default function ServiceBookingPage({ slug }: ServiceBookingPageProps) {
                              </p>
                              <p className="text-[8px] font-black uppercase mt-1.5 opacity-60">
                                 Thanh toán bằng {
-                                  selectedPayment === 'CASH' ? 'Tiền mặt' : 
-                                  selectedPayment === 'WALLET' ? 'Ví điện tử' : 'Online'
+                                  selectedPayment === 'CASH' ? 'Tiền mặt' : 'Ví CleanZ'
                                 }
                              </p>
                           </div>

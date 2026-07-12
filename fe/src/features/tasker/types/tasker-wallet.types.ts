@@ -4,9 +4,10 @@ export interface TaskerWallet {
   balance: number;
   holdBalance: number;
   taskerId: string | null;
-  requiredDeposit?: number;
-  currentDepositBalance?: number;
-  depositTopupDue?: string | null;
+  /** Sàn phải giữ lại trong ví để còn được nhận đơn (0 nếu đã nghỉ việc). */
+  minAcceptBalance?: number;
+  /** Phần thật sự rút được = balance − minAcceptBalance. */
+  withdrawableBalance?: number;
   createdAt: string;
   updatedAt: string;
 }

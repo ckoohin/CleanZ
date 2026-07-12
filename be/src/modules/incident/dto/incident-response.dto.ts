@@ -97,10 +97,8 @@ export interface IncidentAdminView extends IncidentSummary {
   tasker: {
     id: string;
     fullName?: string | null;
-    currentDepositBalance: number;
-    availableDeposit: number;
-    /** null = không bị khóa; có giá trị = đang soft-block nhận đơn tới hạn nạp bù (P0.3). */
-    depositTopupDue: string | null;
+    /** Ký quỹ đã bỏ — nguồn thu hồi duy nhất từ Tasker là số dư ví. */
+    walletBalance: number;
   };
   damageItems: DamageItemView[];
   statements: StatementView[];
@@ -270,9 +268,8 @@ export function toAdminView(
   taskerWalletBalance = 0,
   transferProofEvidences: IncidentEvidenceEntity[] = [],
 ): IncidentAdminView {
-  const currentDeposit = toNumber(incident.tasker?.currentDepositBalance);
-  // Quỹ Tasker khả dụng THẬT = số dư ví (nạp PayPal) + cọc gốc.
-  const availableDeposit = toNumber(taskerWalletBalance) + currentDeposit;
+  // Quỹ Tasker khả dụng THẬT = số dư ví (ký quỹ đã gộp vào ví).
+  const walletBalance = toNumber(taskerWalletBalance);
   const isAdverse =
     (incident.taskerBorneAmount != null &&
       toNumber(incident.taskerBorneAmount) > 0) ||
@@ -302,11 +299,7 @@ export function toAdminView(
     tasker: {
       id: incident.tasker?.id,
       fullName: incident.tasker?.user?.fullName ?? null,
-      currentDepositBalance: currentDeposit,
-      availableDeposit,
-      depositTopupDue: incident.tasker?.depositTopupDue
-        ? new Date(incident.tasker.depositTopupDue).toISOString()
-        : null,
+      walletBalance,
     },
     damageItems: toDamageItemViews(items, evidencesByItem),
     statements: statements.map((s) => ({

@@ -118,11 +118,6 @@ const formatDate = (value?: string | null) => {
   });
 };
 
-const formatVND = (value?: number | null) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-    value ?? 0
-  );
-
 const maskAccount = (value?: string | null) => {
   if (!value) return "•••• •••• ••••";
   const last4 = value.slice(-4);
@@ -868,19 +863,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
 
         {/* ── Bảng lương ── */}
         <TabsContent value="payroll" className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              icon={Wallet}
-              tone="emerald"
-              value={formatVND(detail.stats?.currentDepositBalance)}
-              label="Số dư cọc hiện tại"
-            />
-            <StatCard
-              icon={CreditCard}
-              tone="blue"
-              value={formatVND(detail.stats?.depositAmount)}
-              label="Tiền cọc đã nộp"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <StatCard
               icon={Receipt}
               tone="amber"

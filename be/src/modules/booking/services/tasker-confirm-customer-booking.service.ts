@@ -12,11 +12,11 @@ import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
-import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { TaskerDepositService } from 'src/modules/wallet/tasker-deposit.service';
+import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
+import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
@@ -33,7 +33,8 @@ export class TaskerConfirmCustomerBookingService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly bookingPolicyService: BookingPolicyService,
-    private readonly taskerDepositService: TaskerDepositService,
+    private readonly taskerBalanceService: TaskerBalanceService,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly pricingService: PricingService,
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
@@ -97,6 +98,11 @@ export class TaskerConfirmCustomerBookingService {
           booking,
         );
 
+        await this.taskerBalanceService.assertMeetsMinAcceptBalance(
+          manager,
+          tasker.id,
+        );
+
         // Check deposit nếu thanh toán CASH
         if (booking.paymentMethod === PaymentMethod.CASH) {
           const commissionRate = await this.resolvePlatformCommissionRate(
@@ -106,7 +112,7 @@ export class TaskerConfirmCustomerBookingService {
           const subtotal =
             toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
           const platformFee = Math.round((subtotal * commissionRate) / 100);
-          await this.taskerDepositService.assertCanCoverCashCommission(
+          await this.taskerBalanceService.assertCanCoverCashCommission(
             manager,
             tasker.id,
             platformFee,
@@ -205,6 +211,11 @@ export class TaskerConfirmCustomerBookingService {
         await this.vouchersService.releaseReservationForBooking(
           manager,
           booking.id,
+        );
+        await this.bookingWalletPaymentService.refundEscrow(
+          manager,
+          booking,
+          'khách từ chối đơn',
         );
 
         const savedBooking = await manager

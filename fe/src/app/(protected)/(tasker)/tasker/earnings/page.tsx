@@ -118,13 +118,16 @@ export default function TaskerEarningsPage() {
             Thu <span className="italic text-primary">nhập</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Quản lý ví thu nhập, ký quỹ và yêu cầu rút tiền.
+            Quản lý ví thu nhập và yêu cầu rút tiền.
           </p>
         </div>
         <Button
           className="rounded-full"
           onClick={() => setWithdrawalOpen(true)}
-          disabled={!wallet || Number(wallet.balance) <= 0}
+          disabled={
+            !wallet ||
+            Number(wallet.withdrawableBalance ?? wallet.balance) <= 0
+          }
         >
           <BanknoteArrowDown className="size-4" />
           Yêu cầu rút tiền
@@ -167,9 +170,9 @@ export default function TaskerEarningsPage() {
                 <ShieldCheck className="size-5" />
               </div>
               <div>
-                <p className="text-sm font-bold">Ký quỹ hoạt động</p>
+                <p className="text-sm font-bold">Số dư có thể rút</p>
                 <p className="text-xs text-muted-foreground">
-                  Không thuộc số dư có thể rút
+                  Phần giữ lại để tiếp tục nhận đơn
                 </p>
               </div>
             </div>
@@ -180,7 +183,7 @@ export default function TaskerEarningsPage() {
           ) : (
             <>
               <p className="mt-5 text-2xl font-black">
-                {formatCurrency(Number(wallet?.currentDepositBalance ?? 0))}
+                {formatCurrency(Number(wallet?.withdrawableBalance ?? 0))}
               </p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                 <div
@@ -188,17 +191,17 @@ export default function TaskerEarningsPage() {
                   style={{
                     width: `${Math.min(
                       100,
-                      (Number(wallet?.currentDepositBalance ?? 0) /
-                        Math.max(Number(wallet?.requiredDeposit ?? 1), 1)) *
+                      (Number(wallet?.balance ?? 0) /
+                        Math.max(Number(wallet?.minAcceptBalance ?? 1), 1)) *
                         100,
                     )}%`,
                   }}
                 />
               </div>
               <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>Mức yêu cầu</span>
+                <span>Phải giữ tối thiểu để nhận đơn</span>
                 <span>
-                  {formatCurrency(Number(wallet?.requiredDeposit ?? 0))}
+                  {formatCurrency(Number(wallet?.minAcceptBalance ?? 0))}
                 </span>
               </div>
             </>
@@ -327,47 +330,39 @@ export default function TaskerEarningsPage() {
         )}
       </section>
 
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold">
-              <ShieldCheck className="size-5 text-amber-600" />
-              Lịch sử ký quỹ
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Bao gồm phần phí nền tảng được khấu trừ khi ví thu nhập không đủ.
-            </p>
+      {/* Ký quỹ đã bỏ (gộp vào ví) — chỉ hiện khi tài khoản còn lịch sử cũ. */}
+      {!depositTransactionsLoading && !!depositTransactions?.length && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-bold">
+                <ShieldCheck className="size-5 text-amber-600" />
+                Lịch sử ký quỹ (cũ)
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Ký quỹ đã được gộp vào ví — mục này chỉ để tra cứu.
+              </p>
+            </div>
+            <Badge variant="outline" className="rounded-full">
+              {depositTransactions.length} giao dịch
+            </Badge>
           </div>
-          <Badge variant="outline" className="rounded-full">
-            {depositTransactions?.length ?? 0} giao dịch
-          </Badge>
-        </div>
 
-        <div className="space-y-2">
-          {depositTransactionsLoading ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-20 rounded-2xl" />
-            ))
-          ) : depositTransactions?.length ? (
-            depositTransactions.map((transaction) => (
+          <div className="space-y-2">
+            {depositTransactions.map((transaction) => (
               <DepositTransactionRow
                 key={transaction.id}
                 transaction={transaction}
               />
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center">
-              <ShieldCheck className="mx-auto size-8 text-muted-foreground/50" />
-              <p className="mt-3 font-bold">Ký quỹ chưa có biến động</p>
-            </div>
-          )}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {wallet && (
         <WithdrawalDialog
           open={withdrawalOpen}
-          balance={Number(wallet.balance)}
+          balance={Number(wallet.withdrawableBalance ?? wallet.balance)}
           onClose={() => setWithdrawalOpen(false)}
           onCreated={(request) => {
             setRecentRequest(request);

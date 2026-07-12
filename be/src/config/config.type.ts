@@ -41,4 +41,13 @@ export type AllConfigType = {
   CLOUDINARY_API_SECRET: string;
 
   GOONG_MAPS_API_KEY?: string;
+
+  // PayPal (nạp ví customer). Tỷ giá & min/max nạp lưu DB `system_configs`
+  // (admin chỉnh runtime), không phải env — xem TopupConfigService.
+  PAYPAL_MODE?: 'sandbox' | 'live';
+  PAYPAL_ENV?: 'sandbox' | 'live';
+  PAYPAL_API_BASE?: string;
+  PAYPAL_CLIENT_ID?: string;
+  PAYPAL_SECRET?: string;
+  PAYPAL_CLIENT_SECRET?: string;
 };

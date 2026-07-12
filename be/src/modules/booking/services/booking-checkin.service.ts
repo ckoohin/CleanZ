@@ -8,6 +8,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DataSource, EntityManager } from 'typeorm';
 import { BookingEntity } from '../entity/booking.entity';
+import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
@@ -55,6 +56,7 @@ export class BookingCheckinService {
     private readonly dataSource: DataSource,
     @InjectQueue(BOOKING_CHECKIN_QUEUE) private readonly checkinQueue: Queue,
     private readonly notificationService: NotificationService,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
   ) {}
 
   // ── Schedule jobs khi booking CONFIRMED ────────────────────────────────────
@@ -344,6 +346,12 @@ export class BookingCheckinService {
       locked.cancelledAt = new Date();
       locked.cancelledBy = CancelledBy.SYSTEM;
       await bookingRepo.save(locked);
+
+      await this.bookingWalletPaymentService.refundEscrow(
+        manager,
+        locked,
+        'hệ thống hủy đơn quá hạn check-in',
+      );
 
       await manager.getRepository(BookingStatusLogEntity).save(
         manager.getRepository(BookingStatusLogEntity).create({

@@ -1174,8 +1174,6 @@ export class TaskerService {
         note: tasker.docNote ?? null,
       },
       stats: {
-        depositAmount: Number(tasker.depositAmount),
-        currentDepositBalance: Number(tasker.currentDepositBalance),
         ratingAvg: Number(tasker.ratingAvg),
         totalCompletedJobs: tasker.totalCompletedJobs,
         totalWorkingHours: Number(tasker.totalWorkingHours),

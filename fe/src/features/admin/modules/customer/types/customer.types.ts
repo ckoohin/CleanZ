@@ -106,7 +106,7 @@ export interface ToggleCustomerStatusResponse {
   isActive: boolean;
 }
 
-export type PaymentMethod = "CASH" | "MOMO" | "ZALOPAY" | "VNPAY" | "VIETQR";
+export type PaymentMethod = "CASH" | "WALLET";
 
 export interface CreateCustomerPayload {
   email: string;
