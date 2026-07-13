@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { customerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { customerWalletKeys } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import type {
   CancelBookingDto,
   CreateBookingDto,
@@ -62,6 +63,8 @@ export function useCreateBooking() {
     onSuccess: () => {
       toast.success("Đặt lịch thành công! Đang tìm Tasker...");
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
+      // Đơn trả bằng ví bị trừ tiền ngay lúc tạo → refresh số dư.
+      void qc.invalidateQueries({ queryKey: customerWalletKeys.all });
     },
     onError: (err: unknown) => {
       toast.error(getBookingErrorMessage(err, "Không thể tạo booking"));
@@ -136,6 +139,8 @@ export function useCancelBooking(bookingId: string) {
       toast.success("Đã hủy booking thành công");
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.detail(bookingId) });
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
+      // Hủy đơn trả bằng ví sẽ được hoàn tiền → refresh số dư.
+      void qc.invalidateQueries({ queryKey: customerWalletKeys.all });
     },
     onError: (err: unknown) => {
       const message =

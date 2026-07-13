@@ -1087,11 +1087,17 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           </div>
           <p className="text-xs text-muted-foreground">
             Thanh toán:{" "}
-            {booking.payment.method === "CASH" ? "Tiền mặt" : booking.payment.method}
+            {booking.payment.method === "CASH"
+              ? "Tiền mặt"
+              : booking.payment.method === "WALLET"
+                ? "Ví CleanZ"
+                : booking.payment.method}
             {" · "}
             {booking.payment.status === "PENDING"
               ? "Chưa thanh toán"
-              : "Đã thanh toán"}
+              : booking.payment.status === "REFUNDED"
+                ? "Đã hoàn tiền"
+                : "Đã thanh toán"}
           </p>
         </div>
 

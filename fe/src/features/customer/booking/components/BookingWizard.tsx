@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -23,8 +24,10 @@ import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
 import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import {
   useBookingQuote,
+  useBookingQuoteQuery,
   useCreateBooking,
 } from "@/features/booking/hooks/useCustomerBooking";
+import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
 import type {
   BookingQuoteResponse,
@@ -828,6 +831,29 @@ function StepAddress({
   const [isMapOpen, setIsMapOpen] = useState(false);
   const { data: addresses = [], isLoading } = useCustomerAddresses();
   const createAddress = useCreateCustomerAddress();
+  // Giữ lại địa chỉ đang chọn trước khi mở map, để đóng map mà không chọn gì
+  // thì trả lại lựa chọn cũ thay vì bắt khách chọn lại.
+  const selectionBeforeMapRef = useRef<Pick<
+    WizardState,
+    "addressId" | "selectedAddress" | "selectedLat" | "selectedLng"
+  > | null>(null);
+
+  // Tự chọn địa chỉ mặc định khi chưa có lựa chọn nào (không chạy lúc map đang
+  // mở — nếu không nó sẽ đè lên trạng thái "đang ghim vị trí mới" của khách).
+  useEffect(() => {
+    if (isMapOpen || form.addressId || form.selectedAddress || addresses.length === 0) {
+      return;
+    }
+    const defaultAddress = addresses.find((address) => address.isDefault);
+    if (!defaultAddress) return;
+    onChange({
+      addressId: defaultAddress.id,
+      selectedAddress: defaultAddress.fullAddress,
+      selectedLat: defaultAddress.latitude,
+      selectedLng: defaultAddress.longitude,
+      hasPet: defaultAddress.hasPet,
+    });
+  }, [addresses, isMapOpen, form.addressId, form.selectedAddress, onChange]);
 
   const handleSavedAddressSelect = (addressId: string) => {
     const address = addresses.find((item) => item.id === addressId);
@@ -936,12 +962,18 @@ function StepAddress({
               }
             />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]">
             {addresses.map((address) => (
-              <SelectItem key={address.id} value={address.id}>
-                {address.label || "Địa chỉ"}
-                {address.isDefault ? " · Mặc định" : ""} —{" "}
-                {address.fullAddress}
+              <SelectItem
+                key={address.id}
+                value={address.id}
+                className="overflow-hidden [&>span:last-child]:min-w-0"
+              >
+                <span className="block truncate">
+                  {address.label || "Địa chỉ"}
+                  {address.isDefault ? " · Mặc định" : ""} —{" "}
+                  {address.fullAddress}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -953,12 +985,25 @@ function StepAddress({
         onClick={() => {
           setIsMapOpen((current) => !current);
           if (!isMapOpen && form.addressId) {
+            // Mở map: snapshot lựa chọn hiện tại rồi mới xóa để ghim vị trí mới.
+            selectionBeforeMapRef.current = {
+              addressId: form.addressId,
+              selectedAddress: form.selectedAddress,
+              selectedLat: form.selectedLat,
+              selectedLng: form.selectedLng,
+            };
             onChange({
               addressId: "",
               selectedAddress: "",
               selectedLat: null,
               selectedLng: null,
             });
+          } else if (isMapOpen) {
+            // Đóng map mà chưa chốt địa chỉ nào → trả lại lựa chọn trước đó.
+            if (!form.addressId && selectionBeforeMapRef.current) {
+              onChange(selectionBeforeMapRef.current);
+            }
+            selectionBeforeMapRef.current = null;
           }
         }}
         className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${
@@ -1289,10 +1334,18 @@ function StepPayment({
   form,
   onChange,
   packageId,
+  walletBalance,
+  isWalletLoading,
+  estimatedTotalPrice,
+  isWalletShort,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
   packageId?: string;
+  walletBalance: number;
+  isWalletLoading: boolean;
+  estimatedTotalPrice: number | null;
+  isWalletShort: boolean;
 }) {
   const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
     { value: "CASH", label: "Tiền mặt", icon: "💵" },
@@ -1329,10 +1382,19 @@ function StepPayment({
                 }`}
               >
                 <span className="text-xl">{m.icon}</span>
-                <span
-                  className={`font-semibold text-sm ${selected ? "text-primary" : "text-foreground"}`}
-                >
-                  {m.label}
+                <span className="flex flex-col items-start">
+                  <span
+                    className={`font-semibold text-sm ${selected ? "text-primary" : "text-foreground"}`}
+                  >
+                    {m.label}
+                  </span>
+                  {m.value === "WALLET" && (
+                    <span className="text-xs text-muted-foreground">
+                      {isWalletLoading
+                        ? "Đang tải số dư..."
+                        : `Số dư: ${fmtCurrency(walletBalance)}`}
+                    </span>
+                  )}
                 </span>
                 {selected && (
                   <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />
@@ -1341,6 +1403,32 @@ function StepPayment({
             );
           })}
         </div>
+
+        {isWalletShort && estimatedTotalPrice !== null && (
+          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-red-700">
+                  Số dư Ví CleanZ không đủ
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  Đơn tạm tính {fmtCurrency(estimatedTotalPrice)}, bạn thiếu{" "}
+                  <span className="font-bold">
+                    {fmtCurrency(estimatedTotalPrice - walletBalance)}
+                  </span>
+                  . Nạp thêm tiền hoặc chọn Tiền mặt để tiếp tục.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/customer/wallet"
+              className="block w-full rounded-lg bg-red-600 py-2 text-center text-xs font-bold text-white"
+            >
+              Nạp tiền ngay
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="bg-card p-5 rounded-2xl border border-border/50">
@@ -1362,10 +1450,14 @@ function StepConfirm({
   form,
   quote,
   isQuoting,
+  walletBalance,
+  isWalletInsufficient,
 }: {
   form: WizardState;
   quote: BookingQuoteResponse | null;
   isQuoting: boolean;
+  walletBalance: number;
+  isWalletInsufficient: boolean;
 }) {
   if (isQuoting) {
     return (
@@ -1453,7 +1545,40 @@ function StepConfirm({
             {fmtCurrency(quote.price.totalPrice)}
           </span>
         </div>
+        <div className="flex justify-between text-sm pt-1">
+          <span className="text-muted-foreground">Phương thức</span>
+          <span className="font-semibold">
+            {form.paymentMethod === "WALLET" ? "Ví CleanZ" : "Tiền mặt"}
+          </span>
+        </div>
       </div>
+
+      {isWalletInsufficient && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-red-700">
+                Số dư Ví CleanZ không đủ
+              </p>
+              <p className="text-xs text-red-600 mt-0.5">
+                Bạn đang thiếu{" "}
+                <span className="font-bold">
+                  {fmtCurrency(quote.price.totalPrice - walletBalance)}
+                </span>{" "}
+                (số dư: {fmtCurrency(walletBalance)}). Vui lòng nạp thêm tiền
+                hoặc quay lại chọn phương thức thanh toán khác.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/customer/wallet"
+            className="block w-full rounded-lg bg-red-600 py-2 text-center text-xs font-bold text-white"
+          >
+            Nạp tiền ngay
+          </Link>
+        </div>
+      )}
 
       {/* Voucher */}
       {quote.voucher && (
@@ -1530,6 +1655,46 @@ export const BookingWizard = ({
 
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
+  const {
+    data: wallet,
+    isLoading: isWalletLoading,
+    isFetching: isWalletFetching,
+  } = useCustomerWallet();
+  const walletBalance = wallet?.balance ?? 0;
+
+  // Quote tạm tính chỉ chạy ở bước Thanh toán khi chọn Ví CleanZ — để cảnh báo
+  // thiếu tiền ngay tại chỗ chọn ví (bước này chưa có quote chính thức).
+  const walletPreviewQuote = useBookingQuoteQuery(
+    {
+      packageId: form.serviceId || undefined,
+      addonIds: form.addonIds.length > 0 ? form.addonIds : undefined,
+      addressId: form.addressId || undefined,
+      scheduledDate: form.scheduledDate,
+      scheduledTime: form.scheduledTime,
+      voucherCode: form.voucherCode || undefined,
+      pricingTierId: form.pricingTierId || undefined,
+      durationHours: form.durationHours ?? undefined,
+      areaM2: form.areaM2 ?? undefined,
+      hasPet: form.hasPet,
+    },
+    step === 3 && form.paymentMethod === "WALLET",
+  );
+  const estimatedTotalPrice =
+    walletPreviewQuote.data?.price.totalPrice ?? null;
+  const isWalletValidationPending =
+    form.paymentMethod === "WALLET" &&
+    (isWalletLoading ||
+      isWalletFetching ||
+      walletPreviewQuote.isFetching ||
+      estimatedTotalPrice === null);
+  const isWalletShortAtPayment =
+    form.paymentMethod === "WALLET" &&
+    estimatedTotalPrice !== null &&
+    walletBalance < estimatedTotalPrice;
+  const isWalletInsufficient =
+    form.paymentMethod === "WALLET" &&
+    !!quote &&
+    walletBalance < quote.price.totalPrice;
   const selectedBookingPackage = publicServicesData?.data.find(
     (pkg) => pkg.id === form.serviceId,
   );
@@ -1568,8 +1733,9 @@ export const BookingWizard = ({
         !!form.scheduledTime &&
         !isBeforeMinimumScheduleLead(form.scheduledDate, form.scheduledTime)
       );
-    if (step === 3) return true; // payment always ok
-    if (step === 4) return !!quote; // cần có quote
+    if (step === 3)
+      return !isWalletValidationPending && !isWalletShortAtPayment;
+    if (step === 4) return !!quote && !isWalletInsufficient;
     return true;
   };
 
@@ -1595,6 +1761,8 @@ export const BookingWizard = ({
 
     // Step 3 (Thanh toán) → Gọi quote API → Step 4 (Xác nhận)
     if (step === 3) {
+      if (isWalletValidationPending || isWalletShortAtPayment) return;
+
       try {
         const result = await quoteQuery.mutateAsync({
           packageId: form.serviceId || undefined,
@@ -1609,6 +1777,19 @@ export const BookingWizard = ({
           areaM2: form.areaM2 ?? undefined,
           hasPet: form.hasPet,
         });
+
+        // Quote chính thức là nguồn dữ liệu cuối cùng trước khi sang bước xác nhận.
+        // Không dựa riêng vào preview vì giá có thể vừa thay đổi trong lúc gọi API.
+        if (
+          form.paymentMethod === "WALLET" &&
+          walletBalance < result.price.totalPrice
+        ) {
+          toast.error(
+            "Số dư Ví CleanZ không đủ. Vui lòng nạp thêm tiền hoặc chọn Tiền mặt.",
+          );
+          return;
+        }
+
         setQuote(result);
         setStep(4);
       } catch {
@@ -1793,7 +1974,15 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepPayment form={form} onChange={update} packageId={form.serviceId || undefined} />
+              <StepPayment
+                form={form}
+                onChange={update}
+                packageId={form.serviceId || undefined}
+                walletBalance={walletBalance}
+                isWalletLoading={isWalletLoading}
+                estimatedTotalPrice={estimatedTotalPrice}
+                isWalletShort={isWalletShortAtPayment}
+              />
             </motion.div>
           )}
           {step === 4 && (
@@ -1807,6 +1996,8 @@ export const BookingWizard = ({
                 form={form}
                 quote={quote}
                 isQuoting={quoteQuery.isPending}
+                walletBalance={walletBalance}
+                isWalletInsufficient={isWalletInsufficient}
               />
             </motion.div>
           )}
