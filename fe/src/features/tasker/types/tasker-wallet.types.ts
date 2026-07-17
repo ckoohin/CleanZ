@@ -37,6 +37,13 @@ export interface TaskerWalletTransaction {
   balanceAfter: number;
   description?: string | null;
   createdAt: string;
+  /** Tóm tắt booking để đối soát thu nhập/chiết khấu ngay tại giao dịch. */
+  booking?: {
+    id: string;
+    bookingCode: string;
+    totalPrice: number;
+    discountAmount: number;
+  } | null;
 }
 
 export interface TaskerWalletTransactionList {

@@ -1,8 +1,13 @@
 import http from "@/lib/api/http";
 import type {
   AdminWallet,
+  CustomerSpendingQuery,
+  FinanceOverview,
+  PaginatedCustomerSpending,
   PaginatedWallets,
   PaginatedWalletTransactions,
+  TransactionFlowSummary,
+  TransactionFlowSummaryQuery,
   WalletAdjustmentPayload,
   WalletListQuery,
   WalletTransaction,
@@ -33,5 +38,22 @@ export const walletAdminApi = {
   adjust: (payload: WalletAdjustmentPayload): Promise<WalletTransaction> =>
     http
       .post(`${BASE}/transactions/adjustment`, payload)
+      .then((response) => response.data.data),
+
+  overview: (): Promise<FinanceOverview> =>
+    http.get(`${BASE}/overview`).then((response) => response.data.data),
+
+  transactionsSummary: (
+    params?: TransactionFlowSummaryQuery,
+  ): Promise<TransactionFlowSummary> =>
+    http
+      .get(`${BASE}/transactions/summary`, { params })
+      .then((response) => response.data.data),
+
+  customerSpending: (
+    params?: CustomerSpendingQuery,
+  ): Promise<PaginatedCustomerSpending> =>
+    http
+      .get(`${BASE}/customers/spending`, { params })
       .then((response) => response.data.data),
 };

@@ -1,6 +1,7 @@
 import { IsEnum, IsOptional, IsDateString, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
+import { WalletOwnerType } from '../../../common/enums/wallet-owner-type.enum';
 import { Type } from 'class-transformer';
 
 export class WalletTransactionListQueryDto {
@@ -18,6 +19,11 @@ export class WalletTransactionListQueryDto {
   @IsOptional()
   @IsUUID()
   walletId?: string;
+
+  @ApiPropertyOptional({ enum: WalletOwnerType })
+  @IsOptional()
+  @IsEnum(WalletOwnerType)
+  ownerType?: WalletOwnerType;
 
   @ApiPropertyOptional({ enum: WalletTransactionType })
   @IsOptional()

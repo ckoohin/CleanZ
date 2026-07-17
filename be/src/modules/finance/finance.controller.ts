@@ -30,6 +30,8 @@ import { ManualAdjustmentDto } from './dto/manual-adjustment.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WithdrawalListQueryDto } from './dto/with-drawal-list-query.dto';
 import { ReviewWithdrawalDto } from './dto/review-with-drawal.dto';
+import { TransactionFlowSummaryQueryDto } from './dto/transaction-flow-summary-query.dto';
+import { CustomerSpendingQueryDto } from './dto/customer-spending-query.dto';
 import type { JwtPayload } from '../auth/types/JwtPayLoad';
 
 @ApiTags('Admin – Finance')
@@ -61,6 +63,30 @@ export class FinanceController {
   })
   async findTransactions(@Query() query: WalletTransactionListQueryDto) {
     const result = await this.financeService.findAllTransactions(query);
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  @Get('transactions/summary')
+  @ApiOperation({
+    summary: 'Totals of deposit/payment/refund/withdraw flows by date range',
+  })
+  async getTransactionSummary(@Query() query: TransactionFlowSummaryQueryDto) {
+    return successResponse(
+      await this.financeService.getTransactionFlowSummary(query),
+    );
+  }
+
+  @Get('customers/spending')
+  @ApiOperation({
+    summary: 'Customers ranked by total spending on completed bookings',
+  })
+  async getCustomerSpending(@Query() query: CustomerSpendingQueryDto) {
+    const result = await this.financeService.getCustomerSpending(query);
     return paginatedResponse(
       result.items,
       result.total,

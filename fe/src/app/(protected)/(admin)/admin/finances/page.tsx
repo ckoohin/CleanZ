@@ -5,16 +5,25 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarDays,
+  CreditCard,
   Eye,
+  HandCoins,
   ListFilter,
+  Lock,
+  PiggyBank,
   ReceiptText,
+  Search,
+  Undo2,
+  Users,
+  Wallet,
+  X,
 } from "lucide-react";
 import {
   BaseTableList,
   type Column,
 } from "@/components/ui/base/base_table_list";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/admin";
+import { AdminCard, PageHeader, StatCard } from "@/components/admin";
 import {
   Select,
   SelectContent,
@@ -22,14 +31,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useWalletTransactions } from "@/features/admin/modules/wallets/hooks/useAdminWallets";
+import {
+  useCustomerSpending,
+  useFinanceOverview,
+  useTransactionFlowSummary,
+  useWalletTransactions,
+} from "@/features/admin/modules/wallets/hooks/useAdminWallets";
 import { TransactionDetailDrawer } from "@/features/admin/modules/wallets/_components/TransactionDetailDrawer";
 import type {
+  CustomerSpendingItem,
+  WalletOwnerType,
   WalletTransaction,
   WalletTransactionType,
 } from "@/features/admin/modules/wallets/types/wallet.types";
 
 type TransactionFilter = WalletTransactionType | "ALL";
+type OwnerTab = WalletOwnerType | "ALL";
 
 const TRANSACTION_LABELS: Record<WalletTransactionType, string> = {
   DEPOSIT: "Nạp tiền",
@@ -49,6 +66,20 @@ const TRANSACTION_TYPES = Object.keys(
   TRANSACTION_LABELS,
 ) as WalletTransactionType[];
 
+const OWNER_TABS: { value: OwnerTab; label: string }[] = [
+  { value: "ALL", label: "Tất cả" },
+  { value: "CUSTOMER", label: "Khách hàng" },
+  { value: "TASKER", label: "Tasker" },
+  { value: "SYSTEM", label: "Hệ thống" },
+];
+
+const OWNER_BADGES: Record<WalletOwnerType, { label: string; color: string }> =
+  {
+    CUSTOMER: { label: "Khách", color: "#2563EB" },
+    TASKER: { label: "Tasker", color: "#0E9F6E" },
+    SYSTEM: { label: "Hệ thống", color: "#7C3AED" },
+  };
+
 const formatCurrency = (value: number | string) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -59,9 +90,24 @@ const formatCurrency = (value: number | string) =>
 const shortId = (value?: string | null) =>
   value ? `${value.slice(0, 8)}…${value.slice(-4)}` : "—";
 
+function walletOwnerName(transaction: WalletTransaction): string {
+  const wallet = transaction.wallet;
+  if (!wallet) return "—";
+  if (wallet.ownerType === "SYSTEM") return "Ví CleanZ";
+  return (
+    wallet.customer?.user?.fullName ?? wallet.tasker?.user?.fullName ?? "—"
+  );
+}
+
 export default function AdminFinancesPage() {
   const [selectedTransaction, setSelectedTransaction] =
     useState<WalletTransaction | null>(null);
+  const [ownerTab, setOwnerTab] = useState<OwnerTab>("ALL");
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerSpendingItem | null>(null);
+  const [spendingSearch, setSpendingSearch] = useState("");
+  const [spendingPage, setSpendingPage] = useState(1);
+  const [spendingLimit, setSpendingLimit] = useState(5);
   const [filter, setFilter] = useState<{
     type: TransactionFilter;
     fromDate: string;
@@ -76,6 +122,10 @@ export default function AdminFinancesPage() {
     limit: 10,
   });
 
+  // Đang xem giao dịch của 1 customer cụ thể → lọc theo ví của người đó,
+  // ngược lại lọc theo tab loại ví.
+  const selectedWalletId = selectedCustomer?.walletId ?? undefined;
+
   const query = useMemo(
     () => ({
       page: filter.page,
@@ -83,11 +133,37 @@ export default function AdminFinancesPage() {
       ...(filter.type !== "ALL" && { type: filter.type }),
       ...(filter.fromDate && { fromDate: filter.fromDate }),
       ...(filter.toDate && { toDate: filter.toDate }),
+      ...(selectedWalletId
+        ? { walletId: selectedWalletId }
+        : ownerTab !== "ALL" && { ownerType: ownerTab }),
     }),
-    [filter],
+    [filter, ownerTab, selectedWalletId],
   );
 
   const { data, isLoading } = useWalletTransactions(query);
+  const { data: overview, isLoading: isOverviewLoading } = useFinanceOverview();
+  const { data: flowSummary, isLoading: isFlowLoading } =
+    useTransactionFlowSummary({
+      ...(filter.fromDate && { fromDate: filter.fromDate }),
+      ...(filter.toDate && { toDate: filter.toDate }),
+    });
+  const { data: spending, isLoading: isSpendingLoading } = useCustomerSpending({
+    page: spendingPage,
+    limit: spendingLimit,
+    ...(spendingSearch.trim() && { search: spendingSearch.trim() }),
+  });
+
+  const handleSelectCustomer = (customer: CustomerSpendingItem) => {
+    setSelectedCustomer(customer);
+    setOwnerTab("CUSTOMER");
+    setFilter((current) => ({ ...current, page: 1 }));
+  };
+
+  const handleChangeTab = (tab: OwnerTab) => {
+    setOwnerTab(tab);
+    setSelectedCustomer(null);
+    setFilter((current) => ({ ...current, page: 1 }));
+  };
 
   const columns: Column<WalletTransaction>[] = [
     {
@@ -103,6 +179,30 @@ export default function AdminFinancesPage() {
           </p>
         </div>
       ),
+    },
+    {
+      key: "wallet",
+      title: "Chủ ví",
+      hideOnMobile: true,
+      render: (transaction) => {
+        const ownerType = transaction.wallet?.ownerType;
+        const badge = ownerType ? OWNER_BADGES[ownerType] : null;
+        return (
+          <div>
+            <p className="text-xs font-semibold text-[var(--c-ink)]">
+              {walletOwnerName(transaction)}
+            </p>
+            {badge && (
+              <span
+                className="mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold"
+                style={{ background: `${badge.color}1a`, color: badge.color }}
+              >
+                {badge.label}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "type",
@@ -167,12 +267,240 @@ export default function AdminFinancesPage() {
     },
   ];
 
+  const spendingColumns: Column<CustomerSpendingItem>[] = [
+    {
+      key: "fullName",
+      title: "Khách hàng",
+      render: (customer) => (
+        <div>
+          <p className="text-xs font-bold text-[var(--c-ink)]">
+            {customer.fullName}
+          </p>
+          <p className="mt-0.5 text-[11px] text-[var(--c-muted)]">
+            {customer.email}
+            {customer.phone ? ` · ${customer.phone}` : ""}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "completedBookings",
+      title: "Đơn hoàn thành",
+      hideOnMobile: true,
+      render: (customer) => (
+        <span className="text-xs font-semibold text-[var(--c-ink)]">
+          {customer.completedBookings}
+        </span>
+      ),
+    },
+    {
+      key: "totalSpent",
+      title: "Tổng chi tiêu",
+      render: (customer) => (
+        <span className="font-black text-[var(--c-primary-strong)]">
+          {formatCurrency(customer.totalSpent)}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Lịch sử giao dịch"
-        description="Theo dõi toàn bộ biến động số dư ví được ghi nhận trong hệ thống."
+        title="Giao dịch & Tài chính"
+        description="Tổng quan dòng tiền, chi tiêu khách hàng và toàn bộ biến động số dư ví trong hệ thống."
       />
+
+      {/* Tổng quan toàn hệ thống */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          icon={Wallet}
+          label="Tổng số dư ví"
+          tint="#0E9F6E"
+          value={
+            isOverviewLoading
+              ? "…"
+              : formatCurrency(overview?.totalWalletBalance ?? 0)
+          }
+        />
+        <StatCard
+          icon={Lock}
+          label="Tiền đang tạm giữ"
+          tint="#F59E0B"
+          value={
+            isOverviewLoading
+              ? "…"
+              : formatCurrency(overview?.totalHoldBalance ?? 0)
+          }
+        />
+        <StatCard
+          icon={HandCoins}
+          label={`Chờ rút (${overview?.pendingWithdrawals ?? 0} yêu cầu)`}
+          tint="#E11D48"
+          value={
+            isOverviewLoading
+              ? "…"
+              : formatCurrency(overview?.pendingWithdrawalAmount ?? 0)
+          }
+        />
+      </div>
+
+      {/* Dòng tiền theo khoảng ngày đang lọc */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={PiggyBank}
+          label="Tổng nạp"
+          tint="#0E9F6E"
+          value={
+            isFlowLoading ? "…" : formatCurrency(flowSummary?.totalDeposit ?? 0)
+          }
+        />
+        <StatCard
+          icon={CreditCard}
+          label="Tổng thanh toán"
+          tint="#2563EB"
+          value={
+            isFlowLoading ? "…" : formatCurrency(flowSummary?.totalPayment ?? 0)
+          }
+        />
+        <StatCard
+          icon={Undo2}
+          label="Tổng hoàn tiền"
+          tint="#F59E0B"
+          value={
+            isFlowLoading ? "…" : formatCurrency(flowSummary?.totalRefund ?? 0)
+          }
+        />
+        <StatCard
+          icon={HandCoins}
+          label="Tổng rút"
+          tint="#E11D48"
+          value={
+            isFlowLoading
+              ? "…"
+              : formatCurrency(flowSummary?.totalWithdraw ?? 0)
+          }
+        />
+      </div>
+      <p className="text-xs text-[var(--c-muted)]">
+        Số liệu nạp / thanh toán / hoàn / rút tính theo khoảng ngày đang lọc ở
+        bảng giao dịch bên dưới.
+      </p>
+
+      {/* Chi tiêu khách hàng */}
+      <AdminCard className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-sm font-bold text-[var(--c-ink)]">
+              <Users className="size-4 text-[var(--c-primary-strong)]" />
+              Chi tiêu khách hàng
+            </h2>
+            <p className="mt-0.5 text-xs text-[var(--c-muted)]">
+              Tổng giá trị các đơn đã hoàn thành (mọi phương thức thanh toán),
+              sắp theo chi tiêu giảm dần.
+            </p>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--c-muted)]" />
+            <Input
+              value={spendingSearch}
+              onChange={(event) => {
+                setSpendingSearch(event.target.value);
+                setSpendingPage(1);
+              }}
+              placeholder="Tìm theo tên, email, SĐT..."
+              className="h-10 w-full rounded-full border-[var(--c-line)] bg-[var(--c-card)] pl-9 shadow-none"
+            />
+          </div>
+        </div>
+
+        <BaseTableList
+          columns={spendingColumns}
+          data={spending?.items ?? []}
+          rowKey="customerId"
+          totalItems={spending?.total ?? 0}
+          page={spendingPage}
+          limit={spendingLimit}
+          onPageChange={setSpendingPage}
+          onLimitChange={(limit) => {
+            setSpendingLimit(limit);
+            setSpendingPage(1);
+          }}
+          isLoading={isSpendingLoading}
+          emptyTitle="Không tìm thấy khách hàng"
+          emptyDescription="Thử từ khóa khác theo tên, email hoặc số điện thoại."
+          emptyIcon={Users}
+          rowActions={[
+            {
+              type: "view",
+              label: "Xem giao dịch",
+              icon: Eye,
+              onClick: handleSelectCustomer,
+            },
+          ]}
+        />
+      </AdminCard>
+
+      {/* Card customer đang chọn */}
+      {selectedCustomer && (
+        <AdminCard className="flex flex-wrap items-center justify-between gap-3 border-[var(--c-primary-strong)]/30 p-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--c-muted)]">
+              Đang xem giao dịch của
+            </p>
+            <p className="mt-0.5 text-sm font-bold text-[var(--c-ink)]">
+              {selectedCustomer.fullName}
+              <span className="ml-2 text-xs font-medium text-[var(--c-muted)]">
+                {selectedCustomer.email}
+              </span>
+            </p>
+            <p className="mt-1 text-sm">
+              Tổng chi tiêu:{" "}
+              <span className="font-black text-[var(--c-primary-strong)]">
+                {formatCurrency(selectedCustomer.totalSpent)}
+              </span>
+              <span className="ml-2 text-xs text-[var(--c-muted)]">
+                {selectedCustomer.completedBookings} đơn hoàn thành
+              </span>
+            </p>
+            {!selectedCustomer.walletId && (
+              <p className="mt-1 text-xs text-amber-600">
+                Khách này chưa có Ví CleanZ nên không có giao dịch ví — bảng
+                dưới đang hiển thị theo tab loại ví.
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedCustomer(null)}
+            className="flex items-center gap-1 rounded-full border border-[var(--c-line)] px-3 py-1.5 text-xs font-semibold text-[var(--c-muted)] transition-colors hover:text-[var(--c-ink)]"
+          >
+            <X className="size-3.5" />
+            Bỏ chọn
+          </button>
+        </AdminCard>
+      )}
+
+      {/* Tabs theo loại ví */}
+      <div className="flex flex-wrap gap-2">
+        {OWNER_TABS.map((tab) => {
+          const active = ownerTab === tab.value && !selectedWalletId;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => handleChangeTab(tab.value)}
+              className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                active
+                  ? "bg-[var(--c-primary-strong)] text-white"
+                  : "border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] hover:text-[var(--c-ink)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
       <BaseTableList
         columns={columns}

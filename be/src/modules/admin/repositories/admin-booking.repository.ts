@@ -1688,7 +1688,10 @@ export class AdminBookingRepository {
           amount: taskerIncome,
           type: WalletTransactionType.TASKER_EARNING,
           booking,
-          description: `Thu nhập tasker từ booking ${booking.bookingCode} do Admin hoàn thành`,
+          description:
+            `Thu nhập booking ${booking.bookingCode} (Admin hoàn thành): ` +
+            `tổng công ${totalPrice.toLocaleString('vi-VN')}đ − ` +
+            `chiết khấu nền tảng ${platformFee.toLocaleString('vi-VN')}đ`,
         });
       }
       if (platformFee > 0) {

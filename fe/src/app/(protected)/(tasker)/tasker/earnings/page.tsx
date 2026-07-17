@@ -68,6 +68,8 @@ const TX_LIMIT = 10;
 
 export default function TaskerEarningsPage() {
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<TaskerWalletTransaction | null>(null);
   const [recentRequest, setRecentRequest] =
     useState<TaskerWithdrawalRequest | null>(null);
   const [txPage, setTxPage] = useState(1);
@@ -285,7 +287,11 @@ export default function TaskerEarningsPage() {
             ))
           ) : transactions?.items.length ? (
             transactions.items.map((transaction) => (
-              <TransactionRow key={transaction.id} transaction={transaction} />
+              <TransactionRow
+                key={transaction.id}
+                transaction={transaction}
+                onClick={() => setSelectedTransaction(transaction)}
+              />
             ))
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 text-center">
@@ -359,6 +365,11 @@ export default function TaskerEarningsPage() {
         </section>
       )}
 
+      <TransactionDetailDialog
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+      />
+
       {wallet && (
         <WithdrawalDialog
           open={withdrawalOpen}
@@ -430,15 +441,21 @@ function DepositTransactionRow({
 
 function TransactionRow({
   transaction,
+  onClick,
 }: {
   transaction: TaskerWalletTransaction;
+  onClick: () => void;
 }) {
   const isCredit =
     Number(transaction.balanceAfter) >= Number(transaction.balanceBefore);
   const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card p-4">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl border border-border/40 bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/30"
+    >
       <div
         className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${
           isCredit
@@ -472,7 +489,153 @@ function TransactionRow({
           Còn {formatCurrency(Number(transaction.balanceAfter))}
         </p>
       </div>
+    </button>
+  );
+}
+
+/**
+ * Ledger chỉ ghi MỘT bút toán cho mỗi đơn: đơn ví ghi thu nhập đã trừ ngầm
+ * chiết khấu, đơn tiền mặt ghi mỗi khoản khấu trừ — nên phần đối soát phải suy
+ * ra: tổng công = khách trả + voucher nền tảng chịu; chiết khấu = tổng công −
+ * thực nhận.
+ */
+function getSettlement(transaction: TaskerWalletTransaction): {
+  customerPaid: number;
+  voucherCovered: number;
+  subtotal: number;
+  fee: number;
+  netEarning: number;
+  isCash: boolean;
+} | null {
+  const booking = transaction.booking;
+  if (!booking) return null;
+  if (
+    transaction.type !== "TASKER_EARNING" &&
+    transaction.type !== "PLATFORM_FEE"
+  ) {
+    return null;
+  }
+
+  const customerPaid = Number(booking.totalPrice);
+  const voucherCovered = Number(booking.discountAmount ?? 0);
+  const subtotal = customerPaid + voucherCovered;
+  const amount = Math.abs(Number(transaction.amount));
+  const isCash = transaction.type === "PLATFORM_FEE";
+  const fee = isCash ? amount : Math.max(subtotal - amount, 0);
+  const netEarning = isCash ? Math.max(subtotal - fee, 0) : amount;
+
+  return { customerPaid, voucherCovered, subtotal, fee, netEarning, isCash };
+}
+
+function BreakdownRow({
+  label,
+  value,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-semibold ${className}`}>{value}</span>
     </div>
+  );
+}
+
+function TransactionDetailDialog({
+  transaction,
+  onClose,
+}: {
+  transaction: TaskerWalletTransaction | null;
+  onClose: () => void;
+}) {
+  if (!transaction) return null;
+
+  const isCredit =
+    Number(transaction.balanceAfter) >= Number(transaction.balanceBefore);
+  const settlement = getSettlement(transaction);
+
+  return (
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {TRANSACTION_LABELS[transaction.type] ?? transaction.type}
+          </DialogTitle>
+          <DialogDescription>
+            {new Date(transaction.createdAt).toLocaleString("vi-VN")}
+            {transaction.booking?.bookingCode
+              ? ` · Đơn ${transaction.booking.bookingCode}`
+              : ""}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div
+            className={`rounded-2xl p-4 text-center ${
+              isCredit
+                ? "bg-emerald-500/10 text-emerald-600"
+                : "bg-red-500/10 text-red-600"
+            }`}
+          >
+            <p className="text-2xl font-black">
+              {isCredit ? "+" : "-"}
+              {formatCurrency(Math.abs(Number(transaction.amount)))}
+            </p>
+            <p className="mt-1 text-xs opacity-80">
+              Số dư: {formatCurrency(Number(transaction.balanceBefore))} →{" "}
+              {formatCurrency(Number(transaction.balanceAfter))}
+            </p>
+          </div>
+
+          {settlement && (
+            <div className="space-y-2 rounded-2xl border border-border/50 p-4">
+              <p className="text-sm font-bold">Đối soát đơn</p>
+              <BreakdownRow
+                label="Khách trả"
+                value={formatCurrency(settlement.customerPaid)}
+              />
+              {settlement.voucherCovered > 0 && (
+                <BreakdownRow
+                  label="Voucher nền tảng chịu"
+                  value={`+${formatCurrency(settlement.voucherCovered)}`}
+                />
+              )}
+              <BreakdownRow
+                label="Tổng công"
+                value={formatCurrency(settlement.subtotal)}
+                className="font-black"
+              />
+              <BreakdownRow
+                label="Chiết khấu nền tảng"
+                value={`-${formatCurrency(settlement.fee)}`}
+                className="text-red-600"
+              />
+              <BreakdownRow
+                label="Bạn thực nhận"
+                value={formatCurrency(settlement.netEarning)}
+                className="font-black text-emerald-600"
+              />
+              {settlement.isCash && (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Đơn tiền mặt: bạn đã thu{" "}
+                  {formatCurrency(settlement.customerPaid)} trực tiếp từ khách,
+                  chiết khấu được khấu trừ vào ví.
+                </p>
+              )}
+            </div>
+          )}
+
+          {transaction.description && (
+            <p className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
+              {transaction.description}
+            </p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

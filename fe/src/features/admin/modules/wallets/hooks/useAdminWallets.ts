@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 import { walletAdminApi } from "../services/wallet-admin.service";
 import type {
+  CustomerSpendingQuery,
+  TransactionFlowSummaryQuery,
   WalletAdjustmentPayload,
   WalletListQuery,
   WalletTransactionQuery,
@@ -15,7 +17,37 @@ export const walletKeys = {
   detail: (id: string) => [...walletKeys.all, "detail", id] as const,
   transactions: (params?: WalletTransactionQuery) =>
     [...walletKeys.all, "transactions", params] as const,
+  overview: () => [...walletKeys.all, "overview"] as const,
+  transactionsSummary: (params?: TransactionFlowSummaryQuery) =>
+    [...walletKeys.all, "transactions-summary", params] as const,
+  customerSpending: (params?: CustomerSpendingQuery) =>
+    [...walletKeys.all, "customer-spending", params] as const,
 };
+
+export function useFinanceOverview() {
+  return useQuery({
+    queryKey: walletKeys.overview(),
+    queryFn: () => walletAdminApi.overview(),
+  });
+}
+
+export function useTransactionFlowSummary(
+  params?: TransactionFlowSummaryQuery,
+) {
+  return useQuery({
+    queryKey: walletKeys.transactionsSummary(params),
+    queryFn: () => walletAdminApi.transactionsSummary(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useCustomerSpending(params?: CustomerSpendingQuery) {
+  return useQuery({
+    queryKey: walletKeys.customerSpending(params),
+    queryFn: () => walletAdminApi.customerSpending(params),
+    placeholderData: (previous) => previous,
+  });
+}
 
 export function useAdminWallets(params?: WalletListQuery) {
   return useQuery({

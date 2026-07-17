@@ -1036,7 +1036,10 @@ export class TaskerBookingService {
               amount: taskerEarning,
               type: WalletTransactionType.TASKER_EARNING,
               booking: savedBooking,
-              description: `Thu nhập tasker từ booking ${savedBooking.bookingCode}`,
+              description:
+                `Thu nhập booking ${savedBooking.bookingCode}: ` +
+                `tổng công ${subtotal.toLocaleString('vi-VN')}đ − ` +
+                `chiết khấu nền tảng ${platformFee.toLocaleString('vi-VN')}đ`,
             });
           }
           if (platformFee > 0) {

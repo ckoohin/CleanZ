@@ -77,6 +77,13 @@ export interface WalletTransactionResponse {
   balanceAfter: number;
   description?: string | null;
   createdAt: Date;
+  /** Tóm tắt booking để FE đối soát thu nhập/chiết khấu ngay tại giao dịch. */
+  booking?: {
+    id: string;
+    bookingCode: string;
+    totalPrice: number;
+    discountAmount: number;
+  } | null;
 }
 
 export interface WalletTransactionListResponse {
@@ -815,6 +822,14 @@ export class WalletService {
       balanceAfter: toNumber(transaction.balanceAfter),
       description: transaction.description,
       createdAt: transaction.createdAt,
+      booking: transaction.booking
+        ? {
+            id: transaction.booking.id,
+            bookingCode: transaction.booking.bookingCode,
+            totalPrice: toNumber(transaction.booking.totalPrice),
+            discountAmount: toNumber(transaction.booking.discountAmount),
+          }
+        : null,
     };
   }
 }

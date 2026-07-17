@@ -76,6 +76,7 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
   const AmountIcon = isCredit ? ArrowDownLeft : ArrowUpRight;
   const walletOwner = getWalletOwner(transaction);
   const reference = getReferenceInfo(transaction);
+  const settlement = getTaskerSettlement(transaction);
   const booking = transaction.booking;
   const bookingCustomer = booking?.customer?.user?.fullName;
   const bookingTasker = booking?.tasker?.user?.fullName;
@@ -195,6 +196,47 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
               )}
             </section>
 
+            {settlement && (
+              <section className="space-y-2 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
+                <h3 className="text-sm font-bold text-[var(--c-ink)]">
+                  Đối soát thu nhập Tasker
+                </h3>
+                <BreakdownRow
+                  label="Khách trả"
+                  value={formatCurrency(settlement.customerPaid)}
+                />
+                {settlement.voucherCovered > 0 && (
+                  <BreakdownRow
+                    label="Voucher nền tảng chịu"
+                    value={`+${formatCurrency(settlement.voucherCovered)}`}
+                  />
+                )}
+                <BreakdownRow
+                  label="Tổng công"
+                  value={formatCurrency(settlement.subtotal)}
+                  strong
+                />
+                <BreakdownRow
+                  label="Chiết khấu nền tảng"
+                  value={`-${formatCurrency(settlement.fee)}`}
+                  tone="#E11D48"
+                />
+                <BreakdownRow
+                  label="Tasker thực nhận"
+                  value={formatCurrency(settlement.netEarning)}
+                  tone="#0E9F6E"
+                  strong
+                />
+                {settlement.isCash && (
+                  <p className="pt-1 text-xs text-[var(--c-muted)]">
+                    Đơn tiền mặt: Tasker đã thu{" "}
+                    {formatCurrency(settlement.customerPaid)} trực tiếp từ
+                    khách, chiết khấu được khấu trừ vào ví.
+                  </p>
+                )}
+              </section>
+            )}
+
             <section className="space-y-3 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4">
               <h3 className="text-sm font-bold text-[var(--c-ink)]">Nội dung ghi nhận</h3>
               <DetailRow
@@ -212,6 +254,67 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
         </ScrollArea>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Đối soát cho giao dịch thu nhập/chiết khấu của Tasker gắn với booking.
+ *
+ * Ledger chỉ ghi MỘT bút toán: đơn ví ghi thu nhập đã trừ ngầm chiết khấu,
+ * đơn tiền mặt ghi mỗi khoản khấu trừ — nên các con số còn lại phải suy ra:
+ * tổng công = khách trả + voucher nền tảng chịu; chiết khấu = tổng công − thực nhận.
+ */
+function getTaskerSettlement(transaction: WalletTransaction): {
+  customerPaid: number;
+  voucherCovered: number;
+  subtotal: number;
+  fee: number;
+  netEarning: number;
+  isCash: boolean;
+} | null {
+  const wallet = transaction.wallet;
+  const booking = transaction.booking;
+  if (!wallet || wallet.ownerType !== "TASKER") return null;
+  if (!booking || booking.totalPrice == null) return null;
+  if (
+    transaction.type !== "TASKER_EARNING" &&
+    transaction.type !== "PLATFORM_FEE"
+  ) {
+    return null;
+  }
+
+  const customerPaid = Number(booking.totalPrice);
+  const voucherCovered = Number(booking.discountAmount ?? 0);
+  const subtotal = customerPaid + voucherCovered;
+  const amount = Math.abs(Number(transaction.amount));
+  const isCash = transaction.type === "PLATFORM_FEE";
+  const fee = isCash ? amount : Math.max(subtotal - amount, 0);
+  const netEarning = isCash ? Math.max(subtotal - fee, 0) : amount;
+
+  return { customerPaid, voucherCovered, subtotal, fee, netEarning, isCash };
+}
+
+function BreakdownRow({
+  label,
+  value,
+  tone,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-[var(--c-muted)]">{label}</span>
+      <span
+        className={strong ? "font-black" : "font-semibold"}
+        style={{ color: tone ?? "var(--c-ink)" }}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 

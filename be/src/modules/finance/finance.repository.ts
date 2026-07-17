@@ -45,7 +45,15 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
   async findWithPagination(
     query: WalletTransactionListQueryDto,
   ): Promise<PaginatedData<WalletTransactionEntity>> {
-    const { page = 1, limit = 20, walletId, type, fromDate, toDate } = query;
+    const {
+      page = 1,
+      limit = 20,
+      walletId,
+      ownerType,
+      type,
+      fromDate,
+      toDate,
+    } = query;
     const skip = (page - 1) * limit;
 
     const qb = this.createQueryBuilder('wt')
@@ -63,6 +71,7 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
       .orderBy('wt.createdAt', 'DESC');
 
     if (walletId) qb.andWhere('w.id = :walletId', { walletId });
+    if (ownerType) qb.andWhere('w.ownerType = :ownerType', { ownerType });
     if (type) qb.andWhere('wt.type = :type', { type });
     if (fromDate)
       qb.andWhere('wt.createdAt >= :fromDate', {
@@ -75,6 +84,75 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
 
     const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
+   * Tổng dòng tiền theo khoảng ngày cho khối "tổng quan giao dịch" trang admin.
+   *
+   * Mỗi lần chuyển tiền ghi 2 bút toán CÙNG loại (một bên trừ, một bên cộng) nên
+   * từng chỉ số chỉ đếm ở một vế để không nhân đôi: thanh toán/hoàn tiền lấy vế
+   * ví khách, nạp/rút lấy vế ví cá nhân (nạp PayPal và rút tiền chỉ ghi 1 bút toán).
+   */
+  async getFlowSummary(
+    fromDate?: string,
+    toDate?: string,
+  ): Promise<{
+    totalDeposit: number;
+    totalPayment: number;
+    totalRefund: number;
+    totalWithdraw: number;
+    totalTransactions: number;
+  }> {
+    const conditions: string[] = [];
+    const params: string[] = [];
+    if (fromDate) {
+      params.push(fromDate);
+      conditions.push(`wt.created_at >= $${params.length}`);
+    }
+    if (toDate) {
+      params.push(`${toDate} 23:59:59`);
+      conditions.push(`wt.created_at <= $${params.length}`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const [row] = await this.dataSource.query<
+      [
+        {
+          totalDeposit: string;
+          totalPayment: string;
+          totalRefund: string;
+          totalWithdraw: string;
+          totalTransactions: string;
+        },
+      ]
+    >(
+      `SELECT
+         COALESCE(SUM(wt.amount) FILTER (
+           WHERE wt.type = 'DEPOSIT' AND w.owner_type IN ('CUSTOMER', 'TASKER')
+         ), 0)::numeric AS "totalDeposit",
+         COALESCE(SUM(wt.amount) FILTER (
+           WHERE wt.type = 'PAYMENT' AND w.owner_type = 'CUSTOMER'
+         ), 0)::numeric AS "totalPayment",
+         COALESCE(SUM(wt.amount) FILTER (
+           WHERE wt.type = 'REFUND' AND w.owner_type = 'CUSTOMER'
+         ), 0)::numeric AS "totalRefund",
+         COALESCE(SUM(wt.amount) FILTER (
+           WHERE wt.type = 'WITHDRAW' AND w.owner_type IN ('CUSTOMER', 'TASKER')
+         ), 0)::numeric AS "totalWithdraw",
+         COUNT(*) AS "totalTransactions"
+       FROM wallet_transactions wt
+       JOIN wallets w ON w.id = wt.wallet_id
+       ${where}`,
+      params,
+    );
+
+    return {
+      totalDeposit: parseFloat(row.totalDeposit),
+      totalPayment: parseFloat(row.totalPayment),
+      totalRefund: parseFloat(row.totalRefund),
+      totalWithdraw: parseFloat(row.totalWithdraw),
+      totalTransactions: parseInt(row.totalTransactions, 10),
+    };
   }
 
   async getRevenueSummary(

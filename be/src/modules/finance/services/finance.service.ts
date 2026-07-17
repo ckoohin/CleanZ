@@ -24,6 +24,19 @@ import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-tra
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
 import { User } from '../../users/entities/user.entity';
+import { TransactionFlowSummaryQueryDto } from '../dto/transaction-flow-summary-query.dto';
+import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
+
+export interface CustomerSpendingItem {
+  customerId: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  walletId: string | null;
+  totalSpent: number;
+  completedBookings: number;
+}
 
 @Injectable()
 export class FinanceService {
@@ -165,6 +178,86 @@ export class FinanceService {
     query: WalletTransactionListQueryDto,
   ): Promise<PaginatedData<WalletTransactionEntity>> {
     return this.transactionRepo.findWithPagination(query);
+  }
+
+  async getTransactionFlowSummary(query: TransactionFlowSummaryQueryDto) {
+    return this.transactionRepo.getFlowSummary(query.fromDate, query.toDate);
+  }
+
+  /**
+   * Danh sách customer kèm tổng chi tiêu (tổng totalPrice các đơn COMPLETED,
+   * mọi phương thức thanh toán), sắp theo chi tiêu giảm dần. `walletId` trả kèm
+   * để FE lọc bảng giao dịch theo ví của customer được chọn.
+   */
+  async getCustomerSpending(
+    query: CustomerSpendingQueryDto,
+  ): Promise<PaginatedData<CustomerSpendingItem>> {
+    const { page = 1, limit = 10 } = query;
+    const search = query.search?.trim() ?? '';
+    const offset = (page - 1) * limit;
+
+    const searchWhere = search
+      ? `WHERE u.full_name ILIKE $3 OR u.email ILIKE $3 OR u.phone ILIKE $3`
+      : '';
+    const params: (string | number)[] = [limit, offset];
+    if (search) params.push(`%${search}%`);
+
+    const rows = await this.dataSource.query<
+      Array<{
+        customerId: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        walletId: string | null;
+        totalSpent: string;
+        completedBookings: number;
+      }>
+    >(
+      `SELECT
+         c.id AS "customerId",
+         u.full_name AS "fullName",
+         u.email AS "email",
+         u.phone AS "phone",
+         u.avatar_url AS "avatarUrl",
+         w.id AS "walletId",
+         COALESCE(SUM(b.total_price) FILTER (WHERE b.status = 'COMPLETED'), 0)::numeric AS "totalSpent",
+         COUNT(b.id) FILTER (WHERE b.status = 'COMPLETED')::int AS "completedBookings"
+       FROM customers c
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN wallets w ON w.customer_id = c.id
+       LEFT JOIN bookings b ON b.customer_id = c.id
+       ${searchWhere}
+       GROUP BY c.id, u.full_name, u.email, u.phone, u.avatar_url, w.id
+       ORDER BY "totalSpent" DESC, u.full_name ASC
+       LIMIT $1 OFFSET $2`,
+      params,
+    );
+
+    const countWhere = search
+      ? `WHERE u.full_name ILIKE $1 OR u.email ILIKE $1 OR u.phone ILIKE $1`
+      : '';
+    const [countRow] = await this.dataSource.query<[{ count: string }]>(
+      `SELECT COUNT(*) AS count
+       FROM customers c
+       JOIN users u ON u.id = c.user_id
+       ${countWhere}`,
+      search ? [`%${search}%`] : [],
+    );
+
+    const items: CustomerSpendingItem[] = rows.map((row) => ({
+      ...row,
+      totalSpent: parseFloat(row.totalSpent),
+    }));
+    const total = parseInt(countRow.count, 10);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async createManualAdjustment(

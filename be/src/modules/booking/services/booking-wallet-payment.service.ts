@@ -236,6 +236,10 @@ export class BookingWalletPaymentService {
     }
 
     const earning = Math.round(toNumber(taskerEarning));
+    const settleSubtotal =
+      Math.round(toNumber(booking.totalPrice)) +
+      Math.round(toNumber(booking.discountAmount));
+    const settleFee = Math.max(settleSubtotal - earning, 0);
     if (earning > 0 && booking.tasker) {
       const systemWallet =
         await this.walletService.getOrCreateSystemWallet(manager);
@@ -265,7 +269,10 @@ export class BookingWalletPaymentService {
         booking,
         referenceId: booking.id,
         referenceType: BOOKING_WALLET_SETTLE_REF,
-        description: `Thu nhập tasker từ booking ${booking.bookingCode} (thanh toán bằng ví)`,
+        description:
+          `Thu nhập booking ${booking.bookingCode} (thanh toán bằng ví): ` +
+          `tổng công ${settleSubtotal.toLocaleString('vi-VN')}đ − ` +
+          `chiết khấu nền tảng ${settleFee.toLocaleString('vi-VN')}đ`,
       });
     }
 
