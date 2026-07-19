@@ -39,7 +39,15 @@ export class UsersService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<UserEntity> {
+  /**
+   * @param options.mustChangePassword Buộc đổi mật khẩu ở lần đăng nhập đầu.
+   *   Chỉ bật cho tài khoản do admin tạo bằng mật khẩu tạm; luồng tự đăng ký
+   *   (auth.register) KHÔNG truyền cờ này nên mặc định false → không bị bắt đổi.
+   */
+  async create(
+    dto: CreateUserDto,
+    options?: { mustChangePassword?: boolean },
+  ): Promise<UserEntity> {
     return asyncHandleOperation(async () => {
       const existingUser = await this.findByEmail(dto.email);
       if (existingUser) {
@@ -48,6 +56,7 @@ export class UsersService {
 
       const hashedPassword = await this.hashPassword(dto.password);
       const role = dto.role ?? UserRole.CUSTOMER;
+      const mustChangePassword = options?.mustChangePassword ?? false;
 
       return this.dataSource.transaction(async (manager) => {
         const userRepo = manager.getRepository(UserEntity);
@@ -59,10 +68,10 @@ export class UsersService {
             password: hashedPassword,
             provider: AuthProvider.LOCAL,
             role,
-            // Tài khoản admin tạo: đã xác thực sẵn để đăng nhập được, và buộc đổi
-            // mật khẩu admin đặt ở lần đăng nhập đầu.
+            // isVerified: admin tạo thì cho đăng nhập được ngay. mustChangePassword
+            // do caller quyết định — chỉ admin tạo bằng mật khẩu tạm mới bật.
             isVerified: true,
-            mustChangePassword: true,
+            mustChangePassword,
           }),
         );
 

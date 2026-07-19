@@ -192,7 +192,11 @@ export class AuthService {
         );
       }
 
-      const otp = crypto.randomInt(100000, 999999).toString();
+      // [DEV] Ngoài production, cố định OTP = 000000 để đăng nhập nhanh khi không
+      // có email thật. Production LUÔN dùng mã ngẫu nhiên 6 số. Giá trị vẫn được
+      // hash + lưu như thường nên hết hạn/chống brute-force/verify không đổi.
+      const isDev = process.env.NODE_ENV !== 'production';
+      const otp = isDev ? '000000' : crypto.randomInt(100000, 999999).toString();
       const otpHash = await bcrypt.hash(otp, 10);
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
       await this.tokenService.createOtpToken(user, otpHash, expiresAt);
@@ -201,7 +205,7 @@ export class AuthService {
 
       // [DEV] Log OTP để đăng nhập khi không có email thật — CHỈ ngoài production,
       // và TUYỆT ĐỐI không đưa OTP vào response body (sẽ bypass 2FA email).
-      if (process.env.NODE_ENV !== 'production') {
+      if (isDev) {
         console.log(
           `\n========== [DEV] OTP đăng nhập (${user.email}): ${otp} ==========\n`,
         );
