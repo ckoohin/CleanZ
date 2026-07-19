@@ -46,6 +46,8 @@ import { AvailableTaskersQueryDto } from './dto/available-taskers-query.dto';
 import { AssignTaskerDto } from './dto/assign-tasker.dto';
 import { ChangeBookingStatusDto } from './dto/change-booking-status.dto';
 import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
+import { AdminActivityQueryDto } from './dto/admin-activity-query.dto';
+import { AdminActivityService } from './services/admin-activity.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @AdminOnly()
@@ -59,7 +61,16 @@ export class AdminController {
     private readonly bookingRepo: AdminBookingRepository,
     private readonly usersService: UsersService,
     private readonly dashboardReport: AdminDashboardReportService,
+    private readonly activityService: AdminActivityService,
   ) {}
+
+  @Get('activities')
+  @ApiOperation({
+    summary: 'Tra cứu toàn bộ thao tác thay đổi do admin thực hiện',
+  })
+  getActivities(@Query() query: AdminActivityQueryDto) {
+    return this.activityService.findAll(query);
+  }
 
   // ─── Dashboard Endpoints ───
 

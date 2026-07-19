@@ -59,7 +59,11 @@ const STATUS_OPTIONS: Array<{
   { value: "PROCESSED", label: "Đã xử lý" },
 ];
 
-export function WithdrawalManagement() {
+export function WithdrawalManagement({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const [filter, setFilter] = useState<{
     status: StatusFilter;
     page: number;
@@ -182,10 +186,12 @@ export function WithdrawalManagement() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Yêu cầu rút tiền"
-        description="Kiểm tra số dư, thông tin ngân hàng và xét duyệt yêu cầu của Tasker."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Yêu cầu rút tiền"
+          description="Kiểm tra số dư, thông tin ngân hàng và xét duyệt yêu cầu của Tasker."
+        />
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
@@ -291,7 +297,10 @@ function OverviewCard({
   tone: "primary" | "blue" | "amber" | "emerald";
 }) {
   const tones: Record<typeof tone, { color: string; soft: string }> = {
-    primary: { color: "var(--c-primary-strong)", soft: "var(--c-primary-soft)" },
+    primary: {
+      color: "var(--c-primary-strong)",
+      soft: "var(--c-primary-soft)",
+    },
     blue: { color: "#2563EB", soft: "rgba(37,99,235,0.12)" },
     amber: { color: "#D97706", soft: "rgba(217,119,6,0.14)" },
     emerald: { color: "#0E9F6E", soft: "rgba(14,159,110,0.12)" },

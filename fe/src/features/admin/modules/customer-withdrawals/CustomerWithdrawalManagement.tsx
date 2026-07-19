@@ -27,7 +27,11 @@ const STATUS_LABEL: Record<WithdrawalStatus, { label: string; cls: string }> = {
   REJECTED: { label: "Từ chối", cls: "bg-red-100 text-red-700" },
 };
 
-export function CustomerWithdrawalManagement() {
+export function CustomerWithdrawalManagement({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const [tab, setTab] = useState<WithdrawalStatus | "ALL">("PENDING");
   const { data, isLoading } = useAdminCustomerWithdrawals(
     tab === "ALL" ? undefined : tab,
@@ -36,11 +40,15 @@ export function CustomerWithdrawalManagement() {
   const [noteById, setNoteById] = useState<Record<string, string>>({});
 
   return (
-    <div className="cz-admin space-y-4 p-4 sm:p-6">
-      <div className="flex items-center gap-2">
-        <Banknote className="size-5 text-[var(--c-primary-strong)]" />
-        <h1 className="text-lg font-bold text-[var(--c-ink)]">Rút tiền của Khách hàng</h1>
-      </div>
+    <div className={embedded ? "space-y-4" : "cz-admin space-y-4 p-4 sm:p-6"}>
+      {!embedded && (
+        <div className="flex items-center gap-2">
+          <Banknote className="size-5 text-[var(--c-primary-strong)]" />
+          <h1 className="text-lg font-bold text-[var(--c-ink)]">
+            Rút tiền của Khách hàng
+          </h1>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1.5">
         {STATUS_TABS.map((t) => (
@@ -59,31 +67,50 @@ export function CustomerWithdrawalManagement() {
       </div>
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-[var(--c-muted)]">Đang tải...</p>
+        <p className="py-8 text-center text-sm text-[var(--c-muted)]">
+          Đang tải...
+        </p>
       ) : (data?.length ?? 0) === 0 ? (
-        <p className="py-8 text-center text-sm text-[var(--c-muted)]">Không có yêu cầu nào.</p>
+        <p className="py-8 text-center text-sm text-[var(--c-muted)]">
+          Không có yêu cầu nào.
+        </p>
       ) : (
         <div className="space-y-2">
           {data!.map((w) => {
             const s = STATUS_LABEL[w.status];
             return (
-              <div key={w.id} className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] p-3">
+              <div
+                key={w.id}
+                className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] p-3"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-[var(--c-ink)]">{fmtVnd(w.amount)}</p>
-                    <p className="truncate text-xs text-[var(--c-muted)]">
-                      {w.customer?.user?.fullName ?? "Khách"} · {w.bankName} · {w.bankAccount}
+                    <p className="text-sm font-bold text-[var(--c-ink)]">
+                      {fmtVnd(w.amount)}
                     </p>
-                    <p className="text-[11px] text-[var(--c-muted)]">{fmt(w.createdAt)}{w.note ? ` · ${w.note}` : ""}</p>
+                    <p className="truncate text-xs text-[var(--c-muted)]">
+                      {w.customer?.user?.fullName ?? "Khách"} · {w.bankName} ·{" "}
+                      {w.bankAccount}
+                    </p>
+                    <p className="text-[11px] text-[var(--c-muted)]">
+                      {fmt(w.createdAt)}
+                      {w.note ? ` · ${w.note}` : ""}
+                    </p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.cls}`}>{s.label}</span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.cls}`}
+                  >
+                    {s.label}
+                  </span>
                 </div>
 
                 {w.status === "PENDING" && (
                   <div className="mt-2 space-y-2">
                     <Input
                       value={noteById[w.id] ?? ""}
-                      onChange={(e) => setNoteById((p) => ({ ...p, [w.id]: e.target.value }))}
+                      onChange={(e) =>
+                        setNoteById((p) => ({ ...p, [w.id]: e.target.value }))
+                      }
                       placeholder="Ghi chú admin (bắt buộc khi từ chối)"
                       className="h-8 text-sm"
                     />
@@ -96,7 +123,10 @@ export function CustomerWithdrawalManagement() {
                         onClick={() =>
                           review.mutate({
                             id: w.id,
-                            payload: { status: "APPROVED", adminNote: noteById[w.id]?.trim() || undefined },
+                            payload: {
+                              status: "APPROVED",
+                              adminNote: noteById[w.id]?.trim() || undefined,
+                            },
                           })
                         }
                       >
@@ -106,11 +136,14 @@ export function CustomerWithdrawalManagement() {
                         size="sm"
                         variant="danger"
                         className="rounded-lg gap-1.5"
-                        disabled={review.isPending || !(noteById[w.id]?.trim())}
+                        disabled={review.isPending || !noteById[w.id]?.trim()}
                         onClick={() =>
                           review.mutate({
                             id: w.id,
-                            payload: { status: "REJECTED", adminNote: noteById[w.id]?.trim() },
+                            payload: {
+                              status: "REJECTED",
+                              adminNote: noteById[w.id]?.trim(),
+                            },
                           })
                         }
                       >
@@ -120,7 +153,9 @@ export function CustomerWithdrawalManagement() {
                   </div>
                 )}
                 {w.status !== "PENDING" && w.adminNote && (
-                  <p className="mt-1 text-[11px] text-[var(--c-muted)]">Ghi chú admin: {w.adminNote}</p>
+                  <p className="mt-1 text-[11px] text-[var(--c-muted)]">
+                    Ghi chú admin: {w.adminNote}
+                  </p>
                 )}
               </div>
             );

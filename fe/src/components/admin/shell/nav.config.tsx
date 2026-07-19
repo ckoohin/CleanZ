@@ -4,7 +4,6 @@ import {
   Activity,
   ClipboardList,
   Sparkles,
-  Tag,
   ScrollText,
   TicketPercent,
   Users,
@@ -91,7 +90,6 @@ export const navGroups: NavGroup[] = [
       { title: "Giao dịch", href: A.FINANCES.BASE, icon: ArrowLeftRight },
       { title: "Quản lý ví", href: A.FINANCES.WALLETS, icon: WalletCards },
       { title: "Rút tiền", href: A.FINANCES.WITHDRAWALS, icon: Banknote },
-      { title: "Rút tiền (Khách)", href: A.FINANCES.CUSTOMER_WITHDRAWALS, icon: Banknote },
       { title: "Đối soát bồi thường", href: A.FINANCES.RECONCILIATION, icon: ShieldCheck },
       {
         title: "Voucher",

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminController } from './admin.controller';
 import { AdminDashboardRepository } from './repositories/admin-dashboard.repository';
@@ -24,6 +25,11 @@ import { NotificationEntity } from 'src/modules/notification/entity/notification
 import { BookingStatusLogEntity } from 'src/modules/booking/entity/booking-status-log.entity';
 import { MailModule } from 'src/modules/mail/mail.module';
 import { VoucherModule } from 'src/modules/voucher/voucher.module';
+import { User } from 'src/modules/users/entities/user.entity';
+import { AdminActivityLogEntity } from './entities/admin-activity-log.entity';
+import { AdminActivityService } from './services/admin-activity.service';
+import { AdminActivityInterceptor } from './interceptors/admin-activity.interceptor';
+import { AdminActivitySnapshotService } from './services/admin-activity-snapshot.service';
 
 @Module({
   imports: [
@@ -39,6 +45,8 @@ import { VoucherModule } from 'src/modules/voucher/voucher.module';
       VoucherEntity,
       NotificationEntity,
       BookingStatusLogEntity,
+      AdminActivityLogEntity,
+      User,
     ]),
     UsersModule,
     PricingModule,
@@ -56,6 +64,12 @@ import { VoucherModule } from 'src/modules/voucher/voucher.module';
     AdminCustomerRepository,
     AdminBookingRepository,
     AdminDashboardReportService,
+    AdminActivityService,
+    AdminActivitySnapshotService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AdminActivityInterceptor,
+    },
   ],
 })
 export class AdminModule {}

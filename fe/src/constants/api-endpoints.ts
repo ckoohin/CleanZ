@@ -101,6 +101,9 @@ export const API_ENDPOINTS = {
     BROADCAST: "/admin/notifications/broadcast",
     HISTORY: "/admin/notifications",
   },
+  ADMIN_ACTIVITIES: {
+    BASE: "/admin/activities",
+  },
   NOTIFICATIONS: {
     LIST: "/notifications",
     BASE: "/notifications",
