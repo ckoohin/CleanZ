@@ -22,7 +22,14 @@ function fmtCurrency(n: number) {
 }
 
 function fmtSchedule(item: TaskerPostedBookingItem) {
-  const date = item.schedule.scheduledStartDate ?? "—";
+  const rawDate = item.schedule.scheduledStartDate;
+  const date = rawDate
+    ? new Date(`${rawDate}T00:00:00`).toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "—";
   const time = item.schedule.scheduledStartTime ?? "—";
   return `${date} · ${time}`;
 }
@@ -38,13 +45,15 @@ function JobCard({
   index: number;
 }) {
   return (
-    <motion.div
+    <motion.button
+      type="button"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="cursor-pointer rounded-2xl border border-border/50 bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
+      className="w-full cursor-pointer rounded-2xl border border-border/50 bg-card p-4 text-left transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      aria-label={`Xem đơn ${item.bookingCode} - ${item.service.name}`}
     >
       {/* Header */}
       <div className="mb-3 space-y-2">
@@ -67,9 +76,12 @@ function JobCard({
           <h3 className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-foreground line-clamp-2">
             {item.service.name}
           </h3>
-          <p className="shrink-0 whitespace-nowrap text-base font-black leading-tight text-primary">
-            {fmtCurrency(item.price.totalPrice)}
-          </p>
+          <div className="shrink-0 text-right">
+            <p className="text-[10px] font-medium text-muted-foreground">Giá trị đơn</p>
+            <p className="whitespace-nowrap text-base font-black leading-tight text-primary">
+              {fmtCurrency(item.price.totalPrice)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -78,7 +90,7 @@ function JobCard({
         <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <Calendar className="w-3.5 h-3.5 shrink-0" />
           <span className="min-w-0 truncate">
-            {fmtSchedule(item)} · {item.schedule.durationHours}h
+            {fmtSchedule(item)} · {item.schedule.durationHours} giờ
           </span>
         </div>
         {item.area.displayAddress && (
@@ -95,27 +107,39 @@ function JobCard({
           Xem & Nhận đơn <ChevronRight className="w-3.5 h-3.5" />
         </span>
       </div>
-    </motion.div>
+    </motion.button>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export const TaskerJobListPage: React.FC = () => {
+interface TaskerJobListPageProps {
+  embedded?: boolean;
+}
+
+export const TaskerJobListPage: React.FC<TaskerJobListPageProps> = ({
+  embedded = false,
+}) => {
   const router = useRouter();
   const { data, isLoading, refetch, isFetching } = usePostedBookingList();
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className={embedded ? "space-y-4" : "min-h-screen bg-background pb-24"}>
       {/* Header */}
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm sticky top-0 z-20">
+      <div
+        className={
+          embedded
+            ? "rounded-2xl border border-border/50 bg-card p-4 shadow-sm"
+            : "sticky top-0 z-20 bg-card px-4 pb-4 pt-12 shadow-sm"
+        }
+      >
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-xl font-bold leading-tight text-foreground">
-              Đơn chờ nhận
-            </h1>
-            <p className="mt-1 max-w-37.5 text-xs leading-snug text-muted-foreground">
-              {data?.total ?? 0} đơn đang chờ trong khu vực
+            <h2 className="text-base font-bold leading-tight text-foreground sm:text-xl">
+              Đơn có thể nhận
+            </h2>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              {data?.total ?? 0} công việc đang chờ
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -129,6 +153,7 @@ export const TaskerJobListPage: React.FC = () => {
               onClick={() => refetch()}
               disabled={isFetching}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+              aria-label="Làm mới danh sách đơn"
             >
               <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -139,7 +164,13 @@ export const TaskerJobListPage: React.FC = () => {
       <TaskerCreateBookingModal open={createOpen} onClose={() => setCreateOpen(false)} />
 
       {/* Content */}
-      <div className="px-4 py-4 space-y-3">
+      <div
+        className={
+          embedded
+            ? "grid grid-cols-1 gap-3 xl:grid-cols-2"
+            : "grid grid-cols-1 gap-3 px-4 py-4 lg:grid-cols-2"
+        }
+      >
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-32 bg-card rounded-2xl border border-border/50 animate-pulse" />
@@ -148,7 +179,7 @@ export const TaskerJobListPage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-24 text-center"
+            className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 py-16 text-center"
           >
             <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mb-4">
               <Package className="w-8 h-8 text-muted-foreground/50" />

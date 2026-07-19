@@ -34,6 +34,7 @@ import {
   TaskerBookingLocationDto,
 } from './dto/tasker-booking-location.dto';
 import { UpdateBookingScheduleAddressDto } from './dto/update-booking-schedule-address.dto';
+import { TaskerCompletedBookingQueryDto } from './dto/tasker-completed-booking-query.dto';
 import {
   CustomerActiveBookingResponse,
   CustomerBookingCreatedResponse,
@@ -45,6 +46,7 @@ import {
   TaskerAcceptBookingResponse,
   TaskerAssignedBookingDetailResponse,
   TaskerBookingService,
+  TaskerCompletedBookingListResponse,
   TaskerPostedBookingDetailResponse,
   TaskerPostedBookingListResponse,
 } from './services/tasker-booking.service';
@@ -347,6 +349,23 @@ export class BookingController {
     @CurrentUser('id') userId: string,
   ): Promise<TaskerAssignedBookingDetailResponse | null> {
     return this.taskerBookingService.findActiveBooking(userId);
+  }
+
+  @Get('tasker/completed')
+  @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({ summary: 'Tasker xem danh sách đơn đã hoàn tất' })
+  findCompletedBookingsForTasker(
+    @CurrentUser('id') userId: string,
+    @Query() query: TaskerCompletedBookingQueryDto,
+  ): Promise<TaskerCompletedBookingListResponse> {
+    return this.taskerBookingService.findCompletedBookings(
+      userId,
+      query.page,
+      query.limit,
+      query.fromAt,
+      query.toAt,
+    );
   }
 
   @Get('tasker/:id')

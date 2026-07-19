@@ -1,43 +1,73 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { motion } from 'motion/react';
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { motion } from "motion/react";
 import {
-  User, Phone, MapPin, CreditCard, FileText,
-  CheckCircle2, AlertCircle, Camera, Save, Loader2,
-  ArrowLeft, Wallet, Navigation, Award, CalendarDays, History, Settings, Wrench, HelpCircle, Share2, ChevronRight
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
-import { useTaskerProfile, useUpdateTaskerProfile } from '@/features/tasker/hooks/tasker.hooks';
-import { TaskerSidebar } from '@/features/tasker/_components/TaskerSidebar';
-import { buildReviewParts, getReviewPartMap, type ReviewPart } from '@/lib/kyc/review-notes';
+  User,
+  Phone,
+  MapPin,
+  CreditCard,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Camera,
+  Save,
+  Loader2,
+  ArrowLeft,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import {
+  useTaskerProfile,
+  useUpdateTaskerProfile,
+} from "@/features/tasker/hooks/tasker.hooks";
+import {
+  buildReviewParts,
+  getReviewPartMap,
+  type ReviewPart,
+} from "@/lib/kyc/review-notes";
+import { TaskerAccountOverview } from "@/features/tasker/_components/TaskerAccountOverview";
 
 const schema = z.object({
-  phone: z.string().min(9, 'Số điện thoại không hợp lệ').optional().or(z.literal('')),
-  bio: z.string().max(500, 'Tối đa 500 ký tự').optional().or(z.literal('')),
-  experience: z.string().max(500, 'Tối đa 500 ký tự').optional().or(z.literal('')),
-  skills: z.string().max(300, 'Tối đa 300 ký tự').optional().or(z.literal('')),
-  addressResident: z.string().max(200).optional().or(z.literal('')),
-  addressCurrent: z.string().max(200).optional().or(z.literal('')),
-  bankName: z.string().max(100).optional().or(z.literal('')),
-  bankAccountNumber: z.string().max(30).optional().or(z.literal('')),
-  bankAccountName: z.string().max(100).optional().or(z.literal('')),
+  phone: z
+    .string()
+    .min(9, "Số điện thoại không hợp lệ")
+    .optional()
+    .or(z.literal("")),
+  bio: z.string().max(500, "Tối đa 500 ký tự").optional().or(z.literal("")),
+  experience: z
+    .string()
+    .max(500, "Tối đa 500 ký tự")
+    .optional()
+    .or(z.literal("")),
+  skills: z.string().max(300, "Tối đa 300 ký tự").optional().or(z.literal("")),
+  addressCurrent: z.string().max(200).optional().or(z.literal("")),
+  bankName: z.string().max(100).optional().or(z.literal("")),
+  bankAccountNumber: z.string().max(30).optional().or(z.literal("")),
+  bankAccountName: z.string().max(100).optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-function DocBadge({ done, label, flag }: { done: boolean; label: string; flag?: ReviewPart }) {
+function DocBadge({
+  done,
+  label,
+  flag,
+}: {
+  done: boolean;
+  label: string;
+  flag?: ReviewPart;
+}) {
   // Admin yêu cầu nộp lại phần này → ưu tiên hiển thị cờ đỏ + lý do, thay vì chỉ "đã nộp".
   if (flag) {
     return (
@@ -49,20 +79,28 @@ function DocBadge({ done, label, flag }: { done: boolean; label: string; flag?: 
             Cần nộp lại
           </span>
         </div>
-        {flag.note && <p className="text-xs text-red-600/80 pl-6 leading-snug">{flag.note}</p>}
+        {flag.note && (
+          <p className="text-xs text-red-600/80 pl-6 leading-snug">
+            {flag.note}
+          </p>
+        )}
       </div>
     );
   }
   return (
-    <div className={cn(
-      'flex items-center gap-2 px-3 py-2 rounded-xl border text-sm',
-      done
-        ? 'border-emerald-500/30 bg-emerald-500/8 text-emerald-700'
-        : 'border-border bg-muted/50 text-muted-foreground'
-    )}>
-      {done
-        ? <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
-        : <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />}
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-xl border text-sm",
+        done
+          ? "border-emerald-500/30 bg-emerald-500/8 text-emerald-700"
+          : "border-border bg-muted/50 text-muted-foreground",
+      )}
+    >
+      {done ? (
+        <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+      )}
       {label}
     </div>
   );
@@ -76,13 +114,17 @@ function FieldFlag({ part }: { part?: ReviewPart }) {
       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
       <span>
         <span className="font-semibold">Cần cập nhật lại</span>
-        {part.note ? ` — ${part.note}` : ''}
+        {part.note ? ` — ${part.note}` : ""}
       </span>
     </p>
   );
 }
 
-function SectionCard({ title, icon: Icon, children }: {
+function SectionCard({
+  title,
+  icon: Icon,
+  children,
+}: {
   title: string;
   icon: React.ElementType;
   children: React.ReactNode;
@@ -101,67 +143,53 @@ function SectionCard({ title, icon: Icon, children }: {
   );
 }
 
-function ActionCard({ title, icon: Icon, children, href }: {
-  title: string;
-  icon: React.ElementType;
-  children?: React.ReactNode;
-  href?: string;
-}) {
-  const CardContent = (
-    <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/50 transition-colors group cursor-pointer h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-primary" aria-hidden="true" />
-          </div>
-          <h2 className="font-bold text-sm text-foreground">{title}</h2>
-        </div>
-        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-          <ChevronRight className="w-3.5 h-3.5" />
-        </div>
-      </div>
-      <div className="flex-1">
-        {children}
-      </div>
-    </div>
-  );
-
-  if (href) {
-    return <Link href={href} className="block h-full">{CardContent}</Link>;
-  }
-  return CardContent;
-}
-
 export default function TaskerProfilePage() {
   const { data: tasker, isLoading } = useTaskerProfile();
   const updateProfile = useUpdateTaskerProfile();
   const [saved, setSaved] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isDirty, dirtyFields },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: {
-      phone: tasker?.phone ?? '',
-      bio: tasker?.bio ?? '',
-      experience: tasker?.experience ?? '',
-      skills: tasker?.skills ?? '',
-      addressResident: tasker?.addressResident ?? '',
-      addressCurrent: tasker?.addressCurrent ?? '',
-      bankName: tasker?.bankName ?? '',
-      bankAccountNumber: tasker?.bankAccountNumber ?? '',
-      bankAccountName: tasker?.bankAccountName ?? '',
+      phone: tasker?.phone ?? "",
+      bio: tasker?.bio ?? "",
+      experience: tasker?.experience ?? "",
+      skills: tasker?.skills ?? "",
+      addressCurrent: tasker?.addressCurrent ?? "",
+      bankName: tasker?.bankName ?? "",
+      bankAccountNumber: tasker?.bankAccountNumber ?? "",
+      bankAccountName: tasker?.bankAccountName ?? "",
     },
   });
 
   const onSubmit = async (data: FormValues) => {
     if (!tasker?.id) return;
-    await updateProfile.mutateAsync({ id: tasker.id, data });
+    // Chỉ gửi field người dùng thực sự sửa — field gửi lên được BE coi là
+    // "đã bổ sung" khi admin đang yêu cầu cập nhật mục đó.
+    const payload = Object.fromEntries(
+      Object.entries(data).filter(
+        ([key]) => dirtyFields[key as keyof FormValues],
+      ),
+    );
+    if (Object.keys(payload).length === 0) return;
+    await updateProfile.mutateAsync(payload);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
   const initials = tasker?.fullName
-    ? tasker.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
-    : 'S';
+    ? tasker.fullName
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "S";
 
   // Các phần admin yêu cầu nộp lại (kèm lý do riêng) — để gắn cờ tại đúng chỗ.
   const reviewParts = buildReviewParts(tasker?.adminNotes);
@@ -177,357 +205,315 @@ export default function TaskerProfilePage() {
     );
   }
 
+  if (!showEdit) {
+    return (
+      <TaskerAccountOverview
+        tasker={tasker}
+        reviewParts={reviewParts}
+        onEdit={() => setShowEdit(true)}
+      />
+    );
+  }
+
   return (
     <div className="p-5 md:p-8 max-w-3xl mx-auto w-full">
       {/* Header */}
-          <div className="mb-8">
-            <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2 text-muted-foreground">
-              <Link href="/tasker" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Quay lại Dashboard
-              </Link>
-            </Button>
-            <h1
-              className="text-3xl font-light leading-tight"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              Hồ sơ <span className="italic text-primary">cá nhân</span>
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Quản lý tài khoản, thu nhập và cập nhật thông tin cá nhân của bạn.
-            </p>
-          </div>
+      <div className="mb-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={() => setShowEdit(false)}
+          className="mb-4 -ml-2 text-muted-foreground"
+        >
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Quay lại Tài
+          khoản
+        </Button>
+        <h1 className="text-2xl font-black tracking-tight">
+          Thông tin cá nhân
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Cập nhật hồ sơ, địa chỉ, ngân hàng và giấy tờ của bạn.
+        </p>
+      </div>
 
-          {/* Tổng hợp các phần cần nộp lại — chỉ rõ chỗ cần sửa, không chỉ banner chung */}
-          {reviewParts.length > 0 && (
-            <div className="mb-8 rounded-2xl border border-red-500/25 bg-red-500/5 p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-5 h-5 text-red-600" aria-hidden="true" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-red-700">
-                    {tasker?.approvalStatus === 'rejected'
-                      ? 'Hồ sơ chưa được duyệt — cần chỉnh sửa các phần sau'
-                      : 'Quản trị viên yêu cầu bổ sung các phần sau'}
-                  </p>
-                  <ul className="mt-2 space-y-1.5">
-                    {reviewParts.map((p) => (
-                      <li key={p.id} className="text-sm text-red-700/90 flex items-start gap-1.5">
-                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                        <span>
-                          <span className="font-semibold">{p.label}</span>
-                          {p.note && <span className="text-red-600/70"> — {p.note}</span>}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-xs text-red-600/70 mt-2">
-                    Cập nhật trực tiếp thông tin bên dưới hoặc{' '}
-                    <Link href="/tasker/onboarding" className="font-bold underline">
-                      mở trang nộp lại giấy tờ
-                    </Link>
-                    , rồi gửi lại để được duyệt.
-                  </p>
-                </div>
-              </div>
+      {/* Tổng hợp các phần cần nộp lại — chỉ rõ chỗ cần sửa, không chỉ banner chung */}
+      {reviewParts.length > 0 && (
+        <div className="mb-8 rounded-2xl border border-red-500/25 bg-red-500/5 p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+              <AlertCircle
+                className="w-5 h-5 text-red-600"
+                aria-hidden="true"
+              />
             </div>
-          )}
-
-          {/* --- CÁC MỤC CHỨC NĂNG BỔ SUNG (Tài chính, Hành trình, Cài đặt...) --- */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            {/* 1. Tài chính */}
-            <ActionCard title="Tài chính" icon={Wallet}>
-              <div className="text-center space-y-2 mt-2">
-                <p className="font-bold text-foreground text-sm">Tài khoản chính</p>
-                <div className="inline-flex items-baseline justify-center px-6 py-2 rounded-xl border border-border bg-muted/30">
-                  <span className="text-2xl font-black text-primary tracking-tight">0</span>
-                  <span className="text-sm font-bold ml-1 text-primary">đ</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center text-sm mt-4 text-muted-foreground border-t border-border pt-3">
-                <span>Tài khoản khuyến mãi:</span>
-                <span className="font-bold text-foreground">0đ</span>
-              </div>
-            </ActionCard>
-
-            {/* 2. Hành trình */}
-            <ActionCard title="Hành trình" icon={Navigation}>
-              <div className="flex items-center justify-between h-full pt-2">
-                <div className="text-sm">
-                  <span className="text-primary font-bold">Cấp 1</span>
-                  <span className="font-bold text-foreground"> - Ong Non</span>
-                </div>
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xl">
-                  🐝
-                </div>
-              </div>
-            </ActionCard>
-
-            {/* 3. Điểm ưu đãi */}
-            <ActionCard title="Điểm ưu đãi" icon={Award}>
-              <div className="flex items-center gap-2 h-full pt-2">
-                <Award className="w-5 h-5 text-primary" />
-                <span className="font-bold text-foreground text-sm">0 bPoint</span>
-              </div>
-            </ActionCard>
-
-            {/* 4. Báo cáo tuần */}
-            <ActionCard title="Báo cáo tuần" icon={CalendarDays}>
-              <div className="space-y-3 mt-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Thu nhập tuần này</span>
-                  <span className="font-bold text-foreground">0đ</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Việc đã hoàn thành</span>
-                  <span className="font-bold text-foreground">0</span>
-                </div>
-              </div>
-            </ActionCard>
-
-            {/* 5. Lịch sử thu nhập */}
-            <ActionCard title="Lịch sử thu nhập" icon={History}>
-              <div className="flex justify-between items-center text-sm h-full pt-2">
-                <span className="text-muted-foreground">Thu nhập tháng này</span>
-                <span className="font-bold text-foreground">0đ</span>
-              </div>
-            </ActionCard>
-
-            {/* 6. Cài đặt */}
-            <ActionCard title="Cài đặt" icon={Settings}>
-              <div className="flex justify-between items-center text-sm h-full pt-2">
-                <span className="text-muted-foreground">Nhận thông báo việc</span>
-                <span className="font-bold text-primary">Mở</span>
-              </div>
-            </ActionCard>
-
-            {/* 7. Bộ dụng cụ và hóa chất */}
-            <ActionCard title="Bộ dụng cụ và hóa chất" icon={Wrench}>
-              <div className="flex items-center text-sm text-muted-foreground h-full pt-2">
-                Quản lý bộ dụng cụ, hóa chất
-              </div>
-            </ActionCard>
-
-            {/* 8. Hỗ trợ */}
-            <ActionCard title="Hỗ trợ" icon={HelpCircle}>
-              <div className="flex items-center text-sm text-muted-foreground h-full pt-2">
-                Kênh hỗ trợ tài khoản và công việc
-              </div>
-            </ActionCard>
-          </div>
-
-          {/* 9. Chia sẻ */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-primary/10 rounded-2xl p-6 shadow-sm relative overflow-hidden mb-8 border border-primary/20"
-          >
-            <div className="relative z-10 w-2/3">
-              <h2 className="text-primary font-black text-xl mb-2">
-                Chia sẻ
-              </h2>
-              <p className="text-foreground/80 text-sm mb-4 leading-snug">
-                Chia sẻ để nhận các<br />ưu đãi hấp dẫn
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-red-700">
+                {tasker?.approvalStatus === "rejected"
+                  ? "Hồ sơ chưa được duyệt — cần chỉnh sửa các phần sau"
+                  : "Quản trị viên yêu cầu bổ sung các phần sau"}
               </p>
-              <button type="button" className="bg-primary text-primary-foreground px-5 py-2 rounded-xl font-bold text-sm shadow-sm hover:scale-105 active:scale-95 transition-transform">
-                Xem thêm
+              <ul className="mt-2 space-y-1.5">
+                {reviewParts.map((p) => (
+                  <li
+                    key={p.id}
+                    className="text-sm text-red-700/90 flex items-start gap-1.5"
+                  >
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                    <span>
+                      <span className="font-semibold">{p.label}</span>
+                      {p.note && (
+                        <span className="text-red-600/70"> — {p.note}</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-red-600/70 mt-2">
+                Cập nhật trực tiếp thông tin bên dưới hoặc{" "}
+                <Link
+                  href="/tasker/profile/documents"
+                  className="font-bold underline"
+                >
+                  mở trang nộp lại giấy tờ
+                </Link>
+                , rồi gửi lại để được duyệt.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Avatar & Identity */}
+        <SectionCard title="Thông tin cơ bản" icon={User}>
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <Avatar className="w-20 h-20">
+                <AvatarImage src={tasker?.avatarUrl ?? undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-2xl font-black">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
+                aria-label="Đổi ảnh đại diện"
+              >
+                <Camera className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </div>
-            <div className="absolute right-[-10px] bottom-[-10px] w-32 h-32 opacity-30 pointer-events-none">
-               <div className="w-full h-full flex items-end justify-end p-4 text-primary">
-                 <Share2 className="w-24 h-24" />
-               </div>
+            <div>
+              <p className="font-bold text-lg">{tasker?.fullName ?? "—"}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] uppercase tracking-widest"
+                >
+                  Đối tác CleanZ
+                </Badge>
+              </div>
             </div>
-          </motion.div>
+          </div>
 
-          <Separator className="mb-8" />
-          <h2 className="text-xl font-bold mb-6">Chỉnh sửa thông tin cá nhân</h2>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Avatar & Identity */}
-            <SectionCard title="Thông tin cơ bản" icon={User}>
-              <div className="flex items-center gap-5">
-                <div className="relative">
-                  <Avatar className="w-20 h-20">
-                    <AvatarImage src={tasker?.avatarUrl ?? undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-2xl font-black">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <button
-                    type="button"
-                    className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
-                    aria-label="Đổi ảnh đại diện"
-                  >
-                    <Camera className="w-3.5 h-3.5" aria-hidden="true" />
-                  </button>
-                </div>
-                <div>
-                  <p className="font-bold text-lg">{tasker?.fullName ?? '—'}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-widest">
-                      Đối tác CleanZ
-                    </Badge>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-phone">Số điện thoại</Label>
+              <div className="relative">
+                <Phone
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  id="prof-phone"
+                  {...register("phone")}
+                  placeholder="0901 234 567"
+                  className="pl-10 h-11 rounded-xl"
+                />
               </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-phone">Số điện thoại</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                    <Input
-                      id="prof-phone"
-                      {...register('phone')}
-                      placeholder="0901 234 567"
-                      className="pl-10 h-11 rounded-xl"
-                    />
-                  </div>
-                  {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
-                  <FieldFlag part={reviewMap.phone} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-bio">Giới thiệu bản thân</Label>
-                  <Textarea
-                    id="prof-bio"
-                    {...register('bio')}
-                    placeholder="Chia sẻ kinh nghiệm và điểm mạnh của bạn..."
-                    rows={3}
-                    className="rounded-xl resize-none"
-                  />
-                  {errors.bio && <p className="text-xs text-destructive">{errors.bio.message}</p>}
-                  <FieldFlag part={reviewMap.bio} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-exp">Kinh nghiệm làm việc</Label>
-                  <Textarea
-                    id="prof-exp"
-                    {...register('experience')}
-                    placeholder="Mô tả kinh nghiệm dọn dẹp của bạn..."
-                    rows={3}
-                    className="rounded-xl resize-none"
-                  />
-                  <FieldFlag part={reviewMap.experience} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-skills">Kỹ năng đặc biệt</Label>
-                  <Input
-                    id="prof-skills"
-                    {...register('skills')}
-                    placeholder="VD: Dọn nhà, Vệ sinh văn phòng, Giặt thảm..."
-                    className="h-11 rounded-xl"
-                  />
-                  {/* Admin chỉ gắn cờ 1 mục "experience" gộp cả kinh nghiệm + kỹ năng,
-                      nên field kỹ năng cũng sáng cờ theo. */}
-                  <FieldFlag part={reviewMap.skills ?? reviewMap.experience} />
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Address */}
-            <SectionCard title="Địa chỉ" icon={MapPin}>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-addr-resident">Địa chỉ thường trú</Label>
-                  <Input
-                    id="prof-addr-resident"
-                    {...register('addressResident')}
-                    placeholder="Số nhà, đường, phường, quận, tỉnh/thành"
-                    className="h-11 rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-addr-current">Địa chỉ hiện tại <span className="text-muted-foreground text-xs">(dùng để tìm việc gần đây)</span></Label>
-                  <Input
-                    id="prof-addr-current"
-                    {...register('addressCurrent')}
-                    placeholder="Số nhà, đường, phường, quận, tỉnh/thành"
-                    className="h-11 rounded-xl"
-                  />
-                  <FieldFlag part={reviewMap.address} />
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Bank */}
-            <SectionCard title="Thông tin ngân hàng" icon={CreditCard}>
-              <p className="text-xs text-muted-foreground -mt-2">
-                Dùng để nhận thanh toán từ CleanZ sau mỗi đơn hoàn thành.
-              </p>
-              <FieldFlag part={reviewMap.bankInfo} />
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-bank-name">Tên ngân hàng</Label>
-                  <Input
-                    id="prof-bank-name"
-                    {...register('bankName')}
-                    placeholder="VD: Vietcombank, Techcombank..."
-                    className="h-11 rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-bank-num">Số tài khoản</Label>
-                  <Input
-                    id="prof-bank-num"
-                    {...register('bankAccountNumber')}
-                    placeholder="Nhập số tài khoản..."
-                    className="h-11 rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-bank-owner">Chủ tài khoản</Label>
-                  <Input
-                    id="prof-bank-owner"
-                    {...register('bankAccountName')}
-                    placeholder="Tên chủ tài khoản (in hoa)"
-                    className="h-11 rounded-xl"
-                  />
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Documents status */}
-            <SectionCard title="Giấy tờ đã nộp" icon={FileText}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <DocBadge done={!!tasker?.hasCitizenCardImage} label="Ảnh CCCD" flag={reviewMap.citizenCard} />
-                <DocBadge done={!!tasker?.hasIdWithSelfieImage} label="Selfie + CCCD" flag={reviewMap.idWithSelfie} />
-                <DocBadge done={!!tasker?.hasCriminalRecordImage} label="Lý lịch tư pháp" flag={reviewMap.criminalRecord} />
-                <DocBadge done={!!tasker?.hasHealthCertificateImage} label="Khám sức khoẻ" flag={reviewMap.healthCertificate} />
-                <DocBadge done={!!tasker?.hasCertificateImage} label="Chứng chỉ nghề" flag={reviewMap.certificate} />
-              </div>
-              <Button asChild variant="outline" size="sm" className="rounded-xl h-9 w-fit">
-                <Link href="/tasker/onboarding">Cập nhật giấy tờ</Link>
-              </Button>
-            </SectionCard>
-
-            {/* Submit */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-4 pb-8"
-            >
-              <Button
-                type="submit"
-                disabled={!isDirty || updateProfile.isPending}
-                className="rounded-xl h-12 px-8 font-bold shadow-md shadow-primary/20"
-              >
-                {updateProfile.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" />Đang lưu...</>
-                ) : saved ? (
-                  <><CheckCircle2 className="w-4 h-4 mr-2" aria-hidden="true" />Đã lưu!</>
-                ) : (
-                  <><Save className="w-4 h-4 mr-2" aria-hidden="true" />Lưu thay đổi</>
-                )}
-              </Button>
-              {!isDirty && (
-                <p className="text-xs text-muted-foreground">Chưa có thay đổi</p>
+              {errors.phone && (
+                <p className="text-xs text-destructive">
+                  {errors.phone.message}
+                </p>
               )}
-            </motion.div>
-          </form>
-        </div>
+              <FieldFlag part={reviewMap.phone} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-bio">Giới thiệu bản thân</Label>
+              <Textarea
+                id="prof-bio"
+                {...register("bio")}
+                placeholder="Chia sẻ kinh nghiệm và điểm mạnh của bạn..."
+                rows={3}
+                className="rounded-xl resize-none"
+              />
+              {errors.bio && (
+                <p className="text-xs text-destructive">{errors.bio.message}</p>
+              )}
+              <FieldFlag part={reviewMap.bio} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-exp">Kinh nghiệm làm việc</Label>
+              <Textarea
+                id="prof-exp"
+                {...register("experience")}
+                placeholder="Mô tả kinh nghiệm dọn dẹp của bạn..."
+                rows={3}
+                className="rounded-xl resize-none"
+              />
+              <FieldFlag part={reviewMap.experience} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-skills">Kỹ năng đặc biệt</Label>
+              <Input
+                id="prof-skills"
+                {...register("skills")}
+                placeholder="VD: Dọn nhà, Vệ sinh văn phòng, Giặt thảm..."
+                className="h-11 rounded-xl"
+              />
+              {/* Admin chỉ gắn cờ 1 mục "experience" gộp cả kinh nghiệm + kỹ năng,
+                      nên field kỹ năng cũng sáng cờ theo. */}
+              <FieldFlag part={reviewMap.skills ?? reviewMap.experience} />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Address */}
+        <SectionCard title="Địa chỉ" icon={MapPin}>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-addr-current">
+                Địa chỉ hiện tại{" "}
+                <span className="text-muted-foreground text-xs">
+                  (dùng để tìm việc gần đây)
+                </span>
+              </Label>
+              <Input
+                id="prof-addr-current"
+                {...register("addressCurrent")}
+                placeholder="Số nhà, đường, phường, quận, tỉnh/thành"
+                className="h-11 rounded-xl"
+              />
+              <FieldFlag part={reviewMap.address} />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Bank */}
+        <SectionCard title="Thông tin ngân hàng" icon={CreditCard}>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Dùng để nhận thanh toán từ CleanZ sau mỗi đơn hoàn thành.
+          </p>
+          <FieldFlag part={reviewMap.bankInfo} />
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-bank-name">Tên ngân hàng</Label>
+              <Input
+                id="prof-bank-name"
+                {...register("bankName")}
+                placeholder="VD: Vietcombank, Techcombank..."
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-bank-num">Số tài khoản</Label>
+              <Input
+                id="prof-bank-num"
+                {...register("bankAccountNumber")}
+                placeholder="Nhập số tài khoản..."
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-bank-owner">Chủ tài khoản</Label>
+              <Input
+                id="prof-bank-owner"
+                {...register("bankAccountName")}
+                placeholder="Tên chủ tài khoản (in hoa)"
+                className="h-11 rounded-xl"
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Documents status */}
+        <SectionCard title="Giấy tờ đã nộp" icon={FileText}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <DocBadge
+              done={!!tasker?.hasCitizenCardImage}
+              label="Ảnh CCCD"
+              flag={reviewMap.citizenCard}
+            />
+            <DocBadge
+              done={!!tasker?.hasIdWithSelfieImage}
+              label="Selfie + CCCD"
+              flag={reviewMap.idWithSelfie}
+            />
+            <DocBadge
+              done={!!tasker?.hasCriminalRecordImage}
+              label="Lý lịch tư pháp"
+              flag={reviewMap.criminalRecord}
+            />
+            <DocBadge
+              done={!!tasker?.hasHealthCertificateImage}
+              label="Khám sức khoẻ"
+              flag={reviewMap.healthCertificate}
+            />
+            <DocBadge
+              done={!!tasker?.hasCertificateImage}
+              label="Chứng chỉ nghề"
+              flag={reviewMap.certificate}
+            />
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="rounded-xl h-9 w-fit"
+          >
+            <Link href="/tasker/profile/documents">Cập nhật giấy tờ</Link>
+          </Button>
+        </SectionCard>
+
+        {/* Submit */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-4 pb-8"
+        >
+          <Button
+            type="submit"
+            disabled={!isDirty || updateProfile.isPending}
+            className="rounded-xl h-12 px-8 font-bold shadow-md shadow-primary/20"
+          >
+            {updateProfile.isPending ? (
+              <>
+                <Loader2
+                  className="w-4 h-4 animate-spin mr-2"
+                  aria-hidden="true"
+                />
+                Đang lưu...
+              </>
+            ) : saved ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                Đã lưu!
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" aria-hidden="true" />
+                Lưu thay đổi
+              </>
+            )}
+          </Button>
+          {!isDirty && (
+            <p className="text-xs text-muted-foreground">Chưa có thay đổi</p>
+          )}
+        </motion.div>
+      </form>
+    </div>
   );
 }

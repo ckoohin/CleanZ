@@ -55,12 +55,36 @@ const STATUS_CONFIG: Record<
   { label: string; color: string; bg: string }
 > = {
   POSTED: { label: "Chờ nhận", color: "text-blue-600", bg: "bg-blue-50" },
-  PENDING_CUSTOMER_CONFIRMATION: { label: "Chờ khách xác nhận", color: "text-amber-600", bg: "bg-amber-50" },
-  CONFIRMED: { label: "Đã xác nhận", color: "text-indigo-600", bg: "bg-indigo-50" },
-  TASKER_ON_THE_WAY: { label: "Đang di chuyển", color: "text-amber-600", bg: "bg-amber-50" },
-  CHECKED_IN: { label: "Đã đến nơi", color: "text-orange-600", bg: "bg-orange-50" },
-  IN_PROGRESS: { label: "Đang làm việc", color: "text-primary", bg: "bg-primary/10" },
-  COMPLETED: { label: "Hoàn thành", color: "text-emerald-600", bg: "bg-emerald-50" },
+  PENDING_CUSTOMER_CONFIRMATION: {
+    label: "Chờ khách xác nhận",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+  },
+  CONFIRMED: {
+    label: "Đã xác nhận",
+    color: "text-indigo-600",
+    bg: "bg-indigo-50",
+  },
+  TASKER_ON_THE_WAY: {
+    label: "Đang di chuyển",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+  },
+  CHECKED_IN: {
+    label: "Đã đến nơi",
+    color: "text-orange-600",
+    bg: "bg-orange-50",
+  },
+  IN_PROGRESS: {
+    label: "Đang làm việc",
+    color: "text-primary",
+    bg: "bg-primary/10",
+  },
+  COMPLETED: {
+    label: "Hoàn thành",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+  },
   CANCELLED: { label: "Đã hủy", color: "text-slate-500", bg: "bg-slate-100" },
   EXPIRED: { label: "Hết hạn", color: "text-slate-500", bg: "bg-slate-100" },
 };
@@ -118,12 +142,17 @@ const CHECKIN_AUTO_CANCEL = 45; // T+45
 
 function parseScheduledStart(schedule: BookingSchedule): Date | null {
   if (!schedule.scheduledStartDate || !schedule.scheduledStartTime) return null;
-  const d = new Date(`${schedule.scheduledStartDate}T${schedule.scheduledStartTime}`);
+  const d = new Date(
+    `${schedule.scheduledStartDate}T${schedule.scheduledStartTime}`,
+  );
   return isNaN(d.getTime()) ? null : d;
 }
 
 function fmtTime(date: Date) {
-  return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function fmtCountdown(totalSeconds: number): string {
@@ -159,10 +188,7 @@ function CheckinWindowBanner({
   const windowOpenTime = new Date(startMs - CHECKIN_OPEN_BEFORE * 60_000);
   const autoCancelTime = new Date(startMs + CHECKIN_AUTO_CANCEL * 60_000);
 
-  if (
-    timingPolicy.exemptFromLatePenalty &&
-    diffMin <= CHECKIN_AUTO_CANCEL
-  ) {
+  if (timingPolicy.exemptFromLatePenalty && diffMin <= CHECKIN_AUTO_CANCEL) {
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <div className="mb-1 flex items-center gap-2">
@@ -193,7 +219,8 @@ function CheckinWindowBanner({
           <span className="font-black">{fmtCountdown(secsUntilOpen)}</span>
         </p>
         <p className="text-[11px] text-blue-600 mt-1">
-          Hãy di chuyển để đến nơi đúng giờ. Check-in sớm nhất từ 30 phút trước lịch hẹn.
+          Hãy di chuyển để đến nơi đúng giờ. Check-in sớm nhất từ 30 phút trước
+          lịch hẹn.
         </p>
       </div>
     );
@@ -277,8 +304,10 @@ function PostedDetailView({
   const accept = useAcceptBooking();
   const platformCommissionRate = data.price.platformCommissionRate ?? 20;
   const platformFee =
-    data.price.platformFee ?? Math.round((data.price.totalPrice * platformCommissionRate) / 100);
-  const taskerIncome = data.price.taskerIncome ?? Math.max(data.price.totalPrice - platformFee, 0);
+    data.price.platformFee ??
+    Math.round((data.price.totalPrice * platformCommissionRate) / 100);
+  const taskerIncome =
+    data.price.taskerIncome ?? Math.max(data.price.totalPrice - platformFee, 0);
 
   const handleAccept = async () => {
     try {
@@ -303,7 +332,9 @@ function PostedDetailView({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Khoảng cách từ bạn</p>
-          <p className="text-xl font-black text-primary">{data.distance.kilometers.toFixed(1)} km</p>
+          <p className="text-xl font-black text-primary">
+            {data.distance.kilometers.toFixed(1)} km
+          </p>
         </div>
       </div>
 
@@ -312,17 +343,22 @@ function PostedDetailView({
         <h3 className="font-bold text-foreground text-sm">Dịch vụ</h3>
         <p className="text-base font-semibold">{data.service.name}</p>
         {data.service.description && (
-          <p className="text-sm text-muted-foreground">{data.service.description}</p>
+          <p className="text-sm text-muted-foreground">
+            {data.service.description}
+          </p>
         )}
       </div>
 
       {/* Schedule */}
       <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
-        <h3 className="font-bold text-foreground text-sm mb-2">Lịch làm việc</h3>
+        <h3 className="font-bold text-foreground text-sm mb-2">
+          Lịch làm việc
+        </h3>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Calendar className="w-4 h-4" />
           <span>
-            {data.schedule.scheduledStartDate} · {data.schedule.scheduledStartTime}
+            {data.schedule.scheduledStartDate} ·{" "}
+            {data.schedule.scheduledStartTime}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -345,7 +381,9 @@ function PostedDetailView({
           .map((r) => (
             <div key={r.label} className="flex justify-between text-sm">
               <span className="text-muted-foreground">{r.label}</span>
-              <span className={r.value < 0 ? "text-emerald-600 font-medium" : ""}>
+              <span
+                className={r.value < 0 ? "text-emerald-600 font-medium" : ""}
+              >
                 {r.value < 0 ? "-" : ""}
                 {fmtCurrency(Math.abs(r.value))}
               </span>
@@ -354,15 +392,21 @@ function PostedDetailView({
         <div className="space-y-2 pt-2 border-t border-border/40">
           <div className="flex justify-between text-sm">
             <span className="font-bold">Tổng tiền của đơn</span>
-            <span className="font-black text-foreground">{fmtCurrency(data.price.totalPrice)}</span>
+            <span className="font-black text-foreground">
+              {fmtCurrency(data.price.totalPrice)}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Phí nền tảng</span>
-            <span className="font-semibold text-red-500">-{fmtCurrency(platformFee)}</span>
+            <span className="font-semibold text-red-500">
+              -{fmtCurrency(platformFee)}
+            </span>
           </div>
           <div className="flex justify-between pt-2 border-t border-border/40">
             <span className="font-bold text-sm">Thu nhập của bạn</span>
-            <span className="font-black text-primary">{fmtCurrency(taskerIncome)}</span>
+            <span className="font-black text-primary">
+              {fmtCurrency(taskerIncome)}
+            </span>
           </div>
         </div>
       </div>
@@ -428,7 +472,8 @@ function TaskerCancelDialog({
                 #{bookingCode}
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                Đơn sẽ được trả về trạng thái chờ Tasker mới. Hành động này không thể hoàn tác.
+                Đơn sẽ được trả về trạng thái chờ Tasker mới. Hành động này
+                không thể hoàn tác.
               </p>
             </div>
             <button
@@ -497,7 +542,9 @@ function TaskerCancelDialog({
 
           {/* Tự nhập */}
           <textarea
-            value={PRESET_CANCEL_REASONS.includes(cancelReason) ? "" : cancelReason}
+            value={
+              PRESET_CANCEL_REASONS.includes(cancelReason) ? "" : cancelReason
+            }
             onChange={(e) => onReasonChange(e.target.value)}
             placeholder="Hoặc nhập lý do khác..."
             rows={3}
@@ -555,10 +602,7 @@ function AssignedDetailView({
     isConnected: isTrackingConnected,
     error: trackingError,
     locationAccuracy,
-  } = useTaskerLocationTracking(
-    bookingId,
-    data.status === "TASKER_ON_THE_WAY",
-  );
+  } = useTaskerLocationTracking(bookingId, data.status === "TASKER_ON_THE_WAY");
 
   const [showConfirmComplete, setShowConfirmComplete] = useState(false);
 
@@ -588,7 +632,8 @@ function AssignedDetailView({
     const customerName =
       data.address?.contactName || data.customer?.fullName || "Khách hàng";
     const customerPhone = data.address?.contactPhone || data.customer?.phone;
-    const destinationAddress = data.address?.fullAddress || "Địa chỉ khách hàng";
+    const destinationAddress =
+      data.address?.fullAddress || "Địa chỉ khách hàng";
     const isGpsOnline =
       isTrackingConnected &&
       !trackingError &&
@@ -608,7 +653,8 @@ function AssignedDetailView({
               <div className="m-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 shadow-sm">
                 <p className="font-semibold">Không thể tải bản đồ điều hướng</p>
                 <p className="mt-1 text-xs text-amber-600">
-                  Bản đồ vừa gặp sự cố hiển thị. Bạn vẫn có thể thao tác các phần khác của đơn.
+                  Bản đồ vừa gặp sự cố hiển thị. Bạn vẫn có thể thao tác các
+                  phần khác của đơn.
                 </p>
                 <button
                   type="button"
@@ -762,15 +808,23 @@ function AssignedDetailView({
   return (
     <div className="space-y-4">
       {/* Status badge */}
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-2xl ${statusCfg.bg}`}>
-        <div className={`w-2 h-2 rounded-full ${statusCfg.color.replace("text-", "bg-")} ${data.status === "IN_PROGRESS" ? "animate-pulse" : ""}`} />
-        <span className={`text-sm font-bold ${statusCfg.color}`}>{statusCfg.label}</span>
+      <div
+        className={`flex items-center gap-2 px-4 py-3 rounded-2xl ${statusCfg.bg}`}
+      >
+        <div
+          className={`w-2 h-2 rounded-full ${statusCfg.color.replace("text-", "bg-")} ${data.status === "IN_PROGRESS" ? "animate-pulse" : ""}`}
+        />
+        <span className={`text-sm font-bold ${statusCfg.color}`}>
+          {statusCfg.label}
+        </span>
       </div>
 
       {/* Customer info (chỉ hiện khi canContactCustomer) */}
       {canContact && data.customer && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <h3 className="font-bold text-sm text-emerald-800 mb-3">Thông tin khách hàng</h3>
+          <h3 className="font-bold text-sm text-emerald-800 mb-3">
+            Thông tin khách hàng
+          </h3>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-emerald-600" />
@@ -784,7 +838,8 @@ function AssignedDetailView({
                   href={`tel:${data.address?.contactPhone || data.customer.phone}`}
                   className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5"
                 >
-                  <Phone className="w-3 h-3" /> {data.address?.contactPhone || data.customer.phone}
+                  <Phone className="w-3 h-3" />{" "}
+                  {data.address?.contactPhone || data.customer.phone}
                 </a>
               )}
             </div>
@@ -800,27 +855,35 @@ function AssignedDetailView({
               <h3 className="font-bold text-sm mb-2 flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-primary" /> Địa chỉ làm việc
               </h3>
-              <p className="text-sm text-foreground font-medium">{data.address.fullAddress}</p>
+              <p className="text-sm text-foreground font-medium">
+                {data.address.fullAddress}
+              </p>
               {data.address.wardDetail && (
-                <p className="text-xs text-muted-foreground">{data.address.wardDetail}</p>
+                <p className="text-xs text-muted-foreground">
+                  {data.address.wardDetail}
+                </p>
               )}
               {(data.address.buildingFloor || data.address.gate) && (
                 <div className="flex items-center gap-2 mt-1">
                   {data.address.buildingFloor && (
                     <span className="text-xs bg-muted px-2 py-1 rounded-md text-foreground">
-                      <span className="font-semibold">Tòa/Tầng:</span> {data.address.buildingFloor}
+                      <span className="font-semibold">Tòa/Tầng:</span>{" "}
+                      {data.address.buildingFloor}
                     </span>
                   )}
                   {data.address.gate && (
                     <span className="text-xs bg-muted px-2 py-1 rounded-md text-foreground">
-                      <span className="font-semibold">Cổng:</span> {data.address.gate}
+                      <span className="font-semibold">Cổng:</span>{" "}
+                      {data.address.gate}
                     </span>
                   )}
                 </div>
               )}
               {data.address.driverNote && (
                 <div className="text-xs bg-orange-50 text-orange-700 px-3 py-2 rounded-lg mt-2 border border-orange-100">
-                  <span className="font-bold block mb-0.5">Lưu ý cho tài xế:</span>
+                  <span className="font-bold block mb-0.5">
+                    Lưu ý cho tài xế:
+                  </span>
                   {data.address.driverNote}
                 </div>
               )}
@@ -846,8 +909,16 @@ function AssignedDetailView({
       ) : !canContact ? (
         <div className="bg-muted/50 border border-border/30 rounded-2xl p-4 text-center">
           <MapPin className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground font-medium">Địa chỉ đầy đủ sẽ hiển thị</p>
-          <p className="text-xs text-muted-foreground mt-0.5">khi bạn bắt đầu di chuyển tới</p>
+          <p className="text-sm text-muted-foreground font-medium">
+            {data.status === "COMPLETED"
+              ? "Thông tin liên hệ đã được ẩn"
+              : "Địa chỉ đầy đủ sẽ hiển thị"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {data.status === "COMPLETED"
+              ? "Số điện thoại và địa chỉ được bảo vệ sau khi hoàn thành đơn"
+              : "khi bạn bắt đầu di chuyển tới"}
+          </p>
         </div>
       ) : null}
 
@@ -856,7 +927,10 @@ function AssignedDetailView({
         <p className="font-bold text-sm text-foreground">{data.service.name}</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Calendar className="w-3.5 h-3.5" />
-          <span>{data.schedule.scheduledStartDate} · {data.schedule.scheduledStartTime}</span>
+          <span>
+            {data.schedule.scheduledStartDate} ·{" "}
+            {data.schedule.scheduledStartTime}
+          </span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="w-3.5 h-3.5" />
@@ -864,7 +938,9 @@ function AssignedDetailView({
         </div>
         {data.note && (
           <div className="mt-2 bg-muted/50 rounded-xl p-3">
-            <p className="text-xs text-muted-foreground">💬 Ghi chú: {data.note}</p>
+            <p className="text-xs text-muted-foreground">
+              💬 Ghi chú: {data.note}
+            </p>
           </div>
         )}
       </div>
@@ -873,11 +949,14 @@ function AssignedDetailView({
       <div className="bg-card rounded-2xl border border-border/50 p-4">
         <div className="flex justify-between items-center">
           <span className="text-sm font-bold">Tổng giá trị đơn</span>
-          <span className="text-lg font-black text-primary">{fmtCurrency(data.price.totalPrice)}</span>
+          <span className="text-lg font-black text-primary">
+            {fmtCurrency(data.price.totalPrice)}
+          </span>
         </div>
         {data.payment && (
           <p className="text-xs text-muted-foreground mt-1">
-            Thanh toán: {data.payment.method === "CASH" ? "Tiền mặt" : "Ví"} · {data.payment.status}
+            Thanh toán: {data.payment.method === "CASH" ? "Tiền mặt" : "Ví"} ·{" "}
+            {data.payment.status}
           </p>
         )}
       </div>
@@ -908,7 +987,10 @@ function AssignedDetailView({
           isPending={cancelByTasker.isPending}
           cancelReason={cancelReason}
           onReasonChange={setCancelReason}
-          onClose={() => { setShowCancelDialog(false); setCancelReason(""); }}
+          onClose={() => {
+            setShowCancelDialog(false);
+            setCancelReason("");
+          }}
           onConfirm={() =>
             cancelByTasker.mutate(cancelReason || undefined, {
               onSuccess: (res) => {
@@ -927,7 +1009,7 @@ function AssignedDetailView({
         />
       )}
       {data.status === "CHECKED_IN" && (
-          <ActionButton
+        <ActionButton
           label="Bắt đầu làm việc"
           icon={PlayCircle}
           onClick={() => markStart.mutate()}
@@ -948,7 +1030,9 @@ function AssignedDetailView({
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
           <p className="text-sm font-bold text-foreground">Đã hoàn thành</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Thu nhập đã được ghi vào ví</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Thu nhập đã được ghi vào ví
+          </p>
         </div>
       )}
       {data.status === "CANCELLED" && (
@@ -988,9 +1072,13 @@ function AssignedDetailView({
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div className="text-center space-y-1">
-                <h3 className="font-bold text-base text-foreground">Hoàn thành công việc?</h3>
+                <h3 className="font-bold text-base text-foreground">
+                  Hoàn thành công việc?
+                </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Xác nhận rằng bạn đã hoàn tất toàn bộ các đầu việc dọn dẹp theo yêu cầu của khách hàng. Thu nhập ước tính sẽ được cộng trực tiếp vào tài khoản của bạn.
+                  Xác nhận rằng bạn đã hoàn tất toàn bộ các đầu việc dọn dẹp
+                  theo yêu cầu của khách hàng. Thu nhập ước tính sẽ được cộng
+                  trực tiếp vào tài khoản của bạn.
                 </p>
               </div>
               <div className="flex gap-3 pt-2">
@@ -1042,8 +1130,6 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
   const [locationErrorKind, setLocationErrorKind] =
     useState<LocationErrorKind>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-
-
 
   const requestCurrentLocation = () => {
     setLocationResolved(false);
@@ -1115,11 +1201,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
     return () => window.clearTimeout(timer);
   }, []);
 
-  const postedQuery = usePostedBookingDetail(
-    bookingId,
-    location,
-    isPostedMode,
-  );
+  const postedQuery = usePostedBookingDetail(bookingId, location, isPostedMode);
   const assignedQuery = useAssignedBookingDetail(
     bookingId,
     location,
@@ -1202,9 +1284,7 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
         {isLocationUnavailable ? (
           <div className="text-center py-16 text-muted-foreground">
             <MapPin className="w-10 h-10 mx-auto mb-2 text-amber-400" />
-            <p className="text-sm font-semibold">
-              Cần quyền truy cập vị trí
-            </p>
+            <p className="text-sm font-semibold">Cần quyền truy cập vị trí</p>
             <p className="text-xs mt-1">
               {locationError ??
                 "Hãy cho phép trình duyệt dùng vị trí để tính khoảng cách tới đơn."}
@@ -1235,17 +1315,23 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
         ) : isLoading || isSilentBookingError ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse" />
+              <div
+                key={i}
+                className="h-20 bg-card rounded-2xl border border-border/50 animate-pulse"
+              />
             ))}
           </div>
         ) : isPostedMode ? (
           postedQuery.isError ? (
             // Check if error is 404 (Not Found / Picked)
-            (postedQuery.error as { response?: { status?: number } })?.response?.status === 404 ? (
+            (postedQuery.error as { response?: { status?: number } })?.response
+              ?.status === 404 ? (
               <div className="text-center py-16 text-muted-foreground">
                 <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-amber-400" />
                 <p className="text-sm font-semibold">Đơn không còn khả dụng</p>
-                <p className="text-xs mt-1">Có thể đã được nhận bởi tasker khác</p>
+                <p className="text-xs mt-1">
+                  Có thể đã được nhận bởi tasker khác
+                </p>
                 <button
                   onClick={() => router.back()}
                   className="mt-4 text-primary text-sm font-semibold"
@@ -1256,8 +1342,12 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             ) : (
               <div className="text-center py-16 text-muted-foreground">
                 <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-red-400" />
-                <p className="text-sm font-semibold text-red-600">Lỗi tải dữ liệu</p>
-                <p className="text-xs mt-1">Không thể kết nối đến máy chủ hoặc lỗi mạng.</p>
+                <p className="text-sm font-semibold text-red-600">
+                  Lỗi tải dữ liệu
+                </p>
+                <p className="text-xs mt-1">
+                  Không thể kết nối đến máy chủ hoặc lỗi mạng.
+                </p>
                 <button
                   onClick={() => postedQuery.refetch()}
                   className="mt-4 text-primary text-sm font-semibold"
@@ -1277,7 +1367,9 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             <div className="text-center py-16 text-muted-foreground">
               <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-amber-400" />
               <p className="text-sm font-semibold">Đơn không còn khả dụng</p>
-              <p className="text-xs mt-1">Có thể đã được nhận bởi tasker khác</p>
+              <p className="text-xs mt-1">
+                Có thể đã được nhận bởi tasker khác
+              </p>
               <button
                 onClick={() => router.back()}
                 className="mt-4 text-primary text-sm font-semibold"
@@ -1287,15 +1379,20 @@ export const TaskerJobDetailPage: React.FC<{ bookingId: string }> = ({
             </div>
           )
         ) : assignedQuery.isError ? (
-          (assignedQuery.error as { response?: { status?: number } })?.response?.status === 404 ? (
+          (assignedQuery.error as { response?: { status?: number } })?.response
+            ?.status === 404 ? (
             <div className="text-center py-16 text-muted-foreground text-sm">
               Không tìm thấy đơn hàng
             </div>
           ) : (
-             <div className="text-center py-16 text-muted-foreground">
+            <div className="text-center py-16 text-muted-foreground">
               <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-red-400" />
-              <p className="text-sm font-semibold text-red-600">Lỗi tải dữ liệu</p>
-              <p className="text-xs mt-1">Không thể tải thông tin đơn hàng này.</p>
+              <p className="text-sm font-semibold text-red-600">
+                Lỗi tải dữ liệu
+              </p>
+              <p className="text-xs mt-1">
+                Không thể tải thông tin đơn hàng này.
+              </p>
               <button
                 onClick={() => assignedQuery.refetch()}
                 className="mt-4 text-primary text-sm font-semibold"

@@ -61,6 +61,69 @@ export interface TaskerWalletTransactionQuery {
   toDate?: string;
 }
 
+export interface TaskerEarningsSummary {
+  today: number;
+  week: number;
+  month: number;
+  year: number;
+  completedBookings: number;
+}
+
+export type TaskerEarningsPeriod = "today" | "week" | "month" | "year";
+
+export interface TaskerEarningsPoint {
+  key: string;
+  label: string;
+  dateLabel: string;
+  amount: number;
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+export interface TaskerEarningsPeriodOption {
+  value: string;
+  label: string;
+  isCurrent: boolean;
+}
+
+export interface TaskerEarningsBreakdown {
+  period: TaskerEarningsPeriod;
+  total: number;
+  availableFrom: string;
+  availableTo: string;
+  rangeStart: string;
+  rangeEnd: string;
+  rangeLabel: string;
+  selectedValue: string;
+  options: TaskerEarningsPeriodOption[];
+  points: TaskerEarningsPoint[];
+}
+
+export interface TaskerTopupConfig {
+  minVnd: number;
+  maxVnd: number;
+  fxRate: number;
+}
+
+export interface CreateTaskerTopupPayload {
+  amountVnd: number;
+}
+
+export interface TaskerTopupResult {
+  topupId: string;
+  paypalOrderId: string;
+  amountVnd: number;
+  amountUsd: number;
+  approveUrl: string | null;
+}
+
+export interface TaskerTopupCaptureResult {
+  topupId: string;
+  status: "CREATED" | "COMPLETED" | "FAILED" | "CANCELLED" | "EXPIRED";
+  amountVnd: number;
+  balance: number;
+}
+
 export interface TaskerDepositTransaction {
   id: string;
   type:

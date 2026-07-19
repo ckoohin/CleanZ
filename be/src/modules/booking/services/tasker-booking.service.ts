@@ -88,6 +88,26 @@ export interface TaskerPostedBookingListResponse {
   items: TaskerPostedBookingItem[];
 }
 
+export interface TaskerCompletedBookingListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: Array<{
+    id: string;
+    bookingCode: string;
+    service: { id: string; name: string };
+    schedule: {
+      scheduledStartDate?: string | null;
+      scheduledStartTime?: string | null;
+      durationHours: number;
+    };
+    totalPrice: number;
+    paymentMethod: PaymentMethod;
+    completedAt?: Date | null;
+  }>;
+}
+
 export interface TaskerPostedBookingDetailResponse {
   distance: {
     meters: number;
@@ -224,7 +244,6 @@ const CUSTOMER_CONTACT_VISIBLE_STATUSES = [
   BookingStatus.TASKER_ON_THE_WAY,
   BookingStatus.CHECKED_IN,
   BookingStatus.IN_PROGRESS,
-  BookingStatus.COMPLETED,
 ];
 
 const CUSTOMER_STATUS_NOTIFICATION: Partial<
@@ -721,6 +740,82 @@ export class TaskerBookingService {
       const service = await this.findServiceByBooking(booking);
       return this.mapAssignedBookingDetail(booking, service, null);
     }, 'Không thể lấy booking đang hoạt động của tasker');
+  }
+
+  async findCompletedBookings(
+    userId: string,
+    page = 1,
+    limit = 10,
+    fromAt?: string,
+    toAt?: string,
+  ): Promise<TaskerCompletedBookingListResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.findTaskerProfile(userId);
+      const safePage = Math.max(1, page);
+      const safeLimit = Math.min(50, Math.max(1, limit));
+
+      if (Boolean(fromAt) !== Boolean(toAt)) {
+        throw new BadRequestException(
+          'Phải truyền đồng thời thời gian bắt đầu và kết thúc',
+        );
+      }
+
+      const fromDate = fromAt ? new Date(fromAt) : null;
+      const toDate = toAt ? new Date(toAt) : null;
+      if (fromDate && toDate) {
+        const rangeMs = toDate.getTime() - fromDate.getTime();
+        if (rangeMs <= 0 || rangeMs > 370 * 24 * 60 * 60 * 1000) {
+          throw new BadRequestException(
+            'Khoảng thời gian xem đơn không hợp lệ hoặc vượt quá một năm',
+          );
+        }
+      }
+
+      const query = this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.package', 'package')
+        .where('booking.tasker = :taskerId', { taskerId: tasker.id })
+        .andWhere('booking.status = :status', {
+          status: BookingStatus.COMPLETED,
+        });
+
+      if (fromDate && toDate) {
+        query
+          .andWhere('booking.completedAt >= :fromAt', { fromAt: fromDate })
+          .andWhere('booking.completedAt < :toAt', { toAt: toDate });
+      }
+
+      const [bookings, total] = await query
+        .orderBy('booking.completedAt', 'DESC', 'NULLS LAST')
+        .addOrderBy('booking.updatedAt', 'DESC')
+        .skip((safePage - 1) * safeLimit)
+        .take(safeLimit)
+        .getManyAndCount();
+
+      return {
+        total,
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
+        items: bookings.map((booking) => ({
+          id: booking.id,
+          bookingCode: booking.bookingCode,
+          service: {
+            id: booking.packageId,
+            name: booking.package?.name ?? 'Gói dịch vụ đã ngừng hoạt động',
+          },
+          schedule: {
+            scheduledStartDate: booking.scheduledStartDate,
+            scheduledStartTime: booking.scheduledStartTime,
+            durationHours: toNumber(booking.durationHours),
+          },
+          totalPrice: toNumber(booking.totalPrice),
+          paymentMethod: booking.paymentMethod,
+          completedAt: booking.completedAt,
+        })),
+      };
+    }, 'Không thể lấy danh sách đơn đã hoàn tất');
   }
 
   async markOnTheWay(
@@ -1293,9 +1388,13 @@ export class TaskerBookingService {
     if (!canContactCustomer) {
       return {
         ...baseResponse,
-        area: {
-          displayAddress: this.buildPublicAreaText(booking),
-        },
+        ...(booking.status === BookingStatus.COMPLETED
+          ? {}
+          : {
+              area: {
+                displayAddress: this.buildPublicAreaText(booking),
+              },
+            }),
         customer: {
           id: booking.customer?.id ?? null,
           fullName:

@@ -72,6 +72,7 @@ export const API_ENDPOINTS = {
     TASKER_CUSTOMER_VOUCHERS_AVAILABLE:
       "/booking/tasker/customer-vouchers/available",
     TASKER_ACTIVE: "/booking/tasker/active/current",
+    TASKER_COMPLETED: "/booking/tasker/completed",
     TASKER_POSTED_LIST: "/booking/tasker/posted",
     TASKER_POSTED_DETAIL: (id: string) => `/booking/tasker/posted/${id}`,
     TASKER_ACCEPT: (id: string) => `/booking/tasker/posted/${id}/accept`,
@@ -147,20 +148,17 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/admin/incidents/${id}`,
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
     VERIFY: (id: string) => `/admin/incidents/${id}/items/verify`,
-    DECISION_DRAFT: (id: string) =>
-      `/admin/incidents/${id}/decision-draft`,
+    DECISION_DRAFT: (id: string) => `/admin/incidents/${id}/decision-draft`,
     DECISION_DRAFT_SUBMIT: (id: string) =>
       `/admin/incidents/${id}/decision-draft/submit`,
     DECISION_RESPONSE_REVIEW: (id: string) =>
       `/admin/incidents/${id}/decision-response/review`,
-    DECISION_REVISE: (id: string) =>
-      `/admin/incidents/${id}/decision/revise`,
+    DECISION_REVISE: (id: string) => `/admin/incidents/${id}/decision/revise`,
     DECISION_EXTEND_RESPONSE: (id: string) =>
       `/admin/incidents/${id}/decision/extend-response`,
     DECISION_FINALIZE: (id: string) =>
       `/admin/incidents/${id}/decision/finalize`,
-    SECOND_APPROVAL: (id: string) =>
-      `/admin/incidents/${id}/second-approval`,
+    SECOND_APPROVAL: (id: string) => `/admin/incidents/${id}/second-approval`,
     COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
     COMPENSATE_MANUAL: (id: string) =>
       `/admin/incidents/${id}/compensate/manual`,
@@ -250,8 +248,10 @@ export const API_ENDPOINTS = {
     // Package assignment
     PACKAGE_POLICIES: (pkgId: string) => `/policy/packages/${pkgId}`,
     ASSIGN_TO_PACKAGE: (pkgId: string) => `/policy/packages/${pkgId}/assign`,
-    REMOVE_FROM_PACKAGE: (pkgId: string, policyId: string) => `/policy/packages/${pkgId}/policies/${policyId}`,
-    APPLY_DEFAULTS: (pkgId: string) => `/policy/packages/${pkgId}/apply-defaults`,
+    REMOVE_FROM_PACKAGE: (pkgId: string, policyId: string) =>
+      `/policy/packages/${pkgId}/policies/${policyId}`,
+    APPLY_DEFAULTS: (pkgId: string) =>
+      `/policy/packages/${pkgId}/apply-defaults`,
   },
   ADMIN_PRICING: {
     CONFIGS: "/admin/pricing/configs",
@@ -282,7 +282,8 @@ export const API_ENDPOINTS = {
     DASHBOARD: "/admin/reviews/dashboard",
     EXPORT: "/admin/reviews/export",
     REPORTS: "/admin/reviews/reports",
-    DECIDE_REPORT: (reportId: string) => `/admin/reviews/reports/${reportId}/decide`,
+    DECIDE_REPORT: (reportId: string) =>
+      `/admin/reviews/reports/${reportId}/decide`,
     HIDE: (id: string) => `/admin/reviews/${id}/hide`,
     REPLY: (id: string) => `/admin/reviews/${id}/reply`,
   },
@@ -293,7 +294,8 @@ export const API_ENDPOINTS = {
     BASE: "/admin/workflows",
     DETAIL: (id: string) => `/admin/workflows/${id}`,
     STEPS: (id: string) => `/admin/workflows/${id}/steps`,
-    STEP_DETAIL: (id: string, stepId: string) => `/admin/workflows/${id}/steps/${stepId}`,
+    STEP_DETAIL: (id: string, stepId: string) =>
+      `/admin/workflows/${id}/steps/${stepId}`,
     REORDER: (id: string) => `/admin/workflows/${id}/steps/reorder`,
   },
   ADMIN_COVERAGE_AREAS: {

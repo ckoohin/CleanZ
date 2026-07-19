@@ -6,7 +6,10 @@ import { StepHeader } from "./steps/StepHeader";
 import { StepCreateAccount } from "./steps/StepCreateAccount";
 import { StepPersonalInfo, PersonalInfoValues } from "./steps/StepPersonalInfo";
 import { StepIdentityVerification } from "./steps/StepIdentityVerification";
-import { StepLegalAndPayment, PaymentValues } from "./steps/StepLegalAndPayment";
+import {
+  StepLegalAndPayment,
+  PaymentValues,
+} from "./steps/StepLegalAndPayment";
 import { StepSuccess } from "./steps/StepSuccess";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { authApi } from "@/features/auth/services/auth.service";
@@ -33,7 +36,8 @@ const STEPS = [
   { title: "Hoàn tất", description: "Đợi xét duyệt" },
 ];
 
-interface PartnerSignupWizardFormData extends Partial<PersonalInfoValues>, Partial<PaymentValues> {
+interface PartnerSignupWizardFormData
+  extends Partial<PersonalInfoValues>, Partial<PaymentValues> {
   docIdNumber?: string;
   citizenCard?: File[];
   idWithSelfie?: File[];
@@ -88,7 +92,8 @@ export const PartnerSignupWizard: React.FC = () => {
       if (!updated.addressCurrent && profile.addressCurrent) {
         updated.addressCurrent = profile.addressCurrent;
       }
-      if (!updated.bankName && profile.bankName) updated.bankName = profile.bankName;
+      if (!updated.bankName && profile.bankName)
+        updated.bankName = profile.bankName;
       if (!updated.bankAccountNumber && profile.bankAccountNumber) {
         updated.bankAccountNumber = profile.bankAccountNumber;
       }
@@ -100,11 +105,19 @@ export const PartnerSignupWizard: React.FC = () => {
   }, [profile, isProfileLoading]);
 
   // Bước 0: Tạo tài khoản
-  const handleCreateAccount = async (data: { fullName: string; email: string; password: string }) => {
+  const handleCreateAccount = async (data: {
+    fullName: string;
+    email: string;
+    password: string;
+  }) => {
     setIsCreatingAccount(true);
     try {
       // 1. Đăng ký tài khoản
-      await authApi.register({ fullName: data.fullName, email: data.email, password: data.password });
+      await authApi.register({
+        fullName: data.fullName,
+        email: data.email,
+        password: data.password,
+      });
       // 2. Đăng nhập tự động
       await authApi.login({ email: data.email, password: data.password });
       // 3. Invalidate cache để lấy user mới
@@ -148,19 +161,27 @@ export const PartnerSignupWizard: React.FC = () => {
       toast.error("Thiếu thông tin: Số điện thoại");
       return;
     }
-    const hasCitizenCard = (finalData.citizenCard && finalData.citizenCard.length >= 2) || profile?.hasCitizenCardImage;
+    const hasCitizenCard =
+      (finalData.citizenCard && finalData.citizenCard.length >= 2) ||
+      profile?.hasCitizenCardImage;
     if (!hasCitizenCard) {
       toast.error("Vui lòng tải lên đủ ảnh CCCD (mặt trước và sau)");
       return;
     }
-    const hasSelfie = (finalData.idWithSelfie && finalData.idWithSelfie.length >= 1) || profile?.hasIdWithSelfieImage;
+    const hasSelfie =
+      (finalData.idWithSelfie && finalData.idWithSelfie.length >= 1) ||
+      profile?.hasIdWithSelfieImage;
     if (!hasSelfie) {
       toast.error("Vui lòng tải lên ảnh selfie cầm CCCD (avatar)");
       return;
     }
-    const hasCriminalRecord = (finalData.criminalRecord && finalData.criminalRecord.length >= 1) || profile?.hasCriminalRecordImage;
+    const hasCriminalRecord =
+      (finalData.criminalRecord && finalData.criminalRecord.length >= 1) ||
+      profile?.hasCriminalRecordImage;
     if (!hasCriminalRecord) {
-      toast.error("Vui lòng tải lên Lý lịch tư pháp hoặc Giấy xác nhận hạnh kiểm");
+      toast.error(
+        "Vui lòng tải lên Lý lịch tư pháp hoặc Giấy xác nhận hạnh kiểm",
+      );
       return;
     }
 
@@ -170,17 +191,22 @@ export const PartnerSignupWizard: React.FC = () => {
       // ── Thông tin văn bản ────────────────────────────────────────
       payload.append("phone", finalData.phone ?? "");
       if (finalData.bio) payload.append("bio", finalData.bio);
-      if (finalData.experience) payload.append("experience", finalData.experience);
+      if (finalData.experience)
+        payload.append("experience", finalData.experience);
       if (finalData.skills) payload.append("skills", finalData.skills);
-      if (finalData.addressCurrent) payload.append("workingAddress", finalData.addressCurrent);
+      if (finalData.addressCurrent)
+        payload.append("workingAddress", finalData.addressCurrent);
 
       // docType & docIdNumber — BE bắt buộc
       payload.append("docType", "CITIZEN_ID");
-      if (finalData.docIdNumber) payload.append("docIdNumber", finalData.docIdNumber);
+      if (finalData.docIdNumber)
+        payload.append("docIdNumber", finalData.docIdNumber);
 
       if (finalData.bankName) payload.append("bankName", finalData.bankName);
-      if (finalData.bankAccountNumber) payload.append("bankAccountNumber", finalData.bankAccountNumber);
-      if (finalData.bankAccountName) payload.append("bankAccountName", finalData.bankAccountName);
+      if (finalData.bankAccountNumber)
+        payload.append("bankAccountNumber", finalData.bankAccountNumber);
+      if (finalData.bankAccountName)
+        payload.append("bankAccountName", finalData.bankAccountName);
 
       // ── Files ────────────────────────────────────────────────────
       if (finalData.idWithSelfie && finalData.idWithSelfie.length > 0) {
@@ -195,7 +221,10 @@ export const PartnerSignupWizard: React.FC = () => {
       if (finalData.criminalRecord && finalData.criminalRecord.length > 0) {
         payload.append("criminalRecord", finalData.criminalRecord[0]);
       }
-      if (finalData.healthCertificate && finalData.healthCertificate.length > 0) {
+      if (
+        finalData.healthCertificate &&
+        finalData.healthCertificate.length > 0
+      ) {
         payload.append("healthCertificate", finalData.healthCertificate[0]);
       }
       if (finalData.certificate && finalData.certificate.length > 0) {
@@ -205,7 +234,9 @@ export const PartnerSignupWizard: React.FC = () => {
       await submitMutation.mutateAsync(payload);
       setCurrentStep(user ? 3 : 4);
     } catch {
-      toast.error("Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và thử lại!");
+      toast.error(
+        "Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và thử lại!",
+      );
     }
   };
 
@@ -224,7 +255,9 @@ export const PartnerSignupWizard: React.FC = () => {
     <div className="container mx-auto py-10 px-4 min-h-screen">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold font-serif mb-4 text-primary">Trở thành Đối tác CleanZ</h1>
+          <h1 className="mb-4 text-4xl font-bold text-primary md:text-5xl">
+            Trở thành Đối tác CleanZ
+          </h1>
           <p className="text-muted-foreground text-lg">
             {user
               ? `Xin chào ${user.fullName}! Hãy hoàn thiện hồ sơ để bắt đầu nhận việc.`
@@ -234,9 +267,9 @@ export const PartnerSignupWizard: React.FC = () => {
 
         {/* Chỉ hiển thị StepHeader nếu chưa phải bước cuối */}
         {currentStep < displaySteps.length - 1 && (
-          <StepHeader 
-            currentStep={currentStep} 
-            steps={displaySteps} 
+          <StepHeader
+            currentStep={currentStep}
+            steps={displaySteps}
             onStepClick={setCurrentStep}
             maxStepReached={maxStepReached}
           />
@@ -260,15 +293,21 @@ export const PartnerSignupWizard: React.FC = () => {
               )}
 
               {/* Bước 1: Thông tin cá nhân */}
-              {((currentStep === 1 && !user) || (currentStep === 0 && user)) && (
+              {((currentStep === 1 && !user) ||
+                (currentStep === 0 && user)) && (
                 <StepPersonalInfo
                   initialValues={{
                     bio: formData.bio || profile?.bio || "",
-                    experience: formData.experience || profile?.experience || "",
+                    experience:
+                      formData.experience || profile?.experience || "",
                     phone: formData.phone || profile?.phone || "",
                     skills: formData.skills || profile?.skills || "",
-                    addressResident: formData.addressResident || profile?.addressResident || "",
-                    addressCurrent: formData.addressCurrent || profile?.addressCurrent || "",
+                    addressResident:
+                      formData.addressResident ||
+                      profile?.addressResident ||
+                      "",
+                    addressCurrent:
+                      formData.addressCurrent || profile?.addressCurrent || "",
                   }}
                   onNext={handleNext}
                   isSubmitting={false}
@@ -276,7 +315,8 @@ export const PartnerSignupWizard: React.FC = () => {
               )}
 
               {/* Bước 3: Xác minh danh tính */}
-              {((currentStep === 2 && !user) || (currentStep === 1 && user)) && (
+              {((currentStep === 2 && !user) ||
+                (currentStep === 1 && user)) && (
                 <StepIdentityVerification
                   initialDocIdNumber={formData.docIdNumber || ""}
                   initialCitizenCardFiles={formData.citizenCard || []}
@@ -289,12 +329,19 @@ export const PartnerSignupWizard: React.FC = () => {
               )}
 
               {/* Bước 4: Pháp lý & Thanh toán */}
-              {((currentStep === 3 && !user) || (currentStep === 2 && user)) && (
+              {((currentStep === 3 && !user) ||
+                (currentStep === 2 && user)) && (
                 <StepLegalAndPayment
                   initialValues={{
                     bankName: formData.bankName || profile?.bankName || "",
-                    bankAccountNumber: formData.bankAccountNumber || profile?.bankAccountNumber || "",
-                    bankAccountName: formData.bankAccountName || profile?.bankAccountName || "",
+                    bankAccountNumber:
+                      formData.bankAccountNumber ||
+                      profile?.bankAccountNumber ||
+                      "",
+                    bankAccountName:
+                      formData.bankAccountName ||
+                      profile?.bankAccountName ||
+                      "",
                   }}
                   initialCriminalRecord={formData.criminalRecord || []}
                   initialHealthCert={formData.healthCertificate || []}
@@ -307,9 +354,8 @@ export const PartnerSignupWizard: React.FC = () => {
               )}
 
               {/* Bước 5: Hoàn tất */}
-              {((currentStep === 4 && !user) || (currentStep === 3 && user)) && (
-                <StepSuccess />
-              )}
+              {((currentStep === 4 && !user) ||
+                (currentStep === 3 && user)) && <StepSuccess />}
             </motion.div>
           </AnimatePresence>
         </div>

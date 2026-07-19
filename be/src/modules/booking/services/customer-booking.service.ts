@@ -350,7 +350,7 @@ export class CustomerBookingService {
             .enqueueDispatch(createdBookingId, userId, addressLat, addressLng)
             .catch((err: unknown) =>
               this.logger.error(
-                `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err}`,
+                `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err instanceof Error ? err.message : String(err)}`,
               ),
             );
         } else {
@@ -475,7 +475,10 @@ export class CustomerBookingService {
           ? {
               id: booking.tasker.id,
               fullName: booking.tasker.user?.fullName ?? null,
-              phone: booking.tasker.user?.phone ?? null,
+              phone:
+                booking.status === BookingStatus.COMPLETED
+                  ? null
+                  : (booking.tasker.user?.phone ?? null),
               avatarUrl: booking.tasker.user?.avatarUrl ?? null,
               ratingAvg: toNumber(booking.tasker.ratingAvg),
               totalCompletedJobs: toNumber(booking.tasker.totalCompletedJobs),
@@ -573,10 +576,7 @@ export class CustomerBookingService {
       // Build lookup maps
       const paymentMap = new Map<string, PaymentEntity>();
       for (const p of allPayments) {
-        const bid =
-          (p as any).bookingId ??
-          (p as any).booking_id ??
-          (p.booking as any)?.id;
+        const bid = p.booking?.id;
         if (bid && !paymentMap.has(bid)) {
           paymentMap.set(bid, p); // first = latest due to DESC sort
         }
@@ -657,7 +657,10 @@ export class CustomerBookingService {
             ? {
                 id: booking.tasker.id,
                 fullName: booking.tasker.user?.fullName ?? null,
-                phone: booking.tasker.user?.phone ?? null,
+                phone:
+                  booking.status === BookingStatus.COMPLETED
+                    ? null
+                    : (booking.tasker.user?.phone ?? null),
                 avatarUrl: booking.tasker.user?.avatarUrl ?? null,
                 ratingAvg: toNumber(booking.tasker.ratingAvg),
                 totalCompletedJobs: toNumber(booking.tasker.totalCompletedJobs),

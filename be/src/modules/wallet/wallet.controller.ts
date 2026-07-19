@@ -6,7 +6,9 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import {
   ApiBearerAuth,
@@ -22,6 +24,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   WalletResponse,
   WalletService,
+  TaskerEarningsBreakdownResponse,
+  TaskerEarningsSummaryResponse,
   WalletTransactionListResponse,
 } from './wallet.service';
 import { WalletTransactionListQueryDto } from './dto/wallet-transaction-list-query.dto';
@@ -34,6 +38,8 @@ import { DataSource } from 'typeorm';
 import { successResponse } from 'src/common/helpers/response.helper';
 import { WalletTopupService } from './wallet-topup.service';
 import { CreateTopupDto } from './dto/create-topup.dto';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
+import { TaskerEarningsBreakdownQueryDto } from './dto/tasker-earnings-breakdown-query.dto';
 
 @Controller('wallet')
 @ApiTags('Wallet')
@@ -108,6 +114,53 @@ export class WalletController {
     );
   }
 
+  @Get('tasker/me/topup-config')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({ summary: 'Tasker xem hạn mức và tỷ giá nạp tiền' })
+  async getTaskerTopupConfig() {
+    const config = await this.walletTopupService.getTopupConfig();
+    return successResponse(config, 'Lấy cấu hình nạp tiền thành công');
+  }
+
+  @Post('tasker/me/topups')
+  @Auth(UserRole.TASKER)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({ summary: 'Tasker tạo đơn nạp tiền vào ví qua PayPal' })
+  @ApiCreatedResponse({ description: 'Tạo đơn nạp tiền thành công' })
+  async createTaskerTopup(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateTopupDto,
+  ) {
+    const result = await this.walletTopupService.createTopup(
+      userId,
+      dto.amountVnd,
+      undefined,
+      WalletOwnerType.TASKER,
+    );
+    return successResponse(
+      result,
+      'Đã tạo đơn nạp tiền, chờ thanh toán PayPal',
+    );
+  }
+
+  @Post('tasker/me/topups/:id/capture')
+  @Auth(UserRole.TASKER)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({ summary: 'Tasker xác nhận thanh toán PayPal và cộng ví' })
+  async captureTaskerTopup(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const result = await this.walletTopupService.captureTopup(
+      userId,
+      id,
+      WalletOwnerType.TASKER,
+    );
+    return successResponse(result, 'Nạp tiền thành công');
+  }
+
   @Get('admin')
   @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Admin xem danh sách ví trong hệ thống' })
@@ -130,6 +183,29 @@ export class WalletController {
     @CurrentUser('id') userId: string,
   ): Promise<WalletResponse> {
     return this.walletService.getMyTaskerWallet(userId);
+  }
+
+  @Get('tasker/me/earnings-summary')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({ summary: 'Tasker xem tổng thu nhập theo kỳ' })
+  getMyTaskerEarningsSummary(
+    @CurrentUser('id') userId: string,
+  ): Promise<TaskerEarningsSummaryResponse> {
+    return this.walletService.getMyTaskerEarningsSummary(userId);
+  }
+
+  @Get('tasker/me/earnings-breakdown')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({ summary: 'Tasker xem biểu đồ thu nhập theo kỳ' })
+  getMyTaskerEarningsBreakdown(
+    @CurrentUser('id') userId: string,
+    @Query() query: TaskerEarningsBreakdownQueryDto,
+  ): Promise<TaskerEarningsBreakdownResponse> {
+    return this.walletService.getMyTaskerEarningsBreakdown(
+      userId,
+      query.period,
+      query.anchor,
+    );
   }
 
   @Get('customer/me')

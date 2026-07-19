@@ -21,6 +21,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { AppException } from 'src/common/exceptions/app.exception';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
@@ -34,6 +35,7 @@ import { AdminUpdateTaskerWorkStatusDto } from './dto/admin-update-tasker-work-s
 import { ReinstateTaskerDto } from './dto/reinstate-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { UpdatePresenceDto } from './dto/update-presence.dto';
 import { UpdateTaskerLocationDto } from './dto/update-tasker-location.dto';
 import { TaskerService } from './tasker.service';
@@ -196,6 +198,71 @@ export class TaskerController {
   })
   findMyProfile(@CurrentUser() user: AuthUser) {
     return this.taskerService.findMyProfile(user.id);
+  }
+
+  @Patch('profile/me')
+  @Auth(UserRole.CUSTOMER, UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker / applicant tự cập nhật thông tin hồ sơ',
+    description:
+      'Cập nhật phone, bio, experience, skills, địa chỉ làm việc và thông tin ngân hàng. Không gồm giấy tờ (dùng PATCH /tasker/profile/documents). Applicant chờ duyệt vẫn còn role CUSTOMER nên endpoint cho phép cả CUSTOMER.',
+  })
+  updateMyProfile(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateMyProfileDto,
+  ) {
+    return this.taskerService.updateMyProfile(user.id, dto);
+  }
+
+  @Patch('profile/documents')
+  @Auth(UserRole.TASKER)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'avatar', maxCount: 1 },
+        { name: 'docFront', maxCount: 1 },
+        { name: 'docBack', maxCount: 1 },
+        { name: 'criminalRecord', maxCount: 1 },
+        { name: 'healthCertificate', maxCount: 1 },
+        { name: 'certificate', maxCount: 1 },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: MAX_FILE_SIZE },
+        fileFilter: (_req, file, callback) => {
+          if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+            return callback(
+              new AppException(
+                `Invalid file type. Only jpg, jpeg, png are allowed. Received: ${file.mimetype}`,
+              ),
+              false,
+            );
+          }
+          callback(null, true);
+        },
+      },
+    ),
+  )
+  @ApiOperation({
+    summary: 'Tasker xem xét và bổ sung giấy tờ của chính mình',
+    description:
+      'Chỉ cho tải giấy tờ còn thiếu hoặc đúng mục admin yêu cầu cập nhật. Giấy tờ đã có bị khóa ở backend, không chỉ trên giao diện.',
+  })
+  @ApiConsumes('multipart/form-data')
+  updateMyDocuments(
+    @CurrentUser() user: AuthUser,
+    @UploadedFiles()
+    files: {
+      avatar?: Express.Multer.File[];
+      docFront?: Express.Multer.File[];
+      docBack?: Express.Multer.File[];
+      criminalRecord?: Express.Multer.File[];
+      healthCertificate?: Express.Multer.File[];
+      certificate?: Express.Multer.File[];
+    },
+  ) {
+    return this.taskerService.updateMyDocuments(user.id, files);
   }
 
   @Patch('me/presence')

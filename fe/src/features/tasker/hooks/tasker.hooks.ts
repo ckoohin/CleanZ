@@ -54,8 +54,7 @@ export function useSubmitTaskerProfile() {
 export function useUpdateTaskerProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTaskerProfileDto }) =>
-      taskerApi.updateProfile(id, data),
+    mutationFn: (data: UpdateTaskerProfileDto) => taskerApi.updateProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
       toast.success("Cập nhật thông tin thành công!");
@@ -105,6 +104,21 @@ export function useUpdateTaskerDocuments() {
     },
     onError: (error: ApiError) => {
       toast.error(error.response?.data?.message ?? "Lỗi khi cập nhật tài liệu");
+    },
+  });
+}
+
+/** Tasker tự bổ sung giấy tờ còn thiếu / admin yêu cầu nộp lại (PATCH /tasker/profile/documents). */
+export function useUpdateMyDocuments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: FormData) => taskerApi.updateMyDocuments(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
+      toast.success('Đã gửi giấy tờ! Hồ sơ sẽ được duyệt lại.');
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.response?.data?.message ?? 'Không thể cập nhật giấy tờ');
     },
   });
 }

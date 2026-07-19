@@ -119,7 +119,6 @@ export class TaskerBalanceService {
       .leftJoinAndSelect('transaction.booking', 'booking')
       .where('user.id = :userId', { userId })
       .orderBy('transaction.createdAt', 'DESC')
-      .take(50)
       .getMany();
   }
 
@@ -130,7 +129,6 @@ export class TaskerBalanceService {
       where: { tasker: { id: taskerId } },
       relations: ['booking'],
       order: { createdAt: 'DESC' },
-      take: 50,
     });
   }
 

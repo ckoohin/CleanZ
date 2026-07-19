@@ -26,6 +26,7 @@ import { AdminUpdateTaskerDto } from './dto/admin-update-tasker.dto';
 import { AdminUpdateTaskerWorkStatusDto } from './dto/admin-update-tasker-work-status.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { TaskerEntity } from './entity/tasker.entity';
 import { TaskerPenaltyEntity } from './entity/tasker-penalty.entity';
 import {
@@ -44,6 +45,45 @@ interface RedisLike {
 }
 
 const TASKER_LOCATION_TTL_SECONDS = 5 * 60;
+
+type TaskerDocumentUploadField =
+  | 'avatar'
+  | 'docFront'
+  | 'docBack'
+  | 'criminalRecord'
+  | 'healthCertificate'
+  | 'certificate';
+
+type TaskerDocumentUploadFiles = Partial<
+  Record<TaskerDocumentUploadField, Express.Multer.File[]>
+>;
+
+interface StructuredReviewNotes {
+  v: 2;
+  items: string[];
+  itemLabels?: string[];
+  itemNotes?: Record<string, string>;
+  note?: string;
+}
+
+const DOCUMENT_REVIEW_ITEM_BY_FIELD: Record<TaskerDocumentUploadField, string> =
+  {
+    avatar: 'idWithSelfie',
+    docFront: 'citizenCard',
+    docBack: 'citizenCard',
+    criminalRecord: 'criminalRecord',
+    healthCertificate: 'healthCertificate',
+    certificate: 'certificate',
+  };
+
+const DOCUMENT_LABEL_BY_FIELD: Record<TaskerDocumentUploadField, string> = {
+  avatar: 'Ảnh selfie xác minh',
+  docFront: 'Mặt trước CCCD',
+  docBack: 'Mặt sau CCCD',
+  criminalRecord: 'Lý lịch tư pháp',
+  healthCertificate: 'Giấy khám sức khỏe',
+  certificate: 'Chứng chỉ nghề nghiệp',
+};
 
 @Injectable()
 export class TaskerService {
@@ -267,6 +307,230 @@ export class TaskerService {
 
       return this.mapProfile(tasker);
     }, 'Không thể lấy hồ sơ tasker');
+  }
+
+  /**
+   * Tasker/applicant tự cập nhật thông tin hồ sơ (không gồm giấy tờ).
+   * Nếu admin đang yêu cầu bổ sung đúng mục vừa sửa (NEED_INFO) thì gỡ mục đó
+   * khỏi ghi chú review; hết mục thì hồ sơ quay về PENDING chờ duyệt lại.
+   */
+  async updateMyProfile(
+    userId: string,
+    dto: UpdateMyProfileDto,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const savedTasker = await this.dataSource.transaction(async (manager) => {
+        const taskerRepository = manager.getRepository(TaskerEntity);
+        const userRepository = manager.getRepository(UserEntity);
+        const tasker = await taskerRepository
+          .createQueryBuilder('tasker')
+          .leftJoinAndSelect('tasker.user', 'user')
+          .setLock('pessimistic_write', undefined, ['tasker'])
+          .where('user.id = :userId', { userId })
+          .getOne();
+
+        if (!tasker?.user) {
+          throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+        }
+
+        // id các mục trong ghi chú review được coi là "đã sửa" khi field gửi lên.
+        const resolvedItems = new Set<string>();
+
+        if (dto.phone !== undefined) {
+          tasker.user.phone = this.normalizePhone(dto.phone);
+          resolvedItems.add('phone');
+        }
+        if (dto.bio !== undefined) {
+          tasker.bio = dto.bio;
+          resolvedItems.add('bio');
+        }
+        if (dto.experience !== undefined) {
+          tasker.experience = dto.experience;
+          resolvedItems.add('experience');
+        }
+        if (dto.skills !== undefined) {
+          tasker.skills = dto.skills;
+          resolvedItems.add('skills');
+        }
+        if (dto.addressCurrent !== undefined) {
+          tasker.workingAddress = dto.addressCurrent;
+          resolvedItems.add('address');
+        }
+        if (
+          dto.bankName !== undefined ||
+          dto.bankAccountNumber !== undefined ||
+          dto.bankAccountName !== undefined
+        ) {
+          if (dto.bankName !== undefined) tasker.bankName = dto.bankName;
+          if (dto.bankAccountNumber !== undefined) {
+            tasker.bankAccountNumber = dto.bankAccountNumber;
+          }
+          if (dto.bankAccountName !== undefined) {
+            tasker.bankAccountName = dto.bankAccountName;
+          }
+          resolvedItems.add('bankInfo');
+        }
+
+        if (resolvedItems.size === 0) {
+          throw new BadRequestException('Không có thông tin nào để cập nhật');
+        }
+
+        await userRepository.save(tasker.user);
+
+        if (tasker.docStatus === DocumentStatus.NEED_INFO) {
+          const reviewNotes = this.parseStructuredReviewNotes(tasker.docNote);
+          const hasRequestedItem = reviewNotes?.items.some((id) =>
+            resolvedItems.has(id),
+          );
+          if (reviewNotes && hasRequestedItem) {
+            const remainingNotes = this.removeResolvedReviewItems(
+              reviewNotes,
+              resolvedItems,
+            );
+            tasker.docStatus = remainingNotes
+              ? DocumentStatus.NEED_INFO
+              : DocumentStatus.PENDING;
+            tasker.docNote = remainingNotes;
+            tasker.docReviewedAt = null;
+            tasker.docReviewedBy = null;
+          }
+        }
+
+        return taskerRepository.save(tasker);
+      });
+
+      return this.mapProfile(savedTasker);
+    }, 'Không thể cập nhật hồ sơ tasker');
+  }
+
+  async updateMyDocuments(
+    userId: string,
+    files: TaskerDocumentUploadFiles,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const fields: TaskerDocumentUploadField[] = [
+        'avatar',
+        'docFront',
+        'docBack',
+        'criminalRecord',
+        'healthCertificate',
+        'certificate',
+      ];
+      const provided = fields.flatMap((field) => {
+        const file = files[field]?.[0];
+        return file ? [{ field, file }] : [];
+      });
+
+      if (provided.length === 0) {
+        throw new BadRequestException('Vui lòng chọn ít nhất một giấy tờ');
+      }
+
+      const settledUploads = await Promise.allSettled(
+        provided.map(async ({ field, file }) => ({
+          field,
+          upload: await this.uploadService.uploadImage(file),
+        })),
+      );
+      const successfulUploads = settledUploads.flatMap((result) =>
+        result.status === 'fulfilled' ? [result.value] : [],
+      );
+      const failedUpload = settledUploads.find(
+        (result) => result.status === 'rejected',
+      );
+
+      if (failedUpload?.status === 'rejected') {
+        await this.cleanupUploadedPublicIds(
+          successfulUploads.map(({ upload }) => upload.public_id),
+        );
+        throw failedUpload.reason;
+      }
+
+      const replacedUrls: string[] = [];
+      let savedTasker: TaskerEntity;
+
+      try {
+        savedTasker = await this.dataSource.transaction(async (manager) => {
+          const taskerRepository = manager.getRepository(TaskerEntity);
+          const userRepository = manager.getRepository(UserEntity);
+          const tasker = await taskerRepository
+            .createQueryBuilder('tasker')
+            .leftJoinAndSelect('tasker.user', 'user')
+            .setLock('pessimistic_write', undefined, ['tasker'])
+            .where('user.id = :userId', { userId })
+            .getOne();
+
+          if (!tasker?.user) {
+            throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+          }
+
+          const reviewNotes = this.parseStructuredReviewNotes(tasker.docNote);
+          const requestedItems = new Set(reviewNotes?.items ?? []);
+          const providedFields = new Set(
+            successfulUploads.map(({ field }) => field),
+          );
+
+          if (
+            requestedItems.has('citizenCard') &&
+            (providedFields.has('docFront') || providedFields.has('docBack')) &&
+            (!providedFields.has('docFront') || !providedFields.has('docBack'))
+          ) {
+            throw new BadRequestException(
+              'Admin yêu cầu cập nhật CCCD, vui lòng tải đủ mặt trước và mặt sau',
+            );
+          }
+
+          for (const { field, upload } of successfulUploads) {
+            const currentUrl = this.getDocumentUrl(tasker, field);
+            const reviewItem = DOCUMENT_REVIEW_ITEM_BY_FIELD[field];
+            const adminRequestedReplacement =
+              tasker.docStatus === DocumentStatus.NEED_INFO &&
+              requestedItems.has(reviewItem);
+
+            if (currentUrl && !adminRequestedReplacement) {
+              throw new ConflictException(
+                `${DOCUMENT_LABEL_BY_FIELD[field]} đã được tải lên và đang bị khóa`,
+              );
+            }
+
+            if (currentUrl) {
+              replacedUrls.push(currentUrl);
+            }
+            this.setDocumentUrl(tasker, field, upload.url);
+          }
+
+          if (providedFields.has('avatar')) {
+            await userRepository.save(tasker.user);
+          }
+
+          const resolvedItems = new Set(
+            successfulUploads.map(
+              ({ field }) => DOCUMENT_REVIEW_ITEM_BY_FIELD[field],
+            ),
+          );
+          const remainingNotes = this.removeResolvedReviewItems(
+            reviewNotes,
+            resolvedItems,
+          );
+
+          tasker.docStatus = remainingNotes
+            ? DocumentStatus.NEED_INFO
+            : DocumentStatus.PENDING;
+          tasker.docNote = remainingNotes;
+          tasker.docReviewedAt = null;
+          tasker.docReviewedBy = null;
+
+          return taskerRepository.save(tasker);
+        });
+      } catch (error) {
+        await this.cleanupUploadedPublicIds(
+          successfulUploads.map(({ upload }) => upload.public_id),
+        );
+        throw error;
+      }
+
+      await this.cleanupTaskerAssets(replacedUrls);
+      return this.mapProfile(savedTasker);
+    }, 'Không thể cập nhật giấy tờ tasker');
   }
 
   async updatePresence(
@@ -1012,6 +1276,116 @@ export class TaskerService {
     await Promise.allSettled(
       ids.map((id) => this.uploadService.deleteImage(id)),
     );
+  }
+
+  /** Xóa các ảnh vừa upload khi thao tác thất bại giữa chừng (best-effort). */
+  private async cleanupUploadedPublicIds(publicIds: string[]): Promise<void> {
+    if (publicIds.length === 0) return;
+    await Promise.allSettled(
+      publicIds.map((id) => this.uploadService.deleteImage(id)),
+    );
+  }
+
+  /** Parse docNote dạng JSON có cấu trúc {v:2,...}; trả null nếu là text thuần/hỏng. */
+  private parseStructuredReviewNotes(
+    raw: string | null | undefined,
+  ): StructuredReviewNotes | null {
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as StructuredReviewNotes;
+      if (parsed && parsed.v === 2 && Array.isArray(parsed.items)) {
+        return parsed;
+      }
+    } catch {
+      // docNote là plain text cũ — không có danh sách phần cụ thể.
+    }
+    return null;
+  }
+
+  /**
+   * Bỏ các phần tasker vừa nộp lại khỏi ghi chú review của admin. Trả về chuỗi
+   * JSON còn lại nếu vẫn còn phần chưa bổ sung (vd: trường thông tin cá nhân),
+   * ngược lại trả null để docNote được xóa và hồ sơ quay về PENDING.
+   */
+  private removeResolvedReviewItems(
+    notes: StructuredReviewNotes | null,
+    resolvedItems: Set<string>,
+  ): string | null {
+    if (!notes) return null;
+    const kept = notes.items
+      .map((id, index) => ({ id, index }))
+      .filter(({ id }) => !resolvedItems.has(id));
+    if (kept.length === 0) return null;
+
+    const items = kept.map(({ id }) => id);
+    const itemLabels = notes.itemLabels
+      ? kept.map(({ id, index }) => notes.itemLabels?.[index] ?? id)
+      : undefined;
+    let itemNotes: Record<string, string> | undefined;
+    if (notes.itemNotes) {
+      const entries = items
+        .map((id) => [id, notes.itemNotes?.[id]] as const)
+        .filter((entry): entry is [string, string] => !!entry[1]);
+      if (entries.length > 0) itemNotes = Object.fromEntries(entries);
+    }
+
+    return JSON.stringify({
+      v: 2,
+      items,
+      ...(itemLabels ? { itemLabels } : {}),
+      ...(itemNotes ? { itemNotes } : {}),
+      note: notes.note ?? '',
+    } satisfies StructuredReviewNotes);
+  }
+
+  /** URL hiện tại của một giấy tờ (ảnh selfie nằm ở user, còn lại ở tasker). */
+  private getDocumentUrl(
+    tasker: TaskerEntity,
+    field: TaskerDocumentUploadField,
+  ): string | null {
+    switch (field) {
+      case 'avatar':
+        return tasker.user?.avatarUrl ?? null;
+      case 'docFront':
+        return tasker.docFrontUrl ?? null;
+      case 'docBack':
+        return tasker.docBackUrl ?? null;
+      case 'criminalRecord':
+        return tasker.criminalRecordUrl ?? null;
+      case 'healthCertificate':
+        return tasker.healthCertificateUrl ?? null;
+      case 'certificate':
+        return tasker.certificateUrl ?? null;
+    }
+  }
+
+  private setDocumentUrl(
+    tasker: TaskerEntity,
+    field: TaskerDocumentUploadField,
+    url: string,
+  ): void {
+    switch (field) {
+      case 'avatar':
+        if (tasker.user) {
+          tasker.user.avatarUrl = url;
+        }
+        break;
+      case 'docFront':
+        tasker.docFrontUrl = url;
+        break;
+      case 'docBack':
+        tasker.docBackUrl = url;
+        break;
+      case 'criminalRecord':
+        tasker.criminalRecordUrl = url;
+        break;
+      case 'healthCertificate':
+        tasker.healthCertificateUrl = url;
+        break;
+      case 'certificate':
+        tasker.certificateUrl = url;
+        break;
+    }
   }
 
   async getPenalties(id: string): Promise<{ data: unknown[] }> {

@@ -86,14 +86,14 @@ export interface StatusLog {
 
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
 export interface CreateBookingDto {
-  packageId?: string;        // ID ServicePackage (bắt buộc trên BE)
-  subServiceIds?: string[];  // Legacy: tạm không dùng trong luồng booking mới
-  addonIds?: string[];       // Danh sách ID option/dịch vụ thêm
+  packageId?: string; // ID ServicePackage (bắt buộc trên BE)
+  subServiceIds?: string[]; // Legacy: tạm không dùng trong luồng booking mới
+  addonIds?: string[]; // Danh sách ID option/dịch vụ thêm
   addressId?: string;
-  address?: string;          // Địa chỉ nhập tay
+  address?: string; // Địa chỉ nhập tay
   provinceCode?: string;
-  scheduledDate: string;     // YYYY-MM-DD
-  scheduledTime: string;     // HH:mm
+  scheduledDate: string; // YYYY-MM-DD
+  scheduledTime: string; // HH:mm
   note?: string;
   paymentMethod?: PaymentMethod;
   voucherCode?: string;
@@ -135,10 +135,10 @@ export interface UpdateBookingScheduleDto {
 
 // State dùng trong BookingWizard (lưu toàn bộ form data qua các step)
 export interface BookingFormState {
-  serviceId: string;        // ServicePackage ID (alias cho dễ đọc)
-  packageId?: string;       // ServicePackage ID (field gửi lên BE)
+  serviceId: string; // ServicePackage ID (alias cho dễ đọc)
+  packageId?: string; // ServicePackage ID (field gửi lên BE)
   subServiceIds?: string[]; // Legacy: tạm không dùng trong luồng booking mới
-  addonIds?: string[];      // Addon IDs gửi lên BE
+  addonIds?: string[]; // Addon IDs gửi lên BE
   addressId: string;
   address: string;
   provinceCode?: string;
@@ -218,6 +218,33 @@ export interface TaskerPostedBookingItem {
 export interface TaskerPostedBookingListResponse {
   total: number;
   items: TaskerPostedBookingItem[];
+}
+
+export interface TaskerCompletedBookingItem {
+  id: string;
+  bookingCode: string;
+  service: { id: string; name: string };
+  schedule: {
+    scheduledStartDate?: string | null;
+    scheduledStartTime?: string | null;
+    durationHours: number;
+  };
+  totalPrice: number;
+  paymentMethod: PaymentMethod;
+  completedAt?: string | null;
+}
+
+export interface TaskerCompletedBookingListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  items: TaskerCompletedBookingItem[];
+}
+
+export interface TaskerCompletedBookingRange {
+  fromAt: string;
+  toAt: string;
 }
 
 export interface TaskerPostedBookingDetail {

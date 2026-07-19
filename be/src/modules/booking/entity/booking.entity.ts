@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -20,6 +21,11 @@ import { ServicePackageEntity } from 'src/modules/service/entity/service-package
 import { BookingSubServiceEntity } from './booking-sub-service.entity';
 
 @Entity('bookings')
+@Index('idx_bookings_tasker_status_completed', [
+  'tasker',
+  'status',
+  'completedAt',
+])
 export class BookingEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

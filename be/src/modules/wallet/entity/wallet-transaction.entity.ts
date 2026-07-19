@@ -17,6 +17,11 @@ import { WalletEntity } from './wallet.entity';
 @Index('idx_wallet_transactions_reference', ['referenceId', 'referenceType'])
 @Index('idx_wallet_transactions_type', ['type'])
 @Index('idx_wallet_transactions_created_at', ['createdAt'])
+@Index('idx_wallet_transactions_wallet_type_created', [
+  'wallet',
+  'type',
+  'createdAt',
+])
 export class WalletTransactionEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

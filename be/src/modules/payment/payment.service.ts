@@ -45,6 +45,7 @@ export class PaymentService {
     return manager
       .getRepository(PaymentEntity)
       .createQueryBuilder('p')
+      .leftJoinAndSelect('p.booking', 'booking')
       .where('p.booking_id IN (:...ids)', { ids: bookingIds })
       .orderBy('p.createdAt', 'DESC')
       .getMany();

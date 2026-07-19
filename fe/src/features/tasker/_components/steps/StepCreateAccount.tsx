@@ -4,20 +4,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
-const registerSchema = z.object({
-  fullName: z.string().min(2, "Họ và tên tối thiểu 2 ký tự"),
-  email: z.string().email("Email không hợp lệ"),
-  password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Mật khẩu xác nhận không khớp",
-  path: ["confirmPassword"],
-});
+const registerSchema = z
+  .object({
+    fullName: z.string().min(2, "Họ và tên tối thiểu 2 ký tự"),
+    email: z.string().email("Email không hợp lệ"),
+    password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Mật khẩu xác nhận không khớp",
+    path: ["confirmPassword"],
+  });
 
 export type StepCreateAccountValues = z.infer<typeof registerSchema>;
 
@@ -26,7 +41,10 @@ interface StepCreateAccountProps {
   isSubmitting?: boolean;
 }
 
-export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, isSubmitting }) => {
+export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({
+  onNext,
+  isSubmitting,
+}) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -48,25 +66,35 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
   return (
     <Card className="border-none shadow-xl bg-card/50 backdrop-blur-md rounded-[2.5rem] overflow-hidden">
       <CardHeader className="pt-10 px-10">
-        <CardTitle className="text-3xl font-bold font-serif text-primary">Tạo tài khoản Đối tác</CardTitle>
+        <CardTitle className="text-3xl font-bold text-primary">
+          Tạo tài khoản Đối tác
+        </CardTitle>
         <CardDescription className="text-lg">
-          Bắt đầu hành trình của bạn cùng CleanZ. Tạo tài khoản để tiếp tục hoàn thiện hồ sơ.
+          Bắt đầu hành trình của bạn cùng CleanZ. Tạo tài khoản để tiếp tục hoàn
+          thiện hồ sơ.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-10">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             <FormField
               control={form.control}
               name="fullName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-base flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" /> Họ và tên <span className="text-destructive">*</span>
+                    <User className="w-4 h-4 text-primary" /> Họ và tên{" "}
+                    <span className="text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="Nguyễn Văn A" className="h-14 rounded-2xl bg-background/50" {...field} />
+                    <Input
+                      placeholder="Nguyễn Văn A"
+                      className="h-14 rounded-2xl bg-background/50"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -79,10 +107,16 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-base flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-primary" /> Email đăng nhập <span className="text-destructive">*</span>
+                    <Mail className="w-4 h-4 text-primary" /> Email đăng nhập{" "}
+                    <span className="text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="partner@cleanZ.vn" className="h-14 rounded-2xl bg-background/50" {...field} />
+                    <Input
+                      type="email"
+                      placeholder="partner@cleanZ.vn"
+                      className="h-14 rounded-2xl bg-background/50"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -96,7 +130,8 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-primary" /> Mật khẩu <span className="text-destructive">*</span>
+                      <Lock className="w-4 h-4 text-primary" /> Mật khẩu{" "}
+                      <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -108,10 +143,14 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword(p => !p)}
+                          onClick={() => setShowPassword((p) => !p)}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          {showPassword ? (
+                            <EyeOff className="w-5 h-5" />
+                          ) : (
+                            <Eye className="w-5 h-5" />
+                          )}
                         </button>
                       </div>
                     </FormControl>
@@ -126,7 +165,8 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-primary" /> Xác nhận mật khẩu <span className="text-destructive">*</span>
+                      <Lock className="w-4 h-4 text-primary" /> Xác nhận mật
+                      khẩu <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -138,10 +178,14 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
                         />
                         <button
                           type="button"
-                          onClick={() => setShowConfirm(p => !p)}
+                          onClick={() => setShowConfirm((p) => !p)}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          {showConfirm ? (
+                            <EyeOff className="w-5 h-5" />
+                          ) : (
+                            <Eye className="w-5 h-5" />
+                          )}
                         </button>
                       </div>
                     </FormControl>
@@ -153,10 +197,20 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
 
             <p className="text-xs text-muted-foreground">
               Bằng cách tạo tài khoản, bạn đồng ý với{" "}
-              <a href="/terms" className="text-primary font-semibold hover:underline">Điều khoản dịch vụ</a>
-              {" "}và{" "}
-              <a href="/privacy" className="text-primary font-semibold hover:underline">Chính sách bảo mật</a>
-              {" "}của CleanZ.
+              <a
+                href="/terms"
+                className="text-primary font-semibold hover:underline"
+              >
+                Điều khoản dịch vụ
+              </a>{" "}
+              và{" "}
+              <a
+                href="/privacy"
+                className="text-primary font-semibold hover:underline"
+              >
+                Chính sách bảo mật
+              </a>{" "}
+              của CleanZ.
             </p>
 
             <div className="flex justify-end pt-4 border-t border-border/50 mt-6">
@@ -166,7 +220,9 @@ export const StepCreateAccount: React.FC<StepCreateAccountProps> = ({ onNext, is
                 disabled={isSubmitting}
                 className="h-14 px-10 rounded-full text-lg font-bold shadow-lg shadow-primary/20"
               >
-                {isSubmitting ? "Đang tạo tài khoản..." : "Tạo tài khoản & Tiếp tục"}
+                {isSubmitting
+                  ? "Đang tạo tài khoản..."
+                  : "Tạo tài khoản & Tiếp tục"}
               </Button>
             </div>
           </form>

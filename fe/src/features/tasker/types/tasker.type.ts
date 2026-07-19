@@ -71,7 +71,6 @@ export interface UpdateTaskerProfileDto {
   experience?: string;
   phone?: string;
   skills?: string;
-  addressResident?: string;
   addressCurrent?: string;
   bankName?: string;
   bankAccountNumber?: string;

@@ -54,6 +54,9 @@ export function ActiveJobWidget() {
   // Chỉ hiển thị nếu có đơn hoạt động
   if (isLoading || !booking) return null;
 
+  // Home đã hiển thị Active Job Card trực tiếp trong luồng nội dung.
+  if (pathname === "/tasker") return null;
+
   // Không hiển thị widget khi người dùng đang ở chính trang chi tiết công việc của Tasker
   const isDetailPage =
     pathname.includes("/tasker/jobs/") &&

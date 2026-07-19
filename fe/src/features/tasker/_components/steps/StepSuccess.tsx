@@ -33,10 +33,12 @@ export const StepSuccess: React.FC<StepSuccessProps> = ({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h2 className="text-4xl font-bold font-serif mb-6">Đã nhận hồ sơ!</h2>
+          <h2 className="mb-6 text-4xl font-bold">Đã nhận hồ sơ!</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Chúc mừng bạn đã hoàn thành đăng ký trở thành đối tác của <span className="text-primary font-bold">CleanZ</span>. 
-            Hồ sơ của bạn đang được ban quản trị xét duyệt (thường mất từ 24h - 48h làm việc).
+            Chúc mừng bạn đã hoàn thành đăng ký trở thành đối tác của{" "}
+            <span className="text-primary font-bold">CleanZ</span>. Hồ sơ của
+            bạn đang được ban quản trị xét duyệt (thường mất từ 24h - 48h làm
+            việc).
           </p>
         </motion.div>
 
@@ -59,19 +61,28 @@ export const StepSuccess: React.FC<StepSuccessProps> = ({
           <div className="p-6 rounded-[2rem] bg-background/50 border border-border/50">
             <ArrowRight className="w-8 h-8 text-primary mx-auto mb-3" />
             <p className="text-sm font-bold">Bắt đầu nhận việc</p>
-            <p className="text-xs text-muted-foreground mt-1">Ngay khi được duyệt</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ngay khi được duyệt
+            </p>
           </div>
         </motion.div>
 
         <div className="flex flex-col md:flex-row gap-4 justify-center">
           <Link href="/">
-            <Button size="lg" variant="outline" className="h-14 px-10 rounded-full text-lg font-bold w-full md:w-auto">
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-14 px-10 rounded-full text-lg font-bold w-full md:w-auto"
+            >
               Về trang chủ
             </Button>
           </Link>
           {canEnterPartnerArea && (
             <Link href="/tasker">
-              <Button size="lg" className="h-14 px-10 rounded-full text-lg font-bold w-full md:w-auto shadow-lg shadow-primary/20">
+              <Button
+                size="lg"
+                className="h-14 px-10 rounded-full text-lg font-bold w-full md:w-auto shadow-lg shadow-primary/20"
+              >
                 Vào Khu vực đối tác
               </Button>
             </Link>

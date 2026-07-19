@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Flag,
-  MessageSquare,
-  Send,
-  Star,
-} from "lucide-react";
+import { Flag, MessageSquare, Send, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +43,9 @@ const STARS_FILL = (rating: number, size = "size-4") =>
 export default function TaskerReviewsPage() {
   const [ratingFilter, setRatingFilter] = useState<number | undefined>();
   const [replyTarget, setReplyTarget] = useState<TaskerReviewItem | null>(null);
-  const [reportTarget, setReportTarget] = useState<TaskerReviewItem | null>(null);
+  const [reportTarget, setReportTarget] = useState<TaskerReviewItem | null>(
+    null,
+  );
   const [replyText, setReplyText] = useState("");
   const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
   const [reportDesc, setReportDesc] = useState("");
@@ -61,7 +58,12 @@ export default function TaskerReviewsPage() {
     if (!replyTarget || !replyText.trim()) return;
     replyMutation.mutate(
       { reviewId: replyTarget.id, reply: replyText.trim() },
-      { onSuccess: () => { setReplyTarget(null); setReplyText(""); } },
+      {
+        onSuccess: () => {
+          setReplyTarget(null);
+          setReplyText("");
+        },
+      },
     );
   };
 
@@ -73,7 +75,12 @@ export default function TaskerReviewsPage() {
         reason: reportReason,
         description: reportDesc.trim() || undefined,
       },
-      { onSuccess: () => { setReportTarget(null); setReportDesc(""); } },
+      {
+        onSuccess: () => {
+          setReportTarget(null);
+          setReportDesc("");
+        },
+      },
     );
   };
 
@@ -82,11 +89,8 @@ export default function TaskerReviewsPage() {
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1
-            className="text-3xl font-light"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            Đánh <span className="italic text-primary">giá</span>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Đánh giá
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Xem và phản hồi đánh giá từ khách hàng.
@@ -152,8 +156,15 @@ export default function TaskerReviewsPage() {
             <ReviewCard
               key={review.id}
               review={review}
-              onReply={() => { setReplyTarget(review); setReplyText(""); }}
-              onReport={() => { setReportTarget(review); setReportReason("SPAM"); setReportDesc(""); }}
+              onReply={() => {
+                setReplyTarget(review);
+                setReplyText("");
+              }}
+              onReport={() => {
+                setReportTarget(review);
+                setReportReason("SPAM");
+                setReportDesc("");
+              }}
             />
           ))}
         </div>
@@ -290,14 +301,14 @@ function ReviewCard({
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="size-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
             <span className="text-sm font-bold text-primary">
-              {review.isAnonymous
-                ? "?"
-                : (review.customerName?.[0] ?? "K")}
+              {review.isAnonymous ? "?" : (review.customerName?.[0] ?? "K")}
             </span>
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold truncate">
-              {review.isAnonymous ? "Ẩn danh" : review.customerName ?? "Khách hàng"}
+              {review.isAnonymous
+                ? "Ẩn danh"
+                : (review.customerName ?? "Khách hàng")}
             </p>
             {review.bookingCode && (
               <p className="text-xs text-muted-foreground">
@@ -315,7 +326,9 @@ function ReviewCard({
       </div>
 
       {review.comment && (
-        <p className="text-sm text-foreground/80">&ldquo;{review.comment}&rdquo;</p>
+        <p className="text-sm text-foreground/80">
+          &ldquo;{review.comment}&rdquo;
+        </p>
       )}
 
       {review.images && review.images.length > 0 && (

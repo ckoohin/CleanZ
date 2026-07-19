@@ -59,12 +59,21 @@ export const taskerApi = {
       })
       .then((res) => res.data),
 
-  // Cập nhật thông tin profile (không có file)
-  updateProfile: (id: string, data: UpdateTaskerProfileDto): Promise<TaskerProfile> => {
-    // Vì backend có thể không có endpoint PATCH /tasker/:id cho Tasker
-    // Tạm thời gọi qua proxy hoặc mock tuỳ theo BE hiện tại
-    return http.patch<TaskerProfile>(`/api/taskers/${id}`, data).then((res) => res.data);
-  },
+  // PATCH /tasker/profile/documents — bổ sung giấy tờ còn thiếu (multipart/form-data).
+  // BE khóa giấy tờ đã nộp: chỉ nhận mục còn trống hoặc mục admin gắn cờ cần nộp lại.
+  updateMyDocuments: (formData: FormData): Promise<TaskerProfile> =>
+    http
+      .patch<TaskerProfile>('/tasker/profile/documents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data),
+
+  // PATCH /tasker/profile/me — tasker/applicant tự cập nhật thông tin hồ sơ
+  // (phone, bio, experience, skills, addressCurrent, ngân hàng — không gồm giấy tờ).
+  updateProfile: (data: UpdateTaskerProfileDto): Promise<TaskerProfile> =>
+    http
+      .patch<TaskerProfile>('/tasker/profile/me', data)
+      .then((res) => res.data),
 
   // ── Luồng đăng ký dạng granular (PartnerSignupWizard / onboarding Tabs) ──
   // NOTE: backend hiện dùng luồng nộp 1 lần `POST /tasker/profile` (multipart).

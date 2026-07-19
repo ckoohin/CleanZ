@@ -7,6 +7,8 @@ import { AppException } from 'src/common/exceptions/app.exception';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
@@ -70,6 +72,7 @@ export class WalletTopupService {
     userId: string,
     amountVnd: number,
     bookingId?: string,
+    ownerType: WalletOwnerType = WalletOwnerType.CUSTOMER,
   ): Promise<CreateTopupResult> {
     return asyncHandleOperation(async () => {
       const { minVnd, maxVnd, fxRate } = await this.getTopupConfig();
@@ -85,11 +88,23 @@ export class WalletTopupService {
         );
       }
 
-      const customer = await this.findCustomer(userId);
-      const wallet = await this.walletService.getOrCreateCustomerWallet(
-        this.dataSource.manager,
-        customer,
-      );
+      const customer =
+        ownerType === WalletOwnerType.CUSTOMER
+          ? await this.findCustomer(userId)
+          : null;
+      const tasker =
+        ownerType === WalletOwnerType.TASKER
+          ? await this.findTasker(userId)
+          : null;
+      const wallet = customer
+        ? await this.walletService.getOrCreateCustomerWallet(
+            this.dataSource.manager,
+            customer,
+          )
+        : await this.walletService.getOrCreateTaskerWallet(
+            this.dataSource.manager,
+            tasker!,
+          );
 
       const amountUsd = Math.max(
         0.01,
@@ -99,7 +114,8 @@ export class WalletTopupService {
       const topupRepo = this.dataSource.getRepository(WalletTopupOrderEntity);
       const topup = await topupRepo.save(
         topupRepo.create({
-          customerId: customer.id,
+          customerId: customer?.id ?? null,
+          taskerId: tasker?.id ?? null,
           walletId: wallet.id,
           provider: 'PAYPAL',
           status: TopupStatus.CREATED,
@@ -113,14 +129,18 @@ export class WalletTopupService {
       const frontendUrl =
         this.configService.get<string>('FRONTEND_URL') ??
         'http://localhost:3020';
+      const returnBase =
+        ownerType === WalletOwnerType.TASKER
+          ? '/tasker/earnings/topup'
+          : '/customer/wallet/topup';
 
       try {
         const order = await this.paypalService.createOrder({
           amountUsd,
           customId: topup.id,
           referenceId: topup.id,
-          returnUrl: `${frontendUrl}/customer/wallet/topup/return?topupId=${topup.id}`,
-          cancelUrl: `${frontendUrl}/customer/wallet/topup/cancel?topupId=${topup.id}`,
+          returnUrl: `${frontendUrl}${returnBase}/return?topupId=${topup.id}`,
+          cancelUrl: `${frontendUrl}${returnBase}/cancel?topupId=${topup.id}`,
           description: `Nạp ví CleanZ ${amountVnd.toLocaleString('vi-VN')}đ`,
         });
 
@@ -150,6 +170,7 @@ export class WalletTopupService {
   async captureTopup(
     userId: string,
     topupId: string,
+    ownerType: WalletOwnerType = WalletOwnerType.CUSTOMER,
   ): Promise<CaptureTopupResult> {
     return asyncHandleOperation(async () => {
       return this.dataSource.transaction(async (manager) => {
@@ -163,17 +184,30 @@ export class WalletTopupService {
           throw new NotFoundException('Không tìm thấy đơn nạp tiền');
         }
 
-        const customer = await this.findCustomer(userId);
-        if (topup.customerId !== customer.id) {
+        const customer =
+          ownerType === WalletOwnerType.CUSTOMER
+            ? await this.findCustomer(userId, manager)
+            : null;
+        const tasker =
+          ownerType === WalletOwnerType.TASKER
+            ? await this.findTasker(userId, manager)
+            : null;
+        const ownsTopup = customer
+          ? topup.customerId === customer.id
+          : topup.taskerId === tasker?.id;
+
+        if (!ownsTopup) {
           throw new AppException('Bạn không có quyền với đơn nạp này', 403);
         }
 
+        const getOwnerWallet = () =>
+          customer
+            ? this.walletService.getOrCreateCustomerWallet(manager, customer)
+            : this.walletService.getOrCreateTaskerWallet(manager, tasker!);
+
         // Idempotent: đã cộng ví rồi thì trả kết quả cũ, không capture/cộng lại.
         if (topup.status === TopupStatus.COMPLETED && topup.walletTxId) {
-          const wallet = await this.walletService.getOrCreateCustomerWallet(
-            manager,
-            customer,
-          );
+          const wallet = await getOwnerWallet();
           return {
             topupId: topup.id,
             status: topup.status,
@@ -201,10 +235,7 @@ export class WalletTopupService {
           );
         }
 
-        const wallet = await this.walletService.getOrCreateCustomerWallet(
-          manager,
-          customer,
-        );
+        const wallet = await getOwnerWallet();
         const amountVnd = toNumber(topup.amountVnd);
 
         await this.walletService.creditWallet(manager, {
@@ -229,10 +260,7 @@ export class WalletTopupService {
         topup.walletTxId = lastTx?.id ?? null;
         await topupRepo.save(topup);
 
-        const freshWallet = await this.walletService.getOrCreateCustomerWallet(
-          manager,
-          customer,
-        );
+        const freshWallet = await getOwnerWallet();
 
         return {
           topupId: topup.id,
@@ -277,13 +305,29 @@ export class WalletTopupService {
     };
   }
 
-  private async findCustomer(userId: string): Promise<CustomerEntity> {
-    const customer = await this.dataSource
+  private async findCustomer(
+    userId: string,
+    manager = this.dataSource.manager,
+  ): Promise<CustomerEntity> {
+    const customer = await manager
       .getRepository(CustomerEntity)
       .findOne({ where: { user: { id: userId } }, relations: ['user'] });
     if (!customer) {
       throw new NotFoundException('Không tìm thấy hồ sơ khách hàng');
     }
     return customer;
+  }
+
+  private async findTasker(
+    userId: string,
+    manager = this.dataSource.manager,
+  ): Promise<TaskerEntity> {
+    const tasker = await manager
+      .getRepository(TaskerEntity)
+      .findOne({ where: { user: { id: userId } }, relations: ['user'] });
+    if (!tasker) {
+      throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+    }
+    return tasker;
   }
 }

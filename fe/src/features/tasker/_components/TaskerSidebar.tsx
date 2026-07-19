@@ -6,21 +6,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Bell,
   Home,
-  Mail,
   User,
   LogOut,
   Star,
   Wifi,
   WifiOff,
-  Briefcase,
   Settings,
   WalletCards,
   LifeBuoy,
   AlertTriangle,
   ScrollText,
 } from "lucide-react";
-import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
 import { useLogout } from "@/features/auth/hooks/auth.hooks";
@@ -32,16 +30,15 @@ import { useTaskerActiveBooking } from "@/features/booking/hooks/useTaskerBookin
 
 const ALL_NAV_ITEMS = [
   { href: "/tasker",               label: "Trang chủ", icon: Home, exact: true },
-  { href: "/tasker/jobs",          label: "Nhận đơn",  icon: Briefcase },
-  { href: "/tasker/earnings",      label: "Thu nhập",  icon: WalletCards },
-  { href: "/tasker/notifications", label: "Hộp thư",   icon: Mail },
+  { href: "/tasker/earnings",      label: "Thu nhập",   icon: WalletCards },
+  { href: "/tasker/notifications", label: "Thông báo",  icon: Bell },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
   { href: "/tasker/support-tickets", label: "Hỗ trợ",  icon: LifeBuoy },
   { href: "/tasker/policies",        label: "Chính sách", icon: ScrollText },
 ];
 
 const LEFT_TABS  = [ALL_NAV_ITEMS[0], ALL_NAV_ITEMS[1]];
-const RIGHT_TABS = [ALL_NAV_ITEMS[3], ALL_NAV_ITEMS[4]];
+const RIGHT_TABS = [ALL_NAV_ITEMS[2], ALL_NAV_ITEMS[3]];
 
 interface TaskerSidebarProps {
   className?: string;
@@ -277,24 +274,18 @@ function MobileTopBar() {
 
         <div className="ml-auto flex items-center gap-3">
         <div className="flex flex-col items-end text-right">
-          <span className="text-[10px] text-muted-foreground leading-none font-medium">Xin chào,</span>
-          <span className="text-sm font-bold text-foreground leading-tight truncate max-w-[120px] mt-0.5">
+          <span className="text-[10px] text-muted-foreground leading-none font-medium">Xin chào, <span className="text-sm font-bold text-foreground leading-tight truncate max-w-[120px] mt-0.5">
             {tasker?.fullName?.split(" ").pop() ?? "Đối tác"}
-          </span>
+          </span></span>
+          
         </div>
         
-        <Link href="/tasker/support-tickets" aria-label="Hỗ trợ" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
-          <LifeBuoy className="w-4 h-4" />
+        <Link href="/tasker/profile" aria-label="Mở tài khoản cá nhân">
+          <Avatar className="w-9 h-9 border-2 border-background shadow-sm ring-1 ring-border shrink-0">
+            <AvatarImage src={tasker?.avatarUrl ?? undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{initials}</AvatarFallback>
+          </Avatar>
         </Link>
-        <Link href="/tasker/settings" className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors shrink-0">
-          <Settings className="w-4 h-4" />
-        </Link>
-        <NotificationBell href="/tasker/notifications" className="w-8 h-8 shrink-0" />
-
-        <Avatar className="w-9 h-9 border-2 border-background shadow-sm ring-1 ring-border shrink-0">
-          <AvatarImage src={tasker?.avatarUrl ?? undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{initials}</AvatarFallback>
-        </Avatar>
       </div>
       </div>
       <TaskerLockBanner compact />

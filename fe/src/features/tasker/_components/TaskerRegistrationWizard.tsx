@@ -31,7 +31,10 @@ import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { authApi } from "@/features/auth/services/auth.service";
 import { queryKeys } from "@/features/auth/queries/auth.query";
 import { TaskerStatus } from "../types/tasker.type";
-import { useTaskerProfile, useSubmitTaskerProfile } from "../hooks/tasker.hooks";
+import {
+  useTaskerProfile,
+  useSubmitTaskerProfile,
+} from "../hooks/tasker.hooks";
 import {
   buildReviewParts,
   getReviewPartMap,
@@ -131,7 +134,10 @@ function parseExperiences(
     });
 }
 
-type IconType = React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+type IconType = React.ComponentType<{
+  size?: number;
+  style?: React.CSSProperties;
+}>;
 
 /* ------------------------------------------------------------------ */
 /*  Primitives                                                         */
@@ -194,11 +200,29 @@ function Field({
       {children}
       {flag && <FlagNote flag={flag} />}
       {error ? (
-        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.danger, marginTop: 6 }}>
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11.5,
+            color: C.danger,
+            marginTop: 6,
+          }}
+        >
           <AlertTriangle size={12} /> {error}
         </span>
       ) : hint ? (
-        <span style={{ display: "block", fontSize: 11.5, color: C.textFaint, marginTop: 6 }}>{hint}</span>
+        <span
+          style={{
+            display: "block",
+            fontSize: 11.5,
+            color: C.textFaint,
+            marginTop: 6,
+          }}
+        >
+          {hint}
+        </span>
       ) : null}
     </label>
   );
@@ -208,7 +232,10 @@ function TextInput({
   icon: Icon,
   error,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & { icon?: IconType; error?: boolean }) {
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  icon?: IconType;
+  error?: boolean;
+}) {
   const [focus, setFocus] = useState(false);
   const borderColor = focus ? C.accent : error ? C.danger : C.border;
   return (
@@ -269,7 +296,12 @@ function UploadBox({
   const id = "up-" + label.replace(/\s/g, "");
   const isExisting = typeof value === "string";
   const preview = useMemo(
-    () => (value instanceof File ? URL.createObjectURL(value) : isExisting ? (value as string) : null),
+    () =>
+      value instanceof File
+        ? URL.createObjectURL(value)
+        : isExisting
+          ? (value as string)
+          : null,
     [value, isExisting],
   );
   useEffect(() => {
@@ -320,7 +352,11 @@ function UploadBox({
       >
         {preview ? (
           <>
-            <img src={preview} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img
+              src={preview}
+              alt={label}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
             {isExisting && (
               <span
                 style={{
@@ -378,14 +414,31 @@ function UploadBox({
             >
               <Upload size={17} style={{ color: C.accent }} />
             </div>
-            <span style={{ fontSize: 12.5, color: C.textMute, fontWeight: 500 }}>Tải ảnh lên</span>
-            {hint && <span style={{ fontSize: 11, color: C.textFaint, marginTop: 3 }}>{hint}</span>}
+            <span
+              style={{ fontSize: 12.5, color: C.textMute, fontWeight: 500 }}
+            >
+              Tải ảnh lên
+            </span>
+            {hint && (
+              <span style={{ fontSize: 11, color: C.textFaint, marginTop: 3 }}>
+                {hint}
+              </span>
+            )}
           </>
         )}
       </label>
       {flag && <FlagNote flag={flag} />}
       {error && (
-        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.danger, marginTop: 6 }}>
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11.5,
+            color: C.danger,
+            marginTop: 6,
+          }}
+        >
           <AlertTriangle size={12} /> {error}
         </span>
       )}
@@ -393,21 +446,49 @@ function UploadBox({
   );
 }
 
-function SectionTitle({ icon: Icon, children, sub }: { icon: IconType; children: React.ReactNode; sub?: string }) {
+function SectionTitle({
+  icon: Icon,
+  children,
+  sub,
+}: {
+  icon: IconType;
+  children: React.ReactNode;
+  sub?: string;
+}) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
         <Icon size={17} style={{ color: C.accent }} />
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: -0.1 }}>
+        <h3
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontWeight: 700,
+            color: C.text,
+            letterSpacing: -0.1,
+          }}
+        >
           {children}
         </h3>
       </div>
-      {sub && <p style={{ margin: "6px 0 0 26px", fontSize: 12.5, color: C.textFaint }}>{sub}</p>}
+      {sub && (
+        <p
+          style={{ margin: "6px 0 0 26px", fontSize: 12.5, color: C.textFaint }}
+        >
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
 
-function Stepper({ current, onJump }: { current: number; onJump: (i: number) => void }) {
+function Stepper({
+  current,
+  onJump,
+}: {
+  current: number;
+  onJump: (i: number) => void;
+}) {
   return (
     <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
       {STEPS.map((s, i) => {
@@ -435,7 +516,11 @@ function Stepper({ current, onJump }: { current: number; onJump: (i: number) => 
                   borderRadius: 12,
                   display: "grid",
                   placeItems: "center",
-                  background: active ? C.accent : done ? C.accentDim : C.panelAlt,
+                  background: active
+                    ? C.accent
+                    : done
+                      ? C.accentDim
+                      : C.panelAlt,
                   border: `1px solid ${active || done ? C.accent : C.border}`,
                   color: active ? C.onAccent : done ? C.accent : C.textFaint,
                   transition: "all .2s",
@@ -495,12 +580,28 @@ function ReviewGroup({
         marginBottom: 16,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.text }}>{title}</span>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}
+      >
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.text }}>
+          {title}
+        </span>
         <button
           type="button"
           onClick={onEdit}
-          style={{ background: "transparent", border: "none", color: C.accent, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: C.accent,
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
           Chỉnh sửa
         </button>
@@ -508,9 +609,23 @@ function ReviewGroup({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {rows.map(([k, v]) => (
-          <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 13 }}>
+          <div
+            key={k}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+              fontSize: 13,
+            }}
+          >
             <span style={{ color: C.textFaint, flexShrink: 0 }}>{k}</span>
-            <span style={{ color: v ? C.text : C.danger, fontWeight: 500, textAlign: "right" }}>
+            <span
+              style={{
+                color: v ? C.text : C.danger,
+                fontWeight: 500,
+                textAlign: "right",
+              }}
+            >
               {v || "Chưa nhập"}
             </span>
           </div>
@@ -518,9 +633,16 @@ function ReviewGroup({
       </div>
 
       {images.length > 0 && (
-        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+        <div
+          style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}
+        >
           {images.map(([label, src]) => {
-            const url = src instanceof File ? URL.createObjectURL(src) : typeof src === "string" ? src : null;
+            const url =
+              src instanceof File
+                ? URL.createObjectURL(src)
+                : typeof src === "string"
+                  ? src
+                  : null;
             return (
               <div key={label} style={{ width: 78 }}>
                 <div
@@ -536,12 +658,28 @@ function ReviewGroup({
                   }}
                 >
                   {url ? (
-                    <img src={url} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img
+                      src={url}
+                      alt={label}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
                   ) : (
                     <ImageIcon size={18} style={{ color: C.textFaint }} />
                   )}
                 </div>
-                <span style={{ fontSize: 11, color: C.textFaint, display: "block", textAlign: "center", marginTop: 5 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: C.textFaint,
+                    display: "block",
+                    textAlign: "center",
+                    marginTop: 5,
+                  }}
+                >
                   {label}
                 </span>
               </div>
@@ -599,7 +737,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
     clearErr(key);
   };
 
-  const [experiences, setExperiences] = useState([{ company: "", role: "", years: "" }]);
+  const [experiences, setExperiences] = useState([
+    { company: "", role: "", years: "" },
+  ]);
 
   const [cccdFront, setCccdFront] = useState<Slot>(null);
   const [cccdBack, setCccdBack] = useState<Slot>(null);
@@ -665,7 +805,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
           ? ""
           : prev.currentAddress || profile?.addressCurrent || "",
         cccdNumber: prev.cccdNumber || profile?.document?.idNumber || "",
-        bankName: flagged.bankInfo ? "" : prev.bankName || profile?.bankName || "",
+        bankName: flagged.bankInfo
+          ? ""
+          : prev.bankName || profile?.bankName || "",
         bankAccount: flagged.bankInfo
           ? ""
           : prev.bankAccount || profile?.bankAccountNumber || "",
@@ -685,7 +827,8 @@ export const TaskerRegistrationWizard: React.FC = () => {
         if (doc?.frontUrl) setCccdFront(doc.frontUrl);
         if (doc?.backUrl) setCccdBack(doc.backUrl);
       }
-      if (!flagged.idWithSelfie && profile?.avatarUrl) setSelfie(profile.avatarUrl);
+      if (!flagged.idWithSelfie && profile?.avatarUrl)
+        setSelfie(profile.avatarUrl);
       if (!flagged.healthCertificate && doc?.healthCertificateUrl)
         setDocHealth(doc.healthCertificateUrl);
       if (!flagged.criminalRecord && doc?.criminalRecordUrl)
@@ -742,19 +885,24 @@ export const TaskerRegistrationWizard: React.FC = () => {
       if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ và tên";
       if (!/^0\d{9,10}$/.test(form.phone.trim()))
         e.phone = "Số điện thoại không hợp lệ (bắt đầu bằng 0, 10–11 số)";
-      if (!form.currentAddress.trim()) e.currentAddress = "Vui lòng nhập chỗ ở hiện tại";
+      if (!form.currentAddress.trim())
+        e.currentAddress = "Vui lòng nhập chỗ ở hiện tại";
     }
     if (s === 1) {
-      if (!/^\d{12}$/.test(form.cccdNumber.trim())) e.cccdNumber = "Số CCCD phải gồm đúng 12 chữ số";
+      if (!/^\d{12}$/.test(form.cccdNumber.trim()))
+        e.cccdNumber = "Số CCCD phải gồm đúng 12 chữ số";
       if (!hasSlot(cccdFront)) e.cccdFront = "Thiếu ảnh CCCD mặt trước";
       if (!hasSlot(cccdBack)) e.cccdBack = "Thiếu ảnh CCCD mặt sau";
       if (!hasSlot(selfie)) e.selfie = "Thiếu ảnh selfie cầm CCCD";
     }
     if (s === 2) {
       if (!form.bankName.trim()) e.bankName = "Vui lòng nhập tên ngân hàng";
-      if (!form.bankAccount.trim()) e.bankAccount = "Vui lòng nhập số tài khoản";
-      if (!form.bankHolder.trim()) e.bankHolder = "Vui lòng nhập tên chủ tài khoản";
-      if (!hasSlot(docJudicial)) e.docJudicial = "Thiếu Lý lịch tư pháp / xác nhận hạnh kiểm";
+      if (!form.bankAccount.trim())
+        e.bankAccount = "Vui lòng nhập số tài khoản";
+      if (!form.bankHolder.trim())
+        e.bankHolder = "Vui lòng nhập tên chủ tài khoản";
+      if (!hasSlot(docJudicial))
+        e.docJudicial = "Thiếu Lý lịch tư pháp / xác nhận hạnh kiểm";
     }
     return e;
   };
@@ -780,16 +928,21 @@ export const TaskerRegistrationWizard: React.FC = () => {
 
       const expText = experiences
         .filter((e) => e.company || e.role || e.years)
-        .map((e) => `${e.role || "—"} @ ${e.company || "—"}${e.years ? ` (${e.years} năm)` : ""}`)
+        .map(
+          (e) =>
+            `${e.role || "—"} @ ${e.company || "—"}${e.years ? ` (${e.years} năm)` : ""}`,
+        )
         .join("; ");
       if (expText) fd.append("experience", expText);
-      if (form.currentAddress) fd.append("workingAddress", form.currentAddress.trim());
+      if (form.currentAddress)
+        fd.append("workingAddress", form.currentAddress.trim());
 
       fd.append("docType", "CITIZEN_ID");
       fd.append("docIdNumber", form.cccdNumber.trim());
 
       if (form.bankName) fd.append("bankName", form.bankName.trim());
-      if (form.bankAccount) fd.append("bankAccountNumber", form.bankAccount.trim());
+      if (form.bankAccount)
+        fd.append("bankAccountNumber", form.bankAccount.trim());
       if (form.bankHolder) fd.append("bankAccountName", form.bankHolder.trim());
 
       // Ảnh: chỉ gửi file mới. Ô là URL cũ (string) → bỏ qua, BE giữ ảnh đã có.
@@ -803,7 +956,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
       await submitMutation.mutateAsync(fd);
       setStep(4);
     } catch {
-      toast.error("Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và thử lại!");
+      toast.error(
+        "Gửi hồ sơ thất bại. Vui lòng kiểm tra thông tin và thử lại!",
+      );
     }
   };
 
@@ -826,15 +981,37 @@ export const TaskerRegistrationWizard: React.FC = () => {
   /* ── Trạng thái loading / redirect ── */
   if (!isProfileLoading && profile?.approvalStatus === TaskerStatus.APPROVED) {
     return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "grid", placeItems: "center" }}>
-        <Loader2 size={32} style={{ color: C.accent }} className="animate-spin" />
+      <div
+        style={{
+          minHeight: "100vh",
+          background: C.bg,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <Loader2
+          size={32}
+          style={{ color: C.accent }}
+          className="animate-spin"
+        />
       </div>
     );
   }
   if (isProfileLoading) {
     return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "grid", placeItems: "center" }}>
-        <Loader2 size={32} style={{ color: C.accent }} className="animate-spin" />
+      <div
+        style={{
+          minHeight: "100vh",
+          background: C.bg,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <Loader2
+          size={32}
+          style={{ color: C.accent }}
+          className="animate-spin"
+        />
       </div>
     );
   }
@@ -847,14 +1024,20 @@ export const TaskerRegistrationWizard: React.FC = () => {
         minHeight: "100vh",
         background: C.bg,
         color: C.text,
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         padding: "28px clamp(12px, 4vw, 20px) 56px",
       }}
     >
       <div style={{ maxWidth: 820, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 6,
+            }}
+          >
             <div
               style={{
                 width: 30,
@@ -882,7 +1065,14 @@ export const TaskerRegistrationWizard: React.FC = () => {
               CleanZ Tasker
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "clamp(22px, 5.5vw, 26px)", fontWeight: 800, letterSpacing: -0.5 }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(22px, 5.5vw, 26px)",
+              fontWeight: 800,
+              letterSpacing: -0.5,
+            }}
+          >
             {needsResubmit ? "Bổ sung & gửi lại hồ sơ" : "Xác minh hồ sơ (KYC)"}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: C.textFaint }}>
@@ -920,7 +1110,14 @@ export const TaskerRegistrationWizard: React.FC = () => {
               <AlertTriangle size={20} style={{ color: C.warn }} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.warn, marginBottom: 4 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: C.warn,
+                  marginBottom: 4,
+                }}
+              >
                 {profile?.approvalStatus === TaskerStatus.REJECTED
                   ? "Hồ sơ chưa được duyệt"
                   : "Quản trị viên yêu cầu bổ sung hồ sơ"}
@@ -937,30 +1134,69 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 }}
               >
                 {reviewParts.length > 0 ? (
-                  <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 7 }}>
+                  <ul
+                    style={{
+                      margin: 0,
+                      padding: 0,
+                      listStyle: "none",
+                      display: "grid",
+                      gap: 7,
+                    }}
+                  >
                     {reviewParts.map((p) => (
-                      <li key={p.id} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
-                        <span style={{ marginTop: 6, width: 6, height: 6, borderRadius: 999, background: C.warn, flexShrink: 0 }} />
+                      <li
+                        key={p.id}
+                        style={{
+                          display: "flex",
+                          gap: 7,
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <span
+                          style={{
+                            marginTop: 6,
+                            width: 6,
+                            height: 6,
+                            borderRadius: 999,
+                            background: C.warn,
+                            flexShrink: 0,
+                          }}
+                        />
                         <span>
                           <span style={{ fontWeight: 700 }}>{p.label}</span>
-                          {p.note && <span style={{ color: C.textMute }}> — {p.note}</span>}
+                          {p.note && (
+                            <span style={{ color: C.textMute }}>
+                              {" "}
+                              — {p.note}
+                            </span>
+                          )}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <span style={{ whiteSpace: "pre-line" }}>
-                    {reviewGeneralNote || "Vui lòng kiểm tra lại toàn bộ giấy tờ và thông tin đã nộp."}
+                    {reviewGeneralNote ||
+                      "Vui lòng kiểm tra lại toàn bộ giấy tờ và thông tin đã nộp."}
                   </span>
                 )}
                 {reviewParts.length > 0 && reviewGeneralNote && (
-                  <p style={{ margin: "9px 0 0", color: C.textMute, whiteSpace: "pre-line" }}>
+                  <p
+                    style={{
+                      margin: "9px 0 0",
+                      color: C.textMute,
+                      whiteSpace: "pre-line",
+                    }}
+                  >
                     {reviewGeneralNote}
                   </p>
                 )}
               </div>
-              <p style={{ margin: "8px 0 0", fontSize: 12, color: C.textFaint }}>
-                Các phần được yêu cầu đã được để trống để bạn nộp lại; những phần khác vẫn được giữ nguyên.
+              <p
+                style={{ margin: "8px 0 0", fontSize: 12, color: C.textFaint }}
+              >
+                Các phần được yêu cầu đã được để trống để bạn nộp lại; những
+                phần khác vẫn được giữ nguyên.
               </p>
             </div>
           </div>
@@ -993,16 +1229,43 @@ export const TaskerRegistrationWizard: React.FC = () => {
           {/* ---------- STEP 0: CÁ NHÂN ---------- */}
           {step === 0 && (
             <div>
-              <SectionTitle icon={User} sub="Thông tin định danh và liên hệ cơ bản">
+              <SectionTitle
+                icon={User}
+                sub="Thông tin định danh và liên hệ cơ bản"
+              >
                 Thông tin cá nhân
               </SectionTitle>
 
-              <div style={{ display: "grid", gridTemplateColumns: autoCols(220), gap: "0 20px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: autoCols(220),
+                  gap: "0 20px",
+                }}
+              >
                 <Field label="Họ và tên" required error={errors.fullName}>
-                  <TextInput icon={User} placeholder="Nguyễn Văn A" value={form.fullName} error={!!errors.fullName} onChange={(e) => set("fullName", e.target.value)} />
+                  <TextInput
+                    icon={User}
+                    placeholder="Nguyễn Văn A"
+                    value={form.fullName}
+                    error={!!errors.fullName}
+                    onChange={(e) => set("fullName", e.target.value)}
+                  />
                 </Field>
-                <Field label="Số điện thoại" required error={errors.phone} flag={reviewMap.phone} id="kyc-field-phone">
-                  <TextInput icon={Phone} placeholder="0901234567" value={form.phone} error={!!errors.phone} onChange={(e) => set("phone", e.target.value)} />
+                <Field
+                  label="Số điện thoại"
+                  required
+                  error={errors.phone}
+                  flag={reviewMap.phone}
+                  id="kyc-field-phone"
+                >
+                  <TextInput
+                    icon={Phone}
+                    placeholder="0901234567"
+                    value={form.phone}
+                    error={!!errors.phone}
+                    onChange={(e) => set("phone", e.target.value)}
+                  />
                 </Field>
               </div>
 
@@ -1014,19 +1277,48 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 flag={reviewMap.address}
                 id="kyc-field-address"
               >
-                <TextInput icon={MapPin} placeholder="Địa chỉ nơi bạn đang ở" value={form.currentAddress} error={!!errors.currentAddress} onChange={(e) => set("currentAddress", e.target.value)} />
+                <TextInput
+                  icon={MapPin}
+                  placeholder="Địa chỉ nơi bạn đang ở"
+                  value={form.currentAddress}
+                  error={!!errors.currentAddress}
+                  onChange={(e) => set("currentAddress", e.target.value)}
+                />
               </Field>
 
               {/* Kinh nghiệm */}
-              <div id="kyc-field-experience" style={{ marginTop: 8, paddingTop: 22, borderTop: `1px solid ${C.borderSoft}` }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <div
+                id="kyc-field-experience"
+                style={{
+                  marginTop: 8,
+                  paddingTop: 22,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 9 }}
+                  >
                     <Briefcase size={16} style={{ color: C.accent }} />
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>Kinh nghiệm làm việc</span>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>
+                      Kinh nghiệm làm việc
+                    </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setExperiences((p) => [...p, { company: "", role: "", years: "" }])}
+                    onClick={() =>
+                      setExperiences((p) => [
+                        ...p,
+                        { company: "", role: "", years: "" },
+                      ])
+                    }
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1066,26 +1358,59 @@ export const TaskerRegistrationWizard: React.FC = () => {
                     {experiences.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => setExperiences((p) => p.filter((_, i) => i !== idx))}
-                        style={{ position: "absolute", top: 12, right: 12, background: "transparent", border: "none", color: C.textFaint, cursor: "pointer", padding: 4 }}
+                        onClick={() =>
+                          setExperiences((p) => p.filter((_, i) => i !== idx))
+                        }
+                        style={{
+                          position: "absolute",
+                          top: 12,
+                          right: 12,
+                          background: "transparent",
+                          border: "none",
+                          color: C.textFaint,
+                          cursor: "pointer",
+                          padding: 4,
+                        }}
                       >
                         <Trash2 size={15} />
                       </button>
                     )}
-                    <div style={{ display: "grid", gridTemplateColumns: autoCols(150), gap: 12 }}>
-                      {([
-                        ["Nơi làm việc", "company", "Công ty / hộ gia đình"],
-                        ["Vị trí / công việc", "role", "Giúp việc, dọn dẹp…"],
-                        ["Số năm", "years", "2"],
-                      ] as const).map(([lbl, key, ph]) => (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: autoCols(150),
+                        gap: 12,
+                      }}
+                    >
+                      {(
+                        [
+                          ["Nơi làm việc", "company", "Công ty / hộ gia đình"],
+                          ["Vị trí / công việc", "role", "Giúp việc, dọn dẹp…"],
+                          ["Số năm", "years", "2"],
+                        ] as const
+                      ).map(([lbl, key, ph]) => (
                         <div key={key}>
-                          <span style={{ fontSize: 11.5, color: C.textMute, fontWeight: 600, display: "block", marginBottom: 6 }}>{lbl}</span>
+                          <span
+                            style={{
+                              fontSize: 11.5,
+                              color: C.textMute,
+                              fontWeight: 600,
+                              display: "block",
+                              marginBottom: 6,
+                            }}
+                          >
+                            {lbl}
+                          </span>
                           <TextInput
                             placeholder={ph}
                             value={exp[key]}
                             onChange={(e) => {
                               const v = e.target.value;
-                              setExperiences((p) => p.map((x, i) => (i === idx ? { ...x, [key]: v } : x)));
+                              setExperiences((p) =>
+                                p.map((x, i) =>
+                                  i === idx ? { ...x, [key]: v } : x,
+                                ),
+                              );
                             }}
                           />
                         </div>
@@ -1100,7 +1425,10 @@ export const TaskerRegistrationWizard: React.FC = () => {
           {/* ---------- STEP 1: XÁC MINH ---------- */}
           {step === 1 && (
             <div>
-              <SectionTitle icon={ShieldCheck} sub="Cung cấp giấy tờ tùy thân để xác thực danh tính">
+              <SectionTitle
+                icon={ShieldCheck}
+                sub="Cung cấp giấy tờ tùy thân để xác thực danh tính"
+              >
                 Xác minh danh tính
               </SectionTitle>
 
@@ -1111,17 +1439,52 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   maxLength={12}
                   value={form.cccdNumber}
                   error={!!errors.cccdNumber}
-                  onChange={(e) => set("cccdNumber", e.target.value.replace(/\D/g, "").slice(0, 12))}
+                  onChange={(e) =>
+                    set(
+                      "cccdNumber",
+                      e.target.value.replace(/\D/g, "").slice(0, 12),
+                    )
+                  }
                 />
               </Field>
 
-              <div id="kyc-field-citizenCard" style={{ display: "grid", gridTemplateColumns: autoCols(200), gap: 20, marginTop: 6 }}>
-                <UploadBox label="Ảnh CCCD mặt trước" value={cccdFront} onChange={onSlot("cccdFront", setCccdFront)} hint="Rõ nét, không lóa sáng" error={errors.cccdFront} flag={reviewMap.citizenCard} />
-                <UploadBox label="Ảnh CCCD mặt sau" value={cccdBack} onChange={onSlot("cccdBack", setCccdBack)} hint="Hiển thị đầy đủ thông tin" error={errors.cccdBack} flag={reviewMap.citizenCard} />
+              <div
+                id="kyc-field-citizenCard"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: autoCols(200),
+                  gap: 20,
+                  marginTop: 6,
+                }}
+              >
+                <UploadBox
+                  label="Ảnh CCCD mặt trước"
+                  value={cccdFront}
+                  onChange={onSlot("cccdFront", setCccdFront)}
+                  hint="Rõ nét, không lóa sáng"
+                  error={errors.cccdFront}
+                  flag={reviewMap.citizenCard}
+                />
+                <UploadBox
+                  label="Ảnh CCCD mặt sau"
+                  value={cccdBack}
+                  onChange={onSlot("cccdBack", setCccdBack)}
+                  hint="Hiển thị đầy đủ thông tin"
+                  error={errors.cccdBack}
+                  flag={reviewMap.citizenCard}
+                />
               </div>
 
               <div id="kyc-field-idWithSelfie" style={{ marginTop: 20 }}>
-                <UploadBox label="Ảnh selfie cầm CCCD" value={selfie} onChange={onSlot("selfie", setSelfie)} aspect="4/2" hint="Khuôn mặt và giấy tờ cùng khung hình" error={errors.selfie} flag={reviewMap.idWithSelfie} />
+                <UploadBox
+                  label="Ảnh selfie cầm CCCD"
+                  value={selfie}
+                  onChange={onSlot("selfie", setSelfie)}
+                  aspect="4/2"
+                  hint="Khuôn mặt và giấy tờ cùng khung hình"
+                  error={errors.selfie}
+                  flag={reviewMap.idWithSelfie}
+                />
               </div>
 
               <div
@@ -1136,9 +1499,15 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   padding: "12px 14px",
                 }}
               >
-                <Camera size={16} style={{ color: C.accent, marginTop: 1, flexShrink: 0 }} />
-                <span style={{ fontSize: 12.5, color: C.textMute, lineHeight: 1.5 }}>
-                  Ảnh selfie phải thấy rõ khuôn mặt và mặt trước CCCD trên cùng một bức ảnh. Tránh đeo khẩu trang hoặc kính râm.
+                <Camera
+                  size={16}
+                  style={{ color: C.accent, marginTop: 1, flexShrink: 0 }}
+                />
+                <span
+                  style={{ fontSize: 12.5, color: C.textMute, lineHeight: 1.5 }}
+                >
+                  Ảnh selfie phải thấy rõ khuôn mặt và mặt trước CCCD trên cùng
+                  một bức ảnh. Tránh đeo khẩu trang hoặc kính râm.
                 </span>
               </div>
             </div>
@@ -1147,35 +1516,131 @@ export const TaskerRegistrationWizard: React.FC = () => {
           {/* ---------- STEP 2: PHÁP LÝ ---------- */}
           {step === 2 && (
             <div>
-              <SectionTitle icon={FileText} sub="Thông tin thanh toán và giấy tờ pháp lý">
+              <SectionTitle
+                icon={FileText}
+                sub="Thông tin thanh toán và giấy tờ pháp lý"
+              >
                 Pháp lý & thanh toán
               </SectionTitle>
 
-              <div id="kyc-field-bankInfo" style={{ background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 12, padding: 18, marginBottom: 24 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <div
+                id="kyc-field-bankInfo"
+                style={{
+                  background: C.panelAlt,
+                  border: `1px solid ${C.borderSoft}`,
+                  borderRadius: 12,
+                  padding: 18,
+                  marginBottom: 24,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 16,
+                  }}
+                >
                   <Building2 size={15} style={{ color: C.accent }} />
-                  <span style={{ fontSize: 13.5, fontWeight: 700 }}>Tài khoản ngân hàng nhận thu nhập</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 700 }}>
+                    Tài khoản ngân hàng nhận thu nhập
+                  </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: autoCols(220), gap: "0 18px" }}>
-                  <Field label="Ngân hàng" required error={errors.bankName} flag={reviewMap.bankInfo}>
-                    <TextInput placeholder="Vietcombank, Techcombank…" value={form.bankName} error={!!errors.bankName} onChange={(e) => set("bankName", e.target.value)} />
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: autoCols(220),
+                    gap: "0 18px",
+                  }}
+                >
+                  <Field
+                    label="Ngân hàng"
+                    required
+                    error={errors.bankName}
+                    flag={reviewMap.bankInfo}
+                  >
+                    <TextInput
+                      placeholder="Vietcombank, Techcombank…"
+                      value={form.bankName}
+                      error={!!errors.bankName}
+                      onChange={(e) => set("bankName", e.target.value)}
+                    />
                   </Field>
-                  <Field label="Số tài khoản" required error={errors.bankAccount}>
-                    <TextInput icon={CreditCard} placeholder="0123456789" value={form.bankAccount} error={!!errors.bankAccount} onChange={(e) => set("bankAccount", e.target.value)} />
+                  <Field
+                    label="Số tài khoản"
+                    required
+                    error={errors.bankAccount}
+                  >
+                    <TextInput
+                      icon={CreditCard}
+                      placeholder="0123456789"
+                      value={form.bankAccount}
+                      error={!!errors.bankAccount}
+                      onChange={(e) => set("bankAccount", e.target.value)}
+                    />
                   </Field>
                 </div>
-                <Field label="Chủ tài khoản" required error={errors.bankHolder} hint="Phải trùng với họ tên trên CCCD">
-                  <TextInput icon={User} placeholder="NGUYEN VAN A" value={form.bankHolder} error={!!errors.bankHolder} onChange={(e) => set("bankHolder", e.target.value.toUpperCase())} />
+                <Field
+                  label="Chủ tài khoản"
+                  required
+                  error={errors.bankHolder}
+                  hint="Phải trùng với họ tên trên CCCD"
+                >
+                  <TextInput
+                    icon={User}
+                    placeholder="NGUYEN VAN A"
+                    value={form.bankHolder}
+                    error={!!errors.bankHolder}
+                    onChange={(e) =>
+                      set("bankHolder", e.target.value.toUpperCase())
+                    }
+                  />
                 </Field>
               </div>
 
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.textMute, display: "block", marginBottom: 14 }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: C.textMute,
+                  display: "block",
+                  marginBottom: 14,
+                }}
+              >
                 Giấy tờ pháp lý
               </span>
-              <div style={{ display: "grid", gridTemplateColumns: autoCols(160), gap: 16 }}>
-                <UploadBox label="Lý lịch tư pháp *" value={docJudicial} onChange={onSlot("docJudicial", setDocJudicial)} aspect="3/4" error={errors.docJudicial} flag={reviewMap.criminalRecord} anchorId="kyc-field-criminalRecord" />
-                <UploadBox label="Giấy khám sức khỏe" value={docHealth} onChange={setDocHealth} aspect="3/4" flag={reviewMap.healthCertificate} anchorId="kyc-field-healthCertificate" />
-                <UploadBox label="Chứng chỉ (nếu có)" value={docCert} onChange={setDocCert} aspect="3/4" flag={reviewMap.certificate} anchorId="kyc-field-certificate" />
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: autoCols(160),
+                  gap: 16,
+                }}
+              >
+                <UploadBox
+                  label="Lý lịch tư pháp *"
+                  value={docJudicial}
+                  onChange={onSlot("docJudicial", setDocJudicial)}
+                  aspect="3/4"
+                  error={errors.docJudicial}
+                  flag={reviewMap.criminalRecord}
+                  anchorId="kyc-field-criminalRecord"
+                />
+                <UploadBox
+                  label="Giấy khám sức khỏe"
+                  value={docHealth}
+                  onChange={setDocHealth}
+                  aspect="3/4"
+                  flag={reviewMap.healthCertificate}
+                  anchorId="kyc-field-healthCertificate"
+                />
+                <UploadBox
+                  label="Chứng chỉ (nếu có)"
+                  value={docCert}
+                  onChange={setDocCert}
+                  aspect="3/4"
+                  flag={reviewMap.certificate}
+                  anchorId="kyc-field-certificate"
+                />
               </div>
             </div>
           )}
@@ -1183,7 +1648,10 @@ export const TaskerRegistrationWizard: React.FC = () => {
           {/* ---------- STEP 3: XÁC NHẬN ---------- */}
           {step === 3 && (
             <div>
-              <SectionTitle icon={ClipboardCheck} sub="Kiểm tra lại toàn bộ thông tin trước khi gửi duyệt">
+              <SectionTitle
+                icon={ClipboardCheck}
+                sub="Kiểm tra lại toàn bộ thông tin trước khi gửi duyệt"
+              >
                 Xác nhận thông tin
               </SectionTitle>
 
@@ -1198,7 +1666,10 @@ export const TaskerRegistrationWizard: React.FC = () => {
                     "Kinh nghiệm",
                     experiences
                       .filter((e) => e.company || e.role)
-                      .map((e) => `${e.role || "—"} @ ${e.company || "—"} (${e.years || "?"} năm)`)
+                      .map(
+                        (e) =>
+                          `${e.role || "—"} @ ${e.company || "—"} (${e.years || "?"} năm)`,
+                      )
                       .join("; ") || "Chưa nhập",
                   ],
                 ]}
@@ -1230,15 +1701,26 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 ]}
               />
 
-              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 8, cursor: "pointer" }}>
+              <label
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                  marginTop: 8,
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={agree}
                   onChange={(e) => setAgree(e.target.checked)}
                   style={{ marginTop: 3, accentColor: C.accent }}
                 />
-                <span style={{ fontSize: 12.5, color: C.textMute, lineHeight: 1.5 }}>
-                  Tôi cam kết thông tin và giấy tờ cung cấp là chính xác, đồng ý để CleanZ xác minh và xử lý theo điều khoản dịch vụ.
+                <span
+                  style={{ fontSize: 12.5, color: C.textMute, lineHeight: 1.5 }}
+                >
+                  Tôi cam kết thông tin và giấy tờ cung cấp là chính xác, đồng ý
+                  để CleanZ xác minh và xử lý theo điều khoản dịch vụ.
                 </span>
               </label>
             </div>
@@ -1261,21 +1743,69 @@ export const TaskerRegistrationWizard: React.FC = () => {
               >
                 <PartyPopper size={34} style={{ color: C.accent }} />
               </div>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Đã gửi hồ sơ thành công</h2>
-              <p style={{ margin: "12px auto 0", maxWidth: 420, fontSize: 14, color: C.textFaint, lineHeight: 1.6 }}>
-                Hồ sơ của bạn đang chờ duyệt. Đội ngũ CleanZ sẽ xem xét trong 24–48 giờ và gửi kết quả qua số điện thoại{" "}
-                <span style={{ color: C.text, fontWeight: 600 }}>{profile?.phone || form.phone || "đã đăng ký"}</span>.
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>
+                Đã gửi hồ sơ thành công
+              </h2>
+              <p
+                style={{
+                  margin: "12px auto 0",
+                  maxWidth: 420,
+                  fontSize: 14,
+                  color: C.textFaint,
+                  lineHeight: 1.6,
+                }}
+              >
+                Hồ sơ của bạn đang chờ duyệt. Đội ngũ CleanZ sẽ xem xét trong
+                24–48 giờ và gửi kết quả qua số điện thoại{" "}
+                <span style={{ color: C.text, fontWeight: 600 }}>
+                  {profile?.phone || form.phone || "đã đăng ký"}
+                </span>
+                .
               </p>
 
-              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 26, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  justifyContent: "center",
+                  marginTop: 26,
+                  flexWrap: "wrap",
+                }}
+              >
                 {[
-                  ["Mã hồ sơ", profile?.id ? `#${profile.id.slice(0, 8).toUpperCase()}` : "Đang cấp"],
+                  [
+                    "Mã hồ sơ",
+                    profile?.id
+                      ? `#${profile.id.slice(0, 8).toUpperCase()}`
+                      : "Đang cấp",
+                  ],
                   ["Trạng thái", "Chờ duyệt"],
                   ["Dự kiến", "24–48 giờ"],
                 ].map(([k, v]) => (
-                  <div key={k} style={{ background: C.panelAlt, border: `1px solid ${C.borderSoft}`, borderRadius: 11, padding: "14px 20px", minWidth: 130 }}>
-                    <div style={{ fontSize: 11.5, color: C.textFaint, marginBottom: 5 }}>{k}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{v}</div>
+                  <div
+                    key={k}
+                    style={{
+                      background: C.panelAlt,
+                      border: `1px solid ${C.borderSoft}`,
+                      borderRadius: 11,
+                      padding: "14px 20px",
+                      minWidth: 130,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: C.textFaint,
+                        marginBottom: 5,
+                      }}
+                    >
+                      {k}
+                    </div>
+                    <div
+                      style={{ fontSize: 14, fontWeight: 700, color: C.text }}
+                    >
+                      {v}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1316,7 +1846,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 <ChevronLeft size={16} /> Quay lại
               </button>
 
-              <span style={{ fontSize: 12.5, color: C.textFaint }}>Bước {step + 1} / 4</span>
+              <span style={{ fontSize: 12.5, color: C.textFaint }}>
+                Bước {step + 1} / 4
+              </span>
 
               <button
                 type="button"

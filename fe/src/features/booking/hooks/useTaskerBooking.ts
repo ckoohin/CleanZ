@@ -2,13 +2,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
-import type { CreateBookingForCustomerDto } from "../types/booking.types";
+import type {
+  CreateBookingForCustomerDto,
+  TaskerCompletedBookingRange,
+} from "../types/booking.types";
 
 const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
   postedDetail: (id: string) => ["tasker-booking", "posted", id],
   assigned: (id: string) => ["tasker-booking", "assigned", id],
   active: ["tasker-booking", "active"],
+  completed: (
+    page: number,
+    limit: number,
+    range?: TaskerCompletedBookingRange,
+  ) => ["tasker-booking", "completed", page, limit, range],
   customerVouchers: (phone: string, packageId?: string) => [
     "tasker-booking",
     "customer-vouchers",
@@ -18,14 +26,18 @@ const TASKER_KEYS = {
 };
 
 function getErrorMsg(err: unknown): string {
-  const data = (err as { response?: { data?: { message?: unknown; errors?: unknown } } })?.response?.data;
+  const data = (
+    err as { response?: { data?: { message?: unknown; errors?: unknown } } }
+  )?.response?.data;
   const message = data?.message ?? data?.errors;
 
   if (typeof message === "string") return message;
   if (Array.isArray(message)) return message.join(", ");
   if (message && typeof message === "object") {
     return Object.values(message as Record<string, unknown>)
-      .map((value) => (typeof value === "string" ? value : JSON.stringify(value)))
+      .map((value) =>
+        typeof value === "string" ? value : JSON.stringify(value),
+      )
       .join(", ");
   }
 
@@ -67,7 +79,10 @@ export function isSilentTaskerBookingError(err: unknown): boolean {
 
 function handleTaskerBookingError(err: unknown) {
   if (isSilentTaskerBookingError(err)) {
-    console.info("[TaskerBooking] Bỏ qua lỗi booking stale/không thuộc tasker:", getErrorMsg(err));
+    console.info(
+      "[TaskerBooking] Bỏ qua lỗi booking stale/không thuộc tasker:",
+      getErrorMsg(err),
+    );
     return;
   }
 
@@ -169,6 +184,22 @@ export function useTaskerActiveBooking() {
   });
 }
 
+export function useTaskerCompletedBookings(
+  page = 1,
+  limit = 10,
+  enabled = true,
+  range?: TaskerCompletedBookingRange,
+) {
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const isTaskerReady = !isAuthLoading && user?.role === "TASKER";
+
+  return useQuery({
+    queryKey: TASKER_KEYS.completed(page, limit, range),
+    queryFn: () => taskerBookingApi.findCompleted(page, limit, range),
+    enabled: isTaskerReady && enabled,
+  });
+}
+
 /** 08. Bắt đầu di chuyển */
 export function useMarkOnTheWay(bookingId: string) {
   const qc = useQueryClient();
@@ -226,7 +257,9 @@ export function useMarkComplete(bookingId: string) {
   return useMutation({
     mutationFn: () => taskerBookingApi.markComplete(bookingId),
     onSuccess: (data) => {
-      toast.success(`Hoàn thành đơn ${data.bookingCode}! Thu nhập đã vào ví ✅`);
+      toast.success(
+        `Hoàn thành đơn ${data.bookingCode}! Thu nhập đã vào ví ✅`,
+      );
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
@@ -293,7 +326,8 @@ export function useCreateBookingForCustomer() {
 export function useCancelByTasker(bookingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (reason?: string) => taskerBookingApi.cancelByTasker(bookingId, reason),
+    mutationFn: (reason?: string) =>
+      taskerBookingApi.cancelByTasker(bookingId, reason),
     onSuccess: (res) => {
       toast.success(res.message ?? "Đã hủy đơn. Đơn đang được tìm tasker mới.");
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });

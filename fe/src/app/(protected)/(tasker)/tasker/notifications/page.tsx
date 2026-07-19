@@ -7,6 +7,7 @@ export default function TaskerNotificationsRoute() {
       bookingSegment="jobs"
       incidentSegment="incidents"
       enableRealtime={false}
+      showBackButton={false}
     />
   );
 }

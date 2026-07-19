@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -10,28 +11,49 @@ import {
 } from 'typeorm';
 import { TopupStatus } from 'src/common/enums/topup-status.enum';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { WalletEntity } from './wallet.entity';
 
 /**
- * Đơn nạp tiền vào ví Customer qua cổng thanh toán (hiện tại: PayPal Orders v2).
+ * Đơn nạp tiền vào ví Customer hoặc Tasker qua cổng thanh toán.
  * Vòng đời: CREATED → COMPLETED | FAILED | CANCELLED | EXPIRED.
  * Chỉ cộng ví khi capture PayPal trả COMPLETED — chốt idempotency bằng `walletTxId`.
  */
 @Entity('wallet_topup_orders')
+@Check(
+  'CHK_topup_exactly_one_owner',
+  `num_nonnulls("customer_id", "tasker_id") = 1`,
+)
 export class WalletTopupOrderEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Index('idx_topup_customer_id')
-  @Column({ type: 'uuid', name: 'customer_id' })
-  customerId!: string;
+  @Column({ type: 'uuid', name: 'customer_id', nullable: true })
+  customerId!: string | null;
 
   @ManyToOne(() => CustomerEntity, {
+    nullable: true,
     onDelete: 'RESTRICT',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'customer_id' })
-  customer!: CustomerEntity;
+  customer!: CustomerEntity | null;
+
+  @Index('idx_topup_tasker_id')
+  @Column({ type: 'uuid', name: 'tasker_id', nullable: true })
+  taskerId!: string | null;
+
+  @ManyToOne(() => TaskerEntity, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'tasker_id',
+    foreignKeyConstraintName: 'FK_topup_tasker',
+  })
+  tasker!: TaskerEntity | null;
 
   @Column({ type: 'uuid', name: 'wallet_id' })
   walletId!: string;

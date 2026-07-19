@@ -4,6 +4,8 @@ import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 import { taskerWalletApi } from "../services/tasker-wallet.service";
 import type {
   CreateTaskerWithdrawalPayload,
+  CreateTaskerTopupPayload,
+  TaskerEarningsPeriod,
   TaskerWalletTransactionQuery,
 } from "../types/tasker-wallet.types";
 
@@ -14,6 +16,10 @@ export const taskerWalletKeys = {
     [...taskerWalletKeys.all, "transactions", query] as const,
   depositTransactions: () =>
     [...taskerWalletKeys.all, "deposit-transactions"] as const,
+  earningsSummary: () => [...taskerWalletKeys.all, "earnings-summary"] as const,
+  earningsBreakdown: (period: TaskerEarningsPeriod, anchor?: string) =>
+    [...taskerWalletKeys.all, "earnings-breakdown", period, anchor] as const,
+  topupConfig: () => [...taskerWalletKeys.all, "topup-config"] as const,
 };
 
 export function useTaskerWallet() {
@@ -23,19 +29,49 @@ export function useTaskerWallet() {
   });
 }
 
+export function useTaskerEarningsSummary() {
+  return useQuery({
+    queryKey: taskerWalletKeys.earningsSummary(),
+    queryFn: taskerWalletApi.getEarningsSummary,
+  });
+}
+
+export function useTaskerEarningsBreakdown(
+  period: TaskerEarningsPeriod,
+  anchor?: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: taskerWalletKeys.earningsBreakdown(period, anchor),
+    queryFn: () => taskerWalletApi.getEarningsBreakdown(period, anchor),
+    enabled,
+  });
+}
+
+export function useTaskerTopupConfig(enabled = true) {
+  return useQuery({
+    queryKey: taskerWalletKeys.topupConfig(),
+    queryFn: taskerWalletApi.getTopupConfig,
+    enabled,
+  });
+}
+
 export function useTaskerWalletTransactions(
   query?: TaskerWalletTransactionQuery,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: taskerWalletKeys.transactions(query),
     queryFn: () => taskerWalletApi.getTransactions(query),
+    enabled,
   });
 }
 
-export function useTaskerDepositTransactions() {
+export function useTaskerDepositTransactions(enabled = true) {
   return useQuery({
     queryKey: taskerWalletKeys.depositTransactions(),
     queryFn: taskerWalletApi.getDepositTransactions,
+    enabled,
   });
 }
 
@@ -47,6 +83,26 @@ export function useCreateTaskerWithdrawal() {
       taskerWalletApi.createWithdrawal(payload),
     onSuccess: () => {
       toast.success("Đã gửi yêu cầu rút tiền");
+      queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useCreateTaskerTopup() {
+  return useMutation({
+    mutationFn: (payload: CreateTaskerTopupPayload) =>
+      taskerWalletApi.createTopup(payload),
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useCaptureTaskerTopup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (topupId: string) => taskerWalletApi.captureTopup(topupId),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
     },
     onError: (error: unknown) => toast.error(getErrorMessage(error)),

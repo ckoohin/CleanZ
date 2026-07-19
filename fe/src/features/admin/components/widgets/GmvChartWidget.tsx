@@ -127,7 +127,7 @@ export function GmvChartWidget() {
           <button
             type="button"
             onClick={() => setAsTable((v) => !v)}
-            title={asTable ? "Xem biểu đồ" : "Xem dạng bảng"}
+            title={asTable ? "Xem thêm" : "Xem dạng bảng"}
             className="shrink-0 rounded-lg border border-[var(--c-line)] p-1.5 text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
           >
             {asTable ? <BarChart3 className="size-4" /> : <Table2 className="size-4" />}

@@ -12,6 +12,8 @@ import type {
   QuoteBookingDto,
   TaskerAcceptResponse,
   TaskerAssignedBookingDetail,
+  TaskerCompletedBookingListResponse,
+  TaskerCompletedBookingRange,
   TaskerCreatedBookingResponse,
   TaskerPostedBookingDetail,
   TaskerPostedBookingListResponse,
@@ -39,11 +41,18 @@ export const customerBookingApi = {
 
   /** 03. Xem chi tiết booking */
   findDetail: (id: string): Promise<CustomerBookingDetail> =>
-    http.get(API_ENDPOINTS.BOOKING.DETAIL(id)).then((r) => r.data.data ?? r.data),
+    http
+      .get(API_ENDPOINTS.BOOKING.DETAIL(id))
+      .then((r) => r.data.data ?? r.data),
 
   /** 03A. Đổi lịch/địa chỉ khi POSTED */
-  updateSchedule: (id: string, dto: UpdateBookingScheduleDto): Promise<CustomerBookingDetail> =>
-    http.patch(API_ENDPOINTS.BOOKING.UPDATE_SCHEDULE(id), dto).then((r) => r.data.data ?? r.data),
+  updateSchedule: (
+    id: string,
+    dto: UpdateBookingScheduleDto,
+  ): Promise<CustomerBookingDetail> =>
+    http
+      .patch(API_ENDPOINTS.BOOKING.UPDATE_SCHEDULE(id), dto)
+      .then((r) => r.data.data ?? r.data),
 
   /** 03C. Hủy booking */
   cancel: (id: string, dto: CancelBookingDto): Promise<{ message: string }> =>
@@ -51,14 +60,18 @@ export const customerBookingApi = {
 
   /** 03D. Lấy booking đang hoạt động */
   findMyActive: (): Promise<CustomerActiveBookingResponse> =>
-    http.get(API_ENDPOINTS.BOOKING.MY_ACTIVE).then((r) => r.data.data ?? r.data),
+    http
+      .get(API_ENDPOINTS.BOOKING.MY_ACTIVE)
+      .then((r) => r.data.data ?? r.data),
 
   /** 03E. Danh sách toàn bộ booking của customer */
   findMyBookings: (): Promise<CustomerBookingListResponse> =>
     http.get(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data.data ?? r.data),
 
   /** 03F. Xác nhận đơn do tasker tạo hộ */
-  confirmTaskerBooking: (id: string): Promise<{ id: string; bookingCode: string; status: string }> =>
+  confirmTaskerBooking: (
+    id: string,
+  ): Promise<{ id: string; bookingCode: string; status: string }> =>
     http
       .patch(API_ENDPOINTS.BOOKING.CONFIRM_TASKER_BOOKING(id), undefined, {
         skipErrorToast: true,
@@ -66,7 +79,9 @@ export const customerBookingApi = {
       .then((r) => r.data.data ?? r.data),
 
   /** 03G. Từ chối đơn do tasker tạo hộ */
-  declineTaskerBooking: (id: string): Promise<{ id: string; bookingCode: string; status: string }> =>
+  declineTaskerBooking: (
+    id: string,
+  ): Promise<{ id: string; bookingCode: string; status: string }> =>
     http
       .patch(API_ENDPOINTS.BOOKING.DECLINE_TASKER_BOOKING(id), undefined, {
         skipErrorToast: true,
@@ -78,12 +93,14 @@ export const customerBookingApi = {
 export const taskerBookingApi = {
   /** 04. Danh sách đơn đang chờ nhận */
   findPostedList: (): Promise<TaskerPostedBookingListResponse> =>
-    http.get(API_ENDPOINTS.BOOKING.TASKER_POSTED_LIST).then((r) => r.data.data ?? r.data),
+    http
+      .get(API_ENDPOINTS.BOOKING.TASKER_POSTED_LIST)
+      .then((r) => r.data.data ?? r.data),
 
   /** 05. Chi tiết đơn posted + khoảng cách */
   findPostedDetail: (
     id: string,
-    location?: { currentLatitude?: number; currentLongitude?: number }
+    location?: { currentLatitude?: number; currentLongitude?: number },
   ): Promise<TaskerPostedBookingDetail> =>
     http
       .get(API_ENDPOINTS.BOOKING.TASKER_POSTED_DETAIL(id), {
@@ -102,12 +119,25 @@ export const taskerBookingApi = {
 
   /** 07A. Lấy đơn hàng đang hoạt động hiện tại */
   findActive: (): Promise<TaskerAssignedBookingDetail | null> =>
-    http.get(API_ENDPOINTS.BOOKING.TASKER_ACTIVE).then((r) => r.data.data ?? r.data),
+    http
+      .get(API_ENDPOINTS.BOOKING.TASKER_ACTIVE)
+      .then((r) => r.data.data ?? r.data),
+
+  findCompleted: (
+    page = 1,
+    limit = 10,
+    range?: TaskerCompletedBookingRange,
+  ): Promise<TaskerCompletedBookingListResponse> =>
+    http
+      .get(API_ENDPOINTS.BOOKING.TASKER_COMPLETED, {
+        params: { page, limit, ...range },
+      })
+      .then((r) => r.data.data ?? r.data),
 
   /** 07. Chi tiết đơn đã nhận */
   findAssigned: (
     id: string,
-    location?: { currentLatitude?: number; currentLongitude?: number }
+    location?: { currentLatitude?: number; currentLongitude?: number },
   ): Promise<TaskerAssignedBookingDetail> =>
     http
       .get(API_ENDPOINTS.BOOKING.TASKER_ASSIGNED(id), {
@@ -118,7 +148,9 @@ export const taskerBookingApi = {
 
   /** 08. Bắt đầu di chuyển */
   markOnTheWay: (id: string): Promise<TaskerAssignedBookingDetail> =>
-    http.patch(API_ENDPOINTS.BOOKING.TASKER_ON_WAY(id)).then((r) => r.data.data ?? r.data),
+    http
+      .patch(API_ENDPOINTS.BOOKING.TASKER_ON_WAY(id))
+      .then((r) => r.data.data ?? r.data),
 
   /** 09. Check-in khi đến nơi */
   markCheckedIn: (id: string): Promise<TaskerAssignedBookingDetail> =>
@@ -130,11 +162,15 @@ export const taskerBookingApi = {
 
   /** 10. Bắt đầu làm việc */
   markStart: (id: string): Promise<TaskerAssignedBookingDetail> =>
-    http.patch(API_ENDPOINTS.BOOKING.TASKER_START(id)).then((r) => r.data.data ?? r.data),
+    http
+      .patch(API_ENDPOINTS.BOOKING.TASKER_START(id))
+      .then((r) => r.data.data ?? r.data),
 
   /** 11. Hoàn thành */
   markComplete: (id: string): Promise<TaskerAssignedBookingDetail> =>
-    http.patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id)).then((r) => r.data.data ?? r.data),
+    http
+      .patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id))
+      .then((r) => r.data.data ?? r.data),
 
   /** 13. Tra cứu customer theo SĐT (để tạo đơn hộ) */
   lookupCustomer: (phone: string): Promise<CustomerLookupResult> =>
@@ -158,7 +194,9 @@ export const taskerBookingApi = {
       .then((r) => r.data.data ?? r.data),
 
   /** 14. Tạo đơn hộ customer → chờ khách xác nhận trong 15 phút */
-  createForCustomer: (dto: CreateBookingForCustomerDto): Promise<TaskerCreatedBookingResponse> =>
+  createForCustomer: (
+    dto: CreateBookingForCustomerDto,
+  ): Promise<TaskerCreatedBookingResponse> =>
     http
       .post(API_ENDPOINTS.BOOKING.TASKER_CREATE_FOR_CUSTOMER, dto, {
         skipErrorToast: true,
@@ -176,5 +214,7 @@ export const taskerBookingApi = {
     suspended: boolean;
     suspendedUntil?: string;
   }> =>
-    http.patch(API_ENDPOINTS.BOOKING.TASKER_CANCEL(id), { reason }).then((r) => r.data.data ?? r.data),
+    http
+      .patch(API_ENDPOINTS.BOOKING.TASKER_CANCEL(id), { reason })
+      .then((r) => r.data.data ?? r.data),
 };

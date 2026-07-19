@@ -12,6 +12,7 @@ import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
+import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import { WalletEntity } from './entity/wallet.entity';
 import { PaginatedData } from 'src/common/helpers/response.interface';
@@ -21,6 +22,7 @@ import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.en
 import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
 import { SYSTEM_CONFIG_KEYS } from '../system-config/system-config.keys';
 import { SystemConfigService } from '../system-config/system-config.service';
+import type { TaskerEarningsPeriod } from './dto/tasker-earnings-breakdown-query.dto';
 
 interface WalletMutationInput {
   wallet: WalletEntity;
@@ -97,9 +99,314 @@ export interface WalletTransactionListResponse {
 export interface WalletTransactionQueryOpts {
   page?: number;
   limit?: number;
+  type?: WalletTransactionType;
   fromDate?: string;
   toDate?: string;
 }
+
+export interface TaskerEarningsSummaryResponse {
+  today: number;
+  week: number;
+  month: number;
+  year: number;
+  completedBookings: number;
+}
+
+export interface TaskerEarningsBreakdownResponse {
+  period: TaskerEarningsPeriod;
+  total: number;
+  availableFrom: string;
+  availableTo: string;
+  rangeStart: string;
+  rangeEnd: string;
+  rangeLabel: string;
+  selectedValue: string;
+  options: Array<{
+    value: string;
+    label: string;
+    isCurrent: boolean;
+  }>;
+  points: Array<{
+    key: string;
+    label: string;
+    dateLabel: string;
+    amount: number;
+    rangeStart: string;
+    rangeEnd: string;
+  }>;
+}
+
+type CalendarPeriod = 'day' | 'week' | 'month' | 'year';
+
+interface EarningsBucketTemplate {
+  key: string;
+  label: string;
+  dateLabel: string;
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+interface EarningsWindow {
+  startAt: string;
+  endAt: string;
+  availableFrom: string;
+  availableTo: string;
+  rangeStart: string;
+  rangeEnd: string;
+  rangeLabel: string;
+  selectedValue: string;
+  options: TaskerEarningsBreakdownResponse['options'];
+  bucketUnit: 'hour' | 'day' | 'month';
+  bucketFormat: 'YYYY-MM-DD HH24' | 'YYYY-MM-DD' | 'YYYY-MM';
+  points: EarningsBucketTemplate[];
+}
+
+const VIETNAM_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+const localDateKey = (date: Date): string =>
+  `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+
+const localMonthKey = (date: Date): string =>
+  `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}`;
+
+const databaseUtcTimestamp = (localTime: number): string =>
+  new Date(localTime - VIETNAM_UTC_OFFSET_MS)
+    .toISOString()
+    .slice(0, 23)
+    .replace('T', ' ');
+
+const utcIsoFromLocal = (localTime: number): string =>
+  new Date(localTime - VIETNAM_UTC_OFFSET_MS).toISOString();
+
+const localDateLabel = (localTime: number, includeYear = false): string => {
+  const date = new Date(localTime);
+  const value = `${pad2(date.getUTCDate())}/${pad2(date.getUTCMonth() + 1)}`;
+  return includeYear ? `${value}/${date.getUTCFullYear()}` : value;
+};
+
+const startOfLocalWeek = (localTime: number): number => {
+  const date = new Date(localTime);
+  const daysFromMonday = (date.getUTCDay() + 6) % 7;
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate() - daysFromMonday,
+  );
+};
+
+const startOfLocalMonth = (localTime: number): number => {
+  const date = new Date(localTime);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+};
+
+const startOfLocalYear = (localTime: number): number => {
+  const date = new Date(localTime);
+  return Date.UTC(date.getUTCFullYear(), 0, 1);
+};
+
+const parseLocalAnchor = (anchor: string | undefined, fallback: number) => {
+  if (!anchor) return fallback;
+  const [year, month, day] = anchor.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+};
+
+const nextPeriodStart = (
+  period: Exclude<TaskerEarningsPeriod, 'today'>,
+  localTime: number,
+): number => {
+  const date = new Date(localTime);
+  if (period === 'week') return localTime + 7 * 24 * 60 * 60 * 1000;
+  if (period === 'month') {
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
+  }
+  return Date.UTC(date.getUTCFullYear() + 1, 0, 1);
+};
+
+const periodStart = (
+  period: Exclude<TaskerEarningsPeriod, 'today'>,
+  localTime: number,
+): number => {
+  if (period === 'week') return startOfLocalWeek(localTime);
+  if (period === 'month') return startOfLocalMonth(localTime);
+  return startOfLocalYear(localTime);
+};
+
+const periodOptionLabel = (
+  period: Exclude<TaskerEarningsPeriod, 'today'>,
+  localTime: number,
+): string => {
+  const date = new Date(localTime);
+  if (period === 'week') {
+    const end = localTime + 6 * 24 * 60 * 60 * 1000;
+    const crossesYear =
+      date.getUTCFullYear() !== new Date(end).getUTCFullYear();
+    return crossesYear
+      ? `${localDateLabel(localTime, true)} - ${localDateLabel(end, true)}`
+      : `${localDateLabel(localTime)} - ${localDateLabel(end, true)}`;
+  }
+  if (period === 'month') {
+    return `Tháng ${date.getUTCMonth() + 1}/${date.getUTCFullYear()}`;
+  }
+  return `Năm ${date.getUTCFullYear()}`;
+};
+
+const buildPeriodOptions = (
+  period: Exclude<TaskerEarningsPeriod, 'today'>,
+  accountCreatedLocal: number,
+  currentLocal: number,
+): TaskerEarningsBreakdownResponse['options'] => {
+  const first = periodStart(period, accountCreatedLocal);
+  const current = periodStart(period, currentLocal);
+  const options: TaskerEarningsBreakdownResponse['options'] = [];
+
+  for (
+    let cursor = first;
+    cursor <= current;
+    cursor = nextPeriodStart(period, cursor)
+  ) {
+    options.push({
+      value: localDateKey(new Date(cursor)),
+      label: periodOptionLabel(period, cursor),
+      isCurrent: cursor === current,
+    });
+  }
+
+  return options.reverse();
+};
+
+const buildEarningsWindow = (
+  period: TaskerEarningsPeriod,
+  accountCreatedAt: Date,
+  anchor?: string,
+  now = new Date(),
+): EarningsWindow => {
+  const vietnamNow = new Date(now.getTime() + VIETNAM_UTC_OFFSET_MS);
+  const vietnamAccountCreated = new Date(
+    accountCreatedAt.getTime() + VIETNAM_UTC_OFFSET_MS,
+  );
+  const currentLocal = Date.UTC(
+    vietnamNow.getUTCFullYear(),
+    vietnamNow.getUTCMonth(),
+    vietnamNow.getUTCDate(),
+  );
+  const accountCreatedLocal = Date.UTC(
+    vietnamAccountCreated.getUTCFullYear(),
+    vietnamAccountCreated.getUTCMonth(),
+    vietnamAccountCreated.getUTCDate(),
+  );
+  let startLocal: number;
+  let endLocal: number;
+  let rangeLabel: string;
+  let selectedValue: string;
+  let options: TaskerEarningsBreakdownResponse['options'];
+  let bucketUnit: EarningsWindow['bucketUnit'];
+  let bucketFormat: EarningsWindow['bucketFormat'];
+  let points: EarningsBucketTemplate[];
+  const availableFrom = localDateKey(new Date(accountCreatedLocal));
+  const availableTo = localDateKey(new Date(currentLocal));
+
+  if (period === 'today') {
+    const requestedDay = parseLocalAnchor(anchor, currentLocal);
+    startLocal = Math.min(
+      currentLocal,
+      Math.max(accountCreatedLocal, requestedDay),
+    );
+    endLocal = startLocal + 24 * 60 * 60 * 1000;
+    bucketUnit = 'day';
+    bucketFormat = 'YYYY-MM-DD';
+    rangeLabel = `Ngày ${localDateLabel(startLocal, true)}`;
+    selectedValue = localDateKey(new Date(startLocal));
+    options = [];
+    points = [
+      {
+        key: selectedValue,
+        label: localDateLabel(startLocal),
+        dateLabel: localDateLabel(startLocal, true),
+        rangeStart: utcIsoFromLocal(startLocal),
+        rangeEnd: utcIsoFromLocal(endLocal),
+      },
+    ];
+  } else {
+    const firstStart = periodStart(period, accountCreatedLocal);
+    const currentStart = periodStart(period, currentLocal);
+    const requestedStart = periodStart(
+      period,
+      parseLocalAnchor(anchor, currentStart),
+    );
+    startLocal = Math.min(currentStart, Math.max(firstStart, requestedStart));
+    endLocal = nextPeriodStart(period, startLocal);
+    rangeLabel = periodOptionLabel(period, startLocal);
+    selectedValue = localDateKey(new Date(startLocal));
+    options = buildPeriodOptions(period, accountCreatedLocal, currentLocal);
+
+    if (period === 'year') {
+      const selectedYear = new Date(startLocal).getUTCFullYear();
+      bucketUnit = 'month';
+      bucketFormat = 'YYYY-MM';
+      points = Array.from({ length: 12 }, (_, index) => {
+        const pointStart = Date.UTC(selectedYear, index, 1);
+        const pointEnd = Date.UTC(selectedYear, index + 1, 1);
+        return {
+          key: localMonthKey(new Date(pointStart)),
+          label: `T${index + 1}`,
+          dateLabel: `Tháng ${index + 1}/${selectedYear}`,
+          rangeStart: utcIsoFromLocal(pointStart),
+          rangeEnd: utcIsoFromLocal(pointEnd),
+        };
+      });
+    } else {
+      const daysInPeriod =
+        period === 'week' ? 7 : new Date(endLocal - 1).getUTCDate();
+      const startDate = new Date(startLocal);
+      bucketUnit = 'day';
+      bucketFormat = 'YYYY-MM-DD';
+      points = Array.from({ length: daysInPeriod }, (_, index) => {
+        const pointStart =
+          period === 'week'
+            ? startLocal + index * 24 * 60 * 60 * 1000
+            : Date.UTC(
+                startDate.getUTCFullYear(),
+                startDate.getUTCMonth(),
+                index + 1,
+              );
+        const pointEnd = pointStart + 24 * 60 * 60 * 1000;
+        return {
+          key: localDateKey(new Date(pointStart)),
+          label: period === 'week' ? WEEKDAY_LABELS[index] : String(index + 1),
+          dateLabel: localDateLabel(pointStart),
+          rangeStart: utcIsoFromLocal(pointStart),
+          rangeEnd: utcIsoFromLocal(pointEnd),
+        };
+      });
+    }
+  }
+
+  return {
+    startAt: databaseUtcTimestamp(startLocal),
+    endAt: databaseUtcTimestamp(endLocal),
+    availableFrom,
+    availableTo,
+    rangeStart: utcIsoFromLocal(startLocal),
+    rangeEnd: utcIsoFromLocal(endLocal),
+    rangeLabel,
+    selectedValue,
+    options,
+    bucketUnit,
+    bucketFormat,
+    points,
+  };
+};
+
+/**
+ * `created_at` hiện lưu timestamp UTC không kèm timezone. Tạo mốc đầu kỳ theo
+ * giờ Việt Nam rồi đổi về UTC để so sánh trực tiếp và vẫn dùng được index.
+ */
+const vietnamPeriodStartUtc = (period: CalendarPeriod): string =>
+  `(DATE_TRUNC('${period}', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') ` +
+  `AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'UTC'`;
 
 @Injectable()
 export class WalletService {
@@ -172,6 +479,174 @@ export class WalletService {
         ),
       };
     }, 'Không thể lấy ví tasker');
+  }
+
+  async getMyTaskerEarningsSummary(
+    userId: string,
+  ): Promise<TaskerEarningsSummaryResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.findTaskerByUserId(
+        this.dataSource.manager,
+        userId,
+      );
+      const wallet = await this.getOrCreateTaskerWallet(
+        this.dataSource.manager,
+        tasker,
+      );
+
+      const incomeExpression = `
+        CASE
+          WHEN tx.type = :earningType THEN tx.amount
+          WHEN tx.type = :platformFeeType THEN GREATEST(
+            COALESCE(booking.totalPrice, 0)
+              + COALESCE(booking.discountAmount, 0)
+              - tx.amount,
+            0
+          )
+          ELSE 0
+        END
+      `;
+      const dayStart = vietnamPeriodStartUtc('day');
+      const weekStart = vietnamPeriodStartUtc('week');
+      const monthStart = vietnamPeriodStartUtc('month');
+      const yearStart = vietnamPeriodStartUtc('year');
+
+      const summary = await this.dataSource
+        .getRepository(WalletTransactionEntity)
+        .createQueryBuilder('tx')
+        .leftJoin('tx.booking', 'booking')
+        .select(
+          `COALESCE(SUM(CASE WHEN tx.createdAt >= ${dayStart} THEN ${incomeExpression} ELSE 0 END), 0)`,
+          'today',
+        )
+        .addSelect(
+          `COALESCE(SUM(CASE WHEN tx.createdAt >= ${weekStart} THEN ${incomeExpression} ELSE 0 END), 0)`,
+          'week',
+        )
+        .addSelect(
+          `COALESCE(SUM(CASE WHEN tx.createdAt >= ${monthStart} THEN ${incomeExpression} ELSE 0 END), 0)`,
+          'month',
+        )
+        .addSelect(
+          `COALESCE(SUM(CASE WHEN tx.createdAt >= ${yearStart} THEN ${incomeExpression} ELSE 0 END), 0)`,
+          'year',
+        )
+        .where('tx.wallet = :walletId', { walletId: wallet.id })
+        .andWhere('tx.type IN (:...incomeTypes)', {
+          incomeTypes: [
+            WalletTransactionType.TASKER_EARNING,
+            WalletTransactionType.PLATFORM_FEE,
+          ],
+        })
+        .andWhere(`tx.createdAt >= ${yearStart}`)
+        .setParameters({
+          earningType: WalletTransactionType.TASKER_EARNING,
+          platformFeeType: WalletTransactionType.PLATFORM_FEE,
+        })
+        .getRawOne<{
+          today: string;
+          week: string;
+          month: string;
+          year: string;
+        }>();
+
+      const completedBookings = await this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .where('booking.tasker = :taskerId', { taskerId: tasker.id })
+        .andWhere('booking.status = :status', {
+          status: BookingStatus.COMPLETED,
+        })
+        .getCount();
+
+      return {
+        today: toNumber(summary?.today ?? 0),
+        week: toNumber(summary?.week ?? 0),
+        month: toNumber(summary?.month ?? 0),
+        year: toNumber(summary?.year ?? 0),
+        completedBookings,
+      };
+    }, 'Không thể tổng hợp thu nhập tasker');
+  }
+
+  async getMyTaskerEarningsBreakdown(
+    userId: string,
+    period: TaskerEarningsPeriod,
+    anchor?: string,
+  ): Promise<TaskerEarningsBreakdownResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.findTaskerByUserId(
+        this.dataSource.manager,
+        userId,
+      );
+      const wallet = await this.getOrCreateTaskerWallet(
+        this.dataSource.manager,
+        tasker,
+      );
+      const window = buildEarningsWindow(period, tasker.createdAt, anchor);
+      const incomeExpression = `
+        CASE
+          WHEN tx.type = :earningType THEN tx.amount
+          WHEN tx.type = :platformFeeType THEN GREATEST(
+            COALESCE(booking.totalPrice, 0)
+              + COALESCE(booking.discountAmount, 0)
+              - tx.amount,
+            0
+          )
+          ELSE 0
+        END
+      `;
+      const bucketExpression =
+        `DATE_TRUNC('${window.bucketUnit}', ` +
+        `tx.createdAt + INTERVAL '7 hours')`;
+
+      const rows = await this.dataSource
+        .getRepository(WalletTransactionEntity)
+        .createQueryBuilder('tx')
+        .leftJoin('tx.booking', 'booking')
+        .select(
+          `TO_CHAR(${bucketExpression}, '${window.bucketFormat}')`,
+          'bucket',
+        )
+        .addSelect(`COALESCE(SUM(${incomeExpression}), 0)`, 'amount')
+        .where('tx.wallet = :walletId', { walletId: wallet.id })
+        .andWhere('tx.type IN (:...incomeTypes)', {
+          incomeTypes: [
+            WalletTransactionType.TASKER_EARNING,
+            WalletTransactionType.PLATFORM_FEE,
+          ],
+        })
+        .andWhere('tx.createdAt >= :startAt', { startAt: window.startAt })
+        .andWhere('tx.createdAt < :endAt', { endAt: window.endAt })
+        .setParameters({
+          earningType: WalletTransactionType.TASKER_EARNING,
+          platformFeeType: WalletTransactionType.PLATFORM_FEE,
+        })
+        .groupBy(bucketExpression)
+        .orderBy(bucketExpression, 'ASC')
+        .getRawMany<{ bucket: string; amount: string }>();
+
+      const amountByBucket = new Map(
+        rows.map((row) => [row.bucket, toNumber(row.amount)]),
+      );
+      const points = window.points.map((point) => ({
+        ...point,
+        amount: amountByBucket.get(point.key) ?? 0,
+      }));
+
+      return {
+        period,
+        total: points.reduce((sum, point) => sum + point.amount, 0),
+        availableFrom: window.availableFrom,
+        availableTo: window.availableTo,
+        rangeStart: window.rangeStart,
+        rangeEnd: window.rangeEnd,
+        rangeLabel: window.rangeLabel,
+        selectedValue: window.selectedValue,
+        options: window.options,
+        points,
+      };
+    }, 'Không thể lấy biểu đồ thu nhập tasker');
   }
 
   async getMyCustomerWallet(userId: string): Promise<WalletResponse> {
@@ -739,6 +1214,9 @@ export class WalletService {
       const to = new Date(opts.toDate);
       to.setHours(23, 59, 59, 999);
       qb.andWhere('tx.createdAt <= :toDate', { toDate: to });
+    }
+    if (opts.type) {
+      qb.andWhere('tx.type = :type', { type: opts.type });
     }
 
     const total = await qb.getCount();

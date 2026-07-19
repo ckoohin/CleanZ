@@ -1,12 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useThemeToggleContext } from "@/contexts/themeToggle.context";
-import { Sun, Moon, Paintbrush, Bell, Shield, LogOut, AlertTriangle, User } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bell,
+  LogOut,
+  Mail,
+  Moon,
+  Paintbrush,
+  Shield,
+  Sun,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useLogout } from "@/features/auth/hooks/auth.hooks";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
@@ -21,6 +29,70 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+
+/** Section card cùng ngôn ngữ với menu Tài khoản (TaskerAccountOverview). */
+function SettingSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <h2 className="mb-2 px-1 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+        {title}
+      </h2>
+      <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function SettingRow({
+  icon: Icon,
+  title,
+  description,
+  destructive = false,
+  children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  destructive?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-16 w-full items-center gap-3 px-4 py-3">
+      <span
+        className={cn(
+          "flex size-11 shrink-0 items-center justify-center rounded-xl",
+          destructive
+            ? "bg-destructive/10 text-destructive"
+            : "bg-primary/10 text-primary",
+        )}
+      >
+        <Icon className="size-5" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            "block text-sm font-bold",
+            destructive ? "text-destructive" : "text-foreground",
+          )}
+        >
+          {title}
+        </span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </span>
+      </span>
+      {children && <span className="shrink-0">{children}</span>}
+    </div>
+  );
+}
 
 export default function TaskerSettingsPage() {
   const { theme, toggleTheme } = useThemeToggleContext();
@@ -29,205 +101,170 @@ export default function TaskerSettingsPage() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const initials = tasker?.fullName
-    ? tasker.fullName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
-    : "S";
+    ? tasker.fullName
+        .split(" ")
+        .map((w: string) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "CZ";
 
   return (
     <>
-      <div className="max-w-4xl mx-auto space-y-6 px-4 md:px-6 py-6 pb-32 animate-in fade-in zoom-in-95 duration-500">
-        <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Cài đặt</h1>
-        <p className="text-muted-foreground">
-          Tùy chỉnh giao diện, thông báo và các tùy chọn bảo mật tài khoản của bạn.
-        </p>
-      </div>
-
-      <div className="grid gap-6">
-        {/* Theme Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Paintbrush className="w-5 h-5 text-primary" />
-              Giao diện (Theme)
-            </CardTitle>
-            <CardDescription>
-              Tùy chỉnh cách CleanZ hiển thị trên thiết bị của bạn.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base">Chế độ Sáng / Tối</Label>
-                <p className="text-sm text-muted-foreground">
-                  Chuyển đổi giao diện để bảo vệ mắt khi làm việc ban đêm.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={toggleTheme}
-                className="relative overflow-hidden rounded-xl border-primary/20 hover:border-primary/50"
-              >
-                <div className="flex items-center gap-2">
-                  {theme === "dark" ? (
-                    <>
-                      <Moon className="w-5 h-5 text-indigo-400" />
-                      <span>Chế độ Tối</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sun className="w-5 h-5 text-amber-500" />
-                      <span>Chế độ Sáng</span>
-                    </>
-                  )}
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notifications Placeholder */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-primary" />
-              Thông báo
-            </CardTitle>
-            <CardDescription>
-              Kiểm soát các loại thông báo bạn muốn nhận.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base">Thông báo công việc mới</Label>
-                <p className="text-sm text-muted-foreground">
-                  Nhận thông báo đẩy (Push notification) khi có công việc mới phù hợp.
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base">Email tóm tắt tuần</Label>
-                <p className="text-sm text-muted-foreground">
-                  Gửi email tóm tắt thu nhập và số đơn hàng hoàn thành mỗi cuối tuần.
-                </p>
-              </div>
-              <Switch />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Security Placeholder */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              Bảo mật
-            </CardTitle>
-            <CardDescription>
-              Quản lý mật khẩu và các thiết bị đăng nhập.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base">Mật khẩu</Label>
-                <p className="text-sm text-muted-foreground">
-                  Cập nhật lần cuối: 2 tháng trước
-                </p>
-              </div>
-              <Button variant="outline">Đổi mật khẩu</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ─── Tài khoản & Đăng xuất ─────────────────────────────── */}
-        <Card className="border-destructive/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5 text-primary" />
-              Tài khoản
-            </CardTitle>
-            <CardDescription>
-              Quản lý phiên đăng nhập và thông tin tài khoản của bạn.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Profile preview */}
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/40 border border-border/50">
-              <Avatar className="w-12 h-12 shrink-0">
-                <AvatarImage src={tasker?.avatarUrl ?? undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-foreground truncate">{tasker?.fullName ?? "Đối tác CleanZ"}</p>
-                <p className="text-sm text-muted-foreground truncate">{tasker?.phone ?? "Chưa cập nhật SĐT"}</p>
-                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                  tasker?.presenceStatus === "ONLINE"
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {tasker?.presenceStatus === "ONLINE" ? "● Đang hoạt động" : "● Không hoạt động"}
-                </span>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Logout button */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base font-semibold text-destructive">Đăng xuất</Label>
-                <p className="text-sm text-muted-foreground">
-                  Kết thúc phiên làm việc hiện tại và quay về trang đăng nhập.
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                className="gap-2 rounded-xl font-bold shadow-md shadow-destructive/20 hover:shadow-destructive/30 transition-all"
-                onClick={() => setShowLogoutDialog(true)}
-                disabled={logout.isPending}
-              >
-                <LogOut className="w-4 h-4" aria-hidden="true" />
-                {logout.isPending ? "Đang đăng xuất..." : "Đăng xuất"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
-    </div>
-
-    {/* Confirm Logout Dialog */}
-    <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-      <AlertDialogContent className="rounded-2xl">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2 text-xl font-bold">
-            <AlertTriangle className="w-6 h-6 text-amber-500" aria-hidden="true" />
-            Xác nhận đăng xuất?
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-base">
-            Bạn sẽ được chuyển về trang đăng nhập. Mọi dữ liệu chưa lưu sẽ bị mất.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="mt-4 gap-2">
-          <AlertDialogCancel className="h-11 rounded-xl font-bold">Hủy bỏ</AlertDialogCancel>
-          <AlertDialogAction
-            className="h-11 rounded-xl font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
-            onClick={() => logout.mutate()}
-            disabled={logout.isPending}
+      <div className="mx-auto w-full max-w-2xl space-y-5 px-4 py-5 pb-32 md:px-6 md:py-8">
+        <div>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="mb-4 -ml-2 text-muted-foreground"
           >
-            <LogOut className="w-4 h-4" aria-hidden="true" />
-            {logout.isPending ? "Đang đăng xuất..." : "Đăng xuất ngay"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            <Link href="/tasker/profile">
+              <ArrowLeft className="size-4" aria-hidden="true" /> Quay lại Tài
+              khoản
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Cài đặt
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tùy chỉnh giao diện, thông báo và bảo mật tài khoản của bạn.
+          </p>
+        </div>
+
+        {/* Profile preview */}
+        <section className="flex items-center gap-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+          <Avatar className="size-12 shrink-0">
+            <AvatarImage src={tasker?.avatarUrl ?? undefined} />
+            <AvatarFallback className="bg-primary/10 font-bold text-primary">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold text-foreground">
+              {tasker?.fullName ?? "Đối tác CleanZ"}
+            </p>
+            <p className="truncate text-sm text-muted-foreground">
+              {tasker?.phone ?? "Chưa cập nhật số điện thoại"}
+            </p>
+          </div>
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide",
+              tasker?.presenceStatus === "ONLINE"
+                ? "bg-emerald-500/10 text-emerald-700"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {tasker?.presenceStatus === "ONLINE"
+              ? "Đang hoạt động"
+              : "Không hoạt động"}
+          </span>
+        </section>
+
+        <SettingSection title="Giao diện">
+          <SettingRow
+            icon={Paintbrush}
+            title="Chế độ Sáng / Tối"
+            description=""
+          >
+            <Button
+              variant="outline"
+              onClick={toggleTheme}
+              className="gap-2 rounded-xl"
+            >
+              {theme === "dark" ? (
+                <>
+                  <Moon className="size-4 text-indigo-400" aria-hidden="true" />
+                  Chế độ Tối
+                </>
+              ) : (
+                <>
+                  <Sun className="size-4 text-amber-500" aria-hidden="true" />
+                  Chế độ Sáng
+                </>
+              )}
+            </Button>
+          </SettingRow>
+        </SettingSection>
+
+        <SettingSection title="Thông báo">
+          <SettingRow
+            icon={Bell}
+            title="Thông báo công việc mới"
+            description="Nhận thông báo đẩy khi có công việc mới phù hợp."
+          >
+            <Switch defaultChecked />
+          </SettingRow>
+          <SettingRow
+            icon={Mail}
+            title="Email tóm tắt tuần"
+            description="Gửi email tóm tắt thu nhập và số đơn hoàn thành mỗi cuối tuần."
+          >
+            <Switch />
+          </SettingRow>
+        </SettingSection>
+
+        <SettingSection title="Bảo mật">
+          <SettingRow
+            icon={Shield}
+            title="Mật khẩu"
+            description="Đổi mật khẩu định kỳ để bảo vệ tài khoản."
+          >
+            <Button variant="outline" className="rounded-xl">
+              Đổi mật khẩu
+            </Button>
+          </SettingRow>
+        </SettingSection>
+
+        <SettingSection title="Phiên đăng nhập">
+          <SettingRow
+            icon={LogOut}
+            title="Đăng xuất"
+            description="Kết thúc phiên làm việc hiện tại trên thiết bị này."
+            destructive
+          >
+            <Button
+              variant="destructive"
+              className="gap-2 rounded-xl font-bold"
+              onClick={() => setShowLogoutDialog(true)}
+              disabled={logout.isPending}
+            >
+              <LogOut className="size-4" aria-hidden="true" />
+              {logout.isPending ? "Đang đăng xuất..." : "Đăng xuất"}
+            </Button>
+          </SettingRow>
+        </SettingSection>
+      </div>
+
+      {/* Confirm Logout Dialog */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle
+                className="size-5 text-amber-500"
+                aria-hidden="true"
+              />
+              Xác nhận đăng xuất?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn sẽ kết thúc phiên làm việc hiện tại và quay về trang đăng nhập
+              Tasker.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Ở lại</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {logout.isPending ? "Đang đăng xuất..." : "Đăng xuất"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
