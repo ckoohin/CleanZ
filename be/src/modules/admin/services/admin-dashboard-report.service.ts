@@ -75,7 +75,9 @@ interface ReportData {
     ReturnType<AdminDashboardRepository['getBookingStatusSnapshot']>
   >;
   bookings?: Awaited<ReturnType<AdminDashboardRepository['getBookingDetails']>>;
-  finance?: Awaited<ReturnType<AdminDashboardRepository['getFinanceBreakdown']>>;
+  finance?: Awaited<
+    ReturnType<AdminDashboardRepository['getFinanceBreakdown']>
+  >;
   taskers?: Awaited<ReturnType<AdminDashboardRepository['getTaskerStats']>>;
   reviews?: Awaited<ReturnType<AdminDashboardRepository['getReviews']>>;
   levels?: Awaited<ReturnType<AdminDashboardRepository['getTaskerLevels']>>;
@@ -114,13 +116,7 @@ const CATEGORY_SHEETS: Record<DashboardCategory, SheetKey[]> = {
     'statuses',
     'recent',
   ],
-  [DashboardCategory.CS]: [
-    'alerts',
-    'recent',
-    'feedback',
-    'reviews',
-    'kpi',
-  ],
+  [DashboardCategory.CS]: ['alerts', 'recent', 'feedback', 'reviews', 'kpi'],
   [DashboardCategory.FINANCE]: [
     'kpi',
     'gmvChart',
@@ -138,13 +134,13 @@ const CATEGORY_SHEETS: Record<DashboardCategory, SheetKey[]> = {
     'topTaskers',
     'recent',
   ],
-  [DashboardCategory.TASKER]: ['kpi', 'taskerLevels', 'topTaskers', 'docExpiry'],
-  [DashboardCategory.MARKETING]: [
+  [DashboardCategory.TASKER]: [
     'kpi',
-    'voucherPerf',
-    'areaPerf',
-    'gmvChart',
+    'taskerLevels',
+    'topTaskers',
+    'docExpiry',
   ],
+  [DashboardCategory.MARKETING]: ['kpi', 'voucherPerf', 'areaPerf', 'gmvChart'],
 };
 
 /** KPI nào xuất hiện trong sheet "Chỉ số KPI" của từng danh mục. */
@@ -189,11 +185,7 @@ export class AdminDashboardReportService {
     return GroupBy.MONTH;
   }
 
-  getFilterSummary(
-    category: DashboardCategory,
-    from: Date,
-    to: Date,
-  ): string {
+  getFilterSummary(category: DashboardCategory, from: Date, to: Date): string {
     return `Danh mục: ${CATEGORY_LABEL[category]} · Kỳ: ${fmtDay(from)} – ${fmtDay(to)}`;
   }
 
@@ -430,7 +422,8 @@ export class AdminDashboardReportService {
           {
             label: 'Đơn chưa có tasker',
             count: a.unassignedBookings.count,
-            level: a.unassignedBookings.urgentCount > 0 ? 'Khẩn' : 'Bình thường',
+            level:
+              a.unassignedBookings.urgentCount > 0 ? 'Khẩn' : 'Bình thường',
             note: `${a.unassignedBookings.urgentCount} đơn sắp tới giờ hẹn (trong 2h)`,
           },
           {
@@ -781,7 +774,13 @@ export class AdminDashboardReportService {
       title: 'BẢNG XẾP HẠNG TASKER',
       subtitle: SNAPSHOT_NOTE,
       columns: [
-        { header: 'Hạng', key: 'rank', numFmt: NUM, alignRight: true, width: 8 },
+        {
+          header: 'Hạng',
+          key: 'rank',
+          numFmt: NUM,
+          alignRight: true,
+          width: 8,
+        },
         { header: 'Họ tên', key: 'fullName', width: 28 },
         {
           header: 'Điểm trung bình',
@@ -868,7 +867,12 @@ export class AdminDashboardReportService {
             unit: '/ 5',
             note: '',
           },
-          { label: 'Tổng lượt đánh giá', value: r.total, unit: 'lượt', note: '' },
+          {
+            label: 'Tổng lượt đánh giá',
+            value: r.total,
+            unit: 'lượt',
+            note: '',
+          },
           {
             label: 'NPS',
             value: r.nps,

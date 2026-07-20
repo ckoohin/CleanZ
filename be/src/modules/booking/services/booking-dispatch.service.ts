@@ -2,11 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DataSource } from 'typeorm';
+import { SystemConfigService } from 'src/modules/system-config/system-config.service';
+import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
+import { vietnamWeekStartSqlExpr } from 'src/common/helpers/vietnam-time.helper';
 
 export const BOOKING_DISPATCH_JOB = 'DISPATCH_NEAREST';
 export const DISPATCH_RING_TIMEOUT_MS = 15_000;
 export const DISPATCH_MAX_RING = 5;
-export const DISPATCH_INITIAL_RADIUS_METERS = 2_000;
+/**
+ * Chỉ còn dùng khi 1 ring tìm ra 0 tasker (an toàn cho khu vực thưa tasker) —
+ * bán kính khởi tạo (ring 1) giờ tính theo độ khẩn cấp của giờ hẹn qua
+ * `resolveDispatchRadiusMeters`, không còn cố định + tăng dần mỗi ring nữa.
+ */
 export const DISPATCH_RADIUS_FACTOR = 1.5;
 export const DISPATCH_RING_SIZE = 3;
 /**
@@ -42,6 +49,8 @@ export interface DispatchInvitationState {
   bookingId: string;
   ring: number;
   invitedTaskerIds: string[];
+  /** Tasker đã được mời ở các ring trước ring hiện tại (bán kính không đổi giữa các ring — vẫn còn hợp lệ để nhận). */
+  previouslyInvitedTaskerIds: string[];
   expiresAt: Date | null;
 }
 
@@ -72,6 +81,25 @@ function dispatchLockKey(bookingId: string): string {
   return `booking:dispatch:lock:${bookingId}`;
 }
 
+/**
+ * Bán kính tìm tasker cho ring 1, tính theo độ khẩn cấp của giờ hẹn — còn ít
+ * thời gian thì thu hẹp bán kính (đảm bảo tasker kịp tới), còn nhiều thời
+ * gian thì mở rộng (nhiều lựa chọn tasker hơn). Tách hàm thuần để test độc
+ * lập không cần DB/queue.
+ */
+export function resolveDispatchRadiusMeters(
+  scheduledStart: Date,
+  thresholdMinutes: number,
+  urgentRadiusMeters: number,
+  normalRadiusMeters: number,
+  now: Date = new Date(),
+): number {
+  const minutesUntilStart = (scheduledStart.getTime() - now.getTime()) / 60_000;
+  return minutesUntilStart <= thresholdMinutes
+    ? urgentRadiusMeters
+    : normalRadiusMeters;
+}
+
 @Injectable()
 export class BookingDispatchService {
   private readonly logger = new Logger(BookingDispatchService.name);
@@ -79,6 +107,7 @@ export class BookingDispatchService {
   constructor(
     @InjectQueue('bookingQueue') private readonly bookingQueue: Queue,
     private readonly dataSource: DataSource,
+    private readonly systemConfig: SystemConfigService,
   ) {}
 
   private async redis(): Promise<RedisLike> {
@@ -90,14 +119,38 @@ export class BookingDispatchService {
     customerUserId: string,
     lat: number,
     lng: number,
+    scheduledStart: Date,
   ): Promise<void> {
+    const manager = this.dataSource.manager;
+    const [thresholdMinutes, urgentRadiusMeters, normalRadiusMeters] =
+      await Promise.all([
+        this.systemConfig.getRegisteredNumber(
+          manager,
+          SYSTEM_CONFIG_KEYS.DISPATCH_URGENCY_THRESHOLD_MINUTES,
+        ),
+        this.systemConfig.getRegisteredNumber(
+          manager,
+          SYSTEM_CONFIG_KEYS.DISPATCH_URGENT_RADIUS_METERS,
+        ),
+        this.systemConfig.getRegisteredNumber(
+          manager,
+          SYSTEM_CONFIG_KEYS.DISPATCH_NORMAL_RADIUS_METERS,
+        ),
+      ]);
+    const radiusMeters = resolveDispatchRadiusMeters(
+      scheduledStart,
+      thresholdMinutes,
+      urgentRadiusMeters,
+      normalRadiusMeters,
+    );
+
     const data: DispatchJobData = {
       bookingId,
       customerUserId,
       lat,
       lng,
       ring: 1,
-      radiusMeters: DISPATCH_INITIAL_RADIUS_METERS,
+      radiusMeters,
       excludedTaskerIds: [],
     };
 
@@ -110,18 +163,18 @@ export class BookingDispatchService {
       removeOnFail: 200,
     });
 
-    this.logger.log(`Enqueued dispatch ring=1 for booking=${bookingId}`);
+    this.logger.log(
+      `Enqueued dispatch ring=1 radius=${radiusMeters}m for booking=${bookingId}`,
+    );
   }
 
   async enqueueNextRing(data: DispatchJobData): Promise<string> {
     const nextRing = data.ring + 1;
-    const nextRadius = Math.round(data.radiusMeters * DISPATCH_RADIUS_FACTOR);
     const jobId = dispatchJobId(data.bookingId, nextRing);
 
     const nextData: DispatchJobData = {
       ...data,
       ring: nextRing,
-      radiusMeters: nextRadius,
     };
 
     await this.bookingQueue.add(BOOKING_DISPATCH_JOB, nextData, {
@@ -134,7 +187,7 @@ export class BookingDispatchService {
     });
 
     this.logger.log(
-      `Scheduled dispatch ring=${nextRing} radius=${nextRadius}m delay=${DISPATCH_RING_TIMEOUT_MS}ms for booking=${data.bookingId}`,
+      `Scheduled dispatch ring=${nextRing} radius=${data.radiusMeters}m delay=${DISPATCH_RING_TIMEOUT_MS}ms for booking=${data.bookingId}`,
     );
 
     return jobId;
@@ -197,6 +250,7 @@ export class BookingDispatchService {
       bookingId,
       ring: Number(state.ring) || 0,
       invitedTaskerIds: this.parseStringArray(state.invitedTaskerIds),
+      previouslyInvitedTaskerIds: this.parseStringArray(state.excludedIds),
       expiresAt: state.expiresAt ? new Date(state.expiresAt) : null,
     };
   }
@@ -266,6 +320,32 @@ export class BookingDispatchService {
             ST_SetSRID(ST_Point($1, $2), 4326)::geography
           )                                               AS dist_meters
         FROM taskers t
+        LEFT JOIN wallets w ON w.tasker_id = t.id
+        -- Đơn trả ví mới có bút toán TASKER_EARNING; đơn trả tiền mặt chỉ trừ
+        -- hoa hồng qua PLATFORM_FEE trên ví tasker, phải suy ngược ra thu nhập
+        -- (tổng đơn − chiết khấu). Cùng công thức với getMyTaskerEarningsSummary
+        -- (wallet.service.ts) — chỉ tính TASKER_EARNING sẽ coi tasker làm đơn
+        -- tiền mặt là thu nhập 0, sai thứ tự ưu tiên ghép đơn.
+        LEFT JOIN (
+          SELECT
+            wt.wallet_id,
+            SUM(
+              CASE
+                WHEN wt.type = 'TASKER_EARNING' THEN wt.amount
+                WHEN wt.type = 'PLATFORM_FEE' THEN GREATEST(
+                  COALESCE(b.total_price, 0) + COALESCE(b.discount_amount, 0)
+                    - wt.amount,
+                  0
+                )
+                ELSE 0
+              END
+            ) AS weekly_income
+          FROM wallet_transactions wt
+          LEFT JOIN bookings b ON b.id = wt.booking_id
+          WHERE wt.type IN ('TASKER_EARNING', 'PLATFORM_FEE')
+            AND wt.created_at >= ${vietnamWeekStartSqlExpr()}
+          GROUP BY wt.wallet_id
+        ) wi ON wi.wallet_id = w.id
         WHERE
           t.presence_status       = 'ONLINE'
           AND t.status            = 'ACTIVE'
@@ -280,8 +360,18 @@ export class BookingDispatchService {
             ST_SetSRID(ST_Point($1, $2), 4326)::geography,
             $3
           )
+          AND NOT EXISTS (
+            SELECT 1 FROM bookings b
+            WHERE b.tasker_id = t.id
+              AND b.status IN (
+                'CONFIRMED', 'TASKER_ON_THE_WAY', 'CHECKED_IN', 'IN_PROGRESS'
+              )
+          )
           ${exclusionClause}
-        ORDER BY dist_meters ASC
+        ORDER BY
+          COALESCE(wi.weekly_income, 0) ASC,
+          t.rating_avg DESC,
+          dist_meters ASC
         LIMIT ${DISPATCH_RING_SIZE}
         `,
       params,

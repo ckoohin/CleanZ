@@ -12,6 +12,7 @@ import {
   BOOKING_DISPATCH_JOB,
   BookingDispatchService,
   DISPATCH_MAX_RING,
+  DISPATCH_RADIUS_FACTOR,
   DISPATCH_RING_TIMEOUT_MS,
   DispatchJobData,
   NearestTaskerRow,
@@ -151,7 +152,7 @@ export class BookingDispatchProcessor extends WorkerHost {
       const nextData: DispatchJobData = {
         ...data,
         ring: data.ring + 1,
-        radiusMeters: Math.round(radiusMeters * 1.5),
+        radiusMeters: Math.round(radiusMeters * DISPATCH_RADIUS_FACTOR),
       };
 
       // Chạy ngay ring tiếp theo (không delay) bằng cách đệ quy handleDispatch

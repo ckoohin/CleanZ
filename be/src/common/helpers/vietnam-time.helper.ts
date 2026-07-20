@@ -10,7 +10,9 @@ export function createVietnamDateTime(date: string, time: string): Date {
  * Nhận cả 'YYYY-MM-DD' lẫn chuỗi ISO đầy đủ.
  */
 export function vietnamStartOfDay(date: string): Date {
-  return new Date(`${date.slice(0, 10)}T00:00:00.000${VIETNAM_TIMEZONE_OFFSET}`);
+  return new Date(
+    `${date.slice(0, 10)}T00:00:00.000${VIETNAM_TIMEZONE_OFFSET}`,
+  );
 }
 
 /**
@@ -19,7 +21,9 @@ export function vietnamStartOfDay(date: string): Date {
  * làm cận trên của `BETWEEN` sẽ cắt mất gần trọn ngày cuối kỳ.
  */
 export function vietnamEndOfDay(date: string): Date {
-  return new Date(`${date.slice(0, 10)}T23:59:59.999${VIETNAM_TIMEZONE_OFFSET}`);
+  return new Date(
+    `${date.slice(0, 10)}T23:59:59.999${VIETNAM_TIMEZONE_OFFSET}`,
+  );
 }
 
 export function formatVietnamDate(date: Date): string {
@@ -38,4 +42,18 @@ export function formatVietnamTime(date: Date): string {
     minute: '2-digit',
     hour12: false,
   }).format(date);
+}
+
+/**
+ * Chuỗi SQL expression tính mốc đầu kỳ (mặc định 'week', tuần bắt đầu thứ 2)
+ * theo giờ Việt Nam rồi đổi về UTC để so sánh trực tiếp với cột timestamp UTC.
+ * Cùng công thức với `vietnamPeriodStartUtc` private trong `wallet.service.ts`
+ * — tách bản dùng chung ở đây cho các query khác (vd. dispatch tính thu nhập
+ * tuần) mà không phải export/sửa wallet.service.ts.
+ */
+export function vietnamWeekStartSqlExpr(nowExpr = 'NOW()'): string {
+  return (
+    `(DATE_TRUNC('week', ${nowExpr} AT TIME ZONE '${VIETNAM_TIMEZONE}') ` +
+    `AT TIME ZONE '${VIETNAM_TIMEZONE}') AT TIME ZONE 'UTC'`
+  );
 }

@@ -1233,15 +1233,19 @@ export class TaskerBookingService {
       return;
     }
 
+    // Bán kính dispatch giờ cố định suốt các ring của 1 booking (không tăng
+    // dần như trước) — ring chỉ còn là đợt mời khác nhau trong CÙNG bán kính,
+    // không phải mở rộng phạm vi. Vì vậy tasker từng được mời ở ring trước
+    // (dù ring đó đã hết hạn) vẫn hợp lệ để nhận, miễn đơn chưa ai lấy —
+    // điều kiện "chưa có người nhận" đã được đảm bảo bởi lock + check status
+    // ở acceptPostedBooking, nên không cần chặn theo hạn của riêng từng ring.
     const state =
       await this.bookingDispatchService.getDispatchInvitationState(bookingId);
-    const isInvited = state?.invitedTaskerIds.includes(taskerId) ?? false;
-    const isExpired =
-      state?.expiresAt instanceof Date &&
-      Number.isFinite(state.expiresAt.getTime()) &&
-      state.expiresAt.getTime() < Date.now();
+    const everInvited =
+      (state?.invitedTaskerIds.includes(taskerId) ?? false) ||
+      (state?.previouslyInvitedTaskerIds.includes(taskerId) ?? false);
 
-    if (!isInvited || isExpired) {
+    if (!everInvited) {
       throw new ForbiddenException(
         'Đơn này chưa được gửi cho bạn hoặc lượt nhận đã hết',
       );

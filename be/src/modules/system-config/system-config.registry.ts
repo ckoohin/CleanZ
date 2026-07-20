@@ -5,7 +5,7 @@ import { SYSTEM_CONFIG_KEYS } from './system-config.keys';
  * Thêm setting mới = thêm 1 dòng ở đây (controller/validate/FE tự ăn theo).
  * Key không nằm trong registry sẽ bị từ chối khi admin cập nhật.
  */
-export type SystemConfigGroup = 'TOPUP' | 'WITHDRAWAL' | 'TASKER';
+export type SystemConfigGroup = 'TOPUP' | 'WITHDRAWAL' | 'TASKER' | 'DISPATCH';
 
 export interface SystemConfigDefinition {
   key: string;
@@ -23,6 +23,7 @@ export const SYSTEM_CONFIG_GROUP_LABELS: Record<SystemConfigGroup, string> = {
   TOPUP: 'Nạp tiền vào ví',
   WITHDRAWAL: 'Rút tiền khỏi ví',
   TASKER: 'Điều kiện nhận đơn của Tasker',
+  DISPATCH: 'Ghép đơn cho Tasker',
 };
 
 export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
@@ -99,6 +100,39 @@ export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
     defaultValue: 50_000,
     min: 0,
     max: 50_000_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.DISPATCH_URGENT_RADIUS_METERS,
+    group: 'DISPATCH',
+    label: 'Bán kính tìm Tasker khi gấp',
+    description:
+      'Áp dụng khi giờ hẹn còn dưới ngưỡng khẩn cấp — thu hẹp bán kính để đảm bảo Tasker kịp tới.',
+    unit: 'mét',
+    defaultValue: 5_000,
+    min: 500,
+    max: 20_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.DISPATCH_NORMAL_RADIUS_METERS,
+    group: 'DISPATCH',
+    label: 'Bán kính tìm Tasker bình thường',
+    description:
+      'Áp dụng khi giờ hẹn còn nhiều thời gian — mở rộng bán kính để có nhiều lựa chọn Tasker hơn.',
+    unit: 'mét',
+    defaultValue: 10_000,
+    min: 1_000,
+    max: 50_000,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.DISPATCH_URGENCY_THRESHOLD_MINUTES,
+    group: 'DISPATCH',
+    label: 'Ngưỡng coi là đơn gấp',
+    description:
+      'Nếu giờ hẹn còn ít hơn hoặc bằng ngưỡng này (phút) thì dùng bán kính "khi gấp" thay vì bán kính bình thường.',
+    unit: 'phút',
+    defaultValue: 60,
+    min: 5,
+    max: 720,
   },
 ];
 

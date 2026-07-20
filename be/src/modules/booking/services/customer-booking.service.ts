@@ -209,6 +209,7 @@ export class CustomerBookingService {
       let createdBookingId: string | undefined;
       let addressLat: number | null = null;
       let addressLng: number | null = null;
+      let scheduledStart: Date | undefined;
 
       const response = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -326,6 +327,7 @@ export class CustomerBookingService {
         const rawLng = context.addressRef?.longitude;
         addressLat = rawLat != null ? Number(rawLat) : null;
         addressLng = rawLng != null ? Number(rawLng) : null;
+        scheduledStart = context.scheduledStart;
 
         return this.mapCreatedBookingResponse(
           savedBooking,
@@ -344,10 +346,17 @@ export class CustomerBookingService {
           addressLat != null &&
           addressLng != null &&
           Number.isFinite(addressLat) &&
-          Number.isFinite(addressLng)
+          Number.isFinite(addressLng) &&
+          scheduledStart
         ) {
           void this.bookingDispatchService
-            .enqueueDispatch(createdBookingId, userId, addressLat, addressLng)
+            .enqueueDispatch(
+              createdBookingId,
+              userId,
+              addressLat,
+              addressLng,
+              scheduledStart,
+            )
             .catch((err: unknown) =>
               this.logger.error(
                 `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err instanceof Error ? err.message : String(err)}`,

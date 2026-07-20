@@ -50,7 +50,9 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Không có quyền truy cập' })
   create(@Body() createUserDto: CreateUserDto) {
     // Admin tạo tài khoản bằng mật khẩu do admin đặt → buộc user đổi ở lần đầu.
-    return this.usersService.create(createUserDto, { mustChangePassword: true });
+    return this.usersService.create(createUserDto, {
+      mustChangePassword: true,
+    });
   }
 
   @Get()

@@ -39,8 +39,12 @@ export class AddBookingAddons1783290000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_booking_addons_addon_id"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_booking_addons_booking_id"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_booking_addons_addon_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_booking_addons_booking_id"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "booking_addons"`);
   }
 }

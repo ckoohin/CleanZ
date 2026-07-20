@@ -63,13 +63,23 @@ const TABLES_TO_RESET = [
 
 const HCM_DISTRICTS = [
   { district: 'Quận 1', ward: 'Phường Bến Nghé', lat: 10.7797, lng: 106.6996 },
-  { district: 'Quận 3', ward: 'Phường Võ Thị Sáu', lat: 10.7803, lng: 106.6822 },
+  {
+    district: 'Quận 3',
+    ward: 'Phường Võ Thị Sáu',
+    lat: 10.7803,
+    lng: 106.6822,
+  },
   { district: 'Quận 7', ward: 'Phường Tân Phú', lat: 10.7297, lng: 106.7215 },
   { district: 'Quận 10', ward: 'Phường 12', lat: 10.7729, lng: 106.6675 },
   { district: 'Bình Thạnh', ward: 'Phường 25', lat: 10.8039, lng: 106.7108 },
   { district: 'Gò Vấp', ward: 'Phường 10', lat: 10.8386, lng: 106.665 },
   { district: 'Phú Nhuận', ward: 'Phường 8', lat: 10.7987, lng: 106.6797 },
-  { district: 'Thủ Đức', ward: 'Phường Linh Trung', lat: 10.8595, lng: 106.7716 },
+  {
+    district: 'Thủ Đức',
+    ward: 'Phường Linh Trung',
+    lat: 10.8595,
+    lng: 106.7716,
+  },
 ];
 
 const CUSTOMER_NAMES = [
@@ -219,7 +229,10 @@ async function seed(ds: DataSource): Promise<void> {
         docStatus: approved ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
         docReviewedAt: approved ? daysAgo(60) : null,
         docReviewedBy: approved ? admin.id : null,
-        banReason: status === TaskerStatus.SUSPENDED ? 'Nhiều lần huỷ đơn sát giờ' : null,
+        banReason:
+          status === TaskerStatus.SUSPENDED
+            ? 'Nhiều lần huỷ đơn sát giờ'
+            : null,
         bankName: 'Vietcombank',
         bankAccountNumber: `00710002${1000 + i}`,
         bankAccountName: u.fullName.toUpperCase(),
@@ -242,7 +255,9 @@ async function seed(ds: DataSource): Promise<void> {
       m.create(WalletEntity, {
         ownerType: WalletOwnerType.CUSTOMER,
         customer: c,
-        balance: [500000, 0, 1200000, 250000, 0, 2000000, 750000, 0, 340000, 1500000][i],
+        balance: [
+          500000, 0, 1200000, 250000, 0, 2000000, 750000, 0, 340000, 1500000,
+        ][i],
         holdBalance: 0,
       }),
     ),
@@ -540,11 +555,35 @@ async function seed(ds: DataSource): Promise<void> {
       paid: false,
     })),
     // Hết hạn (không ai nhận)
-    { status: BookingStatus.EXPIRED, dayOffset: 20, hour: 15, withTasker: false, paid: false },
+    {
+      status: BookingStatus.EXPIRED,
+      dayOffset: 20,
+      hour: 15,
+      withTasker: false,
+      paid: false,
+    },
     // Đang diễn ra hôm nay
-    { status: BookingStatus.IN_PROGRESS, dayOffset: 0, hour: 8, withTasker: true, paid: false },
-    { status: BookingStatus.CHECKED_IN, dayOffset: 0, hour: 10, withTasker: true, paid: false },
-    { status: BookingStatus.TASKER_ON_THE_WAY, dayOffset: 0, hour: 13, withTasker: true, paid: false },
+    {
+      status: BookingStatus.IN_PROGRESS,
+      dayOffset: 0,
+      hour: 8,
+      withTasker: true,
+      paid: false,
+    },
+    {
+      status: BookingStatus.CHECKED_IN,
+      dayOffset: 0,
+      hour: 10,
+      withTasker: true,
+      paid: false,
+    },
+    {
+      status: BookingStatus.TASKER_ON_THE_WAY,
+      dayOffset: 0,
+      hour: 13,
+      withTasker: true,
+      paid: false,
+    },
     // Sắp tới — đã có tasker nhận
     ...[1, 2, 4, 6].map((d, i) => ({
       status: BookingStatus.CONFIRMED,
@@ -575,7 +614,9 @@ async function seed(ds: DataSource): Promise<void> {
     const tasker = plan.withTasker ? pick(activeTaskers, i) : null;
 
     const start =
-      plan.dayOffset >= 0 ? daysAgo(plan.dayOffset, plan.hour) : daysAhead(-plan.dayOffset, plan.hour);
+      plan.dayOffset >= 0
+        ? daysAgo(plan.dayOffset, plan.hour)
+        : daysAhead(-plan.dayOffset, plan.hour);
     const durationHours = pkg.packageCode === 'AC_CLEAN' ? 1 : [2, 3, 4][i % 3];
     const end = new Date(start.getTime() + durationHours * 3600_000);
 
@@ -638,7 +679,10 @@ async function seed(ds: DataSource): Promise<void> {
           ? start
           : null,
       completedAt: plan.status === BookingStatus.COMPLETED ? end : null,
-      cancelledAt: plan.status === BookingStatus.CANCELLED ? new Date(start.getTime() - 3600_000) : null,
+      cancelledAt:
+        plan.status === BookingStatus.CANCELLED
+          ? new Date(start.getTime() - 3600_000)
+          : null,
       createdAt: new Date(start.getTime() - 3 * 24 * 3600_000),
     });
     bookings.push(booking);
@@ -675,7 +719,9 @@ async function seed(ds: DataSource): Promise<void> {
   for (const c of customers) {
     const mine = savedBookings.filter((b) => b.customer?.id === c.id);
     c.totalBookings = mine.length;
-    c.totalCancelled = mine.filter((b) => b.status === BookingStatus.CANCELLED).length;
+    c.totalCancelled = mine.filter(
+      (b) => b.status === BookingStatus.CANCELLED,
+    ).length;
   }
   await m.save(customers);
 
@@ -691,7 +737,9 @@ async function seed(ds: DataSource): Promise<void> {
     wallets: 1 + customers.length + taskers.length,
   });
   console.log(`\n🔑 Mật khẩu cho MỌI tài khoản: ${PASSWORD}`);
-  console.log('   admin@cleanz.vn | customer1..10@cleanz.vn | tasker1..6@cleanz.vn\n');
+  console.log(
+    '   admin@cleanz.vn | customer1..10@cleanz.vn | tasker1..6@cleanz.vn\n',
+  );
 }
 
 AppDataSource.initialize()

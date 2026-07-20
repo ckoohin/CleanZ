@@ -7,9 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * Bảng `tasker_deposit_transactions` được giữ lại làm lịch sử (read-only), không ghi mới nữa.
  */
-export class MergeTaskerDepositIntoWallet1783720000000
-  implements MigrationInterface
-{
+export class MergeTaskerDepositIntoWallet1783720000000 implements MigrationInterface {
   name = 'MergeTaskerDepositIntoWallet1783720000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
