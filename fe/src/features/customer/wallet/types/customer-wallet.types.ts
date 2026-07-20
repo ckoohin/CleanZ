@@ -72,14 +72,18 @@ export interface CreateCustomerWithdrawalInput {
   note?: string;
 }
 
-/* ─── Nạp tiền qua PayPal ─────────────────────────────────────────────────── */
+/* ─── Nạp tiền qua PayPal / Adyen ─────────────────────────────────────────── */
 
 export type TopupStatus =
   | "CREATED"
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED"
-  | "EXPIRED";
+  | "EXPIRED"
+  | "REFUND_PENDING"
+  | "REFUNDED";
+
+export type TopupProvider = "PAYPAL" | "ADYEN";
 
 /** Hạn mức + tỷ giá do admin cấu hình (system_configs). */
 export interface TopupConfig {
@@ -93,15 +97,33 @@ export interface CreateTopupInput {
   amountVnd: number;
   /** Nạp để trả cho một booking cụ thể (luồng thiếu số dư). */
   bookingId?: string;
+  /** Cổng thanh toán — mặc định PAYPAL. */
+  provider?: TopupProvider;
 }
 
 export interface CreateTopupResult {
   topupId: string;
-  paypalOrderId: string;
+  provider: TopupProvider;
+  paypalOrderId: string | null;
   amountVnd: number;
-  amountUsd: number;
+  amountUsd: number | null;
   /** Link PayPal để khách duyệt thanh toán. */
   approveUrl: string | null;
+  /** Link chuyển hướng thanh toán PayPal. NULL với Adyen (dùng session bên dưới). */
+  payUrl: string | null;
+  /** Chỉ có khi provider = ADYEN — dùng để mount Web Drop-in. */
+  adyenSessionId: string | null;
+  adyenSessionData: string | null;
+  adyenClientKey: string | null;
+}
+
+/** Thẻ đã lưu qua Adyen (stored payment method) — chỉ hiển thị thông tin che, token nằm ở Adyen. */
+export interface SavedCard {
+  id: string;
+  brand: string | null;
+  lastFour: string | null;
+  expiryMonth: string | null;
+  expiryYear: string | null;
 }
 
 export interface CaptureTopupResult {

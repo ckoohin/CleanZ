@@ -55,6 +55,17 @@ export function useBookingQuoteQuery(dto: QuoteBookingDto, enabled: boolean = tr
   });
 }
 
+/** Tạo phiên Adyen Drop-in (case chuyển khoản, chưa có thẻ lưu) */
+export function useCreateAdyenBookingSession() {
+  return useMutation({
+    mutationFn: (quoteId: string) =>
+      customerBookingApi.createAdyenSession(quoteId),
+    onError: (err: unknown) => {
+      toast.error(getBookingErrorMessage(err, "Không thể khởi tạo thanh toán"));
+    },
+  });
+}
+
 /** Tạo booking */
 export function useCreateBooking() {
   const qc = useQueryClient();

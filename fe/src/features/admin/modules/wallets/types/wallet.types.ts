@@ -155,3 +155,46 @@ export interface WalletAdjustmentPayload {
   type: "ADJUSTMENT";
   description: string;
 }
+
+/* ─── Đơn nạp ví (PayPal/Adyen) ───────────────────────────────────────────── */
+
+export type AdminTopupStatus =
+  | "CREATED"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED"
+  | "EXPIRED"
+  | "REFUND_PENDING"
+  | "REFUNDED";
+
+export interface AdminTopupOrder {
+  id: string;
+  provider: "PAYPAL" | "ADYEN";
+  status: AdminTopupStatus;
+  amountVnd: number;
+  amountUsd: number | null;
+  paypalOrderId: string | null;
+  gatewayTxnNo: string | null;
+  bankCode: string | null;
+  refundedAt: string | null;
+  refundTxnNo: string | null;
+  failReason: string | null;
+  createdAt: string;
+  customer?: { id: string; user?: { fullName?: string; email?: string } } | null;
+  tasker?: { id: string; user?: { fullName?: string; email?: string } } | null;
+}
+
+export interface AdminTopupQuery {
+  page?: number;
+  limit?: number;
+  provider?: string;
+  status?: AdminTopupStatus;
+}
+
+export interface PaginatedTopupOrders {
+  items: AdminTopupOrder[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

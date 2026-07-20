@@ -13,6 +13,7 @@ import { CustomerWithdrawalController } from './customer-withdrawal.controller';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTopupService } from './wallet-topup.service';
 import { PaypalService } from './paypal.service';
+import { AdyenService } from './adyen.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
 
 @Module({
@@ -34,7 +35,14 @@ import { SystemConfigModule } from '../system-config/system-config.module';
     CustomerWithdrawalService,
     WalletTopupService,
     PaypalService,
+    AdyenService,
   ],
-  exports: [TypeOrmModule, WalletService, TaskerBalanceService],
+  exports: [
+    TypeOrmModule,
+    WalletService,
+    TaskerBalanceService,
+    WalletTopupService,
+    AdyenService,
+  ],
 })
 export class WalletModule {}

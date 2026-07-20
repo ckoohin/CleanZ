@@ -151,9 +151,7 @@ export class ServicePackageReportsService {
       .getRepository(BookingEntity)
       .createQueryBuilder('b');
     this.applyFilters(qb, filter, 'b');
-    qb.select(['b.status AS status', 'COUNT(*) AS count']).groupBy(
-      'b.status',
-    );
+    qb.select(['b.status AS status', 'COUNT(*) AS count']).groupBy('b.status');
 
     const rows = await qb.getRawMany();
     const snapshot: Record<string, number> = {};
@@ -363,17 +361,53 @@ export class ServicePackageReportsService {
       filterSummary: await this.getFilterSummaryText(filter),
       columns: [
         { header: 'Chỉ số', key: 'label', width: 32 },
-        { header: 'Giá trị', key: 'value', width: 20, numFmt: '#,##0', alignRight: true },
+        {
+          header: 'Giá trị',
+          key: 'value',
+          width: 20,
+          numFmt: '#,##0',
+          alignRight: true,
+        },
         { header: 'Đơn vị', key: 'unit', width: 12 },
         { header: 'Ghi chú', key: 'note', width: 44 },
       ],
       rows: [
-        { label: 'Tổng số booking', value: d.totalBookings, unit: 'đơn', note: 'Toàn bộ booking khớp bộ lọc, mọi trạng thái' },
-        { label: 'Tổng doanh thu', value: d.totalRevenue, unit: 'đ', note: 'Chỉ tính booking đã hoàn thành' },
-        { label: 'Booking hoàn thành', value: d.completedBookings, unit: 'đơn', note: `Tỉ lệ hoàn thành: ${(completionRate * 100).toFixed(1)}%` },
-        { label: 'Booking đã huỷ/hết hạn', value: d.cancelledBookings, unit: 'đơn', note: `Tỉ lệ huỷ: ${(cancellationRate * 100).toFixed(1)}%` },
-        { label: 'Giá trị đơn trung bình', value: avgOrderValue, unit: 'đ', note: 'Doanh thu / số booking hoàn thành' },
-        { label: 'Số gói dịch vụ đang hoạt động', value: d.activePackagesCount, unit: 'gói', note: 'Có ít nhất 1 booking khớp bộ lọc' },
+        {
+          label: 'Tổng số booking',
+          value: d.totalBookings,
+          unit: 'đơn',
+          note: 'Toàn bộ booking khớp bộ lọc, mọi trạng thái',
+        },
+        {
+          label: 'Tổng doanh thu',
+          value: d.totalRevenue,
+          unit: 'đ',
+          note: 'Chỉ tính booking đã hoàn thành',
+        },
+        {
+          label: 'Booking hoàn thành',
+          value: d.completedBookings,
+          unit: 'đơn',
+          note: `Tỉ lệ hoàn thành: ${(completionRate * 100).toFixed(1)}%`,
+        },
+        {
+          label: 'Booking đã huỷ/hết hạn',
+          value: d.cancelledBookings,
+          unit: 'đơn',
+          note: `Tỉ lệ huỷ: ${(cancellationRate * 100).toFixed(1)}%`,
+        },
+        {
+          label: 'Giá trị đơn trung bình',
+          value: avgOrderValue,
+          unit: 'đ',
+          note: 'Doanh thu / số booking hoàn thành',
+        },
+        {
+          label: 'Số gói dịch vụ đang hoạt động',
+          value: d.activePackagesCount,
+          unit: 'gói',
+          note: 'Có ít nhất 1 booking khớp bộ lọc',
+        },
       ],
     };
   }
@@ -394,11 +428,42 @@ export class ServicePackageReportsService {
       filterSummary: await this.getFilterSummaryText(filter),
       columns: [
         { header: 'Mốc thời gian', key: 'label', width: 18 },
-        { header: 'Doanh thu', key: 'revenue', width: 18, numFmt: this.VND_FMT, sumable: true, alignRight: true },
-        { header: 'Số booking', key: 'bookings', width: 14, sumable: true, alignRight: true },
-        { header: 'Doanh thu TB/booking', key: 'avgPerBooking', width: 20, numFmt: this.VND_FMT, alignRight: true },
-        { header: '% trên tổng doanh thu', key: 'pctOfTotal', width: 18, numFmt: this.PCT_FMT, alignRight: true },
-        { header: 'Doanh thu cộng dồn', key: 'cumulative', width: 20, numFmt: this.VND_FMT, alignRight: true },
+        {
+          header: 'Doanh thu',
+          key: 'revenue',
+          width: 18,
+          numFmt: this.VND_FMT,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Số booking',
+          key: 'bookings',
+          width: 14,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu TB/booking',
+          key: 'avgPerBooking',
+          width: 20,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
+        {
+          header: '% trên tổng doanh thu',
+          key: 'pctOfTotal',
+          width: 18,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu cộng dồn',
+          key: 'cumulative',
+          width: 20,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
       ],
       rows: rows.map((r) => {
         cumulative += r.revenue;
@@ -406,7 +471,8 @@ export class ServicePackageReportsService {
           label: r.label,
           revenue: r.revenue,
           bookings: r.bookings,
-          avgPerBooking: r.bookings > 0 ? Math.round(r.revenue / r.bookings) : 0,
+          avgPerBooking:
+            r.bookings > 0 ? Math.round(r.revenue / r.bookings) : 0,
           pctOfTotal: totalRevenue > 0 ? r.revenue / totalRevenue : 0,
           cumulative,
         };
@@ -427,10 +493,35 @@ export class ServicePackageReportsService {
       columns: [
         { header: 'STT', key: 'stt', width: 6, alignRight: true },
         { header: 'Gói dịch vụ', key: 'name', width: 32 },
-        { header: 'Số booking', key: 'bookings', width: 14, sumable: true, alignRight: true },
-        { header: 'Doanh thu', key: 'revenue', width: 18, numFmt: this.VND_FMT, sumable: true, alignRight: true },
-        { header: 'Doanh thu TB/booking', key: 'avgPerBooking', width: 20, numFmt: this.VND_FMT, alignRight: true },
-        { header: '% trên tổng doanh thu', key: 'pctOfTotal', width: 18, numFmt: this.PCT_FMT, alignRight: true },
+        {
+          header: 'Số booking',
+          key: 'bookings',
+          width: 14,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu',
+          key: 'revenue',
+          width: 18,
+          numFmt: this.VND_FMT,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu TB/booking',
+          key: 'avgPerBooking',
+          width: 20,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
+        {
+          header: '% trên tổng doanh thu',
+          key: 'pctOfTotal',
+          width: 18,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
       ],
       rows: rows.map((r, i) => ({
         stt: i + 1,
@@ -461,12 +552,25 @@ export class ServicePackageReportsService {
     return {
       name: 'Trạng thái booking',
       title: 'BÁO CÁO PHÂN BỔ TRẠNG THÁI BOOKING',
-      subtitle: 'Số lượng và tỉ lệ booking theo từng trạng thái trong vòng đời đơn hàng.',
+      subtitle:
+        'Số lượng và tỉ lệ booking theo từng trạng thái trong vòng đời đơn hàng.',
       filterSummary: await this.getFilterSummaryText(filter),
       columns: [
         { header: 'Trạng thái', key: 'label', width: 26 },
-        { header: 'Số lượng', key: 'count', width: 14, sumable: true, alignRight: true },
-        { header: 'Tỉ lệ', key: 'pct', width: 14, numFmt: this.PCT_FMT, alignRight: true },
+        {
+          header: 'Số lượng',
+          key: 'count',
+          width: 14,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Tỉ lệ',
+          key: 'pct',
+          width: 14,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
       ],
       rows: Object.entries(snapshot).map(([status, count]) => ({
         label: labels[status] ?? status,
@@ -490,14 +594,40 @@ export class ServicePackageReportsService {
     return {
       name: 'Phân bố theo giờ',
       title: 'BÁO CÁO PHÂN BỐ BOOKING THEO GIỜ TRONG NGÀY',
-      subtitle: 'Theo giờ làm việc thực tế (scheduled_start) — đủ 24 giờ, kể cả giờ không có booking.',
+      subtitle:
+        'Theo giờ làm việc thực tế (scheduled_start) — đủ 24 giờ, kể cả giờ không có booking.',
       filterSummary: await this.getFilterSummaryText(filter),
       columns: [
         { header: 'Giờ', key: 'hourLabel', width: 10 },
-        { header: 'Số booking', key: 'bookings', width: 14, sumable: true, alignRight: true },
-        { header: 'Doanh thu', key: 'revenue', width: 18, numFmt: this.VND_FMT, sumable: true, alignRight: true },
-        { header: '% trên tổng booking', key: 'pctOfTotal', width: 18, numFmt: this.PCT_FMT, alignRight: true },
-        { header: 'Doanh thu TB/booking', key: 'avgPerBooking', width: 20, numFmt: this.VND_FMT, alignRight: true },
+        {
+          header: 'Số booking',
+          key: 'bookings',
+          width: 14,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu',
+          key: 'revenue',
+          width: 18,
+          numFmt: this.VND_FMT,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: '% trên tổng booking',
+          key: 'pctOfTotal',
+          width: 18,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu TB/booking',
+          key: 'avgPerBooking',
+          width: 20,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
         { header: 'Khung giờ cao điểm', key: 'isPeak', width: 18 },
       ],
       rows: rows.map((r) => ({
@@ -524,10 +654,35 @@ export class ServicePackageReportsService {
       columns: [
         { header: 'STT', key: 'stt', width: 6, alignRight: true },
         { header: 'Tên addon', key: 'name', width: 30 },
-        { header: 'Số lần dùng', key: 'timesUsed', width: 14, sumable: true, alignRight: true },
-        { header: 'Doanh thu', key: 'revenue', width: 18, numFmt: this.VND_FMT, sumable: true, alignRight: true },
-        { header: 'Đơn giá trung bình', key: 'avgPrice', width: 18, numFmt: this.VND_FMT, alignRight: true },
-        { header: '% trên tổng lượt dùng', key: 'pctOfTotal', width: 18, numFmt: this.PCT_FMT, alignRight: true },
+        {
+          header: 'Số lần dùng',
+          key: 'timesUsed',
+          width: 14,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu',
+          key: 'revenue',
+          width: 18,
+          numFmt: this.VND_FMT,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Đơn giá trung bình',
+          key: 'avgPrice',
+          width: 18,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
+        {
+          header: '% trên tổng lượt dùng',
+          key: 'pctOfTotal',
+          width: 18,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
       ],
       rows: rows.map((r, i) => ({
         stt: i + 1,
@@ -547,17 +702,43 @@ export class ServicePackageReportsService {
     return {
       name: 'Mốc thời lượng phổ biến',
       title: 'BÁO CÁO MỐC THỜI LƯỢNG PHỔ BIẾN',
-      subtitle: 'Số booking và doanh thu theo từng mốc thời lượng của mỗi gói dịch vụ.',
+      subtitle:
+        'Số booking và doanh thu theo từng mốc thời lượng của mỗi gói dịch vụ.',
       filterSummary: await this.getFilterSummaryText(filter),
       columns: [
         { header: 'STT', key: 'stt', width: 6, alignRight: true },
         { header: 'Gói dịch vụ', key: 'packageName', width: 28 },
         { header: 'Mốc thời lượng', key: 'title', width: 20 },
         { header: 'Được đánh dấu phổ biến', key: 'isPopularLabel', width: 20 },
-        { header: 'Số booking', key: 'bookings', width: 14, sumable: true, alignRight: true },
-        { header: 'Doanh thu', key: 'revenue', width: 18, numFmt: this.VND_FMT, sumable: true, alignRight: true },
-        { header: 'Doanh thu TB/booking', key: 'avgPerBooking', width: 20, numFmt: this.VND_FMT, alignRight: true },
-        { header: '% trên tổng booking', key: 'pctOfTotal', width: 18, numFmt: this.PCT_FMT, alignRight: true },
+        {
+          header: 'Số booking',
+          key: 'bookings',
+          width: 14,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu',
+          key: 'revenue',
+          width: 18,
+          numFmt: this.VND_FMT,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu TB/booking',
+          key: 'avgPerBooking',
+          width: 20,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
+        {
+          header: '% trên tổng booking',
+          key: 'pctOfTotal',
+          width: 18,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
       ],
       rows: rows.map((r, i) => ({
         stt: i + 1,
@@ -585,10 +766,35 @@ export class ServicePackageReportsService {
         { header: 'Hạng', key: 'rank', width: 8, alignRight: true },
         { header: 'Tasker', key: 'fullName', width: 28 },
         { header: 'SĐT', key: 'phoneNumber', width: 16 },
-        { header: 'Việc hoàn thành', key: 'completedJobs', width: 16, sumable: true, alignRight: true },
-        { header: 'Doanh thu tạo ra', key: 'revenue', width: 20, numFmt: this.VND_FMT, sumable: true, alignRight: true },
-        { header: 'Doanh thu TB/việc', key: 'avgPerJob', width: 18, numFmt: this.VND_FMT, alignRight: true },
-        { header: '% trên tổng doanh thu', key: 'pctOfTotal', width: 18, numFmt: this.PCT_FMT, alignRight: true },
+        {
+          header: 'Việc hoàn thành',
+          key: 'completedJobs',
+          width: 16,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu tạo ra',
+          key: 'revenue',
+          width: 20,
+          numFmt: this.VND_FMT,
+          sumable: true,
+          alignRight: true,
+        },
+        {
+          header: 'Doanh thu TB/việc',
+          key: 'avgPerJob',
+          width: 18,
+          numFmt: this.VND_FMT,
+          alignRight: true,
+        },
+        {
+          header: '% trên tổng doanh thu',
+          key: 'pctOfTotal',
+          width: 18,
+          numFmt: this.PCT_FMT,
+          alignRight: true,
+        },
       ],
       rows: rows.map((r, i) => ({
         rank: i + 1,
@@ -596,7 +802,8 @@ export class ServicePackageReportsService {
         phoneNumber: r.phoneNumber,
         completedJobs: r.completedJobs,
         revenue: r.revenue,
-        avgPerJob: r.completedJobs > 0 ? Math.round(r.revenue / r.completedJobs) : 0,
+        avgPerJob:
+          r.completedJobs > 0 ? Math.round(r.revenue / r.completedJobs) : 0,
         pctOfTotal: totalRevenue > 0 ? r.revenue / totalRevenue : 0,
       })),
     };

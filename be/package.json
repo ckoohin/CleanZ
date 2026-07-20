@@ -28,6 +28,7 @@
     "test:integration": "jest --testRegex \".*\\.int-spec\\.ts$\" --runInBand"
   },
   "dependencies": {
+    "@adyen/api-library": "^32.0.0",
     "@bull-board/api": "^7.1.5",
     "@bull-board/express": "^7.1.5",
     "@bull-board/nestjs": "^7.1.5",

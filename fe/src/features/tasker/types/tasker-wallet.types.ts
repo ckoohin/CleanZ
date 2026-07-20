@@ -107,19 +107,44 @@ export interface TaskerTopupConfig {
 
 export interface CreateTaskerTopupPayload {
   amountVnd: number;
+  /** Cổng thanh toán — mặc định PAYPAL. */
+  provider?: "PAYPAL" | "ADYEN";
 }
 
 export interface TaskerTopupResult {
   topupId: string;
-  paypalOrderId: string;
+  provider: "PAYPAL" | "ADYEN";
+  paypalOrderId: string | null;
   amountVnd: number;
-  amountUsd: number;
+  amountUsd: number | null;
   approveUrl: string | null;
+  /** Link chuyển hướng thanh toán PayPal. NULL với Adyen. */
+  payUrl: string | null;
+  /** Chỉ có khi provider = ADYEN — dùng để mount Web Drop-in. */
+  adyenSessionId: string | null;
+  adyenSessionData: string | null;
+  adyenClientKey: string | null;
+}
+
+/** Thẻ đã lưu qua Adyen (stored payment method). */
+export interface TaskerSavedCard {
+  id: string;
+  brand: string | null;
+  lastFour: string | null;
+  expiryMonth: string | null;
+  expiryYear: string | null;
 }
 
 export interface TaskerTopupCaptureResult {
   topupId: string;
-  status: "CREATED" | "COMPLETED" | "FAILED" | "CANCELLED" | "EXPIRED";
+  status:
+    | "CREATED"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED"
+    | "EXPIRED"
+    | "REFUND_PENDING"
+    | "REFUNDED";
   amountVnd: number;
   balance: number;
 }

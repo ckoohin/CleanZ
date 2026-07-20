@@ -20,6 +20,7 @@ export const taskerWalletKeys = {
   earningsBreakdown: (period: TaskerEarningsPeriod, anchor?: string) =>
     [...taskerWalletKeys.all, "earnings-breakdown", period, anchor] as const,
   topupConfig: () => [...taskerWalletKeys.all, "topup-config"] as const,
+  cards: () => [...taskerWalletKeys.all, "cards"] as const,
 };
 
 export function useTaskerWallet() {
@@ -102,6 +103,40 @@ export function useCaptureTaskerTopup() {
 
   return useMutation({
     mutationFn: (topupId: string) => taskerWalletApi.captureTopup(topupId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
+
+/* ─── Nạp tiền Adyen (Web Drop-in) — luồng giống customer, endpoint tasker ─── */
+
+export function useTaskerCards(enabled = true) {
+  return useQuery({
+    queryKey: taskerWalletKeys.cards(),
+    queryFn: taskerWalletApi.listCards,
+    enabled,
+  });
+}
+
+export function useRemoveTaskerCard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (cardId: string) => taskerWalletApi.removeCard(cardId),
+    onSuccess: () => {
+      toast.success("Đã xóa thẻ đã lưu");
+      queryClient.invalidateQueries({ queryKey: taskerWalletKeys.cards() });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useConfirmTaskerAdyenTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { sessionId: string; sessionResult: string }) =>
+      taskerWalletApi.confirmAdyenTopup(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
     },

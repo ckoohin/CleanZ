@@ -38,6 +38,7 @@ import {
   useWalletTransactions,
 } from "@/features/admin/modules/wallets/hooks/useAdminWallets";
 import { TransactionDetailDrawer } from "@/features/admin/modules/wallets/_components/TransactionDetailDrawer";
+import { TopupOrdersSection } from "@/features/admin/modules/wallets/_components/TopupOrdersSection";
 import type {
   CustomerSpendingItem,
   WalletOwnerType,
@@ -588,6 +589,14 @@ export default function AdminFinancesPage() {
           },
         ]}
       />
+
+      {/* Đơn nạp ví qua cổng thanh toán + hoàn tiền VNPay */}
+      <div className="space-y-3 pt-2">
+        <h2 className="text-sm font-black uppercase tracking-wide text-[var(--c-muted)]">
+          Đơn nạp ví (PayPal / VNPay)
+        </h2>
+        <TopupOrdersSection />
+      </div>
 
       <TransactionDetailDrawer
         transaction={selectedTransaction}

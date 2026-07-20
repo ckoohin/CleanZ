@@ -10,7 +10,9 @@ export function createVietnamDateTime(date: string, time: string): Date {
  * Nhận cả 'YYYY-MM-DD' lẫn chuỗi ISO đầy đủ.
  */
 export function vietnamStartOfDay(date: string): Date {
-  return new Date(`${date.slice(0, 10)}T00:00:00.000${VIETNAM_TIMEZONE_OFFSET}`);
+  return new Date(
+    `${date.slice(0, 10)}T00:00:00.000${VIETNAM_TIMEZONE_OFFSET}`,
+  );
 }
 
 /**
@@ -19,7 +21,9 @@ export function vietnamStartOfDay(date: string): Date {
  * làm cận trên của `BETWEEN` sẽ cắt mất gần trọn ngày cuối kỳ.
  */
 export function vietnamEndOfDay(date: string): Date {
-  return new Date(`${date.slice(0, 10)}T23:59:59.999${VIETNAM_TIMEZONE_OFFSET}`);
+  return new Date(
+    `${date.slice(0, 10)}T23:59:59.999${VIETNAM_TIMEZONE_OFFSET}`,
+  );
 }
 
 export function formatVietnamDate(date: Date): string {

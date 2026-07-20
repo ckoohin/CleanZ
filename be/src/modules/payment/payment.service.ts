@@ -125,6 +125,7 @@ export class PaymentService {
     manager: EntityManager,
     bookingId: string,
     paidAt: Date,
+    transactionCode?: string,
   ): Promise<PaymentEntity | null> {
     const paymentRepository = manager.getRepository(PaymentEntity);
     const payment = await paymentRepository.findOne({
@@ -141,6 +142,9 @@ export class PaymentService {
 
     payment.status = PaymentStatus.PAID;
     payment.paidAt = paidAt;
+    if (transactionCode) {
+      payment.transactionCode = transactionCode;
+    }
     return paymentRepository.save(payment);
   }
 }

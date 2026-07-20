@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
     // Customer APIs
     QUOTE: "/booking/quote",
     CREATE: "/booking",
+    ADYEN_CHECKOUT_SESSION: "/booking/checkout/adyen-session",
     MY_ACTIVE: "/booking/my-booking",
     MY_LIST: "/booking/my-bookings",
     DETAIL: (id: string) => `/booking/${id}`,

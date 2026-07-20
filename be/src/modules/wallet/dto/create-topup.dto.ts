@@ -1,7 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateTopupDto {
+  @ApiPropertyOptional({
+    description: 'Cổng thanh toán: PAYPAL (mặc định) hoặc ADYEN',
+    enum: ['PAYPAL', 'ADYEN'],
+  })
+  @IsOptional()
+  @IsIn(['PAYPAL', 'ADYEN'], { message: 'provider không hợp lệ' })
+  provider?: 'PAYPAL' | 'ADYEN';
+
   @ApiProperty({
     description: 'Số tiền muốn nạp vào ví (VND, số nguyên)',
     example: 100000,

@@ -90,9 +90,16 @@ export async function buildReportWorkbookBuffer(
     spec.columns.forEach((col, i) => {
       const cell = headerRow.getCell(i + 1);
       cell.value = col.header;
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_ORANGE } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: BRAND_ORANGE },
+      };
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.alignment = { vertical: 'middle', horizontal: col.alignRight ? 'right' : 'left' };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: col.alignRight ? 'right' : 'left',
+      };
       cell.border = THIN_BORDER;
     });
     headerRow.height = 20;
@@ -114,10 +121,17 @@ export async function buildReportWorkbookBuffer(
         const cell = excelRow.getCell(i + 1);
         cell.value = (row[col.key] ?? '') as ExcelJS.CellValue;
         if (col.numFmt) cell.numFmt = col.numFmt;
-        cell.alignment = { horizontal: col.alignRight ? 'right' : 'left', vertical: 'middle' };
+        cell.alignment = {
+          horizontal: col.alignRight ? 'right' : 'left',
+          vertical: 'middle',
+        };
         cell.border = THIN_BORDER;
         if (rowIndex % 2 === 1) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BAND_FILL } };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: BAND_FILL },
+          };
         }
       });
     });
@@ -134,12 +148,21 @@ export async function buildReportWorkbookBuffer(
         if (i === 0) {
           cell.value = 'TỔNG CỘNG';
         } else if (col.sumable) {
-          cell.value = { formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})` };
+          cell.value = {
+            formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})`,
+          };
           if (col.numFmt) cell.numFmt = col.numFmt;
         }
         cell.font = { bold: true, color: { argb: HEADER_NAVY } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTALS_FILL } };
-        cell.alignment = { horizontal: col.alignRight ? 'right' : 'left', vertical: 'middle' };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: TOTALS_FILL },
+        };
+        cell.alignment = {
+          horizontal: col.alignRight ? 'right' : 'left',
+          vertical: 'middle',
+        };
         cell.border = THIN_BORDER;
       });
     }
@@ -200,7 +223,11 @@ export async function buildCombinedSingleSheetBuffer(
     const dividerCell = sheet.getCell(cursor, 1);
     dividerCell.value = `${sectionIndex + 1}. ${section.title.replace(/^BÁO CÁO /i, '')}`;
     dividerCell.font = { bold: true, size: 12.5, color: { argb: 'FFFFFFFF' } };
-    dividerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_NAVY } };
+    dividerCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: HEADER_NAVY },
+    };
     dividerCell.alignment = { vertical: 'middle', indent: 1 };
     sheet.getRow(cursor).height = 24;
     cursor += 1;
@@ -217,10 +244,17 @@ export async function buildCombinedSingleSheetBuffer(
     section.columns.forEach((col, i) => {
       const cell = sheet.getCell(headerRowNumber, i + 1);
       cell.value = col.header;
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_ORANGE } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: BRAND_ORANGE },
+      };
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       cell.border = THIN_BORDER;
-      cell.alignment = { vertical: 'middle', horizontal: col.alignRight ? 'right' : 'left' };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: col.alignRight ? 'right' : 'left',
+      };
       colWidths[i] = Math.max(colWidths[i], col.header.length + 2);
     });
     sheet.getRow(headerRowNumber).height = 20;
@@ -243,9 +277,16 @@ export async function buildCombinedSingleSheetBuffer(
           cell.value = (row[col.key] ?? '') as ExcelJS.CellValue;
           if (col.numFmt) cell.numFmt = col.numFmt;
           cell.border = THIN_BORDER;
-          cell.alignment = { horizontal: col.alignRight ? 'right' : 'left', vertical: 'middle' };
+          cell.alignment = {
+            horizontal: col.alignRight ? 'right' : 'left',
+            vertical: 'middle',
+          };
           if (rowIndex % 2 === 1) {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BAND_FILL } };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: BAND_FILL },
+            };
           }
           const v = row[col.key];
           const len = v === null || v === undefined ? 0 : String(v).length;
@@ -263,13 +304,22 @@ export async function buildCombinedSingleSheetBuffer(
           if (i === 0) {
             cell.value = 'TỔNG CỘNG';
           } else if (col.sumable) {
-            cell.value = { formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})` };
+            cell.value = {
+              formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})`,
+            };
             if (col.numFmt) cell.numFmt = col.numFmt;
           }
           cell.font = { bold: true, color: { argb: HEADER_NAVY } };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTALS_FILL } };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: TOTALS_FILL },
+          };
           cell.border = THIN_BORDER;
-          cell.alignment = { horizontal: col.alignRight ? 'right' : 'left', vertical: 'middle' };
+          cell.alignment = {
+            horizontal: col.alignRight ? 'right' : 'left',
+            vertical: 'middle',
+          };
         });
         cursor += 1;
       }

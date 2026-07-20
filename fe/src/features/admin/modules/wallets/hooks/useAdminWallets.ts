@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 import { walletAdminApi } from "../services/wallet-admin.service";
 import type {
+  AdminTopupQuery,
   CustomerSpendingQuery,
   TransactionFlowSummaryQuery,
   WalletAdjustmentPayload,
@@ -22,7 +23,29 @@ export const walletKeys = {
     [...walletKeys.all, "transactions-summary", params] as const,
   customerSpending: (params?: CustomerSpendingQuery) =>
     [...walletKeys.all, "customer-spending", params] as const,
+  topups: (params?: AdminTopupQuery) =>
+    [...walletKeys.all, "topups", params] as const,
 };
+
+export function useAdminTopups(params?: AdminTopupQuery) {
+  return useQuery({
+    queryKey: walletKeys.topups(params),
+    queryFn: () => walletAdminApi.listTopups(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useRefundTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (topupId: string) => walletAdminApi.refundTopup(topupId),
+    onSuccess: () => {
+      toast.success("Đã hoàn tiền đơn nạp về thẻ");
+      queryClient.invalidateQueries({ queryKey: walletKeys.all });
+    },
+    onError: (error: unknown) => toast.error(getErrorMessage(error)),
+  });
+}
 
 export function useFinanceOverview() {
   return useQuery({

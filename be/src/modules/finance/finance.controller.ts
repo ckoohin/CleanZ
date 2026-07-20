@@ -33,6 +33,8 @@ import { ReviewWithdrawalDto } from './dto/review-with-drawal.dto';
 import { TransactionFlowSummaryQueryDto } from './dto/transaction-flow-summary-query.dto';
 import { CustomerSpendingQueryDto } from './dto/customer-spending-query.dto';
 import type { JwtPayload } from '../auth/types/JwtPayLoad';
+import { WalletTopupService } from '../wallet/wallet-topup.service';
+import { TopupStatus } from '../../common/enums/topup-status.enum';
 
 @ApiTags('Admin – Finance')
 @ApiBearerAuth()
@@ -40,7 +42,45 @@ import type { JwtPayload } from '../auth/types/JwtPayLoad';
 @Auth(UserRole.ADMIN)
 @Controller('admin/finance')
 export class FinanceController {
-  constructor(private readonly financeService: FinanceService) {}
+  constructor(
+    private readonly financeService: FinanceService,
+    private readonly walletTopupService: WalletTopupService,
+  ) {}
+
+  @Get('topups')
+  @ApiOperation({ summary: 'List wallet topup orders (PayPal/Adyen)' })
+  async findTopups(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('provider') provider?: string,
+    @Query('status') status?: TopupStatus,
+  ) {
+    const result = await this.walletTopupService.listAllTopups({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+      provider,
+      status,
+    });
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  @Post('topups/:id/refund')
+  @ApiOperation({
+    summary:
+      'Refund a completed Adyen topup back to the original payment method',
+  })
+  async refundTopup(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    const result = await this.walletTopupService.refundTopup(id, admin.sub);
+    return successResponse(result, 'Đã khởi tạo hoàn tiền đơn nạp');
+  }
 
   @Get('overview')
   @ApiOperation({

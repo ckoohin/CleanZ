@@ -8,6 +8,7 @@ import type {
   CustomerWalletTransactionQuery,
   CustomerWithdrawal,
   CreateCustomerWithdrawalInput,
+  SavedCard,
   TopupConfig,
   TopupOrderList,
 } from "../types/customer-wallet.types";
@@ -69,4 +70,26 @@ export const customerWalletApi = {
     http
       .get<Wrapped<TopupOrderList>>(`${BASE}/topups`, { params: { page, limit } })
       .then((response) => response.data.data),
+
+  /* ─── Nạp tiền Adyen (Web Drop-in) ──────────────────────────────────────── */
+
+  // Gọi ngay sau khi Drop-in onPaymentCompleted resolve; BE tự hỏi lại Adyen.
+  confirmAdyenTopup: (payload: {
+    sessionId: string;
+    sessionResult: string;
+  }): Promise<CaptureTopupResult> =>
+    http
+      .post<Wrapped<CaptureTopupResult>>(
+        `${BASE}/topups/adyen/confirm`,
+        payload,
+      )
+      .then((response) => response.data.data),
+
+  listCards: (): Promise<SavedCard[]> =>
+    http
+      .get<Wrapped<SavedCard[]>>("/wallet/me/cards")
+      .then((response) => response.data.data),
+
+  removeCard: (cardId: string): Promise<void> =>
+    http.delete(`/wallet/me/cards/${cardId}`).then(() => undefined),
 };

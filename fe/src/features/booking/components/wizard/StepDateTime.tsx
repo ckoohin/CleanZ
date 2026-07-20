@@ -1,3 +1,9 @@
+/**
+ * ⚠️ DEAD CODE — không có route/page nào import từ thư mục
+ * `features/booking/components/wizard/` (xác nhận bằng grep toàn repo, 2026-07).
+ * Route /customer/booking thực tế dùng `features/customer/booking/components/BookingWizard.tsx`.
+ * Giữ lại để tham khảo, cân nhắc xóa nếu chắc chắn không còn cần.
+ */
 import React, { useState, useMemo, useEffect } from "react";
 import { BookingFormState } from "@/features/booking/types/booking.types";
 import { Button } from "@/components/ui/button";

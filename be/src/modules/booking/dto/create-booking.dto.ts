@@ -180,4 +180,34 @@ export class CreateBookingDto {
   @IsOptional()
   @IsUUID()
   quoteId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Chỉ dùng khi trả bằng Adyen thẻ mới: id đã cấp trước từ POST /booking/checkout/adyen-session, để booking tạo ra khớp đúng reference đã charge.',
+  })
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Adyen: id phiên Drop-in (case nhập thẻ mới)',
+  })
+  @IsOptional()
+  @IsString()
+  adyenSessionId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Adyen: giá trị sessionResult từ Drop-in onPaymentCompleted (case nhập thẻ mới)',
+  })
+  @IsOptional()
+  @IsString()
+  adyenSessionResult?: string;
+
+  @ApiPropertyOptional({
+    description: 'Adyen: id thẻ đã lưu (case dùng thẻ có sẵn, charge ngay)',
+  })
+  @IsOptional()
+  @IsString()
+  adyenStoredPaymentMethodId?: string;
 }

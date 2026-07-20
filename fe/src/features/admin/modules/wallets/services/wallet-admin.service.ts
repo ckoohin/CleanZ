@@ -1,7 +1,9 @@
 import http from "@/lib/api/http";
 import type {
+  AdminTopupQuery,
   AdminWallet,
   CustomerSpendingQuery,
+  PaginatedTopupOrders,
   FinanceOverview,
   PaginatedCustomerSpending,
   PaginatedWallets,
@@ -55,5 +57,18 @@ export const walletAdminApi = {
   ): Promise<PaginatedCustomerSpending> =>
     http
       .get(`${BASE}/customers/spending`, { params })
+      .then((response) => response.data.data),
+
+  /* ─── Đơn nạp ví (PayPal/VNPay) ─────────────────────────────────────────── */
+
+  listTopups: (params?: AdminTopupQuery): Promise<PaginatedTopupOrders> =>
+    http
+      .get(`${BASE}/topups`, { params })
+      .then((response) => response.data.data),
+
+  // Hoàn tiền đơn nạp VNPay về thẻ gốc (gọi VNPay Refund API + trừ ví).
+  refundTopup: (topupId: string): Promise<unknown> =>
+    http
+      .post(`${BASE}/topups/${topupId}/refund`)
       .then((response) => response.data.data),
 };

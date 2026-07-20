@@ -5,7 +5,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { Types } from '@adyen/api-library';
+import { AdyenService } from 'src/modules/wallet/adyen.service';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
 import { NotificationService } from 'src/modules/notification/notification.service';
@@ -109,6 +112,8 @@ export class CustomerBookingService {
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly notificationGateway: NotificationGateway,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
+    private readonly adyenService: AdyenService,
+    private readonly configService: ConfigService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -201,6 +206,71 @@ export class CustomerBookingService {
     }, 'Không thể báo giá booking');
   }
 
+  /**
+   * Tạo phiên Adyen Web Drop-in cho case "chuyển khoản, chưa có thẻ lưu" ở bước
+   * checkout booking. Sinh trước `bookingId` để dùng làm `reference` charge —
+   * booking thật sự chỉ được tạo ở `create()` SAU KHI thanh toán xong (không tạo
+   * đơn treo). Dùng lại đúng `quoteId` đã có để lấy giá chính xác, không tính lại.
+   */
+  async createAdyenCheckoutSession(
+    userId: string,
+    quoteId: string,
+  ): Promise<{
+    bookingId: string;
+    adyenSessionId: string;
+    adyenSessionData: string;
+    adyenClientKey: string;
+  }> {
+    return asyncHandleOperation(async () => {
+      const manager = this.dataSource.manager;
+      const customer = await manager.getRepository(CustomerEntity).findOne({
+        where: { user: { id: userId } },
+        relations: ['user'],
+      });
+      if (!customer) {
+        throw new NotFoundException('Không tìm thấy hồ sơ customer');
+      }
+
+      const quote = await manager
+        .getRepository(BookingQuoteEntity)
+        .findOne({ where: { id: quoteId } });
+      if (!quote || quote.customerId !== customer.id) {
+        throw new NotFoundException(
+          'Báo giá không tồn tại, vui lòng lấy báo giá mới',
+        );
+      }
+      if (quote.usedAt) {
+        throw new BadRequestException(
+          'Báo giá này đã được dùng để tạo booking khác, vui lòng lấy báo giá mới',
+        );
+      }
+      if (quote.expiresAt.getTime() < Date.now()) {
+        throw new GoneException('Báo giá đã hết hạn, vui lòng lấy báo giá mới');
+      }
+
+      const bookingId = randomUUID();
+      const amountVnd = Math.round(toNumber(quote.totalPrice));
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ??
+        'http://localhost:3020';
+
+      const session = await this.adyenService.createSession({
+        amountVnd,
+        reference: bookingId,
+        returnUrl: `${frontendUrl}/customer/booking/${bookingId}`,
+        shopperReference: userId,
+        storePaymentMethod: true,
+      });
+
+      return {
+        bookingId,
+        adyenSessionId: session.id,
+        adyenSessionData: session.sessionData,
+        adyenClientKey: this.adyenService.clientKey,
+      };
+    }, 'Không thể khởi tạo phiên thanh toán Adyen');
+  }
+
   async create(
     userId: string,
     dto: CreateBookingDto,
@@ -209,130 +279,227 @@ export class CustomerBookingService {
       let createdBookingId: string | undefined;
       let addressLat: number | null = null;
       let addressLng: number | null = null;
+      // Nếu Adyen đã charge thành công mà transaction sau đó rollback (lỗi khác:
+      // voucher, policy...), phải hoàn tiền vào ví khách — không được để mất tiền
+      // oan. Chỉ set khi charge đã CHẮC CHẮN thành công; xoá về null ngay trước
+      // return cuối cùng của transaction (từ đó transaction chắc chắn commit).
+      let adyenCompensation: {
+        customer: CustomerEntity;
+        amount: number;
+        pspReference: string;
+      } | null = null;
 
-      const response = await this.dataSource.transaction(async (manager) => {
-        const bookingRepository = manager.getRepository(BookingEntity);
-        const logRepository = manager.getRepository(BookingStatusLogEntity);
-        const context = await this.buildBookingPricingContext(
-          manager,
-          userId,
-          dto,
-        );
+      let response: CustomerBookingCreatedResponse;
+      try {
+        response = await this.dataSource.transaction(async (manager) => {
+          const bookingRepository = manager.getRepository(BookingEntity);
+          const logRepository = manager.getRepository(BookingStatusLogEntity);
+          const context = await this.buildBookingPricingContext(
+            manager,
+            userId,
+            dto,
+          );
 
-        if (dto.quoteId) {
-          await this.applyLockedQuotePrice(manager, context, dto);
-        }
+          if (dto.quoteId) {
+            await this.applyLockedQuotePrice(manager, context, dto);
+          }
 
-        await this.bookingPolicyService.assertCustomerCanCreateBooking(
-          manager,
-          context.customer.id,
-        );
+          await this.bookingPolicyService.assertCustomerCanCreateBooking(
+            manager,
+            context.customer.id,
+          );
 
-        const bookingCode =
-          await this.generateUniqueBookingCode(bookingRepository);
-        const paymentMethod = dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD;
-        const booking = bookingRepository.create({
-          bookingCode,
-          customer: context.customer,
-          tasker: null,
-          packageId: context.package.id,
-          address: context.bookingAddress,
-          addressRef: context.addressRef,
-          note: dto.note,
-          scheduledStartDate: context.scheduledStartDate,
-          scheduledStartTime: context.scheduledStartTime,
-          scheduledEndDate: context.scheduledEndDate,
-          scheduledEndTime: context.scheduledEndTime,
-          durationHours: context.durationHours,
-          areaM2: context.areaM2,
-          pricingTierId: context.pricingTierId,
-          addonIds: context.addons.map((addon) => addon.id),
-          status: BookingStatus.POSTED,
-          basePrice: context.basePrice,
-          addonPrice: context.addonPrice,
-          peakFee: context.peakFee,
-          petFee: context.petFee,
-          waitingFee: context.waitingFee,
-          discountAmount: context.discountAmount,
-          totalPrice: context.totalPrice,
-          paymentMethod,
-          paymentStatus: PaymentStatus.PENDING,
-          voucherId: context.voucher?.id,
-          isRecurring: false,
-          recurringRule: null,
-        });
-        if (
-          context.addressRef &&
-          typeof dto.hasPet === 'boolean' &&
-          context.addressRef.hasPet !== dto.hasPet
-        ) {
-          context.addressRef.hasPet = dto.hasPet;
-          await manager
-            .getRepository(CustomerAddressEntity)
-            .save(context.addressRef);
-        }
-        const savedBooking = await bookingRepository.save(booking);
-        await this.voucherService.reserveForBooking(manager, {
-          bookingId: savedBooking.id,
-          customerId: context.customer.id,
-          voucherId: savedBooking.voucherId,
-        });
-
-        const bookingSubServiceRepository = manager.getRepository(
-          BookingSubServiceEntity,
-        );
-        const bookingSubServices = context.subServices.map((sub) => {
-          return bookingSubServiceRepository.create({
-            booking: savedBooking,
-            subServiceId: sub.id,
-            price: sub.pricingConfig?.basePrice || 0,
-            durationHours: sub.durationHours || 0,
-            quantity: 1,
+          const bookingCode =
+            await this.generateUniqueBookingCode(bookingRepository);
+          const paymentMethod = dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD;
+          const booking = bookingRepository.create({
+            // Adyen thẻ mới: id đã cấp trước lúc tạo session, khớp reference đã charge.
+            ...(dto.id ? { id: dto.id } : {}),
+            bookingCode,
+            customer: context.customer,
+            tasker: null,
+            packageId: context.package.id,
+            address: context.bookingAddress,
+            addressRef: context.addressRef,
+            note: dto.note,
+            scheduledStartDate: context.scheduledStartDate,
+            scheduledStartTime: context.scheduledStartTime,
+            scheduledEndDate: context.scheduledEndDate,
+            scheduledEndTime: context.scheduledEndTime,
+            durationHours: context.durationHours,
+            areaM2: context.areaM2,
+            pricingTierId: context.pricingTierId,
+            addonIds: context.addons.map((addon) => addon.id),
+            status: BookingStatus.POSTED,
+            basePrice: context.basePrice,
+            addonPrice: context.addonPrice,
+            peakFee: context.peakFee,
+            petFee: context.petFee,
+            waitingFee: context.waitingFee,
+            discountAmount: context.discountAmount,
+            totalPrice: context.totalPrice,
+            paymentMethod,
+            paymentStatus: PaymentStatus.PENDING,
+            voucherId: context.voucher?.id,
+            isRecurring: false,
+            recurringRule: null,
           });
+          if (
+            context.addressRef &&
+            typeof dto.hasPet === 'boolean' &&
+            context.addressRef.hasPet !== dto.hasPet
+          ) {
+            context.addressRef.hasPet = dto.hasPet;
+            await manager
+              .getRepository(CustomerAddressEntity)
+              .save(context.addressRef);
+          }
+          const savedBooking = await bookingRepository.save(booking);
+          await this.voucherService.reserveForBooking(manager, {
+            bookingId: savedBooking.id,
+            customerId: context.customer.id,
+            voucherId: savedBooking.voucherId,
+          });
+
+          const bookingSubServiceRepository = manager.getRepository(
+            BookingSubServiceEntity,
+          );
+          const bookingSubServices = context.subServices.map((sub) => {
+            return bookingSubServiceRepository.create({
+              booking: savedBooking,
+              subServiceId: sub.id,
+              price: sub.pricingConfig?.basePrice || 0,
+              durationHours: sub.durationHours || 0,
+              quantity: 1,
+            });
+          });
+          await bookingSubServiceRepository.save(bookingSubServices);
+          await saveBookingAddons(manager, savedBooking, context.addons);
+
+          await this.paymentService.createPendingPayment(
+            manager,
+            savedBooking,
+            context.customer,
+            paymentMethod,
+            context.totalPrice,
+          );
+
+          // Trả bằng ví → trừ tiền ngay, giữ ở ví SYSTEM tới khi đơn xong hoặc bị hủy.
+          // Ví không đủ sẽ ném lỗi ở đây và cả transaction rollback → không tạo đơn treo.
+          await this.bookingWalletPaymentService.chargeEscrow(
+            manager,
+            savedBooking,
+            context.customer,
+          );
+
+          // Trả bằng Adyen (chuyển khoản/thẻ): case thẻ mới thì tiền ĐÃ được charge
+          // trước đó (qua POST /booking/checkout/adyen-session + Drop-in) — ở đây
+          // chỉ xác nhận lại kết quả với Adyen. Case thẻ đã lưu thì charge lần đầu
+          // ngay tại đây (đồng bộ, an toàn vì gần cuối transaction — hỏng gì trước
+          // đó thì rollback sạch, chưa hề đụng tới thẻ).
+          if (paymentMethod === PaymentMethod.ADYEN) {
+            const amount = Math.round(toNumber(context.totalPrice));
+            let pspReference: string;
+
+            if (dto.adyenStoredPaymentMethodId) {
+              const result = await this.adyenService.chargeStoredPaymentMethod({
+                amountVnd: amount,
+                reference: savedBooking.id,
+                storedPaymentMethodId: dto.adyenStoredPaymentMethodId,
+                shopperReference: userId,
+                returnUrl: `${this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3020'}/customer/booking/${savedBooking.id}`,
+              });
+              if (result.resultCode !== 'Authorised' || !result.pspReference) {
+                throw new BadRequestException(
+                  'Thanh toán thẻ thất bại, vui lòng thử lại hoặc chọn thẻ khác',
+                );
+              }
+              pspReference = result.pspReference;
+            } else if (dto.adyenSessionId && dto.adyenSessionResult) {
+              const result = await this.adyenService.getSessionResult(
+                dto.adyenSessionId,
+                dto.adyenSessionResult,
+              );
+              const sessionPayment = result.payments?.[0];
+              if (
+                result.status !==
+                  Types.checkout.SessionResultResponse.StatusEnum.Completed ||
+                !sessionPayment?.pspReference
+              ) {
+                throw new BadRequestException('Thanh toán chưa hoàn tất');
+              }
+              if ((sessionPayment.amount?.value ?? 0) !== amount) {
+                throw new BadRequestException(
+                  'Số tiền thanh toán không khớp báo giá, vui lòng thử lại',
+                );
+              }
+              pspReference = sessionPayment.pspReference;
+            } else {
+              throw new BadRequestException('Thiếu thông tin thanh toán Adyen');
+            }
+
+            // Đã xác nhận Adyen thành công — từ đây nếu bước sau lỗi phải hoàn ví.
+            adyenCompensation = {
+              customer: context.customer,
+              amount,
+              pspReference,
+            };
+            await this.bookingWalletPaymentService.chargeViaAdyen(
+              manager,
+              savedBooking,
+              pspReference,
+            );
+          }
+
+          const statusLog = logRepository.create({
+            booking: savedBooking,
+            oldStatus: null,
+            newStatus: BookingStatus.POSTED,
+            changedByUser: { id: userId } as UserEntity,
+            note: 'Người dùng tạo booking',
+            cancellationFee: 0,
+            refundAmount: 0,
+          });
+          await logRepository.save(statusLog);
+
+          // Lấy tọa độ để dispatch sau khi transaction commit
+          createdBookingId = savedBooking.id;
+          const rawLat = context.addressRef?.latitude;
+          const rawLng = context.addressRef?.longitude;
+          addressLat = rawLat != null ? Number(rawLat) : null;
+          addressLng = rawLng != null ? Number(rawLng) : null;
+
+          // Qua điểm này transaction chắc chắn commit — không còn gì có thể lỗi.
+          adyenCompensation = null;
+
+          return this.mapCreatedBookingResponse(
+            savedBooking,
+            context,
+            paymentMethod,
+          );
         });
-        await bookingSubServiceRepository.save(bookingSubServices);
-        await saveBookingAddons(manager, savedBooking, context.addons);
-
-        await this.paymentService.createPendingPayment(
-          manager,
-          savedBooking,
-          context.customer,
-          paymentMethod,
-          context.totalPrice,
-        );
-
-        // Trả bằng ví → trừ tiền ngay, giữ ở ví SYSTEM tới khi đơn xong hoặc bị hủy.
-        // Ví không đủ sẽ ném lỗi ở đây và cả transaction rollback → không tạo đơn treo.
-        await this.bookingWalletPaymentService.chargeEscrow(
-          manager,
-          savedBooking,
-          context.customer,
-        );
-
-        const statusLog = logRepository.create({
-          booking: savedBooking,
-          oldStatus: null,
-          newStatus: BookingStatus.POSTED,
-          changedByUser: { id: userId } as UserEntity,
-          note: 'Người dùng tạo booking',
-          cancellationFee: 0,
-          refundAmount: 0,
-        });
-        await logRepository.save(statusLog);
-
-        // Lấy tọa độ để dispatch sau khi transaction commit
-        createdBookingId = savedBooking.id;
-        const rawLat = context.addressRef?.latitude;
-        const rawLng = context.addressRef?.longitude;
-        addressLat = rawLat != null ? Number(rawLat) : null;
-        addressLng = rawLng != null ? Number(rawLng) : null;
-
-        return this.mapCreatedBookingResponse(
-          savedBooking,
-          context,
-          paymentMethod,
-        );
-      });
+      } catch (err) {
+        if (adyenCompensation) {
+          const compensation = adyenCompensation as {
+            customer: CustomerEntity;
+            amount: number;
+            pspReference: string;
+          };
+          await this.bookingWalletPaymentService.compensateFailedAdyenCharge(
+            this.dataSource.manager,
+            compensation.customer,
+            compensation.amount,
+            compensation.pspReference,
+          );
+          this.logger.error(
+            `Đặt lịch thất bại sau khi đã charge Adyen (${compensation.pspReference}) — đã hoàn ${compensation.amount}đ vào ví khách`,
+          );
+          throw new BadRequestException(
+            'Thanh toán đã được ghi nhận nhưng đặt lịch thất bại — số tiền đã được hoàn vào ví CleanZ của bạn, vui lòng thử đặt lịch lại.',
+          );
+        }
+        throw err;
+      }
 
       // Sau khi transaction commit thành công — emit + enqueue dispatch
       if (createdBookingId) {

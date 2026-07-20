@@ -12,8 +12,8 @@ export type BookingStatus =
 
 export type BookingSource = "CUSTOMER_APP" | "TASKER_CREATED";
 
-/** Chỉ còn 2 hình thức cân sổ. Các cổng MOMO/VNPAY/ZaloPay/VietQR chưa từng được tích hợp nên đã bỏ. */
-export type PaymentMethod = "CASH" | "WALLET";
+/** 3 hình thức cân sổ (ADYEN = "Chuyển khoản", sandbox). Các cổng MOMO/VNPAY/ZaloPay/VietQR chưa từng được tích hợp nên đã bỏ. */
+export type PaymentMethod = "CASH" | "WALLET" | "ADYEN";
 export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED" | "FAILED";
 
 // ─── Shared sub-types ─────────────────────────────────────────────────────────
@@ -102,6 +102,21 @@ export interface CreateBookingDto {
   durationHours?: number;
   hasPet?: boolean;
   quoteId?: string; // ID báo giá từ POST /booking/quote — dùng để khóa giá
+  /** Adyen thẻ mới: id đã cấp trước từ POST /booking/checkout/adyen-session. */
+  id?: string;
+  /** Adyen thẻ mới: id phiên Drop-in. */
+  adyenSessionId?: string;
+  /** Adyen thẻ mới: sessionResult từ Drop-in onPaymentCompleted. */
+  adyenSessionResult?: string;
+  /** Adyen thẻ đã lưu: id thẻ chọn để charge ngay. */
+  adyenStoredPaymentMethodId?: string;
+}
+
+export interface AdyenBookingCheckoutSession {
+  bookingId: string;
+  adyenSessionId: string;
+  adyenSessionData: string;
+  adyenClientKey: string;
 }
 
 export interface QuoteBookingDto {

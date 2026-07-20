@@ -24,9 +24,7 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/service-packages/reports')
 export class ServicePackageReportsController {
-  constructor(
-    private readonly reportsService: ServicePackageReportsService,
-  ) {}
+  constructor(private readonly reportsService: ServicePackageReportsService) {}
 
   @Get('overview')
   @Auth(UserRole.ADMIN)
@@ -70,7 +68,9 @@ export class ServicePackageReportsController {
 
   @Get('addon-popularity')
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Xếp hạng dịch vụ thêm (addon) theo số lần dùng và doanh thu' })
+  @ApiOperation({
+    summary: 'Xếp hạng dịch vụ thêm (addon) theo số lần dùng và doanh thu',
+  })
   async getAddonPopularity(@Query() query: ServicePackageReportsQueryDto) {
     const data = await this.reportsService.getAddonPopularity(query);
     return successResponse(data);
@@ -191,8 +191,13 @@ export class ServicePackageReportsController {
 
   @Get('export/all')
   @Auth(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Xuất Excel: Báo cáo tổng hợp toàn bộ (gộp 1 sheet duy nhất)' })
-  async exportAll(@Query() query: TopTaskersReportQueryDto, @Res() res: Response) {
+  @ApiOperation({
+    summary: 'Xuất Excel: Báo cáo tổng hợp toàn bộ (gộp 1 sheet duy nhất)',
+  })
+  async exportAll(
+    @Query() query: TopTaskersReportQueryDto,
+    @Res() res: Response,
+  ) {
     const [sections, filterSummary] = await Promise.all([
       Promise.all([
         this.reportsService.buildOverviewSheet(query),

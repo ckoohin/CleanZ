@@ -25,11 +25,19 @@ import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import {
   useBookingQuote,
   useBookingQuoteQuery,
+  useCreateAdyenBookingSession,
   useCreateBooking,
 } from "@/features/booking/hooks/useCustomerBooking";
-import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
+import {
+  useCustomerWallet,
+  useMyCards,
+  useRemoveCard,
+} from "@/features/customer/wallet/hooks/useCustomerWallet";
+import { useAdyenDropin } from "@/features/wallet/hooks/useAdyenDropin";
+import { SavedCardPicker } from "@/features/wallet/components/SavedCardPicker";
 import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
 import type {
+  AdyenBookingCheckoutSession,
   BookingQuoteResponse,
   CreateBookingDto,
   PaymentMethod,
@@ -91,6 +99,8 @@ interface WizardState {
   note: string;
   // Thanh toán
   paymentMethod: PaymentMethod;
+  // "new" = nhập thẻ mới (Adyen); ngược lại là id thẻ đã lưu.
+  adyenCardId: string;
   voucherCode: string;
 }
 
@@ -109,6 +119,7 @@ const INIT_STATE: WizardState = {
   scheduledTime: "",
   note: "",
   paymentMethod: "CASH",
+  adyenCardId: "new",
   voucherCode: "",
 };
 
@@ -1350,7 +1361,10 @@ function StepPayment({
   const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
     { value: "CASH", label: "Tiền mặt", icon: "💵" },
     { value: "WALLET", label: "Ví CleanZ", icon: "💳" },
+    { value: "ADYEN", label: "Chuyển khoản", icon: "🏦" },
   ];
+  const { data: adyenCards } = useMyCards(form.paymentMethod === "ADYEN");
+  const removeAdyenCard = useRemoveCard();
 
   return (
     <div className="space-y-5">
@@ -1427,6 +1441,19 @@ function StepPayment({
             >
               Nạp tiền ngay
             </Link>
+          </div>
+        )}
+
+        {form.paymentMethod === "ADYEN" && (
+          <div className="mt-3">
+            <SavedCardPicker
+              cards={adyenCards}
+              selectedId={form.adyenCardId}
+              onSelect={(id) => onChange({ adyenCardId: id })}
+              onRemove={(id) => removeAdyenCard.mutate(id)}
+              isRemoving={removeAdyenCard.isPending}
+              emptyHint="Bạn sẽ nhập thông tin thẻ ở bước xác nhận (sandbox). Thẻ được lưu lại để lần sau chỉ cần chọn."
+            />
           </div>
         )}
       </div>
@@ -1548,7 +1575,11 @@ function StepConfirm({
         <div className="flex justify-between text-sm pt-1">
           <span className="text-muted-foreground">Phương thức</span>
           <span className="font-semibold">
-            {form.paymentMethod === "WALLET" ? "Ví CleanZ" : "Tiền mặt"}
+            {form.paymentMethod === "WALLET"
+              ? "Ví CleanZ"
+              : form.paymentMethod === "ADYEN"
+                ? "Chuyển khoản"
+                : "Tiền mặt"}
           </span>
         </div>
       </div>
@@ -1655,6 +1686,10 @@ export const BookingWizard = ({
 
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
+  const createAdyenSessionMutation = useCreateAdyenBookingSession();
+  const [adyenSession, setAdyenSession] =
+    useState<AdyenBookingCheckoutSession | null>(null);
+  const [showAdyenDropin, setShowAdyenDropin] = useState(false);
   const {
     data: wallet,
     isLoading: isWalletLoading,
@@ -1739,6 +1774,85 @@ export const BookingWizard = ({
     return true;
   };
 
+  const buildCreateDto = (
+    extra: Partial<CreateBookingDto> = {},
+  ): CreateBookingDto => ({
+    packageId: form.serviceId || undefined,
+    addonIds: form.addonIds.length > 0 ? form.addonIds : undefined,
+    addressId: form.addressId || undefined,
+    scheduledDate: form.scheduledDate,
+    scheduledTime: form.scheduledTime,
+    note: form.note || undefined,
+    paymentMethod: form.paymentMethod,
+    voucherCode: form.voucherCode || undefined,
+    pricingTierId: form.pricingTierId || undefined,
+    durationHours: form.durationHours ?? undefined,
+    areaM2: form.areaM2 ?? undefined,
+    hasPet: form.hasPet,
+    quoteId: quote?.quoteId,
+    ...extra,
+  });
+
+  const submitBooking = async (dto: CreateBookingDto) => {
+    try {
+      const result = await createMutation.mutateAsync(dto);
+      if (result.id) setCreatedId(result.id as string);
+      setShowAdyenDropin(false);
+      setAdyenSession(null);
+      setStep(5);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        const responseMessage = error.response.data?.message;
+        const bookingId =
+          typeof responseMessage === "object" &&
+          responseMessage !== null &&
+          "bookingId" in responseMessage
+            ? String(responseMessage.bookingId)
+            : null;
+
+        if (bookingId) {
+          router.push(`/customer/booking/${bookingId}`);
+          return;
+        }
+      }
+
+      // Báo giá hết hạn (410) hoặc thông tin đặt lịch đã đổi so với báo giá (400)
+      // → quay lại bước xác nhận và lấy báo giá mới thay vì để khách bấm lại vô ích.
+      if (
+        axios.isAxiosError(error) &&
+        (error.response?.status === 410 || error.response?.status === 400)
+      ) {
+        const message =
+          typeof error.response.data?.message === "string"
+            ? error.response.data.message
+            : "Báo giá đã thay đổi, vui lòng thử lại.";
+        toast.error(message);
+        setQuote(null);
+        setShowAdyenDropin(false);
+        setAdyenSession(null);
+        setStep(3);
+      }
+    }
+  };
+
+  const adyenDropinRef = useAdyenDropin({
+    sessionId: adyenSession?.adyenSessionId ?? "",
+    sessionData: adyenSession?.adyenSessionData ?? "",
+    clientKey: adyenSession?.adyenClientKey ?? "",
+    environment: process.env.NEXT_PUBLIC_ADYEN_ENVIRONMENT,
+    onCompleted: ({ sessionId, sessionResult }) => {
+      if (!adyenSession) return;
+      void submitBooking(
+        buildCreateDto({
+          id: adyenSession.bookingId,
+          adyenSessionId: sessionId,
+          adyenSessionResult: sessionResult,
+        }),
+      );
+    },
+    onError: (message) => toast.error(message),
+  });
+
   const handleNext = async () => {
     if (step === 0 && addonSelectionInvalidAtMaxHours) {
       toast.warning(
@@ -1800,56 +1914,29 @@ export const BookingWizard = ({
 
     // Step 4 (Xác nhận) → Submit booking → Step 5 (Thành công)
     if (step === 4) {
-      const dto: CreateBookingDto = {
-        packageId: form.serviceId || undefined,
-        addonIds: form.addonIds.length > 0 ? form.addonIds : undefined,
-        addressId: form.addressId || undefined,
-        scheduledDate: form.scheduledDate,
-        scheduledTime: form.scheduledTime,
-        note: form.note || undefined,
-        paymentMethod: form.paymentMethod,
-        voucherCode: form.voucherCode || undefined,
-        pricingTierId: form.pricingTierId || undefined,
-        durationHours: form.durationHours ?? undefined,
-        areaM2: form.areaM2 ?? undefined,
-        hasPet: form.hasPet,
-        quoteId: quote?.quoteId,
-      };
-      try {
-        const result = await createMutation.mutateAsync(dto);
-        if (result.id) setCreatedId(result.id as string);
-        setStep(5);
-      } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 409) {
-          const responseMessage = error.response.data?.message;
-          const bookingId =
-            typeof responseMessage === "object" &&
-            responseMessage !== null &&
-            "bookingId" in responseMessage
-              ? String(responseMessage.bookingId)
-              : null;
-
-          if (bookingId) {
-            router.push(`/customer/booking/${bookingId}`);
-            return;
-          }
+      // Chuyển khoản + thẻ mới: thanh toán xong (Drop-in) mới tạo booking —
+      // không tạo đơn treo. Tạo session trước, chưa gọi createMutation.
+      if (form.paymentMethod === "ADYEN" && form.adyenCardId === "new") {
+        if (!quote?.quoteId) return;
+        try {
+          const session = await createAdyenSessionMutation.mutateAsync(
+            quote.quoteId,
+          );
+          setAdyenSession(session);
+          setShowAdyenDropin(true);
+        } catch {
+          // Lỗi đã toast trong hook useCreateAdyenBookingSession.
         }
-
-        // Báo giá hết hạn (410) hoặc thông tin đặt lịch đã đổi so với báo giá (400)
-        // → quay lại bước xác nhận và lấy báo giá mới thay vì để khách bấm lại vô ích.
-        if (
-          axios.isAxiosError(error) &&
-          (error.response?.status === 410 || error.response?.status === 400)
-        ) {
-          const message =
-            typeof error.response.data?.message === "string"
-              ? error.response.data.message
-              : "Báo giá đã thay đổi, vui lòng thử lại.";
-          toast.error(message);
-          setQuote(null);
-          setStep(3);
-        }
+        return;
       }
+
+      await submitBooking(
+        buildCreateDto(
+          form.paymentMethod === "ADYEN" && form.adyenCardId !== "new"
+            ? { adyenStoredPaymentMethodId: form.adyenCardId }
+            : {},
+        ),
+      );
       return;
     }
 
@@ -1881,7 +1968,8 @@ export const BookingWizard = ({
 
   const isPending =
     (step === 3 && quoteQuery.isPending) ||
-    (step === 4 && createMutation.isPending);
+    (step === 4 &&
+      (createMutation.isPending || createAdyenSessionMutation.isPending));
 
   const isResolvingPackage = !!initialServiceId && !form.serviceId;
 
@@ -1992,13 +2080,40 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepConfirm
-                form={form}
-                quote={quote}
-                isQuoting={quoteQuery.isPending}
-                walletBalance={walletBalance}
-                isWalletInsufficient={isWalletInsufficient}
-              />
+              {showAdyenDropin && adyenSession ? (
+                <div className="space-y-4">
+                  <div className="bg-card p-5 rounded-2xl border border-border/50">
+                    <h2 className="text-base font-bold text-foreground mb-4">
+                      Nhập thông tin thẻ
+                    </h2>
+                    <div ref={adyenDropinRef} />
+                    {createMutation.isPending && (
+                      <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                        <Loader2 className="size-4 animate-spin" />
+                        Đang xác nhận thanh toán và tạo booking...
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAdyenDropin(false);
+                      setAdyenSession(null);
+                    }}
+                    disabled={createMutation.isPending}
+                    className="w-full bg-muted text-foreground font-bold py-3.5 rounded-2xl disabled:opacity-40"
+                  >
+                    Quay lại chọn phương thức
+                  </button>
+                </div>
+              ) : (
+                <StepConfirm
+                  form={form}
+                  quote={quote}
+                  isQuoting={quoteQuery.isPending}
+                  walletBalance={walletBalance}
+                  isWalletInsufficient={isWalletInsufficient}
+                />
+              )}
             </motion.div>
           )}
           {step === 5 && (
@@ -2042,7 +2157,7 @@ export const BookingWizard = ({
       </div>
 
       {/* Bottom CTA */}
-      {step < 5 && (
+      {step < 5 && !showAdyenDropin && (
         <div className="fixed bottom-20 md:bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 z-30">
           <div className="mx-auto max-w-5xl">
             <button
@@ -2054,7 +2169,11 @@ export const BookingWizard = ({
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {step === 4 ? "Xác nhận & Đặt lịch" : "Tiếp tục"}
+                  {step === 4
+                    ? form.paymentMethod === "ADYEN" && form.adyenCardId === "new"
+                      ? "Tiếp tục nhập thẻ"
+                      : "Xác nhận & Đặt lịch"
+                    : "Tiếp tục"}
                   {step < 4 && <ChevronRight className="w-5 h-5" />}
                 </>
               )}

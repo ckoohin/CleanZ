@@ -1,6 +1,7 @@
 import http from "@/lib/api/http";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import type {
+  AdyenBookingCheckoutSession,
   BookingQuoteResponse,
   CancelBookingDto,
   CreateBookingDto,
@@ -37,6 +38,16 @@ export const customerBookingApi = {
       .post(API_ENDPOINTS.BOOKING.CREATE, dto, {
         skipErrorToast: true,
       } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
+
+  /** 02A. Tạo phiên Adyen Drop-in để trả booking bằng thẻ mới (chuyển khoản) */
+  createAdyenSession: (quoteId: string): Promise<AdyenBookingCheckoutSession> =>
+    http
+      .post(
+        API_ENDPOINTS.BOOKING.ADYEN_CHECKOUT_SESSION,
+        { quoteId },
+        { skipErrorToast: true } as Parameters<typeof http.post>[2],
+      )
       .then((r) => r.data.data ?? r.data),
 
   /** 03. Xem chi tiết booking */

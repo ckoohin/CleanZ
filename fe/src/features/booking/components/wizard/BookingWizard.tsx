@@ -1,3 +1,10 @@
+/**
+ * ⚠️ DEAD CODE — không có route/page nào import file này (xác nhận bằng grep
+ * toàn repo, 2026-07). Route /customer/booking thực tế dùng
+ * `features/customer/booking/components/BookingWizard.tsx` (component riêng,
+ * cùng tên nhưng khác thư mục — coi chừng nhầm khi tìm/sửa).
+ * Giữ lại để tham khảo, cân nhắc xóa nếu chắc chắn không còn cần.
+ */
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { StepLocation } from "./StepLocation";

@@ -37,8 +37,15 @@ export class BookingWalletPaymentService {
     private readonly paymentService: PaymentService,
   ) {}
 
-  isWalletBooking(booking: BookingEntity): boolean {
-    return booking.paymentMethod === PaymentMethod.WALLET;
+  /**
+   * Booking nào cũng đi qua ký quỹ ví SYSTEM (WALLET debit ví khách, ADYEN charge
+   * thẻ) — CASH thì không, tiền không qua hệ thống ví lúc tạo đơn.
+   */
+  isEscrowBooking(booking: BookingEntity): boolean {
+    return (
+      booking.paymentMethod === PaymentMethod.WALLET ||
+      booking.paymentMethod === PaymentMethod.ADYEN
+    );
   }
 
   /**
@@ -50,7 +57,7 @@ export class BookingWalletPaymentService {
     booking: BookingEntity,
     customer: CustomerEntity | null,
   ): Promise<void> {
-    if (!this.isWalletBooking(booking)) {
+    if (booking.paymentMethod !== PaymentMethod.WALLET) {
       return;
     }
 
@@ -106,9 +113,77 @@ export class BookingWalletPaymentService {
     await this.markBookingPaid(manager, booking);
   }
 
+  /**
+   * Credit thẳng ví SYSTEM bằng số tiền Adyen đã charge thành công lúc tạo đơn
+   * (KHÔNG debit ví khách — tiền đã thu qua thẻ). Sau bước này, booking đi tiếp
+   * đúng luồng ký quỹ như WALLET (settleOnCompletion/refundEscrow/adjustEscrow
+   * dùng chung, không cần biết tiền vào SYSTEM bằng cách nào).
+   */
+  async chargeViaAdyen(
+    manager: EntityManager,
+    booking: BookingEntity,
+    pspReference: string,
+  ): Promise<void> {
+    if (booking.paymentMethod !== PaymentMethod.ADYEN) {
+      return;
+    }
+
+    if (await this.hasEntry(manager, booking.id, BOOKING_WALLET_ESCROW_REF)) {
+      return;
+    }
+
+    const amount = Math.round(toNumber(booking.totalPrice));
+
+    if (amount <= 0) {
+      await this.markBookingPaid(manager, booking, pspReference);
+      return;
+    }
+
+    const systemWallet =
+      await this.walletService.getOrCreateSystemWallet(manager);
+
+    await this.walletService.creditWallet(manager, {
+      wallet: systemWallet,
+      amount,
+      type: WalletTransactionType.PAYMENT,
+      booking,
+      referenceId: booking.id,
+      referenceType: BOOKING_WALLET_ESCROW_REF,
+      description: `Thanh toán booking ${booking.bookingCode} qua Adyen (${pspReference})`,
+    });
+
+    await this.markBookingPaid(manager, booking, pspReference);
+  }
+
+  /**
+   * Bù tiền vào ví khách khi Adyen đã charge thành công nhưng transaction tạo
+   * booking sau đó rollback vì lý do khác (voucher, policy...) — tránh mất tiền
+   * oan. Gọi NGOÀI transaction đã rollback (dùng `dataSource.manager` trần).
+   */
+  async compensateFailedAdyenCharge(
+    manager: EntityManager,
+    customer: CustomerEntity,
+    amount: number,
+    pspReference: string,
+  ): Promise<void> {
+    const wallet = await this.walletService.getOrCreateCustomerWallet(
+      manager,
+      customer,
+    );
+    await this.walletService.creditWallet(manager, {
+      wallet,
+      amount,
+      type: WalletTransactionType.REFUND,
+      referenceId: pspReference,
+      referenceType: 'BOOKING_ADYEN_ORPHAN_COMPENSATION',
+      description: `Hoàn tiền do đặt lịch thất bại sau khi đã charge thẻ Adyen (${pspReference})`,
+    });
+  }
+
   private async markBookingPaid(
     manager: EntityManager,
     booking: BookingEntity,
+    transactionCode?: string,
   ): Promise<void> {
     booking.paymentStatus = PaymentStatus.PAID;
     await manager
@@ -118,6 +193,7 @@ export class BookingWalletPaymentService {
       manager,
       booking.id,
       new Date(),
+      transactionCode,
     );
   }
 
@@ -134,7 +210,7 @@ export class BookingWalletPaymentService {
     booking: BookingEntity,
     previousTotalPrice: number,
   ): Promise<void> {
-    if (!this.isWalletBooking(booking)) {
+    if (!this.isEscrowBooking(booking)) {
       return;
     }
 
@@ -217,7 +293,7 @@ export class BookingWalletPaymentService {
     booking: BookingEntity,
     taskerEarning: number,
   ): Promise<boolean> {
-    if (!this.isWalletBooking(booking)) {
+    if (!this.isEscrowBooking(booking)) {
       return false;
     }
 
@@ -288,7 +364,7 @@ export class BookingWalletPaymentService {
     booking: BookingEntity,
     reason: string,
   ): Promise<number> {
-    if (!this.isWalletBooking(booking)) {
+    if (!this.isEscrowBooking(booking)) {
       return 0;
     }
 

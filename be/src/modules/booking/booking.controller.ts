@@ -164,6 +164,26 @@ export class BookingController {
     return this.customerBookingService.quote(userId, quoteBookingDto);
   }
 
+  @Post('checkout/adyen-session')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary:
+      'Tạo phiên Adyen Drop-in để trả booking bằng thẻ mới (chuyển khoản)',
+    description:
+      'Dùng quoteId từ /booking/quote để lấy đúng giá đã khóa. Trả về bookingId (dùng lại khi gọi POST /booking sau khi Drop-in hoàn tất) + dữ liệu session để mount Drop-in.',
+  })
+  createAdyenCheckoutSession(
+    @CurrentUser('id') userId: string,
+    @Body('quoteId') quoteId: string,
+  ) {
+    return this.customerBookingService.createAdyenCheckoutSession(
+      userId,
+      quoteId,
+    );
+  }
+
   @Post('tasker/create-for-customer')
   @Auth(UserRole.TASKER)
   @HttpCode(HttpStatus.CREATED)

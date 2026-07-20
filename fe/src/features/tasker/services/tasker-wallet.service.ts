@@ -10,6 +10,7 @@ import type {
   TaskerWalletTransactionList,
   TaskerWalletTransactionQuery,
   TaskerWithdrawalRequest,
+  TaskerSavedCard,
   TaskerTopupCaptureResult,
   TaskerTopupConfig,
   TaskerTopupResult,
@@ -79,4 +80,24 @@ export const taskerWalletApi = {
         `${BASE}/topups/${topupId}/capture`,
       )
       .then((response) => response.data.data),
+
+  // Gọi ngay sau khi Drop-in onPaymentCompleted resolve; BE tự hỏi lại Adyen.
+  confirmAdyenTopup: (payload: {
+    sessionId: string;
+    sessionResult: string;
+  }): Promise<TaskerTopupCaptureResult> =>
+    http
+      .post<Wrapped<TaskerTopupCaptureResult>>(
+        `${BASE}/topups/adyen/confirm`,
+        payload,
+      )
+      .then((response) => response.data.data),
+
+  listCards: (): Promise<TaskerSavedCard[]> =>
+    http
+      .get<Wrapped<TaskerSavedCard[]>>("/wallet/me/cards")
+      .then((response) => response.data.data),
+
+  removeCard: (cardId: string): Promise<void> =>
+    http.delete(`/wallet/me/cards/${cardId}`).then(() => undefined),
 };

@@ -1,13 +1,17 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import {
@@ -38,6 +42,8 @@ import { DataSource } from 'typeorm';
 import { successResponse } from 'src/common/helpers/response.helper';
 import { WalletTopupService } from './wallet-topup.service';
 import { CreateTopupDto } from './dto/create-topup.dto';
+import { ConfirmAdyenTopupDto } from './dto/confirm-adyen-topup.dto';
+import type { AdyenNotificationRequestItem } from './adyen.service';
 import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { TaskerEarningsBreakdownQueryDto } from './dto/tasker-earnings-breakdown-query.dto';
 
@@ -62,21 +68,43 @@ export class WalletController {
 
   @Post('customer/me/topups')
   @Auth(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'Customer tạo đơn nạp tiền vào ví qua PayPal' })
+  @ApiOperation({
+    summary: 'Customer tạo đơn nạp tiền vào ví (PayPal hoặc Adyen)',
+  })
   @ApiCreatedResponse({ description: 'Tạo đơn nạp tiền thành công' })
   async createTopup(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateTopupDto,
+    @Req() req: Request,
   ) {
     const result = await this.walletTopupService.createTopup(
       userId,
       dto.amountVnd,
       dto.bookingId,
+      WalletOwnerType.CUSTOMER,
+      {
+        provider: dto.provider,
+        ipAddr: req.ip ?? '127.0.0.1',
+      },
     );
-    return successResponse(
-      result,
-      'Đã tạo đơn nạp tiền, chờ thanh toán PayPal',
+    return successResponse(result, 'Đã tạo đơn nạp tiền, chờ thanh toán');
+  }
+
+  @Post('customer/me/topups/adyen/confirm')
+  @Auth(UserRole.CUSTOMER)
+  @ApiOperation({
+    summary:
+      'Customer xác nhận kết quả Adyen (sau khi Drop-in onPaymentCompleted)',
+  })
+  async confirmCustomerAdyenTopup(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ConfirmAdyenTopupDto,
+  ) {
+    const result = await this.walletTopupService.confirmAdyenReturn(
+      userId,
+      dto,
     );
+    return successResponse(result, 'Xác nhận thanh toán Adyen thành công');
   }
 
   @Post('customer/me/topups/:id/capture')
@@ -126,22 +154,87 @@ export class WalletController {
   @Auth(UserRole.TASKER)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseGuards(ThrottlerGuard)
-  @ApiOperation({ summary: 'Tasker tạo đơn nạp tiền vào ví qua PayPal' })
+  @ApiOperation({
+    summary: 'Tasker tạo đơn nạp tiền vào ví (PayPal hoặc Adyen)',
+  })
   @ApiCreatedResponse({ description: 'Tạo đơn nạp tiền thành công' })
   async createTaskerTopup(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateTopupDto,
+    @Req() req: Request,
   ) {
     const result = await this.walletTopupService.createTopup(
       userId,
       dto.amountVnd,
       undefined,
       WalletOwnerType.TASKER,
+      {
+        provider: dto.provider,
+        ipAddr: req.ip ?? '127.0.0.1',
+      },
     );
-    return successResponse(
-      result,
-      'Đã tạo đơn nạp tiền, chờ thanh toán PayPal',
+    return successResponse(result, 'Đã tạo đơn nạp tiền, chờ thanh toán');
+  }
+
+  @Post('tasker/me/topups/adyen/confirm')
+  @Auth(UserRole.TASKER)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({
+    summary:
+      'Tasker xác nhận kết quả Adyen (sau khi Drop-in onPaymentCompleted)',
+  })
+  async confirmTaskerAdyenTopup(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ConfirmAdyenTopupDto,
+  ) {
+    const result = await this.walletTopupService.confirmAdyenReturn(
+      userId,
+      dto,
+      WalletOwnerType.TASKER,
     );
+    return successResponse(result, 'Xác nhận thanh toán Adyen thành công');
+  }
+
+  // Webhook server-to-server của Adyen — public (Adyen không có JWT). Phải trả
+  // đúng chuỗi literal '[accepted]' theo spec, không wrap successResponse.
+  @Post('topups/adyen/webhook')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({ summary: 'Adyen webhook callback (public)' })
+  async adyenWebhook(
+    @Body()
+    body: {
+      notificationItems?: {
+        NotificationRequestItem: AdyenNotificationRequestItem;
+      }[];
+    },
+    @Res() res: Response,
+  ) {
+    const items = (body?.notificationItems ?? []).map(
+      (i) => i.NotificationRequestItem,
+    );
+    await this.walletTopupService.handleAdyenWebhook(items);
+    res.status(200).send('[accepted]');
+  }
+
+  @Get('me/cards')
+  @Auth(UserRole.CUSTOMER, UserRole.TASKER)
+  @ApiOperation({ summary: 'Danh sách thẻ đã lưu qua Adyen của chính mình' })
+  async listMyCards(@CurrentUser('id') userId: string) {
+    const cards = await this.walletTopupService.listMyCards(userId);
+    return successResponse(cards, 'Lấy danh sách thẻ đã lưu thành công');
+  }
+
+  @Delete('me/cards/:id')
+  @Auth(UserRole.CUSTOMER, UserRole.TASKER)
+  @ApiOperation({ summary: 'Xóa 1 thẻ đã lưu (Adyen stored payment method)' })
+  async removeMyCard(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ) {
+    await this.walletTopupService.removeMyCard(userId, id);
+    return successResponse(null, 'Đã xóa thẻ đã lưu');
   }
 
   @Post('tasker/me/topups/:id/capture')

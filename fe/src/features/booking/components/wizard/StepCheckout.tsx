@@ -1,14 +1,22 @@
+/**
+ * ⚠️ DEAD CODE — không có route/page nào import từ thư mục
+ * `features/booking/components/wizard/` (xác nhận bằng grep toàn repo, 2026-07).
+ * Route /customer/booking thực tế dùng `features/customer/booking/components/BookingWizard.tsx`,
+ * luồng thanh toán Adyen ("Chuyển khoản") thật đã được cài ở component đó, KHÔNG
+ * phải ở file này — chỉnh sửa payment method cho booking thì sửa bên kia.
+ */
 import React, { useEffect, useState } from "react";
 import { BookingFormState } from "@/features/booking/types/booking.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CreditCard, Banknote, ShieldCheck, CheckCircle2, Ticket, Loader2, Wallet, AlertCircle } from "lucide-react";
-import { useBookingQuote, useCreateBooking } from "@/features/booking/hooks/useCustomerBooking";
-import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
+import { ArrowLeft, CreditCard, Banknote, ShieldCheck, CheckCircle2, Ticket, Loader2, Wallet, AlertCircle, Trash2 } from "lucide-react";
+import { useBookingQuote, useCreateAdyenBookingSession, useCreateBooking } from "@/features/booking/hooks/useCustomerBooking";
+import { useCustomerWallet, useMyCards, useRemoveCard } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { TopupDialog } from "@/features/customer/wallet/components/TopupDialog";
+import { useAdyenDropin } from "@/features/wallet/hooks/useAdyenDropin";
 import { useRouter } from "next/navigation";
-import type { PaymentMethod } from "@/features/booking/types/booking.types";
+import type { AdyenBookingCheckoutSession, CreateBookingDto, PaymentMethod } from "@/features/booking/types/booking.types";
 import { PublicService } from "@/features/public/hooks/usePublicData";
 import { toast } from "sonner";
 import { useUpdateProfile } from "@/features/auth/hooks/auth.hooks";
@@ -25,9 +33,17 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
   const router = useRouter();
   const quoteMutation = useBookingQuote();
   const createMutation = useCreateBooking();
+  const createAdyenSessionMutation = useCreateAdyenBookingSession();
   const { data: wallet, isLoading: isWalletLoading } = useCustomerWallet();
+  const { data: cards } = useMyCards(formData.paymentMethod === "ADYEN");
+  const removeCard = useRemoveCard();
   const [voucherInput, setVoucherInput] = useState(formData.voucherCode ?? "");
   const [topupOpen, setTopupOpen] = useState(false);
+
+  // Luồng Adyen thẻ mới: thanh toán xong (Drop-in) mới tạo booking.
+  const [payStep, setPayStep] = useState<"select" | "pay">("select");
+  const [cardId, setCardId] = useState<string>("new");
+  const [adyenSession, setAdyenSession] = useState<AdyenBookingCheckoutSession | null>(null);
 
   const [inputPhone, setInputPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -51,12 +67,12 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    formData.serviceId, 
+    formData.serviceId,
     formData.addressId,
-    formData.address, 
-    formData.provinceCode, 
-    formData.scheduledDate, 
-    formData.scheduledTime, 
+    formData.address,
+    formData.provinceCode,
+    formData.scheduledDate,
+    formData.scheduledTime,
     formData.voucherCode
   ]);
 
@@ -97,21 +113,87 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
     );
   };
 
+  const buildCreatePayload = (): CreateBookingDto => ({
+    packageId: formData.serviceId || undefined,
+    subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
+      ? formData.subServiceIds
+      : undefined,
+    addressId: formData.addressId || undefined,
+    address: formData.address,
+    provinceCode: formData.provinceCode,
+    scheduledDate: formData.scheduledDate,
+    scheduledTime: formData.scheduledTime,
+    note: formData.note,
+    paymentMethod: formData.paymentMethod,
+    voucherCode: formData.voucherCode || undefined,
+    quoteId: quoteData?.quoteId,
+  });
+
+  const resetAdyenFlow = () => {
+    setPayStep("select");
+    setAdyenSession(null);
+  };
+
+  const dropinRef = useAdyenDropin({
+    sessionId: adyenSession?.adyenSessionId ?? "",
+    sessionData: adyenSession?.adyenSessionData ?? "",
+    clientKey: adyenSession?.adyenClientKey ?? "",
+    environment: process.env.NEXT_PUBLIC_ADYEN_ENVIRONMENT,
+    onCompleted: ({ sessionId, sessionResult }) => {
+      if (!adyenSession) return;
+      createMutation.mutate(
+        {
+          ...buildCreatePayload(),
+          paymentMethod: "ADYEN",
+          id: adyenSession.bookingId,
+          adyenSessionId: sessionId,
+          adyenSessionResult: sessionResult,
+        },
+        {
+          onSuccess: (data) => {
+            toast.success("Đặt lịch thành công!");
+            router.push(`/customer/booking/${data.id}`);
+          },
+        },
+      );
+    },
+    onError: (message) => toast.error(message),
+  });
+
   const handleCheckout = () => {
-    createMutation.mutate({
-      packageId: formData.serviceId || undefined,
-      subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
-        ? formData.subServiceIds
-        : undefined,
-      addressId: formData.addressId || undefined,
-      address: formData.address,
-      provinceCode: formData.provinceCode,
-      scheduledDate: formData.scheduledDate,
-      scheduledTime: formData.scheduledTime,
-      note: formData.note,
-      paymentMethod: formData.paymentMethod,
-      voucherCode: formData.voucherCode || undefined,
-    }, {
+    if (formData.paymentMethod === "ADYEN") {
+      const selectedCard = cards?.find((c) => c.id === cardId);
+      if (selectedCard) {
+        createMutation.mutate(
+          {
+            ...buildCreatePayload(),
+            paymentMethod: "ADYEN",
+            adyenStoredPaymentMethodId: selectedCard.id,
+          },
+          {
+            onSuccess: (data) => {
+              toast.success("Đặt lịch thành công!");
+              router.push(`/customer/booking/${data.id}`);
+            },
+          },
+        );
+        return;
+      }
+
+      if (!quoteData?.quoteId) {
+        toast.error("Vui lòng đợi báo giá trước khi thanh toán");
+        return;
+      }
+      createAdyenSessionMutation.mutate(quoteData.quoteId, {
+        onSuccess: (session) => {
+          setAdyenSession(session);
+          setPayStep("pay");
+        },
+      });
+      return;
+    }
+
+    createMutation.mutate(buildCreatePayload(), {
       onSuccess: (data) => {
         toast.success("Đặt lịch thành công!");
         router.push(`/customer/booking/${data.id}`);
@@ -136,7 +218,39 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
   // Làm tròn lên bội số 10k cho gọn số tiền khách phải nạp.
   const suggestedTopup = Math.ceil(missingAmount / 10_000) * 10_000;
 
-  const isSubmitDisabled = isCreating || isQuoting || !quoteData || isWalletInsufficient;
+  const isSubmitDisabled = isCreating || isQuoting || !quoteData || isWalletInsufficient || createAdyenSessionMutation.isPending;
+  const selectedAdyenCard = cards?.find((c) => c.id === cardId);
+
+  if (payStep === "pay") {
+    return (
+      <div className="flex flex-col h-full space-y-6">
+        <div className="text-center md:text-left">
+          <h2 className="text-2xl font-extrabold text-foreground tracking-tight mb-2">Nhập thông tin thẻ</h2>
+          <p className="text-muted-foreground text-sm">Nhập thông tin thẻ hoặc chọn thẻ đã lưu để hoàn tất thanh toán.</p>
+        </div>
+
+        <div className="flex-1 bg-muted/30 border border-border/50 rounded-3xl p-6 space-y-4">
+          <div ref={dropinRef} />
+          {isCreating && (
+            <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Đang xác nhận thanh toán và tạo booking...
+            </p>
+          )}
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={resetAdyenFlow}
+          disabled={isCreating}
+          className="w-full h-14 rounded-2xl border border-border/60 font-bold hover:bg-muted text-foreground/90 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Quay lại chọn phương thức
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-6">
@@ -176,15 +290,15 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                 <CreditCard className="w-4.5 h-4.5 text-primary" />
                 Phương thức thanh toán
               </label>
-              
-              <div className="grid grid-cols-2 gap-3">
+
+              <div className="grid grid-cols-3 gap-2.5">
                 {/* 1. Tiền mặt */}
                 <button
                   type="button"
                   onClick={() => updateForm({ paymentMethod: "CASH" })}
                   className={`h-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 font-bold text-[10px] sm:text-xs transition-all duration-300 active:scale-95
-                    ${formData.paymentMethod === "CASH" 
-                      ? "border-primary bg-primary/5 text-primary shadow-sm shadow-primary/10" 
+                    ${formData.paymentMethod === "CASH"
+                      ? "border-primary bg-primary/5 text-primary shadow-sm shadow-primary/10"
                       : "border-border/50 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground/90"}
                   `}
                 >
@@ -197,8 +311,8 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                   type="button"
                   onClick={() => updateForm({ paymentMethod: "WALLET" })}
                   className={`h-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 font-bold text-[10px] sm:text-xs transition-all duration-300 active:scale-95 relative
-                    ${formData.paymentMethod === "WALLET" 
-                      ? "border-primary bg-primary/5 text-primary shadow-sm shadow-primary/10" 
+                    ${formData.paymentMethod === "WALLET"
+                      ? "border-primary bg-primary/5 text-primary shadow-sm shadow-primary/10"
                       : "border-border/50 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground/90"}
                   `}
                 >
@@ -213,8 +327,82 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                   )}
                 </button>
 
+                {/* 3. Chuyển khoản (Adyen) */}
+                <button
+                  type="button"
+                  onClick={() => updateForm({ paymentMethod: "ADYEN" as PaymentMethod })}
+                  className={`h-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 font-bold text-[10px] sm:text-xs transition-all duration-300 active:scale-95
+                    ${formData.paymentMethod === "ADYEN"
+                      ? "border-primary bg-primary/5 text-primary shadow-sm shadow-primary/10"
+                      : "border-border/50 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground/90"}
+                  `}
+                >
+                  <CreditCard className="w-5 h-5 shrink-0" />
+                  <span className="text-[10px] sm:text-xs font-bold">Chuyển khoản</span>
+                </button>
               </div>
             </div>
+
+            {/* Chọn thẻ đã lưu / thẻ mới khi chọn Chuyển khoản */}
+            {formData.paymentMethod === "ADYEN" && (
+              <div className="space-y-2">
+                {cards && cards.length > 0 ? (
+                  <>
+                    <label className="text-sm font-bold text-foreground/80">Thanh toán bằng</label>
+                    <div className="space-y-1.5">
+                      {cards.map((card) => (
+                        <div
+                          key={card.id}
+                          className={`flex items-center gap-2 rounded-xl border p-2.5 transition-colors ${
+                            cardId === card.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setCardId(card.id)}
+                            className="flex flex-1 items-center gap-2 text-left"
+                          >
+                            <CreditCard className="size-4 shrink-0 text-primary" />
+                            <span className="font-mono text-sm font-semibold">
+                              {card.brand ?? "Thẻ đã lưu"} •••• {card.lastFour ?? ""}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Xóa thẻ"
+                            onClick={() => {
+                              if (cardId === card.id) setCardId("new");
+                              removeCard.mutate(card.id);
+                            }}
+                            disabled={removeCard.isPending}
+                            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setCardId("new")}
+                        className={`w-full rounded-xl border p-2.5 text-left text-sm transition-colors ${
+                          cardId === "new"
+                            ? "border-primary bg-primary/5 font-semibold"
+                            : "border-dashed border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        + Dùng thẻ khác (nhập ở bước tiếp theo, sẽ được lưu)
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                    Bạn sẽ nhập thông tin thẻ ở bước tiếp theo (sandbox). Thẻ được lưu lại để lần sau chỉ cần chọn.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Hiển thị cảnh báo số dư ví không đủ */}
@@ -249,8 +437,8 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
 
             {/* Khối Voucher */}
             <div className="flex gap-2 mb-6">
-              <Input 
-                placeholder="Mã giảm giá (ví dụ: CLEAN30)..." 
+              <Input
+                placeholder="Mã giảm giá (ví dụ: CLEAN30)..."
                 className="bg-background h-12 rounded-2xl border-border/50 font-semibold focus-visible:ring-primary/20 text-sm"
                 value={voucherInput}
                 onChange={(e) => setVoucherInput(e.target.value)}
@@ -370,21 +558,23 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                 <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
                 Bảo mật thông tin & Thanh toán an toàn 100%
               </div>
-              <Button 
+              <Button
                 onClick={handleCheckout}
                 disabled={isSubmitDisabled}
                 className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-amber-500 hover:opacity-95 text-primary-foreground font-black shadow-lg shadow-primary/20 text-base active:scale-98 transition-all disabled:opacity-40"
               >
-                {isCreating ? (
+                {isCreating || createAdyenSessionMutation.isPending ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Đang tạo đơn hàng...</span>
+                    <span>{createAdyenSessionMutation.isPending ? "Đang khởi tạo thanh toán..." : "Đang tạo đơn hàng..."}</span>
                   </div>
+                ) : formData.paymentMethod === "ADYEN" ? (
+                  selectedAdyenCard ? "Thanh toán bằng thẻ đã lưu" : "Tiếp tục nhập thẻ"
                 ) : (
                   `Đặt lịch ngay`
                 )}
               </Button>
-              <Button 
+              <Button
                 variant="outline"
                 onClick={onBack}
                 className="w-full h-14 rounded-2xl border border-border/60 font-bold hover:bg-muted text-foreground/90 active:scale-95 transition-all md:hidden flex items-center justify-center gap-1.5"
