@@ -134,6 +134,8 @@ export function useAcceptBooking() {
       toast.success(`Đã nhận đơn ${data.bookingCode}! 🎉`);
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedDetail(data.id) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(data.id) });
     },
     onError: (err: unknown, bookingId) => {
       const status = (err as { response?: { status?: number } })?.response
@@ -163,11 +165,19 @@ export function useAssignedBookingDetail(
   const { data: user, isLoading: isAuthLoading } = useAuth();
   const isTaskerReady = !isAuthLoading && user?.role === "TASKER";
 
+  const hasLocation =
+    Number.isFinite(location?.currentLatitude) &&
+    Number.isFinite(location?.currentLongitude);
+  const isReady = isTaskerReady && enabled && !!id;
+
   return useQuery({
     queryKey: [...TASKER_KEYS.assigned(id), location],
     queryFn: () => taskerBookingApi.findAssigned(id, location),
-    enabled: isTaskerReady && enabled && !!id,
-    refetchInterval: isTaskerReady && enabled && !!id ? 10_000 : false,
+    // Cho phép query ngay cả khi chưa có location — BE sẽ trả distance=null thay vì 404.
+    enabled: isReady,
+    refetchInterval: isReady ? 10_000 : false,
+    // Khi có location thì coi data cũ là stale để refetch ngay với tọa độ mới.
+    staleTime: hasLocation ? 0 : 30_000,
   });
 }
 

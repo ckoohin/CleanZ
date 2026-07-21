@@ -13,21 +13,20 @@ import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
-import { PaypalService } from './paypal.service';
+import type { Webhook } from '@payos/node';
+import { PayosService } from './payos.service';
 import { WalletService } from './wallet.service';
 
 export interface TopupConfig {
   minVnd: number;
   maxVnd: number;
-  fxRate: number;
 }
 
 export interface CreateTopupResult {
   topupId: string;
-  paypalOrderId: string;
+  payosOrderCode: number;
   amountVnd: number;
-  amountUsd: number;
-  approveUrl: string | null;
+  checkoutUrl: string | null;
 }
 
 export interface CaptureTopupResult {
@@ -42,15 +41,15 @@ export class WalletTopupService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
-    private readonly paypalService: PaypalService,
+    private readonly payosService: PayosService,
     private readonly systemConfig: SystemConfigService,
     private readonly configService: ConfigService,
   ) {}
 
-  /** Hạn mức + tỷ giá đang hiệu lực, để FE hiển thị và validate trước khi gọi PayPal. */
+  /** Hạn mức đang hiệu lực, để FE hiển thị và validate trước khi gọi PayOS. */
   async getTopupConfig(): Promise<TopupConfig> {
     const manager = this.dataSource.manager;
-    const [minVnd, maxVnd, fxRate] = await Promise.all([
+    const [minVnd, maxVnd] = await Promise.all([
       this.systemConfig.getRegisteredNumber(
         manager,
         SYSTEM_CONFIG_KEYS.TOPUP_MIN_VND,
@@ -59,13 +58,9 @@ export class WalletTopupService {
         manager,
         SYSTEM_CONFIG_KEYS.TOPUP_MAX_VND,
       ),
-      this.systemConfig.getRegisteredNumber(
-        manager,
-        SYSTEM_CONFIG_KEYS.TOPUP_VND_PER_USD,
-      ),
     ]);
 
-    return { minVnd, maxVnd, fxRate };
+    return { minVnd, maxVnd };
   }
 
   async createTopup(
@@ -75,7 +70,7 @@ export class WalletTopupService {
     ownerType: WalletOwnerType = WalletOwnerType.CUSTOMER,
   ): Promise<CreateTopupResult> {
     return asyncHandleOperation(async () => {
-      const { minVnd, maxVnd, fxRate } = await this.getTopupConfig();
+      const { minVnd, maxVnd } = await this.getTopupConfig();
 
       if (!Number.isInteger(amountVnd) || amountVnd < minVnd) {
         throw new AppException(
@@ -106,10 +101,9 @@ export class WalletTopupService {
             tasker!,
           );
 
-      const amountUsd = Math.max(
-        0.01,
-        Math.round((amountVnd / fxRate) * 100) / 100,
-      );
+      // orderCode: timestamp ms mod 10^9 — max 9 chữ số, PayOS yêu cầu số nguyên dương.
+      // Dùng ms (không chia 1000) để tránh collision khi 2 request đến trong cùng 1 giây.
+      const orderCode = Date.now() % 1_000_000_000;
 
       const topupRepo = this.dataSource.getRepository(WalletTopupOrderEntity);
       const topup = await topupRepo.save(
@@ -117,11 +111,12 @@ export class WalletTopupService {
           customerId: customer?.id ?? null,
           taskerId: tasker?.id ?? null,
           walletId: wallet.id,
-          provider: 'PAYPAL',
+          provider: 'PAYOS',
           status: TopupStatus.CREATED,
           amountVnd,
-          amountUsd,
-          fxRate,
+          amountUsd: null,
+          fxRate: null,
+          payosOrderCode: orderCode,
           bookingId: bookingId ?? null,
         }),
       );
@@ -135,32 +130,27 @@ export class WalletTopupService {
           : '/customer/wallet/topup';
 
       try {
-        const order = await this.paypalService.createOrder({
-          amountUsd,
-          customId: topup.id,
-          referenceId: topup.id,
-          returnUrl: `${frontendUrl}${returnBase}/return?topupId=${topup.id}`,
-          cancelUrl: `${frontendUrl}${returnBase}/cancel?topupId=${topup.id}`,
-          description: `Nạp ví CleanZ ${amountVnd.toLocaleString('vi-VN')}đ`,
+        const link = await this.payosService.createPaymentLink({
+          amount: amountVnd,
+          orderCode,
+          description: `Nap vi CleanZ`,
+          returnUrl: `${frontendUrl}/customer/wallet/topup/return?topupId=${topup.id}`,
+          cancelUrl: `${frontendUrl}/customer/wallet/topup/cancel?topupId=${topup.id}`,
         });
 
-        topup.paypalOrderId = order.id;
+        topup.paymentLinkId = link.paymentLinkId;
         await topupRepo.save(topup);
-
-        const approveUrl =
-          order.links?.find((l) => l.rel === 'approve')?.href ?? null;
 
         return {
           topupId: topup.id,
-          paypalOrderId: order.id,
+          payosOrderCode: orderCode,
           amountVnd,
-          amountUsd,
-          approveUrl,
+          checkoutUrl: link.checkoutUrl,
         };
       } catch (err) {
         topup.status = TopupStatus.FAILED;
         topup.failReason =
-          err instanceof Error ? err.message : 'Tạo đơn PayPal thất bại';
+          err instanceof Error ? err.message : 'Tạo link PayOS thất bại';
         await topupRepo.save(topup);
         throw err;
       }
@@ -173,9 +163,50 @@ export class WalletTopupService {
     ownerType: WalletOwnerType = WalletOwnerType.CUSTOMER,
   ): Promise<CaptureTopupResult> {
     return asyncHandleOperation(async () => {
+      // Bước 1: đọc customer và topup ngoài transaction (không giữ lock khi gọi HTTP).
+      const customer = await this.findCustomer(userId);
+
+      const topupRepo = this.dataSource.getRepository(WalletTopupOrderEntity);
+      const topupSnapshot = await topupRepo.findOne({ where: { id: topupId } });
+
+      if (!topupSnapshot) {
+        throw new NotFoundException('Không tìm thấy đơn nạp tiền');
+      }
+      if (topupSnapshot.customerId !== customer.id) {
+        throw new AppException('Bạn không có quyền với đơn nạp này', 403);
+      }
+      if (topupSnapshot.status !== TopupStatus.CREATED || !topupSnapshot.payosOrderCode) {
+        // Nếu đã COMPLETED trả kết quả nhanh, không cần vào transaction.
+        if (topupSnapshot.status === TopupStatus.COMPLETED && topupSnapshot.walletTxId) {
+          const wallet = await this.walletService.getOrCreateCustomerWallet(
+            this.dataSource.manager,
+            customer,
+          );
+          return {
+            topupId: topupSnapshot.id,
+            status: topupSnapshot.status,
+            amountVnd: toNumber(topupSnapshot.amountVnd),
+            balance: toNumber(wallet.balance),
+          };
+        }
+        throw new AppException('Đơn nạp không ở trạng thái có thể thanh toán');
+      }
+
+      // Bước 2: gọi PayOS ngoài transaction — tránh giữ DB lock trong lúc chờ HTTP.
+      const info = await this.payosService.getPaymentInfo(topupSnapshot.payosOrderCode);
+
+      if (info.status !== 'PAID') {
+        // Không mark FAILED ở đây — PayOS có thể trả PENDING khi chưa hoàn tất,
+        // customer có thể thử lại. Chỉ throw để FE biết chưa xong.
+        throw new AppException(
+          'Thanh toán PayOS chưa hoàn tất, ví chưa được cộng tiền',
+        );
+      }
+
+      // Bước 3: mở transaction chỉ cho phần ghi DB.
       return this.dataSource.transaction(async (manager) => {
-        const topupRepo = manager.getRepository(WalletTopupOrderEntity);
-        const topup = await topupRepo.findOne({
+        const lockedTopupRepo = manager.getRepository(WalletTopupOrderEntity);
+        const topup = await lockedTopupRepo.findOne({
           where: { id: topupId },
           lock: { mode: 'pessimistic_write' },
         });
@@ -184,28 +215,10 @@ export class WalletTopupService {
           throw new NotFoundException('Không tìm thấy đơn nạp tiền');
         }
 
-        const customer =
-          ownerType === WalletOwnerType.CUSTOMER
-            ? await this.findCustomer(userId, manager)
-            : null;
-        const tasker =
-          ownerType === WalletOwnerType.TASKER
-            ? await this.findTasker(userId, manager)
-            : null;
-        const ownsTopup = customer
-          ? topup.customerId === customer.id
-          : topup.taskerId === tasker?.id;
-
-        if (!ownsTopup) {
-          throw new AppException('Bạn không có quyền với đơn nạp này', 403);
-        }
-
+        // Idempotent: concurrent request đã cộng ví trước.
         const getOwnerWallet = () =>
-          customer
-            ? this.walletService.getOrCreateCustomerWallet(manager, customer)
-            : this.walletService.getOrCreateTaskerWallet(manager, tasker!);
+          this.walletService.getOrCreateCustomerWallet(manager, customer);
 
-        // Idempotent: đã cộng ví rồi thì trả kết quả cũ, không capture/cộng lại.
         if (topup.status === TopupStatus.COMPLETED && topup.walletTxId) {
           const wallet = await getOwnerWallet();
           return {
@@ -216,26 +229,10 @@ export class WalletTopupService {
           };
         }
 
-        if (topup.status !== TopupStatus.CREATED || !topup.paypalOrderId) {
-          throw new AppException(
-            'Đơn nạp không ở trạng thái có thể thanh toán',
-          );
-        }
-
-        const capture = await this.paypalService.captureOrder(
-          topup.paypalOrderId,
+        const wallet = await this.walletService.getOrCreateCustomerWallet(
+          manager,
+          customer,
         );
-
-        if (capture.status !== 'COMPLETED') {
-          topup.status = TopupStatus.FAILED;
-          topup.failReason = `PayPal trả trạng thái ${capture.status}`;
-          await topupRepo.save(topup);
-          throw new AppException(
-            'Thanh toán PayPal chưa hoàn tất, ví chưa được cộng tiền',
-          );
-        }
-
-        const wallet = await getOwnerWallet();
         const amountVnd = toNumber(topup.amountVnd);
 
         await this.walletService.creditWallet(manager, {
@@ -243,22 +240,20 @@ export class WalletTopupService {
           amount: amountVnd,
           type: WalletTransactionType.DEPOSIT,
           referenceId: topup.id,
-          referenceType: 'PAYPAL_TOPUP',
-          description: `Nạp tiền qua PayPal (${amountVnd.toLocaleString('vi-VN')}đ)`,
+          referenceType: 'PAYOS_TOPUP',
+          description: `Nạp tiền qua PayOS (${amountVnd.toLocaleString('vi-VN')}đ)`,
         });
 
-        // Lấy bút toán DEPOSIT vừa ghi để chốt idempotency.
         const lastTx = await manager
           .getRepository(WalletTransactionEntity)
           .findOne({
-            where: { referenceId: topup.id, referenceType: 'PAYPAL_TOPUP' },
+            where: { referenceId: topup.id, referenceType: 'PAYOS_TOPUP' },
             order: { createdAt: 'DESC' },
           });
 
         topup.status = TopupStatus.COMPLETED;
-        topup.captureId = capture.captureId;
         topup.walletTxId = lastTx?.id ?? null;
-        await topupRepo.save(topup);
+        await lockedTopupRepo.save(topup);
 
         const freshWallet = await getOwnerWallet();
 
@@ -270,6 +265,68 @@ export class WalletTopupService {
         };
       });
     }, 'Không thể hoàn tất nạp tiền');
+  }
+
+  /** Xử lý webhook PayOS — credit ví nếu thanh toán thành công. Idempotent. */
+  async handleWebhook(body: unknown): Promise<void> {
+    const data = await this.payosService.verifyWebhook(body as Webhook);
+
+    // data là WebhookData (SDK đã unwrap từ Webhook envelope)
+    const orderCode = data.orderCode;
+    if (!orderCode) return;
+
+    await this.dataSource.transaction(async (manager) => {
+      const topupRepo = manager.getRepository(WalletTopupOrderEntity);
+      const topup = await topupRepo.findOne({
+        where: { payosOrderCode: orderCode },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!topup) return;
+
+      // Idempotent
+      if (topup.status === TopupStatus.COMPLETED && topup.walletTxId) return;
+
+      // Chỉ cộng ví khi PayOS báo thành công ('00')
+      if (data.code !== '00') {
+        topup.status = TopupStatus.FAILED;
+        topup.failReason = `Webhook PayOS code=${data.code}`;
+        await topupRepo.save(topup);
+        return;
+      }
+
+      if (!topup.customerId) return;
+      const customer = await manager
+        .getRepository(CustomerEntity)
+        .findOne({ where: { id: topup.customerId } });
+      if (!customer) return;
+
+      const wallet = await this.walletService.getOrCreateCustomerWallet(
+        manager,
+        customer,
+      );
+      const amountVnd = toNumber(topup.amountVnd);
+
+      await this.walletService.creditWallet(manager, {
+        wallet,
+        amount: amountVnd,
+        type: WalletTransactionType.DEPOSIT,
+        referenceId: topup.id,
+        referenceType: 'PAYOS_TOPUP',
+        description: `Nạp tiền qua PayOS webhook (${amountVnd.toLocaleString('vi-VN')}đ)`,
+      });
+
+      const lastTx = await manager
+        .getRepository(WalletTransactionEntity)
+        .findOne({
+          where: { referenceId: topup.id, referenceType: 'PAYOS_TOPUP' },
+          order: { createdAt: 'DESC' },
+        });
+
+      topup.status = TopupStatus.COMPLETED;
+      topup.walletTxId = lastTx?.id ?? null;
+      await topupRepo.save(topup);
+    });
   }
 
   async listMyTopups(

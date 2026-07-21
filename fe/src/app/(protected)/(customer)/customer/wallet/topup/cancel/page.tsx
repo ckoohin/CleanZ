@@ -4,7 +4,7 @@ import { XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-/** PayPal đá về đây khi khách bấm Cancel — đơn nạp để nguyên trạng thái CREATED, không cộng ví. */
+/** PayOS đá về đây khi khách bấm Hủy — đơn nạp để nguyên trạng thái CREATED, không cộng ví. */
 export default function TopupCancelPage() {
   const router = useRouter();
 

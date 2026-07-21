@@ -7,6 +7,8 @@ import {
   Post,
   Query,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -20,6 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { Auth } from '../auth/decorators/auth.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   WalletResponse,
@@ -52,9 +55,18 @@ export class WalletController {
     private readonly dataSource: DataSource,
   ) {}
 
+  @Post('topup/webhook')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'PayOS webhook — tự động cộng ví sau thanh toán' })
+  async handleTopupWebhook(@Body() body: unknown) {
+    await this.walletTopupService.handleWebhook(body);
+    return { success: true };
+  }
+
   @Get('customer/me/topup-config')
   @Auth(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'Customer xem hạn mức & tỷ giá nạp tiền' })
+  @ApiOperation({ summary: 'Customer xem hạn mức nạp tiền' })
   async getTopupConfig() {
     const config = await this.walletTopupService.getTopupConfig();
     return successResponse(config, 'Lấy cấu hình nạp tiền thành công');
@@ -62,7 +74,7 @@ export class WalletController {
 
   @Post('customer/me/topups')
   @Auth(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'Customer tạo đơn nạp tiền vào ví qua PayPal' })
+  @ApiOperation({ summary: 'Customer tạo đơn nạp tiền vào ví qua PayOS' })
   @ApiCreatedResponse({ description: 'Tạo đơn nạp tiền thành công' })
   async createTopup(
     @CurrentUser('id') userId: string,
@@ -73,16 +85,13 @@ export class WalletController {
       dto.amountVnd,
       dto.bookingId,
     );
-    return successResponse(
-      result,
-      'Đã tạo đơn nạp tiền, chờ thanh toán PayPal',
-    );
+    return successResponse(result, 'Đã tạo đơn nạp tiền, chờ thanh toán PayOS');
   }
 
   @Post('customer/me/topups/:id/capture')
   @Auth(UserRole.CUSTOMER)
   @ApiOperation({
-    summary: 'Customer xác nhận (capture) thanh toán PayPal và cộng ví',
+    summary: 'Customer xác nhận thanh toán PayOS và cộng ví',
   })
   @ApiOkResponse({ description: 'Nạp tiền thành công' })
   async captureTopup(

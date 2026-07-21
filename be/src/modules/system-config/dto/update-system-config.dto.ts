@@ -6,7 +6,6 @@ export class UpdateSystemConfigDto {
     description:
       'Map key cấu hình → giá trị. Chỉ chấp nhận key đã khai báo trong system-config registry.',
     example: {
-      TOPUP_VND_PER_USD: 26000,
       TOPUP_MIN_VND: 20000,
       TOPUP_MAX_VND: 50000000,
     },

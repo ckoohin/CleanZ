@@ -23,6 +23,8 @@ import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { NotificationModule } from '../notification/notification.module';
 import { BookingWalletPaymentService } from './services/booking-wallet-payment.service';
+import { BookingOnlinePaymentService } from './services/booking-online-payment.service';
+import { WalletTopupService } from '../wallet/wallet-topup.service';
 import { BookingDispatchService } from './services/booking-dispatch.service';
 import { BookingDispatchProcessor } from './processors/booking-dispatch.processor';
 import { BookingCheckinService } from './services/booking-checkin.service';
@@ -69,6 +71,8 @@ import { CustomerConfirmCompletionService } from './services/customer-confirm-co
     BookingWalletPaymentService,
     BookingSettlementService,
     CustomerConfirmCompletionService,
+    BookingOnlinePaymentService,
+    WalletTopupService,
   ],
   exports: [
     BookingLocationPolicyService,

@@ -86,6 +86,7 @@ export const API_ENDPOINTS = {
     TASKER_START: (id: string) => `/booking/tasker/${id}/start`,
     TASKER_COMPLETE: (id: string) => `/booking/tasker/${id}/complete`,
     TASKER_CANCEL: (id: string) => `/booking/tasker/${id}/cancel`,
+    VERIFY_PAYMENT: (id: string) => `/booking/${id}/verify-payment`,
   },
   ADMIN_SUPPORT_TICKETS: {
     BASE: "/admin/support-tickets",

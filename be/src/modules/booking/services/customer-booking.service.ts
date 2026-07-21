@@ -53,6 +53,7 @@ import {
 import { NotificationGateway } from 'src/modules/notification/notification.gateway';
 import { BookingDispatchService } from './booking-dispatch.service';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
+import { BookingOnlinePaymentService } from './booking-online-payment.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -109,6 +110,7 @@ export class CustomerBookingService {
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly notificationGateway: NotificationGateway,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
+    private readonly bookingOnlinePaymentService: BookingOnlinePaymentService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -207,9 +209,13 @@ export class CustomerBookingService {
   ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
       let createdBookingId: string | undefined;
+      let createdPaymentMethod: PaymentMethod =
+        DEFAULT_PAYMENT_METHOD as PaymentMethod;
       let addressLat: number | null = null;
       let addressLng: number | null = null;
       let scheduledStart: Date | undefined;
+      let createdBookingSnapshot: BookingEntity | undefined;
+      let createdContext: BookingPricingContext | undefined;
 
       const response = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -323,49 +329,80 @@ export class CustomerBookingService {
 
         // Lấy tọa độ để dispatch sau khi transaction commit
         createdBookingId = savedBooking.id;
+        createdPaymentMethod = paymentMethod;
+        createdBookingSnapshot = savedBooking;
+        createdContext = context;
         const rawLat = context.addressRef?.latitude;
         const rawLng = context.addressRef?.longitude;
         addressLat = rawLat != null ? Number(rawLat) : null;
         addressLng = rawLng != null ? Number(rawLng) : null;
         scheduledStart = context.scheduledStart;
 
+        // payosCheckoutUrl được gán sau commit — placeholder null ở đây.
         return this.mapCreatedBookingResponse(
           savedBooking,
           context,
           paymentMethod,
+          null,
         );
       });
 
-      // Sau khi transaction commit thành công — emit + enqueue dispatch
-      if (createdBookingId) {
-        this.notificationGateway.emitToUser(userId, 'booking:searching', {
-          bookingId: createdBookingId,
-        });
-
-        if (
-          addressLat != null &&
-          addressLng != null &&
-          Number.isFinite(addressLat) &&
-          Number.isFinite(addressLng) &&
-          scheduledStart
-        ) {
-          void this.bookingDispatchService
-            .enqueueDispatch(
-              createdBookingId,
-              userId,
-              addressLat,
-              addressLng,
-              scheduledStart,
-            )
-            .catch((err: unknown) =>
-              this.logger.error(
-                `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err instanceof Error ? err.message : String(err)}`,
-              ),
+      // Sau khi transaction commit thành công
+      if (createdBookingId && createdBookingSnapshot && createdContext) {
+        if (createdPaymentMethod === PaymentMethod.ONLINE) {
+          // ONLINE: tạo PayOS link, dispatch CHỈ khi webhook xác nhận PAID.
+          try {
+            const link =
+              await this.bookingOnlinePaymentService.createPaymentLink(
+                createdBookingSnapshot,
+                userId,
+              );
+            return this.mapCreatedBookingResponse(
+              createdBookingSnapshot,
+              createdContext,
+              createdPaymentMethod,
+              link.checkoutUrl,
+              link.qrCode,
+              { bin: link.bin, accountNumber: link.accountNumber, accountName: link.accountName },
             );
+          } catch (err) {
+            this.logger.error(
+              `Không thể tạo PayOS link cho booking=${createdBookingId}: ${err}`,
+            );
+            // Trả về response không có link — FE sẽ hiển thị lỗi.
+            return response;
+          }
         } else {
-          this.logger.warn(
-            `Booking=${createdBookingId} thiếu tọa độ địa chỉ — bỏ qua dispatch tự động`,
-          );
+          // CASH / WALLET: dispatch ngay sau khi tạo đơn.
+          this.notificationGateway.emitToUser(userId, 'booking:searching', {
+            bookingId: createdBookingId,
+          });
+
+          if (
+            addressLat != null &&
+            addressLng != null &&
+            Number.isFinite(addressLat) &&
+            Number.isFinite(addressLng) &&
+            scheduledStart
+          ) {
+            void this.bookingDispatchService
+              .enqueueDispatch(
+                createdBookingId,
+                userId,
+                addressLat,
+                addressLng,
+                scheduledStart,
+              )
+              .catch((err: unknown) =>
+                this.logger.error(
+                  `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err instanceof Error ? err.message : String(err)}`,
+                ),
+              );
+          } else {
+            this.logger.warn(
+              `Booking=${createdBookingId} thiếu tọa độ địa chỉ — bỏ qua dispatch tự động`,
+            );
+          }
         }
       }
 
@@ -467,11 +504,17 @@ export class CustomerBookingService {
         },
         payment: {
           method: booking.paymentMethod,
-          status: booking.paymentStatus,
+          // Ưu tiên status từ PaymentEntity (phản ánh FAILED từ gateway) so với booking.paymentStatus
+          status: payment?.status ?? booking.paymentStatus,
           latestPaymentId: payment?.id ?? null,
           amount: payment ? toNumber(payment.amount) : null,
           transactionCode: payment?.transactionCode ?? null,
           paidAt: payment?.paidAt ?? null,
+          payosQrCode: payment?.qrCode ?? null,
+          payosCheckoutUrl: payment?.checkoutUrl ?? null,
+          payosBin: payment?.bin ?? null,
+          payosAccountNumber: payment?.accountNumber ?? null,
+          payosAccountName: payment?.accountName ?? null,
         },
         voucher: voucher
           ? {
@@ -708,6 +751,8 @@ export class CustomerBookingService {
     dto: UpdateBookingScheduleAddressDto,
   ): Promise<CustomerBookingDetailResponse> {
     return asyncHandleOperation(async () => {
+      let savedBookingSnapshot: BookingEntity | undefined;
+
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
           .getRepository(BookingEntity)
@@ -810,7 +855,21 @@ export class CustomerBookingService {
           refundAmount: 0,
         });
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+
+        savedBookingSnapshot = savedBooking;
       });
+
+      // Sau commit: nếu đơn ONLINE+PENDING thì recreate PayOS link với giá mới.
+      if (
+        savedBookingSnapshot?.paymentMethod === PaymentMethod.ONLINE &&
+        savedBookingSnapshot.paymentStatus === PaymentStatus.PENDING
+      ) {
+        void this.bookingOnlinePaymentService
+          .recreatePayosLink(savedBookingSnapshot, userId)
+          .catch((err: unknown) =>
+            this.logger.error(`Không thể recreate PayOS link cho booking=${bookingId}: ${err}`),
+          );
+      }
 
       return this.findMyBookingDetail(userId, bookingId);
     }, 'Không thể cập nhật địa chỉ hoặc lịch booking');
@@ -865,24 +924,36 @@ export class CustomerBookingService {
           1,
         );
 
-        // Đơn trả bằng ví: trả lại tiền đang giữ ở ví SYSTEM cho khách.
-        const walletRefund =
-          await this.bookingWalletPaymentService.refundEscrow(
-            manager,
-            savedBooking,
-            'khách hủy đơn',
-          );
-
+        // Hoàn tiền tuỳ theo phương thức thanh toán.
+        let refundAmount = 0;
         const latestPayment = await this.paymentService.findLatestByBookingId(
           manager,
           savedBooking.id,
         );
-        const refundAmount =
-          walletRefund > 0
-            ? walletRefund
-            : latestPayment?.status === PaymentStatus.PAID
+        if (savedBooking.paymentMethod === PaymentMethod.WALLET) {
+          // Đơn ví: trả lại tiền đang giữ ở ví SYSTEM cho khách.
+          refundAmount = await this.bookingWalletPaymentService.refundEscrow(
+            manager,
+            savedBooking,
+            'khách hủy đơn',
+          );
+        } else if (
+          savedBooking.paymentMethod === PaymentMethod.ONLINE &&
+          savedBooking.paymentStatus === PaymentStatus.PAID
+        ) {
+          // Đơn online đã thanh toán: hoàn vào ví CleanZ của khách.
+          refundAmount = await this.bookingOnlinePaymentService.refundToWallet(
+            manager,
+            savedBooking,
+            booking.customer!,
+          );
+        } else {
+          // CASH hoặc ONLINE chưa thanh toán: không có tiền cần hoàn.
+          refundAmount =
+            latestPayment?.status === PaymentStatus.PAID
               ? toNumber(latestPayment.amount)
               : 0;
+        }
 
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,
@@ -899,6 +970,13 @@ export class CustomerBookingService {
         });
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
       });
+
+      // Sau commit: hủy PayOS link nếu đơn ONLINE chưa thanh toán (tránh customer chuyển khoản nhầm).
+      void this.bookingOnlinePaymentService
+        .cancelPendingPayosLink(bookingId)
+        .catch((err: unknown) =>
+          this.logger.error(`Không thể hủy PayOS link cho booking=${bookingId}: ${err}`),
+        );
 
       // Sau commit: nếu đơn đã có tasker → báo tasker rằng customer đã hủy.
       if (taskerUserId) {
@@ -1120,6 +1198,9 @@ export class CustomerBookingService {
     booking: BookingEntity,
     context: BookingPricingContext,
     paymentMethod: PaymentMethod,
+    payosCheckoutUrl: string | null = null,
+    payosQrCode: string | null = null,
+    payosBankInfo: { bin: string; accountNumber: string; accountName: string } | null = null,
   ): CustomerBookingCreatedResponse {
     return {
       id: booking.id,
@@ -1172,6 +1253,11 @@ export class CustomerBookingService {
       payment: {
         method: paymentMethod,
         status: PaymentStatus.PENDING,
+        payosCheckoutUrl,
+        payosQrCode,
+        payosBin: payosBankInfo?.bin ?? null,
+        payosAccountNumber: payosBankInfo?.accountNumber ?? null,
+        payosAccountName: payosBankInfo?.accountName ?? null,
       },
       voucher: context.voucher
         ? {

@@ -53,6 +53,32 @@ export class PaymentEntity {
   })
   transactionCode?: string | null;
 
+  @Column({
+    name: 'qr_code',
+    type: 'text',
+    nullable: true,
+  })
+  qrCode?: string | null;
+
+  @Column({
+    name: 'checkout_url',
+    type: 'text',
+    nullable: true,
+  })
+  checkoutUrl?: string | null;
+
+  /** BIN ngân hàng thụ hưởng PayOS (dùng để build VietQR URL). */
+  @Column({ name: 'bin', type: 'varchar', length: 10, nullable: true })
+  bin?: string | null;
+
+  /** Số tài khoản thụ hưởng PayOS. */
+  @Column({ name: 'account_number', type: 'varchar', length: 50, nullable: true })
+  accountNumber?: string | null;
+
+  /** Tên chủ tài khoản thụ hưởng PayOS. */
+  @Column({ name: 'account_name', type: 'varchar', length: 255, nullable: true })
+  accountName?: string | null;
+
   @Column({ name: 'paid_at', type: 'timestamp', nullable: true })
   paidAt?: Date | null;
 

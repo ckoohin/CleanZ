@@ -15,9 +15,9 @@ import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { WalletEntity } from './wallet.entity';
 
 /**
- * Đơn nạp tiền vào ví Customer hoặc Tasker qua cổng thanh toán.
+ * Đơn nạp tiền vào ví Customer qua cổng thanh toán (hiện tại: PayOS).
  * Vòng đời: CREATED → COMPLETED | FAILED | CANCELLED | EXPIRED.
- * Chỉ cộng ví khi capture PayPal trả COMPLETED — chốt idempotency bằng `walletTxId`.
+ * Chỉ cộng ví khi PayOS trả PAID — chốt idempotency bằng `walletTxId`.
  */
 @Entity('wallet_topup_orders')
 @Check(
@@ -62,9 +62,28 @@ export class WalletTopupOrderEntity {
   @JoinColumn({ name: 'wallet_id' })
   wallet!: WalletEntity;
 
-  @Column({ type: 'varchar', length: 20, default: 'PAYPAL' })
+  @Column({ type: 'varchar', length: 20, default: 'PAYOS' })
   provider!: string;
 
+  /** PayOS order code (số nguyên). */
+  @Index('uq_topup_payos_order_code', { unique: true })
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    name: 'payos_order_code',
+  })
+  payosOrderCode!: number | null;
+
+  /** PayOS payment link ID. */
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'payment_link_id',
+  })
+  paymentLinkId!: string | null;
+
+  /** Legacy — PayPal order ID (rows cũ). */
   @Index('uq_topup_paypal_order_id', { unique: true })
   @Column({
     type: 'varchar',
@@ -87,13 +106,25 @@ export class WalletTopupOrderEntity {
   @Column({ type: 'numeric', precision: 12, scale: 2, name: 'amount_vnd' })
   amountVnd!: number;
 
-  /** Số tiền charge qua PayPal (USD — sandbox). */
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'amount_usd' })
-  amountUsd!: number;
+  /** Legacy — số tiền charge qua PayPal (USD). Null với đơn PayOS. */
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'amount_usd',
+    nullable: true,
+  })
+  amountUsd!: number | null;
 
-  /** Tỉ giá VND/USD tại thời điểm tạo đơn (để đối soát). */
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'fx_rate' })
-  fxRate!: number;
+  /** Legacy — tỉ giá VND/USD thời điểm tạo đơn. Null với đơn PayOS. */
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'fx_rate',
+    nullable: true,
+  })
+  fxRate!: number | null;
 
   @Column({
     type: 'varchar',

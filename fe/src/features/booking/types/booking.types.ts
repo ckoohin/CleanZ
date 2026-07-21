@@ -12,8 +12,8 @@ export type BookingStatus =
 
 export type BookingSource = "CUSTOMER_APP" | "TASKER_CREATED";
 
-/** Chỉ còn 2 hình thức cân sổ. Các cổng MOMO/VNPAY/ZaloPay/VietQR chưa từng được tích hợp nên đã bỏ. */
-export type PaymentMethod = "CASH" | "WALLET";
+/** CASH: tiền mặt. WALLET: trừ ví ngay lúc tạo đơn. ONLINE: quét QR PayOS sau khi tạo đơn. */
+export type PaymentMethod = "CASH" | "WALLET" | "ONLINE";
 export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED" | "FAILED";
 
 // ─── Shared sub-types ─────────────────────────────────────────────────────────
@@ -65,6 +65,16 @@ export interface BookingPayment {
   amount?: number | null;
   transactionCode?: string | null;
   paidAt?: string | null;
+  /** Chỉ có với method=ONLINE: URL checkout PayOS để mở trang thanh toán (fallback). */
+  payosCheckoutUrl?: string | null;
+  /** Chỉ có với method=ONLINE: chuỗi VietQR để render QR code trực tiếp. */
+  payosQrCode?: string | null;
+  /** BIN ngân hàng thụ hưởng — dùng để build VietQR image URL. */
+  payosBin?: string | null;
+  /** Số tài khoản thụ hưởng PayOS. */
+  payosAccountNumber?: string | null;
+  /** Tên chủ tài khoản thụ hưởng. */
+  payosAccountName?: string | null;
 }
 
 export interface BookingTasker {
