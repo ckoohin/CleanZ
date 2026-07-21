@@ -1,13 +1,17 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PublicServiceListQueryDto } from './dto/public-service-list-query.dto';
 import {
   PublicPackageListResponseDto,
   PublicPackageResponseDto,
 } from './dto/public-service-response.dto';
+import { CalculateCustomPriceDto } from './dto/calculate-custom-price.dto';
+import { CalculateCustomPriceResponseDto } from './dto/calculate-custom-price-response.dto';
 import { ServicePackagesService } from './services/service-packages.service';
 import { ServicePackageEntity } from './entity/service-package.entity';
 import { SubServiceEntity } from './entity/sub-service.entity';
+import { Public } from '../auth/decorators/public.decorator';
+import { successResponse } from 'src/common/helpers/response.helper';
 
 @ApiTags('Services')
 @Controller('services')
@@ -15,6 +19,23 @@ export class PublicServicesController {
   constructor(
     private readonly servicePackagesService: ServicePackagesService,
   ) {}
+
+  @Post('calculate-custom-price')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Tính giá dịch vụ tự chọn nhanh (Custom Price Calculation)',
+    description:
+      'Tính giá dịch vụ theo số giờ linh hoạt, phân hạng thợ Cơ bản/VIP, phụ phí và mã Voucher. Không cần đăng nhập.',
+  })
+  @ApiBody({ type: CalculateCustomPriceDto })
+  @ApiOkResponse({ type: CalculateCustomPriceResponseDto })
+  async calculateCustomPrice(
+    @Body() dto: CalculateCustomPriceDto,
+  ) {
+    const result = await this.servicePackagesService.calculateCustomPrice(dto);
+    return successResponse(result, 'Tính giá dịch vụ tự chọn thành công');
+  }
 
   @Get()
   @ApiOperation({
@@ -26,11 +47,14 @@ export class PublicServicesController {
   async findAvailableServices(
     @Query() query: PublicServiceListQueryDto,
   ): Promise<PublicPackageListResponseDto> {
-    const packages = await this.servicePackagesService.findAvailablePackages(
-      query.search,
-    );
+    const [packages, promoPackageIds] = await Promise.all([
+      this.servicePackagesService.findAvailablePackages(query.search),
+      this.servicePackagesService.getPackageIdsWithActivePromo(),
+    ]);
 
-    const mappedData = packages.map((pkg) => this.mapPublicPackage(pkg));
+    const mappedData = packages.map((pkg) =>
+      this.mapPublicPackage(pkg, promoPackageIds),
+    );
 
     return {
       data: mappedData,
@@ -43,8 +67,23 @@ export class PublicServicesController {
     };
   }
 
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Chi tiết một gói dịch vụ theo ID',
+    description: 'Trả về toàn bộ thông tin của gói dịch vụ.',
+  })
+  @ApiOkResponse({ type: PublicPackageResponseDto })
+  async findOne(@Param('id') id: string): Promise<PublicPackageResponseDto> {
+    const [pkg, promoPackageIds] = await Promise.all([
+      this.servicePackagesService.findPublicOne(id),
+      this.servicePackagesService.getPackageIdsWithActivePromo(),
+    ]);
+    return this.mapPublicPackage(pkg, promoPackageIds);
+  }
+
   private mapPublicPackage(
     pkg: ServicePackageEntity,
+    promoPackageIds: Set<string>,
   ): PublicPackageResponseDto {
     return {
       id: pkg.id,
@@ -62,6 +101,9 @@ export class PublicServicesController {
       baseHourlyRate: Number(pkg.baseHourlyRate),
       premiumHourlyRate: Number(pkg.premiumHourlyRate),
       pricingMode: pkg.pricingMode || null,
+      isPopular: (pkg.durations || []).some((duration) => duration.isPopular),
+      hasPromo: promoPackageIds.has(pkg.id),
+      createdAt: pkg.createdAt.toISOString(),
       coverageAreas: (pkg.coverageAreas || []).map((area) => ({
         id: area.id,
         name: area.name,

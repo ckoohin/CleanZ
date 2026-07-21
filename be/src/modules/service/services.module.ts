@@ -12,6 +12,7 @@ import { ServicePeakHourEntity } from './entity/service-peak-hour.entity';
 import { ServiceSubServiceEntity } from './entity/service-sub-service.entity';
 import { BookingEntity } from '../booking/entity/booking.entity';
 import { BookingAddonEntity } from '../booking/entity/booking-addon.entity';
+import { VoucherEntity } from '../voucher/entity/voucher.entity';
 import { ServiceRepository } from './service.repository';
 import { SubServicesService } from './services/sub-services.service';
 import { SubServicesController } from './sub-services.controller';
@@ -38,6 +39,7 @@ import { CoverageAreasController } from './coverage-areas.controller';
       ServiceSubServiceEntity,
       BookingEntity,
       BookingAddonEntity,
+      VoucherEntity,
     ]),
   ],
   controllers: [

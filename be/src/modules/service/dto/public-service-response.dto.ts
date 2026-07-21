@@ -229,6 +229,21 @@ export class PublicPackageResponseDto {
   })
   pricingMode!: string | null;
 
+  @ApiProperty({
+    example: true,
+    description: 'Gói có ít nhất 1 duration được đánh dấu nổi bật',
+  })
+  isPopular!: boolean;
+
+  @ApiProperty({
+    example: false,
+    description: 'Gói đang có voucher active áp dụng riêng cho nó',
+  })
+  hasPromo!: boolean;
+
+  @ApiProperty({ example: '2026-01-01T00:00:00.000Z' })
+  createdAt!: string;
+
   @ApiProperty({ type: [PublicCoverageAreaDto] })
   coverageAreas!: PublicCoverageAreaDto[];
 
