@@ -1,19 +1,23 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sparkles, Wind, Home, Shirt, Bug, Armchair, Briefcase,
-  ChevronRight, Clock, MapPin, ArrowRight, Loader2, Package,
+  ChevronRight, Clock, MapPin, Package,
+  Copy, Check, Tag, Newspaper, Eye,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import Container from '@/components/Container';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useCustomerHome } from '../hooks/useCustomerHome';
+import { formatVoucherDiscount } from '../vouchers/voucher-format.helper';
 import { ROUTES } from '@/constants/routes';
 import type { CustomerBookingDetail, BookingStatus } from '@/features/booking/types/booking.types';
+import type { AvailableVoucher } from '../vouchers/useCustomerVouchers';
+import type { PublicService } from '@/features/services/types/public-service.type';
+import type { BlogPost } from '@/features/blog/types/blog.types';
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -26,12 +30,6 @@ const MAIN_SERVICES = [
   { id: 'sofa-cleaning', label: "Sofa/Nệm",       icon: Armchair, color: "text-amber-600",   bg: "bg-amber-500/10" },
   { id: 'office',        label: "Tạp vụ",         icon: Briefcase,color: "text-foreground/90",bg: "bg-muted/10" },
   { id: 'more',          label: "Tất cả",         icon: ChevronRight, color: "text-gray-500", bg: "bg-gray-500/10" },
-];
-
-const PROMOS = [
-  { title: "Giảm 30% dọn dẹp", code: "CLEAN30", img: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80" },
-  { title: "Vệ sinh máy lạnh 199k", code: "AC199",   img: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&q=80" },
-  { title: "Giảm 50k giặt Sofa",   code: "SOFA50",  img: "https://images.unsplash.com/photo-1567016432779-094069958ea5?w=800&q=80" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,6 +60,13 @@ function fmtRelativeDate(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+function getGreeting(): { text: string; emoji: string } {
+  const hour = new Date().getHours();
+  if (hour < 12) return { text: "Chào buổi sáng", emoji: "☀️" };
+  if (hour < 18) return { text: "Chào buổi chiều", emoji: "🌤️" };
+  return { text: "Chào buổi tối", emoji: "🌙" };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -237,10 +242,268 @@ function SavedAddressSection({ addresses, isLoading }: {
   );
 }
 
+// ─── Voucher Ticket (Section 2 — dữ liệu thật) ────────────────────────────────
+
+function VoucherTicketCard({ voucher }: { voucher: AvailableVoucher }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(voucher.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Trình duyệt không hỗ trợ clipboard API — bỏ qua im lặng, không chặn UI
+    }
+  };
+
+  return (
+    <div className="min-w-[280px] md:min-w-[320px] relative shrink-0 snap-center">
+      <div className="relative flex bg-card border border-border/40 rounded-[1.5rem] shadow-sm overflow-hidden">
+        {/* Cuống vé */}
+        <div className="w-24 shrink-0 bg-gradient-to-br from-primary to-primary/70 flex flex-col items-center justify-center p-3 relative">
+          <Tag className="w-6 h-6 text-primary-foreground/90 mb-1" />
+          <span className="text-[10px] font-black text-primary-foreground/90 uppercase tracking-wider text-center">
+            {voucher.source === "ISSUED" ? "Riêng cho bạn" : "Ưu đãi"}
+          </span>
+          {/* Đường đứt nét răng cưa */}
+          <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-background" />
+          <div className="absolute right-0 top-0 bottom-0 border-r-2 border-dashed border-card/50" />
+        </div>
+
+        {/* Nội dung vé */}
+        <div className="flex-1 p-3.5 min-w-0 flex flex-col justify-center gap-1">
+          <p className="text-sm font-black text-foreground truncate">{formatVoucherDiscount(voucher)}</p>
+          <p className="text-[11px] text-muted-foreground truncate">
+            Đơn tối thiểu {fmtCurrency(voucher.minOrderAmount)}
+          </p>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <code className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md truncate">
+              {voucher.code}
+            </code>
+            <button
+              onClick={handleCopy}
+              className={cn(
+                "shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold transition-all active:scale-95",
+                copied
+                  ? "bg-emerald-500 text-white"
+                  : "bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary"
+              )}
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? "Đã chép ✓" : "Copy"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VoucherSection({ vouchers, isLoading, isError }: {
+  vouchers: AvailableVoucher[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="flex gap-4 overflow-hidden">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="min-w-[300px] h-[104px] bg-card border border-border/40 rounded-[1.5rem] animate-pulse shrink-0" />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError || vouchers.length === 0) return null;
+
+  return (
+    <section className="w-full max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight">Voucher dành cho bạn</h2>
+      </div>
+      <div className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+        {vouchers.map((v) => (
+          <VoucherTicketCard key={v.id} voucher={v} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Dịch vụ nổi bật & Ưu đãi hôm nay (Section 3 — dữ liệu thật) ──────────────
+
+function FeaturedPackageCard({ pkg }: { pkg: PublicService }) {
+  const router = useRouter();
+  const price = pkg.baseHourlyRate ?? 0;
+
+  return (
+    <motion.div
+      whileTap={{ scale: 0.98 }}
+      onClick={() => router.push(ROUTES.CUSTOMER.CATALOG_DETAIL(pkg.id))}
+      className="w-55 md:w-auto shrink-0 snap-center bg-card border border-border/40 rounded-[1.75rem] p-4 cursor-pointer hover:border-primary/30 hover:shadow-md transition-all group"
+    >
+      <div className="relative w-full aspect-square rounded-[1.25rem] bg-muted/50 flex items-center justify-center overflow-hidden mb-3">
+        {pkg.iconUrl ? (
+          <img src={pkg.iconUrl} alt={pkg.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <Sparkles className="w-10 h-10 text-primary/30" />
+        )}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {pkg.isPopular && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/95 backdrop-blur-xs px-2 py-0.5 text-[9px] font-black text-white shadow-md">
+              <Sparkles className="h-2.5 w-2.5 fill-current" /> Nổi bật
+            </span>
+          )}
+          {pkg.hasPromo && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/95 backdrop-blur-xs px-2 py-0.5 text-[9px] font-black text-white shadow-md">
+              <Tag className="h-2.5 w-2.5" /> Khuyến mãi
+            </span>
+          )}
+        </div>
+      </div>
+      <p className="font-bold text-sm text-foreground line-clamp-2 leading-snug mb-1.5 min-h-[2.5em]">{pkg.name}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-black text-primary">
+          {fmtCurrency(price)}<span className="text-[10px] font-normal text-muted-foreground">/giờ</span>
+        </p>
+        <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+      </div>
+    </motion.div>
+  );
+}
+
+// TODO: gỡ cờ này sau khi dọn xong data test (PKG-T, PKG-TEN-DV, PKG-TEN-DICH-VU,
+// PKG-TEST, PKG-OIHOU, PKG-A) trong DB — các gói này đang bị đánh dấu isPopular=true
+// và mới hơn các gói thật nên luôn chiếm hết section, không có cách nào lọc đúng
+// bằng code khi dữ liệu nguồn còn rác. Xem thảo luận trong customer-homepage-redesign-plan.md.
+const TEMP_HIDE_FEATURED_SECTION = true;
+
+function FeaturedPackagesSection({ packages, isLoading, isError }: {
+  packages: PublicService[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (TEMP_HIDE_FEATURED_SECTION) return null;
+
+  if (isLoading) {
+    return (
+      <div className="flex gap-4 overflow-hidden">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="min-w-[220px] h-[260px] bg-card border border-border/40 rounded-[1.75rem] animate-pulse shrink-0" />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError || packages.length === 0) return null;
+
+  return (
+    <section className="w-full max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight">Dịch vụ nổi bật & Ưu đãi hôm nay</h2>
+        <Link href={ROUTES.CUSTOMER.CATALOG} className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+          Xem tất cả
+        </Link>
+      </div>
+      <div className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 md:overflow-visible">
+        {packages.map((pkg) => (
+          <FeaturedPackageCard key={pkg.id} pkg={pkg} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Tin tức & Blog tiêu biểu (Section 4) ─────────────────────────────────────
+
+function BlogCard({ blog }: { blog: BlogPost }) {
+  return (
+    <Link
+      href={ROUTES.CUSTOMER.BLOG_DETAIL(blog.slug)}
+      className="group bg-card border border-border/40 rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/30 transition-all flex flex-col w-[270px] sm:w-auto shrink-0 snap-start"
+    >
+      <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+        {blog.thumbnail_url ? (
+          <img
+            src={blog.thumbnail_url}
+            alt={blog.title}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Newspaper className="w-10 h-10 text-muted-foreground/30" />
+          </div>
+        )}
+      </div>
+      <div className="p-3.5 flex flex-col gap-1.5 flex-1">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-medium">
+          <span>{blog.published_at ? fmtRelativeDate(blog.published_at) : fmtRelativeDate(blog.createdAt)}</span>
+          {blog.author && (
+            <>
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+              <span className="truncate">{blog.author.fullName}</span>
+            </>
+          )}
+        </div>
+        <h3 className="font-bold text-xs sm:text-[14px] leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+          {blog.title}
+        </h3>
+        <div className="mt-auto pt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+          <Eye className="w-3.5 h-3.5" /> Đọc tin tức
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function BlogSection({ blogs, isLoading, isError }: {
+  blogs: BlogPost[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="flex overflow-x-auto scrollbar-hide snap-x gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="w-[270px] sm:w-auto shrink-0 h-[260px] bg-card border border-border/40 rounded-[1.5rem] animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (isError || blogs.length === 0) return null;
+
+  return (
+    <section className="w-full max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg md:text-2xl font-bold tracking-tight">Tin tức & Blog tiêu biểu</h2>
+        <Link href={ROUTES.CUSTOMER.BLOGS} className="text-xs md:text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+          Xem tất cả
+        </Link>
+      </div>
+      <div className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3">
+        {blogs.map((blog) => (
+          <BlogCard key={blog.id} blog={blog} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AppleStyleHomePage() {
-  const { activeBooking, recentBookings, savedAddresses, isHistoryLoading, isAddressLoading } = useCustomerHome();
+  const {
+    activeBooking, recentBookings, savedAddresses, isHistoryLoading, isAddressLoading,
+    featuredPackages, isFeaturedPackagesLoading, isFeaturedPackagesError,
+    vouchers, isVouchersLoading, isVouchersError,
+    featuredBlogs, isBlogsLoading, isBlogsError,
+  } = useCustomerHome();
+
+  const greeting = useMemo(() => getGreeting(), []);
 
   return (
     <div className="bg-background min-h-screen pb-safe font-sans selection:bg-primary/20">
@@ -250,7 +513,7 @@ export default function AppleStyleHomePage() {
         <Container className="py-4 md:py-6">
           <div className="max-w-3xl mx-auto w-full px-4 md:px-0">
             <h1 className="hidden md:block text-2xl lg:text-3xl font-bold text-center mb-6 tracking-tight text-foreground">
-              Xin chào, bạn cần dịch vụ gì hôm nay?
+              {greeting.text} {greeting.emoji} — Bạn cần dịch vụ gì hôm nay?
             </h1>
             <Link
               href={ROUTES.CUSTOMER.CATALOG}
@@ -295,41 +558,20 @@ export default function AppleStyleHomePage() {
           </div>
         </section>
 
-        {/* 4. Promos */}
-        <section className="w-full max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl md:text-2xl font-bold tracking-tight">Ưu đãi hôm nay</h2>
-            <Link href={ROUTES.CUSTOMER.CATALOG} className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
-              Xem tất cả
-            </Link>
-          </div>
+        {/* 4. Voucher Ticket — dữ liệu thật */}
+        <VoucherSection vouchers={vouchers} isLoading={isVouchersLoading} isError={isVouchersError} />
 
-          <div className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 pb-6 -mx-4 px-4 md:mx-0 md:px-0">
-            {PROMOS.map((promo) => (
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                key={promo.title}
-                className="min-w-[85vw] md:min-w-[320px] h-[220px] rounded-[2rem] relative overflow-hidden snap-center flex flex-col justify-end p-6 group cursor-pointer shadow-sm"
-              >
-                <img src={promo.img} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                <div className="relative z-10 flex items-end justify-between w-full">
-                  <div>
-                    <Badge className="bg-card/20 text-white hover:bg-card/30 backdrop-blur-md mb-3 text-[10px] uppercase tracking-wider font-bold border-none">
-                      {promo.code}
-                    </Badge>
-                    <h3 className="text-xl md:text-2xl font-bold text-white leading-tight">{promo.title}</h3>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-card/20 backdrop-blur-md flex items-center justify-center shrink-0">
-                    <ArrowRight className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
+        {/* 5. Dịch vụ nổi bật & Ưu đãi hôm nay — dữ liệu thật */}
+        <FeaturedPackagesSection
+          packages={featuredPackages}
+          isLoading={isFeaturedPackagesLoading}
+          isError={isFeaturedPackagesError}
+        />
 
-        {/* 5. Recent bookings + Saved addresses */}
+        {/* 6. Tin tức & Blog tiêu biểu */}
+        <BlogSection blogs={featuredBlogs} isLoading={isBlogsLoading} isError={isBlogsError} />
+
+        {/* 7. Recent bookings + Saved addresses */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 pb-24 max-w-6xl mx-auto">
 
           {/* Lịch sử gần đây — real data */}

@@ -2,8 +2,7 @@
 
 import http from "@/lib/api/http";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
-import type { PublicServiceListResponse } from "@/features/services/types/public-service.type";
-import type { SubService } from "../types/service.type";
+import type { PublicServiceListResponse, PublicService } from "@/features/services/types/public-service.type";
 
 export const catalogApi = {
   findAll: (): Promise<PublicServiceListResponse> =>
@@ -11,8 +10,8 @@ export const catalogApi = {
       .get(API_ENDPOINTS.SERVICES.BASE)
       .then((r) => r.data),
 
-  findOne: (id: string): Promise<SubService> =>
+  findOne: (id: string): Promise<PublicService> =>
     http
-      .get(API_ENDPOINTS.SUB_SERVICES.DETAIL(id))
-      .then((r) => r.data.data ?? r.data),
+      .get(API_ENDPOINTS.SERVICES.DETAIL(id))
+      .then((r) => r.data),
 };

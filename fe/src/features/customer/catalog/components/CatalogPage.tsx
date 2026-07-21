@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Sparkles, Wind, Home, Shirt, Bug, Briefcase,
-  LayoutGrid, LucideIcon,
+  LayoutGrid, LucideIcon, Flame,
 } from "lucide-react";
 import { useCatalog } from "../hooks/useCatalog";
 import { CatalogHero } from "./CatalogHero";
 import { CatalogSearchBar } from "./CatalogSearchBar";
 import { ServiceListGrid } from "./ServiceListGrid";
+import { ServiceHorizontalScroll } from "./ServiceHorizontalScroll";
 import { ServiceGridSkeleton } from "./ServiceCardSkeleton";
 import { CatalogEmptyState } from "./CatalogEmptyState";
 import { CatalogErrorState } from "./CatalogErrorState";
@@ -108,10 +109,34 @@ export const CatalogPage = () => {
     setSortOption,
     hasActiveFilters,
     resetFilters,
+    
+    // Mới bổ sung
+    starFilter,
+    setStarFilter,
+    featuredFilter,
+    setFeaturedFilter,
+    promoFilter,
+    setPromoFilter,
+    priceFilter,
+    setPriceFilter,
+    customPriceMin,
+    customPriceMax,
+    setCustomPriceRange,
+    selectedVoucherCode,
+    setSelectedVoucherCode,
+    vouchers,
+    customDurationMin,
+    customDurationMax,
+    setCustomDurationRange,
   } = useCatalog();
 
-  // Bấm card package → vào booking wizard với packageId
-  const handleSelectService = (id: string) => {
+  // Bấm "Xem chi tiết" → trang detail gói dịch vụ
+  const handleViewDetail = (id: string) => {
+    router.push(ROUTES.CUSTOMER.CATALOG_DETAIL(id));
+  };
+
+  // Bấm "Đặt ngay" → booking wizard với packageId
+  const handleBookNow = (id: string) => {
     router.push(`${ROUTES.CUSTOMER.BOOKING_WIZARD}?serviceId=${encodeURIComponent(id)}`);
   };
 
@@ -121,7 +146,7 @@ export const CatalogPage = () => {
       <CatalogHero />
 
       {/* Search & Filter — sticky */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border/30 shadow-sm">
+      <div className="bg-background">
         <div className="px-4 pt-3 pb-2 space-y-2.5">
           {/* Search bar */}
           <CatalogSearchBar
@@ -131,6 +156,30 @@ export const CatalogPage = () => {
             onDurationChange={setDurationFilter}
             sortOption={sortOption}
             onSortChange={setSortOption}
+            
+            // Các filter mới
+            starFilter={starFilter}
+            onStarChange={setStarFilter}
+            featuredFilter={featuredFilter}
+            onFeaturedChange={setFeaturedFilter}
+            promoFilter={promoFilter}
+            onPromoChange={setPromoFilter}
+            priceFilter={priceFilter}
+            onPriceChange={setPriceFilter}
+
+            // Khoảng giá Custom & Voucher thật từ Backend
+            customPriceMin={customPriceMin}
+            customPriceMax={customPriceMax}
+            onCustomPriceRange={setCustomPriceRange}
+            selectedVoucherCode={selectedVoucherCode}
+            onVoucherCodeChange={setSelectedVoucherCode}
+            vouchers={vouchers}
+
+            // Khoảng Thời Lượng Custom (Giống Giá)
+            customDurationMin={customDurationMin}
+            customDurationMax={customDurationMax}
+            onCustomDurationRange={setCustomDurationRange}
+
             totalResults={totalResults}
             hasActiveFilters={hasActiveFilters}
             onResetFilters={resetFilters}
@@ -151,12 +200,56 @@ export const CatalogPage = () => {
           <CatalogErrorState onRetry={() => refetch()} />
         )}
 
-        {/* Services grid */}
+        {/* Services content */}
         {!isLoading && !isError && services.length > 0 && (
-          <ServiceListGrid
-            services={services}
-            onSelectService={handleSelectService}
-          />
+          (searchQuery.trim() !== "" || hasActiveFilters) ? (
+            <ServiceListGrid
+              services={services}
+              onViewDetail={handleViewDetail}
+              onBookNow={handleBookNow}
+            />
+          ) : (
+            <div className="space-y-6">
+              {/* Nhóm 1: Ưu đãi cực hot */}
+              {services.filter(s => s.hasPromo).length > 0 && (
+                <ServiceHorizontalScroll
+                  title="Ưu đãi cực hot"
+                  subtitle="Gói dịch vụ dọn dẹp giá tốt nhất dành riêng cho bạn"
+                  icon={Flame}
+                  iconColorClass="text-orange-500"
+                  services={services.filter(s => s.hasPromo)}
+                  onViewDetail={handleViewDetail}
+                  onBookNow={handleBookNow}
+                />
+              )}
+
+              {/* Nhóm 2: Dịch vụ nổi bật */}
+              {services.filter(s => s.isPopular).length > 0 && (
+                <ServiceHorizontalScroll
+                  title="Dịch vụ nổi bật"
+                  subtitle="Các gói dịch vụ chất lượng cao được khách hàng tin dùng"
+                  icon={Sparkles}
+                  iconColorClass="text-amber-500"
+                  services={services.filter(s => s.isPopular)}
+                  onViewDetail={handleViewDetail}
+                  onBookNow={handleBookNow}
+                />
+              )}
+
+              {/* Nhóm 3: Tất cả dịch vụ */}
+              <div className="pt-2">
+                <h2 className="text-base font-extrabold text-foreground/90 mb-4 flex items-center gap-1.5 leading-none">
+                  <LayoutGrid className="w-4 h-4 shrink-0 text-primary" />
+                  Tất cả dịch vụ
+                </h2>
+                <ServiceListGrid
+                  services={services}
+                  onViewDetail={handleViewDetail}
+                  onBookNow={handleBookNow}
+                />
+              </div>
+            </div>
+          )
         )}
 
         {/* Empty */}

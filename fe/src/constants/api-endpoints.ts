@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
   SERVICES: {
     BASE: "/services",
     CATEGORIES: "/services/categories",
+    DETAIL: (id: string) => `/services/${id}`,
   },
   BLOG: {
     BASE: "/blog",
@@ -272,6 +273,7 @@ export const API_ENDPOINTS = {
     CREATE: (bookingId: string) => `/reviews/booking/${bookingId}`,
     MY_REVIEW: (bookingId: string) => `/reviews/booking/${bookingId}`,
     PACKAGE: (packageId: string) => `/reviews/package/${packageId}`,
+    TASKER: (taskerId: string) => `/reviews/tasker/${taskerId}`,
     TASKER_PUBLIC: (taskerId: string) => `/reviews/tasker/${taskerId}`,
     REPORT: (id: string) => `/reviews/${id}/report`,
   },

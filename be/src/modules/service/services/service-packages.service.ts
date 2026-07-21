@@ -21,6 +21,9 @@ import { ServiceAddonEntity } from '../entity/service-addon.entity';
 import { ServiceSubscriptionEntity } from '../entity/service-subscription.entity';
 import { ServicePeakHourEntity } from '../entity/service-peak-hour.entity';
 import { ServiceSubServiceEntity } from '../entity/service-sub-service.entity';
+import { VoucherEntity } from '../../voucher/entity/voucher.entity';
+import { PricingMode } from '../../pricing/entity/pricing-tier.entity';
+import { VoucherType } from 'src/common/enums/voucher-type.enum';
 
 export interface ServicePackageAnalytics {
   totalBookings: number;
@@ -52,6 +55,8 @@ export class ServicePackagesService {
     private readonly peakHourRepository: Repository<ServicePeakHourEntity>,
     @InjectRepository(ServiceSubServiceEntity)
     private readonly subServiceRepository: Repository<ServiceSubServiceEntity>,
+    @InjectRepository(VoucherEntity)
+    private readonly voucherRepository: Repository<VoucherEntity>,
   ) {}
 
   private availablePackagesCache: {
@@ -248,7 +253,7 @@ export class ServicePackagesService {
 
     if (search?.trim()) {
       qb.andWhere(
-        '(pkg.name ILIKE :search OR pkg.policyDescription ILIKE :search)',
+        '(pkg.name ILIKE :search OR pkg.policyDescription ILIKE :search OR sub.name ILIKE :search)',
         {
           search: `%${search.trim()}%`,
         },
@@ -260,6 +265,55 @@ export class ServicePackagesService {
       this.availablePackagesCache = { data: result, ts: Date.now() };
     }
     return result;
+  }
+
+  /**
+   * Trả về tập id các gói dịch vụ đang có voucher active áp dụng riêng
+   * (không tính voucher áp dụng toàn hệ thống — packageIds = null).
+   * Không cache: voucher có thể hết hạn/tắt bất kỳ lúc nào.
+   */
+  async getPackageIdsWithActivePromo(): Promise<Set<string>> {
+    const now = new Date();
+    const rows = await this.voucherRepository
+      .createQueryBuilder('v')
+      .select('v.packageIds', 'packageIds')
+      .where('v.isActive = true')
+      .andWhere('(v.endDate IS NULL OR v.endDate > :now)', { now })
+      .andWhere('v.packageIds IS NOT NULL')
+      .getRawMany<{ packageIds: string[] }>();
+
+    const ids = new Set<string>();
+    rows.forEach((r) => (r.packageIds ?? []).forEach((id) => ids.add(id)));
+    return ids;
+  }
+
+  async findPublicOne(id: string): Promise<ServicePackageEntity> {
+    const pkg = await this.packageRepository
+      .createQueryBuilder('pkg')
+      .leftJoinAndSelect('pkg.coverageAreas', 'area')
+      .leftJoinAndSelect('pkg.packageSubServices', 'pss')
+      .leftJoinAndSelect('pss.subService', 'sub', 'sub.isActive = true')
+      .leftJoinAndSelect('sub.pricingConfig', 'pricing')
+      .leftJoinAndSelect('pkg.pricingTiers', 'tier', 'tier.isActive = true')
+      .leftJoinAndSelect(
+        'pkg.durations',
+        'duration',
+        'duration.isActive = true',
+      )
+      .leftJoinAndSelect('pkg.addons', 'addon', 'addon.isActive = true')
+      .leftJoinAndSelect(
+        'pkg.peakHours',
+        'peakHour',
+        'peakHour.isActive = true',
+      )
+      .where('pkg.id = :id', { id })
+      .andWhere('pkg.isActive = true')
+      .getOne();
+
+    if (!pkg) {
+      throw new NotFoundException('Không tìm thấy gói dịch vụ');
+    }
+    return pkg;
   }
 
   async findOne(id: string): Promise<ServicePackageEntity> {
@@ -627,5 +681,167 @@ export class ServicePackagesService {
         .replace(/^-|-$/g, '')
         .toUpperCase()
     );
+  }
+
+  // ─── API Tính Giá Tự Chọn Nhanh (Custom Price Calculation) ────────────────
+  async calculateCustomPrice(dto: {
+    packageId: string;
+    hours: number;
+    isPremium?: boolean;
+    hasPets?: boolean;
+    bringTools?: boolean;
+    taskerQuantity?: number;
+    areaM2?: number;
+    subServiceIds?: string[];
+    voucherCode?: string;
+  }) {
+    const {
+      packageId,
+      hours,
+      isPremium = false,
+      hasPets = false,
+      bringTools = false,
+      taskerQuantity = 1,
+      areaM2,
+      subServiceIds = [],
+      voucherCode,
+    } = dto;
+
+    // 1. Tra cứu gói dịch vụ kèm theo durations và subServices
+    const pkg = await this.packageRepository.findOne({
+      where: { id: packageId, isActive: true },
+      relations: ['durations', 'subServices'],
+    });
+    if (!pkg) {
+      throw new NotFoundException(
+        `Không tìm thấy gói dịch vụ với ID: ${packageId}`,
+      );
+    }
+
+    // 2. Xác định đơn giá 1 giờ theo phân hạng thợ
+    const baseRate = Number(pkg.baseHourlyRate) || 0;
+    const premiumRate = Number(pkg.premiumHourlyRate) || 0;
+    const hourlyRate = isPremium && premiumRate > 0 ? premiumRate : baseRate;
+    const tierType: 'BASE' | 'PREMIUM' =
+      isPremium && premiumRate > 0 ? 'PREMIUM' : 'BASE';
+
+    // 3. Tính tiền gốc — ưu tiên kiểm tra mốc duration phù hợp
+    let basePrice = 0;
+    let pricingNote = `Tính theo đơn giá ${tierType === 'PREMIUM' ? 'VIP' : 'cơ bản'}: ${hourlyRate.toLocaleString('vi-VN')}đ/giờ × ${hours}h × ${taskerQuantity} thợ`;
+
+    const activeDurations = (pkg.durations || []).filter((d) => d.isActive);
+    const matchedDuration = activeDurations.find(
+      (d) => Number(d.durationHours) === hours,
+    );
+
+    if (matchedDuration) {
+      if (
+        matchedDuration.priceMode === 'fixed' &&
+        matchedDuration.fixedPrice != null
+      ) {
+        // Giá cố định theo mốc duration
+        basePrice = Number(matchedDuration.fixedPrice) * taskerQuantity;
+        pricingNote = `Áp dụng giá cố định mốc ${hours}h: ${Number(matchedDuration.fixedPrice).toLocaleString('vi-VN')}đ × ${taskerQuantity} thợ`;
+      } else {
+        // Giá theo % nhân với hourlyRate × hours
+        const multiplier = Number(matchedDuration.priceMultiplier) || 1.0;
+        basePrice = hourlyRate * hours * multiplier * taskerQuantity;
+        pricingNote = `Áp dụng mốc ${hours}h (hệ số ×${multiplier}): ${hourlyRate.toLocaleString('vi-VN')}đ × ${hours}h × ${multiplier} × ${taskerQuantity} thợ`;
+      }
+    } else if (
+      pkg.pricingMode === PricingMode.AREA_HOURLY &&
+      areaM2 &&
+      areaM2 > 0
+    ) {
+      // Giá theo diện tích m²
+      basePrice = hourlyRate * hours * areaM2 * taskerQuantity;
+      pricingNote = `Tính theo diện tích: ${hourlyRate.toLocaleString('vi-VN')}đ × ${hours}h × ${areaM2}m² × ${taskerQuantity} thợ`;
+    } else {
+      // Fallback: giá theo giờ đơn thuần
+      basePrice = hourlyRate * hours * taskerQuantity;
+    }
+
+    // 4. Tính phụ phí
+    const petSurcharge = hasPets ? Number(pkg.petSurcharge) || 0 : 0;
+    const toolFee = bringTools ? Number(pkg.toolFee) || 0 : 0;
+
+    // 5. Tính phí dịch vụ phụ đã chọn
+    // Giá dịch vụ phụ lấy từ PricingConfig (fixedAmount) qua PackageSubService → SubService → PricingConfig
+    let subServicesFee = 0;
+    if (subServiceIds.length > 0) {
+      const pssRows = await this.pssRepository.find({
+        where: subServiceIds.map((sid) => ({ packageId, subServiceId: sid })),
+        relations: ['subService', 'subService.pricingConfig'],
+      });
+      subServicesFee = pssRows.reduce((sum, row) => {
+        const pricing = row.subService?.pricingConfig;
+        if (!pricing) return sum;
+        return sum + (Number(pricing.basePrice) || 0);
+      }, 0);
+    }
+
+    // 6. Tính voucher discount
+    let voucherDiscount = 0;
+    let appliedVoucher: { code: string; discountAmount: number } | null = null;
+    const totalBeforeDiscount =
+      basePrice + petSurcharge + toolFee + subServicesFee;
+
+    if (voucherCode) {
+      const now = new Date();
+      const voucher = await this.voucherRepository.findOne({
+        where: { code: voucherCode, isActive: true },
+      });
+
+      if (voucher) {
+        const isExpired =
+          (voucher.startDate && voucher.startDate > now) ||
+          (voucher.endDate && voucher.endDate < now);
+        const meetsMinOrder =
+          totalBeforeDiscount >= Number(voucher.minOrderAmount);
+        const withinUsageLimit =
+          voucher.usageLimit == null || voucher.usedCount < voucher.usageLimit;
+
+        if (!isExpired && meetsMinOrder && withinUsageLimit) {
+          if (voucher.type === VoucherType.PERCENT) {
+            const raw = (totalBeforeDiscount * Number(voucher.value)) / 100;
+            voucherDiscount =
+              voucher.maxDiscount != null
+                ? Math.min(raw, Number(voucher.maxDiscount))
+                : raw;
+          } else {
+            voucherDiscount = Math.min(
+              Number(voucher.value),
+              totalBeforeDiscount,
+            );
+          }
+          appliedVoucher = {
+            code: voucher.code,
+            discountAmount: voucherDiscount,
+          };
+        }
+      }
+    }
+
+    const finalAmount = Math.max(0, totalBeforeDiscount - voucherDiscount);
+
+    return {
+      packageId: pkg.id,
+      packageName: pkg.name,
+      tierType,
+      hourlyRate,
+      hours,
+      taskerQuantity,
+      pricingNote,
+      breakdown: {
+        basePrice: Math.round(basePrice),
+        petSurcharge: Math.round(petSurcharge),
+        toolFee: Math.round(toolFee),
+        subServicesFee: Math.round(subServicesFee),
+        voucherDiscount: Math.round(voucherDiscount),
+      },
+      totalBeforeDiscount: Math.round(totalBeforeDiscount),
+      finalAmount: Math.round(finalAmount),
+      appliedVoucher,
+    };
   }
 }

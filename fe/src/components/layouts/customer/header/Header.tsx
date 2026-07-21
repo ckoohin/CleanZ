@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { HeaderNav } from "@/components/layouts/site/header/HeaderNav";
 import { HeaderActions } from "@/components/layouts/site/header/HeaderActions";
 import { MobileSidebar } from "@/components/layouts/site/header/MobileSidebar";
@@ -18,21 +18,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLogout, useProfile } from "@/features/auth/hooks/auth.hooks";
+import { useQuery } from "@tanstack/react-query";
+import { publicServiceApi } from "@/features/services/services/public-service.service";
 
 interface HeaderProps {
   navLinks?: NavLink[];
   actions?: HeaderAction[];
 }
-
-const SUGGESTIONS = [
-  { icon: TrendingUp, label: "Dọn nhà cuối tuần", tag: "Hot" },
-  { icon: Zap, label: "Giặt Sofa khẩn cấp", tag: "Nhanh" },
-  { icon: Star, label: "Vệ sinh máy lạnh", tag: "4.9★" },
-  { icon: Clock, label: "Tổng vệ sinh 4 tiếng", tag: "" },
-];
 
 const CITIES = ["TP. Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Hải Phòng"];
 
@@ -40,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   navLinks = NAV_LINKS,
   actions = HEADER_ACTIONS,
 }) => {
+  const router = useRouter();
   const logout = useLogout();
   const { data: profile } = useProfile();
   const [scrolled, setScrolled] = useState(false);
@@ -52,6 +49,48 @@ export const Header: React.FC<HeaderProps> = ({
 
   const searchRef = useRef<HTMLDivElement>(null);
   const cityRef = useRef<HTMLDivElement>(null);
+
+  const handleSearchSubmit = (searchVal: string) => {
+    if (!searchVal.trim()) return;
+    setSearchOpen(false);
+    const targetRoute = profile ? "/customer/catalog" : "/services";
+    router.push(`${targetRoute}?search=${encodeURIComponent(searchVal.trim())}`);
+  };
+
+  // Lấy danh sách gói dịch vụ thực tế để trích xuất gợi ý động
+  const { data: servicesData } = useQuery({
+    queryKey: ["public-services-list"],
+    queryFn: () => publicServiceApi.list(),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const popularSubServices = useMemo(() => {
+    // Trích xuất toàn bộ subServices từ tất cả các gói dịch vụ (nếu có)
+    const allSubs = servicesData?.data?.flatMap((pkg) => pkg.subServices || []) || [];
+    
+    // Lọc trùng lặp các dịch vụ con theo ID
+    const uniqueSubs = Array.from(new Map(allSubs.map((sub) => [sub.id, sub])).values());
+    
+    // Nếu database không chứa dịch vụ con khả dụng hoặc API chưa load xong, fallback về danh sách tĩnh đẹp mắt
+    if (uniqueSubs.length === 0) {
+      return [
+        { icon: TrendingUp, label: "Dọn nhà cuối tuần", tag: "Hot" },
+        { icon: Zap, label: "Giặt Sofa khẩn cấp", tag: "Nhanh" },
+        { icon: Star, label: "Vệ sinh máy lạnh", tag: "4.9★" },
+        { icon: Clock, label: "Tổng vệ sinh 4 tiếng", tag: "" },
+      ];
+    }
+    
+    // Map icon và tag tương ứng cho 4 dịch vụ con thực tế tiêu biểu
+    const icons = [TrendingUp, Zap, Star, Clock];
+    const tags = ["Hot", "Nhanh", "4.9★", "Phổ biến"];
+    
+    return uniqueSubs.slice(0, 4).map((sub, idx) => ({
+      icon: icons[idx % icons.length],
+      label: sub.name,
+      tag: tags[idx % tags.length],
+    }));
+  }, [servicesData]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 0);
@@ -192,6 +231,11 @@ export const Header: React.FC<HeaderProps> = ({
                         autoFocus={searchOpen}
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSearchSubmit(query);
+                          }
+                        }}
                         type="text"
                         placeholder="Tìm dịch vụ..."
                         className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
@@ -209,11 +253,14 @@ export const Header: React.FC<HeaderProps> = ({
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2 py-1.5">
                       Tìm kiếm phổ biến
                     </p>
-                    {SUGGESTIONS.map(({ icon: Icon, label, tag }) => (
+                    {popularSubServices.map(({ icon: Icon, label, tag }) => (
                       <button
                         key={label}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left"
-                        onClick={() => { setQuery(label); setSearchOpen(false); }}
+                        onClick={() => {
+                          setQuery(label);
+                          handleSearchSubmit(label);
+                        }}
                       >
                         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           <Icon className="w-3.5 h-3.5 text-primary" />

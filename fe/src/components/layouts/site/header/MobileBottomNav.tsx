@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Wallet, MessageCircle, User } from "lucide-react";
@@ -42,8 +42,39 @@ const NAV_ITEMS = [
 export const MobileBottomNav = () => {
   const pathname = usePathname();
 
+  // Ẩn vĩnh viễn trên các trang đặt lịch (booking wizard) để nhường chỗ cho nút Tiếp tục ghim đáy
+  if (pathname.startsWith('/customer/booking') || pathname.startsWith('/booking')) {
+    return null;
+  }
+
+  // Logic theo dõi cuộn để tự động ẩn/hiện menu chính trên di động
+  const [showNav, setShowNav] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 80) {
+        if (currentScrollY > lastScrollY.current) {
+          setShowNav(false); // Cuộn xuống -> ẩn
+        } else {
+          setShowNav(true);  // Cuộn lên -> hiện
+        }
+      } else {
+        setShowNav(true);   // Gần đầu trang -> hiện
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border pb-2">
+    <nav className={cn(
+      "md:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border pb-2",
+      "transition-transform duration-300 ease-in-out",
+      showNav ? "translate-y-0" : "translate-y-full"
+    )}>
       <div className="flex items-center justify-around h-16 px-2">
         {NAV_ITEMS.map((item) => {
           const isActive = item.matchPaths.some((path) =>

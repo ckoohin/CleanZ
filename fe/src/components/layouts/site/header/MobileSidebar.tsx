@@ -21,6 +21,19 @@ interface MobileSidebarProps {
   isMounted: boolean;
 }
 
+const CUSTOMER_MOBILE_LINKS: NavLink[] = [
+  { label: "Bảng điều khiển", href: "/customer" },
+  { label: "Đặt dịch vụ", href: "/customer/catalog" },
+  { label: "Hoạt động dọn dẹp", href: "/customer/history" },
+  { label: "Ví CleanZ", href: "/customer/wallet" },
+  { label: "Địa chỉ đã lưu", href: "/customer/addresses" },
+  { label: "Bài viết & Tin tức", href: "/customer/blogs" },
+  { label: "Hỗ trợ khách hàng", href: "/customer/support-tickets" },
+  { label: "Chính sách đối tác", href: "/customer/policies" },
+  { label: "Hồ sơ cá nhân", href: "/customer/profile" },
+  { label: "Cài đặt tài khoản", href: "/customer/settings" },
+];
+
 export const MobileSidebar: React.FC<MobileSidebarProps> = ({
   mobileOpen,
   setMobileOpen,
@@ -67,33 +80,52 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({
             <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto" />
           </div>
 
-          {/* Main Nav Links (from config) */}
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              {link.label}
-              <ChevronDown className="w-4 h-4 -rotate-90 opacity-40" />
-            </a>
-          ))}
+          {/* Hiển thị danh sách link tương ứng dựa trên trạng thái đăng nhập */}
+          {profile ? (
+            <>
+              {CUSTOMER_MOBILE_LINKS.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  {link.label}
+                  <ChevronDown className="w-4 h-4 -rotate-90 opacity-40" />
+                </a>
+              ))}
+            </>
+          ) : (
+            <>
+              {/* Main Nav Links (from config) */}
+              {navLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  {link.label}
+                  <ChevronDown className="w-4 h-4 -rotate-90 opacity-40" />
+                </a>
+              ))}
 
-          <Separator className="my-4" />
+              <Separator className="my-4" />
 
-          {/* Partner Nav Links (from config) */}
-          {PARTNER_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              {link.label}
-              <ChevronDown className="w-4 h-4 -rotate-90 opacity-40" />
-            </a>
-          ))}
+              {/* Partner Nav Links (from config) */}
+              {PARTNER_LINKS.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  {link.label}
+                  <ChevronDown className="w-4 h-4 -rotate-90 opacity-40" />
+                </a>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Footer: Auth & Hotline */}
