@@ -5,6 +5,7 @@ import type {
   AdminTaskerFilter,
   AdminUpdateTaskerPayload,
   BanTaskerPayload,
+  TaskerEarningsQuery,
   UpdateTaskerWorkStatusPayload,
 } from "../types/admin-tasker.types";
 
@@ -14,6 +15,10 @@ export const adminTaskerKeys = {
   detail: (id: string) => [...adminTaskerKeys.all, "detail", id] as const,
   documents: (id: string) => [...adminTaskerKeys.all, "documents", id] as const,
   penalties: (id: string) => [...adminTaskerKeys.all, "penalties", id] as const,
+  earnings: (id: string, range: TaskerEarningsQuery) =>
+    [...adminTaskerKeys.all, "earnings", id, range] as const,
+  earningsDetails: (id: string, range: TaskerEarningsQuery) =>
+    [...adminTaskerKeys.all, "earnings-details", id, range] as const,
 };
 
 const errorMessage = (error: unknown, fallback: string): string => {
@@ -49,6 +54,22 @@ export function useAdminTaskerPenalties(id: string) {
     queryKey: adminTaskerKeys.penalties(id),
     queryFn: () => adminTaskerApi.getTaskerPenalties(id),
     enabled: !!id,
+  });
+}
+
+export function useAdminTaskerEarnings(id: string, range: TaskerEarningsQuery) {
+  return useQuery({
+    queryKey: adminTaskerKeys.earnings(id, range),
+    queryFn: () => adminTaskerApi.getTaskerEarnings(id, range),
+    enabled: !!id && !!range.fromDate && !!range.toDate,
+  });
+}
+
+export function useAdminTaskerEarningsDetails(id: string, range: TaskerEarningsQuery) {
+  return useQuery({
+    queryKey: adminTaskerKeys.earningsDetails(id, range),
+    queryFn: () => adminTaskerApi.getTaskerEarningsDetails(id, range),
+    enabled: !!id && !!range.fromDate && !!range.toDate,
   });
 }
 

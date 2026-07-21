@@ -106,3 +106,23 @@ export interface PaginatedTaskers {
   page: number;
   limit: number;
 }
+
+export interface TaskerEarningsQuery {
+  fromDate: string;
+  toDate: string;
+}
+
+export interface TaskerEarningsSummary {
+  taskerEarnings: number;
+  platformCommission: number;
+  completedBookings: number;
+}
+
+export interface TaskerEarningsDetailItem {
+  bookingId: string;
+  bookingCode: string;
+  completedAt: string | null;
+  taskerEarning: number;
+  platformCommission: number;
+  createdAt: string;
+}

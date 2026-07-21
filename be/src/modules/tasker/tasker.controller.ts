@@ -24,6 +24,7 @@ import { memoryStorage } from 'multer';
 import { Throttle } from '@nestjs/throttler';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { AppException } from 'src/common/exceptions/app.exception';
+import { DateRangeQueryDto } from '../admin/dto/date-range-query.dto';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -430,5 +431,39 @@ export class TaskerController {
   @ApiParam({ name: 'id', description: 'UUID của tasker' })
   getPenalties(@Param('id', ParseUUIDPipe) id: string) {
     return this.taskerService.getPenalties(id);
+  }
+
+  @Get('admin/:id/earnings')
+  @AdminOnly()
+  @ApiOperation({
+    summary: 'Admin xem thu nhập tasker & chiết khấu nền tảng theo kỳ',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  getTaskerEarnings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: DateRangeQueryDto,
+  ) {
+    return this.taskerService.getTaskerEarningsSummary(
+      id,
+      dto.fromDate,
+      dto.toDate,
+    );
+  }
+
+  @Get('admin/:id/earnings/details')
+  @AdminOnly()
+  @ApiOperation({
+    summary: 'Admin xem danh sách phiếu lương theo từng đơn của tasker',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  getTaskerEarningsDetails(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: DateRangeQueryDto,
+  ) {
+    return this.taskerService.getTaskerEarningsDetails(
+      id,
+      dto.fromDate,
+      dto.toDate,
+    );
   }
 }

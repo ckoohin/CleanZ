@@ -15,10 +15,13 @@ import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { BanType } from 'src/common/enums/ban-type.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
+import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
+import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { MailService } from 'src/modules/mail/mail.service';
 import { AppealTokenService } from 'src/modules/appeal/appeal-token.service';
 import { UploadService } from 'src/modules/upload/upload.service';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
+import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
@@ -676,6 +679,166 @@ export class TaskerService {
       ]);
       return this.mapProfile(tasker, adminNames);
     }, 'Không thể lấy chi tiết tasker');
+  }
+
+  /**
+   * Thu nhập tasker & chiết khấu nền tảng theo kỳ.
+   * Mỗi lượt chuyển tiền ghi 2 dòng sổ ví (nợ + có) cùng loại — lọc theo
+   * owner_type của ví để không đếm trùng: TASKER_EARNING chỉ tính ở ví TASKER
+   * của chính tasker này, PLATFORM_FEE chỉ tính ở ví SYSTEM nhưng lọc qua
+   * booking.tasker_id để biết khoản chiết khấu đó lấy từ tasker nào.
+   */
+  async getTaskerEarningsSummary(
+    id: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<{
+    taskerEarnings: number;
+    platformCommission: number;
+    completedBookings: number;
+  }> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({ where: { id } });
+      if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
+
+      const toDateEnd = `${toDate} 23:59:59.999`;
+      const walletTxRepo = this.dataSource.getRepository(
+        WalletTransactionEntity,
+      );
+
+      const earningsRow = await walletTxRepo
+        .createQueryBuilder('wt')
+        .innerJoin('wt.wallet', 'w')
+        .select('COALESCE(SUM(wt.amount), 0)', 'total')
+        .addSelect('COUNT(DISTINCT wt.booking_id)', 'bookings')
+        .where('w.owner_type = :ownerType', {
+          ownerType: WalletOwnerType.TASKER,
+        })
+        .andWhere('w.tasker_id = :taskerId', { taskerId: id })
+        .andWhere('wt.type = :type', {
+          type: WalletTransactionType.TASKER_EARNING,
+        })
+        .andWhere('wt.created_at BETWEEN :from AND :to', {
+          from: fromDate,
+          to: toDateEnd,
+        })
+        .getRawOne<{ total: string; bookings: string }>();
+
+      const commissionRow = await walletTxRepo
+        .createQueryBuilder('wt')
+        .innerJoin('wt.wallet', 'w')
+        .innerJoin('wt.booking', 'b')
+        .select('COALESCE(SUM(wt.amount), 0)', 'total')
+        .where('w.owner_type = :ownerType', {
+          ownerType: WalletOwnerType.SYSTEM,
+        })
+        .andWhere('b.tasker_id = :taskerId', { taskerId: id })
+        .andWhere('wt.type = :type', {
+          type: WalletTransactionType.PLATFORM_FEE,
+        })
+        .andWhere('wt.created_at BETWEEN :from AND :to', {
+          from: fromDate,
+          to: toDateEnd,
+        })
+        .getRawOne<{ total: string }>();
+
+      return {
+        taskerEarnings: Number(earningsRow?.total ?? 0),
+        platformCommission: Number(commissionRow?.total ?? 0),
+        completedBookings: Number(earningsRow?.bookings ?? 0),
+      };
+    }, 'Không thể lấy dữ liệu thu nhập tasker');
+  }
+
+  /**
+   * Danh sách "phiếu lương" theo từng đơn trong kỳ — mỗi dòng ghép khoản
+   * tasker nhận (ví TASKER) với khoản chiết khấu nền tảng (ví SYSTEM) cùng
+   * booking_id, vì 2 khoản này nằm ở 2 ví khác nhau nên phải truy 2 lượt rồi
+   * ghép ở tầng ứng dụng thay vì JOIN trực tiếp (JOIN sẽ nhân đôi dòng).
+   */
+  async getTaskerEarningsDetails(
+    id: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<
+    Array<{
+      bookingId: string;
+      bookingCode: string;
+      completedAt: Date | null;
+      taskerEarning: number;
+      platformCommission: number;
+      createdAt: Date;
+    }>
+  > {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({ where: { id } });
+      if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
+
+      const toDateEnd = `${toDate} 23:59:59.999`;
+      const walletTxRepo = this.dataSource.getRepository(
+        WalletTransactionEntity,
+      );
+
+      const earnings = await walletTxRepo
+        .createQueryBuilder('wt')
+        .innerJoin('wt.wallet', 'w')
+        .innerJoin('wt.booking', 'b')
+        .select('b.id', 'bookingId')
+        .addSelect('b.bookingCode', 'bookingCode')
+        .addSelect('b.completedAt', 'completedAt')
+        .addSelect('wt.amount', 'taskerEarning')
+        .addSelect('wt.createdAt', 'createdAt')
+        .where('w.owner_type = :ownerType', {
+          ownerType: WalletOwnerType.TASKER,
+        })
+        .andWhere('w.tasker_id = :taskerId', { taskerId: id })
+        .andWhere('wt.type = :type', {
+          type: WalletTransactionType.TASKER_EARNING,
+        })
+        .andWhere('wt.created_at BETWEEN :from AND :to', {
+          from: fromDate,
+          to: toDateEnd,
+        })
+        .orderBy('wt.created_at', 'DESC')
+        .getRawMany<{
+          bookingId: string;
+          bookingCode: string;
+          completedAt: Date | null;
+          taskerEarning: string;
+          createdAt: Date;
+        }>();
+
+      if (earnings.length === 0) return [];
+
+      const bookingIds = earnings.map((e) => e.bookingId);
+      const fees = await walletTxRepo
+        .createQueryBuilder('wt')
+        .innerJoin('wt.wallet', 'w')
+        .innerJoin('wt.booking', 'b')
+        .select('b.id', 'bookingId')
+        .addSelect('wt.amount', 'platformCommission')
+        .where('w.owner_type = :ownerType', {
+          ownerType: WalletOwnerType.SYSTEM,
+        })
+        .andWhere('wt.type = :type', {
+          type: WalletTransactionType.PLATFORM_FEE,
+        })
+        .andWhere('b.id IN (:...bookingIds)', { bookingIds })
+        .getRawMany<{ bookingId: string; platformCommission: string }>();
+
+      const feeByBooking = new Map(
+        fees.map((f) => [f.bookingId, Number(f.platformCommission)]),
+      );
+
+      return earnings.map((e) => ({
+        bookingId: e.bookingId,
+        bookingCode: e.bookingCode,
+        completedAt: e.completedAt,
+        taskerEarning: Number(e.taskerEarning),
+        platformCommission: feeByBooking.get(e.bookingId) ?? 0,
+        createdAt: e.createdAt,
+      }));
+    }, 'Không thể lấy danh sách phiếu lương tasker');
   }
 
   /** Admin sửa thông tin cơ bản của tasker (không đụng giấy tờ KYC). */

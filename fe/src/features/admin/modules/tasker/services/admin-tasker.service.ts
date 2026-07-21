@@ -7,6 +7,9 @@ import type {
   UpdateTaskerWorkStatusPayload,
   BanType,
   PaginatedTaskers,
+  TaskerEarningsDetailItem,
+  TaskerEarningsQuery,
+  TaskerEarningsSummary,
 } from "../types/admin-tasker.types";
 
 const BASE = "/tasker/admin";
@@ -101,4 +104,18 @@ export const adminTaskerApi = {
 
   getTaskerPenalties: (id: string): Promise<unknown[]> =>
     http.get(`${BASE}/${id}/penalties`).then((res) => res.data?.data ?? []),
+
+  getTaskerEarnings: (
+    id: string,
+    params: TaskerEarningsQuery
+  ): Promise<TaskerEarningsSummary> =>
+    http.get(`${BASE}/${id}/earnings`, { params }).then((res) => res.data),
+
+  getTaskerEarningsDetails: (
+    id: string,
+    params: TaskerEarningsQuery
+  ): Promise<TaskerEarningsDetailItem[]> =>
+    http
+      .get(`${BASE}/${id}/earnings/details`, { params })
+      .then((res) => res.data),
 };
