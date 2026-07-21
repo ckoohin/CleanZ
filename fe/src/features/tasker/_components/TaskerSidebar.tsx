@@ -137,7 +137,7 @@ function DesktopSidebar({ className, onToggleOnline }: TaskerSidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col w-60 border-r border-border bg-card/80 backdrop-blur-md shrink-0 sticky top-0 h-screen",
+        "hidden lg:flex flex-col w-60 border-r border-border bg-card/80 backdrop-blur-md shrink-0 fixed top-0 left-0 bottom-0 h-screen z-30",
         className
       )}
     >
@@ -382,7 +382,7 @@ function MobileBottomNav({
           onClick={() => onToggleOnline?.()}
           whileTap={{ scale: 0.92 }}
           className={cn(
-            "relative w-[48px] h-[48px] rounded-full flex flex-col items-center justify-center gap-[1px]",
+            "relative w-[48px] h-[48px] rounded-full flex flex-col items-center justify-center gap-px",
             "shadow-md transition-colors duration-300 border-[2.5px] border-background",
             isOnline
               ? "bg-emerald-500 shadow-emerald-500/30 text-white"
@@ -464,6 +464,9 @@ export function TaskerSidebar({ className, onToggleOnline }: TaskerSidebarProps)
     <>
       {/* Desktop: sidebar trái */}
       <DesktopSidebar className={className} onToggleOnline={onToggleOnline} />
+
+      {/* Giữ chỗ cho fixed sidebar trên desktop */}
+      <div className="hidden lg:block w-60 shrink-0" />
 
       {/* Mobile */}
       <MobileTopBar />

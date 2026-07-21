@@ -64,7 +64,7 @@ export default function CustomerLayout({
             </SidebarProvider>
 
             {/* Footer full-width — ngoài SidebarInset để không bị thụt vào */}
-            <div className="hidden md:block">
+            <div className="hidden md:block lg:pl-60">
                 <Footer />
             </div>
         </div>

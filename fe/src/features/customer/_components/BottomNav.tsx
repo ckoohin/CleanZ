@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
@@ -23,8 +23,39 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const pathname = usePathname()
 
+  // Logic theo dõi cuộn để tự động ẩn/hiện menu chính trên di động
+  const [showNav, setShowNav] = useState(true)
+  const lastScrollY = useRef(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      if (currentScrollY > 80) {
+        if (currentScrollY > lastScrollY.current) {
+          setShowNav(false) // Cuộn xuống -> ẩn
+        } else {
+          setShowNav(true)  // Cuộn lên -> hiện
+        }
+      } else {
+        setShowNav(true)   // Gần đầu trang -> hiện
+      }
+      lastScrollY.current = currentScrollY
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  // Ẩn vĩnh viễn trên các trang đặt lịch (booking wizard) để nhường chỗ cho nút Tiếp tục ghim đáy
+  if (pathname.startsWith('/customer/booking') || pathname.startsWith('/booking')) {
+    return null;
+  }
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-xl border-t border-border/40 px-2 pb-safe-offset-2 h-20 flex items-center justify-around md:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+    <nav className={cn(
+      "fixed bottom-0 left-0 right-0 z-30 bg-background/85 backdrop-blur-xl border-t border-border/40 px-2 pb-safe-offset-2 h-20 flex items-center justify-around md:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)]",
+      "transition-transform duration-300 ease-in-out",
+      showNav ? "translate-y-0" : "translate-y-full"
+    )}>
       {NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
         const Icon = item.icon

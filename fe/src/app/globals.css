@@ -269,6 +269,11 @@
 .cz-scroll::-webkit-scrollbar-thumb { background-color: var(--c-scroll); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
 .cz-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--c-scroll-hover); }
 
+/* hide scrollbar but keep scrollability */
+.scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+
 /* floating bulk-action bar — fixed at bottom-centre of the content area */
 .cz-bulkbar { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 40; animation: cz-bar-in .22s ease-out both; transition: left .3s ease; }
 @media (min-width: 1024px) { .cz-bulkbar { left: calc(50% + var(--sb-w, 0px) / 2); } }
@@ -282,5 +287,19 @@
 
 @media (prefers-reduced-motion: reduce) {
     .kos-rise, .kos-ping, .cz-bulkbar { animation: none; }
+}
+
+/* Ẩn nút clear mặc định của trình duyệt (Chrome, Safari, Edge) trên các ô input */
+input::-webkit-search-decoration,
+input::-webkit-search-cancel-button,
+input::-webkit-search-results-button,
+input::-webkit-search-results-decoration {
+    display: none;
+}
+input::-ms-clear,
+input::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
 }
 
