@@ -16,29 +16,37 @@ export interface ServiceGridItem {
   pricingType?: string;
   hasPetFee?: boolean;
   hasPeakPrice?: boolean;
+  subServiceNames?: string[];
+  rating?: number;
+  reviewsCount?: number;
+  isPopular?: boolean;
+  hasPromo?: boolean;
 }
 
 interface ServiceListGridProps {
   services: ServiceGridItem[];
-  onSelectService: (id: string) => void;
+  onViewDetail: (id: string) => void;
+  onBookNow: (id: string) => void;
 }
 
 export const ServiceListGrid = ({
   services,
-  onSelectService,
+  onViewDetail,
+  onBookNow,
 }: ServiceListGridProps) => {
   return (
     <motion.div
       variants={staggerContainerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
+      className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5"
     >
       {services.map((service) => (
         <ServiceCard
           key={service.id}
           {...service}
-          onSelect={onSelectService}
+          onViewDetail={onViewDetail}
+          onBookNow={onBookNow}
         />
       ))}
     </motion.div>

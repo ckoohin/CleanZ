@@ -2043,7 +2043,7 @@ export const BookingWizard = ({
 
       {/* Bottom CTA */}
       {step < 5 && (
-        <div className="fixed bottom-20 md:bottom-0 left-0 right-0 bg-card border-t border-border/40 p-4 z-30">
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/40 px-4 pt-3 pb-6 z-30">
           <div className="mx-auto max-w-5xl">
             <button
               onClick={handleNext}
