@@ -87,6 +87,30 @@ export const customerBookingApi = {
         skipErrorToast: true,
       } as Parameters<typeof http.patch>[2])
       .then((r) => r.data.data ?? r.data),
+
+  /**
+   * 03H. Xác nhận hoàn thành + thanh toán phần phát sinh (thêm giờ).
+   * Đơn tiền mặt: bỏ trống surchargePaymentMethod (thanh toán tổng bằng tiền mặt).
+   * Đơn trả trước bằng ví: chọn "WALLET" (trừ thêm vào ví) hoặc "CASH" (trả tiền mặt).
+   */
+  confirmCompletion: (
+    id: string,
+    surchargePaymentMethod?: "WALLET" | "CASH",
+  ): Promise<{
+    success: boolean;
+    message: string;
+    bookingId: string;
+    status: string;
+    totalPrice: number;
+    surcharge: number;
+  }> =>
+    http
+      .patch(
+        API_ENDPOINTS.BOOKING.CONFIRM_COMPLETION(id),
+        { surchargePaymentMethod },
+        { skipErrorToast: true } as Parameters<typeof http.patch>[2],
+      )
+      .then((r) => r.data.data ?? r.data),
 };
 
 // ─── Tasker Booking APIs ───────────────────────────────────────────────────────

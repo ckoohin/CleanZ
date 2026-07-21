@@ -267,6 +267,22 @@ export class BookingEntity {
   @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
   completedAt?: Date | null;
 
+  /** Thời điểm tasker bấm checkout (yêu cầu hoàn thành) — mốc đo thời gian làm việc. */
+  @Column({ name: 'checked_out_at', type: 'timestamp', nullable: true })
+  checkedOutAt?: Date | null;
+
+  /** Số phút làm vượt thời lượng đặt (đã tính tiền, làm tròn block 30p). 0 nếu không phát sinh. */
+  @Column({ name: 'overtime_minutes', type: 'int', default: 0 })
+  overtimeMinutes!: number;
+
+  /** Số phút kết thúc sớm so với thời lượng đặt. 0 nếu không sớm. */
+  @Column({ name: 'early_minutes', type: 'int', default: 0 })
+  earlyMinutes!: number;
+
+  /** Đã checkout có phát sinh, đang chờ customer xác nhận/thanh toán phần thêm. */
+  @Column({ name: 'surcharge_pending', type: 'boolean', default: false })
+  surchargePending!: boolean;
+
   @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
   cancelledAt?: Date | null;
 

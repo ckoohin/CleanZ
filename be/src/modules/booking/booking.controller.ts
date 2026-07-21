@@ -55,6 +55,8 @@ import {
   TaskerCreatedBookingResponse,
 } from './services/tasker-create-booking.service';
 import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-customer-booking.service';
+import { CustomerConfirmCompletionService } from './services/customer-confirm-completion.service';
+import { ConfirmCompletionDto } from './dto/confirm-completion.dto';
 import {
   BookingExpirationService,
   ExpireOverdueBookingsResponse,
@@ -79,6 +81,7 @@ export class BookingController {
     private readonly taskerBookingService: TaskerBookingService,
     private readonly taskerCreateBookingService: TaskerCreateBookingService,
     private readonly taskerConfirmCustomerBookingService: TaskerConfirmCustomerBookingService,
+    private readonly customerConfirmCompletionService: CustomerConfirmCompletionService,
   ) {}
 
   @Post()
@@ -252,6 +255,36 @@ export class BookingController {
     return this.taskerConfirmCustomerBookingService.declineByCustomer(
       userId,
       bookingId,
+    );
+  }
+
+  @Patch('customer/:id/confirm-completion')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer xác nhận hoàn thành & thanh toán phần phát sinh',
+    description:
+      'Chỉ áp dụng khi booking có phát sinh thêm giờ (đang chờ xác nhận). ' +
+      'Đơn tiền mặt: xác nhận để thanh toán tổng (gốc + phát sinh) bằng tiền mặt. ' +
+      'Đơn trả trước bằng ví: chọn surchargePaymentMethod = WALLET (trừ thêm vào ví) ' +
+      'hoặc CASH (trả phần phát sinh bằng tiền mặt cho tasker).',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({
+    description:
+      'Booking chuyển IN_PROGRESS → COMPLETED sau khi thu phần phát sinh',
+  })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  confirmCompletion(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+    @Body() dto: ConfirmCompletionDto,
+  ) {
+    return this.customerConfirmCompletionService.confirmCompletion(
+      userId,
+      bookingId,
+      dto,
     );
   }
 

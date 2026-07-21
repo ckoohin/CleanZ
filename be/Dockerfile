@@ -16,6 +16,9 @@ RUN npm run build
 FROM node:20-bookworm-slim AS runner
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
+# Mặc định khớp với port publish/healthcheck trong docker-compose; env_file hoặc
+# environment vẫn ghi đè được khi cần.
+ENV PORT=5000
 
 COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
@@ -23,5 +26,5 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=builder --chown=node:node /usr/src/app/dist ./dist
 
 USER node
-EXPOSE 3000
+EXPOSE 5000
 CMD ["node", "dist/main"]

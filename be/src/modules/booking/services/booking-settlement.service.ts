@@ -1,0 +1,271 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { EntityManager } from 'typeorm';
+import { PaymentMethod } from 'src/common/enums/payment-method.enum';
+import { PaymentStatus } from 'src/common/enums/payment-status.enum';
+import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
+import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { toNumber } from 'src/common/helpers/number.helper';
+import { PaymentService } from 'src/modules/payment/payment.service';
+import { PricingService } from 'src/modules/pricing/services/pricing.service';
+import { WalletService } from 'src/modules/wallet/wallet.service';
+import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
+import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
+import { UserEntity } from 'src/modules/users/entities/user.entity';
+import { BookingEntity } from '../entity/booking.entity';
+import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
+import { BookingWalletPaymentService } from './booking-wallet-payment.service';
+
+export const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
+
+export interface SettleCompletionInput {
+  booking: BookingEntity;
+  tasker: TaskerEntity;
+  actorUserId: string;
+  note: string;
+  /**
+   * Phần phụ phí phát sinh khách trả bằng TIỀN MẶT trên đơn ví (hybrid).
+   * Khi > 0: ví SYSTEM chỉ giữ phần gốc (escrow), phần này tasker thu tiền mặt và
+   * chỉ khấu trừ hoa hồng — giống cơ chế đơn CASH.
+   */
+  cashSurcharge?: number;
+}
+
+export interface SettleCompletionResult {
+  booking: BookingEntity;
+  taskerEarning: number;
+  platformFee: number;
+}
+
+/**
+ * Quyết toán khi hoàn thành booking: chuyển trạng thái COMPLETED, trả công tasker,
+ * ghi nhận hoa hồng/chi phí voucher. Tách riêng để cả luồng tasker tự hoàn thành và
+ * luồng customer xác nhận phần phát sinh cùng tái sử dụng, tránh nhân đôi logic tiền.
+ */
+@Injectable()
+export class BookingSettlementService {
+  private readonly logger = new Logger(BookingSettlementService.name);
+
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly pricingService: PricingService,
+    private readonly walletService: WalletService,
+    private readonly taskerBalanceService: TaskerBalanceService,
+    private readonly bookingWalletPaymentService: BookingWalletPaymentService,
+    private readonly vouchersService: VouchersService,
+  ) {}
+
+  async resolvePlatformCommissionRate(
+    manager: EntityManager,
+    booking: BookingEntity,
+  ): Promise<number> {
+    const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
+    if (!subServiceId) {
+      return DEFAULT_PLATFORM_COMMISSION_RATE;
+    }
+
+    try {
+      return await this.pricingService.getPlatformCommissionRateByServiceId(
+        manager,
+        subServiceId,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Cannot resolve sub-service commission for booking ${booking.id}, fallback ${DEFAULT_PLATFORM_COMMISSION_RATE}%`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return DEFAULT_PLATFORM_COMMISSION_RATE;
+    }
+  }
+
+  /**
+   * Chuyển booking sang COMPLETED và thực hiện toàn bộ bút toán quyết toán.
+   * `booking.totalPrice` phải đã là số tiền CUỐI (đã gồm phụ phí phát sinh nếu có);
+   * với đơn ví trả phụ phí bằng ví thì escrow phải được `adjustEscrow` trước khi gọi.
+   */
+  async settleCompletedBooking(
+    manager: EntityManager,
+    input: SettleCompletionInput,
+  ): Promise<SettleCompletionResult> {
+    const { booking, tasker, actorUserId, note } = input;
+    const cashSurcharge = Math.round(toNumber(input.cashSurcharge ?? 0));
+
+    const completedAt = new Date();
+    const oldStatus = booking.status;
+    booking.status = BookingStatus.COMPLETED;
+    booking.completedAt = completedAt;
+    booking.surchargePending = false;
+    booking.confirmationDeadline = null;
+
+    if (booking.paymentMethod === PaymentMethod.CASH) {
+      booking.paymentStatus = PaymentStatus.PAID;
+      await this.paymentService.markLatestPendingPaymentAsPaid(
+        manager,
+        booking.id,
+        completedAt,
+      );
+    }
+    await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
+    const savedBooking = await manager
+      .getRepository(BookingEntity)
+      .save(booking);
+
+    // Voucher do nền tảng chịu: tasker nhận tiền tính trên subtotal (trước giảm giá).
+    const totalPrice = toNumber(savedBooking.totalPrice);
+    const discountAmount = toNumber(savedBooking.discountAmount);
+    const subtotal = totalPrice + discountAmount;
+    const commissionRate = await this.resolvePlatformCommissionRate(
+      manager,
+      savedBooking,
+    );
+    const platformFee = Math.round((subtotal * commissionRate) / 100);
+    const taskerEarning = Math.max(subtotal - platformFee, 0);
+
+    if (cashSurcharge > 0) {
+      await this.settleWalletBaseWithCashSurcharge(
+        manager,
+        savedBooking,
+        tasker,
+        subtotal,
+        cashSurcharge,
+        commissionRate,
+      );
+      await this.finalizeStats(manager, savedBooking, tasker, actorUserId, {
+        oldStatus,
+        note,
+      });
+      return { booking: savedBooking, taskerEarning, platformFee };
+    }
+
+    // Đơn trả bằng ví: tiền khách đã nằm sẵn ở ví SYSTEM từ lúc tạo đơn (và đã bù
+    // chênh nếu có phụ phí), nên chỉ cần chuyển phần công cho tasker. Hoa hồng tự
+    // động ở lại SYSTEM — không ghi thêm income/expense để tránh cộng khống lần hai.
+    const settledFromWallet =
+      await this.bookingWalletPaymentService.settleOnCompletion(
+        manager,
+        savedBooking,
+        taskerEarning,
+      );
+
+    if (!settledFromWallet) {
+      if (savedBooking.paymentMethod === PaymentMethod.CASH) {
+        if (platformFee > 0) {
+          await this.taskerBalanceService.deductCashCommission(
+            manager,
+            tasker.id,
+            savedBooking,
+            platformFee,
+          );
+        }
+      } else {
+        const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+          manager,
+          tasker,
+        );
+        await this.walletService.creditWallet(manager, {
+          wallet: taskerWallet,
+          amount: taskerEarning,
+          type: WalletTransactionType.TASKER_EARNING,
+          booking: savedBooking,
+          description:
+            `Thu nhập booking ${savedBooking.bookingCode}: ` +
+            `tổng công ${subtotal.toLocaleString('vi-VN')}đ − ` +
+            `chiết khấu nền tảng ${platformFee.toLocaleString('vi-VN')}đ`,
+        });
+      }
+      if (platformFee > 0) {
+        await this.walletService.recordPlatformIncome(
+          manager,
+          platformFee,
+          savedBooking,
+          `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
+        );
+      }
+      if (discountAmount > 0) {
+        await this.walletService.recordPlatformExpense(
+          manager,
+          discountAmount,
+          savedBooking,
+          `Nền tảng chịu voucher cho booking ${savedBooking.bookingCode}`,
+        );
+      }
+    }
+
+    await this.finalizeStats(manager, savedBooking, tasker, actorUserId, {
+      oldStatus,
+      note,
+    });
+    return { booking: savedBooking, taskerEarning, platformFee };
+  }
+
+  /**
+   * Hybrid: đơn ví, phần gốc quyết toán qua escrow, phần phụ phí trả tiền mặt.
+   */
+  private async settleWalletBaseWithCashSurcharge(
+    manager: EntityManager,
+    booking: BookingEntity,
+    tasker: TaskerEntity,
+    subtotal: number,
+    cashSurcharge: number,
+    commissionRate: number,
+  ): Promise<void> {
+    const escrowSubtotal = Math.max(subtotal - cashSurcharge, 0);
+    const escrowFee = Math.round((escrowSubtotal * commissionRate) / 100);
+    const escrowEarning = Math.max(escrowSubtotal - escrowFee, 0);
+
+    // Phần gốc: trả công tasker từ ví SYSTEM (chỉ giữ phần gốc), hoa hồng gốc ở lại.
+    await this.bookingWalletPaymentService.settleOnCompletion(
+      manager,
+      booking,
+      escrowEarning,
+      escrowSubtotal,
+    );
+
+    // Phần phụ phí trả tiền mặt: tasker giữ tiền mặt, chỉ khấu trừ hoa hồng vào ví.
+    const cashFee = Math.round((cashSurcharge * commissionRate) / 100);
+    if (cashFee > 0) {
+      await this.taskerBalanceService.deductCashCommission(
+        manager,
+        tasker.id,
+        booking,
+        cashFee,
+      );
+      await this.walletService.recordPlatformIncome(
+        manager,
+        cashFee,
+        booking,
+        `Phí nền tảng phần phát sinh (tiền mặt) booking ${booking.bookingCode}`,
+      );
+    }
+  }
+
+  private async finalizeStats(
+    manager: EntityManager,
+    booking: BookingEntity,
+    tasker: TaskerEntity,
+    actorUserId: string,
+    meta: { oldStatus: BookingStatus; note: string },
+  ): Promise<void> {
+    await manager
+      .getRepository(TaskerEntity)
+      .increment({ id: tasker.id }, 'totalCompletedJobs', 1);
+    // Đơn offline/vãng lai không gắn customer → bỏ qua cộng totalBookings.
+    if (booking.customer) {
+      await manager
+        .getRepository(CustomerEntity)
+        .increment({ id: booking.customer.id }, 'totalBookings', 1);
+    }
+
+    const statusLog = manager.getRepository(BookingStatusLogEntity).create({
+      booking,
+      oldStatus: meta.oldStatus,
+      newStatus: BookingStatus.COMPLETED,
+      changedByUser: { id: actorUserId } as UserEntity,
+      note: meta.note,
+      cancellationFee: 0,
+      refundAmount: 0,
+    });
+    await manager.getRepository(BookingStatusLogEntity).save(statusLog);
+  }
+}

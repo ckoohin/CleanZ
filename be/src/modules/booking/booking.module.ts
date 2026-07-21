@@ -29,6 +29,8 @@ import { BookingCheckinService } from './services/booking-checkin.service';
 import { BookingCheckinProcessor } from './processors/booking-checkin.processor';
 import { TaskerCreateBookingService } from './services/tasker-create-booking.service';
 import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-customer-booking.service';
+import { BookingSettlementService } from './services/booking-settlement.service';
+import { CustomerConfirmCompletionService } from './services/customer-confirm-completion.service';
 
 @Module({
   imports: [
@@ -65,6 +67,8 @@ import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-c
     TaskerCreateBookingService,
     TaskerConfirmCustomerBookingService,
     BookingWalletPaymentService,
+    BookingSettlementService,
+    CustomerConfirmCompletionService,
   ],
   exports: [
     BookingLocationPolicyService,

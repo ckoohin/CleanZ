@@ -28,7 +28,6 @@ import { NotificationService } from 'src/modules/notification/notification.servi
 import { PaymentEntity } from 'src/modules/payment/entity/payment.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
-import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { BookingSubServiceEntity } from 'src/modules/booking/entity/booking-sub-service.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -37,6 +36,7 @@ import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
 import { BookingWalletPaymentService } from 'src/modules/booking/services/booking-wallet-payment.service';
+import { EARLY_CHECKOUT_ABNORMAL_MINUTES } from 'src/modules/booking/helpers/work-timing.helper';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
@@ -84,6 +84,11 @@ interface AdminBookingListRow {
   status: string;
   paymentStatus: string;
   paymentMethod: string;
+  checkedInAt: Date | null;
+  checkedOutAt: Date | null;
+  overtimeMinutes: string | number | null;
+  earlyMinutes: string | number | null;
+  waitingFee: string | number | null;
   createdAt: Date;
 }
 
@@ -679,6 +684,7 @@ export class AdminBookingRepository {
       serviceId,
       fromDate,
       toDate,
+      abnormalEarlyCheckout,
       page = 1,
       limit = 10,
     } = queryDto;
@@ -750,6 +756,11 @@ export class AdminBookingRepository {
     if (to) {
       query.andWhere('booking.createdAt <= :toDate').setParameter('toDate', to);
     }
+    if (abnormalEarlyCheckout) {
+      query
+        .andWhere('booking.earlyMinutes > :earlyThreshold')
+        .setParameter('earlyThreshold', EARLY_CHECKOUT_ABNORMAL_MINUTES);
+    }
 
     const statusCountRows = await query
       .clone()
@@ -806,6 +817,11 @@ export class AdminBookingRepository {
         'booking.status AS "status"',
         'booking.paymentStatus AS "paymentStatus"',
         'booking.paymentMethod AS "paymentMethod"',
+        'booking.checkedInAt AS "checkedInAt"',
+        'booking.checkedOutAt AS "checkedOutAt"',
+        'booking.overtimeMinutes AS "overtimeMinutes"',
+        'booking.earlyMinutes AS "earlyMinutes"',
+        'booking.waitingFee AS "waitingFee"',
         'booking.createdAt AS "createdAt"',
       ])
       .orderBy('booking.createdAt', 'DESC')
@@ -858,6 +874,15 @@ export class AdminBookingRepository {
         status: row.status,
         paymentStatus: row.paymentStatus,
         paymentMethod: row.paymentMethod,
+        workTiming: {
+          checkedInAt: row.checkedInAt ?? null,
+          checkedOutAt: row.checkedOutAt ?? null,
+          overtimeMinutes: Number(row.overtimeMinutes ?? 0),
+          earlyMinutes: Number(row.earlyMinutes ?? 0),
+          surchargeFee: Number(row.waitingFee ?? 0),
+          isEarlyAbnormal:
+            Number(row.earlyMinutes ?? 0) > EARLY_CHECKOUT_ABNORMAL_MINUTES,
+        },
         createdAt: row.createdAt,
       })),
       meta: {
@@ -1040,8 +1065,17 @@ export class AdminBookingRepository {
       operation: {
         acceptedAt,
         checkedInAt: booking.checkedInAt ?? null,
+        checkedOutAt: booking.checkedOutAt ?? null,
         completedAt: booking.completedAt ?? null,
         cancelledAt: booking.cancelledAt ?? null,
+        workTiming: {
+          overtimeMinutes: Number(booking.overtimeMinutes ?? 0),
+          earlyMinutes: Number(booking.earlyMinutes ?? 0),
+          surchargeFee: Number(booking.waitingFee ?? 0),
+          surchargePending: booking.surchargePending ?? false,
+          isEarlyAbnormal:
+            Number(booking.earlyMinutes ?? 0) > EARLY_CHECKOUT_ABNORMAL_MINUTES,
+        },
         timeline: timeline.map((log) => ({
           id: log.id,
           oldStatus: log.oldStatus ?? null,

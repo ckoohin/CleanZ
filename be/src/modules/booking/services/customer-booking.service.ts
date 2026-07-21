@@ -503,6 +503,15 @@ export class CustomerBookingService {
         note: booking.note,
         source: booking.source,
         confirmationDeadline: booking.confirmationDeadline ?? null,
+        checkedInAt: booking.checkedInAt ?? null,
+        checkedOutAt: booking.checkedOutAt ?? null,
+        completedAt: booking.completedAt ?? null,
+        workTiming: {
+          overtimeMinutes: toNumber(booking.overtimeMinutes),
+          earlyMinutes: toNumber(booking.earlyMinutes),
+          surchargeFee: toNumber(booking.waitingFee),
+          surchargePending: booking.surchargePending ?? false,
+        },
         createdAt: booking.createdAt,
         updatedAt: booking.updatedAt,
       };
@@ -675,6 +684,12 @@ export class CustomerBookingService {
                 totalCompletedJobs: toNumber(booking.tasker.totalCompletedJobs),
               }
             : null,
+          workTiming: {
+            overtimeMinutes: toNumber(booking.overtimeMinutes),
+            earlyMinutes: toNumber(booking.earlyMinutes),
+            surchargeFee: toNumber(booking.waitingFee),
+            surchargePending: booking.surchargePending ?? false,
+          },
           createdAt: booking.createdAt.toISOString(),
           updatedAt: booking.updatedAt.toISOString(),
         });

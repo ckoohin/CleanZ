@@ -257,9 +257,15 @@ export function useMarkComplete(bookingId: string) {
   return useMutation({
     mutationFn: () => taskerBookingApi.markComplete(bookingId),
     onSuccess: (data) => {
-      toast.success(
-        `Hoàn thành đơn ${data.bookingCode}! Thu nhập đã vào ví ✅`,
-      );
+      if (data.workTiming?.surchargePending) {
+        toast.success(
+          `Đã checkout đơn ${data.bookingCode}. Chờ khách xác nhận phần phát sinh thêm giờ ⏳`,
+        );
+      } else {
+        toast.success(
+          `Hoàn thành đơn ${data.bookingCode}! Thu nhập đã vào ví ✅`,
+        );
+      }
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });

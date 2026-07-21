@@ -216,6 +216,12 @@ export class BookingWalletPaymentService {
     manager: EntityManager,
     booking: BookingEntity,
     taskerEarning: number,
+    /**
+     * Với đơn ví trả phần phát sinh bằng tiền mặt (hybrid), ví SYSTEM chỉ giữ phần
+     * GỐC chứ không phải `totalPrice` (đã gồm phụ phí). Truyền subtotal phần ký quỹ
+     * để mô tả/hoa hồng tính đúng trên phần thực nằm ở SYSTEM.
+     */
+    escrowSubtotalOverride?: number,
   ): Promise<boolean> {
     if (!this.isWalletBooking(booking)) {
       return false;
@@ -237,8 +243,10 @@ export class BookingWalletPaymentService {
 
     const earning = Math.round(toNumber(taskerEarning));
     const settleSubtotal =
-      Math.round(toNumber(booking.totalPrice)) +
-      Math.round(toNumber(booking.discountAmount));
+      escrowSubtotalOverride !== undefined
+        ? Math.round(toNumber(escrowSubtotalOverride))
+        : Math.round(toNumber(booking.totalPrice)) +
+          Math.round(toNumber(booking.discountAmount));
     const settleFee = Math.max(settleSubtotal - earning, 0);
     if (earning > 0 && booking.tasker) {
       const systemWallet =

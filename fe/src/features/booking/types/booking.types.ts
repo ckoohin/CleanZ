@@ -84,6 +84,18 @@ export interface StatusLog {
   createdAt: string;
 }
 
+/** Thời gian làm việc thực tế: giờ phát sinh (thêm giờ) và checkout sớm. */
+export interface BookingWorkTiming {
+  /** Số phút phát sinh được tính tiền (làm tròn block 30p). */
+  overtimeMinutes: number;
+  /** Số phút kết thúc sớm so với thời lượng đặt. */
+  earlyMinutes: number;
+  /** Phí phần phát sinh (= waitingFee). */
+  surchargeFee: number;
+  /** Đã checkout, đang chờ khách xác nhận/thanh toán phần phát sinh. */
+  surchargePending: boolean;
+}
+
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
 export interface CreateBookingDto {
   packageId?: string; // ID ServicePackage (bắt buộc trên BE)
@@ -180,9 +192,11 @@ export interface CustomerBookingDetail {
   note?: string | null;
   source?: BookingSource;
   confirmationDeadline?: string | null;
+  workTiming?: BookingWorkTiming;
   createdAt: string;
   updatedAt: string;
   checkedInAt?: string | null;
+  checkedOutAt?: string | null;
   completedAt?: string | null;
 }
 
@@ -326,9 +340,11 @@ export interface TaskerAssignedBookingDetail {
   };
   note?: string | null;
   flags: { hasPet: boolean };
+  workTiming?: BookingWorkTiming;
   createdAt: string;
   updatedAt: string;
   checkedInAt?: string | null;
+  checkedOutAt?: string | null;
   completedAt?: string | null;
 }
 

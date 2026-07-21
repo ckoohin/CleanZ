@@ -1017,15 +1017,26 @@ function AssignedDetailView({
           color="primary"
         />
       )}
-      {data.status === "IN_PROGRESS" && (
-        <ActionButton
-          label="Hoàn thành công việc ✅"
-          icon={Flag}
-          onClick={() => setShowConfirmComplete(true)}
-          isPending={markComplete.isPending}
-          color="emerald"
-        />
-      )}
+      {data.status === "IN_PROGRESS" &&
+        (data.workTiming?.surchargePending ? (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center space-y-1">
+            <p className="text-sm font-bold text-amber-700">
+              Đã checkout — chờ khách xác nhận phát sinh
+            </p>
+            <p className="text-xs text-amber-600">
+              Phần phát sinh thêm giờ ({fmtCurrency(data.workTiming.surchargeFee)})
+              sẽ được thu sau khi khách xác nhận.
+            </p>
+          </div>
+        ) : (
+          <ActionButton
+            label="Hoàn thành công việc ✅"
+            icon={Flag}
+            onClick={() => setShowConfirmComplete(true)}
+            isPending={markComplete.isPending}
+            color="emerald"
+          />
+        ))}
       {data.status === "COMPLETED" && (
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />

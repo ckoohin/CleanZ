@@ -29,6 +29,7 @@ import {
 import {
   useBookingDetail,
   useCancelBooking,
+  useConfirmCompletion,
   useConfirmTaskerBooking,
   useDeclineTaskerBooking,
   useUpdateBookingSchedule,
@@ -250,6 +251,93 @@ function PendingConfirmationPanel({ booking }: { booking: CustomerBookingDetail 
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Panel xác nhận phần phát sinh (thêm giờ) ─────────────────────────────────
+function SurchargeConfirmationPanel({
+  booking,
+}: {
+  booking: CustomerBookingDetail;
+}) {
+  const confirm = useConfirmCompletion(booking.id);
+  const wt = booking.workTiming;
+  const isWallet = booking.payment.method === "WALLET";
+  const surcharge = wt?.surchargeFee ?? 0;
+  // Đơn ví: khách chọn hình thức trả phần phát sinh; đơn tiền mặt thanh toán tổng.
+  const [method, setMethod] = useState<"WALLET" | "CASH">("WALLET");
+
+  const overtimeLabel =
+    wt && wt.overtimeMinutes >= 60
+      ? `${Math.floor(wt.overtimeMinutes / 60)}h${
+          wt.overtimeMinutes % 60 ? ` ${wt.overtimeMinutes % 60}p` : ""
+        }`
+      : `${wt?.overtimeMinutes ?? 0} phút`;
+
+  return (
+    <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-5 shadow-sm space-y-3 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2">
+        <span className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-extrabold text-sm text-foreground">
+            Xác nhận phần phát sinh thêm giờ
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            Tasker đã làm thêm {overtimeLabel} so với thời lượng đặt
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between rounded-2xl bg-card/80 px-4 py-3">
+        <span className="text-xs text-muted-foreground">Phí phát sinh thêm giờ</span>
+        <span className="text-base font-black text-primary">
+          {fmtCurrency(surcharge)}
+        </span>
+      </div>
+
+      {isWallet && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setMethod("WALLET")}
+            className={`rounded-2xl border py-2.5 text-xs font-bold ${
+              method === "WALLET"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground"
+            }`}
+          >
+            Trừ vào ví
+          </button>
+          <button
+            type="button"
+            onClick={() => setMethod("CASH")}
+            className={`rounded-2xl border py-2.5 text-xs font-bold ${
+              method === "CASH"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground"
+            }`}
+          >
+            Tiền mặt
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={() => confirm.mutate(isWallet ? method : undefined)}
+        disabled={confirm.isPending}
+        className="w-full rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50"
+      >
+        {confirm.isPending ? (
+          <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+        ) : isWallet ? (
+          "Xác nhận & thanh toán phát sinh ✓"
+        ) : (
+          "Xác nhận & thanh toán tổng bằng tiền mặt ✓"
+        )}
+      </button>
     </div>
   );
 }
@@ -861,6 +949,11 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
         {booking.status === "PENDING_CUSTOMER_CONFIRMATION" && (
           <PendingConfirmationPanel booking={booking} />
         )}
+        {/* Panel xác nhận phần phát sinh thêm giờ (chờ khách xác nhận) */}
+        {booking.status === "IN_PROGRESS" &&
+          booking.workTiming?.surchargePending && (
+            <SurchargeConfirmationPanel booking={booking} />
+          )}
         {/* Banner Đặt lịch thành công */}
         {booking.status === "POSTED" && (
           <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">

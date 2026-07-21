@@ -33,6 +33,9 @@ export class BookingCheckinProcessor extends WorkerHost {
         case CHECKIN_JOB.AUTO_CHECKOUT:
           await this.checkinService.handleAutoCheckout(bookingId);
           break;
+        case CHECKIN_JOB.SURCHARGE_TIMEOUT:
+          await this.checkinService.handleSurchargeTimeout(bookingId);
+          break;
         default:
           this.logger.warn(`Job không xác định: ${job.name}`);
       }

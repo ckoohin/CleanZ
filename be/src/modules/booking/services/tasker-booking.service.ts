@@ -43,12 +43,17 @@ import {
   POSTED_LIST_OPEN_TO_ALL_AFTER_MS,
 } from './booking-dispatch.service';
 import { BookingCheckinService } from './booking-checkin.service';
+import { BookingSettlementService } from './booking-settlement.service';
+import { computeWorkTiming } from '../helpers/work-timing.helper';
 import type {
   CheckinAssessment,
   CheckinTimingPolicy,
 } from './booking-checkin.policy';
 
 const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
+
+/** Thời gian chờ khách xác nhận/thanh toán phần phát sinh trước khi auto hoàn thành giá gốc. */
+const SURCHARGE_CONFIRM_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 interface TaskerPostedBookingItem {
   id: string;
@@ -222,7 +227,14 @@ export interface TaskerAssignedBookingDetailResponse {
   createdAt: Date;
   updatedAt: Date;
   checkedInAt?: Date | null;
+  checkedOutAt?: Date | null;
   completedAt?: Date | null;
+  workTiming: {
+    overtimeMinutes: number;
+    earlyMinutes: number;
+    surchargeFee: number;
+    surchargePending: boolean;
+  };
 }
 
 interface TaskerLocationInput {
@@ -309,6 +321,7 @@ export class TaskerBookingService {
     private readonly vouchersService: VouchersService,
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly bookingCheckinService: BookingCheckinService,
+    private readonly bookingSettlementService: BookingSettlementService,
   ) {}
 
   private emitBookingNotification(
@@ -1039,7 +1052,7 @@ export class TaskerBookingService {
     bookingId: string,
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
-      const settlement = await this.dataSource.transaction(async (manager) => {
+      const outcome = await this.dataSource.transaction(async (manager) => {
         const tasker = await this.findTaskerProfile(userId);
         const bookingRepository = manager.getRepository(BookingEntity);
         const booking = await bookingRepository
@@ -1067,6 +1080,12 @@ export class TaskerBookingService {
           );
         }
 
+        if (booking.surchargePending) {
+          throw new BadRequestException(
+            'Đã checkout và đang chờ khách xác nhận phần phát sinh',
+          );
+        }
+
         if (
           booking.paymentMethod !== PaymentMethod.CASH &&
           booking.paymentStatus !== PaymentStatus.PAID
@@ -1076,133 +1095,156 @@ export class TaskerBookingService {
           );
         }
 
-        const completedAt = new Date();
-        const oldStatus = booking.status;
-        booking.status = BookingStatus.COMPLETED;
-        booking.completedAt = completedAt;
-        if (booking.paymentMethod === PaymentMethod.CASH) {
-          booking.paymentStatus = PaymentStatus.PAID;
-          await this.paymentService.markLatestPendingPaymentAsPaid(
-            manager,
-            booking.id,
-            completedAt,
-          );
-        }
-        await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
-        const savedBooking = await bookingRepository.save(booking);
-
-        // Voucher do nền tảng chịu: tasker nhận tiền tính trên subtotal (trước giảm giá)
-        const totalPrice = toNumber(savedBooking.totalPrice);
-        const discountAmount = toNumber(savedBooking.discountAmount);
-        const subtotal = totalPrice + discountAmount;
-        const commissionRate = await this.resolvePlatformCommissionRate(
-          manager,
-          savedBooking,
-        );
-        const platformFee = Math.round((subtotal * commissionRate) / 100);
-        const taskerEarning = Math.max(subtotal - platformFee, 0);
-
-        // Đơn trả bằng ví: tiền khách đã nằm sẵn ở ví SYSTEM từ lúc tạo đơn, nên
-        // chỉ cần chuyển phần công cho tasker. Hoa hồng (trừ đi voucher nền tảng
-        // chịu) tự động ở lại SYSTEM — không ghi thêm income/expense, nếu không sẽ
-        // cộng khống lần hai.
-        const settledFromWallet =
-          await this.bookingWalletPaymentService.settleOnCompletion(
-            manager,
-            savedBooking,
-            taskerEarning,
-          );
-
-        if (!settledFromWallet) {
-          if (savedBooking.paymentMethod === PaymentMethod.CASH) {
-            if (platformFee > 0) {
-              await this.taskerBalanceService.deductCashCommission(
-                manager,
-                tasker.id,
-                savedBooking,
-                platformFee,
-              );
-            }
-          } else {
-            const taskerWallet =
-              await this.walletService.getOrCreateTaskerWallet(manager, tasker);
-            await this.walletService.creditWallet(manager, {
-              wallet: taskerWallet,
-              amount: taskerEarning,
-              type: WalletTransactionType.TASKER_EARNING,
-              booking: savedBooking,
-              description:
-                `Thu nhập booking ${savedBooking.bookingCode}: ` +
-                `tổng công ${subtotal.toLocaleString('vi-VN')}đ − ` +
-                `chiết khấu nền tảng ${platformFee.toLocaleString('vi-VN')}đ`,
-            });
-          }
-          if (platformFee > 0) {
-            await this.walletService.recordPlatformIncome(
-              manager,
-              platformFee,
-              savedBooking,
-              `Phí nền tảng từ booking ${savedBooking.bookingCode}`,
-            );
-          }
-          // Ghi nhận chi phí voucher nền tảng chịu
-          if (discountAmount > 0) {
-            await this.walletService.recordPlatformExpense(
-              manager,
-              discountAmount,
-              savedBooking,
-              `Nền tảng chịu voucher cho booking ${savedBooking.bookingCode}`,
-            );
-          }
-        }
-
-        await manager
-          .getRepository(TaskerEntity)
-          .increment({ id: tasker.id }, 'totalCompletedJobs', 1);
-        // Đơn offline/vãng lai không gắn customer → bỏ qua cộng totalBookings.
-        if (savedBooking.customer) {
-          await manager
-            .getRepository(CustomerEntity)
-            .increment({ id: savedBooking.customer.id }, 'totalBookings', 1);
-        }
-
-        const statusLog = manager.getRepository(BookingStatusLogEntity).create({
-          booking: savedBooking,
-          oldStatus,
-          newStatus: BookingStatus.COMPLETED,
-          changedByUser: { id: userId } as UserEntity,
-          note: 'Tasker hoàn thành công việc',
-          cancellationFee: 0,
-          refundAmount: 0,
+        const checkoutAt = new Date();
+        const timing = computeWorkTiming({
+          checkedInAt: booking.checkedInAt,
+          checkoutAt,
+          durationHours: toNumber(booking.durationHours),
+          basePrice: toNumber(booking.basePrice),
         });
-        await manager.getRepository(BookingStatusLogEntity).save(statusLog);
 
-        return {
-          booking: savedBooking,
-          taskerEarning,
-          platformFee,
-        };
+        booking.checkedOutAt = checkoutAt;
+        booking.earlyMinutes = timing.earlyMinutes;
+        booking.overtimeMinutes = timing.billableOvertimeMinutes;
+
+        const hasCustomer = !!booking.customer;
+
+        // Có phát sinh và đơn gắn khách → hoãn hoàn thành, chờ khách xác nhận/
+        // thanh toán phần thêm (đơn vãng lai không có khách để xác nhận nên cộng
+        // thẳng vào tổng và hoàn thành ngay bên dưới).
+        if (timing.isOvertime && hasCustomer) {
+          booking.waitingFee = timing.overtimeFee;
+          booking.surchargePending = true;
+          booking.confirmationDeadline = new Date(
+            checkoutAt.getTime() + SURCHARGE_CONFIRM_WINDOW_MS,
+          );
+          const savedBooking = await bookingRepository.save(booking);
+
+          await manager.getRepository(BookingStatusLogEntity).save(
+            manager.getRepository(BookingStatusLogEntity).create({
+              booking: savedBooking,
+              oldStatus: BookingStatus.IN_PROGRESS,
+              newStatus: BookingStatus.IN_PROGRESS,
+              changedByUser: { id: userId } as UserEntity,
+              note:
+                `Tasker checkout — phát sinh ${timing.billableOvertimeMinutes} phút ` +
+                `(${timing.overtimeFee.toLocaleString('vi-VN')}đ), chờ khách xác nhận`,
+              cancellationFee: 0,
+              refundAmount: 0,
+            }),
+          );
+
+          await this.bookingCheckinService.scheduleSurchargeTimeout(
+            savedBooking.id,
+            SURCHARGE_CONFIRM_WINDOW_MS,
+          );
+
+          return {
+            mode: 'PENDING_SURCHARGE' as const,
+            booking: savedBooking,
+            timing,
+          };
+        }
+
+        // Đơn vãng lai có phát sinh → cộng thẳng phụ phí vào tổng (thu tiền mặt).
+        if (timing.isOvertime && !hasCustomer) {
+          booking.waitingFee = timing.overtimeFee;
+          booking.totalPrice =
+            toNumber(booking.totalPrice) + timing.overtimeFee;
+        }
+
+        const result =
+          await this.bookingSettlementService.settleCompletedBooking(manager, {
+            booking,
+            tasker,
+            actorUserId: userId,
+            note:
+              timing.earlyMinutes > 0
+                ? `Tasker hoàn thành (checkout sớm ${timing.earlyMinutes} phút)`
+                : 'Tasker hoàn thành công việc',
+          });
+
+        return { mode: 'COMPLETED' as const, booking: result.booking, timing };
       });
 
-      const completedAt =
-        settlement.booking.completedAt?.toISOString() ??
-        new Date().toISOString();
-      await this.trackingGateway.emitBookingCompleted(settlement.booking.id, {
-        bookingId: settlement.booking.id,
-        status: settlement.booking.status,
-        completedAt,
-        paymentStatus: settlement.booking.paymentStatus,
-      });
-      await this.emitCustomerBookingStatusChanged({
-        booking: settlement.booking,
-        previousStatus: BookingStatus.IN_PROGRESS,
-        changedAt: settlement.booking.completedAt ?? new Date(),
-        actorUserId: userId,
-      });
+      await this.emitCompletionNotifications(userId, outcome);
 
-      const service = await this.findServiceByBooking(settlement.booking);
-      return this.mapAssignedBookingDetail(settlement.booking, service, null);
+      const service = await this.findServiceByBooking(outcome.booking);
+      return this.mapAssignedBookingDetail(outcome.booking, service, null);
     }, 'Không thể hoàn thành booking');
+  }
+
+  /**
+   * Thông báo sau khi checkout: hoàn thành ngay, hoặc chờ khách xác nhận phụ phí;
+   * kèm cảnh báo checkout sớm cho tasker và ghi log đơn sớm bất thường cho admin.
+   */
+  private async emitCompletionNotifications(
+    actorUserId: string,
+    outcome: {
+      mode: 'COMPLETED' | 'PENDING_SURCHARGE';
+      booking: BookingEntity;
+      timing: ReturnType<typeof computeWorkTiming>;
+    },
+  ): Promise<void> {
+    const { booking, timing, mode } = outcome;
+    const taskerUserId = booking.tasker?.user?.id;
+    const customerUserId = booking.customer?.user?.id;
+
+    // Cảnh báo tasker khi checkout sớm hơn thời lượng đặt.
+    if (timing.earlyMinutes > 0) {
+      this.emitBookingNotification(
+        taskerUserId,
+        NotificationType.SYSTEM,
+        booking.id,
+        'Bạn đã checkout sớm',
+        `Bạn kết thúc sớm ${timing.earlyMinutes} phút so với thời lượng đặt của ` +
+          `booking #${booking.bookingCode}. Khách vẫn thanh toán theo giá đã đặt.`,
+        'early_checkout',
+      );
+      if (timing.isEarlyAbnormal) {
+        this.logger.warn(
+          `Booking ${booking.bookingCode} checkout sớm bất thường ${timing.earlyMinutes} phút — cần admin kiểm tra`,
+        );
+      }
+    }
+
+    if (mode === 'PENDING_SURCHARGE') {
+      this.emitBookingNotification(
+        customerUserId,
+        NotificationType.BOOKING_SURCHARGE_PENDING,
+        booking.id,
+        'Xác nhận phần phát sinh thêm giờ',
+        `Booking #${booking.bookingCode} phát sinh ${timing.billableOvertimeMinutes} phút ` +
+          `(${timing.overtimeFee.toLocaleString('vi-VN')}đ). Vui lòng xác nhận và ` +
+          `chọn hình thức thanh toán phần phát sinh.`,
+        'surcharge_pending',
+      );
+      this.emitBookingNotification(
+        taskerUserId,
+        NotificationType.SYSTEM,
+        booking.id,
+        'Chờ khách xác nhận phát sinh',
+        `Bạn đã checkout booking #${booking.bookingCode}. Đang chờ khách xác nhận ` +
+          `và thanh toán phần phát sinh ${timing.overtimeFee.toLocaleString('vi-VN')}đ.`,
+        'surcharge_pending_tasker',
+      );
+      return;
+    }
+
+    const completedAt =
+      booking.completedAt?.toISOString() ?? new Date().toISOString();
+    await this.trackingGateway.emitBookingCompleted(booking.id, {
+      bookingId: booking.id,
+      status: booking.status,
+      completedAt,
+      paymentStatus: booking.paymentStatus,
+    });
+    await this.emitCustomerBookingStatusChanged({
+      booking,
+      previousStatus: BookingStatus.IN_PROGRESS,
+      changedAt: booking.completedAt ?? new Date(),
+      actorUserId,
+    });
   }
 
   private async assertTaskerProfileExists(userId: string): Promise<void> {
@@ -1387,6 +1429,15 @@ export class TaskerBookingService {
       },
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
+      checkedInAt: booking.checkedInAt ?? null,
+      checkedOutAt: booking.checkedOutAt ?? null,
+      completedAt: booking.completedAt ?? null,
+      workTiming: {
+        overtimeMinutes: toNumber(booking.overtimeMinutes),
+        earlyMinutes: toNumber(booking.earlyMinutes),
+        surchargeFee: toNumber(booking.waitingFee),
+        surchargePending: booking.surchargePending ?? false,
+      },
     };
 
     if (!canContactCustomer) {

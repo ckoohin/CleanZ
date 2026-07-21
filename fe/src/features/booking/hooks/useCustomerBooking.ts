@@ -183,6 +183,25 @@ export function useDeclineTaskerBooking(bookingId: string) {
   });
 }
 
+/** Xác nhận hoàn thành + thanh toán phần phát sinh (thêm giờ) */
+export function useConfirmCompletion(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (surchargePaymentMethod?: "WALLET" | "CASH") =>
+      customerBookingApi.confirmCompletion(bookingId, surchargePaymentMethod),
+    onSuccess: () => {
+      toast.success("Đã xác nhận hoàn thành và thanh toán phần phát sinh ✅");
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.detail(bookingId) });
+      void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        getBookingErrorMessage(err, "Không thể xác nhận phần phát sinh"),
+      );
+    },
+  });
+}
+
 /** Cập nhật lịch/địa chỉ */
 export function useUpdateBookingSchedule(bookingId: string) {
   const qc = useQueryClient();

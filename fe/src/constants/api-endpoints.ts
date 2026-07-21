@@ -67,6 +67,9 @@ export const API_ENDPOINTS = {
       `/booking/customer/${id}/confirm-tasker-booking`,
     DECLINE_TASKER_BOOKING: (id: string) =>
       `/booking/customer/${id}/decline-tasker-booking`,
+    // Customer xác nhận hoàn thành + thanh toán phần phát sinh (thêm giờ)
+    CONFIRM_COMPLETION: (id: string) =>
+      `/booking/customer/${id}/confirm-completion`,
     // Tasker APIs
     TASKER_CREATE_FOR_CUSTOMER: "/booking/tasker/create-for-customer",
     TASKER_CUSTOMER_VOUCHERS_AVAILABLE:

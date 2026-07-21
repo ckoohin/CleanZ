@@ -1,4 +1,23 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Cấu hình mặc định, không đặt password → backend kết nối được ngay khi deploy.
+    # An toàn vì Redis KHÔNG publish ra host, chỉ nằm trong mạng nội bộ compose.
+    # Bật AOF để job BullMQ đang chờ (dispatch, check-in, timeout phụ phí,
+    # notification, mail) không mất khi container restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   backend:
     build:
       context: ./be
@@ -11,8 +30,30 @@ services:
       - 1.1.1.1
     environment:
       NODE_ENV: production
+      PORT: "5000"
+      # ─── Redis ────────────────────────────────────────────────────────────────
+      # Ghi đè be/.env: trong container "localhost" là chính backend, không phải
+      # Redis. REDIS_PASSWORD rỗng để không gửi AUTH (Redis đang chạy không auth) —
+      # nếu gửi AUTH tới Redis không đặt password sẽ lỗi.
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      # ─── Domain production ────────────────────────────────────────────────────
+      # FRONTEND_URL quyết định CORS HTTP (main.ts) và CORS WebSocket
+      # (ws-cors.helper.ts) → bắt buộc đúng domain FE, nếu không realtime bị chặn.
+      FRONTEND_URL: ${FRONTEND_URL:-https://cleanz.online}
+      BACKEND_URL: ${BACKEND_URL:-https://api.cleanz.online/api/v1}
+      # OAuth callback phải trùng tuyệt đối với cấu hình trên Google/Facebook console.
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-https://api.cleanz.online/api/v1/auth/google/callback}
+      FACEBOOK_CALLBACK_URL: ${FACEBOOK_CALLBACK_URL:-https://api.cleanz.online/api/v1/auth/facebook/callback}
+    depends_on:
+      redis:
+        condition: service_healthy
+    # TLS do proxy ngoài đảm nhiệm. Mặc định bind loopback (proxy chạy CÙNG server)
+    # để cổng HTTP trần không lộ ra Internet. Nếu proxy nằm ở máy khác, set
+    # BIND_HOST=0.0.0.0 trong .env ở thư mục gốc.
     ports:
-      - "5000:5000"
+      - "${BIND_HOST:-127.0.0.1}:5000:5000"
     healthcheck:
       test:
         [
@@ -31,15 +72,21 @@ services:
       context: ./fe
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api/v1}
-        NEXT_PUBLIC_CLIENT_URL: ${NEXT_PUBLIC_CLIENT_URL:-http://localhost:3020}
+        # NEXT_PUBLIC_* được nhúng lúc BUILD → phải là domain thật, đổi giá trị
+        # thì bắt buộc build lại image (không sửa được lúc runtime).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.cleanz.online/api/v1}
+        NEXT_PUBLIC_CLIENT_URL: ${NEXT_PUBLIC_CLIENT_URL:-https://cleanz.online}
         NEXT_PUBLIC_GOONG_API_KEY: ${NEXT_PUBLIC_GOONG_API_KEY:-}
         NEXT_PUBLIC_GOONG_MAPTILES_KEY: ${NEXT_PUBLIC_GOONG_MAPTILES_KEY:-}
     restart: unless-stopped
     environment:
       NODE_ENV: production
     ports:
-      - "3020:3020"
+      - "${BIND_HOST:-127.0.0.1}:3020:3020"
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  # Giữ AOF của Redis qua các lần restart/redeploy để không mất job đang chờ.
+  redis-data:

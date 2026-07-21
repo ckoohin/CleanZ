@@ -31,6 +31,8 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 
 COPY --from=builder --chown=node:node /usr/src/app/.next ./.next
 COPY --from=builder --chown=node:node /usr/src/app/public ./public
+# next start đọc config lúc runtime (images.remotePatterns cho Cloudinary/Goong...).
+COPY --from=builder --chown=node:node /usr/src/app/next.config.ts ./next.config.ts
 
 USER node
 EXPOSE 3020
