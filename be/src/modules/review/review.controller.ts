@@ -53,11 +53,13 @@ export class ReviewController {
     @Param('packageId', ParseUUIDPipe) packageId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('stars') stars?: string,
   ) {
     return this.reviewService.getPackageReviews(
       packageId,
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 10,
+      stars ? parseInt(stars) : undefined,
     );
   }
 

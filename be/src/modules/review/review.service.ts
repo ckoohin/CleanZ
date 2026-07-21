@@ -144,17 +144,29 @@ export class ReviewService {
 
   // ─── Package (public) ─────────────────────────────────────────────────────────
 
-  async getPackageReviews(packageId: string, page = 1, limit = 10) {
+  async getPackageReviews(
+    packageId: string,
+    page = 1,
+    limit = 10,
+    stars?: number,
+  ) {
     const skip = (page - 1) * limit;
 
-    const baseQb = () =>
-      this.reviewRepo
+    const baseQb = (applyStars = false) => {
+      const qb = this.reviewRepo
         .createQueryBuilder('r')
         .where('r.package_id = :packageId', { packageId })
         .andWhere('r.is_hidden = false');
 
+      if (applyStars && stars !== undefined && !isNaN(stars)) {
+        qb.andWhere('FLOOR(r.overall_rating)::int = :stars', { stars });
+      }
+
+      return qb;
+    };
+
     const [rawItems, total, aggResult, distribution] = await Promise.all([
-      baseQb()
+      baseQb(true)
         .leftJoin('customers', 'c', 'c.id = r.customer_id')
         .leftJoin('users', 'u', 'u.id = c.user_id')
         .select([
@@ -193,19 +205,21 @@ export class ReviewService {
           avatar: string | null;
         }>(),
 
-      baseQb().getCount(),
+      baseQb(true).getCount(),
 
-      baseQb()
+      baseQb(false)
         .select('AVG(r.overall_rating)', 'avg')
         .addSelect('COUNT(*)', 'count')
         .getRawOne<{ avg: string; count: string }>(),
 
-      baseQb()
+      baseQb(false)
         .select('FLOOR(r.overall_rating)::int', 'star')
         .addSelect('COUNT(*)', 'count')
         .groupBy('FLOOR(r.overall_rating)::int')
         .getRawMany<{ star: number; count: string }>(),
     ]);
+
+    const totalAll = parseInt(aggResult?.count ?? '0');
 
     return {
       items: rawItems.map((r) => ({
@@ -215,14 +229,14 @@ export class ReviewService {
       })),
       total,
       avgRating: parseFloat2(aggResult?.avg),
-      totalReviews: parseInt(aggResult?.count ?? '0'),
+      totalReviews: totalAll,
       distribution: [5, 4, 3, 2, 1].map((star) => {
         const found = distribution.find((d) => Number(d.star) === star);
         const count = found ? parseInt(found.count) : 0;
         return {
           stars: star,
           count,
-          pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+          pct: totalAll > 0 ? Math.round((count / totalAll) * 1000) / 10 : 0,
         };
       }),
     };
