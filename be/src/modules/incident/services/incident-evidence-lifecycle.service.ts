@@ -99,7 +99,7 @@ export class IncidentEvidenceLifecycleService {
       .update()
       .set({
         isSoftDeleted: true,
-        softDeletedAt: () => 'CURRENT_TIMESTAMP',
+        softDeletedAt: () => "(NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')",
         softDeletedBy: { id: deletedByUserId } as never,
         isActiveForResponse: false,
       })

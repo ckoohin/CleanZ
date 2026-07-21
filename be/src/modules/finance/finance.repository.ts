@@ -8,6 +8,7 @@ import { WalletTransactionListQueryDto } from '../wallet/dto/wallet-transaction-
 import { RevenueSummaryResponseDto } from './dto/revenue-summary-response.dto';
 import { WithdrawalListQueryDto } from './dto/with-drawal-list-query.dto';
 import { RevenueQueryDto } from './dto/revenue-query.dto';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 @Injectable()
 export class WalletRepository extends Repository<WalletEntity> {
@@ -250,7 +251,7 @@ export class WithdrawalRequestRepository extends Repository<WithdrawalRequestEnt
        FROM tasker_withdrawal_requests
        WHERE tasker_id = $1
          AND status IN ('PENDING','APPROVED','PROCESSED')
-         AND DATE_TRUNC('week', created_at) = DATE_TRUNC('week', NOW())`,
+         AND DATE_TRUNC('week', created_at) = DATE_TRUNC('week', ${VN_NOW_SQL})`,
       [taskerId],
     );
     return parseInt(result[0].count, 10);

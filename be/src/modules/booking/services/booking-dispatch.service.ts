@@ -4,7 +4,10 @@ import { Queue } from 'bullmq';
 import { DataSource } from 'typeorm';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
-import { vietnamWeekStartSqlExpr } from 'src/common/helpers/vietnam-time.helper';
+import {
+  VN_NOW_SQL,
+  vietnamWeekStartSqlExpr,
+} from 'src/common/helpers/vietnam-time.helper';
 
 export const BOOKING_DISPATCH_JOB = 'DISPATCH_NEAREST';
 export const DISPATCH_RING_TIMEOUT_MS = 15_000;
@@ -351,7 +354,7 @@ export class BookingDispatchService {
           AND t.status            = 'ACTIVE'
           AND (
             t.cancel_suspended_until IS NULL
-            OR t.cancel_suspended_until < NOW()
+            OR t.cancel_suspended_until < ${VN_NOW_SQL}
           )
           AND t.current_location  IS NOT NULL
           AND t.location_updated_at > NOW() - INTERVAL '${LOCATION_STALE_MINUTES} minutes'

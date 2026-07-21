@@ -13,6 +13,7 @@ import { CustomerEntity } from '../customer/entity/customer.entity';
 import { CustomerWithdrawalRequestEntity } from './entity/customer-withdrawal-request.entity';
 import { WalletEntity } from './entity/wallet.entity';
 import { WalletService } from './wallet.service';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import {
   CreateCustomerWithdrawalDto,
   ReviewCustomerWithdrawalDto,
@@ -52,7 +53,7 @@ export class CustomerWithdrawalService {
           ],
         })
         .andWhere(
-          `DATE_TRUNC('week', w.created_at) = DATE_TRUNC('week', NOW())`,
+          `DATE_TRUNC('week', w.created_at) = DATE_TRUNC('week', ${VN_NOW_SQL})`,
         )
         .getCount();
       if (weekly >= limits.maxPerWeek) {

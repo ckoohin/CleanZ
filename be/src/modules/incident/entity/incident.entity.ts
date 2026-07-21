@@ -367,7 +367,7 @@ export class IncidentEntity {
   @Column({
     name: 'reported_at',
     type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
+    default: () => "(NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')",
   })
   reportedAt!: Date;
 

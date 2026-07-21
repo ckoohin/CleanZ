@@ -2,6 +2,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    environment:
+      TZ: Asia/Ho_Chi_Minh
     # Cấu hình mặc định, không đặt password → backend kết nối được ngay khi deploy.
     # An toàn vì Redis KHÔNG publish ra host, chỉ nằm trong mạng nội bộ compose.
     # Bật AOF để job BullMQ đang chờ (dispatch, check-in, timeout phụ phí,
@@ -31,6 +33,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "5000"
+      TZ: Asia/Ho_Chi_Minh
       # ─── Redis ────────────────────────────────────────────────────────────────
       # Ghi đè be/.env: trong container "localhost" là chính backend, không phải
       # Redis. REDIS_PASSWORD rỗng để không gửi AUTH (Redis đang chạy không auth) —
@@ -81,6 +84,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      TZ: Asia/Ho_Chi_Minh
     ports:
       - "${BIND_HOST:-127.0.0.1}:3020:3020"
     depends_on:

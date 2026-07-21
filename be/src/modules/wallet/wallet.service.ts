@@ -23,6 +23,7 @@ import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
 import { SYSTEM_CONFIG_KEYS } from '../system-config/system-config.keys';
 import { SystemConfigService } from '../system-config/system-config.service';
 import type { TaskerEarningsPeriod } from './dto/tasker-earnings-breakdown-query.dto';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 interface WalletMutationInput {
   wallet: WalletEntity;
@@ -172,11 +173,13 @@ const localDateKey = (date: Date): string =>
 const localMonthKey = (date: Date): string =>
   `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}`;
 
-const databaseUtcTimestamp = (localTime: number): string =>
-  new Date(localTime - VIETNAM_UTC_OFFSET_MS)
-    .toISOString()
-    .slice(0, 23)
-    .replace('T', ' ');
+/**
+ * Biên truy vấn cho cột `timestamp` trong DB — nay lưu theo GIỜ VIỆT NAM
+ * (migration NormalizeTimestampsToVietnamTime) nên KHÔNG trừ offset nữa.
+ * `localTime` vốn đã là giờ VN được gói trong epoch UTC, nên lấy thẳng chữ số.
+ */
+const databaseVietnamTimestamp = (localTime: number): string =>
+  new Date(localTime).toISOString().slice(0, 23).replace('T', ' ');
 
 const utcIsoFromLocal = (localTime: number): string =>
   new Date(localTime - VIETNAM_UTC_OFFSET_MS).toISOString();
@@ -385,8 +388,8 @@ const buildEarningsWindow = (
   }
 
   return {
-    startAt: databaseUtcTimestamp(startLocal),
-    endAt: databaseUtcTimestamp(endLocal),
+    startAt: databaseVietnamTimestamp(startLocal),
+    endAt: databaseVietnamTimestamp(endLocal),
     availableFrom,
     availableTo,
     rangeStart: utcIsoFromLocal(startLocal),
@@ -401,12 +404,11 @@ const buildEarningsWindow = (
 };
 
 /**
- * `created_at` hiện lưu timestamp UTC không kèm timezone. Tạo mốc đầu kỳ theo
- * giờ Việt Nam rồi đổi về UTC để so sánh trực tiếp và vẫn dùng được index.
+ * `created_at` lưu theo GIỜ VIỆT NAM (migration NormalizeTimestampsToVietnamTime).
+ * Mốc đầu kỳ cũng tính theo giờ VN để so sánh trực tiếp và vẫn dùng được index.
  */
 const vietnamPeriodStartUtc = (period: CalendarPeriod): string =>
-  `(DATE_TRUNC('${period}', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') ` +
-  `AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'UTC'`;
+  `DATE_TRUNC('${period}', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')`;
 
 @Injectable()
 export class WalletService {
@@ -735,7 +737,7 @@ export class WalletService {
             ],
           })
           .andWhere(
-            `DATE_TRUNC('week', withdrawal.createdAt) = DATE_TRUNC('week', NOW())`,
+            `DATE_TRUNC('week', withdrawal.createdAt) = DATE_TRUNC('week', ${VN_NOW_SQL})`,
           )
           .getCount();
 

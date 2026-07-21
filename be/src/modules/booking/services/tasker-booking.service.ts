@@ -45,6 +45,7 @@ import {
 import { BookingCheckinService } from './booking-checkin.service';
 import { BookingSettlementService } from './booking-settlement.service';
 import { computeWorkTiming } from '../helpers/work-timing.helper';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import type {
   CheckinAssessment,
   CheckinTimingPolicy,
@@ -414,7 +415,7 @@ export class TaskerBookingService {
         .where('booking.status = :status', { status: BookingStatus.POSTED })
         .andWhere('tasker.id IS NULL')
         .andWhere(
-          `booking.createdAt <= NOW() - (:openToAllAfterSeconds || ' seconds')::interval`,
+          `booking.createdAt <= ${VN_NOW_SQL} - (:openToAllAfterSeconds || ' seconds')::interval`,
           { openToAllAfterSeconds: POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000 },
         )
         .orderBy('booking.scheduledStartDate', 'ASC')

@@ -25,6 +25,8 @@ WORKDIR /usr/src/app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3020
+# Giờ Việt Nam — container mặc định UTC sẽ làm lệch timestamp 7 tiếng.
+ENV TZ=Asia/Ho_Chi_Minh
 
 COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force

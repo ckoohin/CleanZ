@@ -64,7 +64,8 @@ export class IncidentDecisionResponseEntity {
   @Column({
     name: 'submitted_at',
     type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
+    // Giờ VN — xem migration NormalizeTimestampsToVietnamTime.
+    default: () => "(NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')",
   })
   submittedAt!: Date;
 

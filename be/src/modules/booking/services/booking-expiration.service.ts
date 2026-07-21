@@ -18,6 +18,7 @@ import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 export interface ExpireOverdueBookingsResponse {
   expiredCount: number;
@@ -203,7 +204,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
             status: BookingStatus.PENDING_CUSTOMER_CONFIRMATION,
           })
           .andWhere('booking.confirmation_deadline IS NOT NULL')
-          .andWhere('booking.confirmation_deadline < NOW()')
+          .andWhere(`booking.confirmation_deadline < ${VN_NOW_SQL}`)
           .take(100)
           .getMany();
 
