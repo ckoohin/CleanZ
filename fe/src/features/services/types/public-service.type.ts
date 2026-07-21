@@ -44,6 +44,8 @@ export interface PublicDuration {
   isPopular: boolean;
   suggestedArea: number | null;
   taskerCount: number;
+  priceMode?: "fixed" | "multiplier" | string | null;
+  fixedPrice?: number | null;
 }
 
 export interface PublicAddon {
@@ -84,6 +86,9 @@ export interface PublicService {
   pricing: PublicServicePricing | null;
   subServices: PublicSubService[];
   pricingMode?: string | null;
+  isPopular?: boolean;
+  hasPromo?: boolean;
+  createdAt?: string;
   baseHourlyRate?: number;
   premiumHourlyRate?: number;
   nightSurcharge?: number;
