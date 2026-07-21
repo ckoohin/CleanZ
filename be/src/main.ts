@@ -21,10 +21,16 @@ async function bootstrap() {
     'http://127.0.0.1:3020',
     'http://172.22.64.1:3020',
     'http://192.168.1.21:3020',
+    // Cho phép Swagger UI tự test API
+    `http://localhost:${port}`,
+    `http://127.0.0.1:${port}`,
   ].filter(Boolean) as string[];
 
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       if (!origin) {
         return callback(null, true);
       }
