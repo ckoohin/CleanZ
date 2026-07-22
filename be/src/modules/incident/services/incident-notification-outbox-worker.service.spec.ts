@@ -38,7 +38,8 @@ describe('IncidentNotificationOutboxWorkerService', () => {
       userId: 'user-1',
       type: NotificationType.INCIDENT_UPDATE,
       title: 'Đã ghi nhận bồi thường sự cố',
-      content: 'Khoản bồi thường 1.500.000đ cho sự cố (mã IC-1) đã được hoàn vào ví của bạn.',
+      content:
+        'Khoản bồi thường 1.500.000đ cho sự cố (mã IC-1) đã được hoàn vào ví của bạn.',
       referenceType: NotificationRefType.INCIDENT,
       referenceId: 'incident-1',
       dedupeKey: 'incident:1:compensation-recorded:user-1',

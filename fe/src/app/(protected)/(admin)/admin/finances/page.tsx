@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarDays,
   CreditCard,
+  ExternalLink,
   Eye,
   HandCoins,
   ListFilter,
@@ -13,6 +15,7 @@ import {
   PiggyBank,
   ReceiptText,
   Search,
+  Trophy,
   Undo2,
   Users,
   Wallet,
@@ -100,6 +103,7 @@ function walletOwnerName(transaction: WalletTransaction): string {
 }
 
 export default function AdminFinancesPage() {
+  const router = useRouter();
   const [selectedTransaction, setSelectedTransaction] =
     useState<WalletTransaction | null>(null);
   const [ownerTab, setOwnerTab] = useState<OwnerTab>("ALL");
@@ -436,6 +440,12 @@ export default function AdminFinancesPage() {
               label: "Xem giao dịch",
               icon: Eye,
               onClick: handleSelectCustomer,
+            },
+            {
+              type: "edit",
+              label: "Ví 360° Khách hàng",
+              icon: ExternalLink,
+              onClick: (cust) => router.push(`/admin/customers/${cust.customerId}`),
             },
           ]}
         />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -29,6 +30,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   CreditCard,
+  ExternalLink,
   History,
   LockKeyhole,
   Mail,
@@ -88,6 +90,7 @@ export function WalletDetailDrawer({
   open,
   onClose,
 }: Props) {
+  const router = useRouter();
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [adjustmentNote, setAdjustmentNote] = useState("");
@@ -194,14 +197,32 @@ export function WalletDetailDrawer({
                 />
               </div>
 
-              <Button
-                variant="outline"
-                className="w-full rounded-xl border-(--c-primary)/30 bg-(--c-card) text-(--c-primary-strong) hover:bg-(--c-primary-soft)"
-                onClick={() => setAdjustmentOpen(true)}
-              >
-                <SlidersHorizontal className="size-4 cursor-pointer" />
-                Điều chỉnh số dư
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-xl border-(--c-primary)/30 bg-(--c-card) text-(--c-primary-strong) hover:bg-(--c-primary-soft)"
+                  onClick={() => setAdjustmentOpen(true)}
+                >
+                  <SlidersHorizontal className="size-4 cursor-pointer mr-1" />
+                  Điều chỉnh số dư
+                </Button>
+
+                {wallet?.ownerType === "CUSTOMER" && wallet?.customer?.id && (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-(--c-line) bg-(--c-card) text-(--c-ink) hover:bg-(--c-card-2)"
+                    onClick={() => {
+                      if (wallet?.customer?.id) {
+                        onClose();
+                        router.push(`/admin/customers/${wallet.customer.id}`);
+                      }
+                    }}
+                  >
+                    <ExternalLink className="size-4 mr-1 text-(--c-primary-strong)" />
+                    Ví 360° Khách
+                  </Button>
+                )}
+              </div>
 
               <div>
                 <div className="mb-3 flex items-center justify-between">

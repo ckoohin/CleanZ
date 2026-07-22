@@ -26,6 +26,9 @@ import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
 import { User } from '../../users/entities/user.entity';
 import { TransactionFlowSummaryQueryDto } from '../dto/transaction-flow-summary-query.dto';
 import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
+import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+import { WalletTopupOrderEntity } from 'src/modules/wallet/entity/wallet-topup-order.entity';
+import { CustomerWithdrawalRequestEntity } from 'src/modules/wallet/entity/customer-withdrawal-request.entity';
 
 export interface CustomerSpendingItem {
   customerId: string;
@@ -326,5 +329,142 @@ export class FinanceService {
     });
     if (!wallet) throw new NotFoundException('WALLET_NOT_FOUND');
     return wallet;
+  }
+
+  async getCustomerWalletOverview(customerId: string) {
+    const customer = await this.dataSource
+      .getRepository(CustomerEntity)
+      .findOne({
+        where: { id: customerId },
+        relations: ['user'],
+      });
+
+    if (!customer) {
+      throw new NotFoundException('CUSTOMER_NOT_FOUND');
+    }
+
+    let wallet = await this.dataSource.getRepository(WalletEntity).findOne({
+      where: { customer: { id: customerId } },
+    });
+
+    if (!wallet) {
+      wallet = await this.walletService.getOrCreateCustomerWallet(
+        this.dataSource.manager,
+        customer,
+      );
+    }
+
+    const [stats] = await this.dataSource.query<
+      Array<{
+        totalSpent: string;
+        totalTopup: string;
+        totalRefunded: string;
+        topupCount: string;
+        withdrawalCount: string;
+        lastTransactionAt: Date | null;
+      }>
+    >(
+      `SELECT
+         COALESCE(SUM(b.total_price) FILTER (WHERE b.status = 'COMPLETED'), 0)::numeric AS "totalSpent",
+         COALESCE(SUM(wto.amount_vnd) FILTER (WHERE wto.status = 'COMPLETED'), 0)::numeric AS "totalTopup",
+         COALESCE(SUM(cwr.amount) FILTER (WHERE cwr.status = 'APPROVED'), 0)::numeric AS "totalRefunded",
+         COUNT(DISTINCT wto.id) FILTER (WHERE wto.status = 'COMPLETED')::int AS "topupCount",
+         COUNT(DISTINCT cwr.id)::int AS "withdrawalCount",
+         MAX(wt.created_at) AS "lastTransactionAt"
+       FROM customers c
+       LEFT JOIN bookings b ON b.customer_id = c.id
+       LEFT JOIN wallet_topup_orders wto ON wto.customer_id = c.id
+       LEFT JOIN customer_withdrawal_requests cwr ON cwr.customer_id = c.id
+       LEFT JOIN wallets w ON w.customer_id = c.id
+       LEFT JOIN wallet_transactions wt ON wt.wallet_id = w.id
+       WHERE c.id = $1
+       GROUP BY c.id`,
+      [customerId],
+    );
+
+    return {
+      customerId: customer.id,
+      customerName: customer.user?.fullName ?? 'N/A',
+      customerEmail: customer.user?.email ?? 'N/A',
+      customerPhone: customer.user?.phone ?? null,
+      avatarUrl: customer.user?.avatarUrl ?? null,
+      walletId: wallet.id,
+      balance: parseFloat(String(wallet.balance)),
+      holdBalance: parseFloat(String(wallet.holdBalance)),
+      totalSpent: stats ? parseFloat(stats.totalSpent) : 0,
+      totalTopupVnd: stats ? parseFloat(stats.totalTopup) : 0,
+      totalRefunded: stats ? parseFloat(stats.totalRefunded) : 0,
+      topupCount: stats ? parseInt(String(stats.topupCount), 10) : 0,
+      withdrawalCount: stats ? parseInt(String(stats.withdrawalCount), 10) : 0,
+      lastTransactionAt: stats?.lastTransactionAt ?? null,
+    };
+  }
+
+  async getCustomerWalletTransactions(
+    customerId: string,
+    query: WalletTransactionListQueryDto,
+  ) {
+    const wallet = await this.dataSource.getRepository(WalletEntity).findOne({
+      where: { customer: { id: customerId } },
+    });
+
+    if (!wallet) {
+      return {
+        items: [],
+        total: 0,
+        page: query.page ?? 1,
+        limit: query.limit ?? 10,
+        totalPages: 0,
+      };
+    }
+
+    return this.transactionRepo.findWithPagination({
+      ...query,
+      walletId: wallet.id,
+    });
+  }
+
+  async getCustomerTopups(customerId: string, page = 1, limit = 10) {
+    const take = Math.min(100, Math.max(1, limit));
+    const skip = (Math.max(1, page) - 1) * take;
+
+    const [items, total] = await this.dataSource
+      .getRepository(WalletTopupOrderEntity)
+      .findAndCount({
+        where: { customerId },
+        order: { createdAt: 'DESC' },
+        take,
+        skip,
+      });
+
+    return {
+      items,
+      total,
+      page: Math.max(1, page),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    };
+  }
+
+  async getCustomerWithdrawals(customerId: string, page = 1, limit = 10) {
+    const take = Math.min(100, Math.max(1, limit));
+    const skip = (Math.max(1, page) - 1) * take;
+
+    const [items, total] = await this.dataSource
+      .getRepository(CustomerWithdrawalRequestEntity)
+      .findAndCount({
+        where: { customerId },
+        order: { createdAt: 'DESC' },
+        take,
+        skip,
+      });
+
+    return {
+      items,
+      total,
+      page: Math.max(1, page),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    };
   }
 }

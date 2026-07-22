@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PublicServiceListQueryDto } from './dto/public-service-list-query.dto';
 import {
@@ -30,9 +39,7 @@ export class PublicServicesController {
   })
   @ApiBody({ type: CalculateCustomPriceDto })
   @ApiOkResponse({ type: CalculateCustomPriceResponseDto })
-  async calculateCustomPrice(
-    @Body() dto: CalculateCustomPriceDto,
-  ) {
+  async calculateCustomPrice(@Body() dto: CalculateCustomPriceDto) {
     const result = await this.servicePackagesService.calculateCustomPrice(dto);
     return successResponse(result, 'Tính giá dịch vụ tự chọn thành công');
   }

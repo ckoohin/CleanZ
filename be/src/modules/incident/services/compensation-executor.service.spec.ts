@@ -150,7 +150,9 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
       const walletService = {
         debitWallet: jest.fn().mockResolvedValue({}),
         creditWallet: jest.fn().mockResolvedValue({}),
-        getOrCreateCustomerWallet: jest.fn().mockResolvedValue({ id: 'cust-w' }),
+        getOrCreateCustomerWallet: jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-w' }),
         getOrCreateSystemWallet: jest
           .fn()
           .mockResolvedValue({ id: 'sys-w', balance: 5_000_000 }),
@@ -205,7 +207,9 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
       const walletService = {
         debitWallet: jest.fn().mockResolvedValue({}),
         creditWallet: jest.fn().mockResolvedValue({}),
-        getOrCreateCustomerWallet: jest.fn().mockResolvedValue({ id: 'cust-w' }),
+        getOrCreateCustomerWallet: jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-w' }),
         getOrCreateSystemWallet: jest
           .fn()
           .mockResolvedValue({ id: 'sys-w', balance: 100_000 }),
@@ -224,7 +228,10 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
       } as unknown as IncidentEntity;
 
       await expect(
-        svc.settleCompensation(manager, incident, { id: 'tk-w', balance: 1_000_000 }),
+        svc.settleCompensation(manager, incident, {
+          id: 'tk-w',
+          balance: 1_000_000,
+        }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
   });

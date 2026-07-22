@@ -95,6 +95,79 @@ export class FinanceController {
     );
   }
 
+  @Get('customers/:customerId/wallet-overview')
+  @ApiOperation({
+    summary:
+      'Get 360-degree wallet and financial overview for a specific customer',
+  })
+  async getCustomerWalletOverview(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+  ) {
+    const data =
+      await this.financeService.getCustomerWalletOverview(customerId);
+    return successResponse(data);
+  }
+
+  @Get('customers/:customerId/transactions')
+  @ApiOperation({ summary: 'Get wallet transactions for a specific customer' })
+  async getCustomerWalletTransactions(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Query() query: WalletTransactionListQueryDto,
+  ) {
+    const result = await this.financeService.getCustomerWalletTransactions(
+      customerId,
+      query,
+    );
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  @Get('customers/:customerId/topups')
+  @ApiOperation({ summary: 'Get PayPal topup orders for a specific customer' })
+  async getCustomerTopups(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.financeService.getCustomerTopups(
+      customerId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 10,
+    );
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  @Get('customers/:customerId/withdrawals')
+  @ApiOperation({
+    summary: 'Get customer withdrawal requests for a specific customer',
+  })
+  async getCustomerWithdrawals(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.financeService.getCustomerWithdrawals(
+      customerId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 10,
+    );
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
   @Post('transactions/adjustment')
   @ApiOperation({
     summary:
