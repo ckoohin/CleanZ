@@ -98,7 +98,7 @@ export function DashboardClient() {
       {isServiceReport ? (
         <ServicePackageReportsPage embedded />
       ) : (
-        <div className="grid grid-cols-12 items-start gap-5">
+        <div className="grid grid-cols-12 items-stretch gap-5">
           {CATEGORY_LAYOUT[category].map(({ id, span }) => (
             <div key={id} className={SPAN_CLASS[span]}>
               {WIDGET_MAP[id]}

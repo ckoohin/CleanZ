@@ -16,6 +16,7 @@ import {
   useAdminTaskerPenalties,
 } from "../hooks/admin-tasker.hooks";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
+import { TaskerEarningsPanel } from "./TaskerEarningsPanel";
 import { parseAdminNotes } from "./AdminRequestInfoModal";
 import {
   ACCOUNT_STATUS_LABELS,
@@ -43,7 +44,6 @@ import {
   Wallet,
   ZoomIn,
   ClipboardList,
-  Receipt,
   Construction,
   User,
   IdCard,
@@ -863,19 +863,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
 
         {/* ── Bảng lương ── */}
         <TabsContent value="payroll" className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard
-              icon={Receipt}
-              tone="amber"
-              value={detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0}
-              label="Số ca tính lương"
-            />
-          </div>
-          <ComingSoon
-            icon={Receipt}
-            title="Bảng lương theo kỳ"
-            description="Doanh thu gộp, phí nền tảng, thực nhận và phiếu lương từng kỳ sẽ hiển thị tại đây khi module tài chính (finance) được kết nối."
-          />
+          <TaskerEarningsPanel taskerId={detail.id} />
         </TabsContent>
       </Tabs>
 
