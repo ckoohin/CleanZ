@@ -132,12 +132,19 @@ export class FinanceController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
   ) {
-    const result = await this.financeService.getCustomerTopups(
-      customerId,
-      page ? Number(page) : 1,
-      limit ? Number(limit) : 10,
-    );
+    const result = await this.financeService.getCustomerTopups(customerId, {
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
+      search,
+      status,
+      fromDate,
+      toDate,
+    });
     return paginatedResponse(
       result.items,
       result.total,
@@ -166,6 +173,21 @@ export class FinanceController {
       result.page,
       result.limit,
     );
+  }
+
+  @Get('customers/:customerId/service-breakdown')
+  @ApiOperation({ summary: 'Get spending breakdown by service for a customer' })
+  async getCustomerServiceBreakdown(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const data = await this.financeService.getCustomerServiceBreakdown(
+      customerId,
+      from,
+      to,
+    );
+    return successResponse(data);
   }
 
   @Post('transactions/adjustment')
@@ -216,5 +238,14 @@ export class FinanceController {
   ) {
     const data = await this.financeService.reviewWithdrawal(id, dto);
     return successResponse(data, `Withdrawal ${dto.status.toLowerCase()}`);
+  }
+
+  @Get('transactions/:id/detail')
+  @ApiOperation({
+    summary: 'Get full transaction detail joined across all related tables',
+  })
+  async getTransactionDetail(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.financeService.getTransactionDetail(id);
+    return successResponse(data);
   }
 }

@@ -100,8 +100,13 @@ export const TaskerListTable: React.FC = () => {
       key: "fullName",
       title: "Đối tác",
       render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="relative w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0">
+        <button
+          type="button"
+          onClick={() => window.open(`/admin/taskers/${row.id}`, "_blank")}
+          className="flex items-center gap-3 text-left cursor-pointer group"
+          title="Mở chi tiết Tasker trong tab mới"
+        >
+          <div className="relative w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0 group-hover:ring-2 group-hover:ring-[var(--c-primary-strong)] transition-all">
             {row.avatarUrl ? (
               <img
                 src={row.avatarUrl}
@@ -120,12 +125,12 @@ export const TaskerListTable: React.FC = () => {
             )}
           </div>
           <div>
-            <p className="font-bold text-sm text-[var(--c-ink)]">
+            <p className="font-bold text-sm text-[var(--c-ink)] group-hover:text-[var(--c-primary-strong)] group-hover:underline transition-colors">
               {row.fullName || "Chưa cập nhật"}
             </p>
             <p className="text-xs text-[var(--c-muted)]">{row.phone || "—"}</p>
           </div>
-        </div>
+        </button>
       ),
     },
     {
@@ -206,7 +211,7 @@ export const TaskerListTable: React.FC = () => {
       type: "view",
       label: "Xem chi tiết",
       icon: Eye,
-      onClick: (row) => router.push(`/admin/taskers/${row.id}`),
+      onClick: (row) => window.open(`/admin/taskers/${row.id}`, "_blank"),
     },
     {
       type: "approve",

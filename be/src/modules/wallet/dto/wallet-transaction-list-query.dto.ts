@@ -39,4 +39,13 @@ export class WalletTransactionListQueryDto {
   @IsOptional()
   @IsDateString()
   toDate?: string;
+
+  @ApiPropertyOptional({ description: 'Tìm theo mã đơn hoặc mô tả' })
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: ['IN', 'OUT'], description: 'IN: Cộng tiền (+), OUT: Trừ tiền (-)' })
+  @IsOptional()
+  direction?: 'IN' | 'OUT';
 }
+

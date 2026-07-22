@@ -94,6 +94,8 @@ export interface WalletTransactionQuery {
   type?: WalletTransactionType;
   fromDate?: string;
   toDate?: string;
+  search?: string;
+  direction?: 'IN' | 'OUT';
 }
 
 export interface FinanceOverview {
@@ -177,6 +179,7 @@ export interface CustomerTopupOrder {
   id: string;
   customerId: string;
   walletId: string;
+  walletTxId?: string | null;
   provider: string;
   paypalOrderId?: string | null;
   status: "CREATED" | "COMPLETED" | "FAILED" | "CANCELLED" | "EXPIRED";
@@ -200,3 +203,71 @@ export interface CustomerWithdrawalRequest {
   createdAt: string;
 }
 
+export interface CustomerServiceBreakdownItem {
+  serviceId: string;
+  serviceName: string;
+  iconUrl?: string | null;
+  totalBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  totalSpent: number;
+  spendingPercent: number;
+  lastBookedAt?: string | null;
+}
+
+export interface WalletTransactionDetail {
+  id: string;
+  walletId: string;
+  bookingId?: string | null;
+  referenceId?: string | null;
+  referenceType?: string | null;
+  type: WalletTransactionType;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  description?: string | null;
+  createdAt: string;
+  customer?: {
+    id?: string | null;
+    fullName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  paypalTopup?: {
+    provider: string;
+    paypalOrderId?: string | null;
+    captureId?: string | null;
+    amountUsd?: number | null;
+    fxRate?: number | null;
+    status?: string | null;
+  } | null;
+  booking?: {
+    id: string;
+    bookingCode?: string | null;
+    status?: string | null;
+    serviceAddress?: string | null;
+    district?: string | null;
+    basePrice?: number;
+    addonPrice?: number;
+    peakFee?: number;
+    petFee?: number;
+    discountAmount?: number;
+    totalAmount: number;
+    paymentMethod?: string | null;
+    durationHours?: number | null;
+    note?: string | null;
+    source?: string | null;
+    scheduledStart?: string | null;
+    scheduledEnd?: string | null;
+    createdAt?: string | null;
+    package?: {
+      name?: string | null;
+      iconUrl?: string | null;
+    } | null;
+    tasker?: {
+      id?: string | null;
+      fullName?: string | null;
+      phone?: string | null;
+    } | null;
+  } | null;
+}

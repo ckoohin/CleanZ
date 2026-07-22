@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BaseTableList,
   type Column,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import {
   Building2,
+  ExternalLink,
   Eye,
   ListFilter,
   LockKeyhole,
@@ -65,6 +67,7 @@ const formatCurrency = (value: number | string | undefined) =>
   }).format(Number(value ?? 0));
 
 export function WalletManagement() {
+  const router = useRouter();
   const [filter, setFilter] = useState<{
     keyword: string;
     ownerType: OwnerFilter;
@@ -177,6 +180,14 @@ export function WalletManagement() {
       label: "Xem ví và giao dịch",
       icon: Eye,
       onClick: (wallet) => setSelectedId(wallet.id),
+    },
+    {
+      label: "Phân tích ví 360° khách hàng",
+      icon: ExternalLink,
+      hidden: (wallet) => wallet.ownerType !== "CUSTOMER",
+      onClick: (wallet) =>
+        router.push(`/admin/customers/${wallet.customer?.id}?tab=finance`),
+      separatorBefore: true,
     },
   ];
 

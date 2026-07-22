@@ -1,6 +1,7 @@
 import http from "@/lib/api/http";
 import type {
   AdminWallet,
+  CustomerServiceBreakdownItem,
   CustomerSpendingQuery,
   CustomerTopupOrder,
   CustomerWalletOverview,
@@ -14,6 +15,7 @@ import type {
   WalletAdjustmentPayload,
   WalletListQuery,
   WalletTransaction,
+  WalletTransactionDetail,
   WalletTransactionQuery,
 } from "../types/wallet.types";
 
@@ -77,7 +79,14 @@ export const walletAdminApi = {
 
   customerTopups: (
     customerId: string,
-    params?: { page?: number; limit?: number },
+    params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      fromDate?: string;
+      toDate?: string;
+    },
   ): Promise<{
     items: CustomerTopupOrder[];
     total: number;
@@ -102,5 +111,17 @@ export const walletAdminApi = {
     http
       .get(`${BASE}/customers/${customerId}/withdrawals`, { params })
       .then((response) => response.data.data),
-};
 
+  customerServiceBreakdown: (
+    customerId: string,
+    params?: { from?: string; to?: string },
+  ): Promise<CustomerServiceBreakdownItem[]> =>
+    http
+      .get(`${BASE}/customers/${customerId}/service-breakdown`, { params })
+      .then((response) => response.data.data),
+
+  transactionDetail: (id: string): Promise<WalletTransactionDetail> =>
+    http
+      .get(`${BASE}/transactions/${id}/detail`)
+      .then((response) => response.data.data),
+};

@@ -26,10 +26,23 @@ export const walletKeys = {
     [...walletKeys.all, "customer-overview", customerId] as const,
   customerTransactions: (customerId: string, params?: WalletTransactionQuery) =>
     [...walletKeys.all, "customer-transactions", customerId, params] as const,
-  customerTopups: (customerId: string, params?: { page?: number; limit?: number }) =>
-    [...walletKeys.all, "customer-topups", customerId, params] as const,
+  customerTopups: (
+    customerId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      fromDate?: string;
+      toDate?: string;
+    },
+  ) => [...walletKeys.all, "customer-topups", customerId, params] as const,
   customerWithdrawals: (customerId: string, params?: { page?: number; limit?: number }) =>
     [...walletKeys.all, "customer-withdrawals", customerId, params] as const,
+  customerServiceBreakdown: (customerId: string, params?: { from?: string; to?: string }) =>
+    [...walletKeys.all, "customer-service-breakdown", customerId, params] as const,
+  transactionDetail: (id: string) =>
+    [...walletKeys.all, "transaction-detail", id] as const,
 };
 
 export function useCustomerWalletOverview(customerId: string) {
@@ -54,7 +67,14 @@ export function useCustomerWalletTransactions(
 
 export function useCustomerTopups(
   customerId: string,
-  params?: { page?: number; limit?: number },
+  params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+  },
 ) {
   return useQuery({
     queryKey: walletKeys.customerTopups(customerId, params),
@@ -73,6 +93,26 @@ export function useCustomerWithdrawals(
     queryFn: () => walletAdminApi.customerWithdrawals(customerId, params),
     enabled: Boolean(customerId),
     placeholderData: (previous) => previous,
+  });
+}
+
+export function useCustomerServiceBreakdown(
+  customerId: string,
+  params?: { from?: string; to?: string },
+) {
+  return useQuery({
+    queryKey: walletKeys.customerServiceBreakdown(customerId, params),
+    queryFn: () => walletAdminApi.customerServiceBreakdown(customerId, params),
+    enabled: Boolean(customerId),
+    staleTime: 2 * 60 * 1000, // 2 phút
+  });
+}
+
+export function useAdminTransactionDetail(transactionId: string | null) {
+  return useQuery({
+    queryKey: walletKeys.transactionDetail(transactionId!),
+    queryFn: () => walletAdminApi.transactionDetail(transactionId!),
+    enabled: Boolean(transactionId),
   });
 }
 

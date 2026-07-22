@@ -54,6 +54,8 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
       type,
       fromDate,
       toDate,
+      search,
+      direction,
     } = query;
     const skip = (page - 1) * limit;
 
@@ -82,6 +84,21 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
       qb.andWhere('wt.createdAt <= :toDate', {
         toDate: new Date(toDate + 'T23:59:59'),
       });
+    if (search && search.trim()) {
+      qb.andWhere(
+        '(wt.description ILIKE :search OR booking.code ILIKE :search)',
+        { search: `%${search.trim()}%` },
+      );
+    }
+    if (direction === 'IN') {
+      qb.andWhere(
+        "(wt.type IN ('DEPOSIT', 'REFUND', 'DEPOSIT_RELEASE') OR (wt.type = 'ADJUSTMENT' AND wt.balanceAfter > wt.balanceBefore))",
+      );
+    } else if (direction === 'OUT') {
+      qb.andWhere(
+        "(wt.type IN ('PAYMENT', 'WITHDRAW', 'DEPOSIT_HOLD', 'DEPOSIT_DEDUCT', 'CANCELLATION_FEE', 'PLATFORM_FEE') OR (wt.type = 'ADJUSTMENT' AND wt.balanceAfter < wt.balanceBefore))",
+      );
+    }
 
     const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
