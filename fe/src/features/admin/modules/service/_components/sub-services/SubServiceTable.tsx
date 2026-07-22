@@ -2,7 +2,7 @@ import { useState } from "react";
 import Image from "next/image";
 import {
   Package, Eye, CheckCircle2, XCircle, Check, X, Clock, DollarSign, MapPin,
-  ChevronDown, Loader2, Pencil, Trash2, Shield, RefreshCw, Percent, FileText,
+  ChevronDown, Loader2, Pencil, Trash2, Shield, RefreshCw, FileText,
   Image as ImageIcon,
 } from "lucide-react";
 import { useDeleteAdminService } from "@/features/admin/modules/service/hooks/useAdminServices";
@@ -46,7 +46,6 @@ function ServiceRow({ svc, onViewDetail, onEdit, onDelete, onToggle, isToggling 
   const [expanded, setExpanded] = useState(false);
   const pt = PRICING_TYPE_LABELS[svc.pricingType] ?? { label: svc.pricingType, color: "bg-[var(--c-card-2)] text-[var(--c-muted)]" };
   const bp = svc.pricingConfig?.basePrice;
-  const commission = svc.pricingConfig?.platformCommissionRate ?? 20;
 
   return (
     <div className={cn(
@@ -93,10 +92,6 @@ function ServiceRow({ svc, onViewDetail, onEdit, onDelete, onToggle, isToggling 
             ) : (
               <span className="text-xs text-muted-foreground italic font-semibold">Chưa thiết lập giá</span>
             )}
-          </div>
-          <div className="md:mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground font-bold">
-            <Percent className="w-3 h-3 text-muted-foreground/70" />
-            <span>Platform Commission: {commission}%</span>
           </div>
         </div>
 
@@ -160,7 +155,6 @@ function ServiceRow({ svc, onViewDetail, onEdit, onDelete, onToggle, isToggling 
                   { label: "Giá cao điểm", value: svc.pricingConfig?.peakPrice ? vnd(svc.pricingConfig.peakPrice) : "Chưa thiết lập", highlight: false, color: "text-amber-600 font-bold" },
                   { label: "Phí thú cưng", value: svc.pricingConfig?.petFee ? vnd(svc.pricingConfig.petFee) : "—", highlight: false, color: "text-foreground font-semibold" },
                   { label: "Phí chờ đợi", value: svc.pricingConfig?.waitingFee ? `${vnd(svc.pricingConfig.waitingFee)}/15p` : "—", highlight: false, color: "text-foreground font-semibold" },
-                  { label: "Hoa hồng hệ thống", value: `${commission}%`, highlight: false, color: "text-foreground font-semibold" },
                   { label: "Đơn vị", value: svc.pricingConfig?.priceUnit || "VND", highlight: false, color: "text-muted-foreground font-semibold" },
                 ].map(f => (
                   <div key={f.label} className="bg-muted/30 border border-border/20 rounded-xl p-2.5">

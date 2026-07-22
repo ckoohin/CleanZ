@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AxiosError } from "axios";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 import { adminWorkflowService } from "../services/admin-workflow.service";
 import type {
   CreateWorkflowDto,
@@ -25,13 +25,7 @@ export const ADMIN_WORKFLOW_KEYS = {
 // ─── Error Helper ─────────────────────────────────────────────────────────────
 
 function getErrorMsg(error: unknown): string {
-  const axiosErr = error as AxiosError<{ message?: string; errors?: { message?: string } }>;
-  return (
-    axiosErr?.response?.data?.errors?.message ||
-    axiosErr?.response?.data?.message ||
-    axiosErr?.message ||
-    "Có lỗi xảy ra!"
-  );
+  return getApiErrorMessage(error);
 }
 
 // ─── Workflow Queries ─────────────────────────────────────────────────────────

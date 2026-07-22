@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -24,7 +24,6 @@ import {
 import { BaseButton } from "@/components/ui/base/base_button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -36,13 +35,22 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { toast } from "sonner"
 import { SystemConfigGroupCard } from "@/features/admin/modules/system-config/_components/SystemConfigGroupCard"
+import {
+  useSystemConfig,
+  useUpdateSystemConfig,
+} from "@/features/admin/modules/system-config/hooks/useSystemConfig"
+
+const PLATFORM_COMMISSION_RATE_KEY = "PLATFORM_COMMISSION_RATE_PERCENT"
 
 // Giả lập Schema cấu hình hệ thống
 const settingsSchema = z.object({
   // Tab 1: Tài chính
-  platformCommissionRate: z.number().min(0).max(100),
+  platformCommissionRate: z
+    .number({ error: "Vui lòng nhập hoa hồng nền tảng" })
+    .int({ error: "Hoa hồng nền tảng phải là số nguyên" })
+    .min(0, { error: "Hoa hồng nền tảng không được nhỏ hơn 0%" })
+    .max(100, { error: "Hoa hồng nền tảng không được lớn hơn 100%" }),
   minDeposit: z.number().min(0),
   vatRate: z.number().min(0).max(100),
   allowCashPayment: z.boolean(),
@@ -67,7 +75,8 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 export default function AdminSettingsPage() {
-  const [isSaving, setIsSaving] = useState(false);
+  const { data: systemConfig, isLoading: isLoadingSystemConfig } = useSystemConfig()
+  const updateSystemConfig = useUpdateSystemConfig()
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -92,13 +101,37 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const savedPlatformCommissionRate = systemConfig?.items.find(
+    (item) => item.key === PLATFORM_COMMISSION_RATE_KEY,
+  )?.value
+
+  useEffect(() => {
+    if (
+      savedPlatformCommissionRate === undefined ||
+      form.getFieldState("platformCommissionRate").isDirty
+    ) {
+      return
+    }
+
+    form.setValue("platformCommissionRate", savedPlatformCommissionRate, {
+      shouldDirty: false,
+      shouldValidate: true,
+    })
+  }, [form, savedPlatformCommissionRate])
+
   const onSubmit = async (values: SettingsFormValues) => {
-    setIsSaving(true);
-    // Giả lập API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("Saved Configs:", values);
-    toast.success("Đã lưu cấu hình hệ thống thành công!");
-    setIsSaving(false);
+    const updated = await updateSystemConfig.mutateAsync({
+      [PLATFORM_COMMISSION_RATE_KEY]: values.platformCommissionRate,
+    })
+    const platformCommissionRate = updated.items.find(
+      (item) => item.key === PLATFORM_COMMISSION_RATE_KEY,
+    )?.value
+
+    form.reset({
+      ...values,
+      platformCommissionRate:
+        platformCommissionRate ?? values.platformCommissionRate,
+    })
   };
 
   return (
@@ -116,10 +149,10 @@ export default function AdminSettingsPage() {
         <BaseButton 
           variant="primary" 
           onClick={form.handleSubmit(onSubmit)}
-          disabled={isSaving}
+          disabled={isLoadingSystemConfig || updateSystemConfig.isPending}
           className="rounded-xl shadow-lg shadow-primary/20 gap-2 h-11 px-6"
         >
-          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {updateSystemConfig.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           <span className="font-bold uppercase tracking-widest text-[10px]">Lưu thay đổi</span>
         </BaseButton>
       </div>
@@ -165,11 +198,21 @@ export default function AdminSettingsPage() {
                           <FormLabel className="text-xs font-bold uppercase text-[var(--c-muted)] tracking-wider">Hoa hồng nền tảng (%)</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Input type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} className="pl-10 rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)]" />
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={1}
+                                disabled={isLoadingSystemConfig || updateSystemConfig.isPending}
+                                {...field}
+                                onChange={e => field.onChange(e.target.valueAsNumber)}
+                                className="pl-10 rounded-xl bg-[var(--c-card-2)] border-[var(--c-line-strong)]"
+                              />
                               <Percent className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" />
                             </div>
                           </FormControl>
-                          <FormDescription className="text-[10px]">Phần trăm chiết khấu từ tổng thu nhập của Tasker.</FormDescription>
+                          <FormDescription className="text-[10px]">Mức hoa hồng chung áp dụng cho tất cả đơn hàng.</FormDescription>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />

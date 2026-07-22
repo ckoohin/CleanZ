@@ -11,16 +11,11 @@ import type {
   UpdateCustomerPayload,
 } from '../types/customer.types';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 /** Pull a human-friendly message off an axios error, falling back to a default. */
 const getErrorMessage = (error: unknown, fallback: string): string => {
-  const message = (error as { response?: { data?: { message?: unknown } } })?.response
-    ?.data?.message;
-  return Array.isArray(message)
-    ? String(message[0])
-    : typeof message === 'string'
-      ? message
-      : fallback;
+  return getApiErrorMessage(error, fallback);
 };
 
 export const adminCustomerKeys = {

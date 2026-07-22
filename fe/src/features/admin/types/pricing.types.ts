@@ -16,7 +16,6 @@ export interface CreatePricingConfigPayload {
   peakPrice?: number | null;
   petFee?: number;
   waitingFee?: number;
-  platformCommissionRate?: number;
   isActive?: boolean;
 }
 
@@ -26,7 +25,6 @@ export interface UpdatePricingConfigPayload {
   peakPrice?: number | null;
   petFee?: number;
   waitingFee?: number;
-  platformCommissionRate?: number;
   isActive?: boolean;
 }
 

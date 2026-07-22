@@ -40,7 +40,7 @@ export function useAdminCategories() {
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 export function useCreateCategory() {
   const queryClient = useQueryClient();
@@ -55,8 +55,7 @@ export function useCreateCategory() {
       queryClient.invalidateQueries({ queryKey: adminCategoriesKeys.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || "Có lỗi xảy ra khi tạo danh mục");
+      toast.error(getApiErrorMessage(error, "Không thể tạo danh mục"));
     },
   });
 }
@@ -74,8 +73,7 @@ export function useUpdateCategory() {
       queryClient.invalidateQueries({ queryKey: adminCategoriesKeys.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || "Có lỗi xảy ra khi cập nhật");
+      toast.error(getApiErrorMessage(error, "Không thể cập nhật danh mục"));
     },
   });
 }
@@ -92,8 +90,7 @@ export function useDeleteCategory() {
       queryClient.invalidateQueries({ queryKey: adminCategoriesKeys.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || "Có lỗi xảy ra khi xóa");
+      toast.error(getApiErrorMessage(error, "Không thể xóa danh mục"));
     },
   });
 }

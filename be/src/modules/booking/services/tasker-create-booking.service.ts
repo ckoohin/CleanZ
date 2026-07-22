@@ -40,7 +40,6 @@ import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
 const CONFIRMATION_DEADLINE_MINUTES = 15;
 const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
-const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
 
 export interface TaskerCreatedBookingResponse {
   id: string;
@@ -269,19 +268,8 @@ export class TaskerCreateBookingService {
             booking,
           );
           if (paymentMethod === PaymentMethod.CASH) {
-            const subServiceId = price.subServices[0]?.id;
-            let commissionRate = DEFAULT_PLATFORM_COMMISSION_RATE;
-            if (subServiceId) {
-              try {
-                commissionRate =
-                  await this.pricingService.getPlatformCommissionRateByServiceId(
-                    manager,
-                    subServiceId,
-                  );
-              } catch {
-                commissionRate = DEFAULT_PLATFORM_COMMISSION_RATE;
-              }
-            }
+            const commissionRate =
+              await this.pricingService.getPlatformCommissionRate(manager);
             const subtotal =
               toNumber(price.totalPrice) + toNumber(price.discountAmount);
             const platformFee = Math.round((subtotal * commissionRate) / 100);

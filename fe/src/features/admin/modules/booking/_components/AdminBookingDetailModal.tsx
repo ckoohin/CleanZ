@@ -26,6 +26,7 @@ import { useCancelAdminBooking } from "@/features/admin/modules/booking/hooks/us
 import { AssignTaskerDialog } from "@/features/admin/modules/booking/_components/AssignTaskerDialog";
 import { ChangeBookingStatusDialog } from "@/features/admin/modules/booking/_components/ChangeBookingStatusDialog";
 import { AdminBookingDetail, AdminBookingTimelineEntry } from "@/features/admin/modules/booking/types/booking.types";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 interface Props {
   open: boolean;
@@ -138,8 +139,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
           onOpenChange(false);
         },
         onError: (err: unknown) => {
-          const error = err as { response?: { data?: { message?: string } } };
-          toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi hủy đơn");
+          toast.error(getApiErrorMessage(err, "Không thể hủy đơn"));
         },
       }
     );
@@ -225,7 +225,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
                 <PriceRow label="Dịch vụ thêm" value={price.addonPrice} />
                 <PriceRow label="Phí cao điểm" value={price.peakFee} />
                 <PriceRow label="Phí thú cưng" value={price.petFee} />
-                <PriceRow label="Phí chờ" value={price.waitingFee} />
+                <PriceRow label="Phụ phí" value={price.waitingFee} />
                 {price.discountAmount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[var(--c-muted)]">Giảm giá voucher</span>

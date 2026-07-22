@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AxiosError } from 'axios';
 import {
   adminServicesApi,
   GetAdminServicesQuery,
@@ -11,6 +10,7 @@ import {
   AnalyticsFilter,
 } from '../services/admin-services.service';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 // ─── COVERAGE AREAS KEYS ─────────────────────────────────────────────────────
 export const ADMIN_COVERAGE_AREAS_KEYS = {
@@ -77,14 +77,8 @@ export const useUpdateAdminService = () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.detail(variables.id) });
     },
-    onError: (error: AxiosError<{ errors?: { message?: string } }>) => {
-      const msg = error?.response?.data?.errors?.message || error?.message || 'Có lỗi xảy ra!';
-      if (msg.includes('ACTIVE_BOOKINGS')) {
-        toast.error('Không thể tắt dịch vụ đang có đơn hàng chưa hoàn thành!');
-      } else {
-        toast.error('Cập nhật thất bại: ' + msg);
-      }
-    },
+    onError: (error: unknown) =>
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật dịch vụ.')),
   });
 };
 
@@ -97,14 +91,8 @@ export const useDeleteAdminService = () => {
       toast.success('Xóa dịch vụ con thành công!');
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.lists() });
     },
-    onError: (error: AxiosError<{ errors?: { message?: string } }>) => {
-      const msg = error?.response?.data?.errors?.message || error?.message || 'Có lỗi xảy ra!';
-      if (msg.includes('ACTIVE_BOOKINGS')) {
-        toast.error('Không thể xóa dịch vụ đang có đơn hàng chưa hoàn thành!');
-      } else {
-        toast.error('Xóa thất bại: ' + msg);
-      }
-    },
+    onError: (error: unknown) =>
+      toast.error(getApiErrorMessage(error, 'Không thể xóa dịch vụ.')),
   });
 };
 
@@ -230,8 +218,7 @@ export const useUpdateCoverageArea = () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_COVERAGE_AREAS_KEYS.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message?: string }>;
-      toast.error(err.response?.data?.message || 'Không thể cập nhật phí vận chuyển!');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật phí vận chuyển!'));
     },
   });
 };

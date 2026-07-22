@@ -1,4 +1,8 @@
 import {
+  isSurchargePending,
+  BookingSurchargeStatus,
+} from 'src/common/enums/booking-surcharge-status.enum';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -28,6 +32,7 @@ import { CancelBookingDto } from '../dto/cancel-booking.dto';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
+import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import {
   BookingPolicyService,
   CANCEL_SUSPENSION_DAYS,
@@ -42,19 +47,22 @@ import {
   BookingDispatchService,
   POSTED_LIST_OPEN_TO_ALL_AFTER_MS,
 } from './booking-dispatch.service';
-import { BookingCheckinService } from './booking-checkin.service';
+import {
+  BookingCheckinService,
+  OVERTIME_REQUEST_WINDOW_MS,
+  SURCHARGE_CONFIRM_WINDOW_MS,
+} from './booking-checkin.service';
+import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { BookingSettlementService } from './booking-settlement.service';
-import { computeWorkTiming } from '../helpers/work-timing.helper';
+import {
+  computeWorkTiming,
+  overtimeFeeForMinutes,
+} from '../helpers/work-timing.helper';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import type {
   CheckinAssessment,
   CheckinTimingPolicy,
 } from './booking-checkin.policy';
-
-const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
-
-/** Thời gian chờ khách xác nhận/thanh toán phần phát sinh trước khi auto hoàn thành giá gốc. */
-const SURCHARGE_CONFIRM_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 interface TaskerPostedBookingItem {
   id: string;
@@ -208,7 +216,14 @@ export interface TaskerAssignedBookingDetailResponse {
     addonPrice: number;
     peakFee: number;
     petFee: number;
+    /** Phụ phí phát sinh thêm giờ (đã cộng vào totalPrice sau khi khách xác nhận). */
+    waitingFee: number;
     discountAmount: number;
+    /** Giá trước voucher — nền tảng thu hoa hồng trên mức này. */
+    subtotal: number;
+    platformCommissionRate: number;
+    platformFee: number;
+    taskerIncome: number;
   };
   payment?: {
     method: string;
@@ -235,6 +250,17 @@ export interface TaskerAssignedBookingDetailResponse {
     earlyMinutes: number;
     surchargeFee: number;
     surchargePending: boolean;
+    surchargeStatus: BookingSurchargeStatus;
+    /** Số phút thêm giờ khách đã duyệt trước — thu chắc chắn, không cần xác nhận lại. */
+    approvedOvertimeMinutes: number;
+    platformAdvanceAmount: number;
+  };
+  /** Yêu cầu thêm giờ đang chờ / kết quả gần nhất. */
+  overtimeRequest: {
+    status: BookingOvertimeRequestStatus;
+    minutes: number;
+    fee: number;
+    respondBy: string | null;
   };
 }
 
@@ -472,7 +498,6 @@ export class TaskerBookingService {
       const service = await this.findServiceByBooking(booking);
       const platformCommissionRate = await this.resolvePlatformCommissionRate(
         this.dataSource.manager,
-        booking,
       );
       const totalPrice = toNumber(booking.totalPrice);
       const discountAmount = toNumber(booking.discountAmount);
@@ -558,10 +583,8 @@ export class TaskerBookingService {
         );
 
         if (booking.paymentMethod === PaymentMethod.CASH) {
-          const commissionRate = await this.resolvePlatformCommissionRate(
-            manager,
-            booking,
-          );
+          const commissionRate =
+            await this.resolvePlatformCommissionRate(manager);
           // Dùng subtotal (trước voucher) vì nền tảng thu phí trên giá gốc của tasker
           const subtotalForCommission =
             toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
@@ -710,12 +733,17 @@ export class TaskerBookingService {
       }
 
       const service = await this.findServiceByBooking(booking);
-      const distance = await this.calculateDistanceFromTaskerLocation(
-        booking,
-        location,
-        `assigned:${booking.id}:${tasker.id}`,
-      );
-      return this.mapAssignedBookingDetail(booking, service, distance);
+      const hasCurrentLocation =
+        Number.isFinite(location?.currentLatitude) &&
+        Number.isFinite(location?.currentLongitude);
+      const distance = hasCurrentLocation
+        ? await this.calculateDistanceFromTaskerLocation(
+            booking,
+            location,
+            `assigned:${booking.id}:${tasker.id}`,
+          )
+        : null;
+      return await this.mapAssignedBookingDetail(booking, service, distance);
     }, 'Không thể lấy chi tiết booking của tasker');
   }
 
@@ -752,7 +780,7 @@ export class TaskerBookingService {
       }
 
       const service = await this.findServiceByBooking(booking);
-      return this.mapAssignedBookingDetail(booking, service, null);
+      return await this.mapAssignedBookingDetail(booking, service, null);
     }, 'Không thể lấy booking đang hoạt động của tasker');
   }
 
@@ -900,7 +928,7 @@ export class TaskerBookingService {
         );
 
       const service = await this.findServiceByBooking(booking);
-      return this.mapAssignedBookingDetail(booking, service, null);
+      return await this.mapAssignedBookingDetail(booking, service, null);
     }, 'Không thể cập nhật trạng thái tasker đang tới');
   }
 
@@ -974,7 +1002,7 @@ export class TaskerBookingService {
 
       const service = await this.findServiceByBooking(booking);
       return {
-        ...this.mapAssignedBookingDetail(booking, service, null),
+        ...(await this.mapAssignedBookingDetail(booking, service, null)),
         checkinResult: result,
       };
     }, 'Không thể check-in booking');
@@ -1044,7 +1072,7 @@ export class TaskerBookingService {
       });
 
       const service = await this.findServiceByBooking(booking);
-      return this.mapAssignedBookingDetail(booking, service, null);
+      return await this.mapAssignedBookingDetail(booking, service, null);
     }, 'Không thể bắt đầu booking');
   }
 
@@ -1081,9 +1109,9 @@ export class TaskerBookingService {
           );
         }
 
-        if (booking.surchargePending) {
+        if (isSurchargePending(booking.surchargeStatus)) {
           throw new BadRequestException(
-            'Đã checkout và đang chờ khách xác nhận phần phát sinh',
+            'Đã checkout và đang chờ xác nhận phần phát sinh',
           );
         }
 
@@ -1110,12 +1138,60 @@ export class TaskerBookingService {
 
         const hasCustomer = !!booking.customer;
 
-        // Có phát sinh và đơn gắn khách → hoãn hoàn thành, chờ khách xác nhận/
-        // thanh toán phần thêm (đơn vãng lai không có khách để xác nhận nên cộng
-        // thẳng vào tổng và hoàn thành ngay bên dưới).
-        if (timing.isOvertime && hasCustomer) {
-          booking.waitingFee = timing.overtimeFee;
-          booking.surchargePending = true;
+        // Phần khách đã duyệt TRƯỚC là cam kết → thu chắc chắn, không hỏi lại.
+        // Chỉ phần vượt ngoài hạn mức đã duyệt mới phải chờ khách xác nhận.
+        const approvedMinutes = toNumber(booking.approvedOvertimeMinutes);
+        const coveredMinutes = Math.min(
+          timing.billableOvertimeMinutes,
+          approvedMinutes,
+        );
+        const excessMinutes = timing.billableOvertimeMinutes - coveredMinutes;
+
+        const durationHours = toNumber(booking.durationHours);
+        const basePrice = toNumber(booking.basePrice);
+        const coveredFee = overtimeFeeForMinutes(
+          coveredMinutes,
+          durationHours,
+          basePrice,
+        );
+        const excessFee = overtimeFeeForMinutes(
+          excessMinutes,
+          durationHours,
+          basePrice,
+        );
+
+        // Đơn ví đã bị giữ tiền cho toàn bộ phần duyệt trước; làm ít hơn thì hoàn lại.
+        if (
+          approvedMinutes > 0 &&
+          booking.paymentMethod === PaymentMethod.WALLET
+        ) {
+          const heldFee = overtimeFeeForMinutes(
+            approvedMinutes,
+            durationHours,
+            basePrice,
+          );
+          if (heldFee !== coveredFee) {
+            const previousTotalPrice = toNumber(booking.totalPrice);
+            booking.totalPrice = previousTotalPrice - heldFee + coveredFee;
+            await this.bookingWalletPaymentService.adjustEscrow(
+              manager,
+              booking,
+              previousTotalPrice,
+            );
+          }
+          booking.waitingFee = coveredFee;
+        } else if (coveredFee > 0) {
+          // Đơn tiền mặt có phần đã duyệt trước → cộng thẳng vào tổng phải thu.
+          booking.totalPrice = toNumber(booking.totalPrice) + coveredFee;
+          booking.waitingFee = coveredFee;
+        }
+
+        // Còn phần vượt ngoài hạn mức đã duyệt và đơn gắn khách → hoãn hoàn thành,
+        // chờ khách xác nhận/thanh toán (đơn vãng lai không có khách để xác nhận
+        // nên cộng thẳng vào tổng và hoàn thành ngay bên dưới).
+        if (excessMinutes > 0 && hasCustomer) {
+          booking.waitingFee = excessFee;
+          booking.surchargeStatus = BookingSurchargeStatus.PENDING_CUSTOMER;
           booking.confirmationDeadline = new Date(
             checkoutAt.getTime() + SURCHARGE_CONFIRM_WINDOW_MS,
           );
@@ -1129,7 +1205,8 @@ export class TaskerBookingService {
               changedByUser: { id: userId } as UserEntity,
               note:
                 `Tasker checkout — phát sinh ${timing.billableOvertimeMinutes} phút ` +
-                `(${timing.overtimeFee.toLocaleString('vi-VN')}đ), chờ khách xác nhận`,
+                `(đã duyệt trước ${coveredMinutes} phút), chờ khách xác nhận ` +
+                `${excessMinutes} phút = ${excessFee.toLocaleString('vi-VN')}đ`,
               cancellationFee: 0,
               refundAmount: 0,
             }),
@@ -1147,11 +1224,11 @@ export class TaskerBookingService {
           };
         }
 
-        // Đơn vãng lai có phát sinh → cộng thẳng phụ phí vào tổng (thu tiền mặt).
-        if (timing.isOvertime && !hasCustomer) {
-          booking.waitingFee = timing.overtimeFee;
-          booking.totalPrice =
-            toNumber(booking.totalPrice) + timing.overtimeFee;
+        // Đơn vãng lai có phát sinh → cộng thẳng phần chưa duyệt vào tổng (thu
+        // tiền mặt), vì không có tài khoản khách để chạy luồng xác nhận.
+        if (excessMinutes > 0 && !hasCustomer) {
+          booking.waitingFee = toNumber(booking.waitingFee) + excessFee;
+          booking.totalPrice = toNumber(booking.totalPrice) + excessFee;
         }
 
         const result =
@@ -1171,7 +1248,11 @@ export class TaskerBookingService {
       await this.emitCompletionNotifications(userId, outcome);
 
       const service = await this.findServiceByBooking(outcome.booking);
-      return this.mapAssignedBookingDetail(outcome.booking, service, null);
+      return await this.mapAssignedBookingDetail(
+        outcome.booking,
+        service,
+        null,
+      );
     }, 'Không thể hoàn thành booking');
   }
 
@@ -1389,7 +1470,7 @@ export class TaskerBookingService {
     return addressParts[0] ?? null;
   }
 
-  private mapAssignedBookingDetail(
+  private async mapAssignedBookingDetail(
     booking: BookingEntity,
     service: {
       id: string;
@@ -1397,10 +1478,11 @@ export class TaskerBookingService {
       description?: string | null;
     },
     distance: TaskerAssignedBookingDetailResponse['distance'],
-  ): TaskerAssignedBookingDetailResponse {
+  ): Promise<TaskerAssignedBookingDetailResponse> {
     const canContactCustomer = CUSTOMER_CONTACT_VISIBLE_STATUSES.includes(
       booking.status,
     );
+    const price = await this.buildTaskerPriceBreakdown(booking);
     const baseResponse = {
       id: booking.id,
       bookingCode: booking.bookingCode,
@@ -1417,13 +1499,12 @@ export class TaskerBookingService {
         scheduledEndTime: booking.scheduledEndTime,
         durationHours: toNumber(booking.durationHours),
       },
-      price: {
-        totalPrice: toNumber(booking.totalPrice),
-        basePrice: toNumber(booking.basePrice),
-        addonPrice: toNumber(booking.addonPrice),
-        peakFee: toNumber(booking.peakFee),
-        petFee: toNumber(booking.petFee),
-        discountAmount: toNumber(booking.discountAmount),
+      price,
+      // Thông tin tiền/thanh toán không phải PII → hiển thị ở mọi trạng thái,
+      // kể cả đơn đã hoàn thành (lúc này thông tin liên hệ khách bị ẩn).
+      payment: {
+        method: booking.paymentMethod,
+        status: booking.paymentStatus,
       },
       flags: {
         hasPet: booking.addressRef?.hasPet ?? false,
@@ -1437,7 +1518,23 @@ export class TaskerBookingService {
         overtimeMinutes: toNumber(booking.overtimeMinutes),
         earlyMinutes: toNumber(booking.earlyMinutes),
         surchargeFee: toNumber(booking.waitingFee),
-        surchargePending: booking.surchargePending ?? false,
+        surchargePending: isSurchargePending(booking.surchargeStatus),
+        surchargeStatus: booking.surchargeStatus,
+        approvedOvertimeMinutes: toNumber(booking.approvedOvertimeMinutes),
+        platformAdvanceAmount: toNumber(booking.platformAdvanceAmount),
+      },
+      overtimeRequest: {
+        status: booking.overtimeRequestStatus,
+        minutes: toNumber(booking.overtimeRequestMinutes),
+        fee: toNumber(booking.overtimeRequestFee),
+        respondBy:
+          booking.overtimeRequestStatus ===
+            BookingOvertimeRequestStatus.PENDING && booking.overtimeRequestedAt
+            ? new Date(
+                booking.overtimeRequestedAt.getTime() +
+                  OVERTIME_REQUEST_WINDOW_MS,
+              ).toISOString()
+            : null,
       },
     };
 
@@ -1472,10 +1569,6 @@ export class TaskerBookingService {
         buildingFloor: booking.addressRef?.buildingFloor ?? null,
         gate: booking.addressRef?.gate ?? null,
         driverNote: booking.addressRef?.driverNote ?? null,
-      },
-      payment: {
-        method: booking.paymentMethod,
-        status: booking.paymentStatus,
       },
       customer: {
         // Guest: lấy tên/SĐT từ thông tin lưu trên đơn để tasker liên hệ.
@@ -1629,27 +1722,48 @@ export class TaskerBookingService {
     };
   }
 
-  private async resolvePlatformCommissionRate(
-    manager: EntityManager,
+  /**
+   * Bảng kê tiền tasker nhìn thấy trên đơn đã nhận/đã hoàn thành.
+   * Hoa hồng tính trên subtotal (trước voucher) — khớp với BookingSettlementService.
+   */
+  private async buildTaskerPriceBreakdown(
     booking: BookingEntity,
-  ): Promise<number> {
-    const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-    if (!subServiceId) {
-      return DEFAULT_PLATFORM_COMMISSION_RATE;
+  ): Promise<TaskerAssignedBookingDetailResponse['price']> {
+    // Nhiều query chi tiết không join bookingSubServices — load bù để lấy đúng
+    // mức hoa hồng thay vì rơi về mặc định.
+    if (!booking.bookingSubServices) {
+      booking.bookingSubServices = await this.dataSource
+        .getRepository(BookingSubServiceEntity)
+        .find({ where: { bookingId: booking.id } });
     }
 
-    try {
-      return await this.pricingService.getPlatformCommissionRateByServiceId(
-        manager,
-        subServiceId,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Cannot resolve sub-service commission for booking ${booking.id}, fallback ${DEFAULT_PLATFORM_COMMISSION_RATE}%`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      return DEFAULT_PLATFORM_COMMISSION_RATE;
-    }
+    const platformCommissionRate = await this.resolvePlatformCommissionRate(
+      this.dataSource.manager,
+    );
+    const totalPrice = toNumber(booking.totalPrice);
+    const discountAmount = toNumber(booking.discountAmount);
+    const subtotal = totalPrice + discountAmount;
+    const platformFee = Math.round((subtotal * platformCommissionRate) / 100);
+
+    return {
+      totalPrice,
+      basePrice: toNumber(booking.basePrice),
+      addonPrice: toNumber(booking.addonPrice),
+      peakFee: toNumber(booking.peakFee),
+      petFee: toNumber(booking.petFee),
+      waitingFee: toNumber(booking.waitingFee),
+      discountAmount,
+      subtotal,
+      platformCommissionRate,
+      platformFee,
+      taskerIncome: Math.max(subtotal - platformFee, 0),
+    };
+  }
+
+  private async resolvePlatformCommissionRate(
+    manager: EntityManager,
+  ): Promise<number> {
+    return this.pricingService.getPlatformCommissionRate(manager);
   }
 
   async cancelByTasker(

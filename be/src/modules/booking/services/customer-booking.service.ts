@@ -1,3 +1,6 @@
+import { isSurchargePending } from 'src/common/enums/booking-surcharge-status.enum';
+import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
+import { OVERTIME_REQUEST_WINDOW_MS } from './booking-checkin.service';
 import {
   BadRequestException,
   GoneException,
@@ -232,6 +235,14 @@ export class CustomerBookingService {
         const bookingCode =
           await this.generateUniqueBookingCode(bookingRepository);
         const paymentMethod = dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD;
+
+        // Khách từng nhiều lần không trả phần phát sinh → buộc trả trước bằng ví.
+        if (paymentMethod === PaymentMethod.CASH) {
+          await this.bookingPolicyService.assertCanUseCashPayment(
+            manager,
+            context.customer.id,
+          );
+        }
         const booking = bookingRepository.create({
           bookingCode,
           customer: context.customer,
@@ -510,7 +521,23 @@ export class CustomerBookingService {
           overtimeMinutes: toNumber(booking.overtimeMinutes),
           earlyMinutes: toNumber(booking.earlyMinutes),
           surchargeFee: toNumber(booking.waitingFee),
-          surchargePending: booking.surchargePending ?? false,
+          surchargePending: isSurchargePending(booking.surchargeStatus),
+          surchargeStatus: booking.surchargeStatus,
+          approvedOvertimeMinutes: toNumber(booking.approvedOvertimeMinutes),
+        },
+        overtimeRequest: {
+          status: booking.overtimeRequestStatus,
+          minutes: toNumber(booking.overtimeRequestMinutes),
+          fee: toNumber(booking.overtimeRequestFee),
+          respondBy:
+            booking.overtimeRequestStatus ===
+              BookingOvertimeRequestStatus.PENDING &&
+            booking.overtimeRequestedAt
+              ? new Date(
+                  booking.overtimeRequestedAt.getTime() +
+                    OVERTIME_REQUEST_WINDOW_MS,
+                ).toISOString()
+              : null,
         },
         createdAt: booking.createdAt,
         updatedAt: booking.updatedAt,
@@ -688,7 +715,8 @@ export class CustomerBookingService {
             overtimeMinutes: toNumber(booking.overtimeMinutes),
             earlyMinutes: toNumber(booking.earlyMinutes),
             surchargeFee: toNumber(booking.waitingFee),
-            surchargePending: booking.surchargePending ?? false,
+            surchargePending: isSurchargePending(booking.surchargeStatus),
+            surchargeStatus: booking.surchargeStatus,
           },
           createdAt: booking.createdAt.toISOString(),
           updatedAt: booking.updatedAt.toISOString(),

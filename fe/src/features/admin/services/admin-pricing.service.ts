@@ -34,7 +34,6 @@ export interface CreatePricingConfigDto {
   petFee?: number;
   waitingFee?: number;
   priceUnit?: string;
-  platformCommissionRate?: number;
   isActive?: boolean;
 }
 

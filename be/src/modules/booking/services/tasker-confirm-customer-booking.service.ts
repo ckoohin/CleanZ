@@ -22,8 +22,6 @@ import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingPolicyService } from './booking-policy.service';
 
-const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
-
 @Injectable()
 export class TaskerConfirmCustomerBookingService {
   private readonly logger = new Logger(
@@ -105,10 +103,8 @@ export class TaskerConfirmCustomerBookingService {
 
         // Check deposit nếu thanh toán CASH
         if (booking.paymentMethod === PaymentMethod.CASH) {
-          const commissionRate = await this.resolvePlatformCommissionRate(
-            manager,
-            booking,
-          );
+          const commissionRate =
+            await this.resolvePlatformCommissionRate(manager);
           const subtotal =
             toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
           const platformFee = Math.round((subtotal * commissionRate) / 100);
@@ -267,18 +263,7 @@ export class TaskerConfirmCustomerBookingService {
 
   private async resolvePlatformCommissionRate(
     manager: EntityManager,
-    booking: BookingEntity,
   ): Promise<number> {
-    const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-    if (!subServiceId) return DEFAULT_PLATFORM_COMMISSION_RATE;
-
-    try {
-      return await this.pricingService.getPlatformCommissionRateByServiceId(
-        manager,
-        subServiceId,
-      );
-    } catch {
-      return DEFAULT_PLATFORM_COMMISSION_RATE;
-    }
+    return this.pricingService.getPlatformCommissionRate(manager);
   }
 }

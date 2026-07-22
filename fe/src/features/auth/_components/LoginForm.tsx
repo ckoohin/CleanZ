@@ -15,12 +15,9 @@ import { useForm } from "react-hook-form";
 import { useLogin } from "@/features/auth/hooks/auth.hooks";
 import { useRouter } from "next/navigation";
 import { LoginValues } from "@/features/auth/types/auth.type";
-import { log } from "console";
-import { toast, Toaster } from "sonner"
 
 export default function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
     const [focusedField, setFocusedField] = useState<string | null>(null);
 
     const login = useLogin();
@@ -39,22 +36,14 @@ export default function LoginForm() {
     });
 
     const onSubmit = async (value: LoginValues) => {
-        console.log(1);
-        
         try {
-            console.log(`valueLogin: `, value);
-            const data = await login.mutateAsync({
+            await login.mutateAsync({
                 email: value.email,
                 password: value.password,
             });
-            console.log(`data: `, data);
-            
             router.replace("/");
-        } catch (err: any) {
-            console.log("Login failed", err.response.data.message);
-            toast.error(`${err.response.data.message.message}`, {
-                position: "top-right",
-            })
+        } catch {
+            // useLogin là lớp duy nhất hiển thị lỗi đăng nhập.
         }
     };
 

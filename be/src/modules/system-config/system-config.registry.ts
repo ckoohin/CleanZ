@@ -5,7 +5,12 @@ import { SYSTEM_CONFIG_KEYS } from './system-config.keys';
  * Thêm setting mới = thêm 1 dòng ở đây (controller/validate/FE tự ăn theo).
  * Key không nằm trong registry sẽ bị từ chối khi admin cập nhật.
  */
-export type SystemConfigGroup = 'TOPUP' | 'WITHDRAWAL' | 'TASKER' | 'DISPATCH';
+export type SystemConfigGroup =
+  | 'FINANCE'
+  | 'TOPUP'
+  | 'WITHDRAWAL'
+  | 'TASKER'
+  | 'DISPATCH';
 
 export interface SystemConfigDefinition {
   key: string;
@@ -20,6 +25,7 @@ export interface SystemConfigDefinition {
 }
 
 export const SYSTEM_CONFIG_GROUP_LABELS: Record<SystemConfigGroup, string> = {
+  FINANCE: 'Chiết khấu và thuế',
   TOPUP: 'Nạp tiền vào ví',
   WITHDRAWAL: 'Rút tiền khỏi ví',
   TASKER: 'Điều kiện nhận đơn của Tasker',
@@ -27,6 +33,17 @@ export const SYSTEM_CONFIG_GROUP_LABELS: Record<SystemConfigGroup, string> = {
 };
 
 export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
+  {
+    key: SYSTEM_CONFIG_KEYS.PLATFORM_COMMISSION_RATE_PERCENT,
+    group: 'FINANCE',
+    label: 'Hoa hồng nền tảng',
+    description:
+      'Phần trăm nền tảng khấu trừ trên giá trị đơn trước khi áp dụng voucher.',
+    unit: '%',
+    defaultValue: 20,
+    min: 0,
+    max: 100,
+  },
   {
     key: SYSTEM_CONFIG_KEYS.TOPUP_VND_PER_USD,
     group: 'TOPUP',

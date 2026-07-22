@@ -57,7 +57,6 @@ export function RegisterProvider({ children }: { children: React.ReactNode }) {
         }
     };
     const onSubmit = async () => {
-        console.log('Form submitted:', formData);
         if (isPending) return
 
         try {
@@ -77,8 +76,8 @@ export function RegisterProvider({ children }: { children: React.ReactNode }) {
 
             router.push(`/verify-email-notice`)
 
-        } catch (error) {
-            console.error("Register error:", error);
+        } catch {
+            // Hook đăng ký chịu trách nhiệm hiển thị lỗi đã được chuẩn hóa.
         } finally {
             setIsPending(false)
         }

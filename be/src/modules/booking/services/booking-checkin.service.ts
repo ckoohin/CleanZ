@@ -13,6 +13,12 @@ import { BookingSettlementService } from './booking-settlement.service';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
+import { PaymentMethod } from 'src/common/enums/payment-method.enum';
+import {
+  BookingSurchargeStatus,
+  isSurchargePending,
+} from 'src/common/enums/booking-surcharge-status.enum';
+import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -35,7 +41,24 @@ export const CHECKIN_JOB = {
   AUTO_CANCEL: 'booking:checkin-auto-cancel',
   AUTO_CHECKOUT: 'booking:auto-checkout',
   SURCHARGE_TIMEOUT: 'booking:surcharge-timeout',
+  SURCHARGE_RECEIPT_TIMEOUT: 'booking:surcharge-receipt-timeout',
+  OVERTIME_REQUEST_TIMEOUT: 'booking:overtime-request-timeout',
 } as const;
+
+/**
+ * Chờ khách xác nhận phần phát sinh — ngắn để tasker còn tại chỗ, còn khả năng
+ * trao đổi trực tiếp và thu tiền mặt.
+ */
+export const SURCHARGE_CONFIRM_WINDOW_MS = 30 * 60_000;
+
+/**
+ * Lưới an toàn chống đơn kẹt khi tasker quên bấm "đã nhận tiền". Khách đã đồng ý
+ * trả nên hết hạn thì mặc định coi như đã thu đủ.
+ */
+export const SURCHARGE_RECEIPT_WINDOW_MS = 12 * 60 * 60_000;
+
+/** Chờ khách duyệt yêu cầu thêm giờ — phải đủ ngắn để tasker kịp checkout đúng giờ. */
+export const OVERTIME_REQUEST_WINDOW_MS = 20 * 60_000;
 
 // Cửa sổ thời gian (phút)
 const CHECKIN_OPEN_BEFORE_MINUTES = 3000; // mở từ T-30
@@ -48,6 +71,9 @@ const WARN_NO_SHOW = 3; // không check-in
 
 export interface CheckinJobData {
   bookingId: string;
+}
+function checkinJobId(bookingId: string, kind: string): string {
+  return `${bookingId}-${kind}`;
 }
 
 @Injectable()
@@ -72,7 +98,7 @@ export class BookingCheckinService {
       { bookingId },
       {
         delay: Math.max(delayMs, 0),
-        jobId: `${bookingId}:surcharge-timeout`,
+        jobId: checkinJobId(bookingId, 'surcharge-timeout'),
         removeOnComplete: true,
         removeOnFail: false,
       },
@@ -81,7 +107,47 @@ export class BookingCheckinService {
 
   async cancelSurchargeTimeout(bookingId: string): Promise<void> {
     await this.checkinQueue
-      .remove(`${bookingId}:surcharge-timeout`)
+      .remove(checkinJobId(bookingId, 'surcharge-timeout'))
+      .catch(() => undefined);
+  }
+
+  // ── Timeout tasker xác nhận đã nhận tiền mặt phần phát sinh ────────────────
+  async scheduleSurchargeReceiptTimeout(bookingId: string): Promise<void> {
+    await this.checkinQueue.add(
+      CHECKIN_JOB.SURCHARGE_RECEIPT_TIMEOUT,
+      { bookingId },
+      {
+        delay: SURCHARGE_RECEIPT_WINDOW_MS,
+        jobId: checkinJobId(bookingId, 'surcharge-receipt-timeout'),
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+  }
+
+  async cancelSurchargeReceiptTimeout(bookingId: string): Promise<void> {
+    await this.checkinQueue
+      .remove(checkinJobId(bookingId, 'surcharge-receipt-timeout'))
+      .catch(() => undefined);
+  }
+
+  // ── Timeout khách duyệt yêu cầu thêm giờ ───────────────────────────────────
+  async scheduleOvertimeRequestTimeout(bookingId: string): Promise<void> {
+    await this.checkinQueue.add(
+      CHECKIN_JOB.OVERTIME_REQUEST_TIMEOUT,
+      { bookingId },
+      {
+        delay: OVERTIME_REQUEST_WINDOW_MS,
+        jobId: checkinJobId(bookingId, 'overtime-request-timeout'),
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+  }
+
+  async cancelOvertimeRequestTimeout(bookingId: string): Promise<void> {
+    await this.checkinQueue
+      .remove(checkinJobId(bookingId, 'overtime-request-timeout'))
       .catch(() => undefined);
   }
 
@@ -106,50 +172,212 @@ export class BookingCheckinService {
       if (
         !booking ||
         booking.status !== BookingStatus.IN_PROGRESS ||
-        !booking.surchargePending ||
+        booking.surchargeStatus !== BookingSurchargeStatus.PENDING_CUSTOMER ||
         !booking.tasker
       ) {
         return;
       }
 
-      // Miễn phần phát sinh, giữ nguyên tổng giá gốc rồi quyết toán như thường.
-      booking.waitingFee = 0;
-      booking.overtimeMinutes = 0;
+      const surcharge = Math.round(toNumber(booking.waitingFee));
+      const actorUserId = booking.tasker.user?.id ?? bookingId;
 
+      // Đơn ví: khách im lặng = mặc nhiên đồng ý (đã chấp nhận cơ chế lúc đặt đơn)
+      // → tự trừ tiếp từ ví. Ví không đủ thì rơi xuống nhánh tranh chấp bên dưới.
+      if (booking.paymentMethod === PaymentMethod.WALLET) {
+        const previousTotalPrice = toNumber(booking.totalPrice);
+        try {
+          booking.totalPrice = previousTotalPrice + surcharge;
+          await this.bookingWalletPaymentService.adjustEscrow(
+            manager,
+            booking,
+            previousTotalPrice,
+          );
+
+          await this.bookingSettlementService.settleCompletedBooking(manager, {
+            booking,
+            tasker: booking.tasker,
+            actorUserId,
+            note: `Hết hạn xác nhận — tự động trừ ví phần phát sinh ${surcharge.toLocaleString('vi-VN')}đ`,
+          });
+
+          await this.notifySurchargeAutoCharged(booking, surcharge);
+          return;
+        } catch (error) {
+          if (!(error instanceof BadRequestException)) throw error;
+          // Ví không đủ số dư → khôi phục tổng gốc rồi xử lý như khách không trả.
+          booking.totalPrice = previousTotalPrice;
+          this.logger.warn(
+            `Booking ${booking.bookingCode}: ví khách không đủ để tự trừ phần phát sinh → chuyển tranh chấp`,
+          );
+        }
+      }
+
+      // Đơn tiền mặt (tasker đã rời đi) hoặc ví không đủ → nền tảng ứng trả tasker.
+      const result =
+        await this.bookingSettlementService.settleDisputedSurcharge(manager, {
+          booking,
+          tasker: booking.tasker,
+          actorUserId,
+          reason: 'Khách không phản hồi trong thời hạn xác nhận phần phát sinh',
+          note: 'Hết hạn xác nhận phát sinh — hoàn thành theo giá gốc, nền tảng ứng trả tasker',
+        });
+
+      this.logger.warn(
+        `Booking ${booking.bookingCode} hết hạn xác nhận phát sinh — nền tảng ứng trả ${result.netPaid}đ cho tasker`,
+      );
+
+      await this.notifySurchargeDisputed(booking, surcharge, result.netPaid);
+    });
+  }
+
+  /**
+   * Tasker không bấm "đã nhận tiền" trong thời hạn. Khách đã đồng ý trả nên mặc
+   * định coi như đã thu đủ và quyết toán — tránh đơn treo vô hạn.
+   */
+  async handleSurchargeReceiptTimeout(bookingId: string): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const booking = await this.lockBookingForSurcharge(manager, bookingId);
+      if (
+        !booking ||
+        booking.surchargeStatus !==
+          BookingSurchargeStatus.PENDING_TASKER_CONFIRM ||
+        !booking.tasker
+      ) {
+        return;
+      }
+
+      const surcharge = Math.round(toNumber(booking.waitingFee));
       await this.bookingSettlementService.settleCompletedBooking(manager, {
         booking,
         tasker: booking.tasker,
         actorUserId: booking.tasker.user?.id ?? bookingId,
-        note: 'Hết hạn xác nhận phát sinh — hoàn thành theo giá gốc (miễn phát sinh)',
+        note: `Hết hạn xác nhận nhận tiền — mặc định đã thu đủ phần phát sinh ${surcharge.toLocaleString('vi-VN')}đ`,
+        cashSurcharge:
+          booking.paymentMethod === PaymentMethod.WALLET ? surcharge : 0,
       });
 
       this.logger.warn(
-        `Booking ${booking.bookingCode} hết hạn xác nhận phát sinh — auto hoàn thành giá gốc`,
+        `Booking ${booking.bookingCode}: tasker không xác nhận nhận tiền → tự quyết toán`,
       );
-
-      const taskerUserId = booking.tasker.user?.id;
-      const customerUserId = booking.customer?.user?.id;
-      await Promise.all([
-        taskerUserId &&
-          this.notificationService.notify({
-            userId: taskerUserId,
-            type: NotificationType.BOOKING_COMPLETED,
-            title: 'Đơn đã hoàn thành (miễn phát sinh)',
-            content: `Khách không xác nhận kịp phần phát sinh của booking #${booking.bookingCode}. Đơn được hoàn thành theo giá gốc.`,
-            referenceId: booking.id,
-            referenceType: NotificationRefType.BOOKING,
-          }),
-        customerUserId &&
-          this.notificationService.notify({
-            userId: customerUserId,
-            type: NotificationType.BOOKING_COMPLETED,
-            title: 'Đơn đã hoàn thành',
-            content: `Booking #${booking.bookingCode} đã được hoàn thành theo giá gốc.`,
-            referenceId: booking.id,
-            referenceType: NotificationRefType.BOOKING,
-          }),
-      ]);
     });
+  }
+
+  /**
+   * Khách không phản hồi yêu cầu thêm giờ → đánh dấu hết hạn, nhắc tasker checkout
+   * đúng giờ vì phần làm thêm sẽ không được cam kết trước.
+   */
+  async handleOvertimeRequestTimeout(bookingId: string): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const booking = await this.lockBookingForSurcharge(manager, bookingId);
+      if (
+        !booking ||
+        booking.overtimeRequestStatus !== BookingOvertimeRequestStatus.PENDING
+      ) {
+        return;
+      }
+
+      booking.overtimeRequestStatus = BookingOvertimeRequestStatus.EXPIRED;
+      booking.overtimeRespondedAt = new Date();
+      await manager.getRepository(BookingEntity).save(booking);
+
+      const taskerUserId = booking.tasker?.user?.id;
+      if (taskerUserId) {
+        await this.notificationService.notify({
+          userId: taskerUserId,
+          type: NotificationType.BOOKING_OVERTIME_REJECTED,
+          title: 'Khách chưa phản hồi yêu cầu thêm giờ',
+          content: `Booking #${booking.bookingCode}: khách không phản hồi kịp. Hãy checkout đúng giờ đã đặt.`,
+          referenceId: booking.id,
+          referenceType: NotificationRefType.BOOKING,
+        });
+      }
+    });
+  }
+
+  private async lockBookingForSurcharge(
+    manager: EntityManager,
+    bookingId: string,
+  ): Promise<BookingEntity | null> {
+    return manager
+      .getRepository(BookingEntity)
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.tasker', 'tasker')
+      .leftJoinAndSelect('tasker.user', 'taskerUser')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'customerUser')
+      .leftJoinAndSelect('booking.bookingSubServices', 'bookingSubServices')
+      .setLock('pessimistic_write', undefined, ['booking'])
+      .where('booking.id = :bookingId', { bookingId })
+      .andWhere('booking.status = :status', {
+        status: BookingStatus.IN_PROGRESS,
+      })
+      .getOne();
+  }
+
+  private async notifySurchargeAutoCharged(
+    booking: BookingEntity,
+    surcharge: number,
+  ): Promise<void> {
+    const taskerUserId = booking.tasker?.user?.id;
+    const customerUserId = booking.customer?.user?.id;
+    await Promise.all([
+      taskerUserId &&
+        this.notificationService.notify({
+          userId: taskerUserId,
+          type: NotificationType.BOOKING_COMPLETED,
+          title: 'Đơn đã hoàn thành',
+          content: `Booking #${booking.bookingCode} đã thu đủ phần phát sinh ${surcharge.toLocaleString('vi-VN')}đ từ ví khách.`,
+          referenceId: booking.id,
+          referenceType: NotificationRefType.BOOKING,
+        }),
+      customerUserId &&
+        this.notificationService.notify({
+          userId: customerUserId,
+          type: NotificationType.BOOKING_COMPLETED,
+          title: 'Đã tự động trừ phần phát sinh',
+          content:
+            `Bạn chưa phản hồi nên booking #${booking.bookingCode} đã được ` +
+            `trừ ${surcharge.toLocaleString('vi-VN')}đ phát sinh từ ví và hoàn thành.`,
+          referenceId: booking.id,
+          referenceType: NotificationRefType.BOOKING,
+        }),
+    ]);
+  }
+
+  private async notifySurchargeDisputed(
+    booking: BookingEntity,
+    surcharge: number,
+    netPaid: number,
+  ): Promise<void> {
+    const taskerUserId = booking.tasker?.user?.id;
+    const customerUserId = booking.customer?.user?.id;
+    await Promise.all([
+      taskerUserId &&
+        this.notificationService.notify({
+          userId: taskerUserId,
+          type: NotificationType.BOOKING_SURCHARGE_DISPUTED,
+          title: 'Khách chưa thanh toán phần phát sinh',
+          content:
+            `Booking #${booking.bookingCode}: khách không phản hồi phần phát sinh ` +
+            `${surcharge.toLocaleString('vi-VN')}đ. ` +
+            (netPaid > 0
+              ? `Nền tảng đã ứng ${netPaid.toLocaleString('vi-VN')}đ vào ví bạn.`
+              : 'Bộ phận hỗ trợ sẽ liên hệ với bạn.'),
+          referenceId: booking.id,
+          referenceType: NotificationRefType.BOOKING,
+        }),
+      customerUserId &&
+        this.notificationService.notify({
+          userId: customerUserId,
+          type: NotificationType.BOOKING_SURCHARGE_DISPUTED,
+          title: 'Chưa thanh toán phần phát sinh',
+          content:
+            `Booking #${booking.bookingCode} đã hoàn thành theo giá gốc. ` +
+            `Khoản phát sinh ${surcharge.toLocaleString('vi-VN')}đ đang được xem xét.`,
+          referenceId: booking.id,
+          referenceType: NotificationRefType.BOOKING,
+        }),
+    ]);
   }
 
   // ── Schedule jobs khi booking CONFIRMED ────────────────────────────────────
@@ -170,17 +398,17 @@ export class BookingCheckinService {
       {
         name: CHECKIN_JOB.REMIND,
         delayMs: startMs - 60 * 60_000 - now,
-        jobId: `${booking.id}:remind`,
+        jobId: checkinJobId(booking.id, 'remind'),
       },
       {
         name: CHECKIN_JOB.AUTO_CANCEL,
         delayMs: startMs + AUTO_CANCEL_MINUTES * 60_000 - now,
-        jobId: `${booking.id}:auto-cancel`,
+        jobId: checkinJobId(booking.id, 'auto-cancel'),
       },
       {
         name: CHECKIN_JOB.AUTO_CHECKOUT,
         delayMs: endMs + AUTO_CHECKOUT_AFTER_END_MINUTES * 60_000 - now,
-        jobId: `${booking.id}:auto-checkout`,
+        jobId: checkinJobId(booking.id, 'auto-checkout'),
       },
     ];
 
@@ -188,7 +416,7 @@ export class BookingCheckinService {
       jobs.push({
         name: CHECKIN_JOB.LATE_WARNING,
         delayMs: startMs + LATE_WARNING_MINUTES * 60_000 - now,
-        jobId: `${booking.id}:late-warning`,
+        jobId: checkinJobId(booking.id, 'late-warning'),
       });
     }
 
@@ -210,10 +438,10 @@ export class BookingCheckinService {
 
   async cancelCheckinJobs(bookingId: string): Promise<void> {
     await Promise.allSettled([
-      this.checkinQueue.remove(`${bookingId}:remind`),
-      this.checkinQueue.remove(`${bookingId}:late-warning`),
-      this.checkinQueue.remove(`${bookingId}:auto-cancel`),
-      this.checkinQueue.remove(`${bookingId}:auto-checkout`),
+      this.checkinQueue.remove(checkinJobId(bookingId, 'remind')),
+      this.checkinQueue.remove(checkinJobId(bookingId, 'late-warning')),
+      this.checkinQueue.remove(checkinJobId(bookingId, 'auto-cancel')),
+      this.checkinQueue.remove(checkinJobId(bookingId, 'auto-checkout')),
     ]);
   }
 
@@ -496,8 +724,8 @@ export class BookingCheckinService {
   async handleAutoCheckout(bookingId: string): Promise<void> {
     const booking = await this.findBookingWithParties(bookingId);
     if (!booking || booking.status !== BookingStatus.IN_PROGRESS) return;
-    // Đã checkout, đang chờ khách xác nhận phát sinh → không nhắc "bấm hoàn thành".
-    if (booking.surchargePending) return;
+    // Đã checkout, đang chờ xác nhận phát sinh → không nhắc "bấm hoàn thành".
+    if (isSurchargePending(booking.surchargeStatus)) return;
 
     const taskerUserId = booking.tasker?.user?.id;
     const customerUserId = booking.customer?.user?.id;

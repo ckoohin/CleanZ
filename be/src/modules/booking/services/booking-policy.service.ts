@@ -9,6 +9,7 @@ import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
+import { BookingSurchargeStatus } from 'src/common/enums/booking-surcharge-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -51,6 +52,10 @@ export const TASKER_CANCEL_PENALTY_TIERS: Record<number, number> = {
   3: 200_000,
 };
 export const WEEKLY_CANCEL_LIMIT = 3;
+
+/** Số lần khách để đơn rơi vào tranh chấp phụ phí trước khi bị chặn đặt đơn tiền mặt. */
+export const CUSTOMER_SURCHARGE_DISPUTE_LIMIT = 3;
+export const SURCHARGE_DISPUTE_WINDOW_DAYS = 90;
 export const CANCEL_SUSPENSION_DAYS = 7;
 
 const FINISHED_BOOKING_STATUSES = [
@@ -159,6 +164,50 @@ export class BookingPolicyService {
       .andWhere('log.cancelledBy = :by', { by: CancelledBy.TASKER })
       .andWhere('log.createdAt >= :since', { since })
       .getCount();
+  }
+
+  /**
+   * Đếm số lần khách không thanh toán phần phát sinh trong 90 ngày gần nhất.
+   * Query thẳng trên `bookings` theo `surchargeStatus` — không cần bảng đếm riêng.
+   */
+  async countRecentSurchargeDisputes(
+    manager: EntityManager,
+    customerId: string,
+  ): Promise<number> {
+    const since = new Date(
+      Date.now() - SURCHARGE_DISPUTE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+    return manager
+      .getRepository(BookingEntity)
+      .createQueryBuilder('booking')
+      .innerJoin('booking.customer', 'customer')
+      .where('customer.id = :customerId', { customerId })
+      .andWhere('booking.surchargeStatus = :status', {
+        status: BookingSurchargeStatus.DISPUTED,
+      })
+      .andWhere('booking.checkedOutAt >= :since', { since })
+      .getCount();
+  }
+
+  /**
+   * Khách quỵt phụ phí nhiều lần → không cho đặt đơn tiền mặt nữa, ép trả trước
+   * bằng ví để khoản phát sinh luôn có nguồn thu.
+   */
+  async assertCanUseCashPayment(
+    manager: EntityManager,
+    customerId: string,
+  ): Promise<void> {
+    const disputes = await this.countRecentSurchargeDisputes(
+      manager,
+      customerId,
+    );
+    if (disputes >= CUSTOMER_SURCHARGE_DISPUTE_LIMIT) {
+      throw new ForbiddenException(
+        `Tài khoản của bạn có ${disputes} đơn chưa thanh toán phần phát sinh trong ` +
+          `${SURCHARGE_DISPUTE_WINDOW_DAYS} ngày qua. Vui lòng đặt đơn thanh toán ` +
+          `trước bằng ví CleanZ.`,
+      );
+    }
   }
 
   resolveCancelPenaltyAmount(weeklyCount: number): number {

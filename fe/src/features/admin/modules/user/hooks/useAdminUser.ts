@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 import { adminUserApi } from "../services/admin-user.service";
 import type {
   CreateUserPayload,
@@ -21,8 +22,7 @@ export const adminUserKeys = {
 };
 
 const errorMessage = (error: unknown, fallback: string): string => {
-  const e = error as { response?: { data?: { message?: string } } };
-  return e?.response?.data?.message || fallback;
+  return getApiErrorMessage(error, fallback);
 };
 
 export function useAdminUsers(filter: UserQueryFilter) {

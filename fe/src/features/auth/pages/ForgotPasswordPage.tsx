@@ -31,7 +31,6 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     const validation = forgotPasswordSchema.safeParse(email);
     if (!validation.success) {
-      console.log(validation.error.issues);
       setErrorMsg(validation.error.issues[0].message);
       return; 
     }
@@ -40,8 +39,7 @@ export default function ForgotPasswordPage() {
     setErrorMsg("");
 
     try {
-      const res = await forgotPassword.mutateAsync({ email });
-      console.log(res);
+      await forgotPassword.mutateAsync({ email });
       setStatus("success");
     } catch {
       setStatus("error");

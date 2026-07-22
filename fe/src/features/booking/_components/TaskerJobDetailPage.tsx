@@ -31,6 +31,8 @@ import {
   useMarkStart,
   useMarkComplete,
   useCancelByTasker,
+  useRequestOvertime,
+  useConfirmSurchargeReceived,
   isSilentTaskerBookingError,
 } from "@/features/booking/hooks/useTaskerBooking";
 import type {
@@ -302,12 +304,9 @@ function PostedDetailView({
   onUnavailable: () => void;
 }) {
   const accept = useAcceptBooking();
-  const platformCommissionRate = data.price.platformCommissionRate ?? 20;
-  const platformFee =
-    data.price.platformFee ??
-    Math.round((data.price.totalPrice * platformCommissionRate) / 100);
-  const taskerIncome =
-    data.price.taskerIncome ?? Math.max(data.price.totalPrice - platformFee, 0);
+  const platformCommissionRate = data.price.platformCommissionRate;
+  const platformFee = data.price.platformFee;
+  const taskerIncome = data.price.taskerIncome;
 
   const handleAccept = async () => {
     try {
@@ -397,7 +396,9 @@ function PostedDetailView({
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Phí nền tảng</span>
+            <span className="text-muted-foreground">
+              Phí nền tảng ({platformCommissionRate}%)
+            </span>
             <span className="font-semibold text-red-500">
               -{fmtCurrency(platformFee)}
             </span>
@@ -576,6 +577,359 @@ function TaskerCancelDialog({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Bảng kê tiền của đơn đã nhận / đã hoàn thành ─────────────────────────────
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  PENDING: "Chưa thanh toán",
+  PAID: "Đã thanh toán",
+  REFUNDED: "Đã hoàn tiền",
+  FAILED: "Thanh toán thất bại",
+};
+
+function fmtMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h} giờ ${m} phút`;
+  if (h) return `${h} giờ`;
+  return `${m} phút`;
+}
+
+function AssignedPriceBreakdown({
+  data,
+}: {
+  data: TaskerAssignedBookingDetail;
+}) {
+  const price = data.price;
+  const commissionRate = price.platformCommissionRate;
+  const subtotal = price.subtotal ?? price.totalPrice + price.discountAmount;
+  const platformFee = price.platformFee;
+  const taskerIncome = price.taskerIncome;
+  const surcharge = price.waitingFee ?? 0;
+  const isCompleted = data.status === "COMPLETED";
+
+  const workedMinutes =
+    data.checkedInAt && data.checkedOutAt
+      ? Math.round(
+          (new Date(data.checkedOutAt).getTime() -
+            new Date(data.checkedInAt).getTime()) /
+            60_000,
+        )
+      : null;
+
+  const rows = [
+    { label: "Giá cơ bản", value: price.basePrice },
+    { label: "Dịch vụ thêm", value: price.addonPrice ?? 0 },
+    { label: "Phí cao điểm", value: price.peakFee },
+    { label: "Phí thú cưng", value: price.petFee },
+    { label: "Phụ phí phát sinh thêm giờ", value: surcharge },
+    { label: "Giảm giá (voucher của khách)", value: -price.discountAmount },
+  ].filter((r) => r.value !== 0);
+
+  return (
+    <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
+      <h3 className="font-bold text-foreground text-sm mb-2">
+        {isCompleted ? "Quyết toán đơn hàng" : "Giá đơn hàng"}
+      </h3>
+
+      {rows.map((r) => (
+        <div key={r.label} className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{r.label}</span>
+          <span className={r.value < 0 ? "text-emerald-600 font-medium" : ""}>
+            {r.value < 0 ? "-" : ""}
+            {fmtCurrency(Math.abs(r.value))}
+          </span>
+        </div>
+      ))}
+
+      <div className="space-y-2 pt-2 border-t border-border/40">
+        <div className="flex justify-between text-sm">
+          <span className="font-bold">Khách thanh toán</span>
+          <span className="font-black text-foreground">
+            {fmtCurrency(price.totalPrice)}
+          </span>
+        </div>
+        {price.discountAmount > 0 && (
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">
+              Giá tính hoa hồng (trước voucher)
+            </span>
+            <span className="text-muted-foreground">
+              {fmtCurrency(subtotal)}
+            </span>
+          </div>
+        )}
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">
+            Phí nền tảng ({commissionRate}%)
+          </span>
+          <span className="font-semibold text-red-500">
+            -{fmtCurrency(platformFee)}
+          </span>
+        </div>
+        <div className="flex justify-between pt-2 border-t border-border/40">
+          <span className="font-bold text-sm">
+            {isCompleted ? "Bạn đã nhận" : "Thu nhập của bạn"}
+          </span>
+          <span className="font-black text-primary">
+            {fmtCurrency(taskerIncome)}
+          </span>
+        </div>
+      </div>
+
+      {/* Thời gian làm việc thực tế */}
+      {workedMinutes !== null && (
+        <div className="pt-3 mt-1 border-t border-border/40 space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Thời lượng đặt</span>
+            <span>
+              {fmtMinutes(Math.round(data.schedule.durationHours * 60))}
+            </span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Làm thực tế</span>
+            <span className="font-semibold">{fmtMinutes(workedMinutes)}</span>
+          </div>
+          {!!data.workTiming?.overtimeMinutes && (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Phát sinh tính phí</span>
+              <span className="font-semibold text-amber-600">
+                +{fmtMinutes(data.workTiming.overtimeMinutes)}
+              </span>
+            </div>
+          )}
+          {!!data.workTiming?.earlyMinutes && (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Kết thúc sớm</span>
+              <span className="font-semibold text-orange-600">
+                -{fmtMinutes(data.workTiming.earlyMinutes)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {data.payment && (
+        <div className="pt-3 mt-1 border-t border-border/40 space-y-1">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Hình thức thanh toán</span>
+            <span className="font-semibold">
+              {data.payment.method === "CASH"
+                ? "Tiền mặt (thu tại nhà khách)"
+                : "Ví CleanZ (khách trả trước)"}
+            </span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Trạng thái</span>
+            <span className="font-semibold">
+              {PAYMENT_STATUS_LABEL[data.payment.status] ?? data.payment.status}
+            </span>
+          </div>
+          {data.payment.method === "CASH" && !isCompleted && (
+            <p className="text-[11px] text-amber-600 pt-1">
+              Bạn thu {fmtCurrency(price.totalPrice)} tiền mặt từ khách; phí nền
+              tảng {fmtCurrency(platformFee)} sẽ được trừ vào ví của bạn.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Khu vực thêm giờ / phụ phí khi đang làm việc ──────────────────────────────
+function TaskerOvertimeSection({
+  data,
+  bookingId,
+  onRequestComplete,
+  isCompletePending,
+}: {
+  data: TaskerAssignedBookingDetail;
+  bookingId: string;
+  onRequestComplete: () => void;
+  isCompletePending: boolean;
+}) {
+  const requestOvertime = useRequestOvertime(bookingId);
+  const confirmReceived = useConfirmSurchargeReceived(bookingId);
+  const [showSheet, setShowSheet] = useState(false);
+
+  const surchargeStatus = data.workTiming?.surchargeStatus;
+  const request = data.overtimeRequest;
+  const approvedMinutes = data.workTiming?.approvedOvertimeMinutes ?? 0;
+
+  // Khách đồng ý trả tiền mặt → tasker phải xác nhận đã nhận đủ thì đơn mới xong.
+  if (surchargeStatus === "PENDING_TASKER_CONFIRM") {
+    return (
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3">
+        <div className="text-center space-y-1">
+          <p className="text-sm font-bold text-emerald-700">
+            Khách đã đồng ý trả phần phát sinh
+          </p>
+          <p className="text-xs text-emerald-600">
+          
+          </p>
+        </div>
+        <ActionButton
+          label="Thu tiền mặt"
+          icon={CheckCircle2}
+          onClick={() => confirmReceived.mutate()}
+          isPending={confirmReceived.isPending}
+          color="emerald"
+        />
+      </div>
+    );
+  }
+
+  // Đã checkout, đang chờ khách xác nhận phần vượt ngoài hạn mức đã duyệt.
+  if (surchargeStatus === "PENDING_CUSTOMER") {
+    return (
+      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center space-y-1">
+        <p className="text-sm font-bold text-amber-700">
+          Đã checkout — chờ khách xác nhận phát sinh
+        </p>
+        <p className="text-xs text-amber-600">
+          Phần phát sinh thêm giờ (
+          {fmtCurrency(data.workTiming?.surchargeFee ?? 0)}) sẽ được thu sau khi
+          khách xác nhận.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Trạng thái yêu cầu thêm giờ */}
+      {request?.status === "PENDING" && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center space-y-1">
+          <p className="text-sm font-bold text-blue-700">
+            Đang chờ khách duyệt thêm {request.minutes} phút
+          </p>
+          <p className="text-xs text-blue-600">
+            Phụ phí {fmtCurrency(request.fee)}. Khách chưa phản hồi thì hãy
+            checkout đúng giờ đã đặt.
+          </p>
+        </div>
+      )}
+      {request?.status === "NOTIFIED" && (
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center space-y-1">
+          <p className="text-xs font-semibold text-amber-700">
+            Đã báo khách công việc có thể phát sinh thêm giờ
+          </p>
+          <p className="text-[11px] text-amber-600">
+            Thời gian và phụ phí chính thức sẽ được tính khi bạn hoàn thành công
+            việc.
+          </p>
+        </div>
+      )}
+      {approvedMinutes > 0 && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+          <p className="text-xs font-semibold text-emerald-700">
+            Khách đã duyệt thêm {fmtMinutes(approvedMinutes)} — phần này được
+            thu chắc chắn, không cần xác nhận lại
+          </p>
+        </div>
+      )}
+      {request?.status === "REJECTED" && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
+          <p className="text-xs text-slate-600">
+            Khách từ chối thêm giờ. Hãy checkout đúng giờ đã đặt.
+          </p>
+        </div>
+      )}
+      {request?.status === "EXPIRED" && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
+          <p className="text-xs text-slate-600">
+            Khách không phản hồi kịp yêu cầu thêm giờ.
+          </p>
+        </div>
+      )}
+
+      {/* Báo trước cho khách; tiền chốt theo checkout thực tế. */}
+      {request?.status !== "PENDING" && request?.status !== "NOTIFIED" && (
+        <button
+          onClick={() => setShowSheet(true)}
+          className="w-full py-3 rounded-2xl border-2 border-amber-300 text-amber-600 font-semibold text-sm hover:bg-amber-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <Clock className="w-4 h-4" />
+          Báo khách có phát sinh thêm giờ
+        </button>
+      )}
+
+      <ActionButton
+        label="Hoàn thành công việc ✅"
+        icon={Flag}
+        onClick={onRequestComplete}
+        isPending={isCompletePending}
+        color="emerald"
+      />
+
+      {/* Sheet xác nhận gửi thông báo */}
+      <AnimatePresence>
+        {showSheet && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => setShowSheet(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              className="fixed inset-x-4 bottom-6 md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="text-center space-y-1">
+                <h3 className="font-bold text-base">
+                  Báo khách có phát sinh thêm giờ
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Gửi thông báo để khách biết công việc có thể kéo dài. Không
+                  chốt trước số phút hay số tiền.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3 space-y-1">
+                <p className="text-xs font-semibold text-amber-700">
+                  Phụ phí phụ thuộc thời gian checkout
+                </p>
+                <p className="text-[11px] text-amber-600 leading-relaxed">
+                  Hệ thống tính thời gian làm thực tế từ check-in đến checkout.
+                  Phát sinh bao nhiêu phút sẽ tính đúng bấy nhiêu phút và gửi
+                  khách xác nhận.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowSheet(false)}
+                  className="flex-1 py-3 rounded-2xl border border-border text-sm font-semibold"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() =>
+                    requestOvertime.mutate(undefined, {
+                      onSuccess: () => setShowSheet(false),
+                    })
+                  }
+                  disabled={requestOvertime.isPending}
+                  className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+                >
+                  {requestOvertime.isPending ? (
+                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                  ) : (
+                    "Gửi thông báo"
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -946,20 +1300,7 @@ function AssignedDetailView({
       </div>
 
       {/* Price */}
-      <div className="bg-card rounded-2xl border border-border/50 p-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-bold">Tổng giá trị đơn</span>
-          <span className="text-lg font-black text-primary">
-            {fmtCurrency(data.price.totalPrice)}
-          </span>
-        </div>
-        {data.payment && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Thanh toán: {data.payment.method === "CASH" ? "Tiền mặt" : "Ví"} ·{" "}
-            {data.payment.status}
-          </p>
-        )}
-      </div>
+      <AssignedPriceBreakdown data={data} />
 
       {/* Action buttons based on status */}
       {data.status === "CONFIRMED" && (
@@ -1017,33 +1358,29 @@ function AssignedDetailView({
           color="primary"
         />
       )}
-      {data.status === "IN_PROGRESS" &&
-        (data.workTiming?.surchargePending ? (
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center space-y-1">
-            <p className="text-sm font-bold text-amber-700">
-              Đã checkout — chờ khách xác nhận phát sinh
-            </p>
-            <p className="text-xs text-amber-600">
-              Phần phát sinh thêm giờ ({fmtCurrency(data.workTiming.surchargeFee)})
-              sẽ được thu sau khi khách xác nhận.
-            </p>
-          </div>
-        ) : (
-          <ActionButton
-            label="Hoàn thành công việc ✅"
-            icon={Flag}
-            onClick={() => setShowConfirmComplete(true)}
-            isPending={markComplete.isPending}
-            color="emerald"
-          />
-        ))}
+      {data.status === "IN_PROGRESS" && (
+        <TaskerOvertimeSection
+          data={data}
+          bookingId={bookingId}
+          onRequestComplete={() => setShowConfirmComplete(true)}
+          isCompletePending={markComplete.isPending}
+        />
+      )}
       {data.status === "COMPLETED" && (
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
           <p className="text-sm font-bold text-foreground">Đã hoàn thành</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Thu nhập đã được ghi vào ví
+            {data.payment?.method === "CASH"
+              ? "Bạn đã thu tiền mặt, phí nền tảng đã trừ vào ví"
+              : "Thu nhập đã được ghi vào ví"}
           </p>
+          {data.completedAt && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Hoàn thành lúc{" "}
+              {new Date(data.completedAt).toLocaleString("vi-VN")}
+            </p>
+          )}
         </div>
       )}
       {data.status === "CANCELLED" && (

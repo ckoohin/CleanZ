@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Check, ChevronsUpDown, Loader2, CalendarIcon, Clock, PawPrint, Sparkles, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 import {
   Sheet,
@@ -161,8 +162,7 @@ export function AdminCreateBookingDrawer({ open, onOpenChange }: Props) {
           onOpenChange(false);
         },
         onError: (err: unknown) => {
-          const error = err as { response?: { data?: { message?: string } } };
-          toast.error(error?.response?.data?.message || "Có lỗi xảy ra khi tạo booking");
+          toast.error(getApiErrorMessage(err, "Không thể tạo đơn"));
         },
       }
     );

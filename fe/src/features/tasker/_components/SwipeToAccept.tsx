@@ -19,6 +19,8 @@ export function SwipeToAccept({
   successLabel = "Đã nhận đơn",
 }: SwipeToAcceptProps) {
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const confirmLockRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const controls = useAnimation();
@@ -30,7 +32,7 @@ export function SwipeToAccept({
     if (containerRef.current) {
       setContainerWidth(containerRef.current.offsetWidth);
     }
-    
+
     const handleResize = () => {
       if (containerRef.current) {
         setContainerWidth(containerRef.current.offsetWidth);
@@ -41,37 +43,52 @@ export function SwipeToAccept({
   }, []);
 
   const handleDragEnd = async (
-    event: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo,
   ) => {
     // Determine the max distance the thumb can travel
     const maxDistance = containerWidth - THUMB_WIDTH;
-    
+
     // If the thumb is dragged more than 80% of the max distance, it's a success
-    if (info.offset.x >= maxDistance * 0.8) {
-      setIsSuccess(true);
-      await controls.start({ x: maxDistance });
+    if (
+      maxDistance > 0 &&
+      info.offset.x >= maxDistance * 0.8 &&
+      !confirmLockRef.current &&
+      !isLoading
+    ) {
+      confirmLockRef.current = true;
+      setIsConfirming(true);
       if ("vibrate" in navigator) {
         navigator.vibrate([50, 50, 50]); // Haptic feedback pattern
       }
       try {
         await onConfirm();
-      } catch (error) {
+        setIsSuccess(true);
+      } catch {
         setIsSuccess(false);
-        controls.start({ x: 0, transition: { type: "spring", stiffness: 300, damping: 20 } });
+      } finally {
+        confirmLockRef.current = false;
+        setIsConfirming(false);
       }
     } else {
       // Snap back to 0
-      controls.start({ x: 0, transition: { type: "spring", stiffness: 300, damping: 20 } });
+      void controls.start({
+        x: 0,
+        transition: { type: "spring", stiffness: 300, damping: 20 },
+      });
     }
   };
+
+  const isPending = isLoading || isConfirming;
 
   return (
     <div
       ref={containerRef}
       className={cn(
         "relative w-full h-14 rounded-2xl flex items-center overflow-hidden transition-colors duration-300",
-        isSuccess || isLoading ? "bg-emerald-500" : "bg-primary/10 border border-primary/20"
+        isSuccess || isPending
+          ? "bg-emerald-500"
+          : "bg-primary/10 border border-primary/20",
       )}
     >
       {/* Background text */}
@@ -79,10 +96,12 @@ export function SwipeToAccept({
         <span
           className={cn(
             "text-sm font-bold transition-all duration-300",
-            isSuccess || isLoading ? "text-white scale-105" : "text-primary opacity-80"
+            isSuccess || isPending
+              ? "text-white scale-105"
+              : "text-primary opacity-80",
           )}
         >
-          {isLoading ? (
+          {isPending ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Đang xử lý...
@@ -96,12 +115,12 @@ export function SwipeToAccept({
       </div>
 
       {/* Shimmer effect when not success */}
-      {!isSuccess && !isLoading && (
+      {!isSuccess && !isPending && (
         <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
       )}
 
       {/* Draggable thumb */}
-      {!isSuccess && !isLoading && (
+      {!isSuccess && !isPending && (
         <motion.div
           drag="x"
           dragConstraints={{ left: 0, right: containerWidth - THUMB_WIDTH }}

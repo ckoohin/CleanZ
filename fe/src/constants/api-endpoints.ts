@@ -71,6 +71,12 @@ export const API_ENDPOINTS = {
     // Customer xác nhận hoàn thành + thanh toán phần phát sinh (thêm giờ)
     CONFIRM_COMPLETION: (id: string) =>
       `/booking/customer/${id}/confirm-completion`,
+    // Customer từ chối trả phần phát sinh
+    REJECT_SURCHARGE: (id: string) =>
+      `/booking/customer/${id}/reject-surcharge`,
+    // Customer duyệt/từ chối yêu cầu thêm giờ (trước khi tasker làm thêm)
+    RESPOND_OVERTIME: (id: string) =>
+      `/booking/customer/${id}/overtime-request`,
     // Tasker APIs
     TASKER_CREATE_FOR_CUSTOMER: "/booking/tasker/create-for-customer",
     TASKER_CUSTOMER_VOUCHERS_AVAILABLE:
@@ -85,6 +91,12 @@ export const API_ENDPOINTS = {
     TASKER_CHECKIN: (id: string) => `/booking/tasker/${id}/check-in`,
     TASKER_START: (id: string) => `/booking/tasker/${id}/start`,
     TASKER_COMPLETE: (id: string) => `/booking/tasker/${id}/complete`,
+    // Tasker xin khách duyệt thêm giờ trước khi làm thêm
+    TASKER_REQUEST_OVERTIME: (id: string) =>
+      `/booking/tasker/${id}/overtime-request`,
+    // Tasker xác nhận đã nhận đủ tiền mặt phần phát sinh
+    TASKER_CONFIRM_SURCHARGE_RECEIVED: (id: string) =>
+      `/booking/tasker/${id}/confirm-surcharge-received`,
     TASKER_CANCEL: (id: string) => `/booking/tasker/${id}/cancel`,
   },
   ADMIN_SUPPORT_TICKETS: {

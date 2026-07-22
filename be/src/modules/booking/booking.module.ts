@@ -31,6 +31,7 @@ import { TaskerCreateBookingService } from './services/tasker-create-booking.ser
 import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-customer-booking.service';
 import { BookingSettlementService } from './services/booking-settlement.service';
 import { CustomerConfirmCompletionService } from './services/customer-confirm-completion.service';
+import { BookingOvertimeRequestService } from './services/booking-overtime-request.service';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { CustomerConfirmCompletionService } from './services/customer-confirm-co
     BookingWalletPaymentService,
     BookingSettlementService,
     CustomerConfirmCompletionService,
+    BookingOvertimeRequestService,
   ],
   exports: [
     BookingLocationPolicyService,

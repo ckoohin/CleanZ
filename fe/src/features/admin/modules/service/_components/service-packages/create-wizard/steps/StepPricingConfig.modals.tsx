@@ -303,12 +303,6 @@ export function StepPricingConfigModals({
                         <p className="text-sm font-bold text-amber-600 mt-0.5">{vnd(Number(detailSvc.pricingConfig.peakPrice))}</p>
                       </div>
                     )}
-                    {detailSvc.pricingConfig?.platformCommissionRate != null && (
-                      <div className="p-3 bg-muted/20 rounded-xl border border-border/40">
-                        <p className="text-[10px] text-muted-foreground font-semibold">Hoa hồng nền tảng</p>
-                        <p className="text-sm font-bold mt-0.5">{detailSvc.pricingConfig.platformCommissionRate}%</p>
-                      </div>
-                    )}
                   </div>
                 </div>
 

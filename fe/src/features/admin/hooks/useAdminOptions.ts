@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AxiosError } from 'axios';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 import {
   adminOptionsApi,
   CreateServiceOptionDto,
@@ -21,8 +21,7 @@ export function useCreateServiceOption() {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.detail(variables.serviceId) });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi thêm Option');
+      toast.error(getApiErrorMessage(error, 'Không thể thêm tùy chọn'));
     },
   });
 }
@@ -38,8 +37,7 @@ export function useUpdateServiceOption() {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật Option');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật tùy chọn'));
     },
   });
 }
@@ -54,8 +52,7 @@ export function useDeleteServiceOption() {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi xóa Option');
+      toast.error(getApiErrorMessage(error, 'Không thể xóa tùy chọn'));
     },
   });
 }
@@ -73,8 +70,7 @@ export function useCreateServiceOptionChoice() {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi thêm lựa chọn');
+      toast.error(getApiErrorMessage(error, 'Không thể thêm lựa chọn'));
     },
   });
 }
@@ -90,8 +86,7 @@ export function useUpdateServiceOptionChoice() {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật lựa chọn');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật lựa chọn'));
     },
   });
 }
@@ -106,8 +101,7 @@ export function useDeleteServiceOptionChoice() {
       queryClient.invalidateQueries({ queryKey: ADMIN_SERVICES_KEYS.all });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi xóa lựa chọn');
+      toast.error(getApiErrorMessage(error, 'Không thể xóa lựa chọn'));
     },
   });
 }

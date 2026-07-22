@@ -22,7 +22,6 @@ export interface PricingConfigFormValues {
   peakPrice: string;
   petFee: string;
   waitingFee: string;
-  platformCommissionRate: string;
   isActive: boolean;
 }
 
@@ -92,7 +91,6 @@ export function PricingConfigDialog({
     peakPrice: "",
     petFee: "0",
     waitingFee: "0",
-    platformCommissionRate: "20",
     isActive: true,
   });
 
@@ -107,7 +105,6 @@ export function PricingConfigDialog({
         peakPrice: initialData.peakPrice != null ? String(initialData.peakPrice) : "",
         petFee: String(initialData.petFee),
         waitingFee: String(initialData.waitingFee),
-        platformCommissionRate: String(initialData.platformCommissionRate),
         isActive: initialData.isActive,
       });
     } else {
@@ -117,7 +114,6 @@ export function PricingConfigDialog({
         peakPrice: "",
         petFee: "0",
         waitingFee: "0",
-        platformCommissionRate: "20",
         isActive: true,
       });
     }
@@ -134,14 +130,6 @@ export function PricingConfigDialog({
     }
     if (form.peakPrice !== "" && (isNaN(Number(form.peakPrice)) || Number(form.peakPrice) < 0)) {
       errs.peakPrice = "Giá cao điểm phải là số ≥ 0";
-    }
-    if (
-      form.platformCommissionRate !== "" &&
-      (isNaN(Number(form.platformCommissionRate)) ||
-        Number(form.platformCommissionRate) < 0 ||
-        Number(form.platformCommissionRate) > 100)
-    ) {
-      errs.platformCommissionRate = "Hoa hồng từ 0 đến 100%";
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -204,16 +192,8 @@ export function PricingConfigDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <NumberInput field="petFee" label="Phí thú cưng" placeholder="30000" form={form} set={set} errors={errors} />
-            <NumberInput field="waitingFee" label="Phí chờ" placeholder="50000" form={form} set={set} errors={errors} />
+            <NumberInput field="waitingFee" label="Phí schờ" placeholder="50000" form={form} set={set} errors={errors} />
           </div>
-
-          <NumberInput
-            field="platformCommissionRate"
-            label="Hoa hồng nền tảng"
-            suffix="%"
-            hint="Tỷ lệ hoa hồng từ 0 đến 100%"
-            form={form} set={set} errors={errors}
-          />
 
           <div className="flex items-center justify-between rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)] px-4 py-3">
             <div>

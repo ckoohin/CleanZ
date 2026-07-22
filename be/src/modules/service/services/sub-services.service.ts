@@ -101,7 +101,7 @@ export class SubServicesService {
       const hasActive = await this.serviceRepo.hasActiveBookings(id);
       if (hasActive) {
         throw new ConflictException(
-          'SERVICE_HAS_ACTIVE_BOOKINGS: Cannot deactivate service with pending or in-progress bookings.',
+          'Không thể ngừng dịch vụ đang có đơn hàng chưa hoàn thành.',
         );
       }
     }
@@ -176,7 +176,7 @@ export class SubServicesService {
     const hasActive = await this.serviceRepo.hasActiveBookings(id);
     if (hasActive) {
       throw new ConflictException(
-        'SERVICE_HAS_ACTIVE_BOOKINGS: Cannot delete service with pending or in-progress bookings.',
+        'Không thể xóa dịch vụ đang có đơn hàng chưa hoàn thành.',
       );
     }
     await this.serviceRepo.remove(service);

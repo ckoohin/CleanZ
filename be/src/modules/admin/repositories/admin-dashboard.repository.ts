@@ -22,10 +22,14 @@ import { ReviewEntity } from 'src/modules/review/entity/review.entity';
 import { TaskerLevelEntity } from 'src/modules/tasker/entity/tasker-level.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { GroupBy } from '../dto/date-range-query.dto';
+import { PricingService } from 'src/modules/pricing/services/pricing.service';
 
 @Injectable()
 export class AdminDashboardRepository {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly pricingService: PricingService,
+  ) {}
 
   async getAlerts() {
     const [
@@ -249,24 +253,24 @@ export class AdminDashboardRepository {
       })
       .getCount();
 
-    // Hoa hồng nền tảng = Σ(total_price × commission_rate%) trên đơn hoàn tất.
-    // Lấy rate theo dịch vụ (pricing_configs), mặc định 15% nếu chưa cấu hình.
+    const platformCommissionRate =
+      await this.pricingService.getPlatformCommissionRate(
+        this.dataSource.manager,
+      );
+
+    // Hoa hồng nền tảng dùng mức chung trong Cài đặt hệ thống.
     const commissionSql = (f: Date, t: Date) =>
       this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('b')
         .select(
           `COALESCE(SUM(
-            b.total_price * (
-              SELECT COALESCE(AVG(pc.platform_commission_rate), 15)
-              FROM booking_sub_services bss
-              INNER JOIN sub_services ss ON ss.id = bss.sub_service_id
-              LEFT JOIN pricing_configs pc ON pc.id = ss.pricing_config_id
-              WHERE bss.booking_id = b.id
-            ) / 100
+            (b.total_price + COALESCE(b.discount_amount, 0))
+            * :platformCommissionRate / 100
           ), 0)`,
           'commission',
         )
+        .setParameter('platformCommissionRate', platformCommissionRate)
         .where('b.status = :completed', { completed: BookingStatus.COMPLETED })
         .andWhere('b.scheduled_start BETWEEN :f AND :t', { f, t })
         .getRawOne<{ commission: string }>();

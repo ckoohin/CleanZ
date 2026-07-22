@@ -1,14 +1,26 @@
 import { toNumber } from 'src/common/helpers/number.helper';
 
 /**
- * Ngưỡng (phút) để tính giờ phát sinh / gắn cờ checkout sớm bất thường.
- * - Làm > thời lượng đặt quá 30 phút → tính phí phát sinh (toàn bộ phần vượt).
- * - Làm ít hơn thời lượng đặt quá 30 phút → checkout sớm bất thường (admin kiểm tra).
+ * Ngưỡng (phút) để gắn cờ checkout sớm bất thường.
+ * Phần làm quá giờ không có ngưỡng: phát sinh bao nhiêu phút tính bấy nhiêu.
  */
-export const WORK_OVERTIME_THRESHOLD_MINUTES = 30;
 export const EARLY_CHECKOUT_ABNORMAL_MINUTES = 30;
-/** Đơn vị làm tròn phần giờ phát sinh (block 30 phút, làm tròn lên). */
-export const OVERTIME_ROUNDING_MINUTES = 30;
+
+/**
+ * Quy đổi số phút phát sinh ra tiền theo ĐƠN GIÁ GIỜ GỐC của booking.
+ * Dùng chung cho phí chốt theo checkout, dữ liệu duyệt cũ và khoản nền tảng
+ * ứng trả để mọi nhánh luôn ra cùng một con số.
+ */
+export function overtimeFeeForMinutes(
+  minutes: number,
+  durationHours: number,
+  basePrice: number,
+): number {
+  const hours = toNumber(durationHours);
+  if (hours <= 0 || minutes <= 0) return 0;
+  const hourlyRate = toNumber(basePrice) / hours;
+  return Math.round((hourlyRate * minutes) / 60);
+}
 
 export interface WorkTimingInput {
   checkedInAt: Date | null | undefined;
@@ -24,7 +36,7 @@ export interface WorkTiming {
   bookedMinutes: number;
   /** Số phút vượt thô so với thời lượng đặt (chưa xét ngưỡng). */
   overtimeMinutes: number;
-  /** Số phút phát sinh được tính tiền (đã làm tròn block 30p; 0 nếu vượt ≤ 30p). */
+  /** Số phút phát sinh được tính tiền, đúng bằng thời gian vượt thực tế. */
   billableOvertimeMinutes: number;
   /** Phí phát sinh theo đơn giá giờ gốc của booking. */
   overtimeFee: number;
@@ -40,8 +52,8 @@ export interface WorkTiming {
  * Tính thời gian làm việc thực tế của tasker (từ check-in đến check-out) và
  * phần giờ phát sinh / kết thúc sớm so với thời lượng đặt.
  *
- * Hàm thuần, không phụ thuộc DB — mọi quy tắc nghiệp vụ về ngưỡng/đơn giá tập
- * trung tại đây để dễ kiểm thử và tái sử dụng.
+ * Hàm thuần, không phụ thuộc DB — mọi quy tắc nghiệp vụ về thời gian/đơn giá
+ * tập trung tại đây để dễ kiểm thử và tái sử dụng.
  */
 export function computeWorkTiming(input: WorkTimingInput): WorkTiming {
   const durationHours = toNumber(input.durationHours);
@@ -66,16 +78,14 @@ export function computeWorkTiming(input: WorkTimingInput): WorkTiming {
   const overtimeMinutes = Math.max(0, workedMinutes - bookedMinutes);
   const earlyMinutes = Math.max(0, bookedMinutes - workedMinutes);
 
-  // Chỉ tính tiền khi vượt > 30 phút, và khi đã vượt thì tính TOÀN BỘ phần vượt,
-  // làm tròn lên theo block 30 phút.
-  const billableOvertimeMinutes =
-    overtimeMinutes > WORK_OVERTIME_THRESHOLD_MINUTES
-      ? Math.ceil(overtimeMinutes / OVERTIME_ROUNDING_MINUTES) *
-        OVERTIME_ROUNDING_MINUTES
-      : 0;
+  // Tính đúng từng phút phát sinh, không áp ngưỡng và không làm tròn theo block.
+  const billableOvertimeMinutes = overtimeMinutes;
 
-  const hourlyRate = durationHours > 0 ? basePrice / durationHours : 0;
-  const overtimeFee = Math.round((hourlyRate * billableOvertimeMinutes) / 60);
+  const overtimeFee = overtimeFeeForMinutes(
+    billableOvertimeMinutes,
+    durationHours,
+    basePrice,
+  );
 
   return {
     workedMinutes,

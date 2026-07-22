@@ -40,7 +40,6 @@ apiClient.interceptors.response.use(
       // Bạn có thể chèn logic gọi API Refresh Token ở đây
       // Nếu Refresh Token thất bại -> Xóa token và đá ra trang Login
       
-      console.error('[Axios] 401 Unauthorized - Xóa token và văng ra trang Login');
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
       

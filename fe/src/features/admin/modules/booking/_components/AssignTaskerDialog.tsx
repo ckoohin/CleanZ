@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin";
 import { useAvailableTaskers, useAssignTaskerToBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 interface AssignTaskerDialogProps {
   bookingId: string;
@@ -59,8 +60,7 @@ export function AssignTaskerDialog({ bookingId, open, onOpenChange, currentTaske
         onOpenChange(false);
       },
       onError: (err: unknown) => {
-        const error = err as { response?: { data?: { message?: string } } };
-        toast.error(error?.response?.data?.message || "Lỗi khi gán Tasker");
+        toast.error(getApiErrorMessage(err, "Không thể gán Tasker"));
       }
     });
   };

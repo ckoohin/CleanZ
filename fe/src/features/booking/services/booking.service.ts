@@ -20,6 +20,18 @@ import type {
   UpdateBookingScheduleDto,
 } from "../types/booking.types";
 import type { AvailableVoucher } from "@/features/customer/vouchers/useCustomerVouchers";
+import type { BookingOvertimeRequestStatus } from "../types/booking.types";
+
+/** Kết quả trả về của các API xin/duyệt thêm giờ. */
+export interface OvertimeRequestResult {
+  bookingId: string;
+  bookingCode: string;
+  status: BookingOvertimeRequestStatus;
+  minutes: number;
+  fee: number;
+  respondBy: string | null;
+  approvedOvertimeMinutes: number;
+}
 
 // ─── Customer Booking APIs ─────────────────────────────────────────────────────
 export const customerBookingApi = {
@@ -111,6 +123,34 @@ export const customerBookingApi = {
         { skipErrorToast: true } as Parameters<typeof http.patch>[2],
       )
       .then((r) => r.data.data ?? r.data),
+
+  /** 03I. Khách từ chối trả phần phát sinh → đơn hoàn thành theo giá gốc. */
+  rejectSurcharge: (
+    id: string,
+    reason?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    bookingId: string;
+    status: string;
+    totalPrice: number;
+  }> =>
+    http
+      .patch(API_ENDPOINTS.BOOKING.REJECT_SURCHARGE(id), { reason }, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2])
+      .then((r) => r.data.data ?? r.data),
+
+  /** 03J. Khách duyệt/từ chối yêu cầu thêm giờ TRƯỚC khi tasker làm thêm. */
+  respondOvertime: (
+    id: string,
+    action: "APPROVE" | "REJECT",
+  ): Promise<OvertimeRequestResult> =>
+    http
+      .patch(API_ENDPOINTS.BOOKING.RESPOND_OVERTIME(id), { action }, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2])
+      .then((r) => r.data.data ?? r.data),
 };
 
 // ─── Tasker Booking APIs ───────────────────────────────────────────────────────
@@ -194,6 +234,33 @@ export const taskerBookingApi = {
   markComplete: (id: string): Promise<TaskerAssignedBookingDetail> =>
     http
       .patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id))
+      .then((r) => r.data.data ?? r.data),
+
+  /** 11A. Báo khách công việc có thể phát sinh thêm giờ. */
+  requestOvertime: (id: string): Promise<OvertimeRequestResult> =>
+    http
+      .post(API_ENDPOINTS.BOOKING.TASKER_REQUEST_OVERTIME(id), undefined, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data.data ?? r.data),
+
+  /** 11B. Xác nhận đã nhận đủ tiền mặt phần phát sinh → đơn mới hoàn thành */
+  confirmSurchargeReceived: (
+    id: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    bookingId: string;
+    status: string;
+    totalPrice: number;
+    surcharge: number;
+  }> =>
+    http
+      .patch(
+        API_ENDPOINTS.BOOKING.TASKER_CONFIRM_SURCHARGE_RECEIVED(id),
+        undefined,
+        { skipErrorToast: true } as Parameters<typeof http.patch>[2],
+      )
       .then((r) => r.data.data ?? r.data),
 
   /** 13. Tra cứu customer theo SĐT (để tạo đơn hộ) */

@@ -54,7 +54,6 @@ export default function RegisterForm() {
     setIsLoading(true);
 
     await new Promise((r) => setTimeout(r, 1200));
-    console.log("REGISTER submit:", values);
 
     setIsLoading(false);
   };

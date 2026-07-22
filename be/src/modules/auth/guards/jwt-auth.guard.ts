@@ -32,10 +32,10 @@ export class JwtAuthGuard extends JwtBaseGuard {
 
   handleRequest<TUser = any>(err: unknown, user: TUser): TUser {
     if (err) {
-      if (err instanceof Error) {
+      if (err instanceof UnauthorizedException) {
         throw err;
       }
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
     if (!user) {
@@ -50,14 +50,14 @@ export class JwtAuthGuard extends JwtBaseGuard {
 export class JwtRefreshGuard extends JwtRefreshBaseGuard {
   handleRequest<TUser = any>(err: unknown, user: TUser): TUser {
     if (err) {
-      if (err instanceof Error) {
+      if (err instanceof UnauthorizedException) {
         throw err;
       }
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
     if (!user) {
-      throw new UnauthorizedException('Refresh token không hợp lệ');
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
     return user;

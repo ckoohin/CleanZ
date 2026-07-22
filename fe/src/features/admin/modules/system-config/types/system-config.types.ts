@@ -1,4 +1,9 @@
-export type SystemConfigGroup = "TOPUP" | "WITHDRAWAL" | "TASKER";
+export type SystemConfigGroup =
+  | "FINANCE"
+  | "TOPUP"
+  | "WITHDRAWAL"
+  | "TASKER"
+  | "DISPATCH";
 
 export interface SystemConfigItem {
   key: string;

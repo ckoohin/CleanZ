@@ -84,16 +84,43 @@ export interface StatusLog {
   createdAt: string;
 }
 
+/** Trạng thái thu phần phụ phí phát sinh thêm giờ. */
+export type BookingSurchargeStatus =
+  | "NONE"
+  | "PENDING_CUSTOMER"
+  | "PENDING_TASKER_CONFIRM"
+  | "PAID"
+  | "WAIVED"
+  | "DISPUTED";
+
+/** Trạng thái yêu cầu thêm giờ tasker gửi khách TRƯỚC khi làm thêm. */
+export type BookingOvertimeRequestStatus =
+  "NONE" | "NOTIFIED" | "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
+
 /** Thời gian làm việc thực tế: giờ phát sinh (thêm giờ) và checkout sớm. */
 export interface BookingWorkTiming {
-  /** Số phút phát sinh được tính tiền (làm tròn block 30p). */
+  /** Số phút phát sinh được tính tiền chính xác theo thời gian thực tế. */
   overtimeMinutes: number;
   /** Số phút kết thúc sớm so với thời lượng đặt. */
   earlyMinutes: number;
   /** Phí phần phát sinh (= waitingFee). */
   surchargeFee: number;
-  /** Đã checkout, đang chờ khách xác nhận/thanh toán phần phát sinh. */
+  /** Đang chờ một bên xác nhận phần phát sinh (suy ra từ surchargeStatus). */
   surchargePending: boolean;
+  surchargeStatus?: BookingSurchargeStatus;
+  /** Số phút thêm giờ khách đã duyệt trước — thu chắc chắn, không hỏi lại. */
+  approvedOvertimeMinutes?: number;
+  /** Số tiền nền tảng đã ứng trả tasker khi khách không thanh toán. */
+  platformAdvanceAmount?: number;
+}
+
+/** Thông báo phát sinh hoặc yêu cầu duyệt cũ gần nhất. */
+export interface BookingOvertimeRequest {
+  status: BookingOvertimeRequestStatus;
+  minutes: number;
+  fee: number;
+  /** Hạn chót khách phải phản hồi (ISO); null khi đã có kết quả. */
+  respondBy: string | null;
 }
 
 // ─── Customer DTOs ────────────────────────────────────────────────────────────
@@ -193,6 +220,7 @@ export interface CustomerBookingDetail {
   source?: BookingSource;
   confirmationDeadline?: string | null;
   workTiming?: BookingWorkTiming;
+  overtimeRequest?: BookingOvertimeRequest;
   createdAt: string;
   updatedAt: string;
   checkedInAt?: string | null;
@@ -271,9 +299,9 @@ export interface TaskerPostedBookingDetail {
     peakFee: number;
     petFee: number;
     discountAmount: number;
-    platformCommissionRate?: number;
-    platformFee?: number;
-    taskerIncome?: number;
+    platformCommissionRate: number;
+    platformFee: number;
+    taskerIncome: number;
   };
   schedule: BookingSchedule;
 }
@@ -328,7 +356,14 @@ export interface TaskerAssignedBookingDetail {
     addonPrice?: number;
     peakFee: number;
     petFee: number;
+    /** Phụ phí phát sinh thêm giờ (đã nằm trong totalPrice sau khi khách xác nhận). */
+    waitingFee?: number;
     discountAmount: number;
+    /** Giá trước voucher — nền tảng thu hoa hồng trên mức này. */
+    subtotal?: number;
+    platformCommissionRate: number;
+    platformFee: number;
+    taskerIncome: number;
   };
   payment?: { method: string; status: string };
   customer?: {
@@ -341,6 +376,7 @@ export interface TaskerAssignedBookingDetail {
   note?: string | null;
   flags: { hasPet: boolean };
   workTiming?: BookingWorkTiming;
+  overtimeRequest?: BookingOvertimeRequest;
   createdAt: string;
   updatedAt: string;
   checkedInAt?: string | null;

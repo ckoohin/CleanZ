@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AxiosError } from 'axios';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 import {
   adminPolicyService,
   CreatePolicyDto,
@@ -53,8 +53,7 @@ export function usePackagePolicies(packageId: string) {
 // ─── Mutation Hooks ────────────────────────────────────────────────────────────
 
 function onApiError(error: unknown) {
-  const err = error as AxiosError<{ message: string }>;
-  toast.error(err.response?.data?.message ?? 'Có lỗi xảy ra');
+  toast.error(getApiErrorMessage(error));
 }
 
 export function useCreatePolicy() {

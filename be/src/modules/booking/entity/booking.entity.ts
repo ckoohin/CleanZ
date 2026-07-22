@@ -14,6 +14,8 @@ import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
+import { BookingSurchargeStatus } from 'src/common/enums/booking-surcharge-status.enum';
+import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -271,7 +273,7 @@ export class BookingEntity {
   @Column({ name: 'checked_out_at', type: 'timestamp', nullable: true })
   checkedOutAt?: Date | null;
 
-  /** Số phút làm vượt thời lượng đặt (đã tính tiền, làm tròn block 30p). 0 nếu không phát sinh. */
+  /** Số phút làm vượt thời lượng đặt được tính tiền chính xác theo từng phút. */
   @Column({ name: 'overtime_minutes', type: 'int', default: 0 })
   overtimeMinutes!: number;
 
@@ -279,9 +281,63 @@ export class BookingEntity {
   @Column({ name: 'early_minutes', type: 'int', default: 0 })
   earlyMinutes!: number;
 
-  /** Đã checkout có phát sinh, đang chờ customer xác nhận/thanh toán phần thêm. */
-  @Column({ name: 'surcharge_pending', type: 'boolean', default: false })
-  surchargePending!: boolean;
+  /** Trạng thái thu phần phát sinh: chờ khách, chờ tasker xác nhận, đã thu, tranh chấp... */
+  @Column({
+    name: 'surcharge_status',
+    type: 'enum',
+    enum: BookingSurchargeStatus,
+    enumName: 'booking_surcharge_status',
+    default: BookingSurchargeStatus.NONE,
+  })
+  surchargeStatus!: BookingSurchargeStatus;
+
+  /** Lý do khách từ chối trả phần phát sinh (nếu có). */
+  @Column({ name: 'surcharge_dispute_reason', type: 'text', nullable: true })
+  surchargeDisputeReason?: string | null;
+
+  /** Số tiền nền tảng đã ứng trả tasker khi khách không trả phần phát sinh. */
+  @Column({
+    name: 'platform_advance_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  platformAdvanceAmount!: number;
+
+  // ── Yêu cầu thêm giờ gửi khách TRƯỚC khi làm ────────────────────────────────
+  @Column({
+    name: 'overtime_request_status',
+    type: 'enum',
+    enum: BookingOvertimeRequestStatus,
+    enumName: 'booking_overtime_request_status',
+    default: BookingOvertimeRequestStatus.NONE,
+  })
+  overtimeRequestStatus!: BookingOvertimeRequestStatus;
+
+  /** Số phút tasker đang xin thêm ở yêu cầu gần nhất. */
+  @Column({ name: 'overtime_request_minutes', type: 'int', default: 0 })
+  overtimeRequestMinutes!: number;
+
+  /** Báo giá của yêu cầu duyệt cũ; luồng thông báo mới luôn bằng 0. */
+  @Column({
+    name: 'overtime_request_fee',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  overtimeRequestFee!: number;
+
+  @Column({ name: 'overtime_requested_at', type: 'timestamp', nullable: true })
+  overtimeRequestedAt?: Date | null;
+
+  @Column({ name: 'overtime_responded_at', type: 'timestamp', nullable: true })
+  overtimeRespondedAt?: Date | null;
+
+  /** Tổng số phút thêm giờ khách đã duyệt trước — thu chắc chắn, không hỏi lại. */
+  @Column({ name: 'approved_overtime_minutes', type: 'int', default: 0 })
+  approvedOvertimeMinutes!: number;
 
   @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
   cancelledAt?: Date | null;

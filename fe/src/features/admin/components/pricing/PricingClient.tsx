@@ -7,7 +7,6 @@ import {
   Flame,
   TrendingUp,
   RefreshCw,
-  Percent,
   Zap,
   CircleCheck,
   CircleX,
@@ -156,14 +155,6 @@ export default function AdminPricingPage() {
 
   const activeConfigs = configs.filter((c) => c.isActive).length;
   const activePeakDays = peakDays.filter((p) => p.isActive).length;
-  const avgCommission =
-    configs.length > 0
-      ? (
-          configs.reduce((sum, c) => sum + Number(c.platformCommissionRate), 0) /
-          configs.length
-        ).toFixed(1)
-      : "—";
-
   const filteredConfigs = React.useMemo(() => {
     if (!configKeyword) return configs;
     const kw = configKeyword.toLowerCase();
@@ -188,7 +179,6 @@ export default function AdminPricingPage() {
         peakPrice: data.peakPrice !== "" ? Number(data.peakPrice) : undefined,
         petFee: Number(data.petFee),
         waitingFee: Number(data.waitingFee),
-        platformCommissionRate: Number(data.platformCommissionRate),
         isActive: data.isActive,
       });
       toast.success("Đã tạo cấu hình giá thành công!");
@@ -209,7 +199,6 @@ export default function AdminPricingPage() {
         peakPrice: data.peakPrice !== "" ? Number(data.peakPrice) : null,
         petFee: Number(data.petFee),
         waitingFee: Number(data.waitingFee),
-        platformCommissionRate: Number(data.platformCommissionRate),
         isActive: data.isActive,
       });
       toast.success("Đã cập nhật cấu hình giá!");
@@ -337,18 +326,6 @@ export default function AdminPricingPage() {
       hideOnMobile: true,
       render: (row) => (
         <span className="text-[var(--c-muted)]">{vnd(row.petFee)}</span>
-      ),
-    },
-    {
-      key: "platformCommissionRate",
-      title: "Hoa hồng",
-      render: (row) => (
-        <Badge
-          variant="outline"
-          className="bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] border-[var(--c-primary)]/20 font-bold text-[11px]"
-        >
-          {Number(row.platformCommissionRate).toFixed(1)}%
-        </Badge>
       ),
     },
     {
@@ -516,7 +493,7 @@ export default function AdminPricingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
           label="Cấu hình giá"
           value={configTotal}
@@ -537,13 +514,6 @@ export default function AdminPricingPage() {
           sub={`Trong ${peakDays.length} cấu hình`}
           icon={Flame}
           color="bg-[rgba(217,119,6,0.14)] text-[#D97706]"
-        />
-        <StatCard
-          label="Hoa hồng TB"
-          value={`${avgCommission}%`}
-          sub="Trung bình toàn sàn"
-          icon={Percent}
-          color="bg-[rgba(124,58,237,0.12)] text-[#7C3AED]"
         />
       </div>
 
@@ -592,7 +562,7 @@ export default function AdminPricingPage() {
                   </p>
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">
                     Mỗi dịch vụ chỉ có một cấu hình giá. Gồm giá cơ bản, giá
-                    cao điểm, phí thú cưng, phí chờ và hoa hồng nền tảng.
+                    cao điểm, phí thú cưng và phí chờ.
                   </p>
                 </div>
               </div>

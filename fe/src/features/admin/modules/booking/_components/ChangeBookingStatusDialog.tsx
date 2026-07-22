@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin";
 import { useChangeBookingStatus } from "@/features/admin/modules/booking/hooks/useAdminBooking";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 interface ChangeBookingStatusDialogProps {
   bookingId: string;
@@ -53,8 +54,7 @@ export function ChangeBookingStatusDialog({ bookingId, currentStatus, open, onOp
         onOpenChange(false);
       },
       onError: (err: unknown) => {
-        const error = err as { response?: { data?: { message?: string } } };
-        toast.error(error?.response?.data?.message || "Lỗi khi cập nhật trạng thái");
+        toast.error(getApiErrorMessage(err, "Không thể cập nhật trạng thái"));
       }
     });
   };

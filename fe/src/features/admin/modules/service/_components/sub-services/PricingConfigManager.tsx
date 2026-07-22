@@ -29,7 +29,7 @@ type PricingMode = "view" | "edit" | "create";
 const emptyPricingForm: CreatePricingConfigDto = {
   name: "", basePrice: 0, peakPrice: null,
   petFee: 0, waitingFee: 0, priceUnit: "VND",
-  platformCommissionRate: 20, isActive: true,
+  isActive: true,
 };
 
 export function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
@@ -51,7 +51,7 @@ export function PricingConfigManager({ svc }: { svc: AdminServiceEntity }) {
       peakPrice: cfg.peakPrice ? Number(cfg.peakPrice) : null,
       petFee: cfg.petFee ? Number(cfg.petFee) : 0,
       waitingFee: cfg.waitingFee ? Number(cfg.waitingFee) : 0,
-      priceUnit: "VND", platformCommissionRate: 20, isActive: true,
+      priceUnit: "VND", isActive: true,
     });
     setMode("edit");
   };

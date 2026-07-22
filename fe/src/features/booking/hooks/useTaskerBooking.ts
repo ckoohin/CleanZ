@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 import type {
   CreateBookingForCustomerDto,
   TaskerCompletedBookingRange,
@@ -26,22 +27,7 @@ const TASKER_KEYS = {
 };
 
 function getErrorMsg(err: unknown): string {
-  const data = (
-    err as { response?: { data?: { message?: unknown; errors?: unknown } } }
-  )?.response?.data;
-  const message = data?.message ?? data?.errors;
-
-  if (typeof message === "string") return message;
-  if (Array.isArray(message)) return message.join(", ");
-  if (message && typeof message === "object") {
-    return Object.values(message as Record<string, unknown>)
-      .map((value) =>
-        typeof value === "string" ? value : JSON.stringify(value),
-      )
-      .join(", ");
-  }
-
-  return "Có lỗi xảy ra";
+  return getApiErrorMessage(err);
 }
 
 function getCustomerLookupErrorMsg(err: unknown): string {
@@ -271,6 +257,34 @@ export function useMarkComplete(bookingId: string) {
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
     },
     onError: handleTaskerBookingError,
+  });
+}
+
+/** 11A. Báo khách công việc có thể phát sinh thêm giờ. */
+export function useRequestOvertime(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => taskerBookingApi.requestOvertime(bookingId),
+    onSuccess: () => {
+      toast.success("Đã báo khách về khả năng phát sinh thêm giờ");
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+    },
+    onError: (err: unknown) => toast.error(getErrorMsg(err)),
+  });
+}
+
+/** 11B. Xác nhận đã nhận đủ tiền mặt phần phát sinh */
+export function useConfirmSurchargeReceived(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => taskerBookingApi.confirmSurchargeReceived(bookingId),
+    onSuccess: () => {
+      toast.success("Đã xác nhận nhận đủ tiền. Đơn hoàn thành ✅");
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+    },
+    onError: (err: unknown) => toast.error(getErrorMsg(err)),
   });
 }
 

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 import { adminBlogApi, adminBlogCategoryApi, blogApi } from "../services/blog.service";
 import type { BlogCategoryFormInput, BlogFormInput, BlogListParams, BlogStatus } from "../types/blog.types";
 
@@ -29,9 +30,7 @@ function getBlogErrorMessage(error: unknown, fallback: string): string {
   if (message === "BLOG_SLUG_REQUIRED") return "Vui lòng nhập đường dẫn bài viết.";
   if (message === "BLOG_TAG_LIMIT_EXCEEDED") return "Số lượng thẻ vượt quá giới hạn.";
   if (message === "BLOG_TAG_INVALID") return "Thẻ không hợp lệ hoặc quá dài.";
-  if (typeof message === "string" && message.trim()) return message;
-
-  return fallback;
+  return getApiErrorMessage(error, fallback);
 }
 
 export function usePublishedBlogs(params?: BlogListParams) {

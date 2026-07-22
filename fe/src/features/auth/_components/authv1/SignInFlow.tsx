@@ -77,8 +77,8 @@ export const SignInFlow = () => {
             const { success, errors } = validate(formData);
             if (!success) return setErrors(errors);
             login.mutate({ ...formData, role: "CUSTOMER" });
-        } catch (error) {
-            console.log(error);
+        } catch {
+            // Hook đăng nhập chịu trách nhiệm hiển thị lỗi đã được chuẩn hóa.
         }
     };
 

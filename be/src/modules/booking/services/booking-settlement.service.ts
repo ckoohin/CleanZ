@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
@@ -16,8 +16,14 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
+import { BookingSurchargeStatus } from 'src/common/enums/booking-surcharge-status.enum';
+import { overtimeFeeForMinutes } from '../helpers/work-timing.helper';
 
-export const DEFAULT_PLATFORM_COMMISSION_RATE = 20;
+/** Trần số phút phát sinh nền tảng chịu ứng trả khi khách không thanh toán. */
+export const PLATFORM_OVERTIME_ADVANCE_CAP_MINUTES = 60;
+
+/** referenceType của bút toán ứng trả — đảm bảo idempotent, không ứng hai lần. */
+export const OVERTIME_ADVANCE_REF = 'BOOKING_OVERTIME_ADVANCE';
 
 export interface SettleCompletionInput {
   booking: BookingEntity;
@@ -30,6 +36,11 @@ export interface SettleCompletionInput {
    * chỉ khấu trừ hoa hồng — giống cơ chế đơn CASH.
    */
   cashSurcharge?: number;
+  /**
+   * Trạng thái phụ phí sau khi quyết toán. Bỏ trống → suy ra từ `waitingFee`
+   * (có phụ phí = đã thu). Truyền `DISPUTED`/`WAIVED` cho nhánh khách không trả.
+   */
+  surchargeStatus?: BookingSurchargeStatus;
 }
 
 export interface SettleCompletionResult {
@@ -45,8 +56,6 @@ export interface SettleCompletionResult {
  */
 @Injectable()
 export class BookingSettlementService {
-  private readonly logger = new Logger(BookingSettlementService.name);
-
   constructor(
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
@@ -56,27 +65,8 @@ export class BookingSettlementService {
     private readonly vouchersService: VouchersService,
   ) {}
 
-  async resolvePlatformCommissionRate(
-    manager: EntityManager,
-    booking: BookingEntity,
-  ): Promise<number> {
-    const subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-    if (!subServiceId) {
-      return DEFAULT_PLATFORM_COMMISSION_RATE;
-    }
-
-    try {
-      return await this.pricingService.getPlatformCommissionRateByServiceId(
-        manager,
-        subServiceId,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Cannot resolve sub-service commission for booking ${booking.id}, fallback ${DEFAULT_PLATFORM_COMMISSION_RATE}%`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      return DEFAULT_PLATFORM_COMMISSION_RATE;
-    }
+  async resolvePlatformCommissionRate(manager: EntityManager): Promise<number> {
+    return this.pricingService.getPlatformCommissionRate(manager);
   }
 
   /**
@@ -95,7 +85,11 @@ export class BookingSettlementService {
     const oldStatus = booking.status;
     booking.status = BookingStatus.COMPLETED;
     booking.completedAt = completedAt;
-    booking.surchargePending = false;
+    booking.surchargeStatus =
+      input.surchargeStatus ??
+      (toNumber(booking.waitingFee) > 0
+        ? BookingSurchargeStatus.PAID
+        : BookingSurchargeStatus.NONE);
     booking.confirmationDeadline = null;
 
     if (booking.paymentMethod === PaymentMethod.CASH) {
@@ -115,10 +109,7 @@ export class BookingSettlementService {
     const totalPrice = toNumber(savedBooking.totalPrice);
     const discountAmount = toNumber(savedBooking.discountAmount);
     const subtotal = totalPrice + discountAmount;
-    const commissionRate = await this.resolvePlatformCommissionRate(
-      manager,
-      savedBooking,
-    );
+    const commissionRate = await this.resolvePlatformCommissionRate(manager);
     const platformFee = Math.round((subtotal * commissionRate) / 100);
     const taskerEarning = Math.max(subtotal - platformFee, 0);
 
@@ -197,6 +188,108 @@ export class BookingSettlementService {
       note,
     });
     return { booking: savedBooking, taskerEarning, platformFee };
+  }
+
+  /**
+   * Khách không trả phần phát sinh → hoàn thành đơn theo GIÁ GỐC, nhưng nền tảng
+   * ứng trả tasker phần phát sinh trong hạn mức và đánh dấu DISPUTED để admin xử.
+   *
+   * Khác luồng cũ ở chỗ **giữ nguyên `overtimeMinutes`** làm bằng chứng — chỉ đưa
+   * `waitingFee` về 0 vì khách không trả khoản đó.
+   */
+  async settleDisputedSurcharge(
+    manager: EntityManager,
+    input: {
+      booking: BookingEntity;
+      tasker: TaskerEntity;
+      actorUserId: string;
+      reason: string;
+      note: string;
+    },
+  ): Promise<
+    SettleCompletionResult & { advanceBase: number; netPaid: number }
+  > {
+    const { booking, tasker, actorUserId, reason, note } = input;
+    const surcharge = Math.round(toNumber(booking.waitingFee));
+
+    // Khách không trả → tổng đơn giữ nguyên giá gốc, bỏ khoản phụ phí khỏi hoá đơn.
+    booking.waitingFee = 0;
+    booking.surchargeDisputeReason = reason;
+
+    const advance = await this.advanceOvertimeToTasker(
+      manager,
+      booking,
+      tasker,
+      surcharge,
+    );
+
+    const result = await this.settleCompletedBooking(manager, {
+      booking,
+      tasker,
+      actorUserId,
+      note,
+      surchargeStatus: BookingSurchargeStatus.DISPUTED,
+    });
+
+    return {
+      ...result,
+      advanceBase: advance.advanceBase,
+      netPaid: advance.netPaid,
+    };
+  }
+
+  /**
+   * Khách không trả phần phát sinh (từ chối rõ ràng, hoặc ví không đủ khi quá hạn)
+   * → nền tảng ứng trả tasker phần phát sinh trong hạn mức, rồi đòi khách sau.
+   *
+   * Khoản ứng vẫn áp dụng hoa hồng để xác định số tiền thực trả tasker, nhưng
+   * chưa ghi nhận income vì khách chưa thanh toán khoản phát sinh này.
+   * Idempotent theo `(bookingId, OVERTIME_ADVANCE_REF)` nên gọi lại không nhân đôi.
+   */
+  async advanceOvertimeToTasker(
+    manager: EntityManager,
+    booking: BookingEntity,
+    tasker: TaskerEntity,
+    surcharge: number,
+  ): Promise<{ advanceBase: number; advanceFee: number; netPaid: number }> {
+    const cap = overtimeFeeForMinutes(
+      PLATFORM_OVERTIME_ADVANCE_CAP_MINUTES,
+      toNumber(booking.durationHours),
+      toNumber(booking.basePrice),
+    );
+    const advanceBase = Math.min(Math.round(toNumber(surcharge)), cap);
+    if (advanceBase <= 0) {
+      return { advanceBase: 0, advanceFee: 0, netPaid: 0 };
+    }
+
+    const commissionRate = await this.resolvePlatformCommissionRate(manager);
+    const advanceFee = Math.round((advanceBase * commissionRate) / 100);
+    const netPaid = Math.max(advanceBase - advanceFee, 0);
+
+    const systemWallet =
+      await this.walletService.getOrCreateSystemWallet(manager);
+    const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
+      manager,
+      tasker,
+    );
+
+    await this.walletService.transfer(manager, {
+      fromWallet: systemWallet,
+      toWallet: taskerWallet,
+      amount: netPaid,
+      debitType: WalletTransactionType.ADJUSTMENT,
+      creditType: WalletTransactionType.TASKER_EARNING,
+      booking,
+      referenceId: booking.id,
+      referenceType: OVERTIME_ADVANCE_REF,
+      description:
+        `Nền tảng ứng trả phần phát sinh booking ${booking.bookingCode}: ` +
+        `${advanceBase.toLocaleString('vi-VN')}đ − phí nền tảng ` +
+        `${advanceFee.toLocaleString('vi-VN')}đ (khách chưa thanh toán)`,
+    });
+
+    booking.platformAdvanceAmount = advanceBase;
+    return { advanceBase, advanceFee, netPaid };
   }
 
   /**

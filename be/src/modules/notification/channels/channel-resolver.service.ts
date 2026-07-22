@@ -21,6 +21,12 @@ const CHANNEL_MATRIX: Record<NotificationType, NotificationChannel[]> = {
   [NotificationType.SYSTEM]: ['IN_APP'],
   [NotificationType.BOOKING_PENDING_CONFIRMATION]: ['IN_APP'],
   [NotificationType.BOOKING_SURCHARGE_PENDING]: ['IN_APP', 'EMAIL'],
+  // Cửa sổ chờ chỉ 20 phút nên email vô nghĩa — chỉ in-app + socket realtime.
+  [NotificationType.BOOKING_OVERTIME_REQUEST]: ['IN_APP'],
+  [NotificationType.BOOKING_OVERTIME_APPROVED]: ['IN_APP'],
+  [NotificationType.BOOKING_OVERTIME_REJECTED]: ['IN_APP'],
+  [NotificationType.BOOKING_SURCHARGE_AWAITING_RECEIPT]: ['IN_APP'],
+  [NotificationType.BOOKING_SURCHARGE_DISPUTED]: ['IN_APP', 'EMAIL'],
 };
 
 @Injectable()

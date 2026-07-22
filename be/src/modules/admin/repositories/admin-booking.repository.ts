@@ -1,4 +1,8 @@
 import {
+  isSurchargePending,
+  BookingSurchargeStatus,
+} from 'src/common/enums/booking-surcharge-status.enum';
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -685,6 +689,7 @@ export class AdminBookingRepository {
       fromDate,
       toDate,
       abnormalEarlyCheckout,
+      surchargeDisputed,
       page = 1,
       limit = 10,
     } = queryDto;
@@ -760,6 +765,11 @@ export class AdminBookingRepository {
       query
         .andWhere('booking.earlyMinutes > :earlyThreshold')
         .setParameter('earlyThreshold', EARLY_CHECKOUT_ABNORMAL_MINUTES);
+    }
+    if (surchargeDisputed) {
+      query
+        .andWhere('booking.surchargeStatus = :disputedStatus')
+        .setParameter('disputedStatus', BookingSurchargeStatus.DISPUTED);
     }
 
     const statusCountRows = await query
@@ -934,42 +944,24 @@ export class AdminBookingRepository {
     ]);
 
     const totalPrice = Number(booking.totalPrice);
+    const subtotal = totalPrice + Number(booking.discountAmount);
     let commissionRate =
-      settledPlatformFee !== null && totalPrice > 0
-        ? Number(((settledPlatformFee / totalPrice) * 100).toFixed(2))
+      settledPlatformFee !== null && subtotal > 0
+        ? Number(((settledPlatformFee / subtotal) * 100).toFixed(2))
         : null;
     if (settledPlatformFee === null) {
-      try {
-        let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-        if (!subServiceId) {
-          const bss = await this.dataSource
-            .getRepository(BookingSubServiceEntity)
-            .findOne({
-              where: { bookingId: booking.id },
-            });
-          subServiceId = bss?.subServiceId || '';
-        }
-        if (subServiceId) {
-          commissionRate =
-            await this.pricingService.getPlatformCommissionRateByServiceId(
-              this.dataSource.manager,
-              subServiceId,
-            );
-        }
-      } catch (error) {
-        if (!(error instanceof NotFoundException)) {
-          throw error;
-        }
-      }
+      commissionRate = await this.pricingService.getPlatformCommissionRate(
+        this.dataSource.manager,
+      );
     }
 
     const platformFee =
       settledPlatformFee ??
       (commissionRate === null
         ? null
-        : Math.round((totalPrice * commissionRate) / 100));
+        : Math.round((subtotal * commissionRate) / 100));
     const taskerIncome =
-      platformFee === null ? null : Math.max(totalPrice - platformFee, 0);
+      platformFee === null ? null : Math.max(subtotal - platformFee, 0);
     const acceptedAt =
       timeline.find((log) => log.newStatus === BookingStatus.CONFIRMED)
         ?.createdAt ?? null;
@@ -1072,7 +1064,11 @@ export class AdminBookingRepository {
           overtimeMinutes: Number(booking.overtimeMinutes ?? 0),
           earlyMinutes: Number(booking.earlyMinutes ?? 0),
           surchargeFee: Number(booking.waitingFee ?? 0),
-          surchargePending: booking.surchargePending ?? false,
+          surchargePending: isSurchargePending(booking.surchargeStatus),
+          surchargeStatus: booking.surchargeStatus,
+          surchargeDisputeReason: booking.surchargeDisputeReason ?? null,
+          platformAdvanceAmount: Number(booking.platformAdvanceAmount ?? 0),
+          approvedOvertimeMinutes: Number(booking.approvedOvertimeMinutes ?? 0),
           isEarlyAbnormal:
             Number(booking.earlyMinutes ?? 0) > EARLY_CHECKOUT_ABNORMAL_MINUTES,
         },
@@ -1673,27 +1669,11 @@ export class AdminBookingRepository {
     await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
 
     const totalPrice = Number(booking.totalPrice);
-    let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-    if (!subServiceId) {
-      const bss = await manager.getRepository(BookingSubServiceEntity).findOne({
-        where: { bookingId: booking.id },
-      });
-      subServiceId = bss?.subServiceId || '';
-    }
-    let commissionRate = 20; // default for new package-based bookings
-    if (subServiceId) {
-      try {
-        commissionRate =
-          await this.pricingService.getPlatformCommissionRateByServiceId(
-            manager,
-            subServiceId,
-          );
-      } catch {
-        // sub-service config not found → keep default
-      }
-    }
-    const platformFee = Math.round((totalPrice * commissionRate) / 100);
-    const taskerIncome = Math.max(totalPrice - platformFee, 0);
+    const subtotal = totalPrice + Number(booking.discountAmount);
+    const commissionRate =
+      await this.pricingService.getPlatformCommissionRate(manager);
+    const platformFee = Math.round((subtotal * commissionRate) / 100);
+    const taskerIncome = Math.max(subtotal - platformFee, 0);
 
     // Đơn trả bằng ví: tiền đã giữ ở ví SYSTEM → chỉ chuyển công cho tasker.
     const settledFromWallet =
@@ -1724,7 +1704,7 @@ export class AdminBookingRepository {
           booking,
           description:
             `Thu nhập booking ${booking.bookingCode} (Admin hoàn thành): ` +
-            `tổng công ${totalPrice.toLocaleString('vi-VN')}đ − ` +
+            `tổng công ${subtotal.toLocaleString('vi-VN')}đ − ` +
             `chiết khấu nền tảng ${platformFee.toLocaleString('vi-VN')}đ`,
         });
       }
@@ -1903,44 +1883,38 @@ export class AdminBookingRepository {
     manager: EntityManager,
     booking: BookingEntity,
   ): Promise<number> {
-    let subServiceId = booking.bookingSubServices?.[0]?.subServiceId;
-    if (!subServiceId) {
-      const bss = await manager.getRepository(BookingSubServiceEntity).findOne({
-        where: { bookingId: booking.id },
-      });
-      subServiceId = bss?.subServiceId || '';
-    }
-    let commissionRate = 20; // default for new package-based bookings
-    if (subServiceId) {
-      try {
-        commissionRate =
-          await this.pricingService.getPlatformCommissionRateByServiceId(
-            manager,
-            subServiceId,
-          );
-      } catch {
-        // sub-service config not found → keep default
-      }
-    }
-    return Math.round((Number(booking.totalPrice) * commissionRate) / 100);
+    const commissionRate =
+      await this.pricingService.getPlatformCommissionRate(manager);
+    const subtotal =
+      Number(booking.totalPrice) + Number(booking.discountAmount);
+    return Math.round((subtotal * commissionRate) / 100);
   }
 
   private async getSettledPlatformFee(
     bookingId: string,
   ): Promise<number | null> {
-    const row = await this.dataSource
+    const rows = await this.dataSource
       .getRepository(WalletTransactionEntity)
       .createQueryBuilder('transaction')
       .innerJoin('transaction.wallet', 'wallet')
-      .select('SUM(transaction.amount)', 'amount')
+      .select('wallet.owner_type', 'ownerType')
+      .addSelect('SUM(transaction.amount)', 'amount')
       .where('transaction.booking_id = :bookingId', { bookingId })
       .andWhere('transaction.type = :type', {
         type: WalletTransactionType.PLATFORM_FEE,
       })
-      .andWhere('wallet.owner_type = :ownerType', {
-        ownerType: WalletOwnerType.SYSTEM,
+      .andWhere('wallet.owner_type IN (:...ownerTypes)', {
+        ownerTypes: [WalletOwnerType.TASKER, WalletOwnerType.SYSTEM],
       })
-      .getRawOne<{ amount: string | null }>();
+      .groupBy('wallet.owner_type')
+      .getRawMany<{ ownerType: WalletOwnerType; amount: string | null }>();
+
+    // Đơn tiền mặt có một bút toán PLATFORM_FEE trên ví tasker đúng bằng khoản
+    // hoa hồng của đơn. Ưu tiên bút toán này để không cộng nhầm phí kế toán của
+    // khoản nền tảng ứng trả thêm giờ vào hoa hồng gốc của booking.
+    const row =
+      rows.find((item) => item.ownerType === WalletOwnerType.TASKER) ??
+      rows.find((item) => item.ownerType === WalletOwnerType.SYSTEM);
 
     return row?.amount === null || row?.amount === undefined
       ? null

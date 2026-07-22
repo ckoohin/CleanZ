@@ -69,7 +69,6 @@ export function PricingFormFields({
         {numField("Giá cao điểm (₫)", "peakPrice", "Để trống nếu không có")}
         {numField("Phí thú cưng (₫)", "petFee", "0")}
         {numField("Phí chờ đợi (₫/15p)", "waitingFee", "0")}
-        {numField("Hoa hồng nền tảng (%)", "platformCommissionRate", "20", 100)}
         {/* Đơn vị */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-(--c-ink)">Đơn vị tính</label>

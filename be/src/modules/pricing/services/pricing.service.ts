@@ -31,6 +31,7 @@ import {
 import { ServicePeakHourEntity } from 'src/modules/service/entity/service-peak-hour.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
+import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 
 export interface CalculateBookingPriceInput {
@@ -542,21 +543,11 @@ export class PricingService {
     };
   }
 
-  async getPlatformCommissionRateByServiceId(
-    manager: EntityManager,
-    serviceId: string,
-  ): Promise<number> {
-    const service = await manager
-      .getRepository(SubServiceEntity)
-      .findOne({ where: { id: serviceId }, relations: ['pricingConfig'] });
-
-    if (!service || !service.pricingConfig || !service.pricingConfig.isActive) {
-      throw new NotFoundException(
-        'Không tìm thấy cấu hình hoa hồng dịch vụ con',
-      );
-    }
-
-    return toNumber(service.pricingConfig.platformCommissionRate);
+  async getPlatformCommissionRate(manager: EntityManager): Promise<number> {
+    return this.systemConfigService.getRegisteredNumber(
+      manager,
+      SYSTEM_CONFIG_KEYS.PLATFORM_COMMISSION_RATE_PERCENT,
+    );
   }
 
   private findBookingService(

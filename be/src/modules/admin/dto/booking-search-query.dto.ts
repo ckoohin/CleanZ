@@ -84,6 +84,16 @@ export class BookingSearchQueryDto {
   @IsBoolean()
   abnormalEarlyCheckout?: boolean;
 
+  @ApiPropertyOptional({
+    description:
+      'Chỉ lấy booking khách không thanh toán phần phát sinh (nền tảng đã ứng trả tasker)',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  surchargeDisputed?: boolean;
+
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)

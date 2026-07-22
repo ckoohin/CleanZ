@@ -9,7 +9,7 @@ import {
   CreatePricingTierDto,
   UpdatePricingTierDto,
 } from '../services/admin-pricing.service';
-import { AxiosError } from 'axios';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 export const ADMIN_PRICING_KEYS = {
   allConfigs: ['admin-pricing-configs'] as const,
@@ -48,8 +48,7 @@ export function useCreatePricingConfig() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allConfigs });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể tạo bảng giá'));
     },
   });
 }
@@ -65,8 +64,7 @@ export function useUpdatePricingConfig() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.configDetail(variables.id) });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật bảng giá'));
     },
   });
 }
@@ -80,8 +78,7 @@ export function useDeletePricingConfig() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allConfigs });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể xóa bảng giá'));
     },
   });
 }
@@ -112,8 +109,7 @@ export function useCreatePeakDay() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allPeakDays });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể thêm ngày cao điểm'));
     },
   });
 }
@@ -131,8 +127,7 @@ export function useUpdatePeakDay() {
       });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật ngày cao điểm'));
     },
   });
 }
@@ -146,8 +141,7 @@ export function useDeletePeakDay() {
       queryClient.invalidateQueries({ queryKey: ADMIN_PRICING_KEYS.allPeakDays });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể xóa ngày cao điểm'));
     },
   });
 }
@@ -173,8 +167,7 @@ export function useCreatePricingTier() {
       });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể thêm mức giá'));
     },
   });
 }
@@ -191,8 +184,7 @@ export function useUpdatePricingTier(packageId: string) {
       });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật mức giá'));
     },
   });
 }
@@ -208,8 +200,7 @@ export function useDeletePricingTier(packageId: string) {
       });
     },
     onError: (error: unknown) => {
-      const err = error as AxiosError<{ message: string }>;
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+      toast.error(getApiErrorMessage(error, 'Không thể xóa mức giá'));
     },
   });
 }

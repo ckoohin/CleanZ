@@ -57,6 +57,9 @@ import {
 import { TaskerConfirmCustomerBookingService } from './services/tasker-confirm-customer-booking.service';
 import { CustomerConfirmCompletionService } from './services/customer-confirm-completion.service';
 import { ConfirmCompletionDto } from './dto/confirm-completion.dto';
+import { RejectSurchargeDto } from './dto/reject-surcharge.dto';
+import { RespondOvertimeDto } from './dto/overtime-request.dto';
+import { BookingOvertimeRequestService } from './services/booking-overtime-request.service';
 import {
   BookingExpirationService,
   ExpireOverdueBookingsResponse,
@@ -82,6 +85,7 @@ export class BookingController {
     private readonly taskerCreateBookingService: TaskerCreateBookingService,
     private readonly taskerConfirmCustomerBookingService: TaskerConfirmCustomerBookingService,
     private readonly customerConfirmCompletionService: CustomerConfirmCompletionService,
+    private readonly bookingOvertimeRequestService: BookingOvertimeRequestService,
   ) {}
 
   @Post()
@@ -285,6 +289,108 @@ export class BookingController {
       userId,
       bookingId,
       dto,
+    );
+  }
+
+  @Patch('customer/:id/reject-surcharge')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer từ chối trả phần phát sinh',
+    description:
+      'Đơn vẫn hoàn thành theo GIÁ GỐC. Thời gian phát sinh được giữ lại làm bằng chứng, ' +
+      'nền tảng ứng trả tasker phần phát sinh trong hạn mức và đánh dấu đơn là tranh chấp ' +
+      'để admin xử lý. Từ chối nhiều lần sẽ bị hạn chế đặt đơn tiền mặt.',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({
+    description: 'Booking chuyển IN_PROGRESS → COMPLETED theo giá gốc',
+  })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  rejectSurcharge(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+    @Body() dto: RejectSurchargeDto,
+  ) {
+    return this.customerConfirmCompletionService.rejectSurcharge(
+      userId,
+      bookingId,
+      dto,
+    );
+  }
+
+  @Patch('customer/:id/overtime-request')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer duyệt / từ chối yêu cầu thêm giờ của tasker',
+    description:
+      'Duyệt TRƯỚC khi tasker làm thêm — phần phát sinh trở thành cam kết, không phải ' +
+      'xác nhận lại sau khi checkout. Đơn trả trước bằng ví sẽ bị giữ tiền ngay khi duyệt ' +
+      '(làm ít hơn số phút đã duyệt sẽ được hoàn lại lúc checkout).',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({
+    description: 'Trạng thái yêu cầu thêm giờ sau khi phản hồi',
+  })
+  @ApiUnauthorizedResponse({ description: 'Customer chưa đăng nhập' })
+  respondOvertimeRequest(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+    @Body() dto: RespondOvertimeDto,
+  ) {
+    return this.bookingOvertimeRequestService.respondOvertime(
+      userId,
+      bookingId,
+      dto,
+    );
+  }
+
+  @Post('tasker/:id/overtime-request')
+  @Auth(UserRole.TASKER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker báo khách công việc có thể phát sinh thêm giờ',
+    description:
+      'Không chốt trước số phút hay số tiền. Phụ phí chính thức được tính ' +
+      'theo thời gian làm thực tế khi tasker checkout và gửi khách xác nhận.',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({ description: 'Đã gửi thông báo cho khách' })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  requestOvertime(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ) {
+    return this.bookingOvertimeRequestService.requestOvertime(
+      userId,
+      bookingId,
+    );
+  }
+
+  @Patch('tasker/:id/confirm-surcharge-received')
+  @Auth(UserRole.TASKER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker xác nhận đã nhận đủ tiền mặt phần phát sinh',
+    description:
+      'Bước cuối của luồng thu tiền mặt: khách đã đồng ý trả, tasker nhận đủ tiền rồi ' +
+      'bấm xác nhận thì đơn mới chuyển COMPLETED và quyết toán.',
+  })
+  @ApiParam({ name: 'id', example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f' })
+  @ApiOkResponse({ description: 'Booking chuyển IN_PROGRESS → COMPLETED' })
+  @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
+  confirmSurchargeReceived(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ) {
+    return this.customerConfirmCompletionService.confirmSurchargeReceived(
+      userId,
+      bookingId,
     );
   }
 

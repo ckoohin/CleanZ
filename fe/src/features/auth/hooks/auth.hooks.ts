@@ -23,36 +23,10 @@ import type {
 } from "@/features/auth/types/auth.type";
 import type { User } from "@/features/auth/types/user.type";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
-interface ApiErrorResponse {
-  message?: string;
-  errors?: string | Record<string, string>;
-}
-
-interface AxiosErrorLike {
-  response?: {
-    data?: ApiErrorResponse;
-  };
-}
-  
 export function getErrorMessage(error: unknown): string {
-  const err = error as AxiosErrorLike;
-  const responseData = err.response?.data;
-
-  if (!responseData) return "Lỗi kết nối, vui lòng thử lại";
-
-  if (typeof responseData.message === "string") return responseData.message;
-
-  const errors = responseData.errors;
-  if (errors) {
-    if (typeof errors === "string") return errors;
-    if (typeof errors === "object") {
-      const firstError = Object.values(errors)[0];
-      if (typeof firstError === "string") return firstError;
-    }
-  }
-
-  return "Đã xảy ra lỗi, vui lòng thử lại";
+  return getApiErrorMessage(error);
 }
 
 export function useAuth() {
@@ -94,7 +68,6 @@ export function useLogin(redirectUrl?: string) {
       router.push(url.pathname + url.search);
     },
     onError: (error: unknown) => {
-      console.error("Login error:", error);
       toast.error(getErrorMessage(error));
     },
   });
@@ -122,7 +95,9 @@ export function useLogout() {
     mutationFn: authApi.logout,
     onSuccess: () => {
       // Lấy user hiện tại trước khi xóa để biết nên redirect về login nào
-      const currentUser = queryClient.getQueryData<{ role?: string }>(queryKeys.auth.me());
+      const currentUser = queryClient.getQueryData<{ role?: string }>(
+        queryKeys.auth.me(),
+      );
       const role = currentUser?.role;
 
       queryClient.removeQueries({ queryKey: queryKeys.auth.me() });
@@ -130,32 +105,28 @@ export function useLogout() {
       toast.success("Đăng xuất thành công");
 
       // Redirect về đúng trang login theo role
-      if (role === 'ADMIN') {
+      if (role === "ADMIN") {
         router.push(ROUTES.AUTH.LOGIN_ADMIN);
-      } else if (role === 'TASKER') {
+      } else if (role === "TASKER") {
         router.push(ROUTES.AUTH.LOGIN_TASKER);
       } else {
         router.push(ROUTES.AUTH.LOGIN);
       }
     },
     onError: (error: unknown) => {
-      console.error("Logout error:", error);
       toast.error(getErrorMessage(error));
     },
   });
 }
-
 
 export function useVerifyEmail() {
   return useMutation({
     mutationFn: (credentials: VerifyEmailCredentials) =>
       authApi.verifyEmail(credentials),
     onSuccess: (res: VerifyEmailResponse) => {
-      // console.log(res);
       toast.success(res.message);
     },
     onError: (error: unknown) => {
-      // console.log(error.response);
       toast.error(getErrorMessage(error));
       return error;
     },
@@ -207,7 +178,6 @@ export function useVerifyOtp() {
       }
     },
     onError: (error: unknown) => {
-      console.error("Verify OTP error:", error);
       toast.error(getErrorMessage(error));
     },
   });
@@ -218,11 +188,9 @@ export function useForgotPassword() {
     mutationFn: (credentials: ForgotPasswordCredentials) =>
       authApi.forgotPassword(credentials),
     onSuccess: (res: ForgotPasswordResponse) => {
-      // console.log(res);
       toast.success(res.message);
     },
     onError: (error: unknown) => {
-      // console.log(error.response);
       toast.error(getErrorMessage(error));
       return error;
     },
@@ -234,11 +202,9 @@ export function useResetPassword() {
     mutationFn: (credentials: ResetPasswordCredentials) =>
       authApi.resetPassword(credentials),
     onSuccess: (res: ResetPasswordResponse) => {
-      // console.log(res);
       toast.success(res.message);
     },
     onError: (error: unknown) => {
-      // console.log(error.response);
       toast.error(getErrorMessage(error));
       return error;
     },
@@ -276,7 +242,9 @@ export function useUpdateProfile() {
       authApi.updateProfile(dto),
     onSuccess: (res) => {
       toast.success(res.message || "Cập nhật hồ sơ thành công!");
-      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.auth.profile(),
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
     },
     onError: (error: unknown) => {

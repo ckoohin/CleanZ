@@ -222,8 +222,8 @@ function ExpiredState() {
     try {
       await resendVerificationEmail({ token: token! });
       setResent(true);
-    } catch (error) {
-      console.error("Resend verification email error:", error);
+    } catch {
+      // Hook xác thực chịu trách nhiệm hiển thị lỗi đã được chuẩn hóa.
     }
   };
 

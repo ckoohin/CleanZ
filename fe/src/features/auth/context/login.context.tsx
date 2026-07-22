@@ -55,8 +55,8 @@ export function LoginProvider(
 
             router.push(`${process.env.NEXT_PUBLIC_CLIENT_URL}/otp-verify`)
 
-        } catch (error) {
-            console.log(error);
+        } catch {
+            // Hook đăng nhập chịu trách nhiệm hiển thị lỗi đã được chuẩn hóa.
         }
     };
 

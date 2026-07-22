@@ -4,17 +4,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { adminVoucherService } from "../services/admin-voucher.service";
 import { CreateVoucherPayload } from "../types/voucher.type";
-
-type ApiError = {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-};
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return (error as ApiError)?.response?.data?.message || fallback;
+  return getApiErrorMessage(error, fallback);
 }
 
 export const useCreateVoucher = () => {

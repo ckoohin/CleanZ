@@ -115,7 +115,6 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
         peakPrice: data.peakPrice !== "" ? Number(data.peakPrice) : undefined,
         petFee: Number(data.petFee),
         waitingFee: Number(data.waitingFee),
-        platformCommissionRate: Number(data.platformCommissionRate),
         isActive: data.isActive,
       });
       form.setValue("pricingConfigId", newConfig.id);
@@ -244,10 +243,6 @@ export function ServiceForm({ initialValues, onSubmit, isSubmitting, isEditMode,
                                 <div className="flex justify-between">
                                   <span className="text-[var(--c-muted)]">Phí chờ (15p):</span>
                                   <span className="font-medium">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedConfig.waitingFee || 0)}</span>
-                                </div>
-                                <div className="flex justify-between col-span-2 border-t border-[var(--c-primary)]/10 pt-2 mt-1">
-                                  <span className="text-[var(--c-muted)]">Chiết khấu nền tảng:</span>
-                                  <span className="font-medium text-[#E11D48]">{selectedConfig.platformCommissionRate || 0}%</span>
                                 </div>
                               </>
                             );

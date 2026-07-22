@@ -8,6 +8,7 @@ import {
   UpdateTaskerProfileDto,
 } from '../types/tasker.type';
 import type { TaskerLocationPayload } from '../services/tasker.service';
+import { getApiErrorMessage } from '@/lib/api/error-message';
 
 type ApiError = Error & { response?: { data?: { message?: string } } };
 type PresenceStatus = 'ONLINE' | 'OFFLINE';
@@ -46,7 +47,7 @@ export function useSubmitTaskerProfile() {
       toast.success('Gửi hồ sơ thành công! Vui lòng chờ admin phê duyệt.');
     },
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-      toast.error(error.response?.data?.message ?? 'Lỗi khi nộp hồ sơ. Vui lòng thử lại!');
+      toast.error(getApiErrorMessage(error, 'Không thể nộp hồ sơ. Vui lòng thử lại!'));
     },
   });
 }
@@ -60,7 +61,7 @@ export function useUpdateTaskerProfile() {
       toast.success("Cập nhật thông tin thành công!");
     },
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-      toast.error(error.response?.data?.message || "Lỗi khi cập nhật thông tin");
+      toast.error(getApiErrorMessage(error, "Không thể cập nhật thông tin"));
     },
   });
 }
@@ -75,7 +76,7 @@ export function useApplyTasker() {
       queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
     },
     onError: (error: ApiError) => {
-      toast.error(error.response?.data?.message ?? "Không thể khởi tạo hồ sơ tasker");
+      toast.error(getApiErrorMessage(error, "Không thể khởi tạo hồ sơ tasker"));
     },
   });
 }
@@ -89,7 +90,7 @@ export function useAddTaskerService() {
       queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
     },
     onError: (error: ApiError) => {
-      toast.error(error.response?.data?.message ?? "Không thể thêm dịch vụ");
+      toast.error(getApiErrorMessage(error, "Không thể thêm dịch vụ"));
     },
   });
 }
@@ -103,7 +104,7 @@ export function useUpdateTaskerDocuments() {
       queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
     },
     onError: (error: ApiError) => {
-      toast.error(error.response?.data?.message ?? "Lỗi khi cập nhật tài liệu");
+      toast.error(getApiErrorMessage(error, "Không thể cập nhật tài liệu"));
     },
   });
 }
@@ -118,7 +119,7 @@ export function useUpdateMyDocuments() {
       toast.success('Đã gửi giấy tờ! Hồ sơ sẽ được duyệt lại.');
     },
     onError: (error: ApiError) => {
-      toast.error(error.response?.data?.message ?? 'Không thể cập nhật giấy tờ');
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật giấy tờ'));
     },
   });
 }
@@ -143,11 +144,7 @@ export function useUpdatePresence() {
       );
     },
     onError: (error: ApiError) => {
-      toast.error(
-        error.response?.data?.message ||
-          error.message ||
-          'Lỗi khi cập nhật trạng thái hoạt động',
-      );
+      toast.error(getApiErrorMessage(error, 'Không thể cập nhật trạng thái hoạt động'));
     },
   });
 }

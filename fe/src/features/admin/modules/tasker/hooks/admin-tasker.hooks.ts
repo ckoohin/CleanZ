@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 import { adminTaskerApi } from "../services/admin-tasker.service";
 import type {
   AdminTaskerFilter,
@@ -17,8 +18,7 @@ export const adminTaskerKeys = {
 };
 
 const errorMessage = (error: unknown, fallback: string): string => {
-  const e = error as { response?: { data?: { message?: string } } };
-  return e?.response?.data?.message || fallback;
+  return getApiErrorMessage(error, fallback);
 };
 
 export function useAdminTasker(filter: AdminTaskerFilter) {

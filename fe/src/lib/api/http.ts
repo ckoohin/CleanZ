@@ -1,7 +1,8 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { authApi } from '@/features/auth/services/auth.service';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { authApi } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { getApiBaseUrl } from "@/lib/api/base-url";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 
 const baseURL = getApiBaseUrl();
 
@@ -9,7 +10,7 @@ const http = axios.create({
   baseURL,
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 15000,
 });
@@ -42,13 +43,12 @@ const refreshToken = async (): Promise<boolean> => {
   try {
     await authApi.refresh();
     return true;
-  } catch (error) {
-    console.log(error);
+  } catch {
     return false;
   }
 };
 export interface ApiErrorResponse {
-  message?: string;
+  message?: unknown;
   errors?: {
     message?: string;
     [key: string]: unknown;
@@ -57,46 +57,13 @@ export interface ApiErrorResponse {
 
 // xử lý lỗi api
 const handleApiErrorGlobal = (error: AxiosError<ApiErrorResponse>) => {
-  // Kiểm tra trạng thái mạng của thiết bị (chỉ chạy trên Client)
-  const isOnline = typeof window !== 'undefined' ? window.navigator.onLine : true;
-
-  if (!isOnline) {
-    toast.error("Mất kết nối Internet. Vui lòng kiểm tra lại Wifi/3G.", { id: "network-error" });
-    return;
-  }
-
-  // Nếu có mạng nhưng vẫn dính ERR_NETWORK hoặc không có response -> Server down, sập nguồn hoặc bị block (CORS)
-  if (error.code === "ERR_NETWORK" || !error.response) {
-    toast.error("Hệ thống máy chủ đang bảo trì hoặc gặp sự cố. Vui lòng thử lại sau.", { id: "server-down" });
-    return;
-  }
-
-  // lỗi từ backend
-  const responseData = error.response.data as Record<string, unknown> | undefined;
-  const errorsObj = responseData?.errors as Record<string, unknown> | undefined;
-
-  let displayMessage: unknown =
-    errorsObj?.message ||
-    responseData?.message ||
-    responseData?.errors;
-
-  if (displayMessage && typeof displayMessage === "object") {
-    if (Array.isArray(displayMessage)) {
-      displayMessage = displayMessage.join(", ");
-    } else {
-      displayMessage = Object.values(displayMessage as Record<string, unknown>)
-        .map((val: unknown) => (typeof val === "object" && val !== null ? JSON.stringify(val) : String(val)))
-        .join(", ");
-    }
-  }
-
-  const finalMessage = (displayMessage as string) || "Có lỗi xảy ra, vui lòng thử lại sau";
+  const finalMessage = getApiErrorMessage(error);
   toast.error(finalMessage, { id: finalMessage });
 };
 
 http.interceptors.request.use(
   (config) => config,
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 http.interceptors.response.use(
@@ -173,7 +140,7 @@ http.interceptors.response.use(
       // isRefreshing=true khiến mọi 401 sau đó bị xếp hàng vĩnh viễn (treo loading).
       isRefreshing = false;
     }
-  }
+  },
 );
 
 export default http;
