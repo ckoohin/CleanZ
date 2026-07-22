@@ -155,3 +155,48 @@ export interface WalletAdjustmentPayload {
   type: "ADJUSTMENT";
   description: string;
 }
+
+export interface CustomerWalletOverview {
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  avatarUrl?: string | null;
+  walletId: string;
+  balance: number;
+  holdBalance: number;
+  totalSpent: number;
+  totalTopupVnd: number;
+  totalRefunded: number;
+  topupCount: number;
+  withdrawalCount: number;
+  lastTransactionAt?: string | null;
+}
+
+export interface CustomerTopupOrder {
+  id: string;
+  customerId: string;
+  walletId: string;
+  provider: string;
+  paypalOrderId?: string | null;
+  status: "CREATED" | "COMPLETED" | "FAILED" | "CANCELLED" | "EXPIRED";
+  amountVnd: number | string;
+  amountUsd: number | string;
+  fxRate: number | string;
+  createdAt: string;
+}
+
+export interface CustomerWithdrawalRequest {
+  id: string;
+  customerId: string;
+  walletId: string;
+  amount: number | string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  bankAccount?: string | null;
+  bankName?: string | null;
+  note?: string | null;
+  adminNote?: string | null;
+  proofImageUrl?: string | null;
+  createdAt: string;
+}
+

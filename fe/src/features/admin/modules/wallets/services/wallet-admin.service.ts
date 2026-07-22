@@ -2,6 +2,9 @@ import http from "@/lib/api/http";
 import type {
   AdminWallet,
   CustomerSpendingQuery,
+  CustomerTopupOrder,
+  CustomerWalletOverview,
+  CustomerWithdrawalRequest,
   FinanceOverview,
   PaginatedCustomerSpending,
   PaginatedWallets,
@@ -56,4 +59,48 @@ export const walletAdminApi = {
     http
       .get(`${BASE}/customers/spending`, { params })
       .then((response) => response.data.data),
+
+  customerWalletOverview: (
+    customerId: string,
+  ): Promise<CustomerWalletOverview> =>
+    http
+      .get(`${BASE}/customers/${customerId}/wallet-overview`)
+      .then((response) => response.data.data),
+
+  customerTransactions: (
+    customerId: string,
+    params?: WalletTransactionQuery,
+  ): Promise<PaginatedWalletTransactions> =>
+    http
+      .get(`${BASE}/customers/${customerId}/transactions`, { params })
+      .then((response) => response.data.data),
+
+  customerTopups: (
+    customerId: string,
+    params?: { page?: number; limit?: number },
+  ): Promise<{
+    items: CustomerTopupOrder[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> =>
+    http
+      .get(`${BASE}/customers/${customerId}/topups`, { params })
+      .then((response) => response.data.data),
+
+  customerWithdrawals: (
+    customerId: string,
+    params?: { page?: number; limit?: number },
+  ): Promise<{
+    items: CustomerWithdrawalRequest[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> =>
+    http
+      .get(`${BASE}/customers/${customerId}/withdrawals`, { params })
+      .then((response) => response.data.data),
 };
+

@@ -22,7 +22,59 @@ export const walletKeys = {
     [...walletKeys.all, "transactions-summary", params] as const,
   customerSpending: (params?: CustomerSpendingQuery) =>
     [...walletKeys.all, "customer-spending", params] as const,
+  customerOverview: (customerId: string) =>
+    [...walletKeys.all, "customer-overview", customerId] as const,
+  customerTransactions: (customerId: string, params?: WalletTransactionQuery) =>
+    [...walletKeys.all, "customer-transactions", customerId, params] as const,
+  customerTopups: (customerId: string, params?: { page?: number; limit?: number }) =>
+    [...walletKeys.all, "customer-topups", customerId, params] as const,
+  customerWithdrawals: (customerId: string, params?: { page?: number; limit?: number }) =>
+    [...walletKeys.all, "customer-withdrawals", customerId, params] as const,
 };
+
+export function useCustomerWalletOverview(customerId: string) {
+  return useQuery({
+    queryKey: walletKeys.customerOverview(customerId),
+    queryFn: () => walletAdminApi.customerWalletOverview(customerId),
+    enabled: Boolean(customerId),
+  });
+}
+
+export function useCustomerWalletTransactions(
+  customerId: string,
+  params?: WalletTransactionQuery,
+) {
+  return useQuery({
+    queryKey: walletKeys.customerTransactions(customerId, params),
+    queryFn: () => walletAdminApi.customerTransactions(customerId, params),
+    enabled: Boolean(customerId),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useCustomerTopups(
+  customerId: string,
+  params?: { page?: number; limit?: number },
+) {
+  return useQuery({
+    queryKey: walletKeys.customerTopups(customerId, params),
+    queryFn: () => walletAdminApi.customerTopups(customerId, params),
+    enabled: Boolean(customerId),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useCustomerWithdrawals(
+  customerId: string,
+  params?: { page?: number; limit?: number },
+) {
+  return useQuery({
+    queryKey: walletKeys.customerWithdrawals(customerId, params),
+    queryFn: () => walletAdminApi.customerWithdrawals(customerId, params),
+    enabled: Boolean(customerId),
+    placeholderData: (previous) => previous,
+  });
+}
 
 export function useFinanceOverview() {
   return useQuery({
@@ -86,3 +138,4 @@ export function useAdjustWallet() {
     onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
+

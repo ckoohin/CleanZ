@@ -70,11 +70,16 @@ describe('IncidentReconciliationService.reconcile', () => {
   it('digital REFUND lệch số tiền → CUSTOMER_REFUND_MISMATCH', async () => {
     const svc = makeService(
       [inc()],
-      [tx('REFUND', 'CUSTOMER', '900000'), tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000')],
+      [
+        tx('REFUND', 'CUSTOMER', '900000'),
+        tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000'),
+      ],
       [],
     );
     const r = await svc.reconcile();
-    const d = r.discrepancies.find((x) => x.kind === 'CUSTOMER_REFUND_MISMATCH');
+    const d = r.discrepancies.find(
+      (x) => x.kind === 'CUSTOMER_REFUND_MISMATCH',
+    );
     expect(d).toBeDefined();
     expect(d?.expected).toBe(1000000);
     expect(d?.actual).toBe(900000);
@@ -83,7 +88,10 @@ describe('IncidentReconciliationService.reconcile', () => {
   it('REFUND trùng → DUPLICATE_REFUND', async () => {
     const svc = makeService(
       [inc()],
-      [tx('REFUND', 'CUSTOMER', '2000000', 2), tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000')],
+      [
+        tx('REFUND', 'CUSTOMER', '2000000', 2),
+        tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000'),
+      ],
       [],
     );
     const r = await svc.reconcile();

@@ -19,11 +19,17 @@ function makeService(overrides: {
   const executor = { execute } as never;
   const configService = { get: () => '0' } as never;
   const depositHold = { release: jest.fn() } as never;
-  const debtRecovery = { recoverForTasker: jest.fn().mockResolvedValue(0) } as never;
+  const debtRecovery = {
+    recoverForTasker: jest.fn().mockResolvedValue(0),
+  } as never;
   const reconciliation = {
     reconcile: jest
       .fn()
-      .mockResolvedValue({ checkedCount: 0, criticalCount: 0, discrepancies: [] }),
+      .mockResolvedValue({
+        checkedCount: 0,
+        criticalCount: 0,
+        discrepancies: [],
+      }),
   } as never;
   const alert = { send: jest.fn().mockResolvedValue(false) } as never;
   const service = new IncidentAutomationService(

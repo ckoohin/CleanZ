@@ -56,7 +56,9 @@ describe('IncidentAlertService', () => {
   });
 
   it('webhook HTTP non-2xx → trả false', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: false, status: 500 } as never);
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500 } as never);
     global.fetch = fetchMock as never;
     const svc = make({ INCIDENT_ALERT_WEBHOOK_URL: 'https://hook.test/x' });
     await expect(svc.send('k', 'm')).resolves.toBe(false);

@@ -51,7 +51,9 @@ import {
   History,
   AlertTriangle,
   RotateCcw,
+  WalletCards,
 } from "lucide-react";
+import { CustomerFinanceTab } from "./CustomerFinanceTab";
 
 interface CustomerDetailPageProps {
   customerId: string;
@@ -151,6 +153,7 @@ function BookingPagination({
 
 export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customerId }) => {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"OVERVIEW" | "FINANCE">("OVERVIEW");
   const [bookingPage, setBookingPage] = useState(1);
   const bookingLimit = 10;
 
@@ -303,7 +306,36 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
         />
       </div>
 
-      {/* Content Grid */}
+      {/* Tabs Navigation */}
+      <div className="flex items-center gap-2 border-b border-[var(--c-line)] pb-3">
+        <button
+          onClick={() => setActiveTab("OVERVIEW")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            activeTab === "OVERVIEW"
+              ? "bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] border border-[var(--c-primary)]/30"
+              : "text-[var(--c-muted)] hover:text-[var(--c-ink)] hover:bg-[var(--c-card-2)]"
+          }`}
+        >
+          <User className="size-4" />
+          Thông tin & Đơn hàng
+        </button>
+        <button
+          onClick={() => setActiveTab("FINANCE")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            activeTab === "FINANCE"
+              ? "bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] border border-[var(--c-primary)]/30"
+              : "text-[var(--c-muted)] hover:text-[var(--c-ink)] hover:bg-[var(--c-card-2)]"
+          }`}
+        >
+          <WalletCards className="size-4" />
+          Ví & Tài chính 360°
+        </button>
+      </div>
+
+      {activeTab === "FINANCE" ? (
+        <CustomerFinanceTab customerId={customer.id} />
+      ) : (
+      /* Content Grid */
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Profile Info */}
         <div className="lg:col-span-1 space-y-4">
@@ -509,6 +541,7 @@ export const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customer
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

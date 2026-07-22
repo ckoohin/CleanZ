@@ -29,6 +29,7 @@ import type {
   WalletOwnerType,
 } from "../types/wallet.types";
 import { WalletDetailDrawer } from "./WalletDetailDrawer";
+import { CustomerWalletOverviewCards } from "./CustomerWalletOverviewCards";
 
 type OwnerFilter = WalletOwnerType | "ALL";
 
@@ -185,6 +186,8 @@ export function WalletManagement() {
         title="Quản lý ví"
         description="Theo dõi số dư, tiền đang giữ và biến động ví trong toàn hệ thống."
       />
+
+      <CustomerWalletOverviewCards />
 
       <BaseTableList
         columns={columns}
