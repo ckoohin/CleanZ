@@ -387,7 +387,7 @@ export function BaseTableList<T>({
               <TableRow className="border-b border-[var(--c-line)] hover:bg-transparent">
                 {/* Checkbox Select All */}
                 {hasSelection && (
-                  <TableHead className="w-10 pl-4 pr-2">
+                  <TableHead className="w-10 pl-5 pr-2">
                     <Checkbox
                       checked={isAllSelected}
                       ref={(el) => {
@@ -408,11 +408,15 @@ export function BaseTableList<T>({
                   </TableHead>
                 )}
 
-                {columns.map((col) => (
+                {columns.map((col, colIndex) => (
                   <TableHead
                     key={String(col.key)}
                     className={cn(
                       "h-11 py-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-muted)]",
+                      !hasSelection && colIndex === 0 && "pl-5",
+                      !hasActions &&
+                        colIndex === columns.length - 1 &&
+                        "pr-5",
                       col.hideOnMobile && "hidden sm:table-cell",
                       col.className,
                     )}
@@ -444,7 +448,7 @@ export function BaseTableList<T>({
                     className="border-b border-[var(--c-line)] hover:bg-transparent"
                   >
                     {hasSelection && (
-                      <TableCell className="pl-4 pr-2 w-10">
+                      <TableCell className="w-10 pl-5 pr-2">
                         <Skeleton className="h-4 w-4 rounded bg-[var(--c-card-2)]" />
                       </TableCell>
                     )}
@@ -453,6 +457,10 @@ export function BaseTableList<T>({
                         key={colIndex}
                         className={cn(
                           "py-4",
+                          !hasSelection && colIndex === 0 && "pl-5",
+                          !hasActions &&
+                            colIndex === columns.length - 1 &&
+                            "pr-5",
                           col.hideOnMobile && "hidden sm:table-cell",
                         )}
                       >
@@ -460,7 +468,7 @@ export function BaseTableList<T>({
                       </TableCell>
                     ))}
                     {hasActions && (
-                      <TableCell className="py-4 pr-4">
+                      <TableCell className="py-4 pr-5">
                         <div className="flex justify-end">
                           <Skeleton className="h-8 w-8 rounded-lg bg-[var(--c-card-2)]" />
                         </div>
@@ -491,7 +499,7 @@ export function BaseTableList<T>({
                       {/* Checkbox */}
                       {hasSelection && (
                         <TableCell
-                          className="pl-4 pr-2 w-10"
+                          className="w-10 pl-5 pr-2"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Checkbox
@@ -506,11 +514,15 @@ export function BaseTableList<T>({
                       )}
 
                       {/* Data cells */}
-                      {columns.map((col) => (
+                      {columns.map((col, colIndex) => (
                         <TableCell
                           key={String(col.key)}
                           className={cn(
                             "py-4 text-[13px] font-medium text-[var(--c-ink-soft)]",
+                            !hasSelection && colIndex === 0 && "pl-5",
+                            !hasActions &&
+                              colIndex === columns.length - 1 &&
+                              "pr-5",
                             col.hideOnMobile && "hidden sm:table-cell",
                             col.className,
                           )}
@@ -524,7 +536,7 @@ export function BaseTableList<T>({
                       {/* Row Actions — menu "⋯" gọn (design system §7) */}
                       {hasActions && (
                         <TableCell
-                          className="py-2.5 pr-4 text-right"
+                          className="py-2.5 pr-5 text-right"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {visibleActions.length > 0 && (

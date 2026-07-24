@@ -2022,7 +2022,7 @@ function StepConfirm({
           ))}
         {(quote.price.premiumFee ?? 0) > 0 && (
           <div className="flex justify-between gap-4 text-xs text-amber-600">
-            <span>Phụ trội Cao cấp (đã gồm trong giá cơ bản)</span>
+            <span>Phụ phí gói premium</span>
             <span className="shrink-0 font-semibold">
               {fmtCurrency(quote.price.premiumFee ?? 0)}
             </span>

@@ -378,7 +378,9 @@ export function TaskerEarningsChart({
             <div className="flex items-center justify-between gap-3">
               <h3 className="flex min-w-0 items-center gap-2 text-sm font-extrabold">
                 <ListChecks className="size-4 shrink-0 text-primary" />
-                <span className="truncate font-medium text-[12px]">{orderTitle}</span>
+                <span className="truncate font-medium text-[12px]">
+                  {orderTitle}
+                </span>
               </h3>
               <span className="shrink-0 text-xs font-semibold text-muted-foreground">
                 {ordersQuery.data?.total ?? 0} đơn
@@ -417,8 +419,13 @@ export function TaskerEarningsChart({
                           : "Chuyển khoản"}
                       </span>
                     </span>
-                    <span className="shrink-0 text-sm font-black text-primary">
-                      {formatCurrency(booking.totalPrice)}
+                    <span className="shrink-0 text-right">
+                      <span className="block text-[10px] font-medium text-muted-foreground">
+                        Giá trị đơn
+                      </span>
+                      <span className="block text-sm font-black text-primary">
+                        {formatCurrency(booking.totalPrice)}
+                      </span>
                     </span>
                   </Link>
                 ))

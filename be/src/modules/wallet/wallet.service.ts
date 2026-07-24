@@ -598,9 +598,10 @@ export class WalletService {
           ELSE 0
         END
       `;
-      const bucketExpression =
-        `DATE_TRUNC('${window.bucketUnit}', ` +
-        `tx.createdAt + INTERVAL '7 hours')`;
+      // `created_at` là timestamp không timezone và đã lưu trực tiếp theo giờ
+      // Việt Nam, nên gom nhóm trên giá trị gốc. Cộng thêm 7 giờ ở đây sẽ đẩy
+      // các giao dịch buổi tối sang bucket của ngày hôm sau.
+      const bucketExpression = `DATE_TRUNC('${window.bucketUnit}', tx.createdAt)`;
 
       const rows = await this.dataSource
         .getRepository(WalletTransactionEntity)
