@@ -16,6 +16,7 @@ import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingSurchargeStatus } from 'src/common/enums/booking-surcharge-status.enum';
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -56,6 +57,33 @@ export class BookingEntity {
   })
   @JoinColumn({ name: 'tasker_id' })
   tasker?: TaskerEntity | null;
+
+  // ── Hạng dịch vụ ─────────────────────────────────────────────────────────
+  @Column({
+    name: 'service_tier',
+    type: 'enum',
+    enum: BookingServiceTier,
+    enumName: 'booking_service_tier',
+    default: BookingServiceTier.STANDARD,
+  })
+  serviceTier!: BookingServiceTier;
+
+  /** Tasker yêu thích khách chỉ định — chỉ dùng cho đơn PREMIUM (ring 0). */
+  @Column({ name: 'preferred_tasker_id', type: 'uuid', nullable: true })
+  preferredTaskerId?: string | null;
+
+  /**
+   * Phần chênh lệch giá do chọn hạng PREMIUM (đã nằm TRONG `basePrice`).
+   * Tách riêng để hiển thị cho khách và để hoàn đúng số khi phải hạ cấp đơn.
+   */
+  @Column({
+    name: 'premium_fee',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  premiumFee!: number;
 
   @Column({ name: 'package_id', type: 'uuid' })
   packageId!: string;

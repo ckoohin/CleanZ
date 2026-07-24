@@ -8,10 +8,10 @@ import { useBookingQuote, useCreateBooking } from "@/features/booking/hooks/useC
 import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { TopupDialog } from "@/features/customer/wallet/components/TopupDialog";
 import { useRouter } from "next/navigation";
-import type { PaymentMethod } from "@/features/booking/types/booking.types";
 import { PublicService } from "@/features/public/hooks/usePublicData";
 import { toast } from "sonner";
 import { useUpdateProfile } from "@/features/auth/hooks/auth.hooks";
+import { ServiceTierSelector } from "./ServiceTierSelector";
 
 interface StepCheckoutProps {
   formData: BookingFormState;
@@ -46,6 +46,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
         scheduledDate: formData.scheduledDate,
         scheduledTime: formData.scheduledTime,
         voucherCode: formData.voucherCode || undefined,
+        serviceTier: formData.serviceTier,
       });
     }, 500);
     return () => clearTimeout(timeoutId);
@@ -57,7 +58,8 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
     formData.provinceCode, 
     formData.scheduledDate, 
     formData.scheduledTime, 
-    formData.voucherCode
+    formData.voucherCode,
+    formData.serviceTier
   ]);
 
   const handleApplyVoucher = () => {
@@ -91,6 +93,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
             scheduledDate: formData.scheduledDate,
             scheduledTime: formData.scheduledTime,
             voucherCode: formData.voucherCode || undefined,
+            serviceTier: formData.serviceTier,
           });
         },
       }
@@ -111,6 +114,8 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
       note: formData.note,
       paymentMethod: formData.paymentMethod,
       voucherCode: formData.voucherCode || undefined,
+      serviceTier: formData.serviceTier,
+      preferredTaskerId: formData.preferredTaskerId,
     }, {
       onSuccess: (data) => {
         toast.success("Đặt lịch thành công!");
@@ -169,6 +174,23 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                 </div>
               </div>
             </div>
+
+            {/* Chọn hạng dịch vụ (Tiêu chuẩn / Cao cấp) */}
+            <ServiceTierSelector
+              value={formData.serviceTier ?? "STANDARD"}
+              onChange={(serviceTier) => updateForm({ serviceTier })}
+              preferredTaskerId={formData.preferredTaskerId}
+              onPreferredTaskerChange={(preferredTaskerId) =>
+                updateForm({ preferredTaskerId })
+              }
+              premiumFee={quoteData?.price?.premiumFee}
+              isQuoting={isQuoting}
+              scheduledDate={formData.scheduledDate}
+              scheduledTime={formData.scheduledTime}
+              durationHours={
+                quoteData?.schedule?.durationHours ?? formData.durationHours
+              }
+            />
 
             {/* Chọn phương thức thanh toán */}
             <div className="space-y-3">
@@ -331,6 +353,19 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                   <span className="text-muted-foreground font-medium">Giá cước cơ bản</span>
                   <span>{formatVND(quoteData.price.subtotal || quoteData.price.basePrice || 0)}</span>
                 </div>
+                {(quoteData.price.premiumFee ?? 0) > 0 && (
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span className="text-muted-foreground font-medium">
+                      Phụ trội gói Cao cấp 👑
+                      <span className="block text-[11px] font-normal text-muted-foreground/80">
+                        Đã tính trong giá cước cơ bản
+                      </span>
+                    </span>
+                    <span className="text-amber-600 font-bold">
+                      {formatVND(quoteData.price.premiumFee ?? 0)}
+                    </span>
+                  </div>
+                )}
                 {quoteData.price.peakFee > 0 && (
                   <div className="flex justify-between text-sm font-semibold">
                     <span className="text-muted-foreground font-medium">Phụ phí giờ cao điểm</span>

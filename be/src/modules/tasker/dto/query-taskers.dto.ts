@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
+import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 
 export class QueryTaskersDto {
@@ -22,6 +23,11 @@ export class QueryTaskersDto {
   @IsOptional()
   @IsEnum(DocumentStatus)
   docStatus?: DocumentStatus;
+
+  @ApiPropertyOptional({ enum: TaskerEquipmentStatus })
+  @IsOptional()
+  @IsEnum(TaskerEquipmentStatus)
+  equipmentStatus?: TaskerEquipmentStatus;
 
   @ApiPropertyOptional({
     example: 'nguyen',

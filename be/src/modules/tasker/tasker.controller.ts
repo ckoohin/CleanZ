@@ -36,6 +36,10 @@ import { AdminUpdateTaskerWorkStatusDto } from './dto/admin-update-tasker-work-s
 import { ReinstateTaskerDto } from './dto/reinstate-tasker.dto';
 import { QueryTaskersDto } from './dto/query-taskers.dto';
 import { SubmitTaskerProfileDto } from './dto/submit-tasker-profile.dto';
+import {
+  ReviewTaskerEquipmentDto,
+  SubmitTaskerEquipmentDto,
+} from './dto/tasker-equipment.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { UpdatePresenceDto } from './dto/update-presence.dto';
 import { UpdateTaskerLocationDto } from './dto/update-tasker-location.dto';
@@ -296,6 +300,20 @@ export class TaskerController {
     return { updated: true };
   }
 
+  @Post('me/equipment')
+  @Auth(UserRole.TASKER)
+  @ApiOperation({
+    summary: 'Tasker nộp hồ sơ bộ dụng cụ chuyên dụng',
+    description:
+      'Điều kiện bắt buộc để nhận đơn Cao cấp. Nộp lại sẽ đưa hồ sơ về trạng thái chờ duyệt.',
+  })
+  submitMyEquipment(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SubmitTaskerEquipmentDto,
+  ) {
+    return this.taskerService.submitMyEquipment(user.id, dto);
+  }
+
   // ─── Admin: tasker management ─────────────────────────────────────────────
   // NOTE: literal routes (admin/...) must precede parametric routes (admin/:id)
   // — NestJS resolves by registration order within the same segment count.
@@ -350,6 +368,22 @@ export class TaskerController {
     @CurrentUser('id') adminId: string,
   ) {
     return this.taskerService.approveTasker(id, adminId);
+  }
+
+  @Patch('admin/:id/equipment/review')
+  @AdminOnly()
+  @ApiOperation({
+    summary: 'Admin duyệt / từ chối bộ dụng cụ chuyên dụng của tasker',
+    description:
+      'APPROVED là điều kiện bắt buộc để tasker vào nhóm nhận đơn Cao cấp.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID của tasker' })
+  reviewTaskerEquipment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewTaskerEquipmentDto,
+    @CurrentUser('id') adminId: string,
+  ) {
+    return this.taskerService.reviewTaskerEquipment(id, dto, adminId);
   }
 
   @Patch('admin/:id/reject')

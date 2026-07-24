@@ -15,12 +15,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader, StatusBadge, type BadgeTone } from "@/components/admin";
-import { TaskerStatus } from "@/features/tasker/types/tasker.type";
+import {
+  TaskerStatus,
+  type TaskerEquipmentStatus,
+} from "@/features/tasker/types/tasker.type";
 import {
   useAdminTasker,
   useDeleteTaskerProfile,
 } from "../hooks/admin-tasker.hooks";
-import type { AdminTasker, AdminTaskerFilter } from "../types/admin-tasker.types";
+import type {
+  AdminTasker,
+  AdminTaskerFilter,
+} from "../types/admin-tasker.types";
 import {
   ACCOUNT_STATUS_LABELS,
   ALL_ACCOUNT_STATUSES,
@@ -45,6 +51,7 @@ import { ConfirmDialog } from "@/components/ui/base/confirm_dialog";
 import {
   Eye,
   CheckCircle,
+  Crown,
   ListFilter,
   AlertTriangle,
   Pencil,
@@ -54,24 +61,57 @@ import {
 
 type AccountStatusFilter = "ALL" | AdminTasker["status"];
 type DocStatusFilter = "ALL" | AdminTaskerDocStatus;
+type EquipmentStatusFilter = "ALL" | TaskerEquipmentStatus;
+
+const EQUIPMENT_STATUS_META: Record<
+  TaskerEquipmentStatus,
+  { label: string; tone: BadgeTone }
+> = {
+  NONE: { label: "Chưa nộp", tone: "neutral" },
+  PENDING: { label: "Chờ duyệt", tone: "warning" },
+  APPROVED: { label: "Đã duyệt", tone: "success" },
+  REJECTED: { label: "Từ chối", tone: "danger" },
+};
+
+const ALL_EQUIPMENT_STATUSES = Object.keys(
+  EQUIPMENT_STATUS_META,
+) as TaskerEquipmentStatus[];
 
 const canReview = (row: AdminTasker) =>
   row.approvalStatus === TaskerStatus.PENDING ||
   row.approvalStatus === TaskerStatus.NEED_INFO;
 
-export const TaskerListTable: React.FC = () => {
+interface TaskerListTableProps {
+  initialEquipmentStatus?: EquipmentStatusFilter;
+  premiumQueue?: boolean;
+}
+
+export const TaskerListTable: React.FC<TaskerListTableProps> = ({
+  initialEquipmentStatus = "ALL",
+  premiumQueue = false,
+}) => {
   const router = useRouter();
   const [filter, setFilter] = useState<{
     keyword: string;
     status: AccountStatusFilter;
     docStatus: DocStatusFilter;
+    equipmentStatus: EquipmentStatusFilter;
     page: number;
     limit: number;
-  }>({ keyword: "", status: "ALL", docStatus: "ALL", page: 1, limit: 10 });
+  }>({
+    keyword: "",
+    status: "ALL",
+    docStatus: "ALL",
+    equipmentStatus: initialEquipmentStatus,
+    page: 1,
+    limit: 10,
+  });
 
   const [editTarget, setEditTarget] = useState<AdminTasker | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminTasker | null>(null);
-  const [reinstateTarget, setReinstateTarget] = useState<AdminTasker | null>(null);
+  const [reinstateTarget, setReinstateTarget] = useState<AdminTasker | null>(
+    null,
+  );
 
   const deleteMutation = useDeleteTaskerProfile();
 
@@ -86,6 +126,8 @@ export const TaskerListTable: React.FC = () => {
     keyword: filter.keyword || undefined,
     status: filter.status === "ALL" ? undefined : filter.status,
     docStatus: filter.docStatus === "ALL" ? undefined : filter.docStatus,
+    equipmentStatus:
+      filter.equipmentStatus === "ALL" ? undefined : filter.equipmentStatus,
     page: filter.page,
     limit: filter.limit,
   };
@@ -168,6 +210,19 @@ export const TaskerListTable: React.FC = () => {
       ),
     },
     {
+      key: "equipment",
+      title: "Premium",
+      render: (row) => {
+        const status = row.equipment?.status ?? "NONE";
+        const meta = EQUIPMENT_STATUS_META[status];
+        return (
+          <StatusBadge tone={meta.tone} dot={status === "PENDING"}>
+            {meta.label}
+          </StatusBadge>
+        );
+      },
+    },
+    {
       key: "status",
       title: "Trạng thái",
       render: (row) => (
@@ -223,6 +278,14 @@ export const TaskerListTable: React.FC = () => {
       hidden: (row) => !canReview(row),
     },
     {
+      type: "approve",
+      label: "Duyệt Premium",
+      icon: Crown,
+      onClick: (row) =>
+        window.open(`/admin/taskers/${row.id}?tab=premium`, "_blank"),
+      hidden: (row) => row.equipment?.status !== "PENDING",
+    },
+    {
       type: "edit",
       label: "Chỉnh sửa",
       icon: Pencil,
@@ -251,8 +314,14 @@ export const TaskerListTable: React.FC = () => {
   return (
     <div className="space-y-3">
       <PageHeader
-        title="Quản lý đối tác (Tasker)"
-        description="Tìm kiếm, lọc theo trạng thái tài khoản / hồ sơ và quản lý hoạt động của tasker."
+        title={
+          premiumQueue ? "Duyệt Tasker Premium" : "Quản lý đối tác (Tasker)"
+        }
+        description={
+          premiumQueue
+            ? "Kiểm tra bộ dụng cụ chuyên dụng trước khi Tasker được tham gia nhóm nhận đơn premium."
+            : "Tìm kiếm, lọc theo trạng thái tài khoản / hồ sơ và quản lý hoạt động của tasker."
+        }
       />
 
       <BaseTableList
@@ -263,9 +332,13 @@ export const TaskerListTable: React.FC = () => {
         page={filter.page}
         limit={filter.limit}
         onPageChange={(page) => setFilter((prev) => ({ ...prev, page }))}
-        onLimitChange={(limit) => setFilter((prev) => ({ ...prev, limit, page: 1 }))}
+        onLimitChange={(limit) =>
+          setFilter((prev) => ({ ...prev, limit, page: 1 }))
+        }
         keyword={filter.keyword}
-        onKeywordChange={(keyword) => setFilter((prev) => ({ ...prev, keyword, page: 1 }))}
+        onKeywordChange={(keyword) =>
+          setFilter((prev) => ({ ...prev, keyword, page: 1 }))
+        }
         placeholderSearch="Tìm theo tên hoặc email..."
         isLoading={isLoading}
         emptyTitle="Không tìm thấy tasker"
@@ -273,7 +346,7 @@ export const TaskerListTable: React.FC = () => {
         rowActions={rowActions}
         inlineActionCount={1}
         filters={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <Select
               value={filter.status}
               onValueChange={(val) =>
@@ -325,6 +398,34 @@ export const TaskerListTable: React.FC = () => {
                 {ALL_DOC_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {DOC_STATUS_LABELS[s.toLowerCase()] || s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filter.equipmentStatus}
+              onValueChange={(val) =>
+                setFilter((prev) => ({
+                  ...prev,
+                  equipmentStatus: val as EquipmentStatusFilter,
+                  page: 1,
+                }))
+              }
+            >
+              <SelectTrigger className="h-10 flex-1 rounded-full border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[var(--c-ink)] text-sm font-medium shadow-none sm:w-[160px] sm:flex-none">
+                <SelectValue placeholder="Trạng thái Premium" />
+              </SelectTrigger>
+              <SelectContent className="cz-admin rounded-xl border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-ink)]">
+                <SelectItem value="ALL">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-[var(--c-muted)]" />
+                    Tất cả Premium
+                  </div>
+                </SelectItem>
+                {ALL_EQUIPMENT_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {EQUIPMENT_STATUS_META[status].label}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -23,11 +23,21 @@ export const API_ENDPOINTS = {
     ADDRESS: (id: string) => `/customer/addresses/${id}`,
     DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
     VOUCHERS_AVAILABLE: "/customer/vouchers/available",
+    FAVORITE_TASKERS: "/customer/favorite-taskers",
+    FAVORITE_TASKERS_AVAILABILITY:
+      "/customer/favorite-taskers/availability",
+    FAVORITE_TASKER: (taskerId: string) =>
+      `/customer/favorite-taskers/${taskerId}`,
+    FAVORITE_TASKER_CONTACT: (taskerId: string) =>
+      `/customer/favorite-taskers/${taskerId}/contact`,
   },
   TASKERS: {
     BASE: "/taskers",
     VERIFY: "/taskers/verify",
     UPDATE_PRESENCE: "/tasker/me/presence",
+    SUBMIT_EQUIPMENT: "/tasker/me/equipment",
+    ADMIN_REVIEW_EQUIPMENT: (id: string) =>
+      `/tasker/admin/${id}/equipment/review`,
   },
   APPEALS: {
     BASE: "/appeals",

@@ -11,12 +11,15 @@ import { BookingEntity } from '../entity/booking.entity';
 import {
   BOOKING_DISPATCH_JOB,
   BookingDispatchService,
+  DISPATCH_FAVORITE_RADIUS_FACTOR,
+  DISPATCH_FAVORITE_RING,
   DISPATCH_MAX_RING,
   DISPATCH_RADIUS_FACTOR,
   DISPATCH_RING_TIMEOUT_MS,
   DispatchJobData,
   NearestTaskerRow,
 } from '../services/booking-dispatch.service';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 
 @Processor('bookingQueue')
 export class BookingDispatchProcessor extends WorkerHost {
@@ -69,7 +72,15 @@ export class BookingDispatchProcessor extends WorkerHost {
     // 1. Kiểm tra booking còn POSTED không
     const booking = await this.dataSource.getRepository(BookingEntity).findOne({
       where: { id: bookingId },
-      select: ['id', 'bookingCode', 'status'],
+      select: [
+        'id',
+        'bookingCode',
+        'status',
+        'scheduledStartDate',
+        'scheduledStartTime',
+        'scheduledEndDate',
+        'scheduledEndTime',
+      ],
     });
 
     if (!booking || booking.status !== BookingStatus.POSTED) {
@@ -82,12 +93,19 @@ export class BookingDispatchProcessor extends WorkerHost {
 
     await this.bookingDispatchService.persistDispatchState(data);
 
+    // 1b. Ring 0 — mời riêng thợ yêu thích khách chỉ định.
+    if (ring === DISPATCH_FAVORITE_RING) {
+      await this.handleFavoriteRing(booking, data);
+      return;
+    }
+
     // 2. Tìm tasker gần nhất bằng PostGIS
     const taskers = await this.bookingDispatchService.findNearestTaskers(
       lat,
       lng,
       radiusMeters,
       excludedTaskerIds,
+      { serviceTier: data.serviceTier, customerId: data.customerId },
     );
 
     this.logger.log(
@@ -144,6 +162,90 @@ export class BookingDispatchProcessor extends WorkerHost {
     }
   }
 
+  /**
+   * Ring 0 của đơn PREMIUM: giữ đơn riêng cho thợ yêu thích trong
+   * `PREMIUM_FAVORITE_WAIT_SECONDS`. Thợ không sẵn sàng thì chuyển ngay sang
+   * ring 1 chứ không chờ hết cửa sổ — chờ mù là mất trắng thời gian của khách.
+   */
+  private async handleFavoriteRing(
+    booking: Pick<
+      BookingEntity,
+      | 'id'
+      | 'bookingCode'
+      | 'scheduledStartDate'
+      | 'scheduledStartTime'
+      | 'scheduledEndDate'
+      | 'scheduledEndTime'
+    >,
+    data: DispatchJobData,
+  ): Promise<void> {
+    const { bookingId, customerUserId, lat, lng, radiusMeters } = data;
+    const premiumConfig =
+      await this.bookingDispatchService.getPremiumDispatchConfig();
+
+    const requestedSchedule =
+      booking.scheduledStartDate &&
+      booking.scheduledStartTime &&
+      booking.scheduledEndDate &&
+      booking.scheduledEndTime
+        ? {
+            scheduledStartDate: booking.scheduledStartDate,
+            scheduledStartTime: booking.scheduledStartTime,
+            scheduledEndDate: booking.scheduledEndDate,
+            scheduledEndTime: booking.scheduledEndTime,
+          }
+        : null;
+    const candidate =
+      data.preferredTaskerId && requestedSchedule
+        ? await this.bookingDispatchService.findFavoriteTaskerCandidate(
+            data.preferredTaskerId,
+            lat,
+            lng,
+            radiusMeters * DISPATCH_FAVORITE_RADIUS_FACTOR,
+            requestedSchedule,
+          )
+        : null;
+
+    if (!candidate) {
+      this.logger.log(
+        `Favorite tasker unavailable for booking=${bookingId} — falling through to ring 1`,
+      );
+      this.notificationGateway.emitToUser(
+        customerUserId,
+        'booking:favorite_unavailable',
+        { bookingId },
+      );
+      await this.handleDispatch({ ...data, ring: 1 });
+      return;
+    }
+
+    await this.notifyTaskers(booking, [candidate], DISPATCH_FAVORITE_RING);
+
+    const expiresAt = new Date(Date.now() + premiumConfig.favoriteWaitMs);
+    this.notificationGateway.emitToUser(
+      customerUserId,
+      'booking:favorite_invited',
+      {
+        bookingId,
+        taskerId: candidate.tasker_id,
+        expiresAt: expiresAt.toISOString(),
+      },
+    );
+
+    // Ring 1 chạy sau khi cửa sổ độc quyền hết hạn. Thợ yêu thích vẫn nằm
+    // trong pool ring sau (không exclude) — họ chỉ mất tính độc quyền.
+    const nextJobId = await this.bookingDispatchService.enqueueNextRing(
+      data,
+      premiumConfig.favoriteWaitMs,
+    );
+    await this.bookingDispatchService.persistDispatchState(
+      data,
+      nextJobId,
+      [candidate.tasker_id],
+      expiresAt,
+    );
+  }
+
   private async handleNoTaskersFound(data: DispatchJobData): Promise<void> {
     const { bookingId, customerUserId, ring, radiusMeters } = data;
 
@@ -176,6 +278,18 @@ export class BookingDispatchProcessor extends WorkerHost {
           exhausted: true,
         },
       );
+
+      // Đơn PREMIUM cạn pool: KHÔNG tự hạ cấp xuống thợ thường — đổi cam kết
+      // chất lượng là quyết định của khách, không phải của hệ thống. Báo riêng
+      // để FE hỏi khách chờ tiếp / hạ hạng (hoàn premiumFee) / huỷ miễn phí.
+      if (data.serviceTier === BookingServiceTier.PREMIUM) {
+        this.notificationGateway.emitToUser(
+          customerUserId,
+          'booking:premium_exhausted',
+          { bookingId, radiusKm: (radiusMeters / 1000).toFixed(1) },
+        );
+      }
+
       await this.bookingDispatchService.persistDispatchState(data);
     }
   }
@@ -186,6 +300,7 @@ export class BookingDispatchProcessor extends WorkerHost {
     ring: number,
   ): Promise<void> {
     const distKm = (taskers[0]?.dist_meters / 1000).toFixed(1);
+    const isFavoriteRing = ring === DISPATCH_FAVORITE_RING;
 
     // Mỗi tasker cần dedupeKey riêng để tránh conflict unique index trong notifications table
     await Promise.all(
@@ -193,8 +308,12 @@ export class BookingDispatchProcessor extends WorkerHost {
         this.notificationService.notify({
           userId: t.user_id,
           type: NotificationType.BOOKING_NEW_AVAILABLE,
-          title: 'Có đơn mới gần bạn!',
-          content: `Đơn ${booking.bookingCode} cách bạn ~${distKm}km — Nhấn để xem và nhận`,
+          title: isFavoriteRing
+            ? 'Khách hàng quen chỉ định bạn!'
+            : 'Có đơn mới gần bạn!',
+          content: isFavoriteRing
+            ? `Đơn premium ${booking.bookingCode} được khách chỉ định riêng cho bạn và đã được thêm vào danh sách đơn có thể nhận.`
+            : `Đơn ${booking.bookingCode} cách bạn ~${distKm}km đã được thêm vào danh sách đơn có thể nhận.`,
           referenceType: NotificationRefType.BOOKING,
           referenceId: booking.id,
           dedupeKey: `booking:${booking.id}:dispatch:${t.tasker_id}:ring:${ring}`,

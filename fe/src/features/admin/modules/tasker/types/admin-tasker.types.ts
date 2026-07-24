@@ -1,12 +1,10 @@
-import { TaskerProfile } from "@/features/tasker/types/tasker.type";
+import {
+  TaskerProfile,
+  type TaskerEquipmentStatus,
+} from "@/features/tasker/types/tasker.type";
 
 export type TaskerAccountStatus =
-  | "PENDING"
-  | "TRAINING"
-  | "ACTIVE"
-  | "SUSPENDED"
-  | "REJECTED"
-  | "TERMINATED";
+  "PENDING" | "TRAINING" | "ACTIVE" | "SUSPENDED" | "REJECTED" | "TERMINATED";
 
 export type BanType = "TEMPORARY" | "PERMANENT";
 
@@ -95,6 +93,7 @@ export interface AdminTaskerDetail extends AdminTasker {
 export interface AdminTaskerFilter {
   status?: TaskerAccountStatus;
   docStatus?: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "NEED_INFO";
+  equipmentStatus?: TaskerEquipmentStatus;
   keyword?: string;
   page?: number;
   limit?: number;

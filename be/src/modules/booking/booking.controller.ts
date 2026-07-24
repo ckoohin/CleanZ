@@ -400,7 +400,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 1 — Xem danh sách booking đang chờ nhận',
     description:
-      'Chỉ trả booking POSTED chưa có tasker. Thông tin địa chỉ được giới hạn ở khu vực công khai, chưa trả thông tin liên hệ customer.',
+      'Chỉ trả booking POSTED chưa có tasker mà Tasker hiện tại đã được mời hoặc đã hết cửa sổ ưu tiên. Đơn premium mở công khai sau 15 phút. Thông tin địa chỉ được giới hạn ở khu vực công khai, chưa trả thông tin liên hệ customer.',
   })
   @ApiOkResponse({
     description: 'Danh sách booking khả dụng cho tasker',
@@ -419,7 +419,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 2 — Xem chi tiết booking đang chờ nhận',
     description:
-      'FE gửi tọa độ hiện tại của tasker. Response trả khoảng cách, dịch vụ, giá và lịch; chưa trả địa chỉ đầy đủ hoặc thông tin liên hệ customer.',
+      'FE gửi tọa độ hiện tại của tasker. Chỉ Tasker đã được mời hoặc đơn đã hết cửa sổ ưu tiên mới xem được. Response trả khoảng cách, dịch vụ, giá và lịch; chưa trả địa chỉ đầy đủ hoặc thông tin liên hệ customer.',
   })
   @ApiParam({
     name: 'id',

@@ -114,6 +114,7 @@ export const ROUTES = {
       DETAIL: (id: string) => `/admin/taskers/${id}`,
       VERIFICATION: "/admin/taskers/verification",
       VERIFICATION_DETAIL: (id: string) => `/admin/taskers/verification/${id}`,
+      PREMIUM: "/admin/taskers/premium",
       SCHEDULE: "/admin/taskers/schedule",
       PAYROLL: "/admin/taskers/payroll",
     },

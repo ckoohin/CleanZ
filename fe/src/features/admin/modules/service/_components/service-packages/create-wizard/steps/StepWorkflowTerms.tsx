@@ -386,7 +386,7 @@ export function StepWorkflowTerms({
                     </Field>
                     
                     <Field label="Cam kết & Quy chuẩn dịch vụ Premium riêng" hint="Xuống dòng cho mỗi cam kết (Chỉ hiển thị cho gói Premium)">
-                      <Textarea placeholder="1. Chỉ bàn giao thợ đạt đánh giá từ 4.8★ trở lên.&#10;2. Đi kèm trọn bộ nước dọn dẹp thảo mộc hữu cơ cao cấp.&#10;3. Cam kết đền bù đổ vỡ tài sản tối đa lên tới 15.000.000đ."
+                      <Textarea placeholder="1. Chỉ bàn giao thợ đạt đánh giá từ 4.8★ trở lên.&#10;2. Đi kèm trọn bộ nước dọn dẹp thảo mộc hữu cơ premium.&#10;3. Cam kết đền bù đổ vỡ tài sản tối đa lên tới 15.000.000đ."
                         value={premiumTermsAndConditions} onChange={e => setPremiumTermsAndConditions(e.target.value)}
                         rows={5} className="rounded-xl text-xs border-amber-200 focus-visible:ring-amber-500 resize-none leading-relaxed" />
                     </Field>

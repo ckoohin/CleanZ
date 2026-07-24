@@ -4,6 +4,7 @@ import { taskerApi } from '../services/tasker.service';
 import { toast } from 'sonner';
 import {
   CreateTaskerServiceDto,
+  SubmitTaskerEquipmentDto,
   TaskerProfile,
   UpdateTaskerProfileDto,
 } from '../types/tasker.type';
@@ -120,6 +121,22 @@ export function useUpdateMyDocuments() {
     },
     onError: (error: ApiError) => {
       toast.error(getApiErrorMessage(error, 'Không thể cập nhật giấy tờ'));
+    },
+  });
+}
+
+/** Nộp hồ sơ bộ dụng cụ chuyên dụng để xin vào nhóm nhận đơn Cao cấp. */
+export function useSubmitTaskerEquipment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: SubmitTaskerEquipmentDto) =>
+      taskerApi.submitEquipment(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskerKeys.profile() });
+      toast.success('Đã gửi hồ sơ dụng cụ! CleanZ sẽ duyệt trong thời gian sớm nhất.');
+    },
+    onError: (error: ApiError) => {
+      toast.error(getApiErrorMessage(error, 'Không thể gửi hồ sơ dụng cụ'));
     },
   });
 }

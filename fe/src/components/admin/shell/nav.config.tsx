@@ -58,7 +58,10 @@ export const navGroups: NavGroup[] = [
         children: [
           { title: "Gói dịch vụ", href: A.SERVICES.SERVICE_PACKAGES.BASE },
           { title: "Tạo gói mới", href: A.SERVICES.SERVICE_PACKAGES.CREATE },
-          { title: "Báo cáo thống kê", href: A.SERVICES.SERVICE_PACKAGES.REPORTS },
+          {
+            title: "Báo cáo thống kê",
+            href: A.SERVICES.SERVICE_PACKAGES.REPORTS,
+          },
           // { title: "Dịch vụ con", href: A.SERVICES.SUB_SERVICES.BASE },
         ],
       },
@@ -79,7 +82,10 @@ export const navGroups: NavGroup[] = [
         title: "Tasker",
         href: A.TASKERS.BASE,
         icon: BadgeCheck,
-        children: [{ title: "Xác minh KYC", href: A.TASKERS.VERIFICATION }],
+        children: [
+          { title: "Xác minh KYC", href: A.TASKERS.VERIFICATION },
+          { title: "Duyệt Premium", href: A.TASKERS.PREMIUM },
+        ],
       },
       { title: "Tài khoản hệ thống", href: A.USERS, icon: UserCog },
     ],
@@ -90,7 +96,11 @@ export const navGroups: NavGroup[] = [
       { title: "Giao dịch", href: A.FINANCES.BASE, icon: ArrowLeftRight },
       { title: "Quản lý ví", href: A.FINANCES.WALLETS, icon: WalletCards },
       { title: "Rút tiền", href: A.FINANCES.WITHDRAWALS, icon: Banknote },
-      { title: "Đối soát bồi thường", href: A.FINANCES.RECONCILIATION, icon: ShieldCheck },
+      {
+        title: "Đối soát bồi thường",
+        href: A.FINANCES.RECONCILIATION,
+        icon: ShieldCheck,
+      },
       {
         title: "Voucher",
         href: A.VOUCHERS.BASE,
@@ -106,7 +116,11 @@ export const navGroups: NavGroup[] = [
     label: "Chăm sóc & Vận hành",
     items: [
       { title: "Sự cố", href: A.INCIDENTS, icon: TriangleAlert },
-      { title: "Hỗ trợ khách hàng", href: A.SUPPORT_TICKETS.BASE, icon: LifeBuoy },
+      {
+        title: "Hỗ trợ khách hàng",
+        href: A.SUPPORT_TICKETS.BASE,
+        icon: LifeBuoy,
+      },
       { title: "Blog", href: A.BLOGS.BASE, icon: Newspaper },
       { title: "Đánh giá", href: A.REVIEWS, icon: Star },
       { title: "Thông báo", href: A.NOTIFICATIONS, icon: Bell },
@@ -129,7 +143,11 @@ export const navGroups: NavGroup[] = [
 export function isItemActive(item: NavItem, pathname: string): boolean {
   if (item.href === pathname) return true;
   if (item.children?.some((c) => c.href === pathname)) return true;
-  if (item.href !== ROUTES.ADMIN.DASHBOARD && pathname.startsWith(item.href + "/")) return true;
+  if (
+    item.href !== ROUTES.ADMIN.DASHBOARD &&
+    pathname.startsWith(item.href + "/")
+  )
+    return true;
   return false;
 }
 
@@ -140,7 +158,10 @@ export function crumbsFor(pathname: string): string[] {
       if (item.href === pathname) return [group.label, item.title];
       const child = item.children?.find((c) => c.href === pathname);
       if (child) return [group.label, item.title, child.title];
-      if (item.href !== ROUTES.ADMIN.DASHBOARD && pathname.startsWith(item.href + "/")) {
+      if (
+        item.href !== ROUTES.ADMIN.DASHBOARD &&
+        pathname.startsWith(item.href + "/")
+      ) {
         return [group.label, item.title];
       }
     }

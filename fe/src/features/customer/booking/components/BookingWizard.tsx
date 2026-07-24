@@ -30,10 +30,13 @@ import {
 import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
 import type {
+  BookingServiceTier,
   BookingQuoteResponse,
   CreateBookingDto,
   PaymentMethod,
 } from "@/features/booking/types/booking.types";
+import { FavoriteTaskerPicker } from "@/features/booking/components/wizard/FavoriteTaskerPicker";
+import { ServiceTierSelector } from "@/features/booking/components/wizard/ServiceTierSelector";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
 import type {
   PublicAddon,
@@ -63,8 +66,8 @@ interface ServiceOption {
   name: string;
   description?: string | null;
   maxHours: number | null;
-  basePrice: number;
   baseHourlyRate: number;
+  premiumHourlyRate: number;
   pricingTiers: PublicPricingTier[];
   durations: PublicDuration[];
   addons: PublicAddon[];
@@ -89,6 +92,9 @@ interface WizardState {
   scheduledDate: string;
   scheduledTime: string;
   note: string;
+  // Hạng dịch vụ
+  serviceTier: BookingServiceTier;
+  preferredTaskerId?: string;
   // Thanh toán
   paymentMethod: PaymentMethod;
   voucherCode: string;
@@ -108,6 +114,8 @@ const INIT_STATE: WizardState = {
   scheduledDate: "",
   scheduledTime: "",
   note: "",
+  serviceTier: "STANDARD",
+  preferredTaskerId: undefined,
   paymentMethod: "CASH",
   voucherCode: "",
 };
@@ -115,6 +123,60 @@ const INIT_STATE: WizardState = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
+}
+
+function hasPremiumPrice(service: ServiceOption): boolean {
+  return (
+    service.baseHourlyRate > 0 &&
+    service.premiumHourlyRate > 0 &&
+    service.premiumHourlyRate >= service.baseHourlyRate
+  );
+}
+
+function applyServiceTierPrice(
+  standardPrice: number,
+  service: ServiceOption,
+  serviceTier: BookingServiceTier,
+): number | null {
+  if (serviceTier === "STANDARD") return Math.round(standardPrice);
+  if (!hasPremiumPrice(service)) return null;
+
+  return Math.round(
+    standardPrice * (service.premiumHourlyRate / service.baseHourlyRate),
+  );
+}
+
+function getDurationStandardPrice(
+  service: ServiceOption,
+  duration: PublicDuration,
+): number {
+  if (duration.priceMode === "fixed" && (duration.fixedPrice ?? 0) > 0) {
+    return Number(duration.fixedPrice);
+  }
+
+  return (
+    duration.durationHours *
+    service.baseHourlyRate *
+    duration.priceMultiplier
+  );
+}
+
+function getPricingTierStandardPrice(
+  tier: PublicPricingTier,
+  fallbackHours = 1,
+): number {
+  const hours = tier.defaultHours ?? tier.minHours ?? fallbackHours;
+  return (
+    tier.fixedPrice ?? (tier.pricePerHour ? tier.pricePerHour * hours : 0)
+  );
+}
+
+function getServiceStartingStandardPrice(service: ServiceOption): number {
+  const firstDuration = service.durations[0];
+  if (firstDuration) return getDurationStandardPrice(service, firstDuration);
+
+  const firstTier = service.pricingTiers[0];
+  return firstTier ? getPricingTierStandardPrice(firstTier) : 0;
 }
 
 function formatVietnamDate(date: Date): string {
@@ -431,15 +493,8 @@ function StepService({
       name: service.name,
       description: service.shortDescription || service.policyDescription,
       maxHours: service.maxHours,
-      basePrice:
-        (service.durations?.[0]?.durationHours ?? 0) *
-          (service.baseHourlyRate ?? 0) ||
-        (service.pricingTiers?.[0]?.fixedPrice ??
-          (service.pricingTiers?.[0]?.pricePerHour ?? 0) *
-            (service.pricingTiers?.[0]?.defaultHours ??
-              service.pricingTiers?.[0]?.minHours ??
-              1)),
       baseHourlyRate: service.baseHourlyRate ?? 0,
+      premiumHourlyRate: service.premiumHourlyRate ?? 0,
       pricingTiers: service.pricingTiers ?? [],
       durations: service.durations ?? [],
       addons: (service.addons ?? []).filter(isConfiguredAddon),
@@ -451,6 +506,30 @@ function StepService({
   const selectedTier = selectedService?.pricingTiers.find(
     (tier) => tier.id === form.pricingTierId,
   );
+  const selectedDuration = selectedService?.durations.find(
+    (duration) => duration.durationHours === form.durationHours,
+  );
+  const selectedStandardPrice = selectedService
+    ? selectedDuration
+      ? getDurationStandardPrice(selectedService, selectedDuration)
+      : selectedTier
+        ? getPricingTierStandardPrice(
+            selectedTier,
+            form.durationHours ?? undefined,
+          )
+        : getServiceStartingStandardPrice(selectedService)
+    : 0;
+  const selectedPremiumPrice = selectedService
+    ? applyServiceTierPrice(
+        selectedStandardPrice,
+        selectedService,
+        "PREMIUM",
+      )
+    : null;
+  const previewPremiumFee =
+    selectedPremiumPrice !== null
+      ? Math.max(0, selectedPremiumPrice - selectedStandardPrice)
+      : undefined;
   const selectedAddonExtraHours = getSelectedAddonExtraHours(
     selectedService?.addons ?? [],
     form.addonIds,
@@ -470,6 +549,8 @@ function StepService({
   const handleSelectPackage = (svc: ServiceOption) => {
     const defaultTier = svc.pricingTiers[0];
     const defaultDuration = svc.durations.find((duration) => duration.isPopular) ?? svc.durations[0];
+    const resetPremiumTier =
+      form.serviceTier === "PREMIUM" && !hasPremiumPrice(svc);
     onChange({
       serviceId: svc.id,
       pricingTierId: defaultTier?.id ?? "",
@@ -480,7 +561,16 @@ function StepService({
         null,
       areaM2: defaultDuration?.suggestedArea ?? defaultTier?.areaMinM2 ?? null,
       addonIds: [],
+      ...(resetPremiumTier
+        ? { serviceTier: "STANDARD" as const, preferredTaskerId: undefined }
+        : {}),
     });
+
+    if (resetPremiumTier) {
+      toast.info(
+        "Gói vừa chọn chưa có giá Cao cấp nên hệ thống đã chuyển về hạng Tiêu chuẩn.",
+      );
+    }
   };
 
   const handleSelectTier = (tier: PublicPricingTier) => {
@@ -563,12 +653,14 @@ function StepService({
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-foreground">Chọn gói dịch vụ</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          Chọn gói chính, sau đó chọn gói giờ đã setup sẵn và dịch vụ thêm nếu cần.
-        </p>
       </div>
       {visibleServices.map((svc) => {
         const selected = form.serviceId === svc.id;
+        const startingPrice = applyServiceTierPrice(
+          getServiceStartingStandardPrice(svc),
+          svc,
+          form.serviceTier,
+        );
         return (
           <button
             key={svc.id}
@@ -587,9 +679,22 @@ function StepService({
                     {svc.description}
                   </p>
                 )}
-                <p className="mt-2 text-sm font-black text-primary">
-                  Từ {fmtCurrency(svc.basePrice)}
-                </p>
+                {startingPrice !== null ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-black text-primary">
+                      Từ {fmtCurrency(startingPrice)}
+                    </p>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase text-primary">
+                      {form.serviceTier === "PREMIUM"
+                        ? "Giá Cao cấp"
+                        : "Giá Tiêu chuẩn"}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs font-bold text-muted-foreground">
+                    Chưa có giá Cao cấp
+                  </p>
+                )}
               </div>
               {selected && (
                 <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -606,6 +711,25 @@ function StepService({
       )}
 
       {selectedService && (
+        <div className="rounded-2xl border border-border/50 bg-card p-4">
+          <ServiceTierSelector
+            value={form.serviceTier}
+            onChange={(serviceTier) => onChange({ serviceTier })}
+            preferredTaskerId={form.preferredTaskerId}
+            onPreferredTaskerChange={(preferredTaskerId) =>
+              onChange({ preferredTaskerId })
+            }
+            premiumFee={previewPremiumFee}
+            premiumAvailable={hasPremiumPrice(selectedService)}
+            showPreferredTaskerPicker={false}
+          />
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Giá gói giờ bên dưới được cập nhật ngay theo hạng dịch vụ bạn chọn.
+          </p>
+        </div>
+      )}
+
+      {selectedService && (
         <div className="space-y-5 rounded-3xl border border-primary/20 bg-primary/5 p-4">
           <div className="space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-black text-foreground">
@@ -617,10 +741,11 @@ function StepService({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {selectedService.durations.map((duration) => {
                   const selected = form.durationHours === duration.durationHours;
-                  const price =
-                    duration.durationHours *
-                    selectedService.baseHourlyRate *
-                    duration.priceMultiplier;
+                  const price = applyServiceTierPrice(
+                    getDurationStandardPrice(selectedService, duration),
+                    selectedService,
+                    form.serviceTier,
+                  );
 
                   return (
                     <button
@@ -651,10 +776,17 @@ function StepService({
                         </div>
                         {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
                       </div>
-                      {price > 0 && (
-                        <p className="mt-3 text-sm font-black text-primary">
-                          {fmtCurrency(price)}
-                        </p>
+                      {price !== null && price > 0 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-black text-primary">
+                            {fmtCurrency(price)}
+                          </p>
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            {form.serviceTier === "PREMIUM"
+                              ? "Cao cấp"
+                              : "Tiêu chuẩn"}
+                          </span>
+                        </div>
                       )}
                       {duration.isPopular && (
                         <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-1 text-[10px] font-black uppercase text-primary">
@@ -670,9 +802,11 @@ function StepService({
                 {selectedService.pricingTiers.map((tier) => {
                   const selected = form.pricingTierId === tier.id;
                   const hours = tier.defaultHours ?? tier.minHours ?? form.durationHours ?? 1;
-                  const price =
-                    tier.fixedPrice ??
-                    (tier.pricePerHour ? tier.pricePerHour * hours : 0);
+                  const price = applyServiceTierPrice(
+                    getPricingTierStandardPrice(tier, hours),
+                    selectedService,
+                    form.serviceTier,
+                  );
 
                   return (
                     <button
@@ -700,10 +834,17 @@ function StepService({
                         </div>
                         {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
                       </div>
-                      {price > 0 && (
-                        <p className="mt-3 text-sm font-black text-primary">
-                          {fmtCurrency(price)}
-                        </p>
+                      {price !== null && price > 0 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-black text-primary">
+                            {fmtCurrency(price)}
+                          </p>
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            {form.serviceTier === "PREMIUM"
+                              ? "Cao cấp"
+                              : "Tiêu chuẩn"}
+                          </span>
+                        </div>
                       )}
                     </button>
                   );
@@ -1096,9 +1237,11 @@ function StepAddress({
 function StepSchedule({
   form,
   onChange,
+  totalDurationHours,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
+  totalDurationHours: number;
 }) {
   const days = getNext7Days();
   const { data: publicServicesData } = usePublicServices();
@@ -1126,11 +1269,18 @@ function StepSchedule({
       !form.scheduledTime || currentTimeIsTooSoon
         ? getEarliestSelectableTime(date)
         : normalizeSelectableTime(form.scheduledTime);
+    const scheduleChanged =
+      date !== form.scheduledDate || nextTime !== form.scheduledTime;
 
     onChange({
       scheduledDate: date,
       scheduledTime: nextTime,
+      ...(scheduleChanged ? { preferredTaskerId: undefined } : {}),
     });
+
+    if (scheduleChanged && form.preferredTaskerId) {
+      toast.info("Lịch đã thay đổi, vui lòng chọn lại Tasker của bạn.");
+    }
 
     if (currentTimeIsTooSoon) {
       toast.warning(
@@ -1151,7 +1301,14 @@ function StepSchedule({
       return;
     }
 
-    onChange({ scheduledTime: time });
+    const scheduleChanged = time !== form.scheduledTime;
+    onChange({
+      scheduledTime: time,
+      ...(scheduleChanged ? { preferredTaskerId: undefined } : {}),
+    });
+    if (scheduleChanged && form.preferredTaskerId) {
+      toast.info("Lịch đã thay đổi, vui lòng chọn lại Tasker của bạn.");
+    }
   };
 
   const handleTimePartSelect = (part: "hour" | "minute", value: string) => {
@@ -1312,6 +1469,33 @@ function StepSchedule({
           </div>
         )}
       </div>
+
+      {form.serviceTier === "PREMIUM" && (
+        <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <div>
+            <h2 className="text-base font-bold text-foreground">
+              Tasker của bạn
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tùy chọn Tasker yêu thích sau khi hệ thống đã kiểm tra lịch tại
+              khung giờ này.
+            </p>
+          </div>
+          <FavoriteTaskerPicker
+            value={form.preferredTaskerId}
+            onChange={(preferredTaskerId) =>
+              onChange({ preferredTaskerId })
+            }
+            scheduledDate={form.scheduledDate}
+            scheduledTime={form.scheduledTime}
+            durationHours={totalDurationHours}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Tasker được chọn sẽ nhận lời mời riêng trước; nếu họ không nhận,
+            hệ thống tự tìm Tasker Cao cấp khác.
+          </p>
+        </div>
+      )}
 
       <div className="bg-card p-5 rounded-2xl border border-border/50">
         <h2 className="text-base font-bold text-foreground mb-3">
@@ -1489,6 +1673,18 @@ function StepConfirm({
           <span className="font-semibold">{quote.service.name}</span>
         </div>
         <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Hạng dịch vụ</span>
+          <span
+            className={
+              form.serviceTier === "PREMIUM"
+                ? "font-bold text-amber-600"
+                : "font-semibold"
+            }
+          >
+            {form.serviceTier === "PREMIUM" ? "Cao cấp" : "Tiêu chuẩn"}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Thời gian</span>
           <span className="font-semibold">
             {form.scheduledDate} · {form.scheduledTime}
@@ -1539,6 +1735,14 @@ function StepConfirm({
               </span>
             </div>
           ))}
+        {(quote.price.premiumFee ?? 0) > 0 && (
+          <div className="flex justify-between gap-4 text-xs text-amber-600">
+            <span>Phụ trội Cao cấp (đã gồm trong giá cơ bản)</span>
+            <span className="shrink-0 font-semibold">
+              {fmtCurrency(quote.price.premiumFee ?? 0)}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between pt-3 border-t border-border/40">
           <span className="font-bold">Tổng thanh toán</span>
           <span className="font-black text-primary text-base">
@@ -1676,6 +1880,7 @@ export const BookingWizard = ({
       durationHours: form.durationHours ?? undefined,
       areaM2: form.areaM2 ?? undefined,
       hasPet: form.hasPet,
+      serviceTier: form.serviceTier,
     },
     step === 3 && form.paymentMethod === "WALLET",
   );
@@ -1714,7 +1919,32 @@ export const BookingWizard = ({
     totalBookingWorkHours > selectedBookingPackage.maxHours;
 
   const update = (partial: Partial<WizardState>) =>
-    setForm((prev) => ({ ...prev, ...partial }));
+    setForm((prev) => {
+      const availabilityInputsChanged = (
+        [
+          "serviceId",
+          "pricingTierId",
+          "durationHours",
+          "areaM2",
+          "addonIds",
+          "scheduledDate",
+          "scheduledTime",
+        ] as const
+      ).some(
+        (key) =>
+          Object.prototype.hasOwnProperty.call(partial, key) &&
+          partial[key] !== prev[key],
+      );
+
+      return {
+        ...prev,
+        ...partial,
+        ...(availabilityInputsChanged &&
+        !Object.prototype.hasOwnProperty.call(partial, "preferredTaskerId")
+          ? { preferredTaskerId: undefined }
+          : {}),
+      };
+    });
 
   const canProceed = (): boolean => {
     if (step === 0)
@@ -1776,6 +2006,7 @@ export const BookingWizard = ({
           durationHours: form.durationHours ?? undefined,
           areaM2: form.areaM2 ?? undefined,
           hasPet: form.hasPet,
+          serviceTier: form.serviceTier,
         });
 
         // Quote chính thức là nguồn dữ liệu cuối cùng trước khi sang bước xác nhận.
@@ -1814,6 +2045,8 @@ export const BookingWizard = ({
         areaM2: form.areaM2 ?? undefined,
         hasPet: form.hasPet,
         quoteId: quote?.quoteId,
+        serviceTier: form.serviceTier,
+        preferredTaskerId: form.preferredTaskerId,
       };
       try {
         const result = await createMutation.mutateAsync(dto);
@@ -1822,6 +2055,19 @@ export const BookingWizard = ({
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 409) {
           const responseMessage = error.response.data?.message;
+          if (
+            typeof responseMessage === "string" &&
+            responseMessage.startsWith("Tasker bạn chọn")
+          ) {
+            setForm((prev) => ({
+              ...prev,
+              preferredTaskerId: undefined,
+            }));
+            setQuote(null);
+            setStep(2);
+            return;
+          }
+
           const bookingId =
             typeof responseMessage === "object" &&
             responseMessage !== null &&
@@ -1964,7 +2210,11 @@ export const BookingWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <StepSchedule form={form} onChange={update} />
+              <StepSchedule
+                form={form}
+                onChange={update}
+                totalDurationHours={totalBookingWorkHours}
+              />
             </motion.div>
           )}
           {step === 3 && (

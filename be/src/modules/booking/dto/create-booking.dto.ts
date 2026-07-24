@@ -15,6 +15,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 
 export class CreateBookingDto {
   @ApiPropertyOptional({
@@ -180,4 +181,23 @@ export class CreateBookingDto {
   @IsOptional()
   @IsUUID()
   quoteId?: string;
+
+  @ApiPropertyOptional({
+    enum: BookingServiceTier,
+    example: BookingServiceTier.STANDARD,
+    description:
+      'Hạng dịch vụ. PREMIUM dùng đơn giá cao cấp của gói và chỉ cho Tasker có bộ dụng cụ chuyên dụng đã được admin duyệt nhận đơn. Bỏ trống = STANDARD.',
+  })
+  @IsOptional()
+  @IsEnum(BookingServiceTier)
+  serviceTier?: BookingServiceTier;
+
+  @ApiPropertyOptional({
+    example: 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+    description:
+      'Tasker yêu thích muốn ưu tiên. Chỉ áp dụng cho đơn PREMIUM và phải nằm trong danh sách yêu thích của chính khách. Tasker này được mời riêng trước khi mở đơn cho các Tasker cao cấp khác.',
+  })
+  @IsOptional()
+  @IsUUID()
+  preferredTaskerId?: string;
 }

@@ -40,6 +40,13 @@ interface BookingSearchingPayload {
   exhausted?: boolean;
 }
 
+interface PremiumDispatchPayload {
+  bookingId: string;
+  taskerId?: string;
+  expiresAt?: string;
+  radiusKm?: string | number;
+}
+
 interface PendingConfirmation {
   title: string;
   content: string;
@@ -177,6 +184,57 @@ export function CustomerRealtimeNotifications() {
     [queryClient],
   );
 
+  // ── Đơn Cao cấp: 3 mốc riêng của luồng ưu tiên thợ yêu thích ──────────────
+  const invalidateBooking = useCallback(
+    (bookingId?: string) => {
+      void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
+      if (bookingId) {
+        void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      }
+    },
+    [queryClient],
+  );
+
+  const handleFavoriteInvited = useCallback(
+    (payload?: PremiumDispatchPayload | null) => {
+      if (!payload) return;
+      invalidateBooking(payload.bookingId);
+      toast.info("Đã mời thợ yêu thích của bạn", {
+        id: `booking-favorite-${payload.bookingId}`,
+        description:
+          "Thợ bạn chọn đang được mời riêng. Nếu thợ bận, CleanZ sẽ tìm thợ Cao cấp khác.",
+      });
+    },
+    [invalidateBooking],
+  );
+
+  const handleFavoriteUnavailable = useCallback(
+    (payload?: PremiumDispatchPayload | null) => {
+      if (!payload) return;
+      invalidateBooking(payload.bookingId);
+      toast.info("Thợ yêu thích đang bận", {
+        id: `booking-favorite-${payload.bookingId}`,
+        description: "CleanZ đang tìm thợ Cao cấp khác gần bạn.",
+      });
+    },
+    [invalidateBooking],
+  );
+
+  const handlePremiumExhausted = useCallback(
+    (payload?: PremiumDispatchPayload | null) => {
+      if (!payload) return;
+      invalidateBooking(payload.bookingId);
+      // Không tự hạ hạng đơn — đổi cam kết chất lượng là quyết định của khách.
+      toast.warning("Chưa tìm được thợ Cao cấp phù hợp", {
+        id: `booking-premium-exhausted-${payload.bookingId}`,
+        duration: 10_000,
+        description:
+          "Đơn vẫn đang mở. Bạn có thể chờ thêm, chuyển sang gói Tiêu chuẩn hoặc hủy miễn phí trong trang chi tiết đơn.",
+      });
+    },
+    [invalidateBooking],
+  );
+
   useSocketEvent<NotificationPayload>(
     NOTIFICATION_EVENT_NEW,
     handleNewNotification,
@@ -192,6 +250,18 @@ export function CustomerRealtimeNotifications() {
   useSocketEvent<BookingSearchingPayload>(
     "booking:still_searching",
     handleBookingStillSearching,
+  );
+  useSocketEvent<PremiumDispatchPayload>(
+    "booking:favorite_invited",
+    handleFavoriteInvited,
+  );
+  useSocketEvent<PremiumDispatchPayload>(
+    "booking:favorite_unavailable",
+    handleFavoriteUnavailable,
+  );
+  useSocketEvent<PremiumDispatchPayload>(
+    "booking:premium_exhausted",
+    handlePremiumExhausted,
   );
 
   const closeConfirmation = useCallback(

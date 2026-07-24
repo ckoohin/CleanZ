@@ -6,6 +6,7 @@ import {
   formatVietnamTime,
 } from 'src/common/helpers/vietnam-time.helper';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 import { UpdateBookingScheduleAddressDto } from '../dto/update-booking-schedule-address.dto';
 import { BookingEntity } from '../entity/booking.entity';
 
@@ -24,6 +25,7 @@ export interface BookingScheduleDraft {
   areaM2?: number;
   pricingTierId?: string;
   hasPet?: boolean;
+  serviceTier?: BookingServiceTier;
 }
 
 export interface BookingScheduleStartContext {

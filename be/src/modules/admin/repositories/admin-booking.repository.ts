@@ -39,7 +39,10 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
-import { BookingWalletPaymentService } from 'src/modules/booking/services/booking-wallet-payment.service';
+import {
+  BOOKING_WALLET_SETTLE_REF,
+  BookingWalletPaymentService,
+} from 'src/modules/booking/services/booking-wallet-payment.service';
 import { EARLY_CHECKOUT_ABNORMAL_MINUTES } from 'src/modules/booking/helpers/work-timing.helper';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
@@ -50,6 +53,10 @@ import { BookingSearchQueryDto } from '../dto/booking-search-query.dto';
 import { ChangeBookingStatusDto } from '../dto/change-booking-status.dto';
 import { CreateAdminBookingDto } from '../dto/create-admin-booking.dto';
 import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
+import {
+  BookingSettlementLedgerSnapshot,
+  resolveBookingPaymentBreakdown,
+} from '../helpers/booking-payment-breakdown.helper';
 
 interface BookingStatusCountRow {
   status: BookingStatus;
@@ -690,6 +697,7 @@ export class AdminBookingRepository {
       toDate,
       abnormalEarlyCheckout,
       surchargeDisputed,
+      serviceTier,
       page = 1,
       limit = 10,
     } = queryDto;
@@ -770,6 +778,11 @@ export class AdminBookingRepository {
       query
         .andWhere('booking.surchargeStatus = :disputedStatus')
         .setParameter('disputedStatus', BookingSurchargeStatus.DISPUTED);
+    }
+    if (serviceTier) {
+      query
+        .andWhere('booking.serviceTier = :serviceTier')
+        .setParameter('serviceTier', serviceTier);
     }
 
     const statusCountRows = await query
@@ -925,7 +938,7 @@ export class AdminBookingRepository {
       throw new NotFoundException(`Không tìm thấy booking với id ${bookingId}`);
     }
 
-    const [payment, timeline, voucher, settledPlatformFee] = await Promise.all([
+    const [payment, timeline, voucher, settlementLedger] = await Promise.all([
       this.dataSource.getRepository(PaymentEntity).findOne({
         where: { booking: { id: booking.id } },
         order: { createdAt: 'DESC' },
@@ -940,28 +953,49 @@ export class AdminBookingRepository {
             where: { id: booking.voucherId },
           })
         : Promise.resolve(null),
-      this.getSettledPlatformFee(booking.id),
+      this.getSettlementLedger(booking.id),
     ]);
 
     const totalPrice = Number(booking.totalPrice);
     const subtotal = totalPrice + Number(booking.discountAmount);
-    let commissionRate =
-      settledPlatformFee !== null && subtotal > 0
-        ? Number(((settledPlatformFee / subtotal) * 100).toFixed(2))
-        : null;
-    if (settledPlatformFee === null) {
-      commissionRate = await this.pricingService.getPlatformCommissionRate(
+    const surchargeAmount = Math.min(
+      Math.max(Math.round(Number(booking.waitingFee)), 0),
+      subtotal,
+    );
+    const settledBreakdown = resolveBookingPaymentBreakdown({
+      subtotal,
+      surchargeAmount,
+      paymentMethod: booking.paymentMethod,
+      ledger: settlementLedger,
+    });
+    const commissionRate =
+      settledBreakdown?.commissionRate ??
+      (await this.pricingService.getPlatformCommissionRate(
         this.dataSource.manager,
-      );
-    }
-
+      ));
     const platformFee =
-      settledPlatformFee ??
-      (commissionRate === null
-        ? null
-        : Math.round((subtotal * commissionRate) / 100));
+      settledBreakdown?.platformFee ??
+      Math.round((subtotal * commissionRate) / 100);
     const taskerIncome =
-      platformFee === null ? null : Math.max(subtotal - platformFee, 0);
+      settledBreakdown?.taskerIncome ?? Math.max(subtotal - platformFee, 0);
+    const baseAmount = Math.max(subtotal - surchargeAmount, 0);
+    const basePlatformFee =
+      settledBreakdown?.basePlatformFee ??
+      Math.round((baseAmount * commissionRate) / 100);
+    const surchargePlatformFee =
+      settledBreakdown?.surchargePlatformFee ??
+      Math.max(platformFee - basePlatformFee, 0);
+    const surchargePaymentMethod =
+      settledBreakdown?.surchargePaymentMethod ??
+      (surchargeAmount <= 0
+        ? null
+        : booking.paymentMethod === PaymentMethod.CASH ||
+            booking.surchargeStatus ===
+              BookingSurchargeStatus.PENDING_TASKER_CONFIRM
+          ? PaymentMethod.CASH
+          : booking.surchargeStatus === BookingSurchargeStatus.PAID
+            ? booking.paymentMethod
+            : null);
     const acceptedAt =
       timeline.find((log) => log.newStatus === BookingStatus.CONFIRMED)
         ?.createdAt ?? null;
@@ -1060,6 +1094,9 @@ export class AdminBookingRepository {
         checkedOutAt: booking.checkedOutAt ?? null,
         completedAt: booking.completedAt ?? null,
         cancelledAt: booking.cancelledAt ?? null,
+        serviceTier: booking.serviceTier,
+        premiumFee: Number(booking.premiumFee ?? 0),
+        preferredTaskerId: booking.preferredTaskerId ?? null,
         workTiming: {
           overtimeMinutes: Number(booking.overtimeMinutes ?? 0),
           earlyMinutes: Number(booking.earlyMinutes ?? 0),
@@ -1106,7 +1143,13 @@ export class AdminBookingRepository {
         platformFee,
         taskerIncome,
         commissionRate,
-        isEstimated: settledPlatformFee === null,
+        isEstimated: settledBreakdown === null,
+        baseAmount,
+        basePlatformFee,
+        basePaymentMethod: booking.paymentMethod,
+        surchargeAmount,
+        surchargePlatformFee,
+        surchargePaymentMethod,
         latestPayment: payment
           ? {
               id: payment.id,
@@ -1890,35 +1933,58 @@ export class AdminBookingRepository {
     return Math.round((subtotal * commissionRate) / 100);
   }
 
-  private async getSettledPlatformFee(
+  private async getSettlementLedger(
     bookingId: string,
-  ): Promise<number | null> {
+  ): Promise<BookingSettlementLedgerSnapshot> {
     const rows = await this.dataSource
       .getRepository(WalletTransactionEntity)
       .createQueryBuilder('transaction')
       .innerJoin('transaction.wallet', 'wallet')
-      .select('wallet.owner_type', 'ownerType')
-      .addSelect('SUM(transaction.amount)', 'amount')
+      .select('transaction.type', 'type')
+      .addSelect('transaction.reference_type', 'referenceType')
+      .addSelect('transaction.amount', 'amount')
       .where('transaction.booking_id = :bookingId', { bookingId })
-      .andWhere('transaction.type = :type', {
-        type: WalletTransactionType.PLATFORM_FEE,
+      .andWhere('wallet.owner_type = :ownerType', {
+        ownerType: WalletOwnerType.TASKER,
       })
-      .andWhere('wallet.owner_type IN (:...ownerTypes)', {
-        ownerTypes: [WalletOwnerType.TASKER, WalletOwnerType.SYSTEM],
-      })
-      .groupBy('wallet.owner_type')
-      .getRawMany<{ ownerType: WalletOwnerType; amount: string | null }>();
+      .andWhere(
+        `(
+          transaction.type = :platformFeeType
+          OR (
+            transaction.type = :taskerEarningType
+            AND transaction.reference_type = :walletSettlementRef
+          )
+        )`,
+        {
+          platformFeeType: WalletTransactionType.PLATFORM_FEE,
+          taskerEarningType: WalletTransactionType.TASKER_EARNING,
+          walletSettlementRef: BOOKING_WALLET_SETTLE_REF,
+        },
+      )
+      .getRawMany<{
+        type: WalletTransactionType;
+        referenceType: string | null;
+        amount: string;
+      }>();
 
-    // Đơn tiền mặt có một bút toán PLATFORM_FEE trên ví tasker đúng bằng khoản
-    // hoa hồng của đơn. Ưu tiên bút toán này để không cộng nhầm phí kế toán của
-    // khoản nền tảng ứng trả thêm giờ vào hoa hồng gốc của booking.
-    const row =
-      rows.find((item) => item.ownerType === WalletOwnerType.TASKER) ??
-      rows.find((item) => item.ownerType === WalletOwnerType.SYSTEM);
+    const explicitTaskerPlatformFee = rows
+      .filter((row) => row.type === WalletTransactionType.PLATFORM_FEE)
+      .reduce((sum, row) => sum + Number(row.amount), 0);
+    const walletSettlementRows = rows.filter(
+      (row) =>
+        row.type === WalletTransactionType.TASKER_EARNING &&
+        row.referenceType === BOOKING_WALLET_SETTLE_REF,
+    );
+    const walletSettlementEarning =
+      walletSettlementRows.length > 0
+        ? walletSettlementRows.reduce((sum, row) => sum + Number(row.amount), 0)
+        : null;
 
-    return row?.amount === null || row?.amount === undefined
-      ? null
-      : Number(row.amount);
+    return {
+      explicitTaskerPlatformFee,
+      walletSettlementEarning,
+      hasSettlementEntries: rows.length > 0,
+    };
   }
 
   async expireOverdueBookings() {

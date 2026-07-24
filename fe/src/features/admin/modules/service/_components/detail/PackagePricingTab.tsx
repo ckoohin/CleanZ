@@ -588,7 +588,7 @@ export function PackagePricingTab({ pkg }: PackagePricingTabProps) {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[280px] bg-slate-900 text-white p-3 text-xs leading-relaxed border border-slate-800 shadow-lg rounded-lg">
-                  Đơn giá áp dụng khi khách hàng chọn dịch vụ Cao cấp (Premium) hoặc ca đặc biệt. Giá trị mang lại: (1) Chất lượng thợ tối ưu: Chỉ thợ xuất sắc (sao từ 4.8★ trở lên, thâm niên cao, ít hủy ca) mới được nhận việc; (2) VIP Matching: Đơn được đẩy lên ưu tiên hiển thị trước để thợ nhận ngay, đảm bảo 100% có người làm; (3) Làm gấp & Ngoài giờ: Áp dụng khi đặt sát giờ (dưới 2h) hoặc sáng sớm/tối muộn; (4) Dụng cụ nâng cấp: Thợ mang theo hóa chất sinh học chuyên dụng cao cấp.
+                  Đơn giá áp dụng khi khách hàng chọn dịch vụ premium hoặc ca đặc biệt. Giá trị mang lại: (1) Chất lượng thợ tối ưu: Chỉ thợ xuất sắc (sao từ 4.8★ trở lên, thâm niên cao, ít hủy ca) mới được nhận việc; (2) VIP Matching: Đơn được đẩy lên ưu tiên hiển thị trước để thợ nhận ngay, đảm bảo 100% có người làm; (3) Làm gấp & Ngoài giờ: Áp dụng khi đặt sát giờ (dưới 2h) hoặc sáng sớm/tối muộn; (4) Dụng cụ nâng cấp: Thợ mang theo hóa chất sinh học chuyên dụng cao cấp.
                 </TooltipContent>
               </Tooltip>
             </div>

@@ -20,19 +20,16 @@ interface NotificationPayload {
 }
 
 interface PendingInvitation {
-  id: string;
   title: string;
   content: string;
-  href: string;
+  bookingId: string;
 }
-
-// Khớp DISPATCH_RING_TIMEOUT_MS phía backend: lời mời chỉ có hiệu lực 15 giây.
-const INVITATION_AUTO_CLOSE_MS = 15_000;
 
 export function TaskerRealtimeDispatch() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [invitation, setInvitation] = useState<PendingInvitation | null>(null);
+  const [pendingInvitation, setPendingInvitation] =
+    useState<PendingInvitation | null>(null);
 
   const handleNewNotification = useCallback(
     (notification?: NotificationPayload | null) => {
@@ -45,17 +42,23 @@ export function TaskerRealtimeDispatch() {
         queryKey: notificationKeys.all,
       });
 
-      if (notification.referenceType !== "BOOKING" || !notification.referenceId) {
+      if (
+        notification.referenceType !== "BOOKING" ||
+        !notification.referenceId
+      ) {
         return;
       }
 
       if (notification.type === "BOOKING_NEW_AVAILABLE") {
-        setInvitation({
-          id: notification.id,
-          title: notification.title || "Có đơn mới gần bạn",
+        // Cùng mẫu modal với luồng Tasker tạo đơn cho khách đã có tài khoản.
+        // Đóng modal chỉ đóng lời nhắc; booking vẫn nằm trong danh sách nhờ
+        // quyền mời đã được backend persist độc lập.
+        setPendingInvitation({
+          title: notification.title || "Có đơn mới dành cho bạn",
           content:
-            notification.content ?? "Mở chi tiết đơn để nhận trong 15 giây.",
-          href: `/tasker/jobs/${notification.referenceId}?mode=posted`,
+            notification.content ??
+            "Đơn đã được thêm vào danh sách công việc có thể nhận.",
+          bookingId: notification.referenceId,
         });
         return;
       }
@@ -63,7 +66,8 @@ export function TaskerRealtimeDispatch() {
       // Cập nhật đơn thuần thông tin → giữ toast.
       toast.info(notification.title, {
         id: `dispatch-${notification.referenceId}`,
-        description: notification.content ?? "Nhấn chuông thông báo để xem chi tiết.",
+        description:
+          notification.content ?? "Nhấn chuông thông báo để xem chi tiết.",
       });
     },
     [queryClient],
@@ -74,22 +78,23 @@ export function TaskerRealtimeDispatch() {
     handleNewNotification,
   );
 
-  const closeInvitation = useCallback(() => setInvitation(null), []);
+  const closeInvitation = useCallback(() => setPendingInvitation(null), []);
 
   return (
     <RealtimeActionDialog
-      open={invitation !== null}
+      open={pendingInvitation !== null}
       icon={<BellRing className="size-5" />}
-      title={invitation?.title ?? ""}
-      description={invitation?.content}
+      title={pendingInvitation?.title ?? ""}
+      description={pendingInvitation?.content}
       confirmLabel="Xem & nhận đơn"
       cancelLabel="Bỏ qua"
-      autoCloseMs={INVITATION_AUTO_CLOSE_MS}
-      autoCloseKey={invitation?.id}
-      showCountdown
       onConfirm={() => {
         closeInvitation();
-        if (invitation) router.push(invitation.href);
+        if (pendingInvitation) {
+          router.push(
+            `/tasker/jobs/${pendingInvitation.bookingId}?mode=posted`,
+          );
+        }
       }}
       onCancel={closeInvitation}
     />

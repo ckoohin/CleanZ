@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FavoriteTaskerButton } from "./FavoriteTaskerButton";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -12,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  Crown,
   Star,
   FileText,
   Pencil,
@@ -1389,6 +1391,11 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               </div>
             )}
 
+            {/* Lưu thợ vào danh sách yêu thích — đơn sau có thể ưu tiên ghép lại */}
+            {booking.status === "COMPLETED" && booking.tasker?.id && (
+              <FavoriteTaskerButton taskerId={booking.tasker.id} />
+            )}
+
             {/* Nút báo cáo sự cố khi đơn đã kết thúc */}
             {(booking.status === "COMPLETED" ||
               booking.status === "CANCELLED") && (
@@ -1454,10 +1461,24 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
 
         {/* Price */}
         <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
-          <h3 className="font-bold text-sm mb-1">Chi tiết giá</h3>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-bold text-sm">Chi tiết giá</h3>
+            {booking.serviceTier === "PREMIUM" && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                <Crown className="w-3 h-3" />
+                CAO CẤP
+              </span>
+            )}
+          </div>
           {[
             { label: "Giá cơ bản", value: booking.price.basePrice },
             { label: "Phụ phí", value: booking.price.addonPrice ?? 0 },
+            {
+              // Phụ trội Cao cấp đã nằm trong "Giá cơ bản" — chỉ hiển thị để
+              // khách biết mình đang trả thêm bao nhiêu cho cam kết chất lượng.
+              label: "Trong đó, phụ trội gói premium",
+              value: booking.price.premiumFee ?? 0,
+            },
             { label: "Phí cao điểm", value: booking.price.peakFee },
             { label: "Phí thú cưng", value: booking.price.petFee },
             {

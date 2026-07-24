@@ -3,9 +3,11 @@ import http from '@/lib/api/http';
 import {
   CreateTaskerServiceDto,
   ServiceListResponse,
+  SubmitTaskerEquipmentDto,
   TaskerProfile,
   UpdateTaskerProfileDto,
 } from '../types/tasker.type';
+import { API_ENDPOINTS } from '@/constants/api-endpoints';
 
 export type { ServiceListResponse };
 
@@ -49,6 +51,13 @@ export const taskerApi = {
       .patch<{ updated: boolean }>('/tasker/me/location', location, {
         skipErrorToast: true,
       } as Parameters<typeof http.patch>[2])
+      .then((res) => res.data),
+
+  // POST /tasker/me/equipment — nộp ảnh bộ dụng cụ chuyên dụng.
+  // Điều kiện bắt buộc để vào nhóm nhận đơn Cao cấp; nộp lại đưa về chờ duyệt.
+  submitEquipment: (dto: SubmitTaskerEquipmentDto): Promise<TaskerProfile> =>
+    http
+      .post<TaskerProfile>(API_ENDPOINTS.TASKERS.SUBMIT_EQUIPMENT, dto)
       .then((res) => res.data),
 
   // POST /tasker/profile — nộp hồ sơ (multipart/form-data)

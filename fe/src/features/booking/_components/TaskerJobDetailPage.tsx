@@ -20,7 +20,10 @@ import {
   Route,
   Loader2,
   ShieldAlert,
+  LockKeyhole,
+  Wrench,
   XCircle,
+  Crown,
 } from "lucide-react";
 import {
   usePostedBookingDetail,
@@ -303,10 +306,13 @@ function PostedDetailView({
   onAccepted: () => void;
   onUnavailable: () => void;
 }) {
+  const router = useRouter();
   const accept = useAcceptBooking();
   const platformCommissionRate = data.price.platformCommissionRate;
   const platformFee = data.price.platformFee;
   const taskerIncome = data.price.taskerIncome;
+  const premiumLocked =
+    data.serviceTier === "PREMIUM" && data.premiumAccess?.canAccept === false;
 
   const handleAccept = async () => {
     try {
@@ -412,13 +418,40 @@ function PostedDetailView({
         </div>
       </div>
 
-      {/* Accept button */}
-      <SwipeToAccept
-        label="Vuốt để nhận đơn"
-        successLabel="Đã nhận đơn!"
-        onConfirm={handleAccept}
-        isLoading={accept.isPending}
-      />
+      {/* Accept button / lý do khóa đơn Premium */}
+      {premiumLocked ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-2">
+            <LockKeyhole className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                Bạn chưa thể nhận đơn Cao cấp này
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-700/90 dark:text-amber-400/90">
+                {data.premiumAccess?.message ??
+                  "Cần bổ sung bộ dụng cụ chuyên dụng và chờ admin duyệt."}
+              </p>
+            </div>
+          </div>
+          {data.premiumAccess?.issues.includes("EQUIPMENT_NOT_APPROVED") && (
+            <button
+              type="button"
+              onClick={() => router.push("/tasker/profile")}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-xs font-black text-white"
+            >
+              <Wrench className="size-4" />
+              Bổ sung bộ dụng cụ chuyên dụng
+            </button>
+          )}
+        </div>
+      ) : (
+        <SwipeToAccept
+          label="Vuốt để nhận đơn"
+          successLabel="Đã nhận đơn!"
+          onConfirm={handleAccept}
+          isLoading={accept.isPending}
+        />
+      )}
     </div>
   );
 }
@@ -630,9 +663,17 @@ function AssignedPriceBreakdown({
 
   return (
     <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-2">
-      <h3 className="font-bold text-foreground text-sm mb-2">
-        {isCompleted ? "Quyết toán đơn hàng" : "Giá đơn hàng"}
-      </h3>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-bold text-foreground text-sm">
+          {isCompleted ? "Quyết toán đơn hàng" : "Giá đơn hàng"}
+        </h3>
+        {data.serviceTier === "PREMIUM" && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-black text-amber-600">
+            <Crown className="w-3 h-3" />
+            ĐƠN CAO CẤP
+          </span>
+        )}
+      </div>
 
       {rows.map((r) => (
         <div key={r.label} className="flex justify-between text-sm">
@@ -767,9 +808,7 @@ function TaskerOvertimeSection({
           <p className="text-sm font-bold text-emerald-700">
             Khách đã đồng ý trả phần phát sinh
           </p>
-          <p className="text-xs text-emerald-600">
-          
-          </p>
+          <p className="text-xs text-emerald-600"></p>
         </div>
         <ActionButton
           label="Thu tiền mặt"

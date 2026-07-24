@@ -17,6 +17,7 @@ import {
 } from "../hooks/admin-tasker.hooks";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
 import { TaskerEarningsPanel } from "./TaskerEarningsPanel";
+import { TaskerPremiumReviewPanel } from "./TaskerPremiumReviewPanel";
 import { parseAdminNotes } from "./AdminRequestInfoModal";
 import {
   ACCOUNT_STATUS_LABELS,
@@ -35,6 +36,7 @@ import {
   Sparkles,
   Briefcase,
   Clock,
+  Crown,
   Award,
   CheckCircle2,
   ShieldCheck,
@@ -61,6 +63,7 @@ import {
 
 interface Tasker360ViewProps {
   taskerId: string;
+  initialTab?: "detail" | "premium";
 }
 
 interface TaskerPenalty {
@@ -100,11 +103,38 @@ interface DocGroup {
 }
 
 const DOC_GROUPS: DocGroup[] = [
-  { id: "citizenCard", label: "CCCD / CMND (2 mặt)", icon: IdCard, required: true, hint: "Rõ nét, đủ 2 mặt" },
-  { id: "idWithSelfie", label: "Ảnh selfie cầm CCCD", icon: ScanFace, required: false, hint: "Nhìn thẳng, rõ mặt" },
-  { id: "criminalRecord", label: "Lý lịch tư pháp", icon: Scale, required: false },
-  { id: "healthCertificate", label: "Giấy khám sức khoẻ", icon: HeartPulse, required: false },
-  { id: "certificate", label: "Chứng chỉ nghề nghiệp", icon: AwardIcon, required: false },
+  {
+    id: "citizenCard",
+    label: "CCCD / CMND (2 mặt)",
+    icon: IdCard,
+    required: true,
+    hint: "Rõ nét, đủ 2 mặt",
+  },
+  {
+    id: "idWithSelfie",
+    label: "Ảnh selfie cầm CCCD",
+    icon: ScanFace,
+    required: false,
+    hint: "Nhìn thẳng, rõ mặt",
+  },
+  {
+    id: "criminalRecord",
+    label: "Lý lịch tư pháp",
+    icon: Scale,
+    required: false,
+  },
+  {
+    id: "healthCertificate",
+    label: "Giấy khám sức khoẻ",
+    icon: HeartPulse,
+    required: false,
+  },
+  {
+    id: "certificate",
+    label: "Chứng chỉ nghề nghiệp",
+    icon: AwardIcon,
+    required: false,
+  },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -151,7 +181,7 @@ const InfoRow: React.FC<{
     <span
       className={cn(
         "text-sm font-semibold text-right text-[var(--c-ink)] break-words",
-        mono && "font-mono tracking-tight"
+        mono && "font-mono tracking-tight",
       )}
     >
       {value}
@@ -175,14 +205,18 @@ const StatCard: React.FC<{
       <div
         className={cn(
           "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
-          tones[tone]
+          tones[tone],
         )}
       >
         <Icon className="w-5 h-5" aria-hidden="true" />
       </div>
       <div className="min-w-0">
-        <p className="text-2xl font-black leading-none text-[var(--c-ink)]">{value}</p>
-        <p className="text-xs font-medium text-[var(--c-muted)] mt-1.5">{label}</p>
+        <p className="text-2xl font-black leading-none text-[var(--c-ink)]">
+          {value}
+        </p>
+        <p className="text-xs font-medium text-[var(--c-muted)] mt-1.5">
+          {label}
+        </p>
       </div>
     </div>
   );
@@ -220,9 +254,15 @@ const DocGroupCard: React.FC<{
   <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-5">
     <div className="mb-3">
       <p className="text-sm font-bold flex items-center gap-2 text-[var(--c-ink)]">
-        <group.icon className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" /> {group.label}
+        <group.icon
+          className="w-4 h-4 text-[var(--c-primary-strong)]"
+          aria-hidden="true"
+        />{" "}
+        {group.label}
         {!group.required && (
-          <span className="text-[10px] font-normal text-[var(--c-muted)]">(tuỳ chọn)</span>
+          <span className="text-[10px] font-normal text-[var(--c-muted)]">
+            (tuỳ chọn)
+          </span>
         )}
       </p>
       <p
@@ -231,21 +271,24 @@ const DocGroupCard: React.FC<{
           docs.length > 0
             ? "text-[#0E9F6E]"
             : group.required
-            ? "text-[#E11D48]"
-            : "text-[var(--c-muted)]"
+              ? "text-[#E11D48]"
+              : "text-[var(--c-muted)]",
         )}
       >
         {docs.length > 0 ? (
           <>
-            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> Đã nộp {docs.length} ảnh
+            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> Đã nộp{" "}
+            {docs.length} ảnh
           </>
         ) : group.required ? (
           <>
-            <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" /> Chưa nộp
+            <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" /> Chưa
+            nộp
           </>
         ) : (
           <>
-            <Minus className="w-3.5 h-3.5" aria-hidden="true" /> Chưa nộp (không bắt buộc)
+            <Minus className="w-3.5 h-3.5" aria-hidden="true" /> Chưa nộp (không
+            bắt buộc)
           </>
         )}
         {group.hint && docs.length > 0 && (
@@ -283,7 +326,10 @@ const DocGroupCard: React.FC<{
       </div>
     ) : (
       <div className="border border-dashed border-[var(--c-line-strong)] rounded-xl py-8 flex flex-col items-center gap-2 text-center">
-        <ImageIcon className="w-8 h-8 text-[var(--c-muted)]/50" aria-hidden="true" />
+        <ImageIcon
+          className="w-8 h-8 text-[var(--c-muted)]/50"
+          aria-hidden="true"
+        />
         <p className="text-xs text-[var(--c-muted)]">Ứng viên chưa tải lên</p>
       </div>
     )}
@@ -292,7 +338,10 @@ const DocGroupCard: React.FC<{
 
 // ─── Main view ──────────────────────────────────────────────────────────────
 
-export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
+export const Tasker360View: React.FC<Tasker360ViewProps> = ({
+  taskerId,
+  initialTab = "detail",
+}) => {
   const router = useRouter();
   const {
     data: tasker,
@@ -321,23 +370,36 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
     );
   }
 
-  const errorStatus = (error as { response?: { status?: number } })?.response?.status;
+  const errorStatus = (error as { response?: { status?: number } })?.response
+    ?.status;
   const isNotFound = errorStatus === 404;
 
   // Lỗi thực sự (500/mạng), không phải 404 — cho phép người dùng thử lại.
   if (isError && !isNotFound) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
-        <AlertTriangle className="w-16 h-16 text-[var(--c-muted)]/40" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-[var(--c-ink)]">Không tải được dữ liệu đối tác</h2>
+        <AlertTriangle
+          className="w-16 h-16 text-[var(--c-muted)]/40"
+          aria-hidden="true"
+        />
+        <h2 className="text-xl font-bold text-[var(--c-ink)]">
+          Không tải được dữ liệu đối tác
+        </h2>
         <p className="text-[var(--c-muted)]">
           Đã có lỗi xảy ra khi tải thông tin đối tác. Vui lòng thử lại.
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => router.back()} className="border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]">
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" /> Quay lại
           </Button>
-          <Button onClick={() => refetch()} className="bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90">
+          <Button
+            onClick={() => refetch()}
+            className="bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
+          >
             <RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" /> Thử lại
           </Button>
         </div>
@@ -349,12 +411,21 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
   if (!tasker) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
-        <User className="w-16 h-16 text-[var(--c-muted)]/40" aria-hidden="true" />
-        <h2 className="text-xl font-bold text-[var(--c-ink)]">Không tìm thấy đối tác</h2>
+        <User
+          className="w-16 h-16 text-[var(--c-muted)]/40"
+          aria-hidden="true"
+        />
+        <h2 className="text-xl font-bold text-[var(--c-ink)]">
+          Không tìm thấy đối tác
+        </h2>
         <p className="text-[var(--c-muted)]">
           Dữ liệu đã bị xóa hoặc ID không hợp lệ.
         </p>
-        <Button variant="outline" onClick={() => router.back()} className="border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]">
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          className="border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" /> Quay lại
         </Button>
       </div>
@@ -377,7 +448,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
   }>;
   const getDocsByType = (type: string) => docs.filter((d) => d.type === type);
   const completedDocs = DOC_GROUPS.filter(
-    (g) => getDocsByType(g.id).length > 0
+    (g) => getDocsByType(g.id).length > 0,
   ).length;
 
   const parsedNotes = parseAdminNotes(detail.adminNotes);
@@ -421,7 +492,9 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
                 {detail.fullName || "Chưa cập nhật"}
               </h1>
-              <StatusBadge tone={ACCOUNT_STATUS_TONE[detail.status] ?? "neutral"}>
+              <StatusBadge
+                tone={ACCOUNT_STATUS_TONE[detail.status] ?? "neutral"}
+              >
                 {ACCOUNT_STATUS_LABELS[detail.status] || detail.status}
               </StatusBadge>
               <Badge
@@ -429,7 +502,8 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                 className="text-[10px] font-bold uppercase tracking-wider bg-white/10 text-white border-white/20 gap-1"
               >
                 <ShieldCheck className="w-3 h-3" aria-hidden="true" />
-                {DOC_STATUS_LABELS[detail.approvalStatus] || detail.approvalStatus}
+                {DOC_STATUS_LABELS[detail.approvalStatus] ||
+                  detail.approvalStatus}
               </Badge>
             </div>
 
@@ -480,21 +554,49 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
       </section>
 
       {/* Tabs */}
-      <Tabs defaultValue="detail" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="w-full h-auto flex-wrap justify-start gap-2.5 rounded-none bg-transparent border-0 p-0">
-          <TabsTrigger value="detail" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
-            <ClipboardList className="w-3.5 h-3.5" aria-hidden="true" /> Chi tiết
+          <TabsTrigger
+            value="detail"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
+            <ClipboardList className="w-3.5 h-3.5" aria-hidden="true" /> Chi
+            tiết
           </TabsTrigger>
-          <TabsTrigger value="profile" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
+          <TabsTrigger
+            value="profile"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
             <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Hồ sơ
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
+          <TabsTrigger
+            value="premium"
+            className="relative flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
+            <Crown className="w-3.5 h-3.5" aria-hidden="true" /> Duyệt Premium
+            {detail.equipment?.status === "PENDING" && (
+              <span
+                className="size-2 rounded-full bg-[#E11D48] ring-2 ring-[var(--c-card)] data-[state=active]:ring-[var(--c-primary)]"
+                aria-label="Có hồ sơ Premium đang chờ duyệt"
+              />
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="history"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
             <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Lịch sử ca
           </TabsTrigger>
-          <TabsTrigger value="reviews" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
+          <TabsTrigger
+            value="reviews"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
             <Star className="w-3.5 h-3.5" aria-hidden="true" /> Đánh giá
           </TabsTrigger>
-          <TabsTrigger value="payroll" className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold">
+          <TabsTrigger
+            value="payroll"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
             <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Bảng lương
           </TabsTrigger>
         </TabsList>
@@ -525,16 +627,41 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
               <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-[var(--c-ink)]">
-                <ClipboardList className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                <ClipboardList
+                  className="w-4 h-4 text-[var(--c-primary-strong)]"
+                  aria-hidden="true"
+                />
                 Thông tin đối tác
               </h3>
               <div className="px-0.5">
-                <InfoRow icon={User} label="Họ và tên" value={detail.fullName || "Chưa cập nhật"} />
-                <InfoRow icon={Phone} label="Số điện thoại" value={phone} mono />
+                <InfoRow
+                  icon={User}
+                  label="Họ và tên"
+                  value={detail.fullName || "Chưa cập nhật"}
+                />
+                <InfoRow
+                  icon={Phone}
+                  label="Số điện thoại"
+                  value={phone}
+                  mono
+                />
                 <InfoRow icon={Mail} label="Email" value={email} />
-                <InfoRow icon={MapPin} label="Khu vực hoạt động" value={detail.workingAddress || "Chưa cập nhật"} />
-                <InfoRow icon={Calendar} label="Ngày tham gia" value={formatDate(detail.createdAt)} />
-                <InfoRow icon={Hash} label="Mã đối tác" value={detail.id} mono />
+                <InfoRow
+                  icon={MapPin}
+                  label="Khu vực hoạt động"
+                  value={detail.workingAddress || "Chưa cập nhật"}
+                />
+                <InfoRow
+                  icon={Calendar}
+                  label="Ngày tham gia"
+                  value={formatDate(detail.createdAt)}
+                />
+                <InfoRow
+                  icon={Hash}
+                  label="Mã đối tác"
+                  value={detail.id}
+                  mono
+                />
               </div>
 
               {(detail.docReviewedByName || detail.updatedByName) && (
@@ -569,7 +696,10 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
 
             <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
               <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-[var(--c-ink)]">
-                <Sparkles className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                <Sparkles
+                  className="w-4 h-4 text-[var(--c-primary-strong)]"
+                  aria-hidden="true"
+                />
                 Kỹ năng & dịch vụ
               </h3>
               {skills.length > 0 ? (
@@ -584,12 +714,15 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-[var(--c-muted)]">Chưa cập nhật kỹ năng.</p>
+                <p className="text-sm text-[var(--c-muted)]">
+                  Chưa cập nhật kỹ năng.
+                </p>
               )}
 
               <div className="mt-4 rounded-xl bg-[var(--c-card-2)] p-4">
                 <p className="text-xs text-[var(--c-muted)] flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5" aria-hidden="true" /> Kinh nghiệm
+                  <Briefcase className="w-3.5 h-3.5" aria-hidden="true" /> Kinh
+                  nghiệm
                 </p>
                 <p className="text-sm font-semibold mt-1 text-[var(--c-ink)]">
                   {detail.experience || "Chưa cập nhật"}
@@ -608,8 +741,8 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           {parsedNotes ? (
             <div className="rounded-2xl border border-[rgba(37,99,235,0.3)] bg-[rgba(37,99,235,0.06)] p-5">
               <p className="text-[10px] uppercase font-bold tracking-wider text-[#2563EB] mb-2 flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi chú của
-                admin
+                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi
+                chú của admin
               </p>
               {parsedNotes.itemLabels.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -634,8 +767,8 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
             detail.adminNotes && (
               <div className="rounded-2xl border border-[rgba(37,99,235,0.3)] bg-[rgba(37,99,235,0.06)] p-5">
                 <p className="text-[10px] uppercase font-bold tracking-wider text-[#2563EB] mb-2 flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi chú của
-                  admin
+                  <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi
+                  chú của admin
                 </p>
                 <p className="text-sm text-[var(--c-ink-soft)] whitespace-pre-wrap leading-relaxed">
                   {detail.adminNotes}
@@ -648,8 +781,8 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           {detail.banReason && (
             <div className="rounded-2xl border border-[rgba(225,29,72,0.3)] bg-[rgba(225,29,72,0.06)] p-5">
               <p className="text-[10px] uppercase font-bold tracking-wider text-[#E11D48] mb-2 flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Lý do khóa
-                tài khoản
+                <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Lý do
+                khóa tài khoản
               </p>
               <p className="text-sm text-[var(--c-ink-soft)] leading-relaxed">
                 {detail.banReason}
@@ -661,7 +794,10 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
           {penalties.length > 0 && (
             <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
               <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-[var(--c-ink)]">
-                <AlertCircle className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                <AlertCircle
+                  className="w-4 h-4 text-[var(--c-primary-strong)]"
+                  aria-hidden="true"
+                />
                 Lịch sử kỷ luật
               </h3>
               <div className="space-y-3">
@@ -677,7 +813,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                           "text-[10px] font-bold px-2 py-0.5 uppercase tracking-widest",
                           p.type === "PERMANENT"
                             ? "bg-[rgba(225,29,72,0.12)] text-[#E11D48] border-[rgba(225,29,72,0.3)]"
-                            : "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[rgba(217,119,6,0.3)]"
+                            : "bg-[rgba(217,119,6,0.14)] text-[#D97706] border-[rgba(217,119,6,0.3)]",
                         )}
                       >
                         {PENALTY_TYPE_LABELS[p.type] || p.type}
@@ -747,7 +883,8 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                       variant="outline"
                       className="text-[10px] font-bold bg-[rgba(14,159,110,0.25)] text-white border-[rgba(14,159,110,0.5)] gap-1"
                     >
-                      <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> Đã có
+                      <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> Đã
+                      có
                     </Badge>
                   )}
                 </div>
@@ -770,8 +907,13 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
 
               <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-[var(--c-muted)]">Mức độ hoàn thiện hồ sơ</p>
-                  <ShieldCheck className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                  <p className="text-xs text-[var(--c-muted)]">
+                    Mức độ hoàn thiện hồ sơ
+                  </p>
+                  <ShieldCheck
+                    className="w-5 h-5 text-[var(--c-primary-strong)]"
+                    aria-hidden="true"
+                  />
                 </div>
                 <p className="font-bold mt-1.5 mb-2.5 text-[var(--c-ink)]">
                   {completedDocs} / {DOC_GROUPS.length} mục giấy tờ
@@ -791,10 +933,15 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
             <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-3 sm:p-4">
               <div className="flex items-center justify-between px-2 pt-1.5 pb-2">
                 <h3 className="text-sm font-bold flex items-center gap-2 text-[var(--c-ink)]">
-                  <ImageIcon className="w-4 h-4 text-[var(--c-primary-strong)]" aria-hidden="true" />
+                  <ImageIcon
+                    className="w-4 h-4 text-[var(--c-primary-strong)]"
+                    aria-hidden="true"
+                  />
                   Giấy tờ định danh & pháp lý
                 </h3>
-                <span className="text-xs text-[var(--c-muted)]">Bấm ảnh để xem ảnh gốc</span>
+                <span className="text-xs text-[var(--c-muted)]">
+                  Bấm ảnh để xem ảnh gốc
+                </span>
               </div>
               <Separator className="mb-3" />
               {isDocsLoading ? (
@@ -817,6 +964,11 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        {/* ── Duyệt Premium ── */}
+        <TabsContent value="premium" className="mt-5">
+          <TaskerPremiumReviewPanel tasker={detail} onZoom={setLightbox} />
         </TabsContent>
 
         {/* ── Lịch sử ca ── */}
@@ -843,14 +995,15 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
                       "w-4 h-4",
                       i < Math.round(rating)
                         ? "fill-[var(--c-primary)] text-[var(--c-primary)]"
-                        : "text-[var(--c-muted)]/30"
+                        : "text-[var(--c-muted)]/30",
                     )}
                     aria-hidden="true"
                   />
                 ))}
               </div>
               <p className="text-sm text-[var(--c-muted)] mt-2">
-                {detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0} ca đã hoàn thành
+                {detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0} ca
+                đã hoàn thành
               </p>
             </div>
             <ComingSoon
@@ -867,14 +1020,14 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({ taskerId }) => {
         </TabsContent>
       </Tabs>
 
-      {/* Lightbox — xem ảnh giấy tờ gốc */}
+      {/* Lightbox — xem ảnh giấy tờ / dụng cụ gốc */}
       <Dialog open={!!lightbox} onOpenChange={(o) => !o && setLightbox(null)}>
         <DialogContent className="cz-admin max-w-4xl w-[95vw] p-2 bg-black/95 border-none">
-          <DialogTitle className="sr-only">Xem ảnh giấy tờ</DialogTitle>
+          <DialogTitle className="sr-only">Xem ảnh gốc</DialogTitle>
           {lightbox && (
             <img
               src={lightbox}
-              alt="Ảnh giấy tờ"
+              alt="Ảnh gốc"
               className="w-full max-h-[85vh] object-contain rounded-lg"
             />
           )}

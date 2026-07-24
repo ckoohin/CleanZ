@@ -11,6 +11,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
+import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
+import {
+  ReviewTaskerEquipmentDto,
+  SubmitTaskerEquipmentDto,
+  TaskerEquipmentReviewAction,
+} from './dto/tasker-equipment.dto';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { BanType } from 'src/common/enums/ban-type.enum';
@@ -310,6 +316,74 @@ export class TaskerService {
 
       return this.mapProfile(tasker);
     }, 'Không thể lấy hồ sơ tasker');
+  }
+
+  /**
+   * Tasker nộp ảnh bộ dụng cụ chuyên dụng để xin vào nhóm nhận đơn Cao cấp.
+   * Nộp lại khi đã APPROVED sẽ đưa về PENDING — quyền lợi Cao cấp phải được
+   * duyệt lại trên bộ ảnh mới, không mặc nhiên giữ nguyên.
+   */
+  async submitMyEquipment(
+    userId: string,
+    dto: SubmitTaskerEquipmentDto,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { user: { id: userId } },
+        relations: ['user'],
+      });
+      if (!tasker) throw new NotFoundException('Không tìm thấy hồ sơ tasker');
+
+      tasker.equipmentPhotoUrls = dto.photoUrls;
+      tasker.equipmentNote = dto.note ?? null;
+      tasker.equipmentStatus = TaskerEquipmentStatus.PENDING;
+      tasker.equipmentReviewedAt = null;
+      tasker.equipmentReviewedBy = null;
+      await this.taskerRepository.save(tasker);
+
+      return this.mapProfile(tasker);
+    }, 'Không thể nộp hồ sơ dụng cụ');
+  }
+
+  /** Admin duyệt/từ chối bộ dụng cụ — quyết định tasker có vào pool PREMIUM. */
+  async reviewTaskerEquipment(
+    id: string,
+    dto: ReviewTaskerEquipmentDto,
+    adminId?: string,
+  ): Promise<TaskerProfileResponse> {
+    return asyncHandleOperation(async () => {
+      const tasker = await this.taskerRepository.findOne({
+        where: { id },
+        relations: ['user'],
+      });
+      if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
+
+      if (tasker.equipmentStatus !== TaskerEquipmentStatus.PENDING) {
+        throw new BadRequestException(
+          'Chỉ duyệt được hồ sơ dụng cụ đang chờ (PENDING)',
+        );
+      }
+
+      const isApprove = dto.action === TaskerEquipmentReviewAction.APPROVE;
+      if (!isApprove && !dto.note?.trim()) {
+        throw new BadRequestException('Vui lòng nhập lý do từ chối');
+      }
+
+      tasker.equipmentStatus = isApprove
+        ? TaskerEquipmentStatus.APPROVED
+        : TaskerEquipmentStatus.REJECTED;
+      tasker.equipmentNote = dto.note?.trim() || null;
+      tasker.equipmentReviewedAt = new Date();
+      tasker.equipmentReviewedBy = adminId ?? null;
+      tasker.updatedBy = adminId ?? null;
+      await this.taskerRepository.save(tasker);
+
+      const adminNames = await this.resolveAdminNames([
+        tasker.equipmentReviewedBy,
+        tasker.updatedBy,
+      ]);
+      return this.mapProfile(tasker, adminNames);
+    }, 'Không thể duyệt hồ sơ dụng cụ');
   }
 
   /**
@@ -632,7 +706,14 @@ export class TaskerService {
     limit: number;
   }> {
     return asyncHandleOperation(async () => {
-      const { status, docStatus, keyword, page = 1, limit = 10 } = dto;
+      const {
+        status,
+        docStatus,
+        equipmentStatus,
+        keyword,
+        page = 1,
+        limit = 10,
+      } = dto;
       const qb = this.taskerRepository
         .createQueryBuilder('tasker')
         .leftJoinAndSelect('tasker.user', 'user')
@@ -646,6 +727,11 @@ export class TaskerService {
       if (docStatus) {
         qb.andWhere('tasker.docStatus = :docStatus', { docStatus });
       }
+      if (equipmentStatus) {
+        qb.andWhere('tasker.equipmentStatus = :equipmentStatus', {
+          equipmentStatus,
+        });
+      }
       if (keyword) {
         qb.andWhere(
           '(user.fullName ILIKE :kw OR user.email ILIKE :kw OR user.phone ILIKE :kw)',
@@ -655,7 +741,11 @@ export class TaskerService {
 
       const [taskers, total] = await qb.getManyAndCount();
       const adminNames = await this.resolveAdminNames(
-        taskers.flatMap((t) => [t.docReviewedBy, t.updatedBy]),
+        taskers.flatMap((t) => [
+          t.docReviewedBy,
+          t.equipmentReviewedBy,
+          t.updatedBy,
+        ]),
       );
       return {
         data: taskers.map((t) => this.mapProfile(t, adminNames)),
@@ -675,6 +765,7 @@ export class TaskerService {
       if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
       const adminNames = await this.resolveAdminNames([
         tasker.docReviewedBy,
+        tasker.equipmentReviewedBy,
         tasker.updatedBy,
       ]);
       return this.mapProfile(tasker, adminNames);
@@ -1709,6 +1800,16 @@ export class TaskerService {
         status: tasker.docStatus,
         reviewedAt: tasker.docReviewedAt ?? null,
         note: tasker.docNote ?? null,
+      },
+      equipment: {
+        status: tasker.equipmentStatus,
+        photoUrls: tasker.equipmentPhotoUrls ?? [],
+        reviewedAt: tasker.equipmentReviewedAt ?? null,
+        reviewedBy: tasker.equipmentReviewedBy ?? null,
+        reviewedByName: tasker.equipmentReviewedBy
+          ? (adminNames?.get(tasker.equipmentReviewedBy) ?? null)
+          : null,
+        note: tasker.equipmentNote ?? null,
       },
       stats: {
         ratingAvg: Number(tasker.ratingAvg),

@@ -50,6 +50,12 @@ function fmtPrice(n: number) {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 }
 
+function paymentMethodLabel(method?: string | null) {
+  if (method === "WALLET") return "Ví CleanZ";
+  if (method === "CASH") return "Tiền mặt";
+  return method ?? "Chưa xác định";
+}
+
 function fmtDateTime(iso?: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -87,7 +93,7 @@ function PriceRow({ label, value, highlight }: { label: string; value: number; h
 function TimelineRow({ entry }: { entry: AdminBookingTimelineEntry }) {
   const meta = STATUS_MAP[entry.newStatus] ?? { label: entry.newStatus, tone: "neutral" as BadgeTone };
   return (
-    <div className="flex items-start gap-3 py-2">
+    <div className="flex items-start gap-3 py-1">
       <div className="mt-1 w-2 h-2 rounded-full bg-[var(--c-primary-strong)] shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -147,9 +153,9 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="cz-admin w-[calc(100vw-2rem)] !max-w-6xl sm:!max-w-6xl max-h-none overflow-visible bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink)]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-xl text-[var(--c-ink)]">
+      <DialogContent className="cz-admin flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden bg-[var(--c-card)] text-[var(--c-ink)] !max-w-6xl border-[var(--c-line)] sm:max-h-[calc(100dvh-3rem)] sm:!max-w-6xl">
+        <DialogHeader className="shrink-0 pr-8">
+          <DialogTitle className="flex flex-wrap items-center gap-3 text-xl text-[var(--c-ink)]">
             Chi Tiết Đơn Hàng
             <span className="font-mono text-base text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)] px-3 py-1 rounded-full">
               {booking.bookingCode}
@@ -157,11 +163,11 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mt-2 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-          <div className="space-y-4 min-w-0">
+        <div className="mt-2 grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
 
           {/* Row 1: Status + Schedule */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="contents">
 
             {/* Status & Payment */}
             <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)] space-y-3">
@@ -173,9 +179,23 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
                 <StatusBadge tone={statusMeta.tone}>{statusMeta.label}</StatusBadge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--c-muted)]">Phương thức TT</span>
-                <StatusBadge tone="neutral">{payment?.method ?? "—"}</StatusBadge>
+                <span className="text-xs text-[var(--c-muted)]">
+                  Giá gốc {payment ? `(${fmtPrice(payment.baseAmount)})` : ""}
+                </span>
+                <StatusBadge tone="neutral">
+                  {paymentMethodLabel(payment?.basePaymentMethod ?? payment?.method)}
+                </StatusBadge>
               </div>
+              {payment && payment.surchargeAmount > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--c-muted)]">
+                    Phụ thu ({fmtPrice(payment.surchargeAmount)})
+                  </span>
+                  <StatusBadge tone={payment.surchargePaymentMethod ? "warning" : "neutral"}>
+                    {paymentMethodLabel(payment.surchargePaymentMethod)}
+                  </StatusBadge>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-[var(--c-muted)]">Trạng thái TT</span>
                 <StatusBadge tone={paymentStatusMeta.tone}>{paymentStatusMeta.label}</StatusBadge>
@@ -237,7 +257,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
               {payment && payment.commissionRate !== null && (
                 <div className="mt-3 pt-3 border-t border-[var(--c-line)] grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <span className="text-[10px] text-[var(--c-muted)] block">Hoa hồng</span>
+                    <span className="text-[10px] text-[var(--c-muted)] block">Hoa hồng tổng</span>
                     <span className="text-xs font-bold text-[var(--c-ink)]">
                       {payment.commissionRate}%{payment.isEstimated ? " *" : ""}
                     </span>
@@ -254,6 +274,20 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
                       {payment.taskerIncome != null ? fmtPrice(payment.taskerIncome) : "—"}
                     </span>
                   </div>
+                </div>
+              )}
+              {payment && payment.commissionRate !== null && (
+                <div className="mt-2 grid grid-cols-2 gap-x-4 border-t border-[var(--c-line)] pt-2 text-[10px]">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[var(--c-muted)]">Phí giá gốc</span>
+                    <span className="font-semibold text-red-500">{fmtPrice(payment.basePlatformFee)}</span>
+                  </div>
+                  {payment.surchargeAmount > 0 && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[var(--c-muted)]">Phí phụ thu</span>
+                      <span className="font-semibold text-red-500">{fmtPrice(payment.surchargePlatformFee)}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -302,7 +336,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
           </div>
 
           {/* Row 4: Tasker */}
-          <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
+          <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)] md:col-span-2">
             <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
               <User className="w-4 h-4 text-emerald-500" /> Nhân Viên (Tasker)
             </h3>
@@ -330,14 +364,14 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
 
           </div>
 
-          <div className="space-y-4 min-w-0">
+          <div className="min-w-0 space-y-3">
             {/* Row 5: Timeline */}
             {operation && operation.timeline.length > 0 && (
-              <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
-                <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-2">
+              <div className="bg-[var(--c-card-2)] rounded-xl p-3 border border-[var(--c-line)]">
+                <h3 className="font-bold text-sm flex items-center gap-2 pb-1.5 border-b border-[var(--c-line)] mb-1">
                   <TrendingUp className="w-4 h-4 text-purple-500" /> Lịch Sử Trạng Thái
                 </h3>
-                <div className="space-y-1 pl-1">
+                <div className="pl-1">
                   {operation.timeline.map((entry) => (
                     <TimelineRow key={entry.id} entry={entry} />
                   ))}
@@ -346,8 +380,8 @@ export const AdminBookingDetailModal: React.FC<Props> = ({ open, onOpenChange, b
             )}
 
           {/* Row 6: Actions */}
-          <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
-            <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
+          <div className="bg-[var(--c-card-2)] rounded-xl p-3 border border-[var(--c-line)]">
+            <h3 className="font-bold text-sm flex items-center gap-2 pb-1.5 border-b border-[var(--c-line)] mb-2">
               <CheckCircle2 className="w-4 h-4 text-purple-500" /> Hành Động
             </h3>
 

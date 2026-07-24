@@ -3,6 +3,7 @@ import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-
 import { OVERTIME_REQUEST_WINDOW_MS } from './booking-checkin.service';
 import {
   BadRequestException,
+  ConflictException,
   GoneException,
   Injectable,
   Logger,
@@ -18,6 +19,8 @@ import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
+import { CustomerFavoriteTaskerEntity } from 'src/modules/customer/entity/customer-favorite-tasker.entity';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 
@@ -56,6 +59,7 @@ import {
 import { NotificationGateway } from 'src/modules/notification/notification.gateway';
 import { BookingDispatchService } from './booking-dispatch.service';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
+import { TaskerScheduleAvailabilityService } from './tasker-schedule-availability.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -84,6 +88,9 @@ interface BookingPricingContext {
   voucher?: VoucherEntity | null;
   areaM2?: number;
   pricingTierId?: string;
+  serviceTier: BookingServiceTier;
+  /** Chênh lệch do hạng PREMIUM — đã nằm trong basePrice. */
+  premiumFee: number;
 }
 
 export type CustomerBookingQuoteResponse = Record<string, unknown>;
@@ -112,6 +119,7 @@ export class CustomerBookingService {
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly notificationGateway: NotificationGateway,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
+    private readonly taskerScheduleAvailabilityService: TaskerScheduleAvailabilityService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -147,6 +155,8 @@ export class CustomerBookingService {
           discountAmount: context.discountAmount,
           totalPrice: context.totalPrice,
           voucherId: context.voucher?.id ?? null,
+          serviceTier: context.serviceTier,
+          premiumFee: context.premiumFee,
           expiresAt,
         });
 
@@ -190,9 +200,11 @@ export class CustomerBookingService {
           petFee: context.petFee,
           waitingFee: context.waitingFee,
           subtotal: context.subtotal,
+          premiumFee: context.premiumFee,
           discountAmount: context.discountAmount,
           totalPrice: context.totalPrice,
         },
+        serviceTier: context.serviceTier,
         voucher: context.voucher
           ? {
               id: context.voucher.id,
@@ -213,6 +225,11 @@ export class CustomerBookingService {
       let addressLat: number | null = null;
       let addressLng: number | null = null;
       let scheduledStart: Date | undefined;
+      let dispatchOptions: {
+        customerId: string;
+        serviceTier: BookingServiceTier;
+        preferredTaskerId: string | null;
+      } | null = null;
 
       const response = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -243,10 +260,22 @@ export class CustomerBookingService {
             context.customer.id,
           );
         }
+        // Thợ yêu thích chỉ định phải thực sự nằm trong danh sách của khách và
+        // đơn phải là PREMIUM — nếu không, bỏ qua chỉ định thay vì tạo đơn với
+        // ưu tiên mà khách không có quyền.
+        const preferredTaskerId = await this.resolvePreferredTaskerId(
+          manager,
+          context,
+          dto.preferredTaskerId,
+        );
+
         const booking = bookingRepository.create({
           bookingCode,
           customer: context.customer,
           tasker: null,
+          serviceTier: context.serviceTier,
+          preferredTaskerId,
+          premiumFee: context.premiumFee,
           packageId: context.package.id,
           address: context.bookingAddress,
           addressRef: context.addressRef,
@@ -339,6 +368,11 @@ export class CustomerBookingService {
         addressLat = rawLat != null ? Number(rawLat) : null;
         addressLng = rawLng != null ? Number(rawLng) : null;
         scheduledStart = context.scheduledStart;
+        dispatchOptions = {
+          customerId: context.customer.id,
+          serviceTier: context.serviceTier,
+          preferredTaskerId,
+        };
 
         return this.mapCreatedBookingResponse(
           savedBooking,
@@ -367,6 +401,7 @@ export class CustomerBookingService {
               addressLat,
               addressLng,
               scheduledStart,
+              dispatchOptions ?? {},
             )
             .catch((err: unknown) =>
               this.logger.error(
@@ -473,9 +508,11 @@ export class CustomerBookingService {
           peakFee: toNumber(booking.peakFee),
           petFee: toNumber(booking.petFee),
           waitingFee: toNumber(booking.waitingFee),
+          premiumFee: toNumber(booking.premiumFee),
           discountAmount: toNumber(booking.discountAmount),
           totalPrice: toNumber(booking.totalPrice),
         },
+        serviceTier: booking.serviceTier,
         payment: {
           method: booking.paymentMethod,
           status: booking.paymentStatus,
@@ -680,9 +717,11 @@ export class CustomerBookingService {
             peakFee: toNumber(booking.peakFee),
             petFee: toNumber(booking.petFee),
             waitingFee: toNumber(booking.waitingFee),
+            premiumFee: toNumber(booking.premiumFee),
             discountAmount: toNumber(booking.discountAmount),
             totalPrice: toNumber(booking.totalPrice),
           },
+          serviceTier: booking.serviceTier,
           payment: {
             method: booking.paymentMethod,
             status: booking.paymentStatus,
@@ -949,6 +988,60 @@ export class CustomerBookingService {
     }, 'Không thể hủy booking');
   }
 
+  /**
+   * Xác thực tasker yêu thích khách chỉ định.
+   * Chỉ đơn PREMIUM mới có ring mời riêng, và tasker phải nằm trong danh sách
+   * yêu thích của chính khách — nếu không thì đây là đường vòng để khách tự
+   * gán thợ cho mình, bỏ qua toàn bộ cơ chế ghép đơn.
+   */
+  private async resolvePreferredTaskerId(
+    manager: EntityManager,
+    context: BookingPricingContext,
+    preferredTaskerId?: string,
+  ): Promise<string | null> {
+    if (!preferredTaskerId) return null;
+
+    if (context.serviceTier !== BookingServiceTier.PREMIUM) {
+      throw new BadRequestException(
+        'Chỉ đơn Cao cấp mới được ưu tiên chọn thợ yêu thích',
+      );
+    }
+
+    const favorite = await manager
+      .getRepository(CustomerFavoriteTaskerEntity)
+      .findOne({
+        where: { customerId: context.customer.id, taskerId: preferredTaskerId },
+      });
+
+    if (!favorite) {
+      throw new BadRequestException(
+        'Thợ này không nằm trong danh sách yêu thích của bạn',
+      );
+    }
+
+    const availability =
+      await this.taskerScheduleAvailabilityService.getForTasker(
+        manager,
+        preferredTaskerId,
+        {
+          scheduledStartDate: context.scheduledStartDate,
+          scheduledStartTime: context.scheduledStartTime,
+          scheduledEndDate: context.scheduledEndDate,
+          scheduledEndTime: context.scheduledEndTime,
+        },
+      );
+
+    if (!availability.isAvailable) {
+      throw new ConflictException(
+        availability.reason === 'MAX_CONCURRENT'
+          ? 'Tasker bạn chọn vừa đạt giới hạn số đơn chưa hoàn thành. Vui lòng chọn Tasker khác.'
+          : 'Tasker bạn chọn vừa có lịch trùng với khung giờ này. Vui lòng chọn Tasker khác.',
+      );
+    }
+
+    return preferredTaskerId;
+  }
+
   // Hash các field ảnh hưởng giá — dùng để phát hiện customer đã đổi lựa chọn
   // (gói/addon/lịch/voucher...) so với lúc quote, trước khi cho áp giá đã lock.
   private buildQuoteRequestHash(
@@ -968,6 +1061,9 @@ export class CustomerBookingService {
       pricingTierId: dto.pricingTierId ?? null,
       hasPet: dto.hasPet ?? null,
       voucherCode: dto.voucherCode?.trim().toUpperCase() ?? null,
+      // Hạng dịch vụ đổi thì giá đổi — thiếu dòng này thì khách quote PREMIUM
+      // rồi tạo đơn STANDARD vẫn qua được hash và nhận giá sai.
+      serviceTier: dto.serviceTier ?? null,
     };
     return createHash('sha256')
       .update(JSON.stringify(normalized))
@@ -1018,6 +1114,8 @@ export class CustomerBookingService {
     context.subtotal = lockedQuote.subtotal;
     context.discountAmount = lockedQuote.discountAmount;
     context.totalPrice = lockedQuote.totalPrice;
+    context.serviceTier = lockedQuote.serviceTier;
+    context.premiumFee = toNumber(lockedQuote.premiumFee);
 
     lockedQuote.usedAt = new Date();
     await quoteRepository.save(lockedQuote);
@@ -1086,6 +1184,7 @@ export class CustomerBookingService {
       durationHours: dto.durationHours,
       areaM2: dto.areaM2,
       pricingTierId: dto.pricingTierId,
+      serviceTier: dto.serviceTier,
       scheduledStart: scheduleStart.scheduledStart,
       scheduledStartTime: scheduleStart.scheduledStartTime,
       hasPet: dto.hasPet ?? addressRef?.hasPet ?? false,
@@ -1125,6 +1224,8 @@ export class CustomerBookingService {
       voucher: price.voucher,
       areaM2: dto.areaM2,
       pricingTierId: price.pricingTierId,
+      serviceTier: price.serviceTier,
+      premiumFee: price.premiumFee,
     };
   }
 
@@ -1194,9 +1295,11 @@ export class CustomerBookingService {
         peakFee: context.peakFee,
         petFee: context.petFee,
         waitingFee: context.waitingFee,
+        premiumFee: context.premiumFee,
         discountAmount: context.discountAmount,
         totalPrice: context.totalPrice,
       },
+      serviceTier: context.serviceTier,
       payment: {
         method: paymentMethod,
         status: PaymentStatus.PENDING,

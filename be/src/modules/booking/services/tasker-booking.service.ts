@@ -53,6 +53,10 @@ import {
   SURCHARGE_CONFIRM_WINDOW_MS,
 } from './booking-checkin.service';
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
+import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
+import { getTaskerPremiumEligibilityIssues } from '../helpers/premium-eligibility.helper';
+import type { PremiumEligibilityIssue } from '../helpers/premium-eligibility.helper';
 import { BookingSettlementService } from './booking-settlement.service';
 import {
   computeWorkTiming,
@@ -68,6 +72,7 @@ interface TaskerPostedBookingItem {
   id: string;
   bookingCode: string;
   status: BookingStatus;
+  serviceTier: BookingServiceTier;
   service: {
     id: string;
     name: string;
@@ -94,7 +99,25 @@ interface TaskerPostedBookingItem {
   flags: {
     hasPet: boolean;
   };
+  premiumAccess?: TaskerPremiumAccess;
+  invitation: TaskerBookingInvitationAccess;
   createdAt: Date;
+}
+
+export interface TaskerPremiumAccess {
+  canAccept: boolean;
+  issues: PremiumEligibilityIssue[];
+  message: string | null;
+  equipmentStatus: TaskerEquipmentStatus;
+}
+
+export interface TaskerBookingInvitationAccess {
+  /** Tasker hiện tại đã từng được hệ thống gửi lời mời cho đơn này. */
+  isInvited: boolean;
+  /** Đơn vẫn đang trong cửa sổ chỉ những Tasker được mời mới có thể nhận. */
+  isExclusive: boolean;
+  /** Thời điểm đơn được mở công khai cho pool Tasker phù hợp. */
+  publicAt: Date | null;
 }
 
 export interface TaskerPostedBookingListResponse {
@@ -123,6 +146,7 @@ export interface TaskerCompletedBookingListResponse {
 }
 
 export interface TaskerPostedBookingDetailResponse {
+  serviceTier: BookingServiceTier;
   distance: {
     meters: number;
     kilometers: number;
@@ -150,6 +174,8 @@ export interface TaskerPostedBookingDetailResponse {
     scheduledEndTime?: string | null;
     durationHours: number;
   };
+  premiumAccess?: TaskerPremiumAccess;
+  invitation: TaskerBookingInvitationAccess;
 }
 
 export interface TaskerAcceptBookingResponse {
@@ -267,6 +293,10 @@ export interface TaskerAssignedBookingDetailResponse {
 interface TaskerLocationInput {
   currentLatitude?: number;
   currentLongitude?: number;
+}
+
+interface ResolvedTaskerBookingInvitationAccess extends TaskerBookingInvitationAccess {
+  isPublic: boolean;
 }
 
 interface DistanceCacheEntry {
@@ -423,36 +453,93 @@ export class TaskerBookingService {
     userId: string,
   ): Promise<TaskerPostedBookingListResponse> {
     return asyncHandleOperation(async () => {
-      await this.assertTaskerProfileExists(userId);
+      const tasker = await this.findTaskerProfile(userId);
+      const premiumAccess = this.buildTaskerPremiumAccess(tasker);
+      const premiumDispatchConfig =
+        await this.bookingDispatchService.getPremiumDispatchConfig();
+      const standardOpenAfterSeconds = POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000;
+      const premiumOpenAfterSeconds =
+        premiumDispatchConfig.favoriteWaitMs / 1000;
 
-      // Trong POSTED_LIST_OPEN_TO_ALL_AFTER_MS đầu tiên, đơn chỉ được gửi riêng
-      // cho các tasker nằm trong ring dispatch (qua notification → vào thẳng
-      // trang chi tiết để nhận). Chỉ hiện trong danh sách "Nhận đơn" chủ động
-      // (mọi tasker đều thấy) sau khi đã hết cửa sổ dispatch riêng này, tránh
-      // tasker khác thấy đơn nhưng bấm "Nhận" bị 403 vì chưa được mời.
-      // Dùng NOW() của Postgres thay vì Date của Node để tránh lệch múi giờ
-      // giữa TZ của process Node và TZ của session Postgres khi so sánh cột
-      // "timestamp without time zone".
-      const bookings = await this.dataSource
+      // Notification được persist trước khi emit realtime nên đây là nguồn bền
+      // vững để lời mời vẫn xuất hiện trong danh sách sau khi Tasker đóng popup,
+      // đổi trang hoặc Redis dispatch state hết TTL.
+      const isInvitedSql = `EXISTS (
+        SELECT 1
+        FROM notifications invitation
+        WHERE invitation.user_id = :invitedUserId
+          AND invitation.reference_type = :bookingReferenceType
+          AND invitation.reference_id = booking.id
+          AND invitation.type = :newBookingNotificationType
+      )`;
+      const isPublicSql = `booking.createdAt <= ${VN_NOW_SQL} - make_interval(
+        secs => (
+          CASE
+            WHEN booking.serviceTier = :premiumServiceTier
+              THEN :premiumOpenAfterSeconds
+            ELSE :standardOpenAfterSeconds
+          END
+        )::double precision
+      )`;
+
+      // Tasker được mời thấy đơn ngay trong danh sách. Tasker chưa được mời chỉ
+      // thấy đơn STANDARD sau 60 giây, hoặc đơn PREMIUM sau cửa sổ 15 phút.
+      // Điều kiện tương tự được kiểm tra lại ở API chi tiết và API nhận đơn.
+      const query = this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
         .leftJoinAndSelect('booking.addressRef', 'addressRef')
         .leftJoinAndSelect('booking.tasker', 'tasker')
+        .addSelect('booking.id', 'access_booking_id')
+        .addSelect(isInvitedSql, 'access_is_invited')
+        .addSelect(isPublicSql, 'access_is_public')
         .where('booking.status = :status', { status: BookingStatus.POSTED })
         .andWhere('tasker.id IS NULL')
-        .andWhere(
-          `booking.createdAt <= ${VN_NOW_SQL} - (:openToAllAfterSeconds || ' seconds')::interval`,
-          { openToAllAfterSeconds: POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000 },
-        )
+        .andWhere(`(${isInvitedSql} OR ${isPublicSql})`)
+        .setParameters({
+          invitedUserId: userId,
+          bookingReferenceType: NotificationRefType.BOOKING,
+          newBookingNotificationType: NotificationType.BOOKING_NEW_AVAILABLE,
+          premiumServiceTier: BookingServiceTier.PREMIUM,
+          premiumOpenAfterSeconds,
+          standardOpenAfterSeconds,
+        })
         .orderBy('booking.scheduledStartDate', 'ASC')
         .addOrderBy('booking.scheduledStartTime', 'ASC')
-        .addOrderBy('booking.createdAt', 'ASC')
-        .getMany();
+        .addOrderBy('booking.createdAt', 'ASC');
+
+      const { entities: bookings, raw } = await query.getRawAndEntities<{
+        access_booking_id: string;
+        access_is_invited: boolean;
+        access_is_public: boolean;
+      }>();
+      const accessByBookingId = new Map(
+        raw.map((item) => [
+          item.access_booking_id,
+          {
+            isInvited: item.access_is_invited === true,
+            isPublic: item.access_is_public === true,
+          },
+        ]),
+      );
 
       const packages = await this.findPackagesByBookingPackageIds(bookings);
-      const items = bookings.map((booking) =>
-        this.mapPostedBookingItem(booking, packages),
-      );
+      const items = bookings.map((booking) => {
+        const access = accessByBookingId.get(booking.id) ?? {
+          isInvited: false,
+          isPublic: true,
+        };
+        return this.mapPostedBookingItem(
+          booking,
+          packages,
+          premiumAccess,
+          this.buildTaskerBookingInvitationAccess(
+            booking,
+            access,
+            premiumDispatchConfig.favoriteWaitMs,
+          ),
+        );
+      });
 
       return {
         total: items.length,
@@ -467,7 +554,7 @@ export class TaskerBookingService {
     location: TaskerBookingLocationDto,
   ): Promise<TaskerPostedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
-      await this.assertTaskerProfileExists(userId);
+      const tasker = await this.findTaskerProfile(userId);
 
       const booking = await this.dataSource
         .getRepository(BookingEntity)
@@ -487,6 +574,16 @@ export class TaskerBookingService {
         );
       }
 
+      const resolvedInvitation =
+        await this.resolveTaskerBookingInvitationAccess(userId, booking);
+      if (!resolvedInvitation.isInvited && !resolvedInvitation.isPublic) {
+        throw new ForbiddenException(
+          'Đơn này đang được ưu tiên cho Tasker khác',
+        );
+      }
+      const invitation =
+        this.toTaskerBookingInvitationAccess(resolvedInvitation);
+
       const distance = await this.calculateDistanceFromTaskerLocation(
         booking,
         location,
@@ -503,10 +600,15 @@ export class TaskerBookingService {
       const discountAmount = toNumber(booking.discountAmount);
       const subtotal = totalPrice + discountAmount;
       const platformFee = Math.round((subtotal * platformCommissionRate) / 100);
+      const premiumAccess =
+        booking.serviceTier === BookingServiceTier.PREMIUM
+          ? this.buildTaskerPremiumAccess(tasker)
+          : undefined;
 
       return {
         distance,
         service,
+        serviceTier: booking.serviceTier,
         price: {
           totalPrice,
           basePrice: toNumber(booking.basePrice),
@@ -525,6 +627,8 @@ export class TaskerBookingService {
           scheduledEndTime: booking.scheduledEndTime,
           durationHours: toNumber(booking.durationHours),
         },
+        ...(premiumAccess ? { premiumAccess } : {}),
+        invitation,
       };
     }, 'Không thể lấy chi tiết booking posted cho tasker');
   }
@@ -566,10 +670,9 @@ export class TaskerBookingService {
           throw new ConflictException('Đơn đã có người nhận');
         }
 
-        await this.assertTaskerHasActiveDispatchInvitation(
-          booking.id,
-          tasker.id,
-        );
+        this.assertTaskerEligibleForServiceTier(booking, tasker);
+
+        await this.assertTaskerHasActiveDispatchInvitation(userId, booking);
 
         await this.bookingPolicyService.assertTaskerConcurrentAndOverlapConstraints(
           manager,
@@ -1329,10 +1432,6 @@ export class TaskerBookingService {
     });
   }
 
-  private async assertTaskerProfileExists(userId: string): Promise<void> {
-    await this.findTaskerProfile(userId);
-  }
-
   private async findTaskerProfile(userId: string): Promise<TaskerEntity> {
     const tasker = await this.dataSource.getRepository(TaskerEntity).findOne({
       where: { user: { id: userId } },
@@ -1346,45 +1445,154 @@ export class TaskerBookingService {
     return tasker;
   }
 
-  private async assertTaskerHasActiveDispatchInvitation(
-    bookingId: string,
-    taskerId: string,
-  ): Promise<void> {
-    // Đơn đã đủ tuổi để mở cho mọi tasker chủ động nhận (đồng bộ với điều kiện
-    // hiển thị trong findPostedBookings) — bỏ qua yêu cầu phải nằm trong ring
-    // dispatch hiện tại, tránh 403 dù đơn đã hiện trong danh sách "Nhận đơn".
-    if (await this.isBookingOpenToAllTaskers(bookingId)) {
-      return;
+  /**
+   * Chốt chặn cuối cùng của đơn PREMIUM.
+   *
+   * Khi hết cửa sổ 15 phút, đơn chỉ mở cho pool phù hợp; vì vậy guard hạng dịch
+   * vụ này vẫn chạy trước guard lời mời và không có ngoại lệ theo thời gian.
+   */
+  private assertTaskerEligibleForServiceTier(
+    booking: BookingEntity,
+    tasker: TaskerEntity,
+  ): void {
+    if (booking.serviceTier !== BookingServiceTier.PREMIUM) return;
+
+    const access = this.buildTaskerPremiumAccess(tasker);
+    if (access.canAccept) return;
+
+    throw new ForbiddenException(
+      access.message ?? 'Bạn chưa đủ điều kiện nhận đơn Cao cấp',
+    );
+  }
+
+  private buildTaskerPremiumAccess(tasker: TaskerEntity): TaskerPremiumAccess {
+    const issues = getTaskerPremiumEligibilityIssues(tasker);
+    let message: string | null = null;
+
+    if (issues.includes('EQUIPMENT_NOT_APPROVED')) {
+      if (tasker.equipmentStatus === TaskerEquipmentStatus.PENDING) {
+        message =
+          'Bộ dụng cụ chuyên dụng đang chờ admin duyệt. Bạn chưa thể nhận đơn Cao cấp.';
+      } else if (tasker.equipmentStatus === TaskerEquipmentStatus.REJECTED) {
+        message =
+          'Bộ dụng cụ chuyên dụng chưa được duyệt. Hãy bổ sung ảnh và nộp lại trong Hồ sơ.';
+      } else {
+        message =
+          'Cần bổ sung bộ dụng cụ chuyên dụng trong Hồ sơ và chờ admin duyệt.';
+      }
     }
 
-    // Bán kính dispatch giờ cố định suốt các ring của 1 booking (không tăng
-    // dần như trước) — ring chỉ còn là đợt mời khác nhau trong CÙNG bán kính,
-    // không phải mở rộng phạm vi. Vì vậy tasker từng được mời ở ring trước
-    // (dù ring đó đã hết hạn) vẫn hợp lệ để nhận, miễn đơn chưa ai lấy —
-    // điều kiện "chưa có người nhận" đã được đảm bảo bởi lock + check status
-    // ở acceptPostedBooking, nên không cần chặn theo hạn của riêng từng ring.
-    const state =
-      await this.bookingDispatchService.getDispatchInvitationState(bookingId);
-    const everInvited =
-      (state?.invitedTaskerIds.includes(taskerId) ?? false) ||
-      (state?.previouslyInvitedTaskerIds.includes(taskerId) ?? false);
+    return {
+      canAccept: issues.length === 0,
+      issues,
+      message,
+      equipmentStatus: tasker.equipmentStatus,
+    };
+  }
 
-    if (!everInvited) {
+  private async assertTaskerHasActiveDispatchInvitation(
+    userId: string,
+    booking: BookingEntity,
+  ): Promise<void> {
+    const access = await this.resolveTaskerBookingInvitationAccess(
+      userId,
+      booking,
+    );
+    if (!access.isInvited && !access.isPublic) {
       throw new ForbiddenException(
         'Đơn này chưa được gửi cho bạn hoặc lượt nhận đã hết',
       );
     }
   }
 
-  // So sánh bằng NOW() của Postgres (không dùng Date của Node) để tránh lệch
-  // múi giờ giữa TZ của process Node và TZ của session Postgres khi so sánh
-  // cột "timestamp without time zone".
-  private async isBookingOpenToAllTaskers(bookingId: string): Promise<boolean> {
-    const rows = await this.dataSource.query<{ is_open: boolean }[]>(
-      `SELECT (created_at <= NOW() - ($2 || ' seconds')::interval) AS is_open FROM bookings WHERE id = $1`,
-      [bookingId, POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000],
+  /**
+   * Quyền xem/nhận đơn POSTED không phụ thuộc vào trạng thái modal phía FE:
+   * notification đã persist chứng minh Tasker từng được mời; hết cửa sổ thì
+   * đơn tự mở công khai theo thời gian của PostgreSQL.
+   */
+  private async resolveTaskerBookingInvitationAccess(
+    userId: string,
+    booking: Pick<BookingEntity, 'id' | 'serviceTier' | 'createdAt'>,
+  ): Promise<ResolvedTaskerBookingInvitationAccess> {
+    const premiumDispatchConfig =
+      await this.bookingDispatchService.getPremiumDispatchConfig();
+    const standardOpenAfterSeconds = POSTED_LIST_OPEN_TO_ALL_AFTER_MS / 1000;
+    const premiumOpenAfterSeconds = premiumDispatchConfig.favoriteWaitMs / 1000;
+
+    const rows = await this.dataSource.query<
+      { is_public: boolean; is_invited: boolean }[]
+    >(
+      `
+        SELECT
+          (
+            ${VN_NOW_SQL} >= b.created_at + make_interval(
+              secs => CASE
+                WHEN b.service_tier = $6
+                  THEN $5::double precision
+                ELSE $4::double precision
+              END
+            )
+          ) AS is_public,
+          EXISTS (
+            SELECT 1
+            FROM notifications invitation
+            WHERE invitation.user_id = $2
+              AND invitation.reference_type = $3
+              AND invitation.reference_id = b.id
+              AND invitation.type = $7
+          ) AS is_invited
+        FROM bookings b
+        WHERE b.id = $1
+      `,
+      [
+        booking.id,
+        userId,
+        NotificationRefType.BOOKING,
+        standardOpenAfterSeconds,
+        premiumOpenAfterSeconds,
+        BookingServiceTier.PREMIUM,
+        NotificationType.BOOKING_NEW_AVAILABLE,
+      ],
     );
-    return rows[0]?.is_open ?? false;
+    const row = rows[0];
+    return {
+      ...this.buildTaskerBookingInvitationAccess(
+        booking,
+        {
+          isInvited: row?.is_invited ?? false,
+          isPublic: row?.is_public ?? false,
+        },
+        premiumDispatchConfig.favoriteWaitMs,
+      ),
+      isPublic: row?.is_public ?? false,
+    };
+  }
+
+  private buildTaskerBookingInvitationAccess(
+    booking: Pick<BookingEntity, 'serviceTier' | 'createdAt'>,
+    access: { isInvited: boolean; isPublic: boolean },
+    premiumOpenAfterMs: number,
+  ): TaskerBookingInvitationAccess {
+    const openAfterMs =
+      booking.serviceTier === BookingServiceTier.PREMIUM
+        ? premiumOpenAfterMs
+        : POSTED_LIST_OPEN_TO_ALL_AFTER_MS;
+
+    return {
+      isInvited: access.isInvited,
+      isExclusive: access.isInvited && !access.isPublic,
+      publicAt: new Date(booking.createdAt.getTime() + openAfterMs),
+    };
+  }
+
+  private toTaskerBookingInvitationAccess(
+    access: ResolvedTaskerBookingInvitationAccess,
+  ): TaskerBookingInvitationAccess {
+    return {
+      isInvited: access.isInvited,
+      isExclusive: access.isExclusive,
+      publicAt: access.publicAt,
+    };
   }
 
   private async findPackagesByBookingPackageIds(
@@ -1409,6 +1617,8 @@ export class TaskerBookingService {
   private mapPostedBookingItem(
     booking: BookingEntity,
     packages: Map<string, ServicePackageEntity>,
+    premiumAccess: TaskerPremiumAccess,
+    invitation: TaskerBookingInvitationAccess,
   ): TaskerPostedBookingItem {
     const pkg = packages.get(booking.packageId);
 
@@ -1416,6 +1626,7 @@ export class TaskerBookingService {
       id: booking.id,
       bookingCode: booking.bookingCode,
       status: booking.status,
+      serviceTier: booking.serviceTier,
       service: pkg
         ? {
             id: pkg.id,
@@ -1448,6 +1659,10 @@ export class TaskerBookingService {
       flags: {
         hasPet: booking.addressRef?.hasPet ?? false,
       },
+      ...(booking.serviceTier === BookingServiceTier.PREMIUM
+        ? { premiumAccess }
+        : {}),
+      invitation,
       createdAt: booking.createdAt,
     };
   }
@@ -1487,6 +1702,7 @@ export class TaskerBookingService {
       id: booking.id,
       bookingCode: booking.bookingCode,
       status: booking.status,
+      serviceTier: booking.serviceTier,
       source: booking.source,
       canContactCustomer,
       checkinPolicy: this.bookingCheckinService.getTimingPolicy(booking),

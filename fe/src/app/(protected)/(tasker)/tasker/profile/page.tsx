@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { TaskerEquipmentSection } from "@/features/tasker/_components/TaskerEquipmentSection";
 import { cn } from "@/lib/utils";
 import {
   useTaskerProfile,
@@ -477,6 +478,9 @@ export default function TaskerProfilePage() {
             <Link href="/tasker/profile/documents">Cập nhật giấy tờ</Link>
           </Button>
         </SectionCard>
+
+        {/* Bộ dụng cụ chuyên dụng — mở khoá nhóm nhận đơn Cao cấp */}
+        {tasker && <TaskerEquipmentSection profile={tasker} />}
 
         {/* Submit */}
         <motion.div

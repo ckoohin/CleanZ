@@ -61,9 +61,29 @@ export interface TaskerProfile {
     status?: string;
     note?: string | null;
   };
+  // Bộ dụng cụ chuyên dụng — điều kiện nhận đơn premium
+  equipment?: {
+    status: TaskerEquipmentStatus;
+    photoUrls: string[];
+    reviewedAt?: string | null;
+    reviewedBy?: string | null;
+    reviewedByName?: string | null;
+    note?: string | null;
+  };
   // Timestamps
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type TaskerEquipmentStatus =
+  | 'NONE'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED';
+
+export interface SubmitTaskerEquipmentDto {
+  photoUrls: string[];
+  note?: string;
 }
 
 export interface UpdateTaskerProfileDto {

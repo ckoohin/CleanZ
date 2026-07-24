@@ -12,6 +12,7 @@ import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { TaskerDocumentType } from 'src/common/enums/type-docs-tasker.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
+import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 
 @Entity('taskers')
@@ -128,6 +129,29 @@ export class TaskerEntity {
 
   @Column({ name: 'doc_note', type: 'text', nullable: true })
   docNote?: string | null;
+
+  // ── Xác minh bộ dụng cụ chuyên dụng (điều kiện nhận đơn PREMIUM) ──────────
+  // Mirror đúng luồng duyệt giấy tờ ở trên: status + ảnh + audit người duyệt.
+  @Column({
+    name: 'equipment_status',
+    type: 'enum',
+    enum: TaskerEquipmentStatus,
+    enumName: 'tasker_equipment_status',
+    default: TaskerEquipmentStatus.NONE,
+  })
+  equipmentStatus!: TaskerEquipmentStatus;
+
+  @Column({ name: 'equipment_photo_urls', type: 'jsonb', nullable: true })
+  equipmentPhotoUrls?: string[] | null;
+
+  @Column({ name: 'equipment_reviewed_at', type: 'timestamp', nullable: true })
+  equipmentReviewedAt?: Date | null;
+
+  @Column({ name: 'equipment_reviewed_by', type: 'uuid', nullable: true })
+  equipmentReviewedBy?: string | null;
+
+  @Column({ name: 'equipment_note', type: 'text', nullable: true })
+  equipmentNote?: string | null;
 
   @Column({ name: 'ban_reason', type: 'varchar', length: 500, nullable: true })
   banReason?: string | null;

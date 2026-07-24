@@ -44,6 +44,35 @@ const distanceSchema = {
   },
 };
 
+const premiumAccessSchema = {
+  type: 'object',
+  nullable: true,
+  properties: {
+    canAccept: { type: 'boolean' },
+    issues: {
+      type: 'array',
+      items: {
+        type: 'string',
+        enum: ['EQUIPMENT_NOT_APPROVED'],
+      },
+    },
+    message: nullableString,
+    equipmentStatus: {
+      type: 'string',
+      enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'],
+    },
+  },
+};
+
+const bookingInvitationSchema = {
+  type: 'object',
+  properties: {
+    isInvited: { type: 'boolean' },
+    isExclusive: { type: 'boolean' },
+    publicAt: { type: 'string', format: 'date-time', nullable: true },
+  },
+};
+
 export const CUSTOMER_BOOKING_QUOTE_SCHEMA = {
   type: 'object',
   properties: {
@@ -124,6 +153,10 @@ export const TASKER_POSTED_BOOKING_LIST_SCHEMA = {
           id: { type: 'string', format: 'uuid' },
           bookingCode: { type: 'string' },
           status: { type: 'string', example: 'POSTED' },
+          serviceTier: {
+            type: 'string',
+            enum: ['STANDARD', 'PREMIUM'],
+          },
           service: serviceSchema,
           area: {
             type: 'object',
@@ -135,6 +168,8 @@ export const TASKER_POSTED_BOOKING_LIST_SCHEMA = {
             type: 'object',
             properties: { hasPet: { type: 'boolean' } },
           },
+          premiumAccess: premiumAccessSchema,
+          invitation: bookingInvitationSchema,
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
@@ -145,10 +180,13 @@ export const TASKER_POSTED_BOOKING_LIST_SCHEMA = {
 export const TASKER_POSTED_BOOKING_DETAIL_SCHEMA = {
   type: 'object',
   properties: {
+    serviceTier: { type: 'string', enum: ['STANDARD', 'PREMIUM'] },
     distance: distanceSchema,
     service: serviceSchema,
     price: priceSchema,
     schedule: scheduleSchema,
+    premiumAccess: premiumAccessSchema,
+    invitation: bookingInvitationSchema,
   },
 };
 

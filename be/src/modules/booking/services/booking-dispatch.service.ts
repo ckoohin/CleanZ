@@ -8,6 +8,14 @@ import {
   VN_NOW_SQL,
   vietnamWeekStartSqlExpr,
 } from 'src/common/helpers/vietnam-time.helper';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
+import {
+  loadPremiumDispatchConfig,
+  premiumEligibilitySql,
+  PremiumDispatchConfig,
+} from '../helpers/premium-eligibility.helper';
+import { TaskerScheduleWindow } from '../helpers/tasker-schedule-availability.helper';
+import { TaskerScheduleAvailabilityService } from './tasker-schedule-availability.service';
 
 export const BOOKING_DISPATCH_JOB = 'DISPATCH_NEAREST';
 export const DISPATCH_RING_TIMEOUT_MS = 15_000;
@@ -20,32 +28,49 @@ export const DISPATCH_MAX_RING = 5;
 export const DISPATCH_RADIUS_FACTOR = 1.5;
 export const DISPATCH_RING_SIZE = 3;
 /**
- * Booking mới POSTED chỉ hiển thị trong danh sách "Nhận đơn" (browse chủ động)
- * cho MỌI tasker sau khoảng thời gian này kể từ lúc tạo — trong khoảng thời
- * gian này, đơn chỉ được gửi riêng cho các tasker nằm trong ring dispatch hiện
- * tại (qua notification), tránh tasker khác thấy đơn trong danh sách nhưng bấm
- * "Nhận" lại bị 403 vì chưa được mời.
+ * Cửa sổ mời riêng mặc định của đơn STANDARD. Đơn PREMIUM dùng cấu hình
+ * `PREMIUM_FAVORITE_WAIT_SECONDS` (mặc định 15 phút) trước khi mở công khai.
  */
 export const POSTED_LIST_OPEN_TO_ALL_AFTER_MS = 60_000;
 /** Stale threshold: chỉ tính tasker cập nhật vị trí trong vòng 5 phút */
 const LOCATION_STALE_MINUTES = 5;
-const DISPATCH_STATE_TTL_SECONDS = 10 * 60;
+// Phải dài hơn cửa sổ mời riêng Premium tối đa (1 giờ) để job ring 0 đang chờ
+// không mất trạng thái dispatch giữa chừng.
+const DISPATCH_STATE_TTL_SECONDS = 2 * 60 * 60;
 const DISPATCH_LOCK_TTL_SECONDS = 20;
+
+/**
+ * Ring 0 = mời riêng tasker yêu thích của khách (chỉ đơn PREMIUM có chỉ định).
+ * Ring 1..DISPATCH_MAX_RING = các đợt mời mở cho pool tasker phù hợp.
+ */
+export const DISPATCH_FAVORITE_RING = 0;
+/**
+ * Khách chủ động chỉ định thợ nên khoảng cách là tiêu chí thứ yếu — nới bán
+ * kính ở ring 0 để không loại oan thợ quen ở hơi xa.
+ */
+export const DISPATCH_FAVORITE_RADIUS_FACTOR = 2;
 
 export interface DispatchJobData {
   bookingId: string;
   customerUserId: string;
+  /** customers.id — dùng để xếp tasker yêu thích lên đầu ở các ring PREMIUM. */
+  customerId: string | null;
   lat: number;
   lng: number;
   ring: number;
   radiusMeters: number;
   excludedTaskerIds: string[];
+  serviceTier: BookingServiceTier;
+  /** Tasker yêu thích khách chỉ định — chỉ có ý nghĩa với đơn PREMIUM. */
+  preferredTaskerId: string | null;
 }
 
 export interface NearestTaskerRow {
   tasker_id: string;
   user_id: string;
   dist_meters: number;
+  /** Tasker này có nằm trong danh sách yêu thích của khách không. */
+  is_favorite: boolean;
 }
 
 export interface DispatchInvitationState {
@@ -111,10 +136,19 @@ export class BookingDispatchService {
     @InjectQueue('bookingQueue') private readonly bookingQueue: Queue,
     private readonly dataSource: DataSource,
     private readonly systemConfig: SystemConfigService,
+    private readonly taskerScheduleAvailabilityService: TaskerScheduleAvailabilityService,
   ) {}
 
   private async redis(): Promise<RedisLike> {
     return this.bookingQueue.client as Promise<RedisLike>;
+  }
+
+  /** Cấu hình thời gian mời riêng thợ yêu thích của đơn Premium. */
+  async getPremiumDispatchConfig(): Promise<PremiumDispatchConfig> {
+    return loadPremiumDispatchConfig(
+      this.dataSource.manager,
+      this.systemConfig,
+    );
   }
 
   async enqueueDispatch(
@@ -123,6 +157,11 @@ export class BookingDispatchService {
     lat: number,
     lng: number,
     scheduledStart: Date,
+    options: {
+      customerId?: string | null;
+      serviceTier?: BookingServiceTier;
+      preferredTaskerId?: string | null;
+    } = {},
   ): Promise<void> {
     const manager = this.dataSource.manager;
     const [thresholdMinutes, urgentRadiusMeters, normalRadiusMeters] =
@@ -147,18 +186,30 @@ export class BookingDispatchService {
       normalRadiusMeters,
     );
 
+    const serviceTier = options.serviceTier ?? BookingServiceTier.STANDARD;
+    const preferredTaskerId =
+      serviceTier === BookingServiceTier.PREMIUM
+        ? (options.preferredTaskerId ?? null)
+        : null;
+    // Chỉ đơn PREMIUM có chỉ định thợ mới đi qua ring 0; các đơn còn lại vào
+    // thẳng ring 1 như trước để không làm chậm luồng ghép đơn hiện tại.
+    const startRing = preferredTaskerId ? DISPATCH_FAVORITE_RING : 1;
+
     const data: DispatchJobData = {
       bookingId,
       customerUserId,
+      customerId: options.customerId ?? null,
       lat,
       lng,
-      ring: 1,
+      ring: startRing,
       radiusMeters,
       excludedTaskerIds: [],
+      serviceTier,
+      preferredTaskerId,
     };
 
     await this.bookingQueue.add(BOOKING_DISPATCH_JOB, data, {
-      jobId: dispatchJobId(bookingId, 1),
+      jobId: dispatchJobId(bookingId, startRing),
       // Không có delay — chạy ngay
       attempts: 2,
       backoff: { type: 'exponential', delay: 3_000 },
@@ -167,11 +218,14 @@ export class BookingDispatchService {
     });
 
     this.logger.log(
-      `Enqueued dispatch ring=1 radius=${radiusMeters}m for booking=${bookingId}`,
+      `Enqueued dispatch ring=${startRing} tier=${serviceTier} radius=${radiusMeters}m for booking=${bookingId}`,
     );
   }
 
-  async enqueueNextRing(data: DispatchJobData): Promise<string> {
+  async enqueueNextRing(
+    data: DispatchJobData,
+    delayMs: number = DISPATCH_RING_TIMEOUT_MS,
+  ): Promise<string> {
     const nextRing = data.ring + 1;
     const jobId = dispatchJobId(data.bookingId, nextRing);
 
@@ -182,7 +236,7 @@ export class BookingDispatchService {
 
     await this.bookingQueue.add(BOOKING_DISPATCH_JOB, nextData, {
       jobId,
-      delay: DISPATCH_RING_TIMEOUT_MS,
+      delay: delayMs,
       attempts: 2,
       backoff: { type: 'exponential', delay: 3_000 },
       removeOnComplete: 100,
@@ -190,7 +244,7 @@ export class BookingDispatchService {
     });
 
     this.logger.log(
-      `Scheduled dispatch ring=${nextRing} radius=${data.radiusMeters}m delay=${DISPATCH_RING_TIMEOUT_MS}ms for booking=${data.bookingId}`,
+      `Scheduled dispatch ring=${nextRing} radius=${data.radiusMeters}m delay=${delayMs}ms for booking=${data.bookingId}`,
     );
 
     return jobId;
@@ -279,7 +333,13 @@ export class BookingDispatchService {
   async cancelPendingDispatch(bookingId: string): Promise<void> {
     const removals: Promise<void>[] = [];
 
-    for (let ring = 1; ring <= DISPATCH_MAX_RING + 1; ring++) {
+    // Bắt đầu từ ring 0 — đơn PREMIUM có thợ yêu thích được mời ở ring này,
+    // bỏ sót sẽ để lại job mồ côi bắn thông báo cho đơn đã bị huỷ.
+    for (
+      let ring = DISPATCH_FAVORITE_RING;
+      ring <= DISPATCH_MAX_RING + 1;
+      ring++
+    ) {
       const jobId = dispatchJobId(bookingId, ring);
       removals.push(
         this.bookingQueue
@@ -300,24 +360,63 @@ export class BookingDispatchService {
     lng: number,
     radiusMeters: number,
     excludedTaskerIds: string[],
+    options: {
+      serviceTier?: BookingServiceTier;
+      customerId?: string | null;
+    } = {},
   ): Promise<NearestTaskerRow[]> {
+    const serviceTier = options.serviceTier ?? BookingServiceTier.STANDARD;
+    const isPremium = serviceTier === BookingServiceTier.PREMIUM;
+
+    const params: (number | string)[] = [lng, lat, radiusMeters];
+    const nextParam = (value: number | string): string => {
+      params.push(value);
+      return `$${params.length}`;
+    };
+
     const exclusionClause =
       excludedTaskerIds.length > 0
-        ? `AND t.id NOT IN (${excludedTaskerIds.map((_, i) => `$${i + 4}`).join(', ')})`
+        ? `AND t.id NOT IN (${excludedTaskerIds.map((id) => nextParam(id)).join(', ')})`
         : '';
 
-    const params: (number | string)[] = [
-      lng,
-      lat,
-      radiusMeters,
-      ...excludedTaskerIds,
-    ];
+    // Đơn PREMIUM: vòng mời chủ động chỉ chọn tasker có bộ dụng cụ đã được
+    // admin duyệt. Danh sách POSTED vẫn hiển thị đơn cho mọi tasker và trả cờ
+    // canAccept để UI khóa thao tác khi chưa được duyệt.
+    let premiumClause = '';
+    if (isPremium) {
+      premiumClause = `AND ${premiumEligibilitySql('t')}`;
+    }
+
+    // Tasker nằm trong danh sách yêu thích của chính khách này được xếp lên đầu.
+    const favoriteSelect =
+      isPremium && options.customerId
+        ? `EXISTS (
+             SELECT 1 FROM customer_favorite_taskers cft
+             WHERE cft.tasker_id = t.id AND cft.customer_id = ${nextParam(options.customerId)}
+           )`
+        : 'false';
+
+    /*
+     * Thứ tự ưu tiên khác nhau theo hạng, có chủ đích:
+     * - STANDARD: thu nhập tuần thấp trước — cơ chế chia đều việc cho tasker.
+     * - PREMIUM: khách trả thêm tiền để mua CHẤT LƯỢNG, nên thợ yêu thích và
+     *   rating cao phải đứng trước; chia đều thu nhập tụt xuống tiêu chí cuối.
+     */
+    const orderBy = isPremium
+      ? `is_favorite DESC,
+         t.rating_avg DESC,
+         dist_meters ASC,
+         COALESCE(wi.weekly_income, 0) ASC`
+      : `COALESCE(wi.weekly_income, 0) ASC,
+         t.rating_avg DESC,
+         dist_meters ASC`;
 
     return this.dataSource.query<NearestTaskerRow[]>(
       `
         SELECT
           t.id                                            AS tasker_id,
           t.user_id,
+          ${favoriteSelect}                               AS is_favorite,
           ST_Distance(
             t.current_location,
             ST_SetSRID(ST_Point($1, $2), 4326)::geography
@@ -371,13 +470,71 @@ export class BookingDispatchService {
               )
           )
           ${exclusionClause}
+          ${premiumClause}
         ORDER BY
-          COALESCE(wi.weekly_income, 0) ASC,
-          t.rating_avg DESC,
-          dist_meters ASC
+          ${orderBy}
         LIMIT ${DISPATCH_RING_SIZE}
         `,
       params,
     );
+  }
+
+  /**
+   * Ring 0: kiểm tra tasker yêu thích khách chỉ định có thực sự nhận được đơn
+   * không (online, rảnh, không bị treo, đủ điều kiện PREMIUM).
+   *
+   * Trả về null thay vì chờ mù — không được giữ đơn cả phút rồi mới phát hiện
+   * thợ đang offline, vì như vậy khách mất trắng khoảng thời gian đó.
+   */
+  async findFavoriteTaskerCandidate(
+    taskerId: string,
+    lat: number,
+    lng: number,
+    radiusMeters: number,
+    requestedSchedule: TaskerScheduleWindow,
+  ): Promise<NearestTaskerRow | null> {
+    const rows = await this.dataSource.query<NearestTaskerRow[]>(
+      `
+        SELECT
+          t.id       AS tasker_id,
+          t.user_id,
+          true       AS is_favorite,
+          ST_Distance(
+            t.current_location,
+            ST_SetSRID(ST_Point($2, $3), 4326)::geography
+          )          AS dist_meters
+        FROM taskers t
+        WHERE
+          t.id = $1
+          AND t.presence_status = 'ONLINE'
+          AND t.status = 'ACTIVE'
+          AND (
+            t.cancel_suspended_until IS NULL
+            OR t.cancel_suspended_until < ${VN_NOW_SQL}
+          )
+          AND t.current_location IS NOT NULL
+          AND t.location_updated_at > NOW() - INTERVAL '${LOCATION_STALE_MINUTES} minutes'
+          AND ST_DWithin(
+            t.current_location,
+            ST_SetSRID(ST_Point($2, $3), 4326)::geography,
+            $4
+          )
+          AND ${premiumEligibilitySql('t')}
+        LIMIT 1
+      `,
+      [taskerId, lng, lat, radiusMeters],
+    );
+
+    const candidate = rows[0];
+    if (!candidate) return null;
+
+    const availability =
+      await this.taskerScheduleAvailabilityService.getForTasker(
+        this.dataSource.manager,
+        candidate.tasker_id,
+        requestedSchedule,
+      );
+
+    return availability.isAvailable ? candidate : null;
   }
 }

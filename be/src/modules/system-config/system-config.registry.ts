@@ -10,7 +10,8 @@ export type SystemConfigGroup =
   | 'TOPUP'
   | 'WITHDRAWAL'
   | 'TASKER'
-  | 'DISPATCH';
+  | 'DISPATCH'
+  | 'PREMIUM';
 
 export interface SystemConfigDefinition {
   key: string;
@@ -30,6 +31,7 @@ export const SYSTEM_CONFIG_GROUP_LABELS: Record<SystemConfigGroup, string> = {
   WITHDRAWAL: 'Rút tiền khỏi ví',
   TASKER: 'Điều kiện nhận đơn của Tasker',
   DISPATCH: 'Ghép đơn cho Tasker',
+  PREMIUM: 'Gói dịch vụ Cao cấp',
 };
 
 export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
@@ -150,6 +152,17 @@ export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
     defaultValue: 60,
     min: 5,
     max: 720,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.PREMIUM_FAVORITE_WAIT_SECONDS,
+    group: 'PREMIUM',
+    label: 'Thời gian ưu tiên lời mời Cao cấp',
+    description:
+      'Đơn Cao cấp chỉ hiển thị cho các Tasker đã được mời trong khoảng thời gian này trước khi mở cho các Tasker Cao cấp khác.',
+    unit: 'giây',
+    defaultValue: 900,
+    min: 15,
+    max: 3600,
   },
 ];
 

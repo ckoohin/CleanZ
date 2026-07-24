@@ -12,7 +12,8 @@ import type {
 
 export const adminTaskerKeys = {
   all: ["admin-tasker"] as const,
-  list: (filter: AdminTaskerFilter) => [...adminTaskerKeys.all, "list", filter] as const,
+  list: (filter: AdminTaskerFilter) =>
+    [...adminTaskerKeys.all, "list", filter] as const,
   detail: (id: string) => [...adminTaskerKeys.all, "detail", id] as const,
   documents: (id: string) => [...adminTaskerKeys.all, "documents", id] as const,
   penalties: (id: string) => [...adminTaskerKeys.all, "penalties", id] as const,
@@ -65,7 +66,10 @@ export function useAdminTaskerEarnings(id: string, range: TaskerEarningsQuery) {
   });
 }
 
-export function useAdminTaskerEarningsDetails(id: string, range: TaskerEarningsQuery) {
+export function useAdminTaskerEarningsDetails(
+  id: string,
+  range: TaskerEarningsQuery,
+) {
   return useQuery({
     queryKey: adminTaskerKeys.earningsDetails(id, range),
     queryFn: () => adminTaskerApi.getTaskerEarningsDetails(id, range),
@@ -118,6 +122,36 @@ export function useApproveTasker() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Lỗi khi phê duyệt hồ sơ"));
+    },
+  });
+}
+
+/**
+ * Duyệt / từ chối bộ dụng cụ chuyên dụng của tasker.
+ * APPROVED là điều kiện bắt buộc để tasker nhận được đơn premium
+ */
+export function useReviewTaskerEquipment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      note,
+    }: {
+      id: string;
+      action: "APPROVE" | "REJECT";
+      note?: string;
+    }) => adminTaskerApi.reviewTaskerEquipment(id, action, note),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminTaskerKeys.all });
+      toast.success(
+        variables.action === "APPROVE"
+          ? "Đã duyệt bộ dụng cụ. Tasker có thể nhận đơn premium."
+          : "Đã từ chối bộ dụng cụ",
+      );
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Lỗi khi duyệt bộ dụng cụ"));
     },
   });
 }

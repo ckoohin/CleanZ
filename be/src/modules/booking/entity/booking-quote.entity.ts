@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { PeakBreakdownItem } from 'src/modules/pricing/services/pricing.service';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 
 /**
  * Snapshot giá tại thời điểm quote để "lock" giá cho tới khi customer xác nhận
@@ -28,6 +29,30 @@ export class BookingQuoteEntity {
 
   @Column({ name: 'package_id', type: 'uuid', nullable: true })
   packageId?: string | null;
+
+  /**
+   * Hạng dịch vụ tại thời điểm quote. BẮT BUỘC lưu: `applyLockedQuote` ghi đè
+   * `context.basePrice` bằng giá đã khoá, thiếu cột này thì khách quote PREMIUM
+   * rồi tạo đơn STANDARD (hoặc ngược lại) sẽ nhận sai giá mà không có lỗi nào.
+   */
+  @Column({
+    name: 'service_tier',
+    type: 'enum',
+    enum: BookingServiceTier,
+    enumName: 'booking_service_tier',
+    default: BookingServiceTier.STANDARD,
+  })
+  serviceTier!: BookingServiceTier;
+
+  /** Phần chênh lệch do hạng PREMIUM, đã nằm trong `basePrice`. */
+  @Column({
+    name: 'premium_fee',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  premiumFee!: number;
 
   @Column({ name: 'pricing_tier_id', type: 'uuid', nullable: true })
   pricingTierId?: string | null;

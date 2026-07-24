@@ -396,8 +396,8 @@ export function StepPricingConfig({
               <Field
                 label={<span className="text-xs font-black text-slate-900">Đơn giá giờ Premium (₫)</span>}
                 required
-                hint="Giá giờ cho dịch vụ cao cấp / làm gấp"
-                tooltip="Đơn giá áp dụng khi khách hàng chọn dịch vụ Cao cấp (Premium) hoặc ca đặc biệt. Giá trị mang lại: (1) Chất lượng thợ tối ưu: Chỉ thợ xuất sắc (sao từ 4.8★ trở lên, thâm niên cao, ít hủy ca) mới được nhận việc; (2) VIP Matching: Đơn được đẩy lên ưu tiên hiển thị trước để thợ nhận ngay, đảm bảo 100% có người làm; (3) Làm gấp & Ngoài giờ: Áp dụng khi đặt sát giờ (dưới 2h) hoặc sáng sớm/tối muộn; (4) Dụng cụ nâng cấp: Thợ mang theo hóa chất sinh học chuyên dụng cao cấp."
+                hint="Giá giờ cho dịch vụ premium / làm gấp"
+                tooltip="Đơn giá áp dụng khi khách hàng chọn dịch vụ premium hoặc ca đặc biệt. Giá trị mang lại: (1) Chất lượng thợ tối ưu: Chỉ thợ xuất sắc (sao từ 4.8★ trở lên, thâm niên cao, ít hủy ca) mới được nhận việc; (2) VIP Matching: Đơn được đẩy lên ưu tiên hiển thị trước để thợ nhận ngay, đảm bảo 100% có người làm; (3) Làm gấp & Ngoài giờ: Áp dụng khi đặt sát giờ (dưới 2h) hoặc sáng sớm/tối muộn; (4) Dụng cụ nâng cấp: Thợ mang theo hóa chất sinh học chuyên dụng premium."
               >
                 <Input inputMode="numeric" value={premiumHourlyRate === 0 ? "" : String(premiumHourlyRate)} onChange={e => { const d = e.target.value.replace(/\D/g, ""); setPremiumHourlyRate(d ? Number(d) : 0); }} className="h-10 rounded-lg border-slate-300 font-bold" />
                 {premiumHourlyRate > 0 && <p className="text-sm font-black text-slate-900 mt-1">{vnd(premiumHourlyRate)} / giờ</p>}
@@ -832,7 +832,7 @@ export function StepPricingConfig({
                           </p>
                         </div>
                         <div className="bg-primary/5 border border-primary/20 p-2.5 rounded-lg">
-                          <p className="text-[10px] text-primary font-bold uppercase mb-0.5">Cao cấp (Premium)</p>
+                          <p className="text-[10px] text-primary font-bold uppercase mb-0.5">premium</p>
                           <p className="text-sm font-black text-primary">
                             {newDuration.priceMode === "fixed"
                               ? vnd((Number(newDuration.fixedPriceInput) || 0) * (baseHourlyRate > 0 ? premiumHourlyRate / baseHourlyRate : 1))

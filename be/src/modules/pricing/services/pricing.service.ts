@@ -33,6 +33,7 @@ import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 
 export interface CalculateBookingPriceInput {
   packageId?: string;
@@ -47,6 +48,8 @@ export interface CalculateBookingPriceInput {
   voucherCode?: string;
   customerId?: string;
   currentBookingId?: string;
+  /** Mặc định STANDARD nếu không truyền — giữ nguyên hành vi các caller cũ. */
+  serviceTier?: BookingServiceTier;
 }
 
 export interface ServiceSummary {
@@ -85,6 +88,9 @@ export interface BookingPriceResult {
   totalPrice: number;
   voucher?: VoucherEntity | null;
   pricingTierId?: string;
+  serviceTier: BookingServiceTier;
+  /** Phần chênh lệch do hạng PREMIUM — ĐÃ nằm trong `basePrice`, không cộng lại. */
+  premiumFee: number;
 }
 
 @Injectable()
@@ -414,6 +420,31 @@ export class PricingService {
       }
     }
 
+    // ── Hạng dịch vụ ────────────────────────────────────────────────────────
+    // Nâng giá gốc theo hệ số premium_hourly_rate / base_hourly_rate. Dùng hệ số
+    // thay vì thay thẳng đơn giá để áp dụng được cho CẢ 3 pricing mode (HOURLY,
+    // AREA_HOURLY, FIXED) và cho cả mốc duration giá cố định — đúng bằng công
+    // thức mà màn cấu hình gói của admin đang preview cho chính họ.
+    const serviceTier = input.serviceTier ?? BookingServiceTier.STANDARD;
+    let premiumFee = 0;
+    if (serviceTier === BookingServiceTier.PREMIUM) {
+      const baseRate = toNumber(servicePackage.baseHourlyRate);
+      const premiumRate = toNumber(servicePackage.premiumHourlyRate);
+      if (baseRate <= 0 || premiumRate <= 0) {
+        throw new BadRequestException(
+          'Gói dịch vụ này chưa cấu hình đơn giá Cao cấp',
+        );
+      }
+      if (premiumRate < baseRate) {
+        throw new BadRequestException(
+          'Đơn giá Cao cấp của gói đang thấp hơn đơn giá tiêu chuẩn, vui lòng liên hệ hỗ trợ',
+        );
+      }
+      const premiumBasePrice = Math.round(basePrice * (premiumRate / baseRate));
+      premiumFee = premiumBasePrice - basePrice;
+      basePrice = premiumBasePrice;
+    }
+
     // Dịch vụ thêm có thể cấu hình thời gian phát sinh (durationMinutes) — cộng
     // vào tổng thời lượng công việc thực tế trước khi so với maxHours của gói,
     // tránh trường hợp tổng giờ thực tế (giờ chính + giờ addon) vượt giới hạn
@@ -498,6 +529,8 @@ export class PricingService {
       totalPrice,
       voucher,
       pricingTierId: matchedTierId,
+      serviceTier,
+      premiumFee,
     };
   }
 

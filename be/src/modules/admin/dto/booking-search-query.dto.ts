@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
+import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 
 export class BookingSearchQueryDto {
   @ApiPropertyOptional({
@@ -93,6 +94,15 @@ export class BookingSearchQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   surchargeDisputed?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo hạng dịch vụ (STANDARD / PREMIUM)',
+    enum: BookingServiceTier,
+    example: BookingServiceTier.PREMIUM,
+  })
+  @IsOptional()
+  @IsEnum(BookingServiceTier)
+  serviceTier?: BookingServiceTier;
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()

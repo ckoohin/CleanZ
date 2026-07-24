@@ -72,6 +72,16 @@ export const adminTaskerApi = {
   rejectTasker: (id: string, notes: string): Promise<AdminTasker> =>
     http.patch(`${BASE}/${id}/reject`, { notes }).then((res) => res.data),
 
+  /** Duyệt / từ chối bộ dụng cụ chuyên dụng — quyết định tasker có vào nhóm premium. */
+  reviewTaskerEquipment: (
+    id: string,
+    action: "APPROVE" | "REJECT",
+    note?: string
+  ): Promise<AdminTasker> =>
+    http
+      .patch(`${BASE}/${id}/equipment/review`, { action, note })
+      .then((res) => res.data),
+
   requestMoreInfo: (id: string, notes: string): Promise<AdminTasker> =>
     http.patch(`${BASE}/${id}/request-info`, { notes }).then((res) => res.data),
 

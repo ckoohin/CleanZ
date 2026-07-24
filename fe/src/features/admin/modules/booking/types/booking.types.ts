@@ -169,6 +169,12 @@ export interface AdminBookingDetail {
     taskerIncome: number | null;
     commissionRate: number | null;
     isEstimated: boolean;
+    baseAmount: number;
+    basePlatformFee: number;
+    basePaymentMethod: string;
+    surchargeAmount: number;
+    surchargePlatformFee: number;
+    surchargePaymentMethod: string | null;
     latestPayment?: {
       id: string;
       status: string;

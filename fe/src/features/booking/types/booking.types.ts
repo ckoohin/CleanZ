@@ -43,9 +43,81 @@ export interface BookingPrice {
   peakFee: number;
   petFee: number;
   waitingFee?: number;
+  /** Chênh lệch do chọn hạng Cao cấp — ĐÃ nằm trong basePrice, không cộng lại. */
+  premiumFee?: number;
   discountAmount: number;
   totalPrice: number;
   subtotal?: number;
+}
+
+/** Hạng dịch vụ của đơn. */
+export type BookingServiceTier = "STANDARD" | "PREMIUM";
+
+/** Trạng thái xác minh bộ dụng cụ chuyên dụng của tasker. */
+export type TaskerEquipmentStatus =
+  "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+
+export type PremiumEligibilityIssue = "EQUIPMENT_NOT_APPROVED";
+
+export interface TaskerPremiumAccess {
+  canAccept: boolean;
+  issues: PremiumEligibilityIssue[];
+  message: string | null;
+  equipmentStatus: TaskerEquipmentStatus;
+}
+
+export interface FavoriteTasker {
+  taskerId: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  ratingAvg: number;
+  totalCompletedJobs: number;
+  equipmentStatus: TaskerEquipmentStatus;
+  /** Đủ tư cách nhận đơn Cao cấp ngay lúc này. */
+  isPremiumEligible: boolean;
+  presenceStatus: "ONLINE" | "OFFLINE";
+  /** Số đơn thợ này đã hoàn thành cho chính khách. */
+  completedJobsForCustomer: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export type FavoriteTaskerAvailabilityStatus =
+  "AVAILABLE" | "TIGHT_SCHEDULE" | "BUSY";
+
+export interface FavoriteTaskerScheduleWindow {
+  scheduledStartDate: string;
+  scheduledStartTime: string;
+  scheduledEndDate: string;
+  scheduledEndTime: string;
+}
+
+export interface FavoriteTaskerAvailability extends FavoriteTasker {
+  availability: {
+    status: FavoriteTaskerAvailabilityStatus;
+    isAvailable: boolean;
+    reason: "OVERLAP" | "MAX_CONCURRENT" | null;
+    message: string | null;
+    conflict: FavoriteTaskerScheduleWindow | null;
+    nearby:
+      | (FavoriteTaskerScheduleWindow & {
+          relation: "BEFORE" | "AFTER";
+          gapMinutes: number;
+        })
+      | null;
+  };
+}
+
+export interface FavoriteTaskerAvailabilityParams {
+  scheduledDate: string;
+  scheduledTime: string;
+  durationHours: number;
+}
+
+export interface FavoriteTaskerContact {
+  taskerId: string;
+  fullName: string | null;
+  phone: string | null;
 }
 
 export interface BookingAddress {
@@ -141,6 +213,9 @@ export interface CreateBookingDto {
   durationHours?: number;
   hasPet?: boolean;
   quoteId?: string; // ID báo giá từ POST /booking/quote — dùng để khóa giá
+  serviceTier?: BookingServiceTier;
+  /** Thợ yêu thích muốn ưu tiên — chỉ hợp lệ với đơn PREMIUM. */
+  preferredTaskerId?: string;
 }
 
 export interface QuoteBookingDto {
@@ -158,6 +233,7 @@ export interface QuoteBookingDto {
   pricingTierId?: string;
   durationHours?: number;
   hasPet?: boolean;
+  serviceTier?: BookingServiceTier;
 }
 
 export interface CancelBookingDto {
@@ -190,6 +266,8 @@ export interface BookingFormState {
   pricingTierId?: string;
   durationHours?: number;
   hasPet?: boolean;
+  serviceTier?: BookingServiceTier;
+  preferredTaskerId?: string;
 }
 
 // ─── Customer Responses ───────────────────────────────────────────────────────
@@ -201,6 +279,7 @@ export interface BookingQuoteResponse {
   address: BookingAddress;
   schedule: BookingSchedule;
   price: BookingPrice;
+  serviceTier?: BookingServiceTier;
   voucher?: { id: string; code: string; name: string } | null;
 }
 
@@ -212,6 +291,7 @@ export interface CustomerBookingDetail {
   address: BookingAddress;
   schedule: BookingSchedule;
   price: BookingPrice;
+  serviceTier?: BookingServiceTier;
   payment: BookingPayment;
   voucher?: { id: string; code: string; name: string } | null;
   tasker: BookingTasker | null;
@@ -242,6 +322,7 @@ export interface TaskerPostedBookingItem {
   id: string;
   bookingCode: string;
   status: BookingStatus;
+  serviceTier?: BookingServiceTier;
   service: BookingService;
   area: { displayAddress?: string | null };
   schedule: BookingSchedule;
@@ -254,7 +335,15 @@ export interface TaskerPostedBookingItem {
     discountAmount: number;
   };
   flags: { hasPet: boolean };
+  premiumAccess?: TaskerPremiumAccess;
+  invitation: TaskerBookingInvitationAccess;
   createdAt: string;
+}
+
+export interface TaskerBookingInvitationAccess {
+  isInvited: boolean;
+  isExclusive: boolean;
+  publicAt?: string | null;
 }
 
 export interface TaskerPostedBookingListResponse {
@@ -290,6 +379,7 @@ export interface TaskerCompletedBookingRange {
 }
 
 export interface TaskerPostedBookingDetail {
+  serviceTier?: BookingServiceTier;
   distance: { meters: number; kilometers: number };
   service: BookingService;
   price: {
@@ -304,6 +394,8 @@ export interface TaskerPostedBookingDetail {
     taskerIncome: number;
   };
   schedule: BookingSchedule;
+  premiumAccess?: TaskerPremiumAccess;
+  invitation: TaskerBookingInvitationAccess;
 }
 
 export interface TaskerAcceptResponse {
@@ -323,6 +415,7 @@ export interface TaskerAssignedBookingDetail {
   id: string;
   bookingCode: string;
   status: BookingStatus;
+  serviceTier?: BookingServiceTier;
   source: BookingSource;
   canContactCustomer: boolean;
   checkinPolicy: {
