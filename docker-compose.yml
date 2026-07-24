@@ -2,12 +2,23 @@ services:
   postgres:
     image: postgis/postgis:16-3.5-alpine
     restart: unless-stopped
+    env_file:
+      - ./be/.env
     environment:
       TZ: Asia/Ho_Chi_Minh
       PGTZ: Asia/Ho_Chi_Minh
-      POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE is required}
-      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME is required}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        : "$${DB_DATABASE:?DB_DATABASE is required in be/.env}"
+        : "$${DB_USERNAME:?DB_USERNAME is required in be/.env}"
+        : "$${DB_PASSWORD:?DB_PASSWORD is required in be/.env}"
+        export POSTGRES_DB="$${DB_DATABASE}"
+        export POSTGRES_USER="$${DB_USERNAME}"
+        export POSTGRES_PASSWORD="$${DB_PASSWORD}"
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - --
     command: ["postgres", "-c", "timezone=Asia/Ho_Chi_Minh"]
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -17,7 +28,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\"",
+          "pg_isready -U \"$${DB_USERNAME}\" -d \"$${DB_DATABASE}\"",
         ]
       interval: 10s
       timeout: 5s
@@ -49,9 +60,11 @@ services:
     build:
       context: ./be
       dockerfile: Dockerfile
+      secrets:
+        - backend_env
     restart: unless-stopped
     env_file:
-      - ${BACKEND_ENV_FILE:-./.env}
+      - ./be/.env
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -63,9 +76,6 @@ services:
       # Tên service `postgres` được Docker DNS phân giải trong Compose network.
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
-      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
       DB_MIGRATIONS_RUN: "true"
       # ─── Redis ────────────────────────────────────────────────────────────────
       # Ghi đè .env: trong container "localhost" là chính backend, không phải
@@ -109,14 +119,11 @@ services:
     build:
       context: ./fe
       dockerfile: Dockerfile
-      args:
-        # NEXT_PUBLIC_* được nhúng lúc BUILD → phải là domain thật, đổi giá trị
-        # thì bắt buộc build lại image (không sửa được lúc runtime).
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.cleanz.online/api/v1}
-        NEXT_PUBLIC_CLIENT_URL: ${NEXT_PUBLIC_CLIENT_URL:-https://cleanz.online}
-        NEXT_PUBLIC_GOONG_API_KEY: ${NEXT_PUBLIC_GOONG_API_KEY:-}
-        NEXT_PUBLIC_GOONG_MAPTILES_KEY: ${NEXT_PUBLIC_GOONG_MAPTILES_KEY:-}
+      secrets:
+        - frontend_env
     restart: unless-stopped
+    env_file:
+      - ./fe/.env
     environment:
       NODE_ENV: production
       TZ: Asia/Ho_Chi_Minh
@@ -131,3 +138,10 @@ volumes:
   postgres-data:
   # Giữ AOF của Redis qua các lần restart/redeploy để không mất job đang chờ.
   redis-data:
+
+secrets:
+  # BuildKit chỉ mount file trong đúng bước build, không lưu khóa vào image layer.
+  backend_env:
+    file: ./be/.env
+  frontend_env:
+    file: ./fe/.env

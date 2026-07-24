@@ -6,9 +6,6 @@ import { AllConfigType } from '../config/config.type';
 export const getDatabaseConfig = (
   configService: ConfigService<AllConfigType>,
 ): TypeOrmModuleOptions => {
-  const isDev =
-    configService.get('NODE_ENV', { infer: true }) === 'development';
-
   const migrationsRun = process.env.DB_MIGRATIONS_RUN !== 'false';
 
   return {
@@ -20,6 +17,8 @@ export const getDatabaseConfig = (
     database: configService.get('DB_DATABASE', { infer: true }),
 
     autoLoadEntities: true,
+    migrations: [join(__dirname, '../database/migrations/*{.ts,.js}')],
+    migrationsRun,
     synchronize: false,
 
     logging: false,

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:20-bookworm-slim AS builder
 WORKDIR /usr/src/app
 
@@ -8,16 +10,8 @@ COPY tsconfig.json next.config.ts postcss.config.mjs ./
 COPY public ./public
 COPY src ./src
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
-ARG NEXT_PUBLIC_CLIENT_URL=http://localhost:3020
-ARG NEXT_PUBLIC_GOONG_API_KEY
-ARG NEXT_PUBLIC_GOONG_MAPTILES_KEY
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV NEXT_PUBLIC_CLIENT_URL=${NEXT_PUBLIC_CLIENT_URL}
-ENV NEXT_PUBLIC_GOONG_API_KEY=${NEXT_PUBLIC_GOONG_API_KEY}
-ENV NEXT_PUBLIC_GOONG_MAPTILES_KEY=${NEXT_PUBLIC_GOONG_MAPTILES_KEY}
-
-RUN npm run build
+RUN --mount=type=secret,id=frontend_env,target=/usr/src/app/.env,required=true \
+    npm run build
 
 FROM node:20-bookworm-slim AS runner
 WORKDIR /usr/src/app
