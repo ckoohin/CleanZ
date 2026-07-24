@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BaseButton } from "@/components/ui/base/base_button";
 import {
   useAdminPackages,
+  useDeletedAdminPackages,
   useUpdateAdminPackage,
 } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { AdminServicePackageEntity } from "@/features/admin/modules/service/services/admin-services.service";
@@ -15,8 +16,10 @@ import {
   type CoverageFilter,
   type PolicyDescFilter,
   type ServiceModeFilterId,
+  type ServicePackageStatusFilter,
 } from "@/features/admin/modules/service/_components/service-packages/ServicePackageFilter";
 import { ServicePackageTable } from "@/features/admin/modules/service/_components/service-packages/ServicePackageTable";
+import { DeletedPackagesPage } from "@/features/admin/modules/service/_components/service-packages/DeletedPackagesPage";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
@@ -27,7 +30,13 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-function PageHeader({ onAdd, onViewReports }: { onAdd: () => void; onViewReports: () => void }) {
+function PageHeader({
+  onAdd,
+  onViewReports,
+}: {
+  onAdd: () => void;
+  onViewReports: () => void;
+}) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
@@ -65,7 +74,7 @@ export default function AdminServicesPage() {
   const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
   const [searchTerm, setSearchTerm] = React.useState("");
   const debouncedSearch = useDebounce(searchTerm, 400);
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = React.useState<ServicePackageStatusFilter>("all");
 
   // Advanced Filters States
   const [isFiltersExpanded, setIsFiltersExpanded] = React.useState(false);
@@ -80,6 +89,12 @@ export default function AdminServicesPage() {
   const [pageSize, setPageSize] = React.useState(6);
 
   const { data: packages, isLoading } = useAdminPackages();
+  const {
+    data: deletedPackages,
+    isLoading: isDeletedLoading,
+    isError: isDeletedError,
+    refetch: refetchDeletedPackages,
+  } = useDeletedAdminPackages();
   const updateMutation = useUpdateAdminPackage();
 
   const isAnyFilterActive = React.useMemo(() => {
@@ -174,6 +189,19 @@ export default function AdminServicesPage() {
 
   const totalPages = Math.ceil(filtered.length / pageSize);
 
+  const filteredDeletedPackages = React.useMemo(() => {
+    if (!deletedPackages) return [];
+    const query = debouncedSearch.trim().toLowerCase();
+    if (!query) return deletedPackages;
+
+    return deletedPackages.filter(
+      (pkg) =>
+        pkg.name.toLowerCase().includes(query) ||
+        pkg.packageCode.toLowerCase().includes(query) ||
+        (pkg.policyDescription?.toLowerCase().includes(query) ?? false),
+    );
+  }, [deletedPackages, debouncedSearch]);
+
   const paginatedPackages = React.useMemo(() => {
     const start = (page - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
@@ -187,7 +215,8 @@ export default function AdminServicesPage() {
     all: packages?.length ?? 0,
     active: packages?.filter((p) => p.isActive).length ?? 0,
     inactive: packages?.filter((p) => !p.isActive).length ?? 0,
-  }), [packages]);
+    deleted: deletedPackages?.length ?? 0,
+  }), [packages, deletedPackages]);
 
   const isSearchPending = searchTerm !== debouncedSearch;
 
@@ -246,15 +275,26 @@ export default function AdminServicesPage() {
         serviceModeFilters={serviceModeFilters} onToggleServiceMode={toggleServiceMode}
       />
 
-      <ServicePackageTable
-        items={paginatedPackages} totalFilteredCount={filtered.length}
-        viewMode={viewMode} page={page} pageSize={pageSize} totalPages={totalPages}
-        onPageChange={setPage} onPageSizeChange={setPageSize}
-        onView={(pkg) => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.DETAIL(pkg.id))}
-        onEdit={(pkg) => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.UPDATE(pkg.id))}
-        onToggle={toggleActive} isToggling={updateMutation.isPending}
-        onCreateFirst={() => router.push("/admin/services/create")}
-      />
+      {statusFilter === "deleted" ? (
+        <DeletedPackagesPage
+          packages={filteredDeletedPackages}
+          totalCount={deletedPackages?.length ?? 0}
+          isLoading={isDeletedLoading}
+          isError={isDeletedError}
+          hasSearch={Boolean(debouncedSearch.trim())}
+          onRetry={() => void refetchDeletedPackages()}
+        />
+      ) : (
+        <ServicePackageTable
+          items={paginatedPackages} totalFilteredCount={filtered.length}
+          viewMode={viewMode} page={page} pageSize={pageSize} totalPages={totalPages}
+          onPageChange={setPage} onPageSizeChange={setPageSize}
+          onView={(pkg) => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.DETAIL(pkg.id))}
+          onEdit={(pkg) => router.push(ROUTES.ADMIN.SERVICES.SERVICE_PACKAGES.UPDATE(pkg.id))}
+          onToggle={toggleActive} isToggling={updateMutation.isPending}
+          onCreateFirst={() => router.push("/admin/services/create")}
+        />
+      )}
     </div>
   );
 }

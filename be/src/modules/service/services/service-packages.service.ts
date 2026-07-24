@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { ServicePackageEntity } from '../entity/service-package.entity';
 import {
   CreateServicePackageDto,
@@ -72,12 +72,18 @@ export class ServicePackagesService {
   async create(dto: CreateServicePackageDto): Promise<ServicePackageEntity> {
     const packageCode = dto.packageCode || this.generateCode(dto.name);
 
-    // Kiểm tra xem packageCode đã tồn tại chưa
+    // Phải tính cả gói đã xóa mềm: package_code vẫn UNIQUE trên toàn bảng nên
+    // bỏ qua chúng sẽ lọt qua check rồi vỡ ở constraint lúc INSERT.
     const existing = await this.packageRepository.findOne({
       where: { packageCode },
+      withDeleted: true,
     });
     if (existing) {
-      throw new ConflictException('Mã gói dịch vụ đã tồn tại');
+      throw new ConflictException(
+        existing.deletedAt
+          ? 'Mã gói dịch vụ này thuộc về một gói đã xóa. Hãy khôi phục gói đó hoặc dùng mã khác.'
+          : 'Mã gói dịch vụ đã tồn tại',
+      );
     }
 
     const servicePackage = this.packageRepository.create({
@@ -208,6 +214,15 @@ export class ServicePackagesService {
     return this.packageRepository.find({
       relations: ['coverageAreas'],
       order: { sortOrder: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  /** Danh sách gói đã xóa mềm — phục vụ màn khôi phục của admin. */
+  async findDeleted(): Promise<ServicePackageEntity[]> {
+    return this.packageRepository.find({
+      withDeleted: true,
+      where: { deletedAt: Not(IsNull()) },
+      order: { deletedAt: 'DESC' },
     });
   }
 
@@ -350,9 +365,14 @@ export class ServicePackagesService {
     if (dto.packageCode && dto.packageCode !== servicePackage.packageCode) {
       const existing = await this.packageRepository.findOne({
         where: { packageCode: dto.packageCode },
+        withDeleted: true,
       });
       if (existing) {
-        throw new ConflictException('Mã gói dịch vụ đã tồn tại');
+        throw new ConflictException(
+          existing.deletedAt
+            ? 'Mã gói dịch vụ này thuộc về một gói đã xóa. Hãy khôi phục gói đó hoặc dùng mã khác.'
+            : 'Mã gói dịch vụ đã tồn tại',
+        );
       }
     }
 
@@ -526,10 +546,31 @@ export class ServicePackagesService {
     return this.findOne(id);
   }
 
+  /**
+   * Xóa mềm: `bookings.package_id` vẫn trỏ tới gói, nên xóa cứng sẽ làm hỏng
+   * lịch sử đơn (mất tên gói, chính sách hủy, báo cáo theo gói).
+   */
   async remove(id: string): Promise<void> {
-    const servicePackage = await this.findOne(id);
-    await this.packageRepository.remove(servicePackage);
+    await this.findOne(id);
+    await this.packageRepository.softDelete(id);
     this.invalidatePackageCache();
+  }
+
+  async restore(id: string): Promise<ServicePackageEntity> {
+    const servicePackage = await this.packageRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+    if (!servicePackage) {
+      throw new NotFoundException('Không tìm thấy gói dịch vụ');
+    }
+    if (!servicePackage.deletedAt) {
+      throw new ConflictException('Gói dịch vụ này chưa bị xóa');
+    }
+
+    await this.packageRepository.restore(id);
+    this.invalidatePackageCache();
+    return this.findOne(id);
   }
 
   async addSubServices(

@@ -34,6 +34,7 @@ export const ADMIN_PACKAGES_KEYS = {
   lists: () => [...ADMIN_PACKAGES_KEYS.all, 'list'] as const,
   details: () => [...ADMIN_PACKAGES_KEYS.all, 'detail'] as const,
   detail: (id: string) => [...ADMIN_PACKAGES_KEYS.details(), id] as const,
+  deleted: () => [...ADMIN_PACKAGES_KEYS.all, 'deleted'] as const,
   analytics: (id: string, filter?: AnalyticsFilter) => [...ADMIN_PACKAGES_KEYS.detail(id), 'analytics', filter] as const,
 };
 
@@ -160,8 +161,31 @@ export const useDeleteAdminPackage = () => {
   return useMutation({
     mutationFn: (id: string) => adminServicesApi.deletePackage(id),
     onSuccess: () => {
-      toast.success('Xóa gói dịch vụ thành công!');
+      toast.success('Đã chuyển gói dịch vụ vào thùng rác!');
       queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.deleted() });
+    },
+  });
+};
+
+/** Gói đã xóa mềm — chỉ tải khi admin mở thùng rác. */
+export const useDeletedAdminPackages = (enabled = true) => {
+  return useQuery({
+    queryKey: ADMIN_PACKAGES_KEYS.deleted(),
+    queryFn: () => adminServicesApi.getDeletedPackages(),
+    enabled,
+  });
+};
+
+export const useRestoreAdminPackage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminServicesApi.restorePackage(id),
+    onSuccess: () => {
+      toast.success('Khôi phục gói dịch vụ thành công!');
+      queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: ADMIN_PACKAGES_KEYS.deleted() });
     },
   });
 };

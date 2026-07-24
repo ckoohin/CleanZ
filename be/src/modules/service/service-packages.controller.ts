@@ -48,6 +48,15 @@ export class ServicePackagesController {
     return successResponse(data);
   }
 
+  // Phải khai báo TRƯỚC @Get(':id') để route 'deleted' không bị nuốt thành id.
+  @Get('deleted')
+  @Auth(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Danh sách gói dịch vụ đã xóa (để khôi phục)' })
+  async findDeleted() {
+    const data = await this.servicePackagesService.findDeleted();
+    return successResponse(data);
+  }
+
   @Get(':id')
   @Auth(UserRole.ADMIN, UserRole.CUSTOMER, UserRole.TASKER)
   @ApiOperation({ summary: 'Lấy chi tiết gói dịch vụ' })
@@ -70,9 +79,19 @@ export class ServicePackagesController {
   @Delete(':id')
   @Auth(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Xóa gói dịch vụ' })
+  @ApiOperation({
+    summary: 'Xóa mềm gói dịch vụ (đơn cũ vẫn tra cứu được gói)',
+  })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.servicePackagesService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Auth(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Khôi phục gói dịch vụ đã xóa' })
+  async restore(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.servicePackagesService.restore(id);
+    return successResponse(data, 'Khôi phục gói dịch vụ thành công');
   }
 
   @Get(':id/analytics')

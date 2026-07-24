@@ -145,8 +145,8 @@ export class BookingEntity {
   @Column({
     name: 'duration_hours',
     type: 'numeric',
-    precision: 4,
-    scale: 1,
+    precision: 5,
+    scale: 2,
   })
   durationHours!: number;
 

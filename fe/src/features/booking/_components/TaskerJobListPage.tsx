@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   MapPin,
   Package,
@@ -12,9 +13,7 @@ import {
   PawPrint,
   Zap,
   Calendar,
-  LockKeyhole,
   Plus,
-  Wrench,
   Clock3,
 } from "lucide-react";
 import { usePostedBookingList } from "@/features/booking/hooks/useTaskerBooking";
@@ -80,11 +79,26 @@ function JobCard({
   onClick: () => void;
   index: number;
 }) {
+  // Thợ đủ điều kiện Cao cấp mới thấy badge. Thợ chưa duyệt xem đơn Premium y
+  // Đơn Cao cấp hiển thị cho mọi thợ (kèm badge), nhưng chỉ thợ đã đăng ký mới
+  // nhận được. Thợ chưa đủ điều kiện bấm vào chỉ hiện toast thông báo, không mở
+  // chi tiết đơn.
   const premiumLocked =
     item.serviceTier === "PREMIUM" && item.premiumAccess?.canAccept === false;
   const isExclusiveInvitation =
     item.invitation?.isInvited === true &&
     item.invitation?.isExclusive === true;
+
+  const handleCardClick = () => {
+    if (premiumLocked) {
+      toast.info(
+        item.premiumAccess?.message ??
+          "Đơn Cao cấp — bạn cần đăng ký thợ Cao cấp để nhận đơn này.",
+      );
+      return;
+    }
+    onClick();
+  };
 
   return (
     <motion.button
@@ -93,20 +107,13 @@ function JobCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
       whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      disabled={premiumLocked}
+      onClick={handleCardClick}
       className={`w-full rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-        premiumLocked
-          ? "cursor-not-allowed border-amber-500/30"
-          : isExclusiveInvitation
-            ? "cursor-pointer border-primary/40 shadow-sm shadow-primary/10 hover:border-primary/60 hover:shadow-md"
-            : "cursor-pointer border-border/50 hover:border-primary/30 hover:shadow-md"
+        isExclusiveInvitation
+          ? "cursor-pointer border-primary/40 shadow-sm shadow-primary/10 hover:border-primary/60 hover:shadow-md"
+          : "cursor-pointer border-border/50 hover:border-primary/30 hover:shadow-md"
       }`}
-      aria-label={
-        premiumLocked
-          ? `Đơn ${item.bookingCode} chưa thể nhận: ${item.premiumAccess?.message ?? "chưa đủ điều kiện Cao cấp"}`
-          : `Xem đơn ${item.bookingCode} - ${item.service.name}`
-      }
+      aria-label={`Xem đơn ${item.bookingCode} - ${item.service.name}`}
     >
       {/* Header */}
       <div className="mb-3 space-y-2">
@@ -172,33 +179,17 @@ function JobCard({
         <ExclusiveInvitationNotice publicAt={item.invitation?.publicAt} />
       )}
 
-      {premiumLocked && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-          <Wrench className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            {item.premiumAccess?.message ??
-              "Cần bổ sung bộ dụng cụ chuyên dụng và chờ admin duyệt."}
-          </span>
-        </div>
-      )}
-
       {/* Footer CTA */}
       <div className="mt-3 flex items-center justify-end border-t border-border/30 pt-3">
-        <span
-          className={`inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold ${
-            premiumLocked ? "text-muted-foreground" : "text-primary"
-          }`}
-        >
-          {premiumLocked ? (
-            <>
-              <LockKeyhole className="size-3.5" /> Chưa đủ điều kiện nhận
-            </>
-          ) : (
-            <>
-              Xem & Nhận đơn <ChevronRight className="size-3.5" />
-            </>
-          )}
-        </span>
+        {premiumLocked ? (
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-amber-600 dark:text-amber-500">
+            <Crown className="size-3.5" /> Chỉ dành cho thợ Cao cấp
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-primary">
+            Xem & Nhận đơn <ChevronRight className="size-3.5" />
+          </span>
+        )}
       </div>
     </motion.button>
   );

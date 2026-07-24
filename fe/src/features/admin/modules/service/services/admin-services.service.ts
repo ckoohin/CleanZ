@@ -171,6 +171,8 @@ export interface AdminServicePackageEntity {
   galleryUrls?: string[] | null;
   sortOrder: number;
   isActive: boolean;
+  /** Có giá trị khi gói đã bị xóa mềm (nằm trong thùng rác). */
+  deletedAt?: string | null;
   maxHours: number;
   pricingMode?: PricingMode | null;
   termsAndConditions?: string | null;
@@ -350,6 +352,16 @@ export const adminServicesApi = {
 
   deletePackage: async (id: string) => {
     await http.delete(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.DETAIL(id));
+  },
+
+  getDeletedPackages: async () => {
+    const { data } = await http.get<ApiResponse<AdminServicePackageEntity[]>>(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.DELETED);
+    return data.data;
+  },
+
+  restorePackage: async (id: string) => {
+    const { data } = await http.patch<ApiResponse<AdminServicePackageEntity>>(API_ENDPOINTS.ADMIN_SERVICE_PACKAGES.RESTORE(id));
+    return data.data;
   },
 
   // ─── LINK / UNLINK SUB-SERVICES ───

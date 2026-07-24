@@ -90,6 +90,20 @@ describe('PricingService — hạng dịch vụ PREMIUM', () => {
     expect(result.basePrice).toBe(300_000);
   });
 
+  it('tính đúng giá cho thời lượng theo block 15 phút', async () => {
+    const result = await buildService().calculateBookingPrice(
+      buildManager(buildPackage()),
+      {
+        ...BASE_INPUT,
+        durationHours: 1.25,
+        serviceTier: BookingServiceTier.STANDARD,
+      },
+    );
+
+    expect(result.durationHours).toBe(1.25);
+    expect(result.basePrice).toBe(125_000);
+  });
+
   it('PREMIUM nâng giá theo hệ số premium/base', async () => {
     const result = await buildService().calculateBookingPrice(
       buildManager(buildPackage()),

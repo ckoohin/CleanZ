@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   OneToMany,
   ManyToMany,
   JoinTable,
@@ -127,6 +128,14 @@ export class ServicePackageEntity {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt!: Date;
+
+  /**
+   * Xóa mềm: giữ bản ghi để đơn cũ (bookings.package_id) vẫn tra cứu được tên
+   * gói và chính sách, đồng thời TypeORM tự loại gói đã xóa khỏi mọi truy vấn
+   * đặt đơn mới. Tra cứu lịch sử phải dùng `withDeleted: true`.
+   */
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp', nullable: true })
+  deletedAt?: Date | null;
 
   @Column({
     type: 'numeric',

@@ -59,12 +59,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import axios from "axios";
+import {
+  getEarliestAvailableSchedule,
+  MIN_SCHEDULE_LEAD_MINUTES,
+  MINUTE_STEP,
+} from "@/features/customer/booking/utils/booking-schedule-time";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ServiceOption {
   id: string;
   name: string;
   description?: string | null;
+  pricingMode?: string | null;
   maxHours: number | null;
   baseHourlyRate: number;
   premiumHourlyRate: number;
@@ -80,6 +86,7 @@ interface WizardState {
   serviceId: string;        // ServicePackage ID
   pricingTierId: string;
   durationHours: number | null;
+  durationMode: "preset" | "custom";
   areaM2: number | null;
   addonIds: string[];  // Option/dịch vụ thêm IDs chọn thêm
   // Địa chỉ
@@ -104,6 +111,7 @@ const INIT_STATE: WizardState = {
   serviceId: "",
   pricingTierId: "",
   durationHours: null,
+  durationMode: "preset",
   areaM2: null,
   addonIds: [],
   addressId: "",
@@ -171,6 +179,22 @@ function getPricingTierStandardPrice(
   );
 }
 
+function getCustomDurationStandardPrice(
+  service: ServiceOption,
+  tier: PublicPricingTier | undefined,
+  durationHours: number,
+  areaM2: number | null,
+): number {
+  if (tier?.pricingMode === "FIXED") {
+    return tier.fixedPrice ?? 0;
+  }
+  if (tier?.pricingMode === "AREA_HOURLY") {
+    return (tier.pricePerM2 ?? 0) * (areaM2 ?? 0) * durationHours;
+  }
+
+  return (tier?.pricePerHour ?? service.baseHourlyRate) * durationHours;
+}
+
 function getServiceStartingStandardPrice(service: ServiceOption): number {
   const firstDuration = service.durations[0];
   if (firstDuration) return getDurationStandardPrice(service, firstDuration);
@@ -231,10 +255,60 @@ const HOURS = Array.from({ length: 24 }, (_, index) =>
   String(index).padStart(2, "0"),
 );
 const MINUTES = ["00", "15", "30", "45"];
-const MINUTE_STEP = 15;
+const CUSTOMER_MIN_DURATION_MINUTES = 60;
+const CUSTOMER_DURATION_STEP_MINUTES = 15;
 const SERVICE_DAY_START_MINUTES = 6 * 60;
 const SERVICE_DAY_END_MINUTES = 23 * 60;
-const MIN_SCHEDULE_LEAD_MINUTES = 60;
+
+function durationHoursToMinutes(durationHours: number): number {
+  return Math.round(durationHours * 60);
+}
+
+function isValidCustomerDurationHours(
+  durationHours: number | null,
+  maxHours?: number | null,
+): durationHours is number {
+  if (durationHours === null || !Number.isFinite(durationHours)) return false;
+
+  const durationMinutes = durationHoursToMinutes(durationHours);
+  return (
+    durationMinutes >= CUSTOMER_MIN_DURATION_MINUTES &&
+    durationMinutes % CUSTOMER_DURATION_STEP_MINUTES === 0 &&
+    (maxHours == null || durationMinutes <= durationHoursToMinutes(maxHours))
+  );
+}
+
+function buildCustomDurationOptions(minHours: number, maxHours: number): number[] {
+  const startMinutes = Math.max(
+    CUSTOMER_MIN_DURATION_MINUTES,
+    Math.ceil((minHours * 60) / CUSTOMER_DURATION_STEP_MINUTES) *
+      CUSTOMER_DURATION_STEP_MINUTES,
+  );
+  const endMinutes =
+    Math.floor((maxHours * 60) / CUSTOMER_DURATION_STEP_MINUTES) *
+    CUSTOMER_DURATION_STEP_MINUTES;
+
+  if (endMinutes < startMinutes) return [];
+
+  return Array.from(
+    {
+      length:
+        Math.floor(
+          (endMinutes - startMinutes) / CUSTOMER_DURATION_STEP_MINUTES,
+        ) + 1,
+    },
+    (_, index) =>
+      (startMinutes + index * CUSTOMER_DURATION_STEP_MINUTES) / 60,
+  );
+}
+
+function formatDurationHours(durationHours: number): string {
+  const totalMinutes = durationHoursToMinutes(durationHours);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return minutes === 0 ? `${hours} giờ` : `${hours} giờ ${minutes} phút`;
+}
 
 function getScheduleDateTime(date: string, time = "00:00"): Date {
   return new Date(`${date}T${time}:00+07:00`);
@@ -492,6 +566,7 @@ function StepService({
       id: service.id,
       name: service.name,
       description: service.shortDescription || service.policyDescription,
+      pricingMode: service.pricingMode,
       maxHours: service.maxHours,
       baseHourlyRate: service.baseHourlyRate ?? 0,
       premiumHourlyRate: service.premiumHourlyRate ?? 0,
@@ -506,18 +581,74 @@ function StepService({
   const selectedTier = selectedService?.pricingTiers.find(
     (tier) => tier.id === form.pricingTierId,
   );
-  const selectedDuration = selectedService?.durations.find(
-    (duration) => duration.durationHours === form.durationHours,
+  const selectedDuration =
+    form.durationMode === "preset"
+      ? selectedService?.durations.find(
+          (duration) => duration.durationHours === form.durationHours,
+        )
+      : undefined;
+  const customMinHours = Math.max(1, selectedTier?.minHours ?? 1);
+  const customMaxHours = Math.min(
+    selectedService?.maxHours ?? 8,
+    selectedTier?.maxHours ?? Number.POSITIVE_INFINITY,
   );
+  const customDurationOptions = selectedService
+    ? buildCustomDurationOptions(customMinHours, customMaxHours)
+    : [];
+  const selectedCustomDuration =
+    form.durationHours !== null &&
+    customDurationOptions.includes(form.durationHours)
+      ? form.durationHours
+      : (customDurationOptions[0] ?? 1);
+  const selectedCustomHour = Math.floor(selectedCustomDuration);
+  const selectedCustomMinute =
+    durationHoursToMinutes(selectedCustomDuration) % 60;
+  const customHourOptions = Array.from(
+    new Set(customDurationOptions.map((duration) => Math.floor(duration))),
+  );
+  const customMinuteOptions = customDurationOptions
+    .filter((duration) => Math.floor(duration) === selectedCustomHour)
+    .map((duration) => durationHoursToMinutes(duration) % 60);
+  const supportsCustomDuration =
+    !!selectedService &&
+    selectedService.pricingMode !== "FIXED" &&
+    customDurationOptions.length > 0 &&
+    (selectedService.baseHourlyRate > 0 ||
+      (selectedTier?.pricingMode === "HOURLY" &&
+        (selectedTier.pricePerHour ?? 0) > 0) ||
+      (selectedTier?.pricingMode === "AREA_HOURLY" &&
+        (selectedTier.pricePerM2 ?? 0) > 0));
+  const customDurationStandardPrice = selectedService
+    ? getCustomDurationStandardPrice(
+        selectedService,
+        selectedTier,
+        selectedCustomDuration,
+        form.areaM2,
+      )
+    : 0;
+  const customDurationPrice = selectedService
+    ? applyServiceTierPrice(
+        customDurationStandardPrice,
+        selectedService,
+        form.serviceTier,
+      )
+    : null;
   const selectedStandardPrice = selectedService
-    ? selectedDuration
-      ? getDurationStandardPrice(selectedService, selectedDuration)
-      : selectedTier
-        ? getPricingTierStandardPrice(
-            selectedTier,
-            form.durationHours ?? undefined,
-          )
-        : getServiceStartingStandardPrice(selectedService)
+    ? form.durationMode === "custom" && form.durationHours
+      ? getCustomDurationStandardPrice(
+          selectedService,
+          selectedTier,
+          form.durationHours,
+          form.areaM2,
+        )
+      : selectedDuration
+        ? getDurationStandardPrice(selectedService, selectedDuration)
+        : selectedTier
+          ? getPricingTierStandardPrice(
+              selectedTier,
+              form.durationHours ?? undefined,
+            )
+          : getServiceStartingStandardPrice(selectedService)
     : 0;
   const selectedPremiumPrice = selectedService
     ? applyServiceTierPrice(
@@ -559,6 +690,7 @@ function StepService({
         defaultTier?.defaultHours ??
         defaultTier?.minHours ??
         null,
+      durationMode: "preset",
       areaM2: defaultDuration?.suggestedArea ?? defaultTier?.areaMinM2 ?? null,
       addonIds: [],
       ...(resetPremiumTier
@@ -586,6 +718,7 @@ function StepService({
     onChange({
       pricingTierId: tier.id,
       durationHours: nextDurationHours,
+      durationMode: "preset",
       areaM2: tier.areaMinM2 ?? form.areaM2,
       addonIds: nextAddonIds,
     });
@@ -607,6 +740,7 @@ function StepService({
 
     onChange({
       durationHours: duration.durationHours,
+      durationMode: "preset",
       areaM2: duration.suggestedArea ?? form.areaM2,
       addonIds: nextAddonIds,
     });
@@ -616,6 +750,52 @@ function StepService({
         `Đã bỏ ${droppedCount} dịch vụ thêm vì vượt quá tổng số giờ tối đa của gói (${selectedService?.maxHours} giờ).`,
       );
     }
+  };
+
+  const handleSelectCustomDuration = (durationHours: number) => {
+    if (!customDurationOptions.includes(durationHours)) return;
+
+    const nextAddonIds = filterAddonsWithinMaxHours(
+      selectedService,
+      durationHours,
+      form.addonIds,
+    );
+    const droppedCount = form.addonIds.length - nextAddonIds.length;
+
+    onChange({
+      durationHours,
+      durationMode: "custom",
+      addonIds: nextAddonIds,
+    });
+
+    if (droppedCount > 0) {
+      toast.warning(
+        `Đã bỏ ${droppedCount} dịch vụ thêm vì vượt quá tổng số giờ tối đa của gói (${selectedService?.maxHours} giờ).`,
+      );
+    }
+  };
+
+  const handleCustomHourSelect = (hourValue: string) => {
+    const hour = Number(hourValue);
+    const durationsForHour = customDurationOptions.filter(
+      (duration) => Math.floor(duration) === hour,
+    );
+    const nextDuration =
+      durationsForHour.find(
+        (duration) =>
+          durationHoursToMinutes(duration) % 60 === selectedCustomMinute,
+      ) ??
+      durationsForHour[0];
+
+    if (nextDuration !== undefined) {
+      handleSelectCustomDuration(nextDuration);
+    }
+  };
+
+  const handleCustomMinuteSelect = (minuteValue: string) => {
+    handleSelectCustomDuration(
+      selectedCustomHour + Number(minuteValue) / 60,
+    );
   };
 
   const toggleAddon = (addonId: string) => {
@@ -740,7 +920,9 @@ function StepService({
             {selectedService.durations.length > 0 ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {selectedService.durations.map((duration) => {
-                  const selected = form.durationHours === duration.durationHours;
+                  const selected =
+                    form.durationMode === "preset" &&
+                    form.durationHours === duration.durationHours;
                   const price = applyServiceTierPrice(
                     getDurationStandardPrice(selectedService, duration),
                     selectedService,
@@ -854,6 +1036,101 @@ function StepService({
               <p className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
                 Gói này chưa có gói giờ setup sẵn, hệ thống sẽ tính theo dịch vụ con được chọn.
               </p>
+            )}
+
+            {supportsCustomDuration && (
+              <div
+                className={`rounded-xl border bg-background p-3 transition-all ${
+                  form.durationMode === "custom"
+                    ? "border-primary/70 shadow-sm"
+                    : "border-dashed border-border/70"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSelectCustomDuration(selectedCustomDuration)
+                  }
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-black leading-tight text-foreground">
+                      Tùy chỉnh thời lượng
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Từ 1 giờ · mỗi 15 phút
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-black leading-tight text-primary">
+                      {customDurationPrice !== null &&
+                      customDurationPrice > 0
+                        ? fmtCurrency(customDurationPrice)
+                        : selectedTier?.pricingMode === "AREA_HOURLY"
+                          ? "Nhập diện tích"
+                          : "Chưa có giá"}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-bold text-muted-foreground">
+                      {formatDurationHours(selectedCustomDuration)} ·{" "}
+                      {form.serviceTier === "PREMIUM"
+                        ? "Cao cấp"
+                        : "Tiêu chuẩn"}
+                    </p>
+                  </div>
+                </button>
+
+                {form.durationMode === "custom" && (
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
+                    <div>
+                      <label className="sr-only">
+                        Số giờ
+                      </label>
+                      <Select
+                        value={String(selectedCustomHour)}
+                        onValueChange={handleCustomHourSelect}
+                      >
+                        <SelectTrigger
+                          aria-label="Số giờ làm việc"
+                          className="h-9 rounded-lg bg-background text-xs font-bold"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customHourOptions.map((hour) => (
+                            <SelectItem key={hour} value={String(hour)}>
+                              {hour} giờ
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="sr-only">
+                        Số phút
+                      </label>
+                      <Select
+                        value={String(selectedCustomMinute)}
+                        onValueChange={handleCustomMinuteSelect}
+                      >
+                        <SelectTrigger
+                          aria-label="Số phút làm việc"
+                          className="h-9 rounded-lg bg-background text-xs font-bold"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customMinuteOptions.map((minute) => (
+                            <SelectItem key={minute} value={String(minute)}>
+                              {String(minute).padStart(2, "0")} phút
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {selectedTier?.pricingMode === "AREA_HOURLY" && (
@@ -1320,12 +1597,20 @@ function StepSchedule({
   };
 
   const handleEarliestTimeSelect = () => {
-    if (!form.scheduledDate) {
-      toast.info("Vui lòng chọn ngày trước");
-      return;
-    }
+    const earliest = getEarliestAvailableSchedule();
+    const scheduleChanged =
+      earliest.scheduledDate !== form.scheduledDate ||
+      earliest.scheduledTime !== form.scheduledTime;
 
-    handleTimeSelect(getEarliestSelectableTime(form.scheduledDate));
+    onChange({
+      scheduledDate: earliest.scheduledDate,
+      scheduledTime: earliest.scheduledTime,
+      ...(scheduleChanged ? { preferredTaskerId: undefined } : {}),
+    });
+
+    if (scheduleChanged && form.preferredTaskerId) {
+      toast.info("Lịch đã thay đổi, vui lòng chọn lại Tasker của bạn.");
+    }
   };
 
   return (
@@ -1457,7 +1742,7 @@ function StepSchedule({
           onClick={handleEarliestTimeSelect}
           className="rounded-lg border border-border/70 bg-background px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
         >
-          Sớm nhất có thể
+          Sớm nhất có thể 
         </button>
 
         {selectedTimeIsPeak && (
@@ -1849,6 +2134,7 @@ export const BookingWizard = ({
           defaultTier?.defaultHours ??
           defaultTier?.minHours ??
           prev.durationHours,
+        durationMode: "preset",
         areaM2: defaultDuration?.suggestedArea ?? defaultTier?.areaMinM2 ?? prev.areaM2,
         addonIds: [],
       }));
@@ -1906,9 +2192,12 @@ export const BookingWizard = ({
   const selectedBookingTier = selectedBookingPackage?.pricingTiers?.find(
     (tier) => tier.id === form.pricingTierId,
   );
-  const selectedBookingDuration = selectedBookingPackage?.durations?.find(
-    (duration) => duration.durationHours === form.durationHours,
-  );
+  const selectedBookingDuration =
+    form.durationMode === "preset"
+      ? selectedBookingPackage?.durations?.find(
+          (duration) => duration.durationHours === form.durationHours,
+        )
+      : undefined;
   const totalBookingWorkHours = getTotalWorkHours(
     selectedBookingPackage?.addons ?? [],
     form.durationHours,
@@ -1925,6 +2214,7 @@ export const BookingWizard = ({
           "serviceId",
           "pricingTierId",
           "durationHours",
+          "durationMode",
           "areaM2",
           "addonIds",
           "scheduledDate",
@@ -1950,7 +2240,11 @@ export const BookingWizard = ({
     if (step === 0)
       return (
         !!form.serviceId &&
-        ((form.durationHours ?? 0) > 0 || !!form.pricingTierId) &&
+        (isValidCustomerDurationHours(
+          form.durationHours,
+          selectedBookingPackage?.maxHours,
+        ) ||
+          (!!form.pricingTierId && form.durationHours === null)) &&
         (selectedBookingTier?.pricingMode !== "AREA_HOURLY" ||
           !!form.areaM2 ||
           !!selectedBookingDuration?.suggestedArea) &&

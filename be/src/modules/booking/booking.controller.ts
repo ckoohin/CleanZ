@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -435,7 +436,7 @@ export class BookingController {
   @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
   findPostedBookingDetailForTasker(
     @CurrentUser('id') userId: string,
-    @Param('id') bookingId: string,
+    @Param('id', ParseUUIDPipe) bookingId: string,
     @Query() location: TaskerBookingLocationDto,
   ): Promise<TaskerPostedBookingDetailResponse> {
     return this.taskerBookingService.findPostedBookingDetail(
@@ -466,7 +467,7 @@ export class BookingController {
   @ApiUnauthorizedResponse({ description: 'Tasker chưa đăng nhập' })
   acceptPostedBooking(
     @CurrentUser('id') userId: string,
-    @Param('id') bookingId: string,
+    @Param('id', ParseUUIDPipe) bookingId: string,
   ): Promise<TaskerAcceptBookingResponse> {
     return this.taskerBookingService.acceptPostedBooking(userId, bookingId);
   }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { formatVietnamDate } from 'src/common/helpers/vietnam-time.helper';
 import { BookingEntity } from '../entity/booking.entity';
 import {
   evaluateTaskerScheduleAvailability,
@@ -15,8 +16,26 @@ const TASKER_SCHEDULE_BUSY_STATUSES = [
   BookingStatus.IN_PROGRESS,
 ];
 
-interface TaskerBookingScheduleRow extends TaskerScheduleWindow {
+interface TaskerBookingScheduleRow extends Omit<
+  TaskerScheduleWindow,
+  'scheduledStartDate' | 'scheduledEndDate'
+> {
   taskerId: string;
+  scheduledStartDate: string | Date;
+  scheduledEndDate: string | Date;
+}
+
+function normalizeScheduleDate(value: string | Date): string | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : formatVietnamDate(value);
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : formatVietnamDate(parsed);
 }
 
 @Injectable()
@@ -48,10 +67,12 @@ export class TaskerScheduleAvailabilityService {
 
     const bookingsByTasker = new Map<string, TaskerScheduleWindow[]>();
     for (const row of rows) {
+      const scheduledStartDate = normalizeScheduleDate(row.scheduledStartDate);
+      const scheduledEndDate = normalizeScheduleDate(row.scheduledEndDate);
       if (
-        !row.scheduledStartDate ||
+        !scheduledStartDate ||
         !row.scheduledStartTime ||
-        !row.scheduledEndDate ||
+        !scheduledEndDate ||
         !row.scheduledEndTime
       ) {
         continue;
@@ -60,9 +81,9 @@ export class TaskerScheduleAvailabilityService {
       const current = bookingsByTasker.get(row.taskerId) ?? [];
       current.push({
         bookingCode: row.bookingCode,
-        scheduledStartDate: String(row.scheduledStartDate),
+        scheduledStartDate,
         scheduledStartTime: String(row.scheduledStartTime),
-        scheduledEndDate: String(row.scheduledEndDate),
+        scheduledEndDate,
         scheduledEndTime: String(row.scheduledEndTime),
       });
       bookingsByTasker.set(row.taskerId, current);

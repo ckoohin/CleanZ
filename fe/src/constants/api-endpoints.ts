@@ -204,6 +204,8 @@ export const API_ENDPOINTS = {
   },
   ADMIN_SERVICE_PACKAGES: {
     BASE: "/admin/service-packages",
+    DELETED: "/admin/service-packages/deleted",
+    RESTORE: (id: string) => `/admin/service-packages/${id}/restore`,
     DETAIL: (id: string) => `/admin/service-packages/${id}`,
     ANALYTICS: (id: string) => `/admin/service-packages/${id}/analytics`,
     SUB_SERVICES: (id: string) => `/admin/service-packages/${id}/sub-services`,

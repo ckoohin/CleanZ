@@ -50,6 +50,7 @@ import { SubServiceEntity } from 'src/modules/service/entity/sub-service.entity'
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
 import { ServiceAddonEntity } from 'src/modules/service/entity/service-addon.entity';
 import { saveBookingAddons } from '../helpers/save-booking-addons.helper';
+import { assertValidCustomerDuration } from '../helpers/customer-duration.helper';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
 import { BookingQuoteEntity } from '../entity/booking-quote.entity';
 import {
@@ -128,6 +129,8 @@ export class CustomerBookingService {
     userId: string,
     dto: QuoteBookingDto,
   ): Promise<CustomerBookingQuoteResponse> {
+    assertValidCustomerDuration(dto.durationHours);
+
     return asyncHandleOperation(async () => {
       const context = await this.buildBookingPricingContext(
         this.dataSource.manager,
@@ -220,6 +223,8 @@ export class CustomerBookingService {
     userId: string,
     dto: CreateBookingDto,
   ): Promise<CustomerBookingCreatedResponse> {
+    assertValidCustomerDuration(dto.durationHours);
+
     return asyncHandleOperation(async () => {
       let createdBookingId: string | undefined;
       let addressLat: number | null = null;

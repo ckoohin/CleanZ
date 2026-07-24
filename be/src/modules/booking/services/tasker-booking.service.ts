@@ -490,7 +490,6 @@ export class TaskerBookingService {
         .createQueryBuilder('booking')
         .leftJoinAndSelect('booking.addressRef', 'addressRef')
         .leftJoinAndSelect('booking.tasker', 'tasker')
-        .addSelect('booking.id', 'access_booking_id')
         .addSelect(isInvitedSql, 'access_is_invited')
         .addSelect(isPublicSql, 'access_is_public')
         .where('booking.status = :status', { status: BookingStatus.POSTED })
@@ -509,13 +508,13 @@ export class TaskerBookingService {
         .addOrderBy('booking.createdAt', 'ASC');
 
       const { entities: bookings, raw } = await query.getRawAndEntities<{
-        access_booking_id: string;
+        booking_id: string;
         access_is_invited: boolean;
         access_is_public: boolean;
       }>();
       const accessByBookingId = new Map(
         raw.map((item) => [
-          item.access_booking_id,
+          item.booking_id,
           {
             isInvited: item.access_is_invited === true,
             isPublic: item.access_is_public === true,
@@ -1460,8 +1459,10 @@ export class TaskerBookingService {
     const access = this.buildTaskerPremiumAccess(tasker);
     if (access.canAccept) return;
 
+    // Đơn Cao cấp hiển thị cho mọi thợ nhưng chỉ thợ đã đăng ký (dụng cụ đã
+    // duyệt) mới nhận được — thợ chưa đủ điều kiện nhận hướng dẫn đăng ký.
     throw new ForbiddenException(
-      access.message ?? 'Bạn chưa đủ điều kiện nhận đơn Cao cấp',
+      access.message ?? 'Bạn cần đăng ký thợ Cao cấp để nhận đơn này',
     );
   }
 
@@ -1471,14 +1472,11 @@ export class TaskerBookingService {
 
     if (issues.includes('EQUIPMENT_NOT_APPROVED')) {
       if (tasker.equipmentStatus === TaskerEquipmentStatus.PENDING) {
-        message =
-          'Bộ dụng cụ chuyên dụng đang chờ admin duyệt. Bạn chưa thể nhận đơn Cao cấp.';
+        message = 'Hồ sơ bộ dụng cụ đang chờ duyệt, hãy thử lại sau';
       } else if (tasker.equipmentStatus === TaskerEquipmentStatus.REJECTED) {
-        message =
-          'Bộ dụng cụ chuyên dụng chưa được duyệt. Hãy bổ sung ảnh và nộp lại trong Hồ sơ.';
+        message = 'Bộ dụng cụ chưa được duyệt, hãy thử lại sau';
       } else {
-        message =
-          'Cần bổ sung bộ dụng cụ chuyên dụng trong Hồ sơ và chờ admin duyệt.';
+        message = 'Đăng ký trở thành thợ premium để nhận đơn này.';
       }
     }
 
@@ -1605,10 +1603,13 @@ export class TaskerBookingService {
       return new Map();
     }
 
+    // withDeleted: đây là tra cứu lịch sử theo bookings.package_id — gói đã xóa
+    // mềm vẫn phải hiện đúng tên, nếu không đơn cũ sẽ mất thông tin dịch vụ.
     const packages = await this.dataSource.manager
       .getRepository(ServicePackageEntity)
       .find({
         where: { id: In(packageIds) },
+        withDeleted: true,
       });
 
     return new Map(packages.map((pkg) => [pkg.id, pkg]));
@@ -1926,10 +1927,12 @@ export class TaskerBookingService {
     name: string;
     description?: string | null;
   }> {
+    // withDeleted: tra cứu lịch sử theo đơn — gói đã xóa mềm vẫn phải hiện tên.
     const pkg = await this.dataSource.manager
       .getRepository(ServicePackageEntity)
       .findOne({
         where: { id: booking.packageId },
+        withDeleted: true,
       });
     return {
       id: booking.packageId,

@@ -1,7 +1,9 @@
 import { DataSource } from 'typeorm';
+import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
+import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import { BookingEntity } from '../entity/booking.entity';
 import { POSTED_LIST_OPEN_TO_ALL_AFTER_MS } from './booking-dispatch.service';
@@ -21,6 +23,16 @@ type BookingAccessReader = {
     userId: string,
     booking: BookingEntity,
   ): Promise<void>;
+};
+
+type PostedBookingReader = {
+  findPostedBookings(userId: string): Promise<{
+    total: number;
+    items: Array<{
+      id: string;
+      invitation: { isInvited: boolean };
+    }>;
+  }>;
 };
 
 function buildService(
@@ -114,5 +126,108 @@ describe('TaskerBookingService — quyền xem và nhận booking được mời
       isExclusive: false,
       isPublic: false,
     });
+  });
+});
+
+describe('TaskerBookingService — danh sách booking posted', () => {
+  it('giữ booking.id khi query thêm trạng thái lời mời', async () => {
+    const postedBooking = {
+      id: 'booking-id',
+      bookingCode: 'BOOKING-1',
+      status: BookingStatus.POSTED,
+      serviceTier: BookingServiceTier.STANDARD,
+      packageId: 'package-id',
+      address: 'Phường Dịch Vọng, Cầu Giấy',
+      addressRef: { hasPet: false },
+      scheduledStartDate: '2026-07-25',
+      scheduledStartTime: '08:00:00',
+      scheduledEndDate: '2026-07-25',
+      scheduledEndTime: '10:00:00',
+      durationHours: 2,
+      totalPrice: 264_000,
+      basePrice: 264_000,
+      addonPrice: 0,
+      peakFee: 0,
+      petFee: 0,
+      discountAmount: 0,
+      createdAt: new Date('2026-07-24T08:00:00.000Z'),
+    } as BookingEntity;
+    const queryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      setParameters: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      getRawAndEntities: jest.fn().mockResolvedValue({
+        entities: [postedBooking],
+        raw: [
+          {
+            booking_id: postedBooking.id,
+            access_is_invited: true,
+            access_is_public: false,
+          },
+        ],
+      }),
+    };
+    const bookingRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    };
+    const packageRepository = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: 'package-id',
+          name: 'Dọn văn phòng',
+          policyDescription: null,
+        },
+      ]),
+    };
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(bookingRepository),
+      manager: {
+        getRepository: jest.fn().mockReturnValue(packageRepository),
+      },
+    } as unknown as DataSource;
+    const bookingDispatchService = {
+      getPremiumDispatchConfig: jest
+        .fn()
+        .mockResolvedValue({ favoriteWaitMs: 15 * 60 * 1000 }),
+    };
+    const service = new TaskerBookingService(
+      dataSource,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      bookingDispatchService as never,
+      undefined as never,
+      undefined as never,
+    );
+    (
+      service as unknown as {
+        findTaskerProfile: jest.Mock;
+      }
+    ).findTaskerProfile = jest.fn().mockResolvedValue({
+      equipmentStatus: TaskerEquipmentStatus.APPROVED,
+    });
+
+    const result = await (
+      service as unknown as PostedBookingReader
+    ).findPostedBookings('tasker-user-id');
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.id).toBe(postedBooking.id);
+    expect(result.items[0]?.invitation.isInvited).toBe(true);
+    expect(queryBuilder.addSelect).not.toHaveBeenCalledWith(
+      'booking.id',
+      'access_booking_id',
+    );
   });
 });

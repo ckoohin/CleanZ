@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   CalendarClock,
@@ -80,6 +81,28 @@ export function FavoriteTaskerPicker({
     selectedTasker && isAvailabilityItem(selectedTasker)
       ? selectedTasker.availability
       : null;
+  const selectedIsUnavailable =
+    !!selectedAvailability && !selectedAvailability.isAvailable;
+
+  // Khách đổi giờ sau khi đã chọn thợ có thể khiến thợ đó thành trùng lịch. Bỏ
+  // ưu tiên ngay tại wizard + báo cho khách, thay vì để tới lúc submit mới lỗi.
+  useEffect(() => {
+    if (!value || !hasSchedule || availabilityQuery.isFetching) return;
+    if (!selectedIsUnavailable) return;
+
+    onChange(undefined);
+    toast.warning(
+      selectedAvailability?.message ??
+        "Thợ bạn chọn đã có công việc tại khung giờ này. Đã bỏ ưu tiên thợ này.",
+    );
+  }, [
+    value,
+    hasSchedule,
+    availabilityQuery.isFetching,
+    selectedIsUnavailable,
+    selectedAvailability,
+    onChange,
+  ]);
 
   const handleSelect = (
     favorite: FavoriteTasker | FavoriteTaskerAvailability,
@@ -337,8 +360,7 @@ export function FavoriteTaskerPicker({
 
             <div className="mt-4 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-[11px] text-muted-foreground">
               <Clock3 className="mt-0.5 size-3.5 shrink-0" />
-              Lịch sát ca trong vòng 60 phút chỉ hiển thị cảnh báo và vẫn có thể
-              chọn. Tasker trùng lịch sẽ không thể chọn.
+              Nếu tasker không nhận hệ thống sẽ tự động tìm tasker khác phù hợp. Bạn vẫn có thể chọn tasker khác trong danh sách.
             </div>
           </div>
         </DialogContent>

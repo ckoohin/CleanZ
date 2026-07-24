@@ -20,8 +20,6 @@ import {
   Route,
   Loader2,
   ShieldAlert,
-  LockKeyhole,
-  Wrench,
   XCircle,
   Crown,
 } from "lucide-react";
@@ -306,7 +304,6 @@ function PostedDetailView({
   onAccepted: () => void;
   onUnavailable: () => void;
 }) {
-  const router = useRouter();
   const accept = useAcceptBooking();
   const platformCommissionRate = data.price.platformCommissionRate;
   const platformFee = data.price.platformFee;
@@ -418,31 +415,22 @@ function PostedDetailView({
         </div>
       </div>
 
-      {/* Accept button / lý do khóa đơn Premium */}
+      {/* Đơn Cao cấp hiển thị cho mọi thợ; thợ chưa đăng ký chỉ thấy thông báo,
+          không có nút nhận. */}
       {premiumLocked ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
           <div className="flex items-start gap-2">
-            <LockKeyhole className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <Crown className="mt-0.5 size-4 shrink-0 text-amber-600" />
             <div>
               <p className="text-sm font-bold text-amber-700 dark:text-amber-400">
-                Bạn chưa thể nhận đơn Cao cấp này
+                Đơn Cao cấp — dành cho thợ đã đăng ký
               </p>
               <p className="mt-1 text-xs leading-relaxed text-amber-700/90 dark:text-amber-400/90">
                 {data.premiumAccess?.message ??
-                  "Cần bổ sung bộ dụng cụ chuyên dụng và chờ admin duyệt."}
+                  "Đơn này chỉ dành cho thợ Cao cấp đã được duyệt bộ dụng cụ chuyên dụng."}
               </p>
             </div>
           </div>
-          {data.premiumAccess?.issues.includes("EQUIPMENT_NOT_APPROVED") && (
-            <button
-              type="button"
-              onClick={() => router.push("/tasker/profile")}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-xs font-black text-white"
-            >
-              <Wrench className="size-4" />
-              Bổ sung bộ dụng cụ chuyên dụng
-            </button>
-          )}
         </div>
       ) : (
         <SwipeToAccept

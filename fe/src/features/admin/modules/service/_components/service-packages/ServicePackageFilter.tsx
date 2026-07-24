@@ -1,6 +1,6 @@
 import {
   Package, Grid3X3, List, SlidersHorizontal, RotateCcw, X, Loader2,
-  CheckCircle2, XCircle, LayoutList, Users, Repeat, MousePointerClick,
+  CheckCircle2, XCircle, LayoutList, Users, Repeat, MousePointerClick, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BaseButton } from "@/components/ui/base/base_button";
@@ -13,6 +13,7 @@ export type SubServiceCountFilter = "all" | "none" | "few" | "many";
 export type CoverageFilter = "all" | "limited" | "system";
 export type PolicyDescFilter = "all" | "yes" | "no";
 export type ServiceModeFilterId = "multiple" | "subscription" | "single";
+export type ServicePackageStatusFilter = "all" | "active" | "inactive" | "deleted";
 
 const SERVICE_MODE_OPTIONS: {
   id: ServiceModeFilterId; label: string; icon: typeof Users;
@@ -27,6 +28,7 @@ const STATUS_BTNS = [
   { key: "all" as const, label: "Tất cả", icon: LayoutList },
   { key: "active" as const, label: "Đang bật", icon: CheckCircle2 },
   { key: "inactive" as const, label: "Đã tắt", icon: XCircle },
+  { key: "deleted" as const, label: "Thùng rác", icon: Trash2 },
 ];
 
 export function ServicePackageFilter({
@@ -42,8 +44,8 @@ export function ServicePackageFilter({
   serviceModeFilters, onToggleServiceMode,
 }: {
   searchTerm: string; onSearchChange: (v: string) => void; isSearchPending: boolean;
-  statusFilter: "all" | "active" | "inactive"; onStatusFilterChange: (v: "all" | "active" | "inactive") => void;
-  statusCounts: { all: number; active: number; inactive: number };
+  statusFilter: ServicePackageStatusFilter; onStatusFilterChange: (v: ServicePackageStatusFilter) => void;
+  statusCounts: Record<ServicePackageStatusFilter, number>;
   viewMode: "grid" | "list"; onViewModeChange: (v: "grid" | "list") => void;
   isFiltersExpanded: boolean; onToggleExpanded: () => void;
   isAnyFilterActive: boolean; onReset: () => void;
@@ -53,12 +55,14 @@ export function ServicePackageFilter({
   policyDescFilter: PolicyDescFilter; onPolicyDescFilterChange: (v: PolicyDescFilter) => void;
   serviceModeFilters: ServiceModeFilterId[]; onToggleServiceMode: (id: ServiceModeFilterId) => void;
 }) {
+  const isDeletedView = statusFilter === "deleted";
+
   return (
     <>
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         {/* Status segmented control — nổi bật, có icon + số lượng */}
-        <div className="flex items-center gap-1 p-1 bg-muted/40 border border-border/50 rounded-2xl">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border/50 bg-muted/40 p-1">
           {STATUS_BTNS.map((btn) => {
             const isActive = statusFilter === btn.key;
             return (
@@ -66,7 +70,7 @@ export function ServicePackageFilter({
                 key={btn.key}
                 onClick={() => onStatusFilterChange(btn.key)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all",
+                  "flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all",
                   isActive
                     ? "bg-(--c-card) text-primary shadow-md ring-1 ring-primary/20 scale-[1.02]"
                     : "text-muted-foreground hover:text-foreground hover:bg-(--c-card)/60"
@@ -94,7 +98,11 @@ export function ServicePackageFilter({
               <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--c-muted)" aria-hidden="true" />
             )}
             <Input
-              placeholder="Tìm theo tên, mã gói hoặc mô tả chính sách..."
+              placeholder={
+                isDeletedView
+                  ? "Tìm trong thùng rác..."
+                  : "Tìm theo tên, mã gói hoặc mô tả chính sách..."
+              }
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9 pr-8 h-10 rounded-xl bg-(--c-card) text-sm shadow-sm"
@@ -111,22 +119,24 @@ export function ServicePackageFilter({
             )}
           </div>
 
-          <BaseButton
-            variant="outline"
-            onClick={onToggleExpanded}
-            className={cn(
-              "h-9 px-3 rounded-xl gap-2 font-bold text-xs shrink-0 border-border/50",
-              (isFiltersExpanded || isAnyFilterActive) && "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
-            )}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Bộ lọc</span>
-            {isAnyFilterActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            )}
-          </BaseButton>
+          {!isDeletedView && (
+            <BaseButton
+              variant="outline"
+              onClick={onToggleExpanded}
+              className={cn(
+                "h-9 px-3 rounded-xl gap-2 font-bold text-xs shrink-0 border-border/50",
+                (isFiltersExpanded || isAnyFilterActive) && "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
+              )}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Bộ lọc</span>
+              {isAnyFilterActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              )}
+            </BaseButton>
+          )}
 
-          {isAnyFilterActive && (
+          {!isDeletedView && isAnyFilterActive && (
             <BaseButton
               variant="ghost"
               onClick={onReset}
@@ -137,25 +147,27 @@ export function ServicePackageFilter({
             </BaseButton>
           )}
 
-          <div className="flex rounded-xl overflow-hidden border border-border/50 shrink-0">
-            <button
-              onClick={() => onViewModeChange("grid")}
-              className={`p-2 transition-colors ${viewMode === "grid" ? "bg-(--c-primary) text-white" : "bg-(--c-card) text-(--c-muted) hover:bg-(--c-card-2)"}`}
-            >
-              <Grid3X3 className="w-4 h-4" aria-hidden="true" />
-            </button>
-            <button
-              onClick={() => onViewModeChange("list")}
-              className={`p-2 transition-colors ${viewMode === "list" ? "bg-(--c-primary) text-white" : "bg-(--c-card) text-(--c-muted) hover:bg-(--c-card-2)"}`}
-            >
-              <List className="w-4 h-4" aria-hidden="true" />
-            </button>
-          </div>
+          {!isDeletedView && (
+            <div className="flex rounded-xl overflow-hidden border border-border/50 shrink-0">
+              <button
+                onClick={() => onViewModeChange("grid")}
+                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-(--c-primary) text-white" : "bg-(--c-card) text-(--c-muted) hover:bg-(--c-card-2)"}`}
+              >
+                <Grid3X3 className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => onViewModeChange("list")}
+                className={`p-2 transition-colors ${viewMode === "list" ? "bg-(--c-primary) text-white" : "bg-(--c-card) text-(--c-muted) hover:bg-(--c-card-2)"}`}
+              >
+                <List className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Expanded Advanced Filters Panel */}
-      {isFiltersExpanded && (
+      {isFiltersExpanded && !isDeletedView && (
         <div className="bg-card border border-border/40 rounded-2xl p-5 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-in slide-in-from-top-2 duration-200">
           {/* Lọc 1: Thời lượng tối đa */}
           <div className="space-y-1.5">

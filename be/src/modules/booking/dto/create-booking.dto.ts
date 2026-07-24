@@ -111,9 +111,9 @@ export class CreateBookingDto {
   scheduledTime?: string;
 
   @ApiPropertyOptional({
-    example: 3,
+    example: 1.25,
     description:
-      'Chỉ dùng khi không truyền serviceId để hệ thống tự tìm gói theo số giờ. FE nên ưu tiên truyền serviceId và bỏ field này.',
+      'Thời lượng customer chọn. Tối thiểu 1 giờ và tăng theo mỗi 15 phút (1, 1.25, 1.5, 1.75...).',
   })
   @IsOptional()
   @IsNumber()
