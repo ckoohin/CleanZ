@@ -1,8 +1,11 @@
-import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const nextConfig: NextConfig = {
+const projectRoot = dirname(fileURLToPath(import.meta.url));
+
+const nextConfig = {
   turbopack: {
-    root: __dirname,
+    root: projectRoot,
   },
   allowedDevOrigins: ["cleanz.online"],
   images: {
@@ -26,7 +29,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "cdn.example.com",
-      }
+      },
     ],
   },
 };

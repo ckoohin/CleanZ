@@ -6,7 +6,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm ci --no-audit --no-fund
 
-COPY tsconfig.json next.config.ts postcss.config.mjs ./
+COPY tsconfig.json next.config.mjs postcss.config.mjs ./
 COPY public ./public
 COPY src ./src
 
@@ -28,7 +28,7 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=builder --chown=node:node /usr/src/app/.next ./.next
 COPY --from=builder --chown=node:node /usr/src/app/public ./public
 # next start đọc config lúc runtime (images.remotePatterns cho Cloudinary/Goong...).
-COPY --from=builder --chown=node:node /usr/src/app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=node:node /usr/src/app/next.config.mjs ./next.config.mjs
 
 USER node
 EXPOSE 3020
