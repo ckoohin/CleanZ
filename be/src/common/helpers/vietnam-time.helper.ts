@@ -59,10 +59,19 @@ export function formatVietnamTime(date: Date): string {
 }
 
 /**
- * Chuỗi SQL expression tính mốc đầu kỳ (mặc định 'week', tuần bắt đầu thứ 2)
- * theo giờ Việt Nam, trả về `timestamp without time zone` để so sánh trực tiếp
- * với các cột timestamp (đã chuẩn hoá về giờ VN) và vẫn dùng được index.
+ * Chuỗi SQL expression tính mốc đầu kỳ ('day' | 'week' | 'month') theo giờ
+ * Việt Nam, trả về `timestamp without time zone` để so sánh trực tiếp với các
+ * cột timestamp (đã chuẩn hoá về giờ VN) và vẫn dùng được index.
+ * Tuần bắt đầu thứ 2 (chuẩn DATE_TRUNC của Postgres).
  */
+export function vietnamPeriodStartSqlExpr(
+  unit: 'day' | 'week' | 'month',
+  nowExpr = 'NOW()',
+): string {
+  return `DATE_TRUNC('${unit}', ${nowExpr} AT TIME ZONE '${VIETNAM_TIMEZONE}')`;
+}
+
+/** Wrapper tương thích ngược — xem vietnamPeriodStartSqlExpr. */
 export function vietnamWeekStartSqlExpr(nowExpr = 'NOW()'): string {
-  return `DATE_TRUNC('week', ${nowExpr} AT TIME ZONE '${VIETNAM_TIMEZONE}')`;
+  return vietnamPeriodStartSqlExpr('week', nowExpr);
 }

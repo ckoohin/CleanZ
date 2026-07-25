@@ -19,6 +19,7 @@ import { NotificationType } from 'src/common/enums/notification-type.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { toNumber } from 'src/common/helpers/number.helper';
+import { haversineDistanceMeters } from 'src/common/helpers/geo.helper';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -28,6 +29,7 @@ import { GoongMapService } from 'src/modules/goong/goong-map.service';
 import { TrackingGateway } from 'src/modules/tracking/tracking.gateway';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerBookingLocationDto } from '../dto/tasker-booking-location.dto';
+import { CheckinDto } from '../dto/checkin.dto';
 import { CancelBookingDto } from '../dto/cancel-booking.dto';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
@@ -1037,6 +1039,7 @@ export class TaskerBookingService {
   async markCheckedIn(
     userId: string,
     bookingId: string,
+    checkinDto: CheckinDto = {},
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
       // Validate quyền sở hữu booking trước khi vào transaction check-in
@@ -1060,6 +1063,7 @@ export class TaskerBookingService {
           userId,
           bookingId,
           manager,
+          checkinDto,
         );
 
         // Load lại booking với đầy đủ relations để map response
@@ -1903,22 +1907,11 @@ export class TaskerBookingService {
     toLatitude: number,
     toLongitude: number,
   ): number {
-    const earthRadiusMeters = 6_371_000;
-    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-    const latitudeDelta = toRadians(toLatitude - fromLatitude);
-    const longitudeDelta = toRadians(toLongitude - fromLongitude);
-    const fromLatitudeRadians = toRadians(fromLatitude);
-    const toLatitudeRadians = toRadians(toLatitude);
-    const haversine =
-      Math.sin(latitudeDelta / 2) ** 2 +
-      Math.cos(fromLatitudeRadians) *
-        Math.cos(toLatitudeRadians) *
-        Math.sin(longitudeDelta / 2) ** 2;
-
-    return (
-      2 *
-      earthRadiusMeters *
-      Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+    return haversineDistanceMeters(
+      fromLatitude,
+      fromLongitude,
+      toLatitude,
+      toLongitude,
     );
   }
 

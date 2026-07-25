@@ -9,6 +9,7 @@ import { AppException } from '../../common/exceptions/app.exception';
 import { asyncHandleOperation } from '../../common/utils/async-handle.utils';
 
 const UPLOAD_FOLDER = 'CleanZ/uploads';
+const CLOUDINARY_UPLOAD_TIMEOUT_MS = 120_000;
 
 export interface UploadResult {
   url: string;
@@ -30,9 +31,8 @@ export class UploadService {
     return asyncHandleOperation(async () => {
       const result = await this.uploadToCloudinary(file.buffer, folder);
 
-      this.logger.log(
-        `Upload success | public_id: ${result.public_id} | url: ${result.secure_url}`,
-      );
+      // Không log URL/public_id vì upload có thể là giấy tờ KYC nhạy cảm.
+      this.logger.log('Upload success');
 
       return {
         url: result.secure_url,
@@ -54,7 +54,7 @@ export class UploadService {
         );
       }
 
-      this.logger.log(`Delete success | public_id: ${publicId}`);
+      this.logger.log('Delete success');
 
       return { message: 'Image deleted successfully' };
     }, 'Failed to delete image from Cloudinary');
@@ -71,6 +71,7 @@ export class UploadService {
           resource_type: 'image',
           quality: 'auto',
           fetch_format: 'auto',
+          timeout: CLOUDINARY_UPLOAD_TIMEOUT_MS,
         },
         (error?: UploadApiErrorResponse, result?: UploadApiResponse) => {
           if (error) {

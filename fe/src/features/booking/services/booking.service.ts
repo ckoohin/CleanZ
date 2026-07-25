@@ -12,6 +12,7 @@ import type {
   QuoteBookingDto,
   TaskerAcceptResponse,
   TaskerAssignedBookingDetail,
+  TaskerCheckinPayload,
   TaskerCompletedBookingListResponse,
   TaskerCompletedBookingRange,
   TaskerCreatedBookingResponse,
@@ -216,10 +217,13 @@ export const taskerBookingApi = {
       .patch(API_ENDPOINTS.BOOKING.TASKER_ON_WAY(id))
       .then((r) => r.data.data ?? r.data),
 
-  /** 09. Check-in khi đến nơi */
-  markCheckedIn: (id: string): Promise<TaskerAssignedBookingDetail> =>
+  /** 09. Check-in khi đến nơi (kèm GPS; xa >50m phải kèm ảnh minh chứng) */
+  markCheckedIn: (
+    id: string,
+    payload: TaskerCheckinPayload = {},
+  ): Promise<TaskerAssignedBookingDetail> =>
     http
-      .patch(API_ENDPOINTS.BOOKING.TASKER_CHECKIN(id), undefined, {
+      .patch(API_ENDPOINTS.BOOKING.TASKER_CHECKIN(id), payload, {
         skipErrorToast: true,
       } as Parameters<typeof http.patch>[2])
       .then((r) => r.data.data ?? r.data),

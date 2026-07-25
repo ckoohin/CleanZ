@@ -34,6 +34,7 @@ import {
   OptionalTaskerBookingLocationDto,
   TaskerBookingLocationDto,
 } from './dto/tasker-booking-location.dto';
+import { CheckinDto } from './dto/checkin.dto';
 import { UpdateBookingScheduleAddressDto } from './dto/update-booking-schedule-address.dto';
 import { TaskerCompletedBookingQueryDto } from './dto/tasker-completed-booking-query.dto';
 import {
@@ -575,7 +576,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 6 — Check-in khi đến nơi',
     description:
-      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime và chuyển sang màn hình tasker đã đến.',
+      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Yêu cầu tọa độ GPS hiện tại; cách địa chỉ khách quá 50m (hoặc thiếu GPS) thì phải kèm proofPhotoUrl mới check-in được và đơn bị gắn cờ cho admin. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime.',
   })
   @ApiParam({
     name: 'id',
@@ -592,8 +593,13 @@ export class BookingController {
   markTaskerCheckedIn(
     @CurrentUser('id') userId: string,
     @Param('id') bookingId: string,
+    @Body() checkinDto: CheckinDto,
   ): Promise<TaskerAssignedBookingDetailResponse> {
-    return this.taskerBookingService.markCheckedIn(userId, bookingId);
+    return this.taskerBookingService.markCheckedIn(
+      userId,
+      bookingId,
+      checkinDto,
+    );
   }
 
   @Patch('tasker/:id/start')

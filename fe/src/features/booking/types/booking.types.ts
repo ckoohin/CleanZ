@@ -411,6 +411,16 @@ export interface TaskerAcceptResponse {
   schedule: BookingSchedule;
 }
 
+/**
+ * Body của PATCH tasker/:id/check-in. Thiếu GPS hoặc cách khách >50m thì backend
+ * yêu cầu proofPhotoUrl (ảnh minh chứng) mới cho check-in.
+ */
+export interface TaskerCheckinPayload {
+  currentLatitude?: number;
+  currentLongitude?: number;
+  proofPhotoUrl?: string;
+}
+
 export interface TaskerAssignedBookingDetail {
   id: string;
   bookingCode: string;

@@ -104,6 +104,16 @@ export class BookingSearchQueryDto {
   @IsEnum(BookingServiceTier)
   serviceTier?: BookingServiceTier;
 
+  @ApiPropertyOptional({
+    description:
+      'Chỉ lấy booking tasker check-in ngoài bán kính cho phép / không có GPS (kèm ảnh minh chứng)',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  farCheckin?: boolean;
+
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
