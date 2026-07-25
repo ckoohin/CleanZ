@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck, RefreshCw, ArrowLeft, CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useVerifyOtp } from "@/features/auth/hooks/auth.hooks";
+import { getApiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import Footer from "@/features/auth/_components/Footer";
 import { useLoginContext } from "@/features/auth/context/login.context";
@@ -48,18 +49,6 @@ export default function OtpVerifyPage() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  useEffect(() => {
-    if (otp.length === OTP_LENGTH && status === "idle") {
-      handleVerify(otp);
-    }
-  }, [otp]);
-
-  useEffect(() => {
-    if (status !== "success") return;
-    const t = setTimeout(() => router.replace(redirectPath), 2000);
-    return () => clearTimeout(t);
-  }, [status, router, redirectPath]);
-
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
@@ -74,12 +63,27 @@ export default function OtpVerifyPage() {
       await verifyOtp({ userId, otp: code });
       toast.success("Chào mừng bạn đến với CleanZ", { duration: 2000 })
       setStatus("success");
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setErrorMsg("Có lỗi xảy ra, vui lòng thử lại.");
+      setErrorMsg(
+        getApiErrorMessage(error, "Mã OTP không đúng, vui lòng thử lại."),
+      );
       setOtp("");
     }
   };
+
+  const handleOtpChange = (value: string) => {
+    setOtp(value);
+    if (value.length === OTP_LENGTH && status === "idle") {
+      void handleVerify(value);
+    }
+  };
+
+  useEffect(() => {
+    if (status !== "success") return;
+    const t = setTimeout(() => router.replace(redirectPath), 2000);
+    return () => clearTimeout(t);
+  }, [status, router, redirectPath]);
 
   const handleResend = () => {
     if (resendCooldown > 0) return;
@@ -180,7 +184,7 @@ export default function OtpVerifyPage() {
                 <InputOTP
                   maxLength={OTP_LENGTH}
                   value={otp}
-                  onChange={setOtp}
+                  onChange={handleOtpChange}
                   disabled={status === "loading" || isExpired}
                 >
                   <InputOTPGroup>

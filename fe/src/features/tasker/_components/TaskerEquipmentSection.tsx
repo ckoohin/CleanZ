@@ -45,9 +45,13 @@ interface TaskerEquipmentSectionProps {
 export const TaskerEquipmentSection: React.FC<TaskerEquipmentSectionProps> = ({
   profile,
 }) => {
-  const equipment = profile.equipment;
+  const equipment = profile?.equipment;
   const status: TaskerEquipmentStatus = equipment?.status ?? "NONE";
-  const meta = STATUS_META[status];
+  // `?? "NONE"` chỉ chặn null/undefined — nếu backend trả một giá trị lạ (chuỗi
+  // rỗng, enum mới chưa kịp cập nhật FE) thì STATUS_META[status] là undefined và
+  // meta.hint bên dưới sẽ ném lỗi, làm trắng cả trang hồ sơ (route này không có
+  // error.tsx riêng). Luôn có meta mặc định để không bao giờ vỡ vì dữ liệu lạ.
+  const meta = STATUS_META[status] ?? STATUS_META.NONE;
 
   const [photoUrls, setPhotoUrls] = useState<string[]>(
     equipment?.photoUrls ?? [],

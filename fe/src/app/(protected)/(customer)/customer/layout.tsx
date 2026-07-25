@@ -27,7 +27,11 @@ export default function CustomerLayout({
 }) {
     return (
         <div className="flex flex-col min-h-screen">
-            <CustomerRealtimeNotifications />
+            {/* Nằm TRONG layout nên lỗi ở đây không được error.tsx của segment con
+                bắt — một payload socket lạ có thể làm trắng cả vùng khách hàng. */}
+            <ErrorBoundary fallback={null}>
+                <CustomerRealtimeNotifications />
+            </ErrorBoundary>
             <SidebarProvider>
                 {/* Desktop Sidebar (ẩn trên mobile) */}
                 <CustomerSidebar />

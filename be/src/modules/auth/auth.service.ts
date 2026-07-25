@@ -166,18 +166,21 @@ export class AuthService {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
-      if (dto.role && user.role !== dto.role) {
-        throw new UnauthorizedException(
-          'Bạn không có quyền truy cập vào hệ thống này',
-        );
-      }
-
       const isPasswordValid = await this.comparePassword(
         dto.password,
         user.password,
       );
       if (!isPasswordValid) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      }
+
+      // Chỉ kiểm tra cổng/role sau khi mật khẩu đã đúng. Nếu kiểm tra trước,
+      // người ngoài có thể dùng email để dò tài khoản và vai trò dù không biết
+      // mật khẩu.
+      if (dto.role && user.role !== dto.role) {
+        throw new UnauthorizedException(
+          'Bạn không có quyền truy cập vào hệ thống này',
+        );
       }
 
       if (!user.isVerified) {
@@ -205,11 +208,18 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
-      // [DEV] Log OTP để đăng nhập khi không có email thật — CHỈ ngoài production,
-      // và TUYỆT ĐỐI không đưa OTP vào response body (sẽ bypass 2FA email).
-      if (isDev) {
-        console.log(
-          `\n========== [DEV] OTP đăng nhập (${user.email}): ${otp} ==========\n`,
+      // Ghi OTP vào log server để test được khi không có hộp thư thật.
+      //
+      // Ngoài máy dev, muốn bật trên môi trường đã deploy thì phải khai TƯỜNG
+      // MINH `AUTH_DEBUG_LOG=true` — mặc định TẮT. Dùng logger.warn (không phải
+      // console.log) để dòng log có timestamp + context, đọc được trong
+      // `docker compose logs backend` giống các log Nest khác.
+      //
+      // ⚠️ Khi bật, bất kỳ ai đọc được log đều đăng nhập hộ được người khác.
+      // TUYỆT ĐỐI không đưa OTP vào response body (sẽ bypass 2FA cho mọi client).
+      if (isDev || this.isAuthDebugLogEnabled()) {
+        this.logger.warn(
+          `[AUTH_DEBUG_LOG] OTP đăng nhập (${user.email}): ${otp}`,
         );
       }
 
@@ -393,6 +403,18 @@ export class AuthService {
         );
       }
     }, 'Lỗi khi đặt lại mật khẩu');
+  }
+
+  /**
+   * Cho phép ghi OTP đăng nhập vào log server để test khi không có hộp thư thật
+   * (vd. trên VPS đang chạy production).
+   *
+   * MẶC ĐỊNH TẮT — phải khai tường minh `AUTH_DEBUG_LOG=true` trong `be/.env`.
+   * Bật đồng nghĩa ai đọc được log đều đăng nhập hộ được người khác, nên chỉ
+   * dùng khi test và TẮT LẠI ngay sau đó.
+   */
+  private isAuthDebugLogEnabled(): boolean {
+    return this.configService.get<string>('AUTH_DEBUG_LOG')?.trim() === 'true';
   }
 
   private async comparePassword(

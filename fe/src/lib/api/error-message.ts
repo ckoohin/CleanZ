@@ -85,15 +85,16 @@ export function getApiErrorMessage(error: unknown, fallback?: string): string {
   }
 
   if (status != null && status >= 500) return SERVER_ERROR_MESSAGE;
-  if (status === 401) return STATUS_MESSAGES[401]!;
 
   const messages = extractMessages(apiError.response.data)
     .map(cleanUserMessage)
     .filter((message): message is string => Boolean(message));
   const uniqueMessages = [...new Set(messages)];
 
+  if (uniqueMessages.length > 0) return uniqueMessages.join("; ");
+  if (status === 401) return STATUS_MESSAGES[401]!;
+
   return (
-    uniqueMessages.join("; ") ||
     fallback ||
     (status != null ? STATUS_MESSAGES[status] : undefined) ||
     DEFAULT_ERROR_MESSAGE

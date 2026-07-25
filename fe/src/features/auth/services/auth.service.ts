@@ -17,6 +17,12 @@ import type {
 import http from "@/lib/api/http";
 import { Profile, User } from "../types/user.type";
 
+const skipErrorToast = {
+  // Các mutation auth bên dưới đã có hook/form chịu trách nhiệm đặt message
+  // đúng ngữ cảnh. Tắt toast toàn cục để một lỗi không bị báo hai lần.
+  skipErrorToast: true,
+} as Parameters<typeof http.post>[2];
+
 export const authApi = {
   me: async (): Promise<User> => {
     const res = await http.get("/auth/me");
@@ -31,61 +37,79 @@ export const authApi = {
   },
 
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    const res = await http.post("/auth/login", credentials);
+    const res = await http.post("/auth/login", credentials, skipErrorToast);
     return res.data;
   },
 
   register: async (
     credentials: RegisterCredentials,
   ): Promise<RegisterResponse> => {
-    const res = await http.post("/auth/register", credentials);
+    const res = await http.post("/auth/register", credentials, skipErrorToast);
     return res.data;
   },
 
   logout: async (): Promise<void> => {
-    await http.post("/auth/logout");
+    await http.post("/auth/logout", undefined, skipErrorToast);
   },
 
   refresh: async (): Promise<void> => {
-    await http.post("/auth/refresh", undefined, {
-      // Refresh thất bại là tín hiệu hết phiên để interceptor điều hướng, không
-      // phải lỗi cần hiện toast hoặc ghi console ở trình duyệt.
-      skipErrorToast: true,
-    } as Parameters<typeof http.post>[2]);
+    // Refresh thất bại là tín hiệu hết phiên để interceptor điều hướng, không
+    // phải lỗi cần hiện toast hoặc ghi console ở trình duyệt.
+    await http.post("/auth/refresh", undefined, skipErrorToast);
   },
 
   verifyEmail: async (
     credentials: VerifyEmailCredentials,
   ): Promise<VerifyEmailResponse> => {
-    const res = await http.post("/auth/verify-email", credentials);
+    const res = await http.post(
+      "/auth/verify-email",
+      credentials,
+      skipErrorToast,
+    );
     return res.data;
   },
 
   resendVerificationEmail: async (
     credentials: ResendVerificationEmailCredentials,
   ): Promise<ResendVerificationEmailResponse> => {
-    const res = await http.post("/auth/resend-verification-email", credentials);
+    const res = await http.post(
+      "/auth/resend-verification-email",
+      credentials,
+      skipErrorToast,
+    );
     return res.data;
   },
 
   verifyOtp: async (
     credentials: VerifyOtpCredentials,
   ): Promise<VerifyOtpResponse> => {
-    const res = await http.post("/auth/verify-login-otp", credentials);
+    const res = await http.post(
+      "/auth/verify-login-otp",
+      credentials,
+      skipErrorToast,
+    );
     return res.data;
   },
 
   forgotPassword: async (
     credentials: ForgotPasswordCredentials,
   ): Promise<ForgotPasswordResponse> => {
-    const res = await http.post("/auth/forgot-password", credentials);
+    const res = await http.post(
+      "/auth/forgot-password",
+      credentials,
+      skipErrorToast,
+    );
     return res.data;
   },
 
   resetPassword: async (
     credentials: ResetPasswordCredentials,
   ): Promise<ResetPasswordResponse> => {
-    const res = await http.post("/auth/reset-password", credentials);
+    const res = await http.post(
+      "/auth/reset-password",
+      credentials,
+      skipErrorToast,
+    );
     return res.data;
   },
 
@@ -95,7 +119,11 @@ export const authApi = {
     confirmPassword: string;
   }): Promise<{ message: string }> => {
     return http
-      .patch<{ message: string }>("/auth/change-password", data)
+      .patch<{ message: string }>(
+        "/auth/change-password",
+        data,
+        skipErrorToast,
+      )
       .then((res) => res.data);
   },
 
@@ -117,7 +145,8 @@ export const authApi = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      },
+        skipErrorToast: true,
+      } as Parameters<typeof http.patch>[2],
     );
 
     return res.data;

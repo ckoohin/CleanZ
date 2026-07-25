@@ -127,7 +127,7 @@ export function ActiveJobWidget() {
             </div>
 
             <span className="truncate text-sm font-black leading-tight text-white drop-shadow-md sm:text-base">
-              {booking.service.name}
+              {booking.service?.name ?? "Công việc"}
             </span>
 
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-black leading-none text-orange-100 drop-shadow-sm sm:text-xs">
@@ -194,7 +194,7 @@ export function ActiveJobWidget() {
                   <Briefcase className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Công việc được gán</span>
-                    <span className="text-sm font-bold text-foreground truncate">{booking.service.name}</span>
+                    <span className="text-sm font-bold text-foreground truncate">{booking.service?.name ?? "Công việc"}</span>
                   </div>
                 </div>
 
@@ -203,7 +203,8 @@ export function ActiveJobWidget() {
                   <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Giờ làm việc</span>
                     <span className="text-sm font-bold text-foreground">
-                      {booking.schedule.scheduledStartDate} ({booking.schedule.scheduledStartTime})
+                      {booking.schedule?.scheduledStartDate ?? "—"} (
+                      {booking.schedule?.scheduledStartTime ?? "—"})
                     </span>
                   </div>
                 </div>

@@ -11,7 +11,6 @@ import type {
   LoginCredentials,
   LoginResponse,
   RegisterCredentials,
-  RegisterResponse,
   ResendVerificationEmailCredentials,
   ResendVerificationEmailResponse,
   ResetPasswordCredentials,
@@ -19,7 +18,6 @@ import type {
   VerifyEmailCredentials,
   VerifyEmailResponse,
   VerifyOtpCredentials,
-  VerifyOtpResponse,
 } from "@/features/auth/types/auth.type";
 import type { User } from "@/features/auth/types/user.type";
 import { toast } from "sonner";
@@ -74,11 +72,10 @@ export function useLogin(redirectUrl?: string) {
 }
 
 export function useRegister() {
-  const router = useRouter();
   return useMutation({
     mutationFn: (credentials: RegisterCredentials) =>
       authApi.register(credentials),
-    onSuccess: (_res: RegisterResponse) => {
+    onSuccess: () => {
       toast.success("Đăng ký thành công!");
     },
     onError: (error: unknown) => {
@@ -153,9 +150,7 @@ export function useVerifyOtp() {
   return useMutation({
     mutationFn: (credentials: VerifyOtpCredentials) =>
       authApi.verifyOtp(credentials),
-    onSuccess: async (res: VerifyOtpResponse) => {
-      toast.success(res.message);
-
+    onSuccess: async () => {
       // Đọc redirect param từ URL hiện tại
       const searchParams = new URLSearchParams(window.location.search);
       const redirectUrl = searchParams.get("redirect") || ROUTES.HOME;
@@ -176,9 +171,6 @@ export function useVerifyOtp() {
       } else {
         router.replace(redirectUrl);
       }
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
     },
   });
 }

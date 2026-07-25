@@ -103,6 +103,7 @@ export default function TestAdminPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đọc class trên <html> chỉ có sau khi mount (SSR không có document)
     setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
   }, []);
 

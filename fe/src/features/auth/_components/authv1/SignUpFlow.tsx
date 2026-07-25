@@ -4,13 +4,12 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel';
 import { MultiStepForm } from '@/features/auth/_components/authv1/MultiStepForm';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { motion, Variants } from "motion/react"
 import { Briefcase, ChevronDown, ArrowRight, Mail } from 'lucide-react';
 import LogoApp from '@/components/logo/LogoApp';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
 
 export const fadeUp: Variants = {
     hidden: { opacity: 0, y: 20 },
@@ -29,7 +28,6 @@ const BACKGROUND_IMAGES = [
 
 export function SignUpFlow() {
   const shownRef = useRef(false);
-  const router = useRouter();
 
   // State cho Mobile Drawer
   const [showEmailFormMobile, setShowEmailFormMobile] = useState<boolean>(() => {
@@ -60,18 +58,6 @@ export function SignUpFlow() {
   const handleSocialClick = (provider: 'google' | 'apple') => {
       if (provider === 'google') {
           window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
-      }
-  };
-
-  const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
-      e.preventDefault();
-      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-          setShowEmailFormMobile(false);
-          setTimeout(() => {
-              router.push(path);
-          }, 300);
-      } else {
-          router.push(path);
       }
   };
 
@@ -123,8 +109,6 @@ export function SignUpFlow() {
 
   return (
     <div className="relative w-full h-screen bg-slate-950 text-foreground overflow-hidden flex flex-col lg:flex-row">
-      <Toaster richColors position="top-right" />
-
       {/* CỘT TRÁI - GIAO DIỆN PC (ImageCarousel) */}
       <div className="hidden lg:flex lg:flex-1 h-full relative">
           <ImageCarousel valueAuthType="signup" />

@@ -34,6 +34,14 @@ const STATUS_MESSAGES: Partial<Record<number, string>> = {
 const DEFAULT_ERROR_MESSAGE = 'Đã xảy ra lỗi. Vui lòng thử lại.';
 const SERVER_ERROR_MESSAGE = 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
 
+// Chỉ hai lỗi 401 này là lỗi nghiệp vụ an toàn để hiển thị trên form đăng nhập.
+// Các message 401 còn lại thường chứa trạng thái token/guard và phải được gom
+// về một câu hết phiên, tránh lộ chi tiết cơ chế xác thực.
+const PUBLIC_LOGIN_UNAUTHORIZED_MESSAGES = new Set([
+  'Email hoặc mật khẩu không đúng',
+  'Bạn không có quyền truy cập vào hệ thống này',
+]);
+
 const TECHNICAL_SUFFIX =
   /(?:[,|\-–—]\s*)?(?:Bad Request|Unauthorized|Forbidden|Not Found|Conflict|Unprocessable Entity|Internal Server Error|Service Unavailable)(?:\s*,?\s*\d{3})?\s*$/i;
 const VIETNAMESE_TEXT = /[ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯàáâãèéêìíòóôõùúăđĩũơưẠ-ỹ]/;
@@ -85,14 +93,8 @@ export function getPublicErrorMessage(
   exception: unknown,
   status: number,
 ): string {
-  if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+  if (status >= (HttpStatus.INTERNAL_SERVER_ERROR as number)) {
     return SERVER_ERROR_MESSAGE;
-  }
-
-  // Không đưa chi tiết token/JWT ra client. Refresh token sai hoặc hết hạn là
-  // trạng thái phiên bình thường và được frontend xử lý âm thầm.
-  if (status === HttpStatus.UNAUTHORIZED) {
-    return STATUS_MESSAGES[HttpStatus.UNAUTHORIZED]!;
   }
 
   const response =
@@ -101,6 +103,17 @@ export function getPublicErrorMessage(
     .map(cleanPublicMessage)
     .filter((message): message is string => Boolean(message));
   const uniqueMessages = [...new Set(messages)];
+
+  if (status === (HttpStatus.UNAUTHORIZED as number)) {
+    const publicLoginMessages = uniqueMessages.filter((message) =>
+      PUBLIC_LOGIN_UNAUTHORIZED_MESSAGES.has(message),
+    );
+
+    return (
+      publicLoginMessages.join('; ') ||
+      STATUS_MESSAGES[HttpStatus.UNAUTHORIZED]!
+    );
+  }
 
   return (
     uniqueMessages.join('; ') ||

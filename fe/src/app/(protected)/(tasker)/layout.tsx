@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { TaskerSidebar } from "@/features/tasker/_components/TaskerSidebar";
 import {
@@ -13,6 +13,7 @@ import { useTaskerActionGuard } from "@/features/tasker/hooks/useTaskerActionGua
 import RoleGuard from "@/features/auth/_components/authv1/RoleGuard";
 import { ActiveJobWidget } from "@/features/booking/components/ActiveJobWidget";
 import { TaskerRealtimeDispatch } from "@/features/tasker/_components/TaskerRealtimeDispatch";
+import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 
 // Page transition variants — slide nhẹ từ phải sang trái (kiểu native app)
 const PAGE_VARIANTS = {
@@ -69,24 +70,37 @@ export default function TaskerLayout({
         <main
           className={`flex-1 min-w-0 ${hasLockBanner ? "pt-28" : "pt-14"} lg:pt-0 pb-24 lg:pb-0 relative overflow-x-hidden`}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={pathname}
-              variants={PAGE_VARIANTS}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={PAGE_TRANSITION}
-              style={{ willChange: "opacity, transform" }}
-              className="w-full">
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {/* KHÔNG dùng AnimatePresence mode="wait" ở đây.
+              `mode="wait"` giữ trang mới lại cho tới khi trang cũ chạy xong exit;
+              nếu tasker vuốt đổi trạng thái rồi bấm nhanh sang mục khác, key đổi
+              liên tiếp giữa lúc exit chưa xong và máy trạng thái animation có thể
+              kẹt ở chỗ không render child nào → trắng vùng nội dung mà KHÔNG có
+              lỗi nào trong console.
+              `key={pathname}` là đủ: React remount nên initial → animate vẫn chạy
+              hiệu ứng vào, và không còn cửa sổ nào để bị kẹt. */}
+          <motion.div
+            key={pathname}
+            variants={PAGE_VARIANTS}
+            initial="initial"
+            animate="animate"
+            transition={PAGE_TRANSITION}
+            style={{ willChange: "opacity, transform" }}
+            className="w-full"
+          >
+            {children}
+          </motion.div>
         </main>
 
-        {/* Khôi phục và định vị Widget theo dõi công việc hoạt động chuẩn xác theo viewport toàn màn hình */}
-        <ActiveJobWidget />
-        <TaskerRealtimeDispatch />
+        {/* Khôi phục và định vị Widget theo dõi công việc hoạt động chuẩn xác theo viewport toàn màn hình.
+            Bọc ErrorBoundary như layout khách: 2 component này nằm TRONG layout nên
+            nếu chúng ném lỗi thì error.tsx của segment con không bắt được, lỗi sẽ
+            bung tới global-error và làm trắng cả trang tasker. */}
+        <ErrorBoundary fallback={null}>
+          <ActiveJobWidget />
+        </ErrorBoundary>
+        <ErrorBoundary fallback={null}>
+          <TaskerRealtimeDispatch />
+        </ErrorBoundary>
       </div>
     </RoleGuard>
   );
