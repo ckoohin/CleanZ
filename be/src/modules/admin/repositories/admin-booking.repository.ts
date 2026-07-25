@@ -100,6 +100,9 @@ interface AdminBookingListRow {
   overtimeMinutes: string | number | null;
   earlyMinutes: string | number | null;
   waitingFee: string | number | null;
+  checkinFar: boolean | null;
+  checkinDistanceMeters: string | number | null;
+  checkinProofPhotoUrl: string | null;
   createdAt: Date;
 }
 
@@ -698,6 +701,7 @@ export class AdminBookingRepository {
       abnormalEarlyCheckout,
       surchargeDisputed,
       serviceTier,
+      farCheckin,
       page = 1,
       limit = 10,
     } = queryDto;
@@ -784,6 +788,9 @@ export class AdminBookingRepository {
         .andWhere('booking.serviceTier = :serviceTier')
         .setParameter('serviceTier', serviceTier);
     }
+    if (farCheckin) {
+      query.andWhere('booking.checkinFar = true');
+    }
 
     const statusCountRows = await query
       .clone()
@@ -845,6 +852,9 @@ export class AdminBookingRepository {
         'booking.overtimeMinutes AS "overtimeMinutes"',
         'booking.earlyMinutes AS "earlyMinutes"',
         'booking.waitingFee AS "waitingFee"',
+        'booking.checkinFar AS "checkinFar"',
+        'booking.checkinDistanceMeters AS "checkinDistanceMeters"',
+        'booking.checkinProofPhotoUrl AS "checkinProofPhotoUrl"',
         'booking.createdAt AS "createdAt"',
       ])
       .orderBy('booking.createdAt', 'DESC')
@@ -905,6 +915,12 @@ export class AdminBookingRepository {
           surchargeFee: Number(row.waitingFee ?? 0),
           isEarlyAbnormal:
             Number(row.earlyMinutes ?? 0) > EARLY_CHECKOUT_ABNORMAL_MINUTES,
+          isCheckinFar: row.checkinFar === true,
+          checkinDistanceMeters:
+            row.checkinDistanceMeters != null
+              ? Number(row.checkinDistanceMeters)
+              : null,
+          checkinProofPhotoUrl: row.checkinProofPhotoUrl ?? null,
         },
         createdAt: row.createdAt,
       })),
@@ -1108,6 +1124,12 @@ export class AdminBookingRepository {
           approvedOvertimeMinutes: Number(booking.approvedOvertimeMinutes ?? 0),
           isEarlyAbnormal:
             Number(booking.earlyMinutes ?? 0) > EARLY_CHECKOUT_ABNORMAL_MINUTES,
+          isCheckinFar: booking.checkinFar === true,
+          checkinDistanceMeters:
+            booking.checkinDistanceMeters != null
+              ? Number(booking.checkinDistanceMeters)
+              : null,
+          checkinProofPhotoUrl: booking.checkinProofPhotoUrl ?? null,
         },
         timeline: timeline.map((log) => ({
           id: log.id,

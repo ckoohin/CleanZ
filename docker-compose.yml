@@ -139,6 +139,8 @@ services:
     environment:
       NODE_ENV: production
       TZ: Asia/Ho_Chi_Minh
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.cleanz.online/api/v1}
+      NEXT_PUBLIC_CLIENT_URL: ${NEXT_PUBLIC_CLIENT_URL:-https://cleanz.online}
     ports:
       - "${BIND_HOST:-127.0.0.1}:3020:3020"
     depends_on:

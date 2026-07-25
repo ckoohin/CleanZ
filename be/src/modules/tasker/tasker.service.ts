@@ -25,7 +25,10 @@ import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { MailService } from 'src/modules/mail/mail.service';
 import { AppealTokenService } from 'src/modules/appeal/appeal-token.service';
-import { UploadService } from 'src/modules/upload/upload.service';
+import {
+  UploadService,
+  type UploadResult,
+} from 'src/modules/upload/upload.service';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
@@ -54,6 +57,7 @@ interface RedisLike {
 }
 
 const TASKER_LOCATION_TTL_SECONDS = 5 * 60;
+const TASKER_DOCUMENT_UPLOAD_CONCURRENCY = 2;
 
 type TaskerDocumentUploadField =
   | 'avatar'
@@ -66,6 +70,16 @@ type TaskerDocumentUploadField =
 type TaskerDocumentUploadFiles = Partial<
   Record<TaskerDocumentUploadField, Express.Multer.File[]>
 >;
+
+interface TaskerDocumentUploadInput {
+  field: TaskerDocumentUploadField;
+  file: Express.Multer.File;
+}
+
+interface TaskerDocumentUploadSuccess {
+  field: TaskerDocumentUploadField;
+  upload: UploadResult;
+}
 
 interface StructuredReviewNotes {
   v: 2;
@@ -181,24 +195,37 @@ export class TaskerService {
         );
       }
 
-      const [
-        avatarUpload,
-        frontUpload,
-        backUpload,
-        criminalRecordUpload,
-        healthCertificateUpload,
-        certificateUpload,
-      ] = await Promise.all([
-        this.uploadOptionalImage(avatar),
-        this.uploadOptionalImage(docFront),
-        this.uploadOptionalImage(docBack),
-        this.uploadOptionalImage(files.criminalRecord?.[0]),
-        this.uploadOptionalImage(files.healthCertificate?.[0]),
-        this.uploadOptionalImage(files.certificate?.[0]),
-      ]);
+      const candidateUploads = [
+        { field: 'avatar', file: avatar },
+        { field: 'docFront', file: docFront },
+        { field: 'docBack', file: docBack },
+        { field: 'criminalRecord', file: files.criminalRecord?.[0] },
+        {
+          field: 'healthCertificate',
+          file: files.healthCertificate?.[0],
+        },
+        { field: 'certificate', file: files.certificate?.[0] },
+      ] satisfies Array<{
+        field: TaskerDocumentUploadField;
+        file: Express.Multer.File | undefined;
+      }>;
+      const providedUploads = candidateUploads.filter(
+        (item): item is TaskerDocumentUploadInput => item.file !== undefined,
+      );
+      const successfulUploads =
+        await this.uploadTaskerDocuments(providedUploads);
+      const uploadByField = new Map(
+        successfulUploads.map(({ field, upload }) => [field, upload]),
+      );
+      const avatarUpload = uploadByField.get('avatar');
+      const frontUpload = uploadByField.get('docFront');
+      const backUpload = uploadByField.get('docBack');
+      const criminalRecordUpload = uploadByField.get('criminalRecord');
+      const healthCertificateUpload = uploadByField.get('healthCertificate');
+      const certificateUpload = uploadByField.get('certificate');
       const phone = this.normalizePhone(dto.phone);
 
-      const tasker = await this.dataSource.transaction(async (manager) => {
+      const taskerTransaction = this.dataSource.transaction(async (manager) => {
         const userRepository = manager.getRepository(UserEntity);
         const taskerRepository = manager.getRepository(TaskerEntity);
 
@@ -295,6 +322,12 @@ export class TaskerService {
         });
 
         return taskerRepository.save(tasker);
+      });
+      const tasker = await taskerTransaction.catch(async (error: unknown) => {
+        await this.cleanupUploadedPublicIds(
+          successfulUploads.map(({ upload }) => upload.public_id),
+        );
+        throw error;
       });
 
       return this.mapProfile(tasker);
@@ -502,25 +535,7 @@ export class TaskerService {
         throw new BadRequestException('Vui lòng chọn ít nhất một giấy tờ');
       }
 
-      const settledUploads = await Promise.allSettled(
-        provided.map(async ({ field, file }) => ({
-          field,
-          upload: await this.uploadService.uploadImage(file),
-        })),
-      );
-      const successfulUploads = settledUploads.flatMap((result) =>
-        result.status === 'fulfilled' ? [result.value] : [],
-      );
-      const failedUpload = settledUploads.find(
-        (result) => result.status === 'rejected',
-      );
-
-      if (failedUpload?.status === 'rejected') {
-        await this.cleanupUploadedPublicIds(
-          successfulUploads.map(({ upload }) => upload.public_id),
-        );
-        throw failedUpload.reason;
-      }
+      const successfulUploads = await this.uploadTaskerDocuments(provided);
 
       const replacedUrls: string[] = [];
       let savedTasker: TaskerEntity;
@@ -1686,14 +1701,45 @@ export class TaskerService {
     }
   }
 
-  private async uploadOptionalImage(
-    file?: Express.Multer.File,
-  ): Promise<{ url: string; public_id: string } | null> {
-    if (!file) {
-      return null;
+  private async uploadTaskerDocuments(
+    provided: TaskerDocumentUploadInput[],
+  ): Promise<TaskerDocumentUploadSuccess[]> {
+    const successfulUploads: TaskerDocumentUploadSuccess[] = [];
+
+    for (
+      let start = 0;
+      start < provided.length;
+      start += TASKER_DOCUMENT_UPLOAD_CONCURRENCY
+    ) {
+      const batch = provided.slice(
+        start,
+        start + TASKER_DOCUMENT_UPLOAD_CONCURRENCY,
+      );
+      const settledBatch = await Promise.allSettled(
+        batch.map(async ({ field, file }) => ({
+          field,
+          upload: await this.uploadService.uploadImage(file),
+        })),
+      );
+
+      const failedUpload = settledBatch.find(
+        (result) => result.status === 'rejected',
+      );
+      successfulUploads.push(
+        ...settledBatch.flatMap((result) =>
+          result.status === 'fulfilled' ? [result.value] : [],
+        ),
+      );
+
+      if (failedUpload?.status === 'rejected') {
+        await this.cleanupUploadedPublicIds(
+          successfulUploads.map(({ upload }) => upload.public_id),
+        );
+        throw failedUpload.reason;
+      }
     }
 
-    return this.uploadService.uploadImage(file);
+    return successfulUploads;
   }
 
   private resolveOptionalText(

@@ -28,6 +28,8 @@ import { toNumber } from 'src/common/helpers/number.helper';
 import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
 import {
   assessCheckinLateness,
+  assessCheckinLocation,
+  CHECKIN_MAX_DISTANCE_METERS,
   CheckinAssessment,
   CheckinTimingPolicy,
   resolveCheckinTimingPolicy,
@@ -65,6 +67,13 @@ const CHECKIN_OPEN_BEFORE_MINUTES = 3000; // mở từ T-30
 const LATE_WARNING_MINUTES = 15; // cảnh báo ở T+15
 const AUTO_CANCEL_MINUTES = 45; // hủy ở T+45
 const AUTO_CHECKOUT_AFTER_END_MINUTES = 30; // nhắc checkout T_end+30
+
+/** Vị trí + ảnh minh chứng tasker gửi lúc bấm check-in (xem CheckinDto). */
+export interface CheckinLocationInput {
+  currentLatitude?: number;
+  currentLongitude?: number;
+  proofPhotoUrl?: string;
+}
 
 // Điểm cảnh báo
 const WARN_NO_SHOW = 3; // không check-in
@@ -450,6 +459,7 @@ export class BookingCheckinService {
     userId: string,
     bookingId: string,
     manager: EntityManager,
+    checkinInput: CheckinLocationInput = {},
   ): Promise<CheckinAssessment> {
     const bookingRepo = manager.getRepository(BookingEntity);
 
@@ -457,6 +467,7 @@ export class BookingCheckinService {
       .createQueryBuilder('b')
       .leftJoinAndSelect('b.tasker', 'tasker')
       .leftJoinAndSelect('tasker.user', 'taskerUser')
+      .leftJoinAndSelect('b.addressRef', 'addressRef')
       .setLock('pessimistic_write', undefined, ['b'])
       .where('b.id = :bookingId', { bookingId })
       .getOne();
@@ -500,14 +511,53 @@ export class BookingCheckinService {
       );
     }
 
+    // ── Chốt vị trí: phải ở trong bán kính 50m quanh địa chỉ khách ──────────
+    // GPS thiếu (từ chối quyền định vị) được đối xử như đang ở xa: muốn
+    // check-in phải kèm ảnh minh chứng, và đơn bị gắn cờ cho admin theo dõi.
+    const { currentLatitude, currentLongitude, proofPhotoUrl } = checkinInput;
+    const { distanceMeters, isFar: isFarCheckin } = assessCheckinLocation({
+      currentLatitude,
+      currentLongitude,
+      addressLatitude:
+        booking.addressRef?.latitude != null
+          ? toNumber(booking.addressRef.latitude)
+          : null,
+      addressLongitude:
+        booking.addressRef?.longitude != null
+          ? toNumber(booking.addressRef.longitude)
+          : null,
+    });
+
+    if (isFarCheckin && !proofPhotoUrl) {
+      throw new BadRequestException(
+        distanceMeters !== null
+          ? `Bạn đang cách vị trí khách ~${Math.round(distanceMeters)}m (cho phép ${CHECKIN_MAX_DISTANCE_METERS}m). Vui lòng tới gần hơn, hoặc chụp ảnh minh chứng để check-in.`
+          : 'Không lấy được vị trí của bạn. Vui lòng bật định vị, hoặc chụp ảnh minh chứng để check-in.',
+      );
+    }
+
     const timingPolicy = this.getTimingPolicy(booking, scheduledStart);
     const { minutesLate, warningPoints } = assessCheckinLateness(
       minutesDiff,
       timingPolicy,
     );
 
+    // distanceMeters !== null ⇒ chắc chắn có GPS hợp lệ (xem assessCheckinLocation).
+    const hasGps =
+      currentLatitude !== undefined &&
+      currentLongitude !== undefined &&
+      Number.isFinite(currentLatitude) &&
+      Number.isFinite(currentLongitude);
     booking.status = BookingStatus.CHECKED_IN;
     booking.checkedInAt = now;
+    booking.checkinLatitude = hasGps ? currentLatitude : null;
+    booking.checkinLongitude = hasGps ? currentLongitude : null;
+    booking.checkinDistanceMeters =
+      distanceMeters !== null ? Math.round(distanceMeters * 10) / 10 : null;
+    booking.checkinFar = isFarCheckin;
+    booking.checkinProofPhotoUrl = isFarCheckin
+      ? (proofPhotoUrl ?? null)
+      : null;
     const saved = await bookingRepo.save(booking);
 
     await manager.getRepository(BookingStatusLogEntity).save(
@@ -516,10 +566,18 @@ export class BookingCheckinService {
         oldStatus: BookingStatus.TASKER_ON_THE_WAY,
         newStatus: BookingStatus.CHECKED_IN,
         changedByUser: { id: userId } as UserEntity,
-        note:
+        note: [
           minutesLate > 0
             ? `Tasker check-in muộn ${Math.round(minutesLate)} phút`
             : 'Tasker đã đến nơi',
+          isFarCheckin
+            ? distanceMeters !== null
+              ? `check-in xa ~${Math.round(distanceMeters)}m, có ảnh minh chứng`
+              : 'check-in không có GPS, có ảnh minh chứng'
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' — '),
         cancellationFee: 0,
         refundAmount: 0,
       }),

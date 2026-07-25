@@ -5,6 +5,7 @@ import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { getApiErrorMessage } from "@/lib/api/error-message";
 import type {
   CreateBookingForCustomerDto,
+  TaskerCheckinPayload,
   TaskerCompletedBookingRange,
 } from "../types/booking.types";
 
@@ -200,11 +201,12 @@ export function useMarkOnTheWay(bookingId: string) {
   });
 }
 
-/** 09. Check-in khi đến nơi */
+/** 09. Check-in khi đến nơi (kèm GPS; xa >50m phải kèm ảnh minh chứng) */
 export function useMarkCheckedIn(bookingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => taskerBookingApi.markCheckedIn(bookingId),
+    mutationFn: (payload: TaskerCheckinPayload = {}) =>
+      taskerBookingApi.markCheckedIn(bookingId, payload),
     onSuccess: (response) => {
       const result = response.checkinResult;
       if (result?.alreadyCheckedIn) return;

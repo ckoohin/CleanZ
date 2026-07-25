@@ -294,6 +294,46 @@ export class BookingEntity {
   @Column({ name: 'checked_in_at', type: 'timestamp', nullable: true })
   checkedInAt?: Date | null;
 
+  /** Tọa độ GPS tasker gửi lúc check-in (null nếu từ chối quyền định vị). */
+  @Column({
+    name: 'checkin_latitude',
+    type: 'numeric',
+    precision: 10,
+    scale: 7,
+    nullable: true,
+  })
+  checkinLatitude?: string | number | null;
+
+  @Column({
+    name: 'checkin_longitude',
+    type: 'numeric',
+    precision: 10,
+    scale: 7,
+    nullable: true,
+  })
+  checkinLongitude?: string | number | null;
+
+  /** Khoảng cách đường chim bay tới địa chỉ khách tại thời điểm check-in (mét). */
+  @Column({
+    name: 'checkin_distance_meters',
+    type: 'numeric',
+    precision: 10,
+    scale: 1,
+    nullable: true,
+  })
+  checkinDistanceMeters?: string | number | null;
+
+  /** Ảnh minh chứng khi check-in ngoài bán kính cho phép. */
+  @Column({ name: 'checkin_proof_photo_url', type: 'text', nullable: true })
+  checkinProofPhotoUrl?: string | null;
+
+  /**
+   * Cờ check-in xa (>CHECKIN_MAX_DISTANCE_METERS hoặc không có GPS) — để admin
+   * lọc đơn bất thường; không phạt điểm tasker.
+   */
+  @Column({ name: 'checkin_far', type: 'boolean', default: false })
+  checkinFar!: boolean;
+
   @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
   completedAt?: Date | null;
 

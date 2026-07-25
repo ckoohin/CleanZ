@@ -6,7 +6,7 @@ import { SystemConfigService } from 'src/modules/system-config/system-config.ser
 import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
 import {
   VN_NOW_SQL,
-  vietnamWeekStartSqlExpr,
+  vietnamPeriodStartSqlExpr,
 } from 'src/common/helpers/vietnam-time.helper';
 import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
 import {
@@ -397,19 +397,30 @@ export class BookingDispatchService {
         : 'false';
 
     /*
-     * Thứ tự ưu tiên khác nhau theo hạng, có chủ đích:
-     * - STANDARD: thu nhập tuần thấp trước — cơ chế chia đều việc cho tasker.
-     * - PREMIUM: khách trả thêm tiền để mua CHẤT LƯỢNG, nên thợ yêu thích và
-     *   rating cao phải đứng trước; chia đều thu nhập tụt xuống tiêu chí cuối.
+     * Chia đều việc theo thu nhập NHIỀU MỐC (đều ASC — ai kiếm ÍT hơn được mời
+     * trước): hôm nay → hôm qua → tuần → tháng; khoảng cách chỉ còn là chốt
+     * hoà cuối cùng (không còn là tiêu chí xếp hạng chính). Cửa sổ ngày chia
+     * việc mịn hơn cửa sổ tuần cũ: thợ vừa nhận đơn sáng nay nhường lượt ngay
+     * cho thợ chưa có đơn, thay vì phải đợi lệch đủ lớn trong cả tuần.
+     *
+     * Vị trí rating khác nhau theo hạng, có chủ đích:
+     * - STANDARD: rating chen giữa thu-nhập-hôm-nay và các mốc còn lại — hoà
+     *   thu nhập ngày thì thợ điểm cao hơn được mời trước.
+     * - PREMIUM: khách trả thêm tiền mua CHẤT LƯỢNG, nên thợ yêu thích và
+     *   rating đứng TRƯỚC toàn bộ chuỗi thu nhập.
      */
+    const incomeTailSql = `COALESCE(wi.income_yesterday, 0) ASC,
+         COALESCE(wi.income_week, 0) ASC,
+         COALESCE(wi.income_month, 0) ASC,
+         dist_meters ASC`;
     const orderBy = isPremium
       ? `is_favorite DESC,
          t.rating_avg DESC,
-         dist_meters ASC,
-         COALESCE(wi.weekly_income, 0) ASC`
-      : `COALESCE(wi.weekly_income, 0) ASC,
+         COALESCE(wi.income_today, 0) ASC,
+         ${incomeTailSql}`
+      : `COALESCE(wi.income_today, 0) ASC,
          t.rating_avg DESC,
-         dist_meters ASC`;
+         ${incomeTailSql}`;
 
     return this.dataSource.query<NearestTaskerRow[]>(
       `
@@ -431,6 +442,10 @@ export class BookingDispatchService {
         LEFT JOIN (
           SELECT
             wt.wallet_id,
+            -- Cùng một công thức thu nhập, cắt theo 4 cửa sổ giờ VN bằng FILTER
+            -- để chỉ quét bảng một lần. WHERE ngoài chặn bằng LEAST(3 mốc) vì
+            -- đầu tháng KHÔNG phải lúc nào cũng là mốc sớm nhất: tuần có thể
+            -- vắt qua hai tháng, và "hôm qua" của ngày mùng 1 nằm ở tháng trước.
             SUM(
               CASE
                 WHEN wt.type = 'TASKER_EARNING' THEN wt.amount
@@ -441,11 +456,57 @@ export class BookingDispatchService {
                 )
                 ELSE 0
               END
-            ) AS weekly_income
+            ) FILTER (
+              WHERE wt.created_at >= ${vietnamPeriodStartSqlExpr('day')}
+            ) AS income_today,
+            SUM(
+              CASE
+                WHEN wt.type = 'TASKER_EARNING' THEN wt.amount
+                WHEN wt.type = 'PLATFORM_FEE' THEN GREATEST(
+                  COALESCE(b.total_price, 0) + COALESCE(b.discount_amount, 0)
+                    - wt.amount,
+                  0
+                )
+                ELSE 0
+              END
+            ) FILTER (
+              WHERE wt.created_at >= ${vietnamPeriodStartSqlExpr('day')} - INTERVAL '1 day'
+                AND wt.created_at < ${vietnamPeriodStartSqlExpr('day')}
+            ) AS income_yesterday,
+            SUM(
+              CASE
+                WHEN wt.type = 'TASKER_EARNING' THEN wt.amount
+                WHEN wt.type = 'PLATFORM_FEE' THEN GREATEST(
+                  COALESCE(b.total_price, 0) + COALESCE(b.discount_amount, 0)
+                    - wt.amount,
+                  0
+                )
+                ELSE 0
+              END
+            ) FILTER (
+              WHERE wt.created_at >= ${vietnamPeriodStartSqlExpr('week')}
+            ) AS income_week,
+            SUM(
+              CASE
+                WHEN wt.type = 'TASKER_EARNING' THEN wt.amount
+                WHEN wt.type = 'PLATFORM_FEE' THEN GREATEST(
+                  COALESCE(b.total_price, 0) + COALESCE(b.discount_amount, 0)
+                    - wt.amount,
+                  0
+                )
+                ELSE 0
+              END
+            ) FILTER (
+              WHERE wt.created_at >= ${vietnamPeriodStartSqlExpr('month')}
+            ) AS income_month
           FROM wallet_transactions wt
           LEFT JOIN bookings b ON b.id = wt.booking_id
           WHERE wt.type IN ('TASKER_EARNING', 'PLATFORM_FEE')
-            AND wt.created_at >= ${vietnamWeekStartSqlExpr()}
+            AND wt.created_at >= LEAST(
+              ${vietnamPeriodStartSqlExpr('month')},
+              ${vietnamPeriodStartSqlExpr('week')},
+              ${vietnamPeriodStartSqlExpr('day')} - INTERVAL '1 day'
+            )
           GROUP BY wt.wallet_id
         ) wi ON wi.wallet_id = w.id
         WHERE
