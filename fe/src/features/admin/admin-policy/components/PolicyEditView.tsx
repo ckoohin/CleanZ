@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { PolicyForm, PolicyFormValues } from "./PolicyForm";
 import { useAdminPolicyDetail } from "@/features/admin/modules/policy/hooks/useAdminPolicyDetail";
 import { useCreatePolicy } from "@/features/admin/modules/policy/hooks/useCreatePolicy";
@@ -58,6 +58,7 @@ export function PolicyEditView({ mode, id }: Props) {
   useEffect(() => {
     if (!isEdit || !policy) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     setValues({
       title: policy.title ?? "",
       slug: policy.slug ?? "",

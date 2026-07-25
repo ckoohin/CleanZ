@@ -70,6 +70,7 @@ export function SlaMatrixEditor({
         if (v != null) next[s][f.key] = String(toHours(f.key, v));
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     setDraft(next);
   }, [value]);
 

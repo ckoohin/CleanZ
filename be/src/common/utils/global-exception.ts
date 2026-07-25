@@ -85,13 +85,13 @@ export function getPublicErrorMessage(
   exception: unknown,
   status: number,
 ): string {
-  if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+  if (status >= (HttpStatus.INTERNAL_SERVER_ERROR as number)) {
     return SERVER_ERROR_MESSAGE;
   }
 
   // Không đưa chi tiết token/JWT ra client. Refresh token sai hoặc hết hạn là
   // trạng thái phiên bình thường và được frontend xử lý âm thầm.
-  if (status === HttpStatus.UNAUTHORIZED) {
+  if (status === (HttpStatus.UNAUTHORIZED as number)) {
     return STATUS_MESSAGES[HttpStatus.UNAUTHORIZED]!;
   }
 

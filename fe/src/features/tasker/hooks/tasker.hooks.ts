@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskerApi } from '../services/tasker.service';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import {
   CreateTaskerServiceDto,
   SubmitTaskerEquipmentDto,

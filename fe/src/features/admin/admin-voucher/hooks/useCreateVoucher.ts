@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { adminVoucherService } from "../services/admin-voucher.service";
 import { CreateVoucherPayload } from "../types/voucher.type";
 import { getApiErrorMessage } from "@/lib/api/error-message";

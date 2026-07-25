@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { toast, Toaster } from "sonner"
+import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import LogoApp from "@/components/logo/LogoApp"
 import {
@@ -189,7 +189,6 @@ function AdminLoginContent() {
 
   return (
     <div className="relative flex h-screen w-full bg-slate-950 text-foreground overflow-hidden font-sans">
-      <Toaster richColors position="top-right" />
       {/* Background Decor */}
       <div className="absolute inset-0 lg:relative lg:flex-1 h-full w-full bg-slate-950 overflow-hidden">
         {BACKGROUND_IMAGES.map((src, i) => (

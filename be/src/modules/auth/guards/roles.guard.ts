@@ -29,7 +29,7 @@ export class RolesGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new UnauthorizedException('User not authenticated');
+      throw new UnauthorizedException('Bạn cần đăng nhập để tiếp tục');
     }
 
     const hasRole = requiredRoles.some((role) => user.role === role);

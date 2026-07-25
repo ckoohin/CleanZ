@@ -96,6 +96,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ""
+      AUTH_DEBUG_LOG: ${AUTH_DEBUG_LOG:-false}
       # ─── Domain production ────────────────────────────────────────────────────
       # FRONTEND_URL quyết định CORS HTTP (main.ts) và CORS WebSocket
       # (ws-cors.helper.ts) → bắt buộc đúng domain FE, nếu không realtime bị chặn.

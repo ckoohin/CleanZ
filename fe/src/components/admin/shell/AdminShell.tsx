@@ -19,6 +19,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   // Restore collapsed preference.
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
       setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
     } catch {
       /* ignore */

@@ -23,13 +23,11 @@ function makeService(overrides: {
     recoverForTasker: jest.fn().mockResolvedValue(0),
   } as never;
   const reconciliation = {
-    reconcile: jest
-      .fn()
-      .mockResolvedValue({
-        checkedCount: 0,
-        criticalCount: 0,
-        discrepancies: [],
-      }),
+    reconcile: jest.fn().mockResolvedValue({
+      checkedCount: 0,
+      criticalCount: 0,
+      discrepancies: [],
+    }),
   } as never;
   const alert = { send: jest.fn().mockResolvedValue(false) } as never;
   const service = new IncidentAutomationService(

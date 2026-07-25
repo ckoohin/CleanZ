@@ -129,7 +129,7 @@ export class PricingService {
     const config = await this.pricingRepo.findOne({
       where: { id },
     });
-    if (!config) throw new NotFoundException('PRICING_CONFIG_NOT_FOUND');
+    if (!config) throw new NotFoundException('Không tìm thấy cấu hình giá');
     return config;
   }
 
@@ -197,7 +197,8 @@ export class PricingService {
 
   async findOnePeakDayConfig(id: string): Promise<PeakDayConfigEntity> {
     const config = await this.peakDayRepo.findOne({ where: { id } });
-    if (!config) throw new NotFoundException('PEAK_DAY_CONFIG_NOT_FOUND');
+    if (!config)
+      throw new NotFoundException('Không tìm thấy cấu hình ngày cao điểm');
     return config;
   }
 
@@ -781,17 +782,17 @@ export class PricingService {
   ): void {
     if (!startAt && !endAt && !startTime && !endTime) {
       throw new BadRequestException(
-        'PEAK_RANGE_REQUIRED: Provide a date range or daily time range',
+        'Vui lòng nhập khoảng ngày hoặc khung giờ áp dụng cho ngày cao điểm',
       );
     }
     if (startAt && endAt && startAt >= endAt) {
       throw new BadRequestException(
-        'INVALID_DATE_RANGE: startAt must be before endAt',
+        'Thời điểm bắt đầu phải trước thời điểm kết thúc',
       );
     }
     if (startTime && endTime && startTime === endTime) {
       throw new BadRequestException(
-        'INVALID_TIME_RANGE: startTime and endTime must be different',
+        'Giờ bắt đầu và giờ kết thúc không được trùng nhau',
       );
     }
   }

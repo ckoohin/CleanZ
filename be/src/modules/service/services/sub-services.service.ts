@@ -87,7 +87,7 @@ export class SubServicesService {
       where: { id },
       relations: ['pricingConfig'],
     });
-    if (!service) throw new NotFoundException('SERVICE_NOT_FOUND');
+    if (!service) throw new NotFoundException('Không tìm thấy dịch vụ');
     return service;
   }
 

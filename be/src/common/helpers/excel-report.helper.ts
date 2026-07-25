@@ -36,6 +36,11 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
   right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
 };
 
+function cellDisplayLength(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  return String(value as string).length;
+}
+
 /**
  * Dựng 1 sheet "chuyên nghiệp": banner tiêu đề + mô tả + bộ lọc đang áp dụng,
  * bảng dữ liệu có autofilter/border/băng màu xen kẽ, và dòng TỔNG CỘNG cộng
@@ -107,8 +112,7 @@ export async function buildReportWorkbookBuffer(
     spec.columns.forEach((col, i) => {
       const column = sheet.getColumn(i + 1);
       const longest = spec.rows.reduce((max, r) => {
-        const v = r[col.key];
-        const len = v === null || v === undefined ? 0 : String(v).length;
+        const len = cellDisplayLength(r[col.key]);
         return Math.max(max, len);
       }, col.header.length);
       column.width = col.width ?? Math.min(Math.max(longest + 3, 12), 44);
@@ -288,8 +292,7 @@ export async function buildCombinedSingleSheetBuffer(
               fgColor: { argb: BAND_FILL },
             };
           }
-          const v = row[col.key];
-          const len = v === null || v === undefined ? 0 : String(v).length;
+          const len = cellDisplayLength(row[col.key]);
           colWidths[i] = Math.max(colWidths[i], len + 2);
         });
       });

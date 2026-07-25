@@ -9,7 +9,7 @@ import {
   type RowAction,
   type BulkAction,
 } from "@/components/ui/base/base_table_list";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { PageHeader, AdminButton, StatusBadge, StatCard, FilterTabs } from "@/components/admin";
 import {
   useAdminCustomers,

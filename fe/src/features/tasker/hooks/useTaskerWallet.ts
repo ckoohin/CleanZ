@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
+import { toast } from "@/lib/toast";
 import { taskerWalletApi } from "../services/tasker-wallet.service";
 import type {
   CreateTaskerWithdrawalPayload,
@@ -85,7 +84,6 @@ export function useCreateTaskerWithdrawal() {
       toast.success("Đã gửi yêu cầu rút tiền");
       queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -93,7 +91,6 @@ export function useCreateTaskerTopup() {
   return useMutation({
     mutationFn: (payload: CreateTaskerTopupPayload) =>
       taskerWalletApi.createTopup(payload),
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -105,6 +102,5 @@ export function useCaptureTaskerTopup() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskerWalletKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }

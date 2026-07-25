@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/immutability */
+ 
 "use client";
 
 import { useState } from 'react';
@@ -10,7 +10,7 @@ import { useZodValidation } from '@/features/auth/hooks/useZodValidation';
 import { signupStepThree } from '@/features/auth/schemas/signup.schema';
 import { useRegisterContext } from '@/features/auth/context/register.context';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { SignupStepThreeProps } from '@/features/auth/types/step.type';
 
 // interface StepThreeProps {

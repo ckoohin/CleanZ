@@ -29,7 +29,6 @@ import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
 import {
   assessCheckinLateness,
   assessCheckinLocation,
-  CHECKIN_MAX_DISTANCE_METERS,
   CheckinAssessment,
   CheckinTimingPolicy,
   resolveCheckinTimingPolicy,
@@ -531,7 +530,7 @@ export class BookingCheckinService {
     if (isFarCheckin && !proofPhotoUrl) {
       throw new BadRequestException(
         distanceMeters !== null
-          ? `Bạn đang cách vị trí khách ~${Math.round(distanceMeters)}m (cho phép ${CHECKIN_MAX_DISTANCE_METERS}m). Vui lòng tới gần hơn, hoặc chụp ảnh minh chứng để check-in.`
+          ? `Hãy chụp ảnh địa chỉ để xác minh`
           : 'Không lấy được vị trí của bạn. Vui lòng bật định vị, hoặc chụp ảnh minh chứng để check-in.',
       );
     }

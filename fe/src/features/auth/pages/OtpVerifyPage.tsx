@@ -9,7 +9,8 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useVerifyOtp } from "@/features/auth/hooks/auth.hooks";
-import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error-message";
+import { toast } from "@/lib/toast";
 import Footer from "@/features/auth/_components/Footer";
 import { useLoginContext } from "@/features/auth/context/login.context";
 
@@ -48,8 +49,26 @@ export default function OtpVerifyPage() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
+  const handleVerify = async (code: string) => {
+    setStatus("loading");
+    setErrorMsg("");
+
+    try {
+      await verifyOtp({ userId, otp: code });
+      toast.success("Chào mừng bạn đến với CleanZ", { duration: 2000 })
+      setStatus("success");
+    } catch (err) {
+      // Hiện message thật của server (vd. "Mã OTP không đúng. Bạn còn 4 lần
+      // thử.") ngay dưới ô nhập — hữu ích hơn một câu chung chung.
+      setStatus("error");
+      setErrorMsg(getApiErrorMessage(err, "Mã OTP không đúng, vui lòng thử lại."));
+      setOtp("");
+    }
+  };
+
   useEffect(() => {
     if (otp.length === OTP_LENGTH && status === "idle") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
       handleVerify(otp);
     }
   }, [otp]);
@@ -64,21 +83,6 @@ export default function OtpVerifyPage() {
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m}:${sec.toString().padStart(2, "0")}`;
-  };
-
-  const handleVerify = async (code: string) => {
-    setStatus("loading");
-    setErrorMsg("");
-
-    try {
-      await verifyOtp({ userId, otp: code });
-      toast.success("Chào mừng bạn đến với CleanZ", { duration: 2000 })
-      setStatus("success");
-    } catch {
-      setStatus("error");
-      setErrorMsg("Có lỗi xảy ra, vui lòng thử lại.");
-      setOtp("");
-    }
   };
 
   const handleResend = () => {

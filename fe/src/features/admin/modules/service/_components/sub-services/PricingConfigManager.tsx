@@ -12,7 +12,7 @@ import {
 import { useUpdateAdminService } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { PricingFormFields, PricingFormData } from "./PricingConfigForm";
 
 const vnd = (val: number | string | null | undefined) => {

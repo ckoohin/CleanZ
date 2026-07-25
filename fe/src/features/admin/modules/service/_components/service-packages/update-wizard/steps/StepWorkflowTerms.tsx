@@ -5,7 +5,7 @@ import {
   Layers, ScrollText, Shield, Zap, Plus, Trash2, Edit, Check, ChevronRight, Search, Sparkles, X,
   Moon, PawPrint, Timer, Hammer, Package, Info, Star, Heart,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Input } from "@/components/ui/input";

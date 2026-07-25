@@ -39,7 +39,7 @@ import {
   useUpdateBookingSchedule,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { TaskerTrackingMap } from "./TaskerTrackingMap";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useCustomerAddresses } from "@/features/customer/profile/hooks/useCustomerAddresses";
 import type {
   BookingStatus,

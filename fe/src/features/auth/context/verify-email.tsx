@@ -3,7 +3,9 @@ import { createContext, useContext, useState } from "react"
 import { FormData } from "../types/form.type"
 import { useRegister } from "../hooks/auth.hooks"
 
-type TVerifyEmailContext = {}
+// Context chưa expose giá trị nào; dùng Record<string, never> thay cho `{}`
+// vì `{}` cho phép mọi giá trị non-nullish (kể cả 0, "").
+type TVerifyEmailContext = Record<string, never>
 
 const VerifyEmailContext = createContext<TVerifyEmailContext | null>(null)
 

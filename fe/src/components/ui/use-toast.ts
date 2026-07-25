@@ -1,4 +1,4 @@
-import { toast as sonnerToast } from 'sonner';
+import { toast as sonnerToast } from '@/lib/toast';
 
 // Define minimal options used by the app
 export type ToastOptions = {

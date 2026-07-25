@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 
 import { BaseTableList, Column, RowAction } from "@/components/ui/base/base_table_list"
 import { PageHeader, AdminButton, StatusBadge, BadgeTone } from "@/components/admin"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
 
 import { useAdminBookings } from "@/features/admin/modules/booking/hooks/useAdminBooking"
 import { adminBookingService } from "@/features/admin/modules/booking/services/admin-booking.service"

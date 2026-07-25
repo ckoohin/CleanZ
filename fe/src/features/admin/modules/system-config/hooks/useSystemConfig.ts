@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
+import { toast } from "@/lib/toast";
 import { systemConfigApi } from "../services/system-config.service";
 import type {
   SystemConfigResponse,
@@ -28,6 +27,5 @@ export function useUpdateSystemConfig() {
       queryClient.setQueryData(systemConfigKeys.all, data);
       toast.success("Đã lưu cấu hình hệ thống");
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }

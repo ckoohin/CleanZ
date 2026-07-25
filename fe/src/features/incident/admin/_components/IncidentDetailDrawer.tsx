@@ -281,7 +281,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {inc.statementEvidences.map((ev) => (
-                          // eslint-disable-next-line @next/next/no-img-element
+                           
                           <a key={ev.id} href={ev.url} target="_blank" rel="noreferrer">
                             <img
                               src={ev.url}

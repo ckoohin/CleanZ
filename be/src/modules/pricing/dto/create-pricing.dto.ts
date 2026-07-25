@@ -1,5 +1,4 @@
 import {
-  IsUUID,
   IsNumber,
   IsOptional,
   IsBoolean,

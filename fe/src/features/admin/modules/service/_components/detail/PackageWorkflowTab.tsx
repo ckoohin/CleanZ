@@ -31,7 +31,7 @@ import {
   useReorderWorkflowSteps,
 } from "../../hooks/useAdminWorkflow";
 import { adminWorkflowService } from "../../services/admin-workflow.service";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type {
   ServiceWorkflow,
   WorkflowStep,

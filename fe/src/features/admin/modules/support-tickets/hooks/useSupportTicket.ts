@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useSocketEvent } from "@/hooks/use-socket";
 import { supportTicketAdminApi } from "../services/support-ticket.service";
 import type {
@@ -11,7 +11,6 @@ import type {
   ReclassifyTicketDto,
   UpdateTicketConfigDto,
 } from "../types/support-ticket.types";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 
 // ─── Query Keys ──────────────────────────────────────────────────────────────
 export const supportTicketKeys = {
@@ -41,7 +40,6 @@ export function useUpdateTicketConfig() {
       toast.success("Đã cập nhật cấu hình ticket");
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.config });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -102,7 +100,6 @@ export function useAddInternalNote(id: string) {
         queryKey: supportTicketKeys.internalNotes(id),
       });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -116,7 +113,6 @@ export function useCreateTicketOnBehalf() {
       toast.success("Đã tạo ticket thành công");
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -131,7 +127,6 @@ export function useAssignTicket(id: string) {
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -146,7 +141,6 @@ export function useChangeTicketStatus(id: string) {
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -160,7 +154,6 @@ export function useAddResolution(id: string) {
       toast.success("Đã ghi nhận kết luận xử lý");
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.detail(id) });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -175,6 +168,5 @@ export function useReclassifyTicket(id: string) {
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }

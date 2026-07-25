@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel';
 import { MultiStepForm } from '@/features/auth/_components/authv1/MultiStepForm';
-import { Toaster, toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { motion, Variants } from "motion/react"
 import { Briefcase, ChevronDown, ArrowRight, Mail } from 'lucide-react';
 import LogoApp from '@/components/logo/LogoApp';
@@ -123,8 +123,6 @@ export function SignUpFlow() {
 
   return (
     <div className="relative w-full h-screen bg-slate-950 text-foreground overflow-hidden flex flex-col lg:flex-row">
-      <Toaster richColors position="top-right" />
-
       {/* CỘT TRÁI - GIAO DIỆN PC (ImageCarousel) */}
       <div className="hidden lg:flex lg:flex-1 h-full relative">
           <ImageCarousel valueAuthType="signup" />

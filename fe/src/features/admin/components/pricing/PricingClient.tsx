@@ -11,7 +11,7 @@ import {
   CircleCheck,
   CircleX,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { BaseTableList, Column, RowAction } from "@/components/ui/base/base_table_list";
 import { BaseButton } from "@/components/ui/base/base_button";

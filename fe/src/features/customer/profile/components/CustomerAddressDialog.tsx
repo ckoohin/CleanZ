@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { GOONG_API_KEY } from "@/lib/maps/goong-config";
 import { isHanoiAddress } from "@/lib/maps/hanoi-address";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useCreateCustomerAddress } from "../hooks/useCustomerAddresses";
 
 interface CustomerAddressDialogProps {

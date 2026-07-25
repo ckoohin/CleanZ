@@ -18,7 +18,7 @@ import {
   useSubmitTaskerProfile,
 } from "../hooks/tasker.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { taskerKeys } from "../hooks/tasker.hooks";
 import { queryKeys } from "@/features/auth/queries/auth.query";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { adminReviewApi } from "../services/review-admin.service";
 import type { AdminReviewQuery } from "../types/review-admin.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";

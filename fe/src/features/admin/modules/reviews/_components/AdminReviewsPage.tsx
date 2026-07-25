@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -414,7 +414,7 @@ function ReportsTab() {
               </div>
               {report.description && (
                 <p className="text-sm text-foreground/80 italic">
-                  "{report.description}"
+                  &quot;{report.description}&quot;
                 </p>
               )}
               {report.reviewComment && (
@@ -422,7 +422,7 @@ function ReportsTab() {
                   <p className="text-xs text-muted-foreground mb-1">
                     Nội dung đánh giá bị báo cáo:
                   </p>
-                  <p className="text-sm">"{report.reviewComment}"</p>
+                  <p className="text-sm">&quot;{report.reviewComment}&quot;</p>
                 </div>
               )}
               {report.adminNote && (
@@ -770,7 +770,7 @@ function ReviewsTab() {
 
               {review.comment && (
                 <p className="text-sm text-foreground/80 italic">
-                  "{review.comment}"
+                  &quot;{review.comment}&quot;
                 </p>
               )}
 

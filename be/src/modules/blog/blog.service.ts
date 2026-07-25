@@ -85,7 +85,7 @@ export class BlogService {
   async findPublishedOne(id: string): Promise<BlogResponse> {
     const blog = await this.findEntityById(id);
     if (blog.status !== BlogStatus.PUBLISHED) {
-      throw new NotFoundException('BLOG_NOT_FOUND');
+      throw new NotFoundException('Không tìm thấy bài viết');
     }
 
     await this.recordView(blog);
@@ -99,7 +99,7 @@ export class BlogService {
   ): Promise<BlogResponse> {
     const blog = await this.findEntityBySlug(slug);
     if (blog.status !== BlogStatus.PUBLISHED) {
-      throw new NotFoundException('BLOG_NOT_FOUND');
+      throw new NotFoundException('Không tìm thấy bài viết');
     }
 
     await this.recordView(blog, clientKey);
@@ -264,7 +264,9 @@ export class BlogService {
     const blogCount = await this.blogRepo.count({ where: { categoryId: id } });
 
     if (blogCount > 0) {
-      throw new BadRequestException('BLOG_CATEGORY_IN_USE');
+      throw new BadRequestException(
+        'Danh mục đang được dùng bởi bài viết khác, không thể xoá',
+      );
     }
 
     await this.categoryRepo.remove(category);
@@ -375,7 +377,7 @@ export class BlogService {
       relations: ['category', 'author', 'tagRelations', 'tagRelations.tag'],
     });
 
-    if (!blog) throw new NotFoundException('BLOG_NOT_FOUND');
+    if (!blog) throw new NotFoundException('Không tìm thấy bài viết');
     return blog;
   }
 
@@ -385,7 +387,7 @@ export class BlogService {
       relations: ['category', 'author', 'tagRelations', 'tagRelations.tag'],
     });
 
-    if (!blog) throw new NotFoundException('BLOG_NOT_FOUND');
+    if (!blog) throw new NotFoundException('Không tìm thấy bài viết');
     return blog;
   }
 
@@ -420,12 +422,17 @@ export class BlogService {
     manager?: EntityManager,
   ): Promise<void> {
     const normalized = this.normalizeSlug(slug);
-    if (!normalized) throw new BadRequestException('BLOG_SLUG_REQUIRED');
+    if (!normalized)
+      throw new BadRequestException(
+        'Vui lòng nhập đường dẫn (slug) cho bài viết',
+      );
 
     const repo = manager?.getRepository(BlogEntity) ?? this.blogRepo;
     const existing = await repo.findOne({ where: { slug: normalized } });
     if (existing && existing.id !== excludeId) {
-      throw new ConflictException('BLOG_SLUG_EXISTS');
+      throw new ConflictException(
+        'Đường dẫn (slug) này đã được dùng cho bài viết khác',
+      );
     }
   }
 
@@ -437,7 +444,8 @@ export class BlogService {
     const repo =
       manager?.getRepository(BlogCategoryEntity) ?? this.categoryRepo;
     const exists = await repo.exist({ where: { id: categoryId } });
-    if (!exists) throw new BadRequestException('BLOG_CATEGORY_NOT_FOUND');
+    if (!exists)
+      throw new BadRequestException('Không tìm thấy danh mục bài viết');
   }
 
   private async replaceTags(
@@ -488,7 +496,8 @@ export class BlogService {
 
   private async findCategoryById(id: string): Promise<BlogCategoryEntity> {
     const category = await this.categoryRepo.findOne({ where: { id } });
-    if (!category) throw new NotFoundException('BLOG_CATEGORY_NOT_FOUND');
+    if (!category)
+      throw new NotFoundException('Không tìm thấy danh mục bài viết');
     return category;
   }
 
@@ -496,11 +505,16 @@ export class BlogService {
     slug: string,
     excludeId?: string,
   ): Promise<void> {
-    if (!slug) throw new BadRequestException('BLOG_CATEGORY_SLUG_REQUIRED');
+    if (!slug)
+      throw new BadRequestException(
+        'Vui lòng nhập đường dẫn (slug) cho danh mục',
+      );
 
     const existing = await this.categoryRepo.findOne({ where: { slug } });
     if (existing && existing.id !== excludeId) {
-      throw new ConflictException('BLOG_CATEGORY_SLUG_EXISTS');
+      throw new ConflictException(
+        'Đường dẫn (slug) này đã được dùng cho danh mục khác',
+      );
     }
   }
 
@@ -515,7 +529,9 @@ export class BlogService {
     );
 
     if (normalized.length > MAX_BLOG_TAGS) {
-      throw new BadRequestException('BLOG_TAG_LIMIT_EXCEEDED');
+      throw new BadRequestException(
+        'Số lượng thẻ (tag) vượt quá giới hạn cho phép',
+      );
     }
 
     const invalidTag = normalized.find(
@@ -524,7 +540,7 @@ export class BlogService {
         this.normalizeSlug(tag).length === 0,
     );
     if (invalidTag) {
-      throw new BadRequestException('BLOG_TAG_INVALID');
+      throw new BadRequestException('Thẻ (tag) không hợp lệ');
     }
 
     return normalized;

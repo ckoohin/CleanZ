@@ -42,12 +42,13 @@ const NAV_ITEMS = [
 export const MobileBottomNav = () => {
   const pathname = usePathname();
 
-  // Ẩn vĩnh viễn trên các trang đặt lịch (booking wizard) để nhường chỗ cho nút Tiếp tục ghim đáy
-  if (pathname.startsWith('/customer/booking') || pathname.startsWith('/booking')) {
-    return null;
-  }
-
-  // Logic theo dõi cuộn để tự động ẩn/hiện menu chính trên di động
+  // Logic theo dõi cuộn để tự động ẩn/hiện menu chính trên di động.
+  //
+  // MỌI hook phải nằm TRƯỚC nhánh `return null` bên dưới. Component này do
+  // customer/layout.tsx render, mà /customer/booking không có layout riêng nên
+  // dùng chung layout đó → component KHÔNG remount khi điều hướng. Nếu hook nằm
+  // sau return, số hook giữa 2 lần render lệch nhau (1 vs 4) và React ném
+  // "Rendered fewer/more hooks than expected", làm sập cả layout khách.
   const [showNav, setShowNav] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -68,6 +69,14 @@ export const MobileBottomNav = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Ẩn trên các trang đặt lịch (booking wizard) để nhường chỗ cho nút Tiếp tục
+  // ghim đáy. Chỉ chặn ở phần trả JSX, sau khi đã gọi hết hook ở trên.
+  const hiddenOnBookingFlow =
+    pathname.startsWith('/customer/booking') || pathname.startsWith('/booking');
+  if (hiddenOnBookingFlow) {
+    return null;
+  }
 
   return (
     <nav className={cn(

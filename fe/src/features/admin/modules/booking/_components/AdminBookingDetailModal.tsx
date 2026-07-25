@@ -21,7 +21,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { AdminButton, StatusBadge, BadgeTone } from "@/components/admin";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useCancelAdminBooking } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 import { AssignTaskerDialog } from "@/features/admin/modules/booking/_components/AssignTaskerDialog";
 import { ChangeBookingStatusDialog } from "@/features/admin/modules/booking/_components/ChangeBookingStatusDialog";

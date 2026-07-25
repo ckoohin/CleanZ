@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   ShieldAlert,
   CheckCircle2,

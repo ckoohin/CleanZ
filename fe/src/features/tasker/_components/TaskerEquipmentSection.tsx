@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Crown, Loader2, Trash2, Upload, Wrench } from "lucide-react";
 import http from "@/lib/api/http";
 import { useSubmitTaskerEquipment } from "../hooks/tasker.hooks";

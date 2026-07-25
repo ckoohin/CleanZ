@@ -33,6 +33,7 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
 
   useEffect(() => {
     if (data && open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
       setDraft(
         Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v ?? ""])),
       );

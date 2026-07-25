@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
+import { toast } from "@/lib/toast";
 import { walletAdminApi } from "../services/wallet-admin.service";
 import type {
   CustomerSpendingQuery,
@@ -175,7 +174,6 @@ export function useAdjustWallet() {
       toast.success("Đã ghi nhận điều chỉnh số dư");
       queryClient.invalidateQueries({ queryKey: walletKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 

@@ -26,7 +26,7 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { authApi } from "@/features/auth/services/auth.service";
 import { queryKeys } from "@/features/auth/queries/auth.query";

@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type { Evidence } from "../incident.types";
 
 interface EvidenceUploaderProps {

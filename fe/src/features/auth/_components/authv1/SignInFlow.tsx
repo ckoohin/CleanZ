@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel'
-import { Toaster, toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, Loader2, Lock, Mail, ChevronDown, ArrowRight } from 'lucide-react'
@@ -221,8 +221,6 @@ export const SignInFlow = () => {
 
     return (
         <div className="relative w-full h-screen bg-slate-950 text-foreground overflow-hidden flex flex-col lg:flex-row">
-            <Toaster richColors position="top-right" />
-
             {/* CỘT TRÁI - GIAO DIỆN PC (ImageCarousel) */}
             <div className="hidden lg:flex lg:flex-1 h-full relative">
                 <ImageCarousel valueAuthType="signin" />

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import {
   Loader2, MapPin, Edit, Search, Clock, ExternalLink, Calendar, Check, Plus, Sparkles, X, ScrollText,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Badge } from "@/components/ui/badge";

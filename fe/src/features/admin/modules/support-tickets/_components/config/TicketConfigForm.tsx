@@ -69,6 +69,7 @@ export function TicketConfigForm({ open, onClose }: Props) {
   // Nạp dữ liệu hiện tại vào form khi mở / khi data đổi.
   useEffect(() => {
     if (!data) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     setSla(
       TICKET_PRIORITY.reduce((acc, p) => {
         acc[p] = data.slaMatrix?.[p] ?? { responseMins: 0, resolutionMins: 0 };

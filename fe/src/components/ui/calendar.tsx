@@ -43,7 +43,7 @@ function CustomDropdown({ value, onChange, options, className, ...props }: Dropd
   );
 }
 
-interface NavigationButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+type NavigationButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 // Custom Previous Button with Lucide Chevron Icon for a cleaner modern look
 function CustomPrevious({ className, ...props }: NavigationButtonProps) {

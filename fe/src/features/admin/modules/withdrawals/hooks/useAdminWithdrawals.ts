@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
+import { toast } from "@/lib/toast";
 import { withdrawalAdminApi } from "../services/withdrawal-admin.service";
 import type {
   ReviewWithdrawalPayload,
@@ -52,6 +51,5 @@ export function useReviewWithdrawal(id: string) {
       );
       queryClient.invalidateQueries({ queryKey: withdrawalKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }

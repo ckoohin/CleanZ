@@ -30,6 +30,9 @@ import { UserRole } from 'src/common/enums/user-role.enum';
 import { CustomerService } from '../customer/customer.service';
 import { DataSource } from 'typeorm';
 
+const DEFAULT_VERIFY_EMAIL_EXPIRES_IN = '15m';
+const DEFAULT_RESET_PASSWORD_EXPIRES_IN = '15m';
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -62,9 +65,10 @@ export class AuthService {
         },
         {
           secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
-          expiresIn: this.configService.get<string>(
+          expiresIn: this.resolveExpiresIn(
             'JWT_VERIFY_EMAIL_EXPIRES_IN',
-          ) as StringValue,
+            DEFAULT_VERIFY_EMAIL_EXPIRES_IN,
+          ),
         },
       );
 
@@ -73,9 +77,11 @@ export class AuthService {
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
       const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
 
-      this.logger.log(
-        `[DEV] Verify email link for ${user.email}: ${verificationUrl}`,
-      );
+      if (this.isAuthDebugLogEnabled()) {
+        this.logger.warn(
+          `[AUTH_DEBUG_LOG] Link xác thực email (${user.email}): ${verificationUrl}`,
+        );
+      }
 
       await this.mailService.sendVerificationEmail(
         user.email,
@@ -130,9 +136,10 @@ export class AuthService {
         },
         {
           secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
-          expiresIn: this.configService.get<string>(
+          expiresIn: this.resolveExpiresIn(
             'JWT_VERIFY_EMAIL_EXPIRES_IN',
-          ) as StringValue,
+            DEFAULT_VERIFY_EMAIL_EXPIRES_IN,
+          ),
         },
       );
 
@@ -141,9 +148,11 @@ export class AuthService {
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
       const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
 
-      this.logger.log(
-        `[DEV] Resend verify link for ${user.email}: ${verificationUrl}`,
-      );
+      if (this.isAuthDebugLogEnabled()) {
+        this.logger.warn(
+          `[AUTH_DEBUG_LOG] Link xác thực email gửi lại (${user.email}): ${verificationUrl}`,
+        );
+      }
 
       await this.mailService.sendVerificationEmail(
         user.email,
@@ -166,18 +175,22 @@ export class AuthService {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
 
-      if (dto.role && user.role !== dto.role) {
-        throw new UnauthorizedException(
-          'Bạn không có quyền truy cập vào hệ thống này',
-        );
-      }
-
       const isPasswordValid = await this.comparePassword(
         dto.password,
         user.password,
       );
       if (!isPasswordValid) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      }
+
+      // Kiểm tra role PHẢI nằm sau khi đã xác thực mật khẩu. Nếu đặt trước, chỉ
+      // cần email là phân biệt được "email không tồn tại" (mật khẩu sai) với
+      // "email tồn tại nhưng sai cổng đăng nhập" → dò được tài khoản và cả vai
+      // trò mà không cần biết mật khẩu.
+      if (dto.role && user.role !== dto.role) {
+        throw new UnauthorizedException(
+          'Bạn không có quyền truy cập vào hệ thống này',
+        );
       }
 
       if (!user.isVerified) {
@@ -192,11 +205,10 @@ export class AuthService {
         );
       }
 
-      // [DEV] Ngoài production, cố định OTP = 000000 để đăng nhập nhanh khi không
-      // có email thật. Production LUÔN dùng mã ngẫu nhiên 6 số. Giá trị vẫn được
-      // hash + lưu như thường nên hết hạn/chống brute-force/verify không đổi.
-      const isDev = process.env.NODE_ENV !== 'production';
-      const otp = isDev
+      // OTP cố định 000000 chỉ dành cho máy dev, và phải khai báo TƯỜNG MINH
+      // NODE_ENV=development. Không dùng `!== 'production'` vì khi biến bị thiếu
+      // hoặc sai chính tả lúc deploy thì 2FA sẽ tự vô hiệu (fail-open).
+      const otp = this.isDevEnv()
         ? '000000'
         : crypto.randomInt(100000, 999999).toString();
       const otpHash = await bcrypt.hash(otp, 10);
@@ -205,11 +217,11 @@ export class AuthService {
 
       await this.mailService.sendLoginOtpEmail(user.email, user.fullName, otp);
 
-      // [DEV] Log OTP để đăng nhập khi không có email thật — CHỈ ngoài production,
-      // và TUYỆT ĐỐI không đưa OTP vào response body (sẽ bypass 2FA email).
-      if (isDev) {
-        console.log(
-          `\n========== [DEV] OTP đăng nhập (${user.email}): ${otp} ==========\n`,
+      // Ghi OTP vào log server để test được khi không có hộp thư thật. TUYỆT ĐỐI
+      // không đưa OTP vào response body — làm vậy là bypass 2FA cho mọi client.
+      if (this.isAuthDebugLogEnabled()) {
+        this.logger.warn(
+          `[AUTH_DEBUG_LOG] OTP đăng nhập (${user.email}): ${otp}`,
         );
       }
 
@@ -339,9 +351,10 @@ export class AuthService {
         { sub: user.id },
         {
           secret: this.configService.get<string>('JWT_RESET_PASSWORD_SECRET'),
-          expiresIn: this.configService.get<string>(
+          expiresIn: this.resolveExpiresIn(
             'JWT_RESET_PASSWORD_EXPIRES_IN',
-          ) as StringValue,
+            DEFAULT_RESET_PASSWORD_EXPIRES_IN,
+          ),
         },
       );
 
@@ -393,6 +406,41 @@ export class AuthService {
         );
       }
     }, 'Lỗi khi đặt lại mật khẩu');
+  }
+
+  /** Máy phát triển — phải khai báo tường minh, không suy ra từ "không phải production". */
+  private isDevEnv(): boolean {
+    return process.env.NODE_ENV === 'development';
+  }
+
+  /**
+   * Cho phép ghi OTP đăng nhập và link xác thực email vào log server để test khi
+   * không có hộp thư thật (vd. trên VPS staging).
+   *
+   * MẶC ĐỊNH TẮT và phải bật tường minh bằng `AUTH_DEBUG_LOG=true`. Khi bật, bất
+   * kỳ ai đọc được log đều có thể đăng nhập hộ người khác và xác thực email hộ —
+   * chỉ bật trên môi trường test, TẮT NGAY sau khi test xong.
+   */
+  private isAuthDebugLogEnabled(): boolean {
+    return (
+      this.isDevEnv() ||
+      this.configService.get<string>('AUTH_DEBUG_LOG')?.trim() === 'true'
+    );
+  }
+
+  /**
+   * Đọc TTL từ config, rơi về mặc định khi env trống/thiếu — tránh việc
+   * `expiresIn: ''` làm `jwtService.sign` ném lỗi và chết cả chức năng.
+   */
+  private resolveExpiresIn(key: string, fallback: string): StringValue {
+    const value = this.configService.get<string>(key)?.trim();
+    if (!value) {
+      this.logger.warn(
+        `${key} chưa được cấu hình — dùng mặc định ${fallback}.`,
+      );
+      return fallback as StringValue;
+    }
+    return value as StringValue;
   }
 
   private async comparePassword(

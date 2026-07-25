@@ -39,6 +39,7 @@ export function SevereCriteriaEditor({
 
   useEffect(() => {
     const o = parse(value);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     setMajor(o.majorAmount != null ? String(o.majorAmount) : "");
     setSevere(o.severeAmount != null ? String(o.severeAmount) : "");
     setCategories(o.categories ?? []);

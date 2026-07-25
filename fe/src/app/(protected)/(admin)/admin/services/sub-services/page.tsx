@@ -8,7 +8,7 @@ import {
 } from "@/features/admin/modules/service/hooks/useAdminServices";
 import { AdminServiceEntity } from "@/features/admin/modules/service/services/admin-services.service";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { StatCard } from "@/features/admin/modules/service/_components/StatCard";
 import { SubServiceFilter } from "@/features/admin/modules/service/_components/sub-services/SubServiceFilter";
 import { SubServiceTable } from "@/features/admin/modules/service/_components/sub-services/SubServiceTable";
@@ -58,8 +58,9 @@ export default function SubServicesManagementPage() {
   useEffect(() => {
     if (!openId || items.length === 0) return;
     const target = items.find(s => s.id === openId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     if (target) setDetailSvc(target);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [openId, items]);
 
   const filtered = useMemo(() => {
@@ -129,6 +130,7 @@ export default function SubServicesManagementPage() {
 
   useEffect(() => {
     if (page > totalPages && totalPages > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
       setPage(totalPages);
     }
   }, [totalPages, page]);

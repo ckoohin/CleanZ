@@ -49,7 +49,11 @@ import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTr
 import { BookingTrackingMap } from "./BookingTrackingMap";
 import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
+import {
+  extractCheckinErrorMessage,
+  getCheckinProofReason,
+} from "@/features/booking/utils/checkin-proof-error";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -81,17 +85,6 @@ async function getCurrentCoords(): Promise<TaskerCheckinPayload | null> {
       },
     );
   });
-}
-
-function extractCheckinErrorMessage(err: unknown): string | null {
-  const data = (err as { response?: { data?: { message?: unknown } } })?.response
-    ?.data;
-  const message = data?.message;
-  if (typeof message === "string") return message;
-  if (Array.isArray(message) && typeof message[0] === "string") {
-    return message[0];
-  }
-  return null;
 }
 
 const STATUS_CONFIG: Record<
@@ -1019,8 +1012,21 @@ function CheckinProofSheet({
   onSubmit: (proofPhotoUrl: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      dialogRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      dialogRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const handleUpload = async (files: FileList | null) => {
     const file = files?.[0];
@@ -1056,17 +1062,25 @@ function CheckinProofSheet({
         onClick={isBusy ? undefined : onClose}
       />
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkin-proof-title"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-x-4 top-[18%] md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
+        className="fixed inset-x-4 top-[18%] z-[60] max-h-[calc(100svh-2rem)] space-y-4 overflow-y-auto rounded-3xl border border-border/50 bg-card p-6 shadow-2xl outline-none md:mx-auto md:max-w-md"
       >
         <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
           <Camera className="size-6" />
         </div>
         <div className="space-y-1 text-center">
-          <h3 className="text-base font-bold text-foreground">
-            Cần ảnh minh chứng
+          <h3
+            id="checkin-proof-title"
+            className="text-base font-bold text-foreground"
+          >
+            Có vẻ bạn chưa đến nơi
           </h3>
           <p className="text-xs leading-relaxed text-muted-foreground">
             {reason}
@@ -1104,7 +1118,7 @@ function CheckinProofSheet({
               <Camera className="size-5" />
             )}
             <span className="text-xs font-semibold">
-              {isUploading ? "Đang tải ảnh…" : "Chụp / chọn ảnh hiện trường"}
+              {isUploading ? "Đang tải ảnh…" : "Ảnh xác minh địa chỉ"}
             </span>
           </button>
         )}
@@ -1199,8 +1213,9 @@ function AssignedDetailView({
       onError: (err) => {
         // BE là nơi quyết định 50m — FE chỉ mở sheet ảnh khi BE yêu cầu.
         const message = extractCheckinErrorMessage(err);
-        if (message && /minh chứng/i.test(message)) {
-          setCheckinProofReason(message);
+        const proofReason = getCheckinProofReason(err);
+        if (proofReason) {
+          setCheckinProofReason(proofReason);
           setShowCheckinProof(true);
           return;
         }

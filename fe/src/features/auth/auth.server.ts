@@ -20,8 +20,10 @@ export async function getMeServer(): Promise<User | null> {
     });
 
     return res.data;
-  } catch (err: any) {
-    if (err.response?.status !== 401) return null;
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response
+      ?.status;
+    if (status !== 401) return null;
 
     try {
       // refresh token

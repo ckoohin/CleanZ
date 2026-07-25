@@ -5,7 +5,7 @@ import { AdminCard } from "@/components/admin";
 import { cn } from "@/lib/utils";
 import { useKpis, useDashboardRange } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
-import type { WidgetId } from "../../types/dashboard.types";
+import type { KpisResponse, WidgetId } from "../../types/dashboard.types";
 
 function fmt(value: number, isMoney: boolean, isPercent: boolean) {
   if (isPercent) return `${value.toFixed(1).replace(".0", "")}%`;
@@ -21,8 +21,8 @@ function fmt(value: number, isMoney: boolean, isPercent: boolean) {
 type KpiConfig = {
   label: string;
   icon: React.ElementType;
-  getValue: (data: any) => string | number;
-  getMeta: (data: any) => React.ReactNode;
+  getValue: (data: KpisResponse) => string | number;
+  getMeta: (data: KpisResponse) => React.ReactNode;
   status: "healthy" | "warning" | "critical";
   isMoney?: boolean;
   isPercent?: boolean;

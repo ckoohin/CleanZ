@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import http from "@/lib/api/http";
 import { useResendVerificationEmail, useVerifyEmail } from "@/features/auth/hooks/auth.hooks";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { AxiosError } from "axios";
 import Footer from "@/features/auth/_components/Footer";
 
@@ -24,13 +24,14 @@ export default function VerifyEmailPage() {
   const { mutateAsync: verifyEmail } = useVerifyEmail()
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     if (!token) { setStatus("error"); return; }
 
     const verify = async () => {
       try {
         const res = await verifyEmail({ token })
         setStatus("success")
-      } catch (error: any) {
+      } catch {
         setStatus("expired")
       }
     };

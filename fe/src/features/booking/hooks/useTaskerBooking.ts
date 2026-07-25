@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { taskerBookingApi } from "../services/booking.service";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { getApiErrorMessage } from "@/lib/api/error-message";

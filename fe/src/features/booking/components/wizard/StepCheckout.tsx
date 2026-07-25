@@ -9,7 +9,7 @@ import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerW
 import { TopupDialog } from "@/features/customer/wallet/components/TopupDialog";
 import { useRouter } from "next/navigation";
 import { PublicService } from "@/features/public/hooks/usePublicData";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useUpdateProfile } from "@/features/auth/hooks/auth.hooks";
 import { ServiceTierSelector } from "./ServiceTierSelector";
 

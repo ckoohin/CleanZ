@@ -7,7 +7,6 @@ import { Mail, ArrowRight, RefreshCw, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ImageCarousel } from "@/features/auth/_components/authv1/ImageCarousel";
-import { Toaster } from "sonner";
 
 export const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -21,8 +20,6 @@ export const fadeUp: Variants = {
 export default function VerifyEmailNoticePage() {
   return (
     <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
-      <Toaster richColors position="top-right" />
-
       {/* Cột trái: Carousel hình ảnh thương hiệu */}
       <ImageCarousel valueAuthType="signin" />
 

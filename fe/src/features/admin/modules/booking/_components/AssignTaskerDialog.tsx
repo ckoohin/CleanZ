@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Loader2, Search, UserCheck } from "lucide-react";
 import {
   Dialog,

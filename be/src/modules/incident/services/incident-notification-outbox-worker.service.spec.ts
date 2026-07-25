@@ -195,9 +195,9 @@ function makeManager(
   };
   const repo = {
     createQueryBuilder: jest.fn(() => qb),
-    save: jest.fn(async (entity: NotificationOutboxEntity) => {
+    save: jest.fn((entity: NotificationOutboxEntity) => {
       saved.push(entity);
-      return entity;
+      return Promise.resolve(entity);
     }),
   };
   return {
