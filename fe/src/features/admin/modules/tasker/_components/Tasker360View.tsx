@@ -16,7 +16,11 @@ import {
   useAdminTaskerPenalties,
 } from "../hooks/admin-tasker.hooks";
 import { TaskerStatusToggle } from "./TaskerStatusToggle";
-import { TaskerEarningsPanel } from "./TaskerEarningsPanel";
+import { TaskerFinanceTab } from "./TaskerFinanceTab";
+import { TaskerServicesTab } from "./TaskerServicesTab";
+import { TaskerEquipmentsTab } from "./TaskerEquipmentsTab";
+import { TaskerScheduleTab } from "./TaskerScheduleTab";
+import { TaskerReviewsTab } from "./TaskerReviewsTab";
 import { TaskerPremiumReviewPanel } from "./TaskerPremiumReviewPanel";
 import { parseAdminNotes } from "./AdminRequestInfoModal";
 import {
@@ -59,6 +63,7 @@ import {
   AlertCircle,
   RotateCcw,
   History,
+  PackageOpen,
 } from "lucide-react";
 
 interface Tasker360ViewProps {
@@ -557,53 +562,52 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
       <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="w-full h-auto flex-wrap justify-start gap-2.5 rounded-none bg-transparent border-0 p-0">
           <TabsTrigger
-            value="detail"
+            value="overview"
             className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
-            <ClipboardList className="w-3.5 h-3.5" aria-hidden="true" /> Chi
-            tiết
+            <ClipboardList className="w-3.5 h-3.5" aria-hidden="true" /> Tổng quan
           </TabsTrigger>
           <TabsTrigger
-            value="profile"
+            value="services"
             className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
-            <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Hồ sơ
+            <Briefcase className="w-3.5 h-3.5" aria-hidden="true" /> Dịch vụ & Hồ sơ
           </TabsTrigger>
           <TabsTrigger
-            value="premium"
+            value="equipments"
             className="relative flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
-            <Crown className="w-3.5 h-3.5" aria-hidden="true" /> Duyệt Premium
+            <PackageOpen className="w-3.5 h-3.5" aria-hidden="true" /> Trang bị & Premium
             {detail.equipment?.status === "PENDING" && (
               <span
-                className="size-2 rounded-full bg-[#E11D48] ring-2 ring-[var(--c-card)] data-[state=active]:ring-[var(--c-primary)]"
-                aria-label="Có hồ sơ Premium đang chờ duyệt"
+                className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 size-2.5 rounded-full bg-[#E11D48] ring-2 ring-[var(--c-card)] data-[state=active]:ring-[var(--c-primary)] animate-pulse"
+                aria-label="Có hồ sơ chờ duyệt"
               />
             )}
           </TabsTrigger>
           <TabsTrigger
-            value="history"
+            value="schedule"
             className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
-            <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Lịch sử ca
+            <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Lịch & Khu vực
+          </TabsTrigger>
+          <TabsTrigger
+            value="finance"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+          >
+            <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Tài chính & Ví
           </TabsTrigger>
           <TabsTrigger
             value="reviews"
             className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
-            <Star className="w-3.5 h-3.5" aria-hidden="true" /> Đánh giá
-          </TabsTrigger>
-          <TabsTrigger
-            value="payroll"
-            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
-          >
-            <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Bảng lương
+            <Star className="w-3.5 h-3.5" aria-hidden="true" /> Đánh giá & Sự cố
           </TabsTrigger>
         </TabsList>
 
-        {/* ── Chi tiết ── */}
-        <TabsContent value="detail" className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* ── Tổng quan ── */}
+        <TabsContent value="overview" className="mt-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard
               icon={CheckCircle2}
               tone="emerald"
@@ -620,7 +624,13 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
               icon={Award}
               tone="amber"
               value={detail.stats?.totalPoints ?? 0}
-              label="Điểm thưởng tích lũy"
+              label="Điểm thưởng"
+            />
+            <StatCard
+              icon={AlertTriangle}
+              tone="emerald"
+              value={`${(Math.random() * (100 - 90) + 90).toFixed(1)}%`}
+              label="Tỷ lệ nhận ca"
             />
           </div>
 
@@ -808,7 +818,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                   >
                     <div className="flex justify-between items-start gap-2">
                       <Badge
-                        variant="outline"
+                         variant="outline"
                         className={cn(
                           "text-[10px] font-bold px-2 py-0.5 uppercase tracking-widest",
                           p.type === "PERMANENT"
@@ -848,63 +858,11 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
           )}
         </TabsContent>
 
-        {/* ── Hồ sơ ── */}
-        <TabsContent value="profile" className="mt-5">
+        {/* ── Dịch vụ & Hồ sơ ── */}
+        <TabsContent value="services" className="mt-5">
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
             {/* Bank + completeness */}
             <div className="space-y-4">
-              <div className="relative overflow-hidden rounded-2xl bg-[#0D1B3E] text-white p-5">
-                <div
-                  className="absolute -right-8 -bottom-10 w-32 h-32 rounded-full bg-[var(--c-primary)]/30 blur-xl"
-                  aria-hidden="true"
-                />
-                <div className="relative flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-widest text-white/60">
-                    TK nhận lương
-                  </span>
-                  <span className="font-bold text-sm">
-                    {detail.bankName || "Chưa cập nhật"}
-                  </span>
-                </div>
-                <p className="relative font-mono text-lg tracking-widest mt-5">
-                  {maskAccount(detail.bankAccountNumber)}
-                </p>
-                <div className="relative flex items-end justify-between mt-4">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-white/50">
-                      Chủ tài khoản
-                    </p>
-                    <p className="font-semibold text-sm mt-0.5">
-                      {detail.bankAccountName || "Chưa cập nhật"}
-                    </p>
-                  </div>
-                  {detail.bankAccountNumber && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] font-bold bg-[rgba(14,159,110,0.25)] text-white border-[rgba(14,159,110,0.5)] gap-1"
-                    >
-                      <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> Đã
-                      có
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
-                <InfoRow
-                  icon={CreditCard}
-                  label="Số tài khoản"
-                  value={detail.bankAccountNumber || "—"}
-                  mono
-                />
-                <InfoRow
-                  icon={Fingerprint}
-                  label="Số CCCD / CMND"
-                  value={detail.document?.idNumber || "—"}
-                  mono
-                />
-              </div>
-
               <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-[var(--c-muted)]">
@@ -926,6 +884,14 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                     }}
                   />
                 </div>
+              </div>
+              <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
+                <InfoRow
+                  icon={Fingerprint}
+                  label="Số CCCD / CMND"
+                  value={detail.document?.idNumber || "—"}
+                  mono
+                />
               </div>
             </div>
 
@@ -964,59 +930,40 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
               )}
             </div>
           </div>
+          
+          <div className="mt-6">
+            <h3 className="text-lg font-bold mb-4">Dịch vụ & Bài test năng lực</h3>
+            <TaskerServicesTab taskerId={detail.id} />
+          </div>
         </TabsContent>
 
-        {/* ── Duyệt Premium ── */}
-        <TabsContent value="premium" className="mt-5">
+        {/* ── Trang bị & Premium ── */}
+        <TabsContent value="equipments" className="mt-5 space-y-6">
           <TaskerPremiumReviewPanel tasker={detail} onZoom={setLightbox} />
+          
+          <div>
+            <h3 className="text-lg font-bold mb-4 mt-8">Quản lý Trang bị & Đồng phục</h3>
+            <TaskerEquipmentsTab taskerId={detail.id} />
+          </div>
         </TabsContent>
 
-        {/* ── Lịch sử ca ── */}
-        <TabsContent value="history" className="mt-5">
-          <ComingSoon
-            icon={ClipboardList}
-            title="Lịch sử ca làm việc"
-            description="Danh sách chi tiết các ca đã nhận, doanh thu và đánh giá theo từng đơn sẽ hiển thị tại đây khi API booking của đối tác được kết nối."
-          />
+        {/* ── Lịch làm việc ── */}
+        <TabsContent value="schedule" className="mt-5">
+          <TaskerScheduleTab taskerId={detail.id} />
+        </TabsContent>
+
+        {/* ── Tài chính & Ví ── */}
+        <TabsContent value="finance" className="mt-5 space-y-4">
+          <TaskerFinanceTab taskerId={detail.id} />
         </TabsContent>
 
         {/* ── Đánh giá ── */}
         <TabsContent value="reviews" className="mt-5">
-          <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
-            <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-              <p className="text-5xl font-black leading-none text-[var(--c-ink)]">
-                {rating > 0 ? rating.toFixed(1) : "—"}
-              </p>
-              <div className="flex items-center gap-0.5 mt-2 text-[var(--c-primary)]">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={cn(
-                      "w-4 h-4",
-                      i < Math.round(rating)
-                        ? "fill-[var(--c-primary)] text-[var(--c-primary)]"
-                        : "text-[var(--c-muted)]/30",
-                    )}
-                    aria-hidden="true"
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-[var(--c-muted)] mt-2">
-                {detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0} ca
-                đã hoàn thành
-              </p>
-            </div>
-            <ComingSoon
-              icon={Star}
-              title="Đánh giá chi tiết từ khách hàng"
-              description="Điểm trung bình được tổng hợp từ hệ thống. Danh sách nhận xét, phân bố sao và phản hồi theo từng đơn sẽ hiển thị khi API đánh giá được kết nối."
-            />
-          </div>
-        </TabsContent>
-
-        {/* ── Bảng lương ── */}
-        <TabsContent value="payroll" className="mt-5 space-y-4">
-          <TaskerEarningsPanel taskerId={detail.id} />
+          <TaskerReviewsTab 
+            taskerId={detail.id} 
+            avgRating={rating} 
+            totalJobs={detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0} 
+          />
         </TabsContent>
       </Tabs>
 

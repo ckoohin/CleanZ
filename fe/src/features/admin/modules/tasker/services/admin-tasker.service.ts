@@ -128,4 +128,28 @@ export const adminTaskerApi = {
     http
       .get(`${BASE}/${id}/earnings/details`, { params })
       .then((res) => res.data),
+
+  // ==========================================
+  // TASKER 360 VIEW
+  // ==========================================
+  getTaskerServices: (id: string): Promise<any> =>
+    http.get(`${BASE}/${id}/services`).then((res) => res.data),
+
+  toggleTaskerService: (id: string, serviceId: string, isActive: boolean): Promise<any> =>
+    http.patch(`${BASE}/${id}/services/${serviceId}/toggle`, { isActive }).then((res) => res.data),
+
+  getTaskerEquipments: (id: string): Promise<any> =>
+    http.get(`${BASE}/${id}/equipments`).then((res) => res.data),
+
+  getTaskerSchedule: (id: string): Promise<any> =>
+    http.get(`${BASE}/${id}/schedule`).then((res) => res.data),
+
+  getTaskerWalletTransactions: (id: string): Promise<any> =>
+    http.get(`${BASE}/${id}/wallet/transactions`).then((res) => res.data),
+
+  getTaskerWalletSummary: (id: string): Promise<any> =>
+    http.get(`${BASE}/${id}/wallet/summary`).then((res) => res.data),
+
+  getTaskerReviews: (id: string): Promise<any> =>
+    http.get(`${BASE}/${id}/reviews`).then((res) => res.data),
 };

@@ -243,3 +243,70 @@ export function useReinstateTasker() {
     },
   });
 }
+
+// ==========================================
+// TASKER 360 VIEW HOOKS
+// ==========================================
+
+export function useAdminTaskerServices(id: string) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "services"],
+    queryFn: () => adminTaskerApi.getTaskerServices(id),
+    enabled: !!id,
+  });
+}
+
+export function useToggleTaskerService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, serviceId, isActive }: { id: string; serviceId: string; isActive: boolean }) =>
+      adminTaskerApi.toggleTaskerService(id, serviceId, isActive),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: [...adminTaskerKeys.detail(variables.id), "services"] });
+      toast.success(variables.isActive ? "Đã bật dịch vụ" : "Đã tắt dịch vụ");
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Lỗi thay đổi trạng thái dịch vụ"));
+    },
+  });
+}
+
+export function useAdminTaskerEquipments(id: string) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "equipments"],
+    queryFn: () => adminTaskerApi.getTaskerEquipments(id),
+    enabled: !!id,
+  });
+}
+
+export function useAdminTaskerSchedule(id: string) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "schedule"],
+    queryFn: () => adminTaskerApi.getTaskerSchedule(id),
+    enabled: !!id,
+  });
+}
+
+export function useAdminTaskerWalletTransactions(id: string) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "wallet-transactions"],
+    queryFn: () => adminTaskerApi.getTaskerWalletTransactions(id),
+    enabled: !!id,
+  });
+}
+
+export function useAdminTaskerWalletSummary(id: string) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "wallet-summary"],
+    queryFn: () => adminTaskerApi.getTaskerWalletSummary(id),
+    enabled: !!id,
+  });
+}
+
+export function useAdminTaskerReviews(id: string) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "reviews"],
+    queryFn: () => adminTaskerApi.getTaskerReviews(id),
+    enabled: !!id,
+  });
+}
