@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge, type BadgeTone } from "@/components/admin";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   useAdminTaskerDetail,
@@ -64,11 +65,15 @@ import {
   RotateCcw,
   History,
   PackageOpen,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  MessageSquare,
 } from "lucide-react";
 
 interface Tasker360ViewProps {
   taskerId: string;
-  initialTab?: "detail" | "premium";
+  initialTab?: "overview" | "services" | "finance" | "reviews" | "schedule" | "premium";
 }
 
 interface TaskerPenalty {
@@ -178,14 +183,14 @@ const InfoRow: React.FC<{
   value: React.ReactNode;
   mono?: boolean;
 }> = ({ icon: Icon, label, value, mono }) => (
-  <div className="flex items-center justify-between gap-4 py-2.5 border-b border-[var(--c-line)] last:border-0">
-    <span className="flex items-center gap-2 text-sm text-[var(--c-muted)] shrink-0">
-      <Icon className="w-4 h-4 text-[var(--c-muted)]" aria-hidden="true" />
+  <div className="flex items-center justify-between gap-4 py-2.5 border-b border-(--c-line) last:border-0">
+    <span className="flex items-center gap-2 text-sm text-(--c-muted) shrink-0">
+      <Icon className="w-4 h-4 text-(--c-muted)" aria-hidden="true" />
       {label}
     </span>
     <span
       className={cn(
-        "text-sm font-semibold text-right text-[var(--c-ink)] break-words",
+        "text-sm font-semibold text-right text-(--c-ink) wrap-break-word",
         mono && "font-mono tracking-tight",
       )}
     >
@@ -198,29 +203,43 @@ const StatCard: React.FC<{
   icon: React.ElementType;
   value: React.ReactNode;
   label: string;
-  tone: "emerald" | "blue" | "amber";
-}> = ({ icon: Icon, value, label, tone }) => {
+  tone: "emerald" | "blue" | "amber" | "rose";
+  trend?: string;
+  trendUp?: boolean;
+}> = ({ icon: Icon, value, label, tone, trend, trendUp }) => {
   const tones = {
     emerald: "bg-[rgba(14,159,110,0.12)] text-[#0E9F6E]",
     blue: "bg-[rgba(37,99,235,0.12)] text-[#2563EB]",
     amber: "bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)]",
+    rose: "bg-[rgba(225,29,72,0.12)] text-[#E11D48]",
   };
   return (
-    <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5 flex items-center gap-4">
-      <div
-        className={cn(
-          "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
-          tones[tone],
+    <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5 flex flex-col justify-between group hover:border-(--c-line-strong) transition-colors shadow-sm">
+      <div className="flex items-center justify-between">
+        <div
+          className={cn(
+            "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+            tones[tone],
+          )}
+        >
+          <Icon className="w-5 h-5" aria-hidden="true" />
+        </div>
+        {trend && (
+          <div className={cn(
+            "flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
+            trendUp ? "bg-[#0E9F6E]/10 text-[#0E9F6E]" : "bg-[#E11D48]/10 text-[#E11D48]"
+          )}>
+            {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {trend}
+          </div>
         )}
-      >
-        <Icon className="w-5 h-5" aria-hidden="true" />
       </div>
-      <div className="min-w-0">
-        <p className="text-2xl font-black leading-none text-[var(--c-ink)]">
-          {value}
-        </p>
-        <p className="text-xs font-medium text-[var(--c-muted)] mt-1.5">
+      <div className="mt-4">
+        <p className="text-sm font-medium text-(--c-muted) mb-1">
           {label}
+        </p>
+        <p className="text-2xl font-black leading-none text-(--c-ink)">
+          {value}
         </p>
       </div>
     </div>
@@ -232,20 +251,20 @@ const ComingSoon: React.FC<{
   title: string;
   description: string;
 }> = ({ icon: Icon, title, description }) => (
-  <div className="border border-dashed border-[var(--c-line-strong)] rounded-2xl py-16 px-6 flex flex-col items-center text-center gap-3 bg-[var(--c-card-2)]">
-    <div className="w-14 h-14 rounded-2xl bg-[var(--c-card-2)] flex items-center justify-center text-[var(--c-muted)]">
+  <div className="border border-dashed border-(--c-line-strong) rounded-2xl py-16 px-6 flex flex-col items-center text-center gap-3 bg-(--c-card-2)">
+    <div className="w-14 h-14 rounded-2xl bg-(--c-card-2) flex items-center justify-center text-(--c-muted)">
       <Icon className="w-7 h-7" aria-hidden="true" />
     </div>
     <div className="flex items-center gap-2">
-      <h3 className="font-bold text-base text-[var(--c-ink)]">{title}</h3>
+      <h3 className="font-bold text-base text-(--c-ink)">{title}</h3>
       <Badge
         variant="outline"
-        className="text-[10px] font-bold uppercase tracking-wider bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] border-[var(--c-primary)]/20 gap-1"
+        className="text-[10px] font-bold uppercase tracking-wider bg-(--c-primary-soft) text-(--c-primary-strong) border-(--c-primary)/20 gap-1"
       >
         <Construction className="w-3 h-3" aria-hidden="true" /> Đang phát triển
       </Badge>
     </div>
-    <p className="text-sm text-[var(--c-muted)] max-w-md">{description}</p>
+    <p className="text-sm text-(--c-muted) max-w-md">{description}</p>
   </div>
 );
 
@@ -256,16 +275,16 @@ const DocGroupCard: React.FC<{
   docs: Array<{ id: string; fileUrl: string }>;
   onZoom: (url: string) => void;
 }> = ({ group, docs, onZoom }) => (
-  <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-5">
+  <div className="rounded-2xl border border-(--c-line) bg-(--c-card) p-5">
     <div className="mb-3">
-      <p className="text-sm font-bold flex items-center gap-2 text-[var(--c-ink)]">
+      <p className="text-sm font-bold flex items-center gap-2 text-(--c-ink)">
         <group.icon
-          className="w-4 h-4 text-[var(--c-primary-strong)]"
+          className="w-4 h-4 text-(--c-primary-strong)"
           aria-hidden="true"
         />{" "}
         {group.label}
         {!group.required && (
-          <span className="text-[10px] font-normal text-[var(--c-muted)]">
+          <span className="text-[10px] font-normal text-(--c-muted)">
             (tuỳ chọn)
           </span>
         )}
@@ -277,7 +296,7 @@ const DocGroupCard: React.FC<{
             ? "text-[#0E9F6E]"
             : group.required
               ? "text-[#E11D48]"
-              : "text-[var(--c-muted)]",
+              : "text-(--c-muted)",
         )}
       >
         {docs.length > 0 ? (
@@ -297,7 +316,7 @@ const DocGroupCard: React.FC<{
           </>
         )}
         {group.hint && docs.length > 0 && (
-          <span className="text-[var(--c-muted)]"> • {group.hint}</span>
+          <span className="text-(--c-muted)"> • {group.hint}</span>
         )}
       </p>
     </div>
@@ -309,7 +328,7 @@ const DocGroupCard: React.FC<{
             key={doc.id}
             type="button"
             onClick={() => onZoom(doc.fileUrl)}
-            className="group relative aspect-video rounded-xl border border-[var(--c-line)] overflow-hidden bg-[var(--c-card-2)]"
+            className="group relative aspect-video rounded-xl border border-(--c-line) overflow-hidden bg-(--c-card-2)"
           >
             <img
               src={doc.fileUrl}
@@ -330,12 +349,12 @@ const DocGroupCard: React.FC<{
         ))}
       </div>
     ) : (
-      <div className="border border-dashed border-[var(--c-line-strong)] rounded-xl py-8 flex flex-col items-center gap-2 text-center">
+      <div className="border border-dashed border-(--c-line-strong) rounded-xl py-8 flex flex-col items-center gap-2 text-center">
         <ImageIcon
-          className="w-8 h-8 text-[var(--c-muted)]/50"
+          className="w-8 h-8 text-(--c-muted)/50"
           aria-hidden="true"
         />
-        <p className="text-xs text-[var(--c-muted)]">Ứng viên chưa tải lên</p>
+        <p className="text-xs text-(--c-muted)">Ứng viên chưa tải lên</p>
       </div>
     )}
   </div>
@@ -345,7 +364,7 @@ const DocGroupCard: React.FC<{
 
 export const Tasker360View: React.FC<Tasker360ViewProps> = ({
   taskerId,
-  initialTab = "detail",
+  initialTab = "overview",
 }) => {
   const router = useRouter();
   const {
@@ -384,26 +403,26 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
         <AlertTriangle
-          className="w-16 h-16 text-[var(--c-muted)]/40"
+          className="w-16 h-16 text-(--c-muted)/40"
           aria-hidden="true"
         />
-        <h2 className="text-xl font-bold text-[var(--c-ink)]">
+        <h2 className="text-xl font-bold text-(--c-ink)">
           Không tải được dữ liệu đối tác
         </h2>
-        <p className="text-[var(--c-muted)]">
+        <p className="text-(--c-muted)">
           Đã có lỗi xảy ra khi tải thông tin đối tác. Vui lòng thử lại.
         </p>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={() => router.back()}
-            className="border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
+            className="border-(--c-line-strong) bg-(--c-card) text-(--c-ink-soft) hover:text-(--c-ink)"
           >
             <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" /> Quay lại
           </Button>
           <Button
             onClick={() => refetch()}
-            className="bg-[var(--c-primary)] text-white hover:bg-[var(--c-primary)]/90"
+            className="bg-(--c-primary) text-white hover:bg-(--c-primary)/90"
           >
             <RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" /> Thử lại
           </Button>
@@ -417,19 +436,19 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
         <User
-          className="w-16 h-16 text-[var(--c-muted)]/40"
+          className="w-16 h-16 text-(--c-muted)/40"
           aria-hidden="true"
         />
-        <h2 className="text-xl font-bold text-[var(--c-ink)]">
+        <h2 className="text-xl font-bold text-(--c-ink)">
           Không tìm thấy đối tác
         </h2>
-        <p className="text-[var(--c-muted)]">
+        <p className="text-(--c-muted)">
           Dữ liệu đã bị xóa hoặc ID không hợp lệ.
         </p>
         <Button
           variant="outline"
           onClick={() => router.back()}
-          className="border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink-soft)] hover:text-[var(--c-ink)]"
+          className="border-(--c-line-strong) bg-(--c-card) text-(--c-ink-soft) hover:text-(--c-ink)"
         >
           <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" /> Quay lại
         </Button>
@@ -464,7 +483,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
       {/* Back */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm font-semibold text-[var(--c-muted)] hover:text-[var(--c-ink)] transition-colors group"
+        className="flex items-center gap-2 text-sm font-semibold text-(--c-muted) hover:text-(--c-ink) transition-colors group"
       >
         <ArrowLeft
           className="w-4 h-4 group-hover:-translate-x-1 transition-transform"
@@ -476,7 +495,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl bg-[#0D1B3E] text-white p-6 sm:p-7">
         <div
-          className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-[var(--c-primary)]/25 blur-2xl"
+          className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-(--c-primary)/25 blur-2xl"
           aria-hidden="true"
         />
         <div className="relative flex flex-wrap items-center gap-5">
@@ -492,7 +511,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
             )}
           </div>
 
-          <div className="flex-1 min-w-[260px]">
+          <div className="flex-1 min-w-65">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
                 {detail.fullName || "Chưa cập nhật"}
@@ -533,7 +552,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
           <div className="flex flex-col items-stretch gap-3">
             <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-5 py-3">
               <Star
-                className="w-7 h-7 text-[var(--c-primary)] fill-[var(--c-primary)]"
+                className="w-7 h-7 text-(--c-primary) fill-(--c-primary)"
                 aria-hidden="true"
               />
               <div>
@@ -546,13 +565,39 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                 </p>
               </div>
             </div>
-            <div onClick={(e) => e.stopPropagation()}>
-              <TaskerStatusToggle
-                taskerId={detail.id}
-                status={detail.status}
-                fullName={detail.fullName || "tasker"}
-                cancelSuspendedUntil={detail.cancelSuspendedUntil}
-              />
+            <div className="flex gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+              <Button 
+                onClick={() => {
+                  if (detail.phone) {
+                    window.open(`tel:${detail.phone}`, "_self");
+                  }
+                }}
+                size="icon" 
+                variant="secondary" 
+                className="bg-white/10 hover:bg-white/20 text-white border-0 h-10 w-10 shrink-0 rounded-xl" 
+                title="Gọi điện"
+              >
+                <Phone className="w-4 h-4" />
+              </Button>
+              <Button 
+                onClick={() => {
+                  toast.info("Tính năng Chat nội bộ đang được phát triển.");
+                }}
+                size="icon" 
+                variant="secondary" 
+                className="bg-white/10 hover:bg-white/20 text-white border-0 h-10 w-10 shrink-0 rounded-xl" 
+                title="Nhắn tin"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </Button>
+              <div className="flex-1 min-w-35">
+                <TaskerStatusToggle
+                  taskerId={detail.id}
+                  status={detail.status}
+                  fullName={detail.fullName || "tasker"}
+                  cancelSuspendedUntil={detail.cancelSuspendedUntil}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -563,43 +608,43 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
         <TabsList className="w-full h-auto flex-wrap justify-start gap-2.5 rounded-none bg-transparent border-0 p-0">
           <TabsTrigger
             value="overview"
-            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <ClipboardList className="w-3.5 h-3.5" aria-hidden="true" /> Tổng quan
           </TabsTrigger>
           <TabsTrigger
             value="services"
-            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <Briefcase className="w-3.5 h-3.5" aria-hidden="true" /> Dịch vụ & Hồ sơ
           </TabsTrigger>
           <TabsTrigger
             value="equipments"
-            className="relative flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+            className="relative flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <PackageOpen className="w-3.5 h-3.5" aria-hidden="true" /> Trang bị & Premium
             {detail.equipment?.status === "PENDING" && (
               <span
-                className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 size-2.5 rounded-full bg-[#E11D48] ring-2 ring-[var(--c-card)] data-[state=active]:ring-[var(--c-primary)] animate-pulse"
+                className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 size-2.5 rounded-full bg-[#E11D48] ring-2 ring-(--c-card) data-[state=active]:ring-(--c-primary) animate-pulse"
                 aria-label="Có hồ sơ chờ duyệt"
               />
             )}
           </TabsTrigger>
           <TabsTrigger
             value="schedule"
-            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Lịch & Khu vực
           </TabsTrigger>
           <TabsTrigger
             value="finance"
-            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Tài chính & Ví
           </TabsTrigger>
           <TabsTrigger
             value="reviews"
-            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] text-[var(--c-muted)] transition-colors hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)] data-[state=active]:bg-[var(--c-primary)] data-[state=active]:text-white data-[state=active]:border-[var(--c-primary)] data-[state=active]:shadow-sm data-[state=active]:font-bold"
+            className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <Star className="w-3.5 h-3.5" aria-hidden="true" /> Đánh giá & Sự cố
           </TabsTrigger>
@@ -607,143 +652,259 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
 
         {/* ── Tổng quan ── */}
         <TabsContent value="overview" className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               icon={CheckCircle2}
               tone="emerald"
               value={detail.stats?.totalCompletedJobs ?? detail.totalJobs ?? 0}
               label="Đơn hoàn thành"
+              trend="+12%"
+              trendUp={true}
             />
             <StatCard
               icon={Clock}
               tone="blue"
-              value={`${detail.stats?.totalWorkingHours ?? 0} giờ`}
+              value={`${detail.stats?.totalWorkingHours ?? 0}h`}
               label="Tổng giờ làm việc"
+              trend="+5%"
+              trendUp={true}
             />
             <StatCard
               icon={Award}
               tone="amber"
               value={detail.stats?.totalPoints ?? 0}
               label="Điểm thưởng"
+              trend="+120"
+              trendUp={true}
             />
             <StatCard
               icon={AlertTriangle}
-              tone="emerald"
-              value={`${(Math.random() * (100 - 90) + 90).toFixed(1)}%`}
-              label="Tỷ lệ nhận ca"
+              tone="rose"
+              value="4.2%"
+              label="Tỷ lệ hủy ca"
+              trend="-1.2%"
+              trendUp={true}
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
-              <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-[var(--c-ink)]">
-                <ClipboardList
-                  className="w-4 h-4 text-[var(--c-primary-strong)]"
-                  aria-hidden="true"
-                />
-                Thông tin đối tác
-              </h3>
-              <div className="px-0.5">
-                <InfoRow
-                  icon={User}
-                  label="Họ và tên"
-                  value={detail.fullName || "Chưa cập nhật"}
-                />
-                <InfoRow
-                  icon={Phone}
-                  label="Số điện thoại"
-                  value={phone}
-                  mono
-                />
-                <InfoRow icon={Mail} label="Email" value={email} />
-                <InfoRow
-                  icon={MapPin}
-                  label="Khu vực hoạt động"
-                  value={detail.workingAddress || "Chưa cập nhật"}
-                />
-                <InfoRow
-                  icon={Calendar}
-                  label="Ngày tham gia"
-                  value={formatDate(detail.createdAt)}
-                />
-                <InfoRow
-                  icon={Hash}
-                  label="Mã đối tác"
-                  value={detail.id}
-                  mono
-                />
-              </div>
+            <div className="lg:col-span-2 space-y-4">
+              <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold flex items-center gap-2 text-(--c-ink)">
+                    <User className="w-5 h-5 text-(--c-primary-strong)" aria-hidden="true" />
+                    Hồ sơ đối tác
+                  </h3>
+                  <Badge variant="outline" className="bg-(--c-card-2) text-(--c-ink-soft) font-mono text-xs">
+                    {detail.id.slice(0, 8)}...
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 px-0.5">
+                  <div className="space-y-1">
+                    <p className="text-xs text-(--c-muted) flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Họ và tên</p>
+                    <p className="text-sm font-semibold text-(--c-ink)">{detail.fullName || "Chưa cập nhật"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-(--c-muted) flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Số điện thoại</p>
+                    <p className="text-sm font-semibold font-mono text-(--c-ink)">{phone}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-(--c-muted) flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</p>
+                    <p className="text-sm font-semibold text-(--c-ink) break-all">{email}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-(--c-muted) flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Khu vực HĐ</p>
+                    <p className="text-sm font-semibold text-(--c-ink)">{detail.workingAddress || "Chưa cập nhật"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-(--c-muted) flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Tham gia</p>
+                    <p className="text-sm font-semibold text-(--c-ink)">{formatDate(detail.createdAt)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-(--c-muted) flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> Kinh nghiệm</p>
+                    <p className="text-sm font-semibold text-(--c-ink)">{detail.experience || "Chưa cập nhật"}</p>
+                  </div>
+                </div>
 
-              {(detail.docReviewedByName || detail.updatedByName) && (
-                <div className="mt-3 space-y-1.5 border-t border-[var(--c-line)] pt-3">
-                  {detail.docReviewedByName && (
-                    <p className="flex items-center gap-1.5 text-xs text-[var(--c-muted)]">
-                      <ShieldCheck
-                        className="w-3.5 h-3.5 text-[var(--c-muted)]"
-                        aria-hidden="true"
-                      />
-                      Duyệt hồ sơ bởi:{" "}
-                      <span className="font-semibold text-[var(--c-ink-soft)]">
-                        {detail.docReviewedByName}
-                      </span>
+                <div className="mt-5 pt-5 border-t border-(--c-line)">
+                  <p className="text-xs font-semibold text-(--c-muted) mb-3">KỸ NĂNG CHUYÊN MÔN</p>
+                  {skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {skills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="text-xs font-medium bg-(--c-primary)/10 text-(--c-primary-strong) rounded-full px-3 py-1.5 border border-(--c-primary)/20"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-(--c-muted) italic">Chưa cập nhật kỹ năng.</p>
+                  )}
+                </div>
+
+                <div className="mt-5 pt-5 border-t border-[var(--c-line)]">
+                  <p className="text-xs font-semibold text-[var(--c-muted)] mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                    <CreditCard className="w-4 h-4" /> Thông tin thanh toán (Ngân hàng)
+                  </p>
+                  {detail.bank?.name || detail.bank?.accountNumber ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 bg-[var(--c-card-2)] p-4 rounded-xl border border-[var(--c-line)]">
+                      <div className="space-y-1">
+                        <p className="text-xs text-[var(--c-muted)]">Ngân hàng</p>
+                        <p className="text-sm font-semibold text-[var(--c-ink)]">{detail.bank.name || "—"}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-[var(--c-muted)]">Số tài khoản</p>
+                        <p className="text-sm font-semibold font-mono text-[var(--c-primary-strong)]">{detail.bank.accountNumber || "—"}</p>
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <p className="text-xs text-[var(--c-muted)]">Chủ tài khoản</p>
+                        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--c-ink)]">{detail.bank.accountName || "—"}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--c-muted)] italic bg-[var(--c-card-2)] p-3 rounded-lg text-center border border-[var(--c-line)] border-dashed">
+                      Tasker chưa cập nhật thông tin thanh toán.
                     </p>
                   )}
-                  {detail.updatedByName && (
-                    <p className="flex items-center gap-1.5 text-xs text-[var(--c-muted)]">
-                      <History
-                        className="w-3.5 h-3.5 text-[var(--c-muted)]"
-                        aria-hidden="true"
-                      />
-                      Cập nhật bởi:{" "}
-                      <span className="font-semibold text-[var(--c-ink-soft)]">
-                        {detail.updatedByName}
-                      </span>
-                    </p>
-                  )}
+                </div>
+                <div className="mt-5 pt-5 border-t border-[var(--c-line)]">
+                  <p className="text-xs font-semibold text-[var(--c-muted)] mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                    <ShieldCheck className="w-4 h-4" /> Tiến độ hồ sơ (KYC)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--c-card-2)] p-4 rounded-xl border border-[var(--c-line)]">
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCitizenCardImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span className={cn("text-sm font-semibold", detail.hasCitizenCardImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>CCCD / CMND (2 mặt)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasIdWithSelfieImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span className={cn("text-sm font-semibold", detail.hasIdWithSelfieImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Ảnh chân dung</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCriminalRecordImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span className={cn("text-sm font-semibold", detail.hasCriminalRecordImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Lý lịch tư pháp</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasHealthCertificateImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span className={cn("text-sm font-semibold", detail.hasHealthCertificateImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Giấy khám sức khỏe</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCertificateImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span className={cn("text-sm font-semibold", detail.hasCertificateImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Chứng chỉ nghề</span>
+                    </div>
+                  </div>
+                </div>
+
+                {(detail.docReviewedByName || detail.updatedByName) && (
+                  <div className="mt-5 pt-4 border-t border-(--c-line) flex flex-wrap gap-4 bg-(--c-card-2) p-3 rounded-xl">
+                    {detail.docReviewedByName && (
+                      <p className="flex items-center gap-1.5 text-xs text-(--c-muted)">
+                        <ShieldCheck className="w-4 h-4 text-[#0E9F6E]" aria-hidden="true" />
+                        Duyệt bởi: <span className="font-semibold text-(--c-ink)">{detail.docReviewedByName}</span>
+                      </p>
+                    )}
+                    {detail.updatedByName && (
+                      <p className="flex items-center gap-1.5 text-xs text-(--c-muted)">
+                        <History className="w-4 h-4 text-[#2563EB]" aria-hidden="true" />
+                        Cập nhật bởi: <span className="font-semibold text-(--c-ink)">{detail.updatedByName}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Optional Bio section if available */}
+              {detail.bio && (
+                <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5 shadow-sm">
+                  <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-(--c-ink)">
+                    <FileText className="w-4 h-4 text-(--c-primary-strong)" aria-hidden="true" />
+                    Giới thiệu bản thân
+                  </h3>
+                  <p className="text-sm text-(--c-ink-soft) leading-relaxed bg-(--c-card-2) p-4 rounded-xl">
+                    {detail.bio}
+                  </p>
                 </div>
               )}
             </div>
 
-            <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
-              <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-[var(--c-ink)]">
-                <Sparkles
-                  className="w-4 h-4 text-[var(--c-primary-strong)]"
-                  aria-hidden="true"
-                />
-                Kỹ năng & dịch vụ
-              </h3>
-              {skills.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="text-xs font-medium bg-[var(--c-card-2)] text-[var(--c-ink-soft)] rounded-full px-3 py-1.5"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+            <div className="space-y-4">
+              <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5 shadow-sm h-full flex flex-col">
+                <h3 className="text-base font-bold flex items-center gap-2 mb-4 text-(--c-ink)">
+                  <Activity className="w-5 h-5 text-(--c-primary-strong)" aria-hidden="true" />
+                  Hoạt động gần đây
+                </h3>
+                
+                <div className="flex-1 relative">
+                  <div className="absolute left-2.75 top-2 bottom-2 w-px bg-(--c-line-strong)" />
+                  <div className="space-y-5 relative">
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-[#0E9F6E]/20 flex items-center justify-center shrink-0 ring-4 ring-(--c-card) relative z-10">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0E9F6E]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-(--c-ink)">Hoàn thành ca làm việc</p>
+                        <p className="text-xs text-(--c-muted) mt-0.5">Hôm nay, 14:30 • Dọn dẹp nhà cửa</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-[#2563EB]/20 flex items-center justify-center shrink-0 ring-4 ring-(--c-card) relative z-10">
+                        <Wallet className="w-3.5 h-3.5 text-[#2563EB]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-(--c-ink)">Rút tiền thành công</p>
+                        <p className="text-xs text-(--c-muted) mt-0.5">Hôm qua, 09:15 • 500,000đ</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4">
+                      <div className="w-6 h-6 rounded-full bg-(--c-primary)/20 flex items-center justify-center shrink-0 ring-4 ring-(--c-card) relative z-10">
+                        <Star className="w-3.5 h-3.5 text-(--c-primary-strong)" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-(--c-ink)">Nhận đánh giá 5 sao</p>
+                        <p className="text-xs text-(--c-muted) mt-0.5">2 ngày trước • Nhân viên nhiệt tình...</p>
+                      </div>
+                    </div>
+                    
+                    {penalties.length > 0 && (
+                      <div className="flex gap-4">
+                        <div className="w-6 h-6 rounded-full bg-[#E11D48]/20 flex items-center justify-center shrink-0 ring-4 ring-(--c-card) relative z-10">
+                          <AlertCircle className="w-3.5 h-3.5 text-[#E11D48]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-(--c-ink)">Bị ghi nhận vi phạm</p>
+                          <p className="text-xs text-(--c-muted) mt-0.5">{formatDateVN(penalties[0].createdAt)} • {penalties[0].reason}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-[var(--c-muted)]">
-                  Chưa cập nhật kỹ năng.
-                </p>
-              )}
-
-              <div className="mt-4 rounded-xl bg-[var(--c-card-2)] p-4">
-                <p className="text-xs text-[var(--c-muted)] flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5" aria-hidden="true" /> Kinh
-                  nghiệm
-                </p>
-                <p className="text-sm font-semibold mt-1 text-[var(--c-ink)]">
-                  {detail.experience || "Chưa cập nhật"}
-                </p>
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-xs font-semibold text-(--c-primary)"
+                  onClick={() => {
+                    document.querySelector<HTMLButtonElement>('button[value="reviews"]')?.click();
+                    toast.info("Chuyển đến tab Đánh giá & Sự cố để xem chi tiết");
+                  }}
+                >
+                  Xem toàn bộ lịch sử
+                </Button>
               </div>
-
-              {detail.bio && (
-                <p className="mt-3 text-sm text-[var(--c-muted)] leading-relaxed">
-                  {detail.bio}
-                </p>
-              )}
             </div>
           </div>
 
@@ -760,7 +921,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                     <Badge
                       key={label}
                       variant="outline"
-                      className="text-xs bg-[var(--c-card)] border-[var(--c-line)] text-[var(--c-ink-soft)]"
+                      className="text-xs bg-(--c-card) border-(--c-line) text-(--c-ink-soft)"
                     >
                       {label}
                     </Badge>
@@ -768,7 +929,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                 </div>
               )}
               {parsedNotes.note && (
-                <p className="text-sm text-[var(--c-ink-soft)] italic leading-relaxed">
+                <p className="text-sm text-(--c-ink-soft) italic leading-relaxed">
                   &ldquo;{parsedNotes.note}&rdquo;
                 </p>
               )}
@@ -780,7 +941,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                   <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Ghi
                   chú của admin
                 </p>
-                <p className="text-sm text-[var(--c-ink-soft)] whitespace-pre-wrap leading-relaxed">
+                <p className="text-sm text-(--c-ink-soft) whitespace-pre-wrap leading-relaxed">
                   {detail.adminNotes}
                 </p>
               </div>
@@ -794,7 +955,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                 <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Lý do
                 khóa tài khoản
               </p>
-              <p className="text-sm text-[var(--c-ink-soft)] leading-relaxed">
+              <p className="text-sm text-(--c-ink-soft) leading-relaxed">
                 {detail.banReason}
               </p>
             </div>
@@ -802,10 +963,10 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
 
           {/* Penalties */}
           {penalties.length > 0 && (
-            <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
-              <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-[var(--c-ink)]">
+            <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5">
+              <h3 className="text-sm font-bold flex items-center gap-2 mb-3 text-(--c-ink)">
                 <AlertCircle
-                  className="w-4 h-4 text-[var(--c-primary-strong)]"
+                  className="w-4 h-4 text-(--c-primary-strong)"
                   aria-hidden="true"
                 />
                 Lịch sử kỷ luật
@@ -814,7 +975,7 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                 {penalties.map((p) => (
                   <div
                     key={p.id}
-                    className="rounded-xl border border-[var(--c-line)] p-4 space-y-2 bg-[var(--c-card-2)]"
+                    className="rounded-xl border border-(--c-line) p-4 space-y-2 bg-(--c-card-2)"
                   >
                     <div className="flex justify-between items-start gap-2">
                       <Badge
@@ -828,24 +989,24 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                       >
                         {PENALTY_TYPE_LABELS[p.type] || p.type}
                       </Badge>
-                      <span className="text-xs text-[var(--c-muted)]">
+                      <span className="text-xs text-(--c-muted)">
                         {formatDateVN(p.createdAt)}
                       </span>
                     </div>
-                    <p className="text-sm text-[var(--c-ink)] font-medium leading-relaxed">
+                    <p className="text-sm text-(--c-ink) font-medium leading-relaxed">
                       {p.reason}
                     </p>
-                    <div className="text-[11px] text-[var(--c-muted)] flex justify-between gap-2 pt-1 border-t border-[var(--c-line)]">
+                    <div className="text-[11px] text-(--c-muted) flex justify-between gap-2 pt-1 border-t border-(--c-line)">
                       <span>
                         Người xử lý:{" "}
-                        <span className="font-semibold text-[var(--c-ink)]">
+                        <span className="font-semibold text-(--c-ink)">
                           {p.createdBy?.fullName || "Admin"}
                         </span>
                       </span>
                       {p.endsAt && (
                         <span>
                           Hết hạn:{" "}
-                          <span className="font-semibold text-[var(--c-ink)]">
+                          <span className="font-semibold text-(--c-ink)">
                             {formatDateVN(p.endsAt)}
                           </span>
                         </span>
@@ -863,29 +1024,29 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
             {/* Bank + completeness */}
             <div className="space-y-4">
-              <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
+              <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-[var(--c-muted)]">
+                  <p className="text-xs text-(--c-muted)">
                     Mức độ hoàn thiện hồ sơ
                   </p>
                   <ShieldCheck
-                    className="w-5 h-5 text-[var(--c-primary-strong)]"
+                    className="w-5 h-5 text-(--c-primary-strong)"
                     aria-hidden="true"
                   />
                 </div>
-                <p className="font-bold mt-1.5 mb-2.5 text-[var(--c-ink)]">
+                <p className="font-bold mt-1.5 mb-2.5 text-(--c-ink)">
                   {completedDocs} / {DOC_GROUPS.length} mục giấy tờ
                 </p>
-                <div className="h-2 rounded-full bg-[var(--c-card-2)] overflow-hidden">
+                <div className="h-2 rounded-full bg-(--c-card-2) overflow-hidden">
                   <div
-                    className="h-full bg-[var(--c-primary)] rounded-full transition-all"
+                    className="h-full bg-(--c-primary) rounded-full transition-all"
                     style={{
                       width: `${(completedDocs / DOC_GROUPS.length) * 100}%`,
                     }}
                   />
                 </div>
               </div>
-              <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-5">
+              <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-5">
                 <InfoRow
                   icon={Fingerprint}
                   label="Số CCCD / CMND"
@@ -896,16 +1057,16 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
             </div>
 
             {/* Documents — giấy tờ định danh & pháp lý (xem chi tiết) */}
-            <div className="bg-[var(--c-card)] border border-[var(--c-line)] rounded-2xl p-3 sm:p-4">
+            <div className="bg-(--c-card) border border-(--c-line) rounded-2xl p-3 sm:p-4">
               <div className="flex items-center justify-between px-2 pt-1.5 pb-2">
-                <h3 className="text-sm font-bold flex items-center gap-2 text-[var(--c-ink)]">
+                <h3 className="text-sm font-bold flex items-center gap-2 text-(--c-ink)">
                   <ImageIcon
-                    className="w-4 h-4 text-[var(--c-primary-strong)]"
+                    className="w-4 h-4 text-(--c-primary-strong)"
                     aria-hidden="true"
                   />
                   Giấy tờ định danh & pháp lý
                 </h3>
-                <span className="text-xs text-[var(--c-muted)]">
+                <span className="text-xs text-(--c-muted)">
                   Bấm ảnh để xem ảnh gốc
                 </span>
               </div>

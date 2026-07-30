@@ -7,10 +7,12 @@ import type {
   WalletAdjustmentPayload,
   WalletListQuery,
   WalletTransactionQuery,
+  RevenueSummaryQuery,
 } from "../types/wallet.types";
 
 export const walletKeys = {
   all: ["admin-wallets"] as const,
+  revenueSummary: (params?: RevenueSummaryQuery) => [...walletKeys.all, "revenue-summary", params] as const,
   list: (params?: WalletListQuery) =>
     [...walletKeys.all, "list", params] as const,
   detail: (id: string) => [...walletKeys.all, "detail", id] as const,
@@ -177,3 +179,9 @@ export function useAdjustWallet() {
   });
 }
 
+export function useAdminRevenueSummary(params?: RevenueSummaryQuery) {
+  return useQuery({
+    queryKey: walletKeys.revenueSummary(params),
+    queryFn: () => walletAdminApi.revenueSummary(params),
+  });
+}

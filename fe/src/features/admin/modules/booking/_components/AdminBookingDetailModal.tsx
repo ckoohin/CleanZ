@@ -186,7 +186,26 @@ function TimelineRow({ entry }: { entry: AdminBookingTimelineEntry }) {
         )}
         <p className="text-[10px] text-[var(--c-muted)] mt-0.5">
           {fmtDateTime(entry.createdAt)}
-          {entry.changedBy && ` · ${entry.changedBy.fullName}`}
+          {entry.changedBy && (
+            <>
+              {" · "}
+              {entry.changedBy.role === "CUSTOMER" || entry.changedBy.role === "TASKER" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const path = entry.changedBy!.role === "CUSTOMER" ? "customers" : "taskers";
+                    window.open(`/admin/${path}/${entry.changedBy!.id}`, "_blank");
+                  }}
+                  className="hover:text-blue-600 hover:underline cursor-pointer"
+                  title="Mở hồ sơ"
+                >
+                  {entry.changedBy.fullName}
+                </button>
+              ) : (
+                entry.changedBy.fullName
+              )}
+            </>
+          )}
         </p>
       </div>
     </div>
@@ -522,50 +541,45 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                 )}
               </div>
 
-              {/* Schedule */}
-              <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)] space-y-3">
-                <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)]">
-                  <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" />{" "}
-                  Lịch Hẹn
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <span className="text-xs text-[var(--c-muted)] block mb-0.5">
-                      Ngày làm việc
-                    </span>
-                    <span className="font-semibold text-sm">
-                      {schedule?.scheduledStartDate ?? "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-[var(--c-muted)] block mb-0.5">
-                      Giờ bắt đầu
-                    </span>
-                    <span className="font-semibold text-sm">
-                      {schedule?.scheduledStartTime ?? "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-[var(--c-muted)] block mb-0.5">
-                      Thời lượng
-                    </span>
-                    <span className="font-semibold text-sm">
-                      {schedule?.durationHours ?? "—"} giờ
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-[var(--c-muted)] block mb-0.5">
-                      Dịch vụ
-                    </span>
-                    <span className="font-semibold text-sm text-[var(--c-primary-strong)]">
-                      {booking.service?.name ?? "—"}
-                    </span>
-                  </div>
+            {/* Schedule */}
+            <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)] space-y-3">
+              <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)]">
+                <Clock className="w-4 h-4 text-[var(--c-primary-strong)]" /> Lịch Hẹn
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Ngày làm việc</span>
+                  <span className="font-semibold text-sm">{schedule?.scheduledStartDate ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Giờ bắt đầu</span>
+                  <span className="font-semibold text-sm">{schedule?.scheduledStartTime ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Thời lượng</span>
+                  <span className="font-semibold text-sm">{schedule?.durationHours ?? "—"} giờ</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[var(--c-muted)] block mb-0.5">Dịch vụ</span>
+                  {booking.service?.id ? (
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/admin/services/${booking.service!.id}`, "_blank")}
+                      className="inline-flex items-center gap-1 font-semibold text-sm text-[var(--c-primary-strong)] hover:text-blue-600 hover:underline cursor-pointer group"
+                      title="Mở cấu hình dịch vụ trong tab mới"
+                    >
+                      {booking.service?.name ?? "N/A"}
+                      <ExternalLink className="w-3 h-3 text-[var(--c-primary-soft)] group-hover:text-blue-600" />
+                    </button>
+                  ) : (
+                    <span className="font-semibold text-sm text-[var(--c-primary-strong)]">{booking.service?.name ?? "N/A"}</span>
+                  )}
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Row 2: Price breakdown */}
+          {/* Row 2: Price breakdown */}
             {price && (
               <div className="bg-[var(--c-card-2)] rounded-xl p-4 border border-[var(--c-line)]">
                 <h3 className="font-bold text-sm flex items-center gap-2 pb-2 border-b border-[var(--c-line)] mb-3">
@@ -660,9 +674,23 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                   <span className="text-xs text-[var(--c-muted)] block mb-0.5">
                     Họ tên
                   </span>
-                  <span className="font-semibold text-sm">
-                    {booking.customer?.fullName ?? "N/A"}
-                  </span>
+                  {booking.customer ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (booking.customer?.id) {
+                          window.open(`/admin/customers/${booking.customer.id}`, "_blank");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 font-semibold text-sm text-[var(--c-ink)] hover:text-blue-600 hover:underline cursor-pointer group"
+                      title="Mở chi tiết khách hàng trong tab mới"
+                    >
+                      {booking.customer.fullName}
+                      <ExternalLink className="w-3 h-3 text-[var(--c-primary-soft)] group-hover:text-blue-600" />
+                    </button>
+                  ) : (
+                    <span className="font-semibold text-sm">N/A</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-xs text-[var(--c-muted)] block mb-0.5">
@@ -718,9 +746,19 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                     <span className="text-xs text-[var(--c-muted)] block mb-0.5">
                       Họ tên
                     </span>
-                    <span className="font-semibold text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (booking.tasker?.id) {
+                          window.open(`/admin/taskers/${booking.tasker.id}`, "_blank");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 font-semibold text-sm text-[var(--c-ink)] hover:text-blue-600 hover:underline cursor-pointer group"
+                      title="Mở chi tiết nhân viên trong tab mới"
+                    >
                       {booking.tasker.fullName}
-                    </span>
+                      <ExternalLink className="w-3 h-3 text-[var(--c-primary-soft)] group-hover:text-blue-600" />
+                    </button>
                   </div>
                   <div>
                     <span className="text-xs text-[var(--c-muted)] block mb-0.5">
@@ -747,6 +785,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                 </p>
               )}
             </div>
+
           </div>
 
           <div className="min-w-0 space-y-3">

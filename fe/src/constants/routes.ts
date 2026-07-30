@@ -127,6 +127,7 @@ export const ROUTES = {
     NOTIFICATIONS: "/admin/notifications",
     FINANCES: {
       BASE: "/admin/finances",
+      REVENUE: "/admin/finances/revenue",
       WITHDRAWALS: "/admin/withdrawals",
       CUSTOMER_WITHDRAWALS: "/admin/customer-withdrawals",
       WALLETS: "/admin/wallets",

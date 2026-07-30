@@ -15,7 +15,7 @@ export default async function AdminTaskerDetailRoute({
       <div className="w-full">
         <Tasker360View
           taskerId={id}
-          initialTab={tab === "premium" ? "premium" : "detail"}
+          initialTab={tab === "premium" ? "premium" : "overview"}
         />
       </div>
     </main>

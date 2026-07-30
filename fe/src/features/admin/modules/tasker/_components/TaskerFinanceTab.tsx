@@ -15,6 +15,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { AdminCard } from "@/components/admin";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   useAdminTaskerEarnings,
@@ -36,6 +37,10 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { AdminBookingDetailModal } from "@/features/admin/modules/booking/_components/AdminBookingDetailModal";
+import { useAdminBookingDetail } from "@/features/admin/modules/booking/hooks/useAdminBooking";
+import { TransactionDetailDrawer } from "@/features/admin/modules/customer/_components/TransactionDetailDrawer";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -46,8 +51,6 @@ const PERIOD_OPTIONS: { key: "today" | "thisWeek" | "thisMonth"; label: string }
 ];
 
 function fmtMoney(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace(".0", "")} tỷ đ`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(".0", "")}M đ`;
   return `${value.toLocaleString("vi-VN")} đ`;
 }
 
@@ -92,12 +95,25 @@ const EarningStat: React.FC<{
 // ─── Sub-tab Views ──────────────────────────────────────────────────────────
 
 const EarningsOverviewView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [period, setPeriod] = useState<(typeof PERIOD_OPTIONS)[number]["key"] | "custom">("thisMonth");
-  const [customRange, setCustomRange] = useState({ startDate: "", endDate: "" });
-  
-  const range = useMemo(() => {
+  const [customRange, setCustomRange] = React.useState<{
+    startDate: Date | null;
+    endDate: Date | null;
+  }>({
+    startDate: null,
+    endDate: null,
+  });
+
+  const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
+  const { booking: bookingDetail, isLoading: isBookingLoading } = useAdminBookingDetail(selectedBookingId);
+
+  const [selectedTxnId, setSelectedTxnId] = React.useState<string | null>(null);
+
+  const range = React.useMemo(() => {
     if (period === "custom") {
-      return { fromDate: customRange.startDate, toDate: customRange.endDate };
+      return { fromDate: customRange.startDate?.toISOString() ?? "", toDate: customRange.endDate?.toISOString() ?? "" };
     }
     return rangeOf(period);
   }, [period, customRange]);
@@ -155,14 +171,14 @@ const EarningsOverviewView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
           
           <div className="flex items-center ml-1">
             <DateRangePicker
-              startDate={customRange.startDate}
-              endDate={customRange.endDate}
+              startDate={customRange.startDate ? customRange.startDate.toISOString() : ""}
+              endDate={customRange.endDate ? customRange.endDate.toISOString() : ""}
               onStartChange={(v) => {
-                setCustomRange((p) => ({ ...p, startDate: v }));
+                setCustomRange((p) => ({ ...p, startDate: new Date(v) }));
                 setPeriod("custom");
               }}
               onEndChange={(v) => {
-                setCustomRange((p) => ({ ...p, endDate: v }));
+                setCustomRange((p) => ({ ...p, endDate: new Date(v) }));
                 setPeriod("custom");
               }}
               placeholder="Tùy chọn ngày..."
@@ -303,82 +319,151 @@ const EarningsOverviewView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
                   <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-3 text-right text-[#9333EA]">Tổng giá (Gross)</th>
                   <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-3 text-right text-[#0E9F6E]">Thực thu (Net)</th>
                   <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-5 text-right text-[var(--c-primary-strong)]">Phí Nền tảng</th>
+                  <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-5 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--c-line)]">
-                {detailsData.map((row) => {
-                  const gross = row.taskerEarning + row.platformCommission;
-                  return (
-                    <tr key={row.bookingId} className="hover:bg-[var(--c-card-2)] transition-colors group">
-                      <td className="py-3 px-5 font-bold text-[var(--c-ink)] tabular-nums group-hover:text-[var(--c-primary)] transition-colors">{row.bookingCode}</td>
-                      <td className="py-3 px-3 text-[var(--c-muted)] tabular-nums">{fmtDateTime(row.completedAt)}</td>
-                      <td className="py-3 px-3 text-right font-bold text-[var(--c-ink)] tabular-nums">
-                        {fmtMoney(gross)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold text-[#0E9F6E] tabular-nums bg-[#0E9F6E]/5">
-                        {fmtMoney(row.taskerEarning)}
-                      </td>
-                      <td className="py-3 px-5 text-right font-bold text-[var(--c-primary-strong)] tabular-nums bg-[var(--c-primary)]/5">
-                        {fmtMoney(row.platformCommission)}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {(() => {
+                  const itemsPerPage = limit;
+                  const maxPage = Math.max(1, Math.ceil((detailsData?.length || 0) / itemsPerPage));
+                  const safePage = Math.min(currentPage, maxPage);
+                  const startIndex = (safePage - 1) * itemsPerPage;
+                  const paginatedData = detailsData.slice(startIndex, startIndex + itemsPerPage);
+
+                  return paginatedData.map((row) => {
+                    const gross = row.taskerEarning + row.platformCommission;
+                    return (
+                      <tr 
+                        key={row.bookingId} 
+                        className="hover:bg-[var(--c-card-2)] transition-colors group cursor-pointer"
+                        onClick={() => setSelectedBookingId(row.bookingId)}
+                      >
+                        <td className="py-3 px-5 font-bold text-[var(--c-ink)] tabular-nums group-hover:text-[var(--c-primary)] transition-colors flex items-center gap-2">
+                          {row.bookingCode}
+                          <Receipt className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </td>
+                        <td className="py-3 px-3 text-[var(--c-muted)] tabular-nums">{fmtDateTime(row.completedAt)}</td>
+                        <td className="py-3 px-3 text-right font-bold text-[var(--c-ink)] tabular-nums">
+                          {fmtMoney(gross)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-[#0E9F6E] tabular-nums bg-[#0E9F6E]/5">
+                          {fmtMoney(row.taskerEarning)}
+                        </td>
+                        <td className="py-3 px-5 text-right font-bold text-[var(--c-primary-strong)] tabular-nums bg-[var(--c-primary)]/5">
+                          {fmtMoney(row.platformCommission)}
+                        </td>
+                        <td className="py-3 px-5 text-right">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)] hover:bg-[var(--c-primary)] hover:text-white transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBookingId(row.bookingId);
+                            }}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            Chi tiết
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
         )}
+        {!detailsLoading && detailsData && detailsData.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-3 border-t border-[var(--c-line)] bg-[var(--c-card)]">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="text-xs font-medium text-[var(--c-muted)]">
+                Hiển thị {detailsData.length === 0 ? 0 : Math.min((currentPage - 1) * limit + 1, detailsData.length)} đến {Math.min(currentPage * limit, detailsData.length)} trong tổng số {detailsData.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[var(--c-muted)]">Số dòng:</span>
+                <select 
+                  className="bg-[var(--c-card-2)] border border-[var(--c-line)] text-xs text-[var(--c-ink)] rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-[var(--c-primary)] font-medium cursor-pointer"
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+                title="Trang đầu"
+              >
+                <span className="text-[10px] font-bold">{"<<"}</span>
+              </button>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <span className="text-xs font-semibold px-3 text-[var(--c-ink)]">
+                Trang {currentPage} / {Math.ceil(detailsData.length / limit) || 1}
+              </span>
+
+              <button
+                type="button"
+                disabled={currentPage >= Math.ceil(detailsData.length / limit)}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= Math.ceil(detailsData.length / limit)}
+                onClick={() => setCurrentPage(Math.ceil(detailsData.length / limit) || 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+                title="Trang cuối"
+              >
+                <span className="text-[10px] font-bold">{">>"}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </AdminCard>
+
+      {/* Modals & Drawers */}
+      <AdminBookingDetailModal
+        open={!!selectedBookingId}
+        onOpenChange={(val) => {
+          if (!val) setSelectedBookingId(null);
+        }}
+        booking={bookingDetail ?? null}
+      />
+      <TransactionDetailDrawer
+        transactionId={selectedTxnId}
+        open={!!selectedTxnId}
+        onOpenChange={(val) => !val && setSelectedTxnId(null)}
+      />
     </div>
   );
 };
 
 // ─── Sub-tab Giao dịch Ví (Ledger) ─────────────────────────────────────────
 
-const MOCK_TRANSACTIONS = [
-  {
-    id: "txn_01",
-    date: "2026-07-29T08:15:00Z",
-    type: "PAYOUT",
-    label: "Thanh toán lương tuần 3/2026",
-    amount: 1250000,
-    isPositive: true,
-    balance: 1450000,
-    status: "SUCCESS"
-  },
-  {
-    id: "txn_02",
-    date: "2026-07-28T14:30:00Z",
-    type: "WITHDRAW",
-    label: "Rút tiền về NH Vietcombank",
-    amount: -1000000,
-    isPositive: false,
-    balance: 200000,
-    status: "PENDING"
-  },
-  {
-    id: "txn_03",
-    date: "2026-07-25T10:00:00Z",
-    type: "PENALTY",
-    label: "Trừ tiền đền bù (Mã đơn BK-9123)",
-    amount: -250000,
-    isPositive: false,
-    balance: 1200000,
-    status: "SUCCESS"
-  },
-  {
-    id: "txn_04",
-    date: "2026-01-05T09:00:00Z",
-    type: "DEPOSIT",
-    label: "Nạp tiền ký quỹ (Hold)",
-    amount: 400000,
-    isPositive: true,
-    balance: 400000,
-    status: "SUCCESS"
-  }
-];
-
 const LedgerView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
   const { data: txnsRes, isLoading: txnsLoading } = useAdminTaskerWalletTransactions(taskerId);
   const { data: summaryRes, isLoading: summaryLoading } = useAdminTaskerWalletSummary(taskerId);
   
@@ -405,10 +490,20 @@ const LedgerView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
             <p className="text-4xl font-black tabular-nums tracking-tight">{fmtMoney(summary.balance).replace(" đ", "")} <span className="text-xl text-white/70 font-semibold">đ</span></p>
             
             <div className="mt-8 flex gap-3">
-              <button className="px-5 py-2 rounded-xl bg-white text-[#0D1B3E] text-sm font-bold shadow hover:bg-white/90 transition-colors">
+              <button 
+                onClick={() => {
+                  toast.success("Đã ghi nhận yêu cầu rút tiền. Tính năng đang được hoàn thiện.");
+                }}
+                className="px-5 py-2 rounded-xl bg-white text-[#0D1B3E] text-sm font-bold shadow hover:bg-white/90 transition-colors"
+              >
                 Rút tiền
               </button>
-              <button className="px-5 py-2 rounded-xl bg-white/10 text-white border border-white/20 text-sm font-bold hover:bg-white/20 transition-colors">
+              <button 
+                onClick={() => {
+                  document.getElementById("ledger-history-table")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="px-5 py-2 rounded-xl bg-white/10 text-white border border-white/20 text-sm font-bold hover:bg-white/20 transition-colors"
+              >
                 Xem sao kê
               </button>
             </div>
@@ -440,7 +535,7 @@ const LedgerView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
       </div>
 
       {/* Lịch sử giao dịch */}
-      <AdminCard className="overflow-hidden">
+      <AdminCard className="overflow-hidden" id="ledger-history-table">
         <div className="flex items-center gap-2 px-5 pt-5 pb-4 border-b border-[var(--c-line)]">
           <History className="w-5 h-5 text-[var(--c-primary-strong)]" aria-hidden="true" />
           <h3 className="text-sm font-bold text-[var(--c-ink)]">Lịch sử giao dịch (Ledger)</h3>
@@ -456,48 +551,154 @@ const LedgerView: React.FC<{ taskerId: string }> = ({ taskerId }) => {
           <table className="w-full text-left text-[13.5px]">
             <thead className="sticky top-0 bg-[var(--c-card)] shadow-sm z-10">
               <tr>
-                <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-5">Thời gian</th>
-                <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-3">Nội dung</th>
+                <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-5">Giao dịch</th>
+                <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-3">Loại</th>
                 <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-3 text-right">Biến động</th>
                 <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-3 text-right">Số dư cuối</th>
                 <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-5 text-right">Trạng thái</th>
+                <th className="py-3 font-semibold uppercase tracking-wider text-[var(--c-muted)] text-[11px] px-5 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--c-line)]">
-              {transactions.map((row: TaskerWalletTransaction) => (
-                <tr key={row.id} className="hover:bg-[var(--c-card-2)] transition-colors group">
-                  <td className="py-3 px-5 text-[var(--c-muted)] tabular-nums">{fmtDateTime(row.date)}</td>
-                  <td className="py-3 px-3">
-                    <p className="font-bold text-[var(--c-ink)]">{row.label || row.type}</p>
-                    <p className="text-[10px] text-[var(--c-muted)] uppercase tracking-wider mt-0.5">{row.type}</p>
-                  </td>
-                  <td className={cn(
-                    "py-3 px-3 text-right font-black tabular-nums",
-                    row.isPositive ? "text-[#0E9F6E]" : "text-[#E11D48]"
-                  )}>
-                    {row.isPositive ? "+" : ""}{fmtMoney(row.amount)}
-                  </td>
-                  <td className="py-3 px-3 text-right font-semibold text-[var(--c-ink)] tabular-nums">
-                    {fmtMoney(row.balance)}
-                  </td>
-                  <td className="py-3 px-5 text-right">
-                    {row.status === "SUCCESS" ? (
-                      <Badge variant="outline" className="bg-[#0E9F6E]/10 text-[#0E9F6E] border-none text-[10px] uppercase font-bold tracking-widest">
-                        Thành công
+              {(() => {
+                const itemsPerPage = 10;
+                const maxPage = Math.max(1, Math.ceil((transactions?.length || 0) / itemsPerPage));
+                const safePage = Math.min(currentPage, maxPage);
+                const startIndex = (safePage - 1) * itemsPerPage;
+                const paginatedData = transactions.slice(startIndex, startIndex + itemsPerPage);
+
+                return paginatedData.map((row: TaskerWalletTransaction) => (
+                  <tr 
+                    key={row.id} 
+                    className="hover:bg-[var(--c-card-2)] transition-colors group cursor-pointer"
+                    onClick={() => setSelectedTxnId(row.id)}
+                  >
+                    <td className="py-3.5 px-5 font-bold text-[var(--c-ink)]">
+                      <div className="flex items-center gap-2">
+                        <span className="group-hover:text-[var(--c-primary)] transition-colors line-clamp-1">{row.label || row.type}</span>
+                        <Receipt className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[var(--c-primary)] transition-opacity shrink-0" />
+                      </div>
+                      <p className="text-xs font-normal text-[var(--c-muted)] mt-0.5">{fmtDateTime(row.date)}</p>
+                    </td>
+                    <td className="py-3 px-3">
+                      <Badge variant="outline" className="text-[10px] uppercase bg-[var(--c-card-2)] border-[var(--c-line)] text-[var(--c-ink)]">
+                        {row.type}
                       </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-[#D97706]/10 text-[#D97706] border-none text-[10px] uppercase font-bold tracking-widest">
-                        Đang xử lý
-                      </Badge>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className={cn(
+                      "py-3 px-3 text-right font-black tabular-nums",
+                      row.isPositive ? "text-[#0E9F6E]" : "text-[#E11D48]"
+                    )}>
+                      {row.isPositive ? "+" : ""}{fmtMoney(row.amount)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-semibold text-[var(--c-ink)] tabular-nums">
+                      {fmtMoney(row.balance)}
+                    </td>
+                    <td className="py-3 px-5 text-right">
+                      {row.status === "SUCCESS" ? (
+                        <Badge variant="outline" className="bg-[#0E9F6E]/10 text-[#0E9F6E] border-none text-[10px] uppercase font-bold tracking-widest">
+                          Thành công
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-[#D97706]/10 text-[#D97706] border-none text-[10px] uppercase font-bold tracking-widest">
+                          Đang xử lý
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="py-3 px-5 text-right">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--c-primary-strong)] bg-[var(--c-primary-soft)] hover:bg-[var(--c-primary)] hover:text-white transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTxnId(row.id);
+                        }}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
           )}
         </div>
+        {transactions && transactions.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-3 border-t border-[var(--c-line)] bg-[var(--c-card)]">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="text-xs font-medium text-[var(--c-muted)]">
+                Hiển thị {transactions.length === 0 ? 0 : Math.min((currentPage - 1) * limit + 1, transactions.length)} đến {Math.min(currentPage * limit, transactions.length)} trong tổng số {transactions.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[var(--c-muted)]">Số dòng:</span>
+                <select 
+                  className="bg-[var(--c-card-2)] border border-[var(--c-line)] text-xs text-[var(--c-ink)] rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-[var(--c-primary)] font-medium cursor-pointer"
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+                title="Trang đầu"
+              >
+                <span className="text-[10px] font-bold">{"<<"}</span>
+              </button>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <span className="text-xs font-semibold px-3 text-[var(--c-ink)]">
+                Trang {currentPage} / {Math.ceil(transactions.length / limit) || 1}
+              </span>
+
+              <button
+                type="button"
+                disabled={currentPage >= Math.ceil(transactions.length / limit)}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= Math.ceil(transactions.length / limit)}
+                onClick={() => setCurrentPage(Math.ceil(transactions.length / limit) || 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--c-line)] text-[var(--c-ink)] hover:bg-[var(--c-card-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-[var(--c-card)]"
+                title="Trang cuối"
+              >
+                <span className="text-[10px] font-bold">{">>"}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </AdminCard>
+      
+      {/* Transaction Detail Drawer */}
+      <TransactionDetailDrawer
+        transactionId={selectedTxnId}
+        open={!!selectedTxnId}
+        onOpenChange={(val) => !val && setSelectedTxnId(null)}
+      />
     </div>
   );
 };

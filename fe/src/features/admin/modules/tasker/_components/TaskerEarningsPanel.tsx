@@ -17,8 +17,6 @@ const PERIOD_OPTIONS: { key: "today" | "thisWeek" | "thisMonth"; label: string }
 ];
 
 function fmtMoney(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace(".0", "")} tỷ đ`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(".0", "")}M đ`;
   return `${value.toLocaleString("vi-VN")} đ`;
 }
 

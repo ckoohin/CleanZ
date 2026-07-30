@@ -45,6 +45,8 @@ import { UpdatePresenceDto } from './dto/update-presence.dto';
 import { UpdateTaskerLocationDto } from './dto/update-tasker-location.dto';
 import { TaskerService } from './tasker.service';
 
+import { AdminTaskerDetailService } from './admin-tasker-detail.service';
+
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -52,7 +54,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 @ApiBearerAuth()
 @Controller('tasker')
 export class TaskerController {
-  constructor(private readonly taskerService: TaskerService) {}
+  constructor(
+    private readonly taskerService: TaskerService,
+    private readonly adminTaskerDetailService: AdminTaskerDetailService,
+  ) {}
 
   @Post('profile')
   @Auth(UserRole.CUSTOMER, UserRole.TASKER)
@@ -499,5 +504,62 @@ export class TaskerController {
       dto.fromDate,
       dto.toDate,
     );
+  }
+
+  // ==========================================
+  // TASKER 360 VIEW - ADMIN APIS
+  // ==========================================
+
+  @Get('admin/:id/services')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem danh sách dịch vụ của Tasker' })
+  getTaskerServices(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminTaskerDetailService.getTaskerServices(id);
+  }
+
+  @Patch('admin/:id/services/:serviceId/toggle')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin bật/tắt dịch vụ cho Tasker' })
+  toggleTaskerService(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.adminTaskerDetailService.toggleTaskerService(id, serviceId, isActive);
+  }
+
+  @Get('admin/:id/equipments')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem trang bị và nợ của Tasker' })
+  getTaskerEquipments(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminTaskerDetailService.getTaskerEquipments(id);
+  }
+
+  @Get('admin/:id/schedule')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem lịch hoạt động và khu vực của Tasker' })
+  getTaskerSchedule(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminTaskerDetailService.getTaskerSchedule(id);
+  }
+
+  @Get('admin/:id/wallet/transactions')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem giao dịch ví của Tasker' })
+  getTaskerWalletTransactions(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminTaskerDetailService.getTaskerWalletTransactions(id);
+  }
+
+  @Get('admin/:id/wallet/summary')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem tóm tắt số dư ví của Tasker' })
+  getTaskerWalletSummary(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminTaskerDetailService.getTaskerWalletSummary(id);
+  }
+
+  @Get('admin/:id/reviews')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem đánh giá của Tasker' })
+  getTaskerReviews(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminTaskerDetailService.getTaskerReviews(id);
   }
 }

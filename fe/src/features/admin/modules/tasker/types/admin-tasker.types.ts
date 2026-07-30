@@ -88,6 +88,11 @@ export interface AdminTaskerDetail extends AdminTasker {
   };
   document: AdminTaskerDocument;
   stats: AdminTaskerStats;
+  bank?: {
+    name?: string | null;
+    accountNumber?: string | null;
+    accountName?: string | null;
+  } | null;
 }
 
 export interface AdminTaskerFilter {

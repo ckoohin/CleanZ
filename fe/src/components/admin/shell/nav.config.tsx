@@ -100,6 +100,7 @@ export const navGroups: NavGroup[] = [
     label: "Tài chính",
     items: [
       { title: "Giao dịch", href: A.FINANCES.BASE, icon: ArrowLeftRight },
+      { title: "Doanh thu & Hoa hồng", href: A.FINANCES.REVENUE, icon: Banknote },
       { title: "Quản lý ví", href: A.FINANCES.WALLETS, icon: WalletCards },
       { title: "Rút tiền", href: A.FINANCES.WITHDRAWALS, icon: Banknote },
       {

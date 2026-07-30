@@ -26,12 +26,12 @@ const fromISO = (s: string): Date | undefined => {
 const getPresets = () => {
   const today = new Date();
   return [
+    { label: "Hôm nay", from: today, to: today },
+    { label: "Hôm qua", from: addDays(today, -1), to: addDays(today, -1) },
     { label: "Tuần này", from: startOfWeek(today, { weekStartsOn: 1 }), to: endOfWeek(today, { weekStartsOn: 1 }) },
-    { label: "Tuần tới", from: startOfWeek(addDays(today, 7), { weekStartsOn: 1 }), to: endOfWeek(addDays(today, 7), { weekStartsOn: 1 }) },
+    { label: "Tuần trước", from: startOfWeek(addDays(today, -7), { weekStartsOn: 1 }), to: endOfWeek(addDays(today, -7), { weekStartsOn: 1 }) },
     { label: "Tháng này", from: startOfMonth(today), to: endOfMonth(today) },
-    { label: "Tháng tới", from: startOfMonth(addMonths(today, 1)), to: endOfMonth(addMonths(today, 1)) },
-    { label: "3 tháng tới", from: today, to: endOfMonth(addMonths(today, 2)) },
-    { label: "6 tháng tới", from: today, to: endOfMonth(addMonths(today, 5)) },
+    { label: "Tháng trước", from: startOfMonth(addMonths(today, -1)), to: endOfMonth(addMonths(today, -1)) },
     { label: "Năm nay", from: startOfYear(today), to: endOfYear(today) },
   ];
 };

@@ -4,6 +4,7 @@ import {
   Entity,
   Index,
   JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,6 +15,12 @@ import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
 import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
+
+import { TaskerServiceEntity } from './tasker-service.entity';
+import { TaskerEquipmentEntity } from './tasker-equipment.entity';
+import { TaskerEquipmentDebtEntity } from './tasker-equipment-debt.entity';
+import { TaskerScheduleEntity } from './tasker-schedule.entity';
+import { TaskerCoverageEntity } from './tasker-coverage.entity';
 
 @Entity('taskers')
 export class TaskerEntity {
@@ -222,4 +229,20 @@ export class TaskerEntity {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt!: Date;
+
+  // --- Relations (Tasker 360 View) ---
+  @OneToMany(() => TaskerServiceEntity, (service) => service.tasker)
+  services?: TaskerServiceEntity[];
+
+  @OneToMany(() => TaskerEquipmentEntity, (eq) => eq.tasker)
+  equipments?: TaskerEquipmentEntity[];
+
+  @OneToOne(() => TaskerEquipmentDebtEntity, (debt) => debt.tasker)
+  equipmentDebt?: TaskerEquipmentDebtEntity;
+
+  @OneToMany(() => TaskerScheduleEntity, (schedule) => schedule.tasker)
+  schedules?: TaskerScheduleEntity[];
+
+  @OneToMany(() => TaskerCoverageEntity, (coverage) => coverage.tasker)
+  coverages?: TaskerCoverageEntity[];
 }

@@ -215,6 +215,20 @@ export interface CustomerServiceBreakdownItem {
   lastBookedAt?: string | null;
 }
 
+export interface RevenueSummaryQuery {
+  granularity?: "day" | "week" | "month";
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface RevenueSummaryResponse {
+  period: string;
+  totalRevenue: number;
+  totalPlatformCommission: number;
+  totalTaskerEarnings: number;
+  totalTransactions: number;
+}
+
 export interface WalletTransactionDetail {
   id: string;
   walletId: string;
