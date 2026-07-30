@@ -35,6 +35,7 @@ export interface TaskerProfile {
   addressResident?: string;
   addressCurrent?: string;
   // Bank fields
+  bankBin?: string;
   bankName?: string;
   bankAccountNumber?: string;
   bankAccountName?: string;
@@ -72,6 +73,7 @@ export interface UpdateTaskerProfileDto {
   phone?: string;
   skills?: string;
   addressCurrent?: string;
+  bankBin?: string;
   bankName?: string;
   bankAccountNumber?: string;
   bankAccountName?: string;

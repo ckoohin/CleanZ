@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, Landmark } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { BankSelect } from "@/components/ui/bank-select";
 import {
   useCustomerWallet,
   useCustomerWithdrawals,
@@ -28,6 +29,7 @@ export function WithdrawalSection() {
   const create = useCreateCustomerWithdrawal();
 
   const [amount, setAmount] = useState("");
+  const [bankBin, setBankBin] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [note, setNote] = useState("");
@@ -38,14 +40,14 @@ export function WithdrawalSection() {
     !Number.isFinite(amt) ||
     amt < 10000 ||
     amt > balance ||
-    !bankName.trim() ||
+    !bankBin ||
     !bankAccount.trim();
 
   const submit = () =>
     create.mutate(
       {
         amount: amt,
-        bankName: bankName.trim(),
+        bankName: bankName,
         bankAccount: bankAccount.trim(),
         note: note.trim() || undefined,
       },
@@ -64,7 +66,8 @@ export function WithdrawalSection() {
         <h3 className="text-sm font-bold">Rút tiền về ngân hàng</h3>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
-        Số dư có thể rút: <b>{fmtVnd(balance)}</b>. Tối thiểu 10.000đ. Yêu cầu sẽ được CleanZ duyệt trước khi chuyển khoản.
+        Số dư có thể rút: <b>{fmtVnd(balance)}</b>. Tối thiểu 10.000đ. Yêu cầu
+        sẽ được CleanZ duyệt trước khi chuyển khoản.
       </p>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -76,15 +79,14 @@ export function WithdrawalSection() {
           onChange={(e) => setAmount(e.target.value)}
           placeholder="Số tiền (VND)"
         />
-        <div className="relative">
-          <Landmark className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={bankName}
-            onChange={(e) => setBankName(e.target.value)}
-            placeholder="Tên ngân hàng (VD: Vietcombank)"
-            className="pl-9"
-          />
-        </div>
+        <BankSelect
+          value={bankBin}
+          onChange={(bin, shortName) => {
+            setBankBin(bin);
+            setBankName(shortName);
+          }}
+          placeholder="Chọn ngân hàng..."
+        />
         <Input
           value={bankAccount}
           onChange={(e) => setBankAccount(e.target.value)}
@@ -130,10 +132,14 @@ export function WithdrawalSection() {
                       {w.bankName} · {w.bankAccount} · {fmt(w.createdAt)}
                     </p>
                     {w.status === "REJECTED" && w.adminNote && (
-                      <p className="text-[11px] text-red-600">Lý do: {w.adminNote}</p>
+                      <p className="text-[11px] text-red-600">
+                        Lý do: {w.adminNote}
+                      </p>
                     )}
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.cls}`}>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.cls}`}
+                  >
                     {s.label}
                   </span>
                 </div>

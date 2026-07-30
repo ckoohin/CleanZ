@@ -42,6 +42,7 @@ import {
   useTaskerWallet,
   useTaskerWalletTransactions,
 } from "@/features/tasker/hooks/useTaskerWallet";
+import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
 import { useTaskerCompletedBookings } from "@/features/booking/hooks/useTaskerBooking";
 import { TaskerTopupDialog } from "@/features/tasker/_components/TaskerTopupDialog";
 import { TaskerEarningsChart } from "@/features/tasker/_components/TaskerEarningsChart";
@@ -102,6 +103,7 @@ export default function TaskerEarningsPage() {
   };
 
   const { data: wallet, isLoading: walletLoading } = useTaskerWallet();
+  const { data: profile } = useTaskerProfile();
   const { data: earningsSummary, isLoading: earningsSummaryLoading } =
     useTaskerEarningsSummary();
   const walletHistoryEnabled = activeSection === "wallet" && showWalletHistory;
@@ -544,6 +546,7 @@ export default function TaskerEarningsPage() {
         <WithdrawalDialog
           open={withdrawalOpen}
           balance={Number(wallet.withdrawableBalance ?? wallet.balance)}
+          hasBankInfo={!!(profile?.bankAccountNumber && profile?.bankBin)}
           onClose={() => setWithdrawalOpen(false)}
           onCreated={(request) => {
             setRecentRequest(request);
@@ -980,11 +983,13 @@ function TransactionDetailDialog({
 function WithdrawalDialog({
   open,
   balance,
+  hasBankInfo,
   onClose,
   onCreated,
 }: {
   open: boolean;
   balance: number;
+  hasBankInfo: boolean;
   onClose: () => void;
   onCreated: (request: TaskerWithdrawalRequest) => void;
 }) {
@@ -1032,68 +1037,84 @@ function WithdrawalDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground">
-              Số tiền cần rút
-            </label>
-            <div className="relative">
-              <Input
-                type="number"
-                min={1}
-                max={balance}
-                step={1000}
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                placeholder="Nhập số tiền"
-                className="rounded-xl pr-14"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                VND
-              </span>
+        {!hasBankInfo ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p className="font-semibold text-destructive">Chưa có thông tin ngân hàng</p>
+            <p className="mt-1 text-muted-foreground">
+              Vui lòng cập nhật ngân hàng, số tài khoản trong hồ sơ trước khi rút tiền.
+            </p>
+            <Link href="/tasker/profile" className="mt-3 inline-block">
+              <Button size="sm" className="rounded-full" onClick={onClose}>
+                Cập nhật hồ sơ
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Số tiền cần rút
+              </label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={1}
+                  max={balance}
+                  step={1000}
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="Nhập số tiền"
+                  className="rounded-xl pr-14"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                  VND
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto rounded-full px-2 py-1 text-xs text-primary"
+                onClick={() => setAmount(String(balance))}
+              >
+                Rút toàn bộ
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-auto rounded-full px-2 py-1 text-xs text-primary"
-              onClick={() => setAmount(String(balance))}
-            >
-              Rút toàn bộ
-            </Button>
-          </div>
 
-          <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm text-foreground/80">
-            Thông tin ngân hàng được lấy tự động từ hồ sơ. Nếu cần thay đổi, hãy
-            cập nhật hồ sơ Tasker trước khi gửi yêu cầu.
-          </div>
+            <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm text-foreground/80">
+              Thông tin ngân hàng được lấy tự động từ hồ sơ. Nếu cần thay đổi, hãy
+              cập nhật hồ sơ Tasker trước khi gửi yêu cầu.
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground">
-              Ghi chú
-            </label>
-            <Textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              maxLength={500}
-              rows={3}
-              placeholder="Nội dung bổ sung nếu có..."
-              className="rounded-xl"
-            />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Ghi chú
+              </label>
+              <Textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                maxLength={500}
+                rows={3}
+                placeholder="Nội dung bổ sung nếu có..."
+                className="rounded-xl"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" className="rounded-full" onClick={onClose}>
             Hủy
           </Button>
-          <Button
-            className="rounded-full"
-            onClick={submit}
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? "Đang gửi..." : "Gửi yêu cầu"}
-          </Button>
+          {hasBankInfo && (
+            <Button
+              className="rounded-full"
+              onClick={submit}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Đang gửi..." : "Gửi yêu cầu"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

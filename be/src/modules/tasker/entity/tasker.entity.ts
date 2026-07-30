@@ -176,6 +176,9 @@ export class TaskerEntity {
   })
   bankAccountName?: string | null;
 
+  @Column({ name: 'bank_bin', type: 'varchar', length: 20, nullable: true })
+  bankBin?: string | null;
+
   @Index('idx_taskers_location_online', {
     spatial: true,
     where: `"presence_status" = 'ONLINE' AND "status" = 'ACTIVE'`,

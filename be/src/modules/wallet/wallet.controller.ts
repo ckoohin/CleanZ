@@ -43,6 +43,7 @@ import { WalletTopupService } from './wallet-topup.service';
 import { CreateTopupDto } from './dto/create-topup.dto';
 import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { TaskerEarningsBreakdownQueryDto } from './dto/tasker-earnings-breakdown-query.dto';
+import { BankListService } from './bank-list.service';
 
 @Controller('wallet')
 @ApiTags('Wallet')
@@ -53,7 +54,15 @@ export class WalletController {
     private readonly taskerBalanceService: TaskerBalanceService,
     private readonly walletTopupService: WalletTopupService,
     private readonly dataSource: DataSource,
+    private readonly bankListService: BankListService,
   ) {}
+
+  @Get('banks')
+  @Auth(UserRole.TASKER, UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Danh sách ngân hàng Việt Nam hỗ trợ chuyển khoản (VietQR)' })
+  async getBankList() {
+    return successResponse(await this.bankListService.getBanks());
+  }
 
   @Post('topup/webhook')
   @Public()

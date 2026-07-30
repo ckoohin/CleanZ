@@ -53,6 +53,9 @@ export class WithdrawalRequestEntity {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'bank_name' })
   bankName!: string | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'bank_bin' })
+  bankBin!: string | null;
+
   @Column({ type: 'text', nullable: true })
   note!: string | null;
 

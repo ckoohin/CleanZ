@@ -92,6 +92,8 @@ export const PartnerSignupWizard: React.FC = () => {
       if (!updated.addressCurrent && profile.addressCurrent) {
         updated.addressCurrent = profile.addressCurrent;
       }
+      if (!updated.bankBin && profile.bankBin)
+        updated.bankBin = profile.bankBin;
       if (!updated.bankName && profile.bankName)
         updated.bankName = profile.bankName;
       if (!updated.bankAccountNumber && profile.bankAccountNumber) {
@@ -202,6 +204,7 @@ export const PartnerSignupWizard: React.FC = () => {
       if (finalData.docIdNumber)
         payload.append("docIdNumber", finalData.docIdNumber);
 
+      if (finalData.bankBin) payload.append("bankBin", finalData.bankBin);
       if (finalData.bankName) payload.append("bankName", finalData.bankName);
       if (finalData.bankAccountNumber)
         payload.append("bankAccountNumber", finalData.bankAccountNumber);
@@ -333,6 +336,7 @@ export const PartnerSignupWizard: React.FC = () => {
                 (currentStep === 2 && user)) && (
                 <StepLegalAndPayment
                   initialValues={{
+                    bankBin: formData.bankBin || profile?.bankBin || "",
                     bankName: formData.bankName || profile?.bankName || "",
                     bankAccountNumber:
                       formData.bankAccountNumber ||

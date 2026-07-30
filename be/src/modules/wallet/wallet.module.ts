@@ -13,6 +13,8 @@ import { CustomerWithdrawalController } from './customer-withdrawal.controller';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTopupService } from './wallet-topup.service';
 import { PayosService } from './payos.service';
+import { PayoutService } from './payout.service';
+import { BankListService } from './bank-list.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
 
 @Module({
@@ -34,7 +36,9 @@ import { SystemConfigModule } from '../system-config/system-config.module';
     CustomerWithdrawalService,
     WalletTopupService,
     PayosService,
+    PayoutService,
+    BankListService,
   ],
-  exports: [TypeOrmModule, WalletService, TaskerBalanceService, PayosService, WalletTopupService],
+  exports: [TypeOrmModule, WalletService, TaskerBalanceService, PayosService, WalletTopupService, PayoutService, BankListService],
 })
 export class WalletModule {}
