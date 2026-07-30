@@ -280,7 +280,7 @@ export function WithdrawalReviewDialog({
                     type="button"
                     onClick={() => setLightboxUrl(withdrawal.proofImageUrl)}
                     className="group relative block w-fit"
-                    aria-label="Xem ảnh minh chứng"
+                    aria-label="Xem minh chứng"
                   >
                     <Image
                       src={withdrawal.proofImageUrl}
@@ -369,7 +369,7 @@ export function WithdrawalReviewDialog({
                               type="button"
                               onClick={() => setLightboxUrl(proofImageUrl)}
                               className="group relative block"
-                              aria-label="Xem ảnh minh chứng"
+                              aria-label="Xem minh chứng"
                             >
                               <Image
                                 src={proofImageUrl}

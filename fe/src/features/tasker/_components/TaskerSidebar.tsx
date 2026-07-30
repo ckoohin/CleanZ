@@ -25,6 +25,7 @@ import { useLogout } from "@/features/auth/hooks/auth.hooks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import LogoApp from "@/components/logo/LogoApp";
 import { useTaskerActiveBooking } from "@/features/booking/hooks/useTaskerBooking";
+import { MobileViewportPortal } from "@/components/layouts/mobile/MobileViewportPortal";
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
@@ -470,7 +471,9 @@ export function TaskerSidebar({ className, onToggleOnline }: TaskerSidebarProps)
 
       {/* Mobile */}
       <MobileTopBar />
-      <MobileBottomNav isOnline={isOnline} onToggleOnline={onToggleOnline} />
+      <MobileViewportPortal>
+        <MobileBottomNav isOnline={isOnline} onToggleOnline={onToggleOnline} />
+      </MobileViewportPortal>
     </>
   );
 }

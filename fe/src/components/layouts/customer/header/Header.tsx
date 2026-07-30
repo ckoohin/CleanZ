@@ -6,7 +6,6 @@ import { MobileSidebar } from "@/components/layouts/site/header/MobileSidebar";
 import { AvatarProfile } from "@/components/layouts/site/header/AvatarProfile";
 import { NotificationBell } from "@/features/notifications/_components/NotificationBell";
 import { LoggedInBanner } from "@/components/layouts/site/header/LoggedInBanner";
-import { MobileBottomNav } from "@/components/layouts/site/header/MobileBottomNav";
 import { NavLink, HeaderAction, NAV_LINKS, HEADER_ACTIONS } from "@/components/layouts/site/header/nav.config";
 import LogoApp from "@/components/logo/LogoApp";
 import { Button } from "@/components/ui/button";
@@ -391,7 +390,6 @@ export const Header: React.FC<HeaderProps> = ({
         isMounted={isMounted}
       />
       <LoggedInBanner />
-      <MobileBottomNav />
     </>
   );
 };

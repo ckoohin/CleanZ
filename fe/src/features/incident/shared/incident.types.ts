@@ -17,7 +17,7 @@ import type {
   ResponsibilityParty,
   SecondApprovalAction,
   Severity,
-} from './incident.enums';
+} from "./incident.enums";
 
 // Re-export các type dùng lại ở tầng component (import gọn từ incident.types).
 export type { ResponsibilityParty, ResponseReviewResult };
@@ -43,10 +43,7 @@ export interface Evidence {
   decisionVersion?: number | null;
 }
 export type DamageItemVerificationStatus =
-  | "PENDING"
-  | "VERIFIED"
-  | "REJECTED"
-  | "NEED_MORE_EVIDENCE";
+  "PENDING" | "VERIFIED" | "REJECTED" | "NEED_MORE_EVIDENCE";
 export interface DamageItem {
   id: string;
   description: string;
@@ -74,6 +71,8 @@ export interface IncidentSummary {
   id: string;
   incidentCode: string | null;
   title: string;
+  type: "PROPERTY_DAMAGE" | "CHECKIN_VIOLATION";
+  source: "CUSTOMER_REPORT" | "SUPPORT_TICKET" | "CHECKIN_REVIEW";
   severity: Severity;
   status: IncidentStatus;
   compensationStatus: CompensationStatus;
@@ -112,16 +111,16 @@ export interface IncidentTaskerView extends IncidentSummary {
 // NOTE: các hằng phải khớp chính xác chuỗi BE emit trong
 // getIncidentDecisionActionView (incident-decision.helpers.ts).
 export type IncidentDecisionAction =
-  | 'SAVE_DRAFT'
-  | 'SUBMIT_DRAFT'
-  | 'RESPOND'
-  | 'REVIEW_RESPONSE'
-  | 'REVISE_DECISION'
-  | 'EXTEND_RESPONSE'
-  | 'FINALIZE'
-  | 'SECOND_APPROVE'
-  | 'REQUEST_CHANGES'
-  | 'COMPENSATE';
+  | "SAVE_DRAFT"
+  | "SUBMIT_DRAFT"
+  | "RESPOND"
+  | "REVIEW_RESPONSE"
+  | "REVISE_DECISION"
+  | "EXTEND_RESPONSE"
+  | "FINALIZE"
+  | "SECOND_APPROVE"
+  | "REQUEST_CHANGES"
+  | "COMPENSATE";
 
 export interface IncidentDecisionView {
   status: IncidentDecisionStatus;
@@ -314,7 +313,7 @@ export interface AdminIncidentQuery {
   taskerId?: string;
   customerId?: string;
   overdue?: boolean;
-  sort?: 'severity' | 'reportedAt' | 'decisionDueAt';
+  sort?: "severity" | "reportedAt" | "decisionDueAt";
 }
 
 export interface IncidentConfig {

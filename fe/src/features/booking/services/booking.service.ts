@@ -267,6 +267,17 @@ export const taskerBookingApi = {
       )
       .then((r) => r.data.data ?? r.data),
 
+  /** Gửi/cập nhật giải trình khi booking bị tự hủy vì chưa check-in T+45. */
+  submitNoShowExplanation: (
+    id: string,
+    explanation: string,
+  ): Promise<TaskerAssignedBookingDetail> =>
+    http
+      .patch(API_ENDPOINTS.BOOKING.TASKER_NO_SHOW_EXPLANATION(id), {
+        explanation,
+      })
+      .then((r) => r.data.data ?? r.data),
+
   /** 13. Tra cứu customer theo SĐT (để tạo đơn hộ) */
   lookupCustomer: (phone: string): Promise<CustomerLookupResult> =>
     http

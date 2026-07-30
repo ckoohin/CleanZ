@@ -169,6 +169,21 @@ export type BookingSurchargeStatus =
 export type BookingOvertimeRequestStatus =
   "NONE" | "NOTIFIED" | "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 
+export type BookingNoShowReviewStatus =
+  "NONE" | "PENDING_REVIEW" | "CONFIRMED" | "EXCUSED";
+
+export interface BookingNoShow {
+  reviewStatus: BookingNoShowReviewStatus;
+  detectedAt: string | null;
+  reviewedAt: string | null;
+  refundAmount?: number;
+  warningPoints?: number;
+  /** Chỉ response Tasker mới trả hai trường giải trình này. */
+  explanation?: string | null;
+  explanationSubmittedAt?: string | null;
+  reviewReason?: string | null;
+}
+
 /** Thời gian làm việc thực tế: giờ phát sinh (thêm giờ) và checkout sớm. */
 export interface BookingWorkTiming {
   /** Số phút phát sinh được tính tiền chính xác theo thời gian thực tế. */
@@ -300,6 +315,7 @@ export interface CustomerBookingDetail {
   source?: BookingSource;
   confirmationDeadline?: string | null;
   workTiming?: BookingWorkTiming;
+  noShow?: BookingNoShow;
   overtimeRequest?: BookingOvertimeRequest;
   createdAt: string;
   updatedAt: string;
@@ -418,6 +434,7 @@ export interface TaskerAcceptResponse {
 export interface TaskerCheckinPayload {
   currentLatitude?: number;
   currentLongitude?: number;
+  accuracyMeters?: number;
   proofPhotoUrl?: string;
 }
 
@@ -479,6 +496,7 @@ export interface TaskerAssignedBookingDetail {
   note?: string | null;
   flags: { hasPet: boolean };
   workTiming?: BookingWorkTiming;
+  noShow?: BookingNoShow;
   overtimeRequest?: BookingOvertimeRequest;
   createdAt: string;
   updatedAt: string;

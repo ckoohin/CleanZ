@@ -3,48 +3,48 @@ export interface DateRange {
   toDate: string;
 }
 
-export type GroupBy = 'day' | 'week' | 'month';
+export type GroupBy = "day" | "week" | "month";
 
 /** Danh mục dashboard. 'services' là tab đặc biệt: render ServicePackageReportsPage. */
 export type CategoryKey =
-  | 'overview'
-  | 'cs'
-  | 'finance'
-  | 'operations'
-  | 'tasker'
-  | 'marketing'
-  | 'services';
+  | "overview"
+  | "cs"
+  | "finance"
+  | "operations"
+  | "tasker"
+  | "marketing"
+  | "services";
 
 /** Danh mục xuất được báo cáo Excel — khớp enum DashboardCategory phía backend. */
-export type ExportableCategory = Exclude<CategoryKey, 'services'>;
+export type ExportableCategory = Exclude<CategoryKey, "services">;
 
 export type WidgetId =
-  | 'alerts'
-  | 'kpiRevenue'
-  | 'kpiGMV'
-  | 'kpiAOV'
-  | 'kpiRefund'
-  | 'kpiOrders'
-  | 'kpiCancel'
-  | 'kpiTaskers'
-  | 'kpiNewCust'
-  | 'kpiRetention'
-  | 'kpiNPS'
-  | 'chart'
-  | 'statuses'
-  | 'recent'
-  | 'recurring'
-  | 'cancelReasons'
-  | 'paymentMix'
-  | 'feeBreakdown'
-  | 'taskerLevels'
-  | 'topTaskers'
-  | 'docExpiry'
-  | 'reviews'
-  | 'feedback'
-  | 'voucherPerf'
-  | 'areaPerf'
-  | 'peakHours';
+  | "alerts"
+  | "kpiRevenue"
+  | "kpiGMV"
+  | "kpiAOV"
+  | "kpiRefund"
+  | "kpiOrders"
+  | "kpiCancel"
+  | "kpiTaskers"
+  | "kpiNewCust"
+  | "kpiRetention"
+  | "kpiNPS"
+  | "chart"
+  | "statuses"
+  | "recent"
+  | "recurring"
+  | "cancelReasons"
+  | "paymentMix"
+  | "feeBreakdown"
+  | "taskerLevels"
+  | "topTaskers"
+  | "docExpiry"
+  | "reviews"
+  | "feedback"
+  | "voucherPerf"
+  | "areaPerf"
+  | "peakHours";
 
 // --- Alerts ---
 export interface AlertsResponse {
@@ -53,6 +53,8 @@ export interface AlertsResponse {
   openIncidents: { count: number; overdueCount: number };
   openTickets: { count: number; slaBreachedCount: number };
   pendingWithdrawals: { count: number; totalAmount: number };
+  pendingCheckinReviews: { count: number; completedCount: number };
+  overdueInProgressBookings: { count: number };
 }
 
 // --- KPIs ---
@@ -151,6 +153,15 @@ export interface FinanceBreakdownResponse {
 
 // --- Tasker Stats ---
 export interface TaskerStatsResponse {
-  topTaskers: { fullName: string; ratingAvg: number; totalCompletedJobs: number }[];
-  docExpiring: { fullName: string; docType: string; docExpiredDate: string; daysLeft: number }[];
+  topTaskers: {
+    fullName: string;
+    ratingAvg: number;
+    totalCompletedJobs: number;
+  }[];
+  docExpiring: {
+    fullName: string;
+    docType: string;
+    docExpiredDate: string;
+    daysLeft: number;
+  }[];
 }

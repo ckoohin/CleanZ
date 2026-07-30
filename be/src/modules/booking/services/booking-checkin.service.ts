@@ -21,15 +21,20 @@ import {
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { NotificationType } from 'src/common/enums/notification-type.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
+import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
+import { BookingCheckinVerificationSource } from 'src/common/enums/booking-checkin-verification-source.enum';
+import { BookingNoShowReviewStatus } from 'src/common/enums/booking-no-show-review-status.enum';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { NotificationService } from 'src/modules/notification/notification.service';
+import { PaymentService } from 'src/modules/payment/payment.service';
+import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
 import {
   assessCheckinLateness,
   assessCheckinLocation,
-  CHECKIN_MAX_DISTANCE_METERS,
+  CHECKIN_MAX_ACCURACY_METERS,
   CheckinAssessment,
   CheckinTimingPolicy,
   resolveCheckinTimingPolicy,
@@ -63,20 +68,22 @@ export const SURCHARGE_RECEIPT_WINDOW_MS = 12 * 60 * 60_000;
 export const OVERTIME_REQUEST_WINDOW_MS = 20 * 60_000;
 
 // Cửa sổ thời gian (phút)
-const CHECKIN_OPEN_BEFORE_MINUTES = 3000; // mở từ T-30
+export const CHECKIN_OPEN_BEFORE_MINUTES = 30; // mở từ T-30
 const LATE_WARNING_MINUTES = 15; // cảnh báo ở T+15
 const AUTO_CANCEL_MINUTES = 45; // hủy ở T+45
 const AUTO_CHECKOUT_AFTER_END_MINUTES = 30; // nhắc checkout T_end+30
+const LIFECYCLE_JOB_RETENTION_SECONDS = 7 * 24 * 60 * 60;
 
 /** Vị trí + ảnh minh chứng tasker gửi lúc bấm check-in (xem CheckinDto). */
 export interface CheckinLocationInput {
   currentLatitude?: number;
   currentLongitude?: number;
+  accuracyMeters?: number;
   proofPhotoUrl?: string;
 }
 
 // Điểm cảnh báo
-const WARN_NO_SHOW = 3; // không check-in
+export const NO_SHOW_WARNING_POINTS = 3;
 
 export interface CheckinJobData {
   bookingId: string;
@@ -95,6 +102,8 @@ export class BookingCheckinService {
     private readonly notificationService: NotificationService,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly bookingSettlementService: BookingSettlementService,
+    private readonly paymentService: PaymentService,
+    private readonly voucherService: VouchersService,
   ) {}
 
   // ── Timeout xác nhận phụ phí phát sinh ─────────────────────────────────────
@@ -403,40 +412,68 @@ export class BookingCheckinService {
 
     const data: CheckinJobData = { bookingId: booking.id };
 
-    const jobs: Array<{ name: string; delayMs: number; jobId: string }> = [
+    const arrivalStatuses = [
+      BookingStatus.CONFIRMED,
+      BookingStatus.TASKER_ON_THE_WAY,
+    ];
+    const canScheduleArrivalJobs = arrivalStatuses.includes(booking.status);
+    const canScheduleCheckoutJob = [
+      ...arrivalStatuses,
+      BookingStatus.CHECKED_IN,
+      BookingStatus.IN_PROGRESS,
+    ].includes(booking.status);
+
+    const jobs: Array<{
+      name: string;
+      delayMs: number;
+      jobId: string;
+      runIfOverdue: boolean;
+      enabled: boolean;
+    }> = [
       {
         name: CHECKIN_JOB.REMIND,
         delayMs: startMs - 60 * 60_000 - now,
         jobId: checkinJobId(booking.id, 'remind'),
+        runIfOverdue: false,
+        enabled: canScheduleArrivalJobs,
       },
       {
         name: CHECKIN_JOB.AUTO_CANCEL,
         delayMs: startMs + AUTO_CANCEL_MINUTES * 60_000 - now,
         jobId: checkinJobId(booking.id, 'auto-cancel'),
+        runIfOverdue: true,
+        enabled: canScheduleArrivalJobs,
       },
       {
         name: CHECKIN_JOB.AUTO_CHECKOUT,
         delayMs: endMs + AUTO_CHECKOUT_AFTER_END_MINUTES * 60_000 - now,
         jobId: checkinJobId(booking.id, 'auto-checkout'),
+        runIfOverdue: true,
+        enabled: canScheduleCheckoutJob,
       },
     ];
 
-    if (!timingPolicy.exemptFromLatePenalty) {
+    if (canScheduleArrivalJobs && !timingPolicy.exemptFromLatePenalty) {
       jobs.push({
         name: CHECKIN_JOB.LATE_WARNING,
         delayMs: startMs + LATE_WARNING_MINUTES * 60_000 - now,
         jobId: checkinJobId(booking.id, 'late-warning'),
+        runIfOverdue: true,
+        enabled: true,
       });
     }
 
     await Promise.all(
       jobs
-        .filter((j) => j.delayMs > 0)
+        .filter((job) => job.enabled)
+        .filter((job) => job.delayMs > 0 || job.runIfOverdue)
         .map((j) =>
           this.checkinQueue.add(j.name, data, {
-            delay: j.delayMs,
+            delay: Math.max(j.delayMs, 0),
             jobId: j.jobId,
-            removeOnComplete: true,
+            // Giữ job đã chạy một thời gian để reconciliation không enqueue
+            // lại cùng mốc và gửi thông báo lặp cho booking vẫn đang active.
+            removeOnComplete: { age: LIFECYCLE_JOB_RETENTION_SECONDS },
             removeOnFail: false,
           }),
         ),
@@ -451,6 +488,18 @@ export class BookingCheckinService {
       this.checkinQueue.remove(checkinJobId(bookingId, 'late-warning')),
       this.checkinQueue.remove(checkinJobId(bookingId, 'auto-cancel')),
       this.checkinQueue.remove(checkinJobId(bookingId, 'auto-checkout')),
+    ]);
+  }
+
+  /**
+   * Check-in thành công chỉ đóng các mốc "chưa đến nơi". Giữ lại auto-checkout
+   * để booking IN_PROGRESS vẫn được nhắc và đưa vào hàng chờ vận hành T_end+30.
+   */
+  async cancelArrivalJobs(bookingId: string): Promise<void> {
+    await Promise.allSettled([
+      this.checkinQueue.remove(checkinJobId(bookingId, 'remind')),
+      this.checkinQueue.remove(checkinJobId(bookingId, 'late-warning')),
+      this.checkinQueue.remove(checkinJobId(bookingId, 'auto-cancel')),
     ]);
   }
 
@@ -474,6 +523,11 @@ export class BookingCheckinService {
 
     if (!booking) {
       throw new NotFoundException('Booking không tồn tại');
+    }
+    if (booking.tasker?.user?.id !== userId) {
+      throw new NotFoundException(
+        'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+      );
     }
 
     if (booking.status === BookingStatus.CHECKED_IN) {
@@ -514,25 +568,65 @@ export class BookingCheckinService {
     // ── Chốt vị trí: phải ở trong bán kính 50m quanh địa chỉ khách ──────────
     // GPS thiếu (từ chối quyền định vị) được đối xử như đang ở xa: muốn
     // check-in phải kèm ảnh minh chứng, và đơn bị gắn cờ cho admin theo dõi.
-    const { currentLatitude, currentLongitude, proofPhotoUrl } = checkinInput;
-    const { distanceMeters, isFar: isFarCheckin } = assessCheckinLocation({
+    const { currentLatitude, currentLongitude, accuracyMeters, proofPhotoUrl } =
+      checkinInput;
+    const addressTargetLatitude =
+      booking.addressRef?.latitude != null
+        ? Number(booking.addressRef.latitude)
+        : null;
+    const addressTargetLongitude =
+      booking.addressRef?.longitude != null
+        ? Number(booking.addressRef.longitude)
+        : null;
+    const bookingTargetLatitude =
+      booking.latitude != null ? Number(booking.latitude) : null;
+    const bookingTargetLongitude =
+      booking.longitude != null ? Number(booking.longitude) : null;
+    const hasAddressTarget =
+      addressTargetLatitude !== null &&
+      addressTargetLongitude !== null &&
+      Number.isFinite(addressTargetLatitude) &&
+      Number.isFinite(addressTargetLongitude);
+    const hasBookingTarget =
+      bookingTargetLatitude !== null &&
+      bookingTargetLongitude !== null &&
+      Number.isFinite(bookingTargetLatitude) &&
+      Number.isFinite(bookingTargetLongitude);
+    const targetLatitude = hasAddressTarget
+      ? addressTargetLatitude
+      : hasBookingTarget
+        ? bookingTargetLatitude
+        : null;
+    const targetLongitude = hasAddressTarget
+      ? addressTargetLongitude
+      : hasBookingTarget
+        ? bookingTargetLongitude
+        : null;
+    const hasTarget = targetLatitude !== null && targetLongitude !== null;
+    const {
+      distanceMeters,
+      isFar: isFarCheckin,
+      reviewReason: locationReviewReason,
+    } = assessCheckinLocation({
       currentLatitude,
       currentLongitude,
-      addressLatitude:
-        booking.addressRef?.latitude != null
-          ? toNumber(booking.addressRef.latitude)
-          : null,
-      addressLongitude:
-        booking.addressRef?.longitude != null
-          ? toNumber(booking.addressRef.longitude)
-          : null,
+      accuracyMeters,
+      addressLatitude: targetLatitude,
+      addressLongitude: targetLongitude,
     });
 
     if (isFarCheckin && !proofPhotoUrl) {
       throw new BadRequestException(
-        distanceMeters !== null
-          ? `Bạn đang cách vị trí khách ~${Math.round(distanceMeters)}m (cho phép ${CHECKIN_MAX_DISTANCE_METERS}m). Vui lòng tới gần hơn, hoặc chụp ảnh minh chứng để check-in.`
-          : 'Không lấy được vị trí của bạn. Vui lòng bật định vị, hoặc chụp ảnh minh chứng để check-in.',
+        locationReviewReason === 'TARGET_UNAVAILABLE'
+          ? 'Địa chỉ booking chưa có tọa độ để xác minh tự động. Vui lòng chụp ảnh hiện trường để check-in; Admin sẽ kiểm tra thủ công.'
+          : locationReviewReason === 'LOW_ACCURACY'
+            ? accuracyMeters === undefined
+              ? 'Không xác định được độ chính xác GPS. Vui lòng lấy lại vị trí, hoặc chụp ảnh hiện trường để Admin xác minh.'
+              : `Tín hiệu GPS đang có sai số ~${Math.round(accuracyMeters)}m (cho phép tối đa ${CHECKIN_MAX_ACCURACY_METERS}m). Vui lòng lấy lại vị trí, hoặc chụp ảnh hiện trường để Admin xác minh.`
+            : locationReviewReason === 'OUTSIDE_RADIUS' &&
+                distanceMeters !== null
+              ? `Vị trí hiện tại chưa đúng, vui lòng kiểm tra lại hoặc gửi ảnh minh chứng để tiếp tục.`
+              : 'Không lấy được vị trí của bạn. Vui lòng bật định vị, hoặc chụp ảnh minh chứng để check-in.',
       );
     }
 
@@ -548,16 +642,42 @@ export class BookingCheckinService {
       currentLongitude !== undefined &&
       Number.isFinite(currentLatitude) &&
       Number.isFinite(currentLongitude);
+    const normalizedAccuracy =
+      hasGps &&
+      accuracyMeters !== undefined &&
+      Number.isFinite(accuracyMeters) &&
+      accuracyMeters >= 0
+        ? Math.round(accuracyMeters * 10) / 10
+        : null;
+    const verificationSource = !hasTarget
+      ? BookingCheckinVerificationSource.TARGET_MISSING_WITH_PROOF
+      : !hasGps
+        ? BookingCheckinVerificationSource.NO_GPS_WITH_PROOF
+        : locationReviewReason === 'LOW_ACCURACY'
+          ? BookingCheckinVerificationSource.GPS_LOW_ACCURACY_WITH_PROOF
+          : isFarCheckin
+            ? BookingCheckinVerificationSource.GPS_WITH_PROOF
+            : BookingCheckinVerificationSource.GPS;
+    const needsReview = isFarCheckin;
+
     booking.status = BookingStatus.CHECKED_IN;
     booking.checkedInAt = now;
     booking.checkinLatitude = hasGps ? currentLatitude : null;
     booking.checkinLongitude = hasGps ? currentLongitude : null;
+    booking.checkinAccuracyMeters = normalizedAccuracy;
+    booking.checkinTargetLatitude = targetLatitude;
+    booking.checkinTargetLongitude = targetLongitude;
     booking.checkinDistanceMeters =
       distanceMeters !== null ? Math.round(distanceMeters * 10) / 10 : null;
-    booking.checkinFar = isFarCheckin;
-    booking.checkinProofPhotoUrl = isFarCheckin
-      ? (proofPhotoUrl ?? null)
-      : null;
+    booking.checkinFar = needsReview;
+    booking.checkinProofPhotoUrl = needsReview ? (proofPhotoUrl ?? null) : null;
+    booking.checkinVerificationSource = verificationSource;
+    booking.checkinReviewStatus = needsReview
+      ? BookingCheckinReviewStatus.PENDING_REVIEW
+      : BookingCheckinReviewStatus.NOT_REQUIRED;
+    booking.checkinReviewedByAdmin = null;
+    booking.checkinReviewedAt = null;
+    booking.checkinReviewReason = null;
     const saved = await bookingRepo.save(booking);
 
     await manager.getRepository(BookingStatusLogEntity).save(
@@ -570,10 +690,14 @@ export class BookingCheckinService {
           minutesLate > 0
             ? `Tasker check-in muộn ${Math.round(minutesLate)} phút`
             : 'Tasker đã đến nơi',
-          isFarCheckin
-            ? distanceMeters !== null
-              ? `check-in xa ~${Math.round(distanceMeters)}m, có ảnh minh chứng`
-              : 'check-in không có GPS, có ảnh minh chứng'
+          needsReview
+            ? !hasTarget
+              ? 'địa chỉ thiếu tọa độ, có ảnh minh chứng; chờ Admin xác minh'
+              : locationReviewReason === 'LOW_ACCURACY'
+                ? `GPS sai số ${normalizedAccuracy === null ? 'không xác định' : `~${Math.round(normalizedAccuracy)}m`}, có ảnh minh chứng; chờ Admin xác minh`
+                : distanceMeters !== null
+                  ? `check-in xa ~${Math.round(distanceMeters)}m, có ảnh minh chứng`
+                  : 'check-in không có GPS, có ảnh minh chứng; chờ Admin duyệt'
             : null,
         ]
           .filter(Boolean)
@@ -666,6 +790,7 @@ export class BookingCheckinService {
       content: `Booking #${booking.bookingCode} bắt đầu sau 1 tiếng. Hãy chuẩn bị và di chuyển đúng giờ.`,
       referenceId: booking.id,
       referenceType: NotificationRefType.BOOKING,
+      dedupeKey: `booking:${bookingId}:checkin-remind`,
     });
   }
 
@@ -687,6 +812,7 @@ export class BookingCheckinService {
           content: `Booking #${booking.bookingCode} đã bắt đầu 15 phút trước. Hãy check-in ngay hoặc đơn sẽ bị hủy sau 30 phút.`,
           referenceId: booking.id,
           referenceType: NotificationRefType.BOOKING,
+          dedupeKey: `booking:${bookingId}:late-warning:tasker`,
         }),
       customerUserId &&
         this.notificationService.notify({
@@ -696,6 +822,7 @@ export class BookingCheckinService {
           content: `Nhân viên cho booking #${booking.bookingCode} chưa check-in. Nếu sau 30 phút không có mặt, đơn sẽ tự hủy và hoàn tiền 100%.`,
           referenceId: booking.id,
           referenceType: NotificationRefType.BOOKING,
+          dedupeKey: `booking:${bookingId}:late-warning:customer`,
         }),
     ]);
   }
@@ -711,69 +838,107 @@ export class BookingCheckinService {
     ];
     if (!cancelableStatuses.includes(booking.status)) return;
 
-    await this.dataSource.transaction(async (manager) => {
+    const outcome = await this.dataSource.transaction(async (manager) => {
       const bookingRepo = manager.getRepository(BookingEntity);
       const locked = await bookingRepo
         .createQueryBuilder('b')
+        .leftJoinAndSelect('b.tasker', 'tasker')
+        .leftJoinAndSelect('tasker.user', 'taskerUser')
+        .leftJoinAndSelect('b.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'customerUser')
         .setLock('pessimistic_write', undefined, ['b'])
         .where('b.id = :bookingId', { bookingId })
         .getOne();
 
-      if (!locked || !cancelableStatuses.includes(locked.status)) return;
+      if (!locked || !cancelableStatuses.includes(locked.status)) return null;
 
+      const oldStatus = locked.status;
+      const now = new Date();
       locked.status = BookingStatus.CANCELLED;
-      locked.cancelledAt = new Date();
+      locked.cancelledAt = now;
       locked.cancelledBy = CancelledBy.SYSTEM;
+      locked.noShowReviewStatus = BookingNoShowReviewStatus.PENDING_REVIEW;
+      locked.noShowDetectedAt = now;
+      locked.noShowExplanation = null;
+      locked.noShowExplanationSubmittedAt = null;
+      locked.noShowReviewedByAdmin = null;
+      locked.noShowReviewedAt = null;
+      locked.noShowReviewReason = null;
+      locked.noShowWarningPoints = 0;
       await bookingRepo.save(locked);
 
-      await this.bookingWalletPaymentService.refundEscrow(
+      await this.voucherService.releaseReservationForBooking(
+        manager,
+        locked.id,
+      );
+      const refundAmount = await this.bookingWalletPaymentService.refundEscrow(
         manager,
         locked,
-        'hệ thống hủy đơn quá hạn check-in',
+        'hệ thống hủy đơn do Tasker không check-in',
+      );
+      await bookingRepo.update(
+        { id: locked.id },
+        { noShowRefundAmount: refundAmount },
+      );
+      const latestPayment = await this.paymentService.findLatestByBookingId(
+        manager,
+        locked.id,
       );
 
       await manager.getRepository(BookingStatusLogEntity).save(
         manager.getRepository(BookingStatusLogEntity).create({
           booking: locked,
-          oldStatus: booking.status,
+          oldStatus,
           newStatus: BookingStatus.CANCELLED,
-          note: 'Tự động hủy: tasker không check-in sau 45 phút',
+          note:
+            'Tự động hủy: Tasker không check-in sau 45 phút — ' +
+            'đã mở hàng chờ Admin review no-show',
+          cancelledBy: CancelledBy.SYSTEM,
+          cancelReason: 'Tasker không check-in sau 45 phút',
           cancellationFee: 0,
-          refundAmount: 0,
+          refundAmount,
+          payment: latestPayment ?? null,
         }),
       );
 
-      if (booking.tasker?.id) {
-        await manager
-          .getRepository(TaskerEntity)
-          .increment({ id: booking.tasker.id }, 'warningPoints', WARN_NO_SHOW);
-        this.logger.warn(
-          `Tasker ${booking.tasker.id} +${WARN_NO_SHOW} điểm no-show (booking=${bookingId})`,
-        );
-      }
+      return {
+        bookingCode: locked.bookingCode,
+        taskerUserId: locked.tasker?.user?.id,
+        customerUserId: locked.customer?.user?.id,
+        refundAmount,
+      };
     });
 
-    const taskerUserId = booking.tasker?.user?.id;
-    const customerUserId = booking.customer?.user?.id;
+    // Một worker khác có thể đã xử lý booking sau lần đọc đầu tiên.
+    if (!outcome) return;
 
     await Promise.all([
-      customerUserId &&
+      outcome.customerUserId &&
         this.notificationService.notify({
-          userId: customerUserId,
+          userId: outcome.customerUserId,
           type: NotificationType.BOOKING_CANCELLED,
-          title: 'Đơn bị hủy tự động',
-          content: `Nhân viên không đến đúng giờ cho booking #${booking.bookingCode}. Bạn sẽ được hoàn tiền 100%.`,
+          title: 'Đơn đã hủy và hoàn tiền',
+          content:
+            `Tasker không check-in đúng giờ cho booking #${outcome.bookingCode}. ` +
+            (outcome.refundAmount > 0
+              ? `${outcome.refundAmount.toLocaleString('vi-VN')}đ đã được hoàn vào ví.`
+              : 'Bạn không bị tính phí cho đơn này.') +
+            ' CleanZ đang review no-show.',
           referenceId: bookingId,
           referenceType: NotificationRefType.BOOKING,
+          dedupeKey: `booking:${bookingId}:no-show-customer`,
         }),
-      taskerUserId &&
+      outcome.taskerUserId &&
         this.notificationService.notify({
-          userId: taskerUserId,
+          userId: outcome.taskerUserId,
           type: NotificationType.BOOKING_CANCELLED,
-          title: 'Đơn bị hủy do không check-in',
-          content: `Booking #${booking.bookingCode} đã bị hủy tự động vì không check-in đúng giờ. Bạn bị cộng ${WARN_NO_SHOW} điểm cảnh báo.`,
+          title: 'Booking chờ review no-show',
+          content:
+            `Booking #${outcome.bookingCode} đã bị hủy vì chưa check-in sau 45 phút. ` +
+            `Bạn chưa bị cộng điểm; hãy gửi giải trình trước khi Admin kết luận.`,
           referenceId: bookingId,
           referenceType: NotificationRefType.BOOKING,
+          dedupeKey: `booking:${bookingId}:no-show-tasker`,
         }),
     ]);
   }
@@ -797,6 +962,7 @@ export class BookingCheckinService {
           content: `Booking #${booking.bookingCode} đã qua giờ dự kiến kết thúc. Hãy bấm "Hoàn thành" nếu bạn đã xong việc.`,
           referenceId: bookingId,
           referenceType: NotificationRefType.BOOKING,
+          dedupeKey: `booking:${bookingId}:checkout-overdue:tasker`,
         }),
       customerUserId &&
         this.notificationService.notify({
@@ -806,6 +972,7 @@ export class BookingCheckinService {
           content: `Booking #${booking.bookingCode} đã qua giờ dự kiến kết thúc. Vui lòng xác nhận nếu công việc đã hoàn tất.`,
           referenceId: bookingId,
           referenceType: NotificationRefType.BOOKING,
+          dedupeKey: `booking:${bookingId}:checkout-overdue:customer`,
         }),
     ]);
   }

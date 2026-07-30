@@ -30,6 +30,7 @@ import { AdminActivityLogEntity } from './entities/admin-activity-log.entity';
 import { AdminActivityService } from './services/admin-activity.service';
 import { AdminActivityInterceptor } from './interceptors/admin-activity.interceptor';
 import { AdminActivitySnapshotService } from './services/admin-activity-snapshot.service';
+import { IncidentModule } from 'src/modules/incident/incident.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { AdminActivitySnapshotService } from './services/admin-activity-snapshot
     BookingModule,
     MailModule,
     VoucherModule,
+    IncidentModule,
   ],
 
   controllers: [AdminController],

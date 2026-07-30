@@ -57,6 +57,7 @@ import {
   useMyReview,
   useTaskerPublicReviews,
 } from "@/features/customer/history/hooks/useReview";
+import { CustomerNoShowPanel } from "./CustomerNoShowPanel";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -1220,6 +1221,23 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
         {booking.status === "PENDING_CUSTOMER_CONFIRMATION" && (
           <PendingConfirmationPanel booking={booking} />
         )}
+        {booking.status === "CANCELLED" &&
+          booking.noShow &&
+          booking.noShow.reviewStatus !== "NONE" && (
+            <CustomerNoShowPanel
+              noShow={booking.noShow}
+              onRebook={() =>
+                router.push(
+                  `/customer/booking?serviceId=${encodeURIComponent(booking.service.id)}`,
+                )
+              }
+              onSupport={() =>
+                router.push(
+                  `/customer/support-tickets?bookingId=${booking.id}&category=SERVICE_QUALITY&subject=${encodeURIComponent(`Hỗ trợ no-show đơn ${booking.bookingCode}`)}`,
+                )
+              }
+            />
+          )}
         {/* Thông báo/yêu cầu thêm giờ trước khi checkout. */}
         {booking.status === "IN_PROGRESS" &&
           ["NOTIFIED", "PENDING"].includes(

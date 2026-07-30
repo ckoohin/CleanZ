@@ -16,6 +16,8 @@ import { IncidentSeverity } from 'src/common/enums/incident-severity.enum';
 import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
 import { IncidentResponsibilityParty } from 'src/common/enums/incident-responsibility-party.enum';
 import { IncidentResponseWindowStatus } from 'src/common/enums/incident-response-window-status.enum';
+import { IncidentSource } from 'src/common/enums/incident-source.enum';
+import { IncidentType } from 'src/common/enums/incident-type.enum';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -31,6 +33,7 @@ export type IncidentCompensationSource =
 @Entity('incidents')
 @Index('idx_inc_status_comp', ['status', 'compensationStatus'])
 @Index('idx_inc_severity_created', ['severity', 'createdAt'])
+@Index('idx_incidents_type_source', { synchronize: false })
 export class IncidentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -60,6 +63,22 @@ export class IncidentEntity {
 
   @Column({ type: 'text' })
   description!: string;
+
+  @Column({
+    type: 'enum',
+    enum: IncidentType,
+    enumName: 'incident_type',
+    default: IncidentType.PROPERTY_DAMAGE,
+  })
+  type!: IncidentType;
+
+  @Column({
+    type: 'enum',
+    enum: IncidentSource,
+    enumName: 'incident_source',
+    default: IncidentSource.CUSTOMER_REPORT,
+  })
+  source!: IncidentSource;
 
   @Column({
     type: 'enum',

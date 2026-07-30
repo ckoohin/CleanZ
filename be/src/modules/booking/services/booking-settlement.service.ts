@@ -41,6 +41,11 @@ export interface SettleCompletionInput {
    * (có phụ phí = đã thu). Truyền `DISPUTED`/`WAIVED` cho nhánh khách không trả.
    */
   surchargeStatus?: BookingSurchargeStatus;
+  /**
+   * AdminBookingRepository tự ghi audit có request reason/audit id riêng.
+   * Mặc định service vẫn ghi status log cho mọi luồng customer/tasker.
+   */
+  writeStatusLog?: boolean;
 }
 
 export interface SettleCompletionResult {
@@ -125,6 +130,7 @@ export class BookingSettlementService {
       await this.finalizeStats(manager, savedBooking, tasker, actorUserId, {
         oldStatus,
         note,
+        writeStatusLog: input.writeStatusLog !== false,
       });
       return { booking: savedBooking, taskerEarning, platformFee };
     }
@@ -186,6 +192,7 @@ export class BookingSettlementService {
     await this.finalizeStats(manager, savedBooking, tasker, actorUserId, {
       oldStatus,
       note,
+      writeStatusLog: input.writeStatusLog !== false,
     });
     return { booking: savedBooking, taskerEarning, platformFee };
   }
@@ -338,7 +345,11 @@ export class BookingSettlementService {
     booking: BookingEntity,
     tasker: TaskerEntity,
     actorUserId: string,
-    meta: { oldStatus: BookingStatus; note: string },
+    meta: {
+      oldStatus: BookingStatus;
+      note: string;
+      writeStatusLog: boolean;
+    },
   ): Promise<void> {
     await manager
       .getRepository(TaskerEntity)
@@ -349,6 +360,8 @@ export class BookingSettlementService {
         .getRepository(CustomerEntity)
         .increment({ id: booking.customer.id }, 'totalBookings', 1);
     }
+
+    if (!meta.writeStatusLog) return;
 
     const statusLog = manager.getRepository(BookingStatusLogEntity).create({
       booking,

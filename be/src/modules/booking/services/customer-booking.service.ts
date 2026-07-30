@@ -61,6 +61,7 @@ import { NotificationGateway } from 'src/modules/notification/notification.gatew
 import { BookingDispatchService } from './booking-dispatch.service';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { TaskerScheduleAvailabilityService } from './tasker-schedule-availability.service';
+import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -121,6 +122,7 @@ export class CustomerBookingService {
     private readonly notificationGateway: NotificationGateway,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly taskerScheduleAvailabilityService: TaskerScheduleAvailabilityService,
+    private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -567,6 +569,13 @@ export class CustomerBookingService {
           surchargeStatus: booking.surchargeStatus,
           approvedOvertimeMinutes: toNumber(booking.approvedOvertimeMinutes),
         },
+        noShow: {
+          reviewStatus: booking.noShowReviewStatus,
+          detectedAt: booking.noShowDetectedAt ?? null,
+          reviewedAt: booking.noShowReviewedAt ?? null,
+          refundAmount: toNumber(booking.noShowRefundAmount),
+          warningPoints: toNumber(booking.noShowWarningPoints),
+        },
         overtimeRequest: {
           status: booking.overtimeRequestStatus,
           minutes: toNumber(booking.overtimeRequestMinutes),
@@ -761,6 +770,13 @@ export class CustomerBookingService {
             surchargeFee: toNumber(booking.waitingFee),
             surchargePending: isSurchargePending(booking.surchargeStatus),
             surchargeStatus: booking.surchargeStatus,
+          },
+          noShow: {
+            reviewStatus: booking.noShowReviewStatus,
+            detectedAt: booking.noShowDetectedAt ?? null,
+            reviewedAt: booking.noShowReviewedAt ?? null,
+            refundAmount: toNumber(booking.noShowRefundAmount),
+            warningPoints: toNumber(booking.noShowWarningPoints),
           },
           createdAt: booking.createdAt.toISOString(),
           updatedAt: booking.updatedAt.toISOString(),
@@ -971,6 +987,8 @@ export class CustomerBookingService {
         });
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
       });
+
+      await this.bookingLifecycleScheduler.deactivateBooking(bookingId);
 
       // Sau commit: nếu đơn đã có tasker → báo tasker rằng customer đã hủy.
       if (taskerUserId) {

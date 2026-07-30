@@ -56,6 +56,9 @@ import {
 } from './booking-checkin.service';
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
+import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
+import { BookingCheckinVerificationSource } from 'src/common/enums/booking-checkin-verification-source.enum';
+import { BookingNoShowReviewStatus } from 'src/common/enums/booking-no-show-review-status.enum';
 import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.enum';
 import { getTaskerPremiumEligibilityIssues } from '../helpers/premium-eligibility.helper';
 import type { PremiumEligibilityIssue } from '../helpers/premium-eligibility.helper';
@@ -69,6 +72,8 @@ import type {
   CheckinAssessment,
   CheckinTimingPolicy,
 } from './booking-checkin.policy';
+import { SubmitNoShowExplanationDto } from '../dto/submit-no-show-explanation.dto';
+import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
 
 interface TaskerPostedBookingItem {
   id: string;
@@ -290,6 +295,15 @@ export interface TaskerAssignedBookingDetailResponse {
     fee: number;
     respondBy: string | null;
   };
+  noShow: {
+    reviewStatus: BookingNoShowReviewStatus;
+    detectedAt: Date | null;
+    explanation: string | null;
+    explanationSubmittedAt: Date | null;
+    reviewedAt: Date | null;
+    reviewReason: string | null;
+    warningPoints: number;
+  };
 }
 
 interface TaskerLocationInput {
@@ -381,6 +395,7 @@ export class TaskerBookingService {
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly bookingCheckinService: BookingCheckinService,
     private readonly bookingSettlementService: BookingSettlementService,
+    private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
   ) {}
 
   private emitBookingNotification(
@@ -773,38 +788,12 @@ export class TaskerBookingService {
           ),
         );
 
-      // Hủy các delayed dispatch job còn đang chờ cho booking này
-      void this.bookingDispatchService
-        .cancelPendingDispatch(result.id)
+      // Side effects sau commit: hủy dispatch và lên đủ mốc lifecycle.
+      void this.bookingLifecycleScheduler
+        .activateConfirmedBooking(result.id)
         .catch((err) =>
           this.logger.warn(
-            `Không thể hủy dispatch job cho booking=${result.id}: ${err}`,
-          ),
-        );
-
-      // Schedule checkin/auto-cancel jobs theo lịch hẹn
-      void this.dataSource
-        .getRepository(BookingEntity)
-        .findOne({
-          where: { id: result.id },
-          select: [
-            'id',
-            'bookingCode',
-            'source',
-            'createdAt',
-            'scheduledStart',
-            'scheduledEnd',
-            'scheduledStartDate',
-            'scheduledStartTime',
-            'scheduledEndDate',
-            'scheduledEndTime',
-            'durationHours',
-          ],
-        })
-        .then((b) => b && this.bookingCheckinService.scheduleCheckinJobs(b))
-        .catch((err) =>
-          this.logger.warn(
-            `Không thể schedule checkin jobs cho booking=${result.id}: ${err}`,
+            `Không thể kích hoạt lifecycle booking=${result.id}: ${err}`,
           ),
         );
 
@@ -1103,7 +1092,7 @@ export class TaskerBookingService {
 
       // Hủy auto-cancel job vì đã check-in thành công
       void this.bookingCheckinService
-        .cancelCheckinJobs(bookingId)
+        .cancelArrivalJobs(bookingId)
         .catch(() => null);
 
       const service = await this.findServiceByBooking(booking);
@@ -1112,6 +1101,153 @@ export class TaskerBookingService {
         checkinResult: result,
       };
     }, 'Không thể check-in booking');
+  }
+
+  /**
+   * Nhánh cứu hộ có audit dành riêng cho Admin. Không giả lập GPS và không đi
+   * qua endpoint đổi trạng thái chung.
+   */
+  async adminOverrideCheckin(
+    adminUserId: string,
+    bookingId: string,
+    reason: string,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return asyncHandleOperation(async () => {
+      const booking = await this.dataSource.transaction(async (manager) => {
+        const locked = await manager
+          .getRepository(BookingEntity)
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.addressRef', 'addressRef')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .getOne();
+        if (!locked) {
+          throw new NotFoundException('Booking không tồn tại');
+        }
+        if (!locked.tasker) {
+          throw new ConflictException(
+            'Booking chưa có Tasker nên không thể override check-in',
+          );
+        }
+        if (locked.status !== BookingStatus.TASKER_ON_THE_WAY) {
+          throw new ConflictException(
+            'Admin chỉ có thể override booking đang ở TASKER_ON_THE_WAY',
+          );
+        }
+
+        const addressLatitude =
+          locked.addressRef?.latitude != null
+            ? Number(locked.addressRef.latitude)
+            : null;
+        const addressLongitude =
+          locked.addressRef?.longitude != null
+            ? Number(locked.addressRef.longitude)
+            : null;
+        const hasAddressTarget =
+          addressLatitude !== null &&
+          addressLongitude !== null &&
+          Number.isFinite(addressLatitude) &&
+          Number.isFinite(addressLongitude);
+        const snapshotLatitude =
+          locked.latitude != null ? Number(locked.latitude) : null;
+        const snapshotLongitude =
+          locked.longitude != null ? Number(locked.longitude) : null;
+        const hasSnapshotTarget =
+          snapshotLatitude !== null &&
+          snapshotLongitude !== null &&
+          Number.isFinite(snapshotLatitude) &&
+          Number.isFinite(snapshotLongitude);
+        const checkedInAt = new Date();
+
+        locked.status = BookingStatus.CHECKED_IN;
+        locked.checkedInAt = checkedInAt;
+        locked.checkinLatitude = null;
+        locked.checkinLongitude = null;
+        locked.checkinAccuracyMeters = null;
+        locked.checkinTargetLatitude = hasAddressTarget
+          ? addressLatitude
+          : hasSnapshotTarget
+            ? snapshotLatitude
+            : null;
+        locked.checkinTargetLongitude = hasAddressTarget
+          ? addressLongitude
+          : hasSnapshotTarget
+            ? snapshotLongitude
+            : null;
+        locked.checkinDistanceMeters = null;
+        locked.checkinProofPhotoUrl = null;
+        locked.checkinFar = true;
+        locked.checkinVerificationSource =
+          BookingCheckinVerificationSource.ADMIN_OVERRIDE;
+        locked.checkinReviewStatus = BookingCheckinReviewStatus.APPROVED;
+        locked.checkinReviewedByAdmin = {
+          id: adminUserId,
+        } as UserEntity;
+        locked.checkinReviewedAt = checkedInAt;
+        locked.checkinReviewReason = reason;
+        const saved = await manager.getRepository(BookingEntity).save(locked);
+
+        await manager.getRepository(BookingStatusLogEntity).save(
+          manager.getRepository(BookingStatusLogEntity).create({
+            booking: saved,
+            oldStatus: BookingStatus.TASKER_ON_THE_WAY,
+            newStatus: BookingStatus.CHECKED_IN,
+            changedByUser: { id: adminUserId } as UserEntity,
+            note: `Admin override check-in — ${reason}`,
+            cancellationFee: 0,
+            refundAmount: 0,
+          }),
+        );
+        return saved;
+      });
+
+      const checkedInAt =
+        booking.checkedInAt?.toISOString() ?? new Date().toISOString();
+      await Promise.allSettled([
+        this.trackingGateway.emitTaskerArrived(booking.id, {
+          bookingId: booking.id,
+          status: booking.status,
+          arrivedAt: checkedInAt,
+          trackingStopped: true,
+        }),
+        this.trackingGateway.emitBookingStatusUpdated(booking.id, {
+          bookingId: booking.id,
+          bookingCode: booking.bookingCode,
+          previousStatus: BookingStatus.TASKER_ON_THE_WAY,
+          status: booking.status,
+          changedAt: checkedInAt,
+          actor: { type: 'ADMIN', id: adminUserId },
+          checkedInAt,
+          paymentStatus: booking.paymentStatus,
+        }),
+      ]);
+      this.emitBookingNotification(
+        booking.customer?.user?.id,
+        NotificationType.SYSTEM,
+        booking.id,
+        'Admin đã xác nhận Tasker có mặt',
+        `Đơn ${booking.bookingCode} đã được check-in thủ công sau khi xác minh.`,
+        'admin-checkin-override-customer',
+      );
+      this.emitBookingNotification(
+        booking.tasker?.user?.id,
+        NotificationType.SYSTEM,
+        booking.id,
+        'Check-in đã được Admin xác nhận',
+        `Đơn ${booking.bookingCode} đã được check-in thủ công. Lý do: ${reason}`,
+        'admin-checkin-override-tasker',
+      );
+
+      void this.bookingCheckinService
+        .cancelArrivalJobs(bookingId)
+        .catch(() => null);
+      const service = await this.findServiceByBooking(booking);
+      return this.mapAssignedBookingDetail(booking, service, null);
+    }, 'Không thể override check-in booking');
   }
 
   async markInProgress(
@@ -1180,6 +1316,66 @@ export class TaskerBookingService {
       const service = await this.findServiceByBooking(booking);
       return await this.mapAssignedBookingDetail(booking, service, null);
     }, 'Không thể bắt đầu booking');
+  }
+
+  async submitNoShowExplanation(
+    userId: string,
+    bookingId: string,
+    dto: SubmitNoShowExplanationDto,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return asyncHandleOperation(async () => {
+      const explanation = dto.explanation.trim();
+      const booking = await this.dataSource.transaction(async (manager) => {
+        const bookingRepo = manager.getRepository(BookingEntity);
+        const locked = await bookingRepo
+          .createQueryBuilder('booking')
+          .leftJoinAndSelect('booking.tasker', 'tasker')
+          .leftJoinAndSelect('tasker.user', 'taskerUser')
+          .leftJoinAndSelect('booking.customer', 'customer')
+          .leftJoinAndSelect('customer.user', 'customerUser')
+          .leftJoinAndSelect('booking.addressRef', 'addressRef')
+          .setLock('pessimistic_write', undefined, ['booking'])
+          .where('booking.id = :bookingId', { bookingId })
+          .andWhere('taskerUser.id = :userId', { userId })
+          .getOne();
+
+        if (!locked) {
+          throw new NotFoundException(
+            'Booking không tồn tại hoặc không thuộc tasker hiện tại',
+          );
+        }
+        if (
+          locked.status !== BookingStatus.CANCELLED ||
+          locked.noShowReviewStatus !== BookingNoShowReviewStatus.PENDING_REVIEW
+        ) {
+          throw new BadRequestException(
+            'Booking không ở trạng thái chờ giải trình no-show',
+          );
+        }
+
+        // Retry cùng payload là idempotent, không tạo thêm timeline.
+        if (locked.noShowExplanation === explanation) return locked;
+
+        locked.noShowExplanation = explanation;
+        locked.noShowExplanationSubmittedAt = new Date();
+        const saved = await bookingRepo.save(locked);
+        await manager.getRepository(BookingStatusLogEntity).save(
+          manager.getRepository(BookingStatusLogEntity).create({
+            booking: saved,
+            oldStatus: BookingStatus.CANCELLED,
+            newStatus: BookingStatus.CANCELLED,
+            changedByUser: { id: userId } as UserEntity,
+            note: 'Tasker đã gửi/cập nhật giải trình no-show để Admin review',
+            cancellationFee: 0,
+            refundAmount: 0,
+          }),
+        );
+        return saved;
+      });
+
+      const service = await this.findServiceByBooking(booking);
+      return this.mapAssignedBookingDetail(booking, service, null);
+    }, 'Không thể gửi giải trình no-show');
   }
 
   async markCompleted(
@@ -1351,6 +1547,9 @@ export class TaskerBookingService {
         return { mode: 'COMPLETED' as const, booking: result.booking, timing };
       });
 
+      await this.bookingLifecycleScheduler.deactivateBooking(
+        outcome.booking.id,
+      );
       await this.emitCompletionNotifications(userId, outcome);
 
       const service = await this.findServiceByBooking(outcome.booking);
@@ -1385,8 +1584,7 @@ export class TaskerBookingService {
         NotificationType.SYSTEM,
         booking.id,
         'Bạn đã checkout sớm',
-        `Bạn kết thúc sớm ${timing.earlyMinutes} phút so với thời lượng đặt của ` +
-          `booking #${booking.bookingCode}. Khách vẫn thanh toán theo giá đã đặt.`,
+        `Bạn kết thúc sớm ${timing.earlyMinutes} phút so với thời lượng đặt của `,
         'early_checkout',
       );
       if (timing.isEarlyAbnormal) {
@@ -1757,6 +1955,15 @@ export class TaskerBookingService {
               ).toISOString()
             : null,
       },
+      noShow: {
+        reviewStatus: booking.noShowReviewStatus,
+        detectedAt: booking.noShowDetectedAt ?? null,
+        explanation: booking.noShowExplanation ?? null,
+        explanationSubmittedAt: booking.noShowExplanationSubmittedAt ?? null,
+        reviewedAt: booking.noShowReviewedAt ?? null,
+        reviewReason: booking.noShowReviewReason ?? null,
+        warningPoints: toNumber(booking.noShowWarningPoints),
+      },
     };
 
     if (!canContactCustomer) {
@@ -1997,6 +2204,7 @@ export class TaskerBookingService {
       let weeklyCount = 0;
       let suspended = false;
       let suspendedUntil: Date | undefined;
+      let shouldRedispatch = false;
 
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
@@ -2039,6 +2247,7 @@ export class TaskerBookingService {
         //    chợ — không có khách thật để phục vụ lại → hủy chốt luôn.
         const oldStatus = booking.status;
         const isGuestBooking = !booking.customer;
+        shouldRedispatch = !isGuestBooking;
         if (isGuestBooking) {
           booking.status = BookingStatus.CANCELLED;
           booking.cancelledBy = CancelledBy.TASKER;
@@ -2105,6 +2314,19 @@ export class TaskerBookingService {
           await manager.getRepository(TaskerEntity).save(tasker);
         }
       });
+
+      // Dọn job của lần phân công cũ trước; đơn có customer được đưa lại vào
+      // dispatch ngay để không phụ thuộc việc Tasker tự mở danh sách công khai.
+      await this.bookingLifecycleScheduler.deactivateBooking(bookingId);
+      if (shouldRedispatch) {
+        void this.bookingLifecycleScheduler
+          .activatePostedDispatch(bookingId)
+          .catch((error) =>
+            this.logger.error(
+              `Không thể redispatch booking=${bookingId}: ${String(error)}`,
+            ),
+          );
+      }
 
       // 5. Notify customer
       if (customerUserId) {

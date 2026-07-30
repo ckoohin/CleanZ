@@ -17,6 +17,8 @@ import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
 import { IncidentDamageItemVerificationStatus } from 'src/common/enums/incident-damage-item-verification-status.enum';
+import { IncidentSource } from 'src/common/enums/incident-source.enum';
+import { IncidentType } from 'src/common/enums/incident-type.enum';
 import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
@@ -259,6 +261,8 @@ export class IncidentService {
               tasker: { id: booking.tasker!.id },
               title: dto.title,
               description: dto.description,
+              type: IncidentType.PROPERTY_DAMAGE,
+              source: IncidentSource.CUSTOMER_REPORT,
               severity,
               status: IncidentStatus.REPORTED,
               claimedAmount: totalClaimed,

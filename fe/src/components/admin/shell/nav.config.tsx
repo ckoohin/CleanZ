@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Activity,
   ClipboardList,
+  MapPinned,
   Sparkles,
   ScrollText,
   TicketPercent,
@@ -51,6 +52,11 @@ export const navGroups: NavGroup[] = [
     label: "Nghiệp vụ",
     items: [
       { title: "Đơn hàng", href: A.BOOKINGS, icon: ClipboardList },
+      {
+        title: "Đối soát check-in",
+        href: A.CHECKIN_REVIEWS,
+        icon: MapPinned,
+      },
       {
         title: "Dịch vụ",
         href: A.SERVICES.SERVICE_PACKAGES.BASE,

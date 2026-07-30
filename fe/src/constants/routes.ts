@@ -83,6 +83,7 @@ export const ROUTES = {
       BOOKINGS: "/admin/reports/bookings",
     },
     BOOKINGS: "/admin/bookings",
+    CHECKIN_REVIEWS: "/admin/checkin-reviews",
     SERVICES: {
       BASE: "/admin/services",
       SERVICE_PACKAGES: {

@@ -17,10 +17,14 @@ import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingSurchargeStatus } from 'src/common/enums/booking-surcharge-status.enum';
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
+import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
+import { BookingCheckinVerificationSource } from 'src/common/enums/booking-checkin-verification-source.enum';
+import { BookingNoShowReviewStatus } from 'src/common/enums/booking-no-show-review-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { ServicePackageEntity } from 'src/modules/service/entity/service-package.entity';
+import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingSubServiceEntity } from './booking-sub-service.entity';
 
 @Entity('bookings')
@@ -29,6 +33,9 @@ import { BookingSubServiceEntity } from './booking-sub-service.entity';
   'status',
   'completedAt',
 ])
+@Index('idx_bookings_checkin_far', { synchronize: false })
+@Index('idx_bookings_checkin_review_queue', { synchronize: false })
+@Index('idx_bookings_no_show_review_queue', { synchronize: false })
 export class BookingEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -328,11 +335,132 @@ export class BookingEntity {
   checkinProofPhotoUrl?: string | null;
 
   /**
-   * Cờ check-in xa (>CHECKIN_MAX_DISTANCE_METERS hoặc không có GPS) — để admin
-   * lọc đơn bất thường; không phạt điểm tasker.
+   * Cờ check-in cần hậu kiểm (xa, thiếu GPS/đích hoặc GPS sai số lớn) — để
+   * Admin lọc đơn bất thường; không tự phạt điểm Tasker.
    */
   @Column({ name: 'checkin_far', type: 'boolean', default: false })
   checkinFar!: boolean;
+
+  /** Độ chính xác GPS do thiết bị báo tại thời điểm check-in (mét). */
+  @Column({
+    name: 'checkin_accuracy_meters',
+    type: 'numeric',
+    precision: 10,
+    scale: 1,
+    nullable: true,
+  })
+  checkinAccuracyMeters?: string | number | null;
+
+  /**
+   * Tọa độ đích được chốt tại thời điểm check-in. Không đọc lại sổ địa chỉ khi
+   * Admin duyệt để tránh kết quả thay đổi nếu customer sửa địa chỉ sau đó.
+   */
+  @Column({
+    name: 'checkin_target_latitude',
+    type: 'numeric',
+    precision: 10,
+    scale: 7,
+    nullable: true,
+  })
+  checkinTargetLatitude?: string | number | null;
+
+  @Column({
+    name: 'checkin_target_longitude',
+    type: 'numeric',
+    precision: 10,
+    scale: 7,
+    nullable: true,
+  })
+  checkinTargetLongitude?: string | number | null;
+
+  @Column({
+    name: 'checkin_verification_source',
+    type: 'enum',
+    enum: BookingCheckinVerificationSource,
+    enumName: 'booking_checkin_verification_source',
+    nullable: true,
+  })
+  checkinVerificationSource?: BookingCheckinVerificationSource | null;
+
+  @Column({
+    name: 'checkin_review_status',
+    type: 'enum',
+    enum: BookingCheckinReviewStatus,
+    enumName: 'booking_checkin_review_status',
+    default: BookingCheckinReviewStatus.NOT_REQUIRED,
+  })
+  checkinReviewStatus!: BookingCheckinReviewStatus;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'checkin_reviewed_by_admin_id',
+    foreignKeyConstraintName: 'FK_bookings_checkin_reviewed_by_admin',
+  })
+  checkinReviewedByAdmin?: UserEntity | null;
+
+  @Column({ name: 'checkin_reviewed_at', type: 'timestamp', nullable: true })
+  checkinReviewedAt?: Date | null;
+
+  @Column({ name: 'checkin_review_reason', type: 'text', nullable: true })
+  checkinReviewReason?: string | null;
+
+  // ── No-show: tự hủy T+45, Tasker giải trình, Admin kết luận ───────────────
+  @Column({
+    name: 'no_show_review_status',
+    type: 'enum',
+    enum: BookingNoShowReviewStatus,
+    enumName: 'booking_no_show_review_status',
+    default: BookingNoShowReviewStatus.NONE,
+  })
+  noShowReviewStatus!: BookingNoShowReviewStatus;
+
+  @Column({ name: 'no_show_detected_at', type: 'timestamp', nullable: true })
+  noShowDetectedAt?: Date | null;
+
+  @Column({ name: 'no_show_explanation', type: 'text', nullable: true })
+  noShowExplanation?: string | null;
+
+  @Column({
+    name: 'no_show_explanation_submitted_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  noShowExplanationSubmittedAt?: Date | null;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'no_show_reviewed_by_admin_id',
+    foreignKeyConstraintName: 'FK_bookings_no_show_reviewed_by_admin',
+  })
+  noShowReviewedByAdmin?: UserEntity | null;
+
+  @Column({ name: 'no_show_reviewed_at', type: 'timestamp', nullable: true })
+  noShowReviewedAt?: Date | null;
+
+  @Column({ name: 'no_show_review_reason', type: 'text', nullable: true })
+  noShowReviewReason?: string | null;
+
+  /** Điểm đã cộng sau kết luận Admin; lưu riêng để audit và chống cộng lặp. */
+  @Column({ name: 'no_show_warning_points', type: 'int', default: 0 })
+  noShowWarningPoints!: number;
+
+  /** Tiền đã hoàn ngay khi hệ thống hủy; không chờ Admin/Incident. */
+  @Column({
+    name: 'no_show_refund_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  noShowRefundAmount!: number;
 
   @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
   completedAt?: Date | null;

@@ -14,6 +14,8 @@ import {
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
+import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
+import { BookingNoShowReviewStatus } from 'src/common/enums/booking-no-show-review-status.enum';
 
 export class BookingSearchQueryDto {
   @ApiPropertyOptional({
@@ -113,6 +115,34 @@ export class BookingSearchQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   farCheckin?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo trạng thái Admin review bằng chứng check-in',
+    enum: BookingCheckinReviewStatus,
+    example: BookingCheckinReviewStatus.PENDING_REVIEW,
+  })
+  @IsOptional()
+  @IsEnum(BookingCheckinReviewStatus)
+  checkinReviewStatus?: BookingCheckinReviewStatus;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo trạng thái Admin review booking no-show',
+    enum: BookingNoShowReviewStatus,
+    example: BookingNoShowReviewStatus.PENDING_REVIEW,
+  })
+  @IsOptional()
+  @IsEnum(BookingNoShowReviewStatus)
+  noShowReviewStatus?: BookingNoShowReviewStatus;
+
+  @ApiPropertyOptional({
+    description:
+      'Chỉ lấy booking IN_PROGRESS đã quá giờ kết thúc dự kiến ít nhất 30 phút',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  overdueCompletion?: boolean;
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()

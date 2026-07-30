@@ -48,6 +48,10 @@ import { ChangeBookingStatusDto } from './dto/change-booking-status.dto';
 import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
 import { AdminActivityQueryDto } from './dto/admin-activity-query.dto';
 import { AdminActivityService } from './services/admin-activity.service';
+import { ReviewBookingCheckinDto } from './dto/review-booking-checkin.dto';
+import { AdminCheckinOverrideDto } from './dto/admin-checkin-override.dto';
+import { ReviewBookingNoShowDto } from './dto/review-booking-no-show.dto';
+import { TaskerBookingService } from 'src/modules/booking/services/tasker-booking.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @AdminOnly()
@@ -62,6 +66,7 @@ export class AdminController {
     private readonly usersService: UsersService,
     private readonly dashboardReport: AdminDashboardReportService,
     private readonly activityService: AdminActivityService,
+    private readonly taskerBookingService: TaskerBookingService,
   ) {}
 
   @Get('activities')
@@ -284,6 +289,53 @@ export class AdminController {
     @Body() dto: ChangeBookingStatusDto,
   ) {
     return this.bookingRepo.changeBookingStatus(id, adminUserId, dto);
+  }
+
+  @Patch('bookings/:id/checkin-review')
+  @ApiOperation({
+    summary: 'Admin duyệt bằng chứng check-in bất thường',
+    description:
+      'Chấp nhận, từ chối hoặc đánh dấu không thể xác minh. Khi từ chối, Admin có thể mở Incident để tiếp tục quy trình xác minh và bồi thường.',
+  })
+  reviewBookingCheckin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: ReviewBookingCheckinDto,
+  ) {
+    return this.bookingRepo.reviewCheckin(id, adminUserId, dto);
+  }
+
+  @Patch('bookings/:id/no-show-review')
+  @ApiOperation({
+    summary: 'Admin kết luận booking tự hủy do Tasker không check-in',
+    description:
+      'Xác nhận no-show để cộng điểm vi phạm, hoặc miễn trách nhiệm sau khi xem giải trình. Có thể mở Incident để xử lý bồi thường bổ sung; tiền booking đã được hoàn ngay khi tự hủy.',
+  })
+  reviewBookingNoShow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: ReviewBookingNoShowDto,
+  ) {
+    return this.bookingRepo.reviewNoShow(id, adminUserId, dto);
+  }
+
+  @Patch('bookings/:id/checkin-override')
+  @ApiOperation({
+    summary: 'Admin xác nhận check-in thủ công có audit',
+    description:
+      'Nhánh cứu hộ riêng cho booking đang TASKER_ON_THE_WAY; không giả lập GPS và không dùng endpoint đổi trạng thái chung.',
+  })
+  async overrideBookingCheckin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: AdminCheckinOverrideDto,
+  ) {
+    await this.taskerBookingService.adminOverrideCheckin(
+      adminUserId,
+      id,
+      dto.reason,
+    );
+    return this.bookingRepo.getBookingDetail(id);
   }
 
   @Patch('bookings/:id/cancel')

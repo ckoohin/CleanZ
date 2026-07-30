@@ -6,6 +6,7 @@ import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
 import { IncidentStatementEntity } from '../entity/incident-statement.entity';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
+import { IncidentResponsibilityParty } from 'src/common/enums/incident-responsibility-party.enum';
 import { getIncidentDecisionActionView } from '../domain/incident-decision.helpers';
 import {
   IncidentDecisionAction,
@@ -49,6 +50,8 @@ export interface IncidentSummary {
   id: string;
   incidentCode: string | null;
   title: string;
+  type: string;
+  source: string;
   severity: string;
   status: string;
   compensationStatus: string;
@@ -160,6 +163,8 @@ export function toIncidentSummary(incident: IncidentEntity): IncidentSummary {
     id: incident.id,
     incidentCode: incident.incidentCode ?? null,
     title: incident.title,
+    type: incident.type,
+    source: incident.source,
     severity: incident.severity,
     status: incident.status,
     compensationStatus: incident.compensationStatus,
@@ -273,8 +278,8 @@ export function toAdminView(
   const isAdverse =
     (incident.taskerBorneAmount != null &&
       toNumber(incident.taskerBorneAmount) > 0) ||
-    incident.responsibilityParty === 'TASKER' ||
-    incident.responsibilityParty === 'SHARED';
+    incident.responsibilityParty === IncidentResponsibilityParty.TASKER ||
+    incident.responsibilityParty === IncidentResponsibilityParty.SHARED;
   const actionView: IncidentDecisionActionView = getIncidentDecisionActionView(
     {
       decisionStatus: incident.decisionStatus,
@@ -369,7 +374,8 @@ export function toAdminView(
       severityRuleSnapshot: incident.severityRuleSnapshot ?? null,
       isAdverseToTasker: isAdverse,
       requiresSecondAdmin: incident.secondApprovalRequestedAt != null,
-      requiresTaskerResponse: incident.decisionStatus === 'DRAFT' && isAdverse,
+      requiresTaskerResponse:
+        incident.decisionStatus === IncidentDecisionStatus.DRAFT && isAdverse,
       allowedActions: actionView.allowedActions,
       blockedReasons: actionView.blockedReasons,
     },

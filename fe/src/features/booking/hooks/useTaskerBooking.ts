@@ -262,6 +262,20 @@ export function useMarkComplete(bookingId: string) {
   });
 }
 
+export function useSubmitNoShowExplanation(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (explanation: string) =>
+      taskerBookingApi.submitNoShowExplanation(bookingId, explanation),
+    onSuccess: () => {
+      toast.success("Đã gửi giải trình cho Admin");
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+    },
+    onError: handleTaskerBookingError,
+  });
+}
+
 /** 11A. Báo khách công việc có thể phát sinh thêm giờ. */
 export function useRequestOvertime(bookingId: string) {
   const qc = useQueryClient();

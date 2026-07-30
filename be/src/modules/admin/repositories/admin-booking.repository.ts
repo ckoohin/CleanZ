@@ -6,10 +6,15 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
+import { BookingCheckinVerificationSource } from 'src/common/enums/booking-checkin-verification-source.enum';
+import { BookingNoShowReviewStatus } from 'src/common/enums/booking-no-show-review-status.enum';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
 import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum';
@@ -47,16 +52,35 @@ import { EARLY_CHECKOUT_ABNORMAL_MINUTES } from 'src/modules/booking/helpers/wor
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
+import { IncidentEntity } from 'src/modules/incident/entity/incident.entity';
+import { IncidentAdminService } from 'src/modules/incident/services/incident-admin.service';
+import { IncidentStatus } from 'src/common/enums/incident-status.enum';
+import { IncidentType } from 'src/common/enums/incident-type.enum';
 import { AssignTaskerDto } from '../dto/assign-tasker.dto';
 import { AvailableTaskersQueryDto } from '../dto/available-taskers-query.dto';
 import { BookingSearchQueryDto } from '../dto/booking-search-query.dto';
 import { ChangeBookingStatusDto } from '../dto/change-booking-status.dto';
 import { CreateAdminBookingDto } from '../dto/create-admin-booking.dto';
-import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
+import {
+  AdminCheckinReviewDecision,
+  ReviewBookingCheckinDto,
+} from '../dto/review-booking-checkin.dto';
+import {
+  AdminNoShowReviewDecision,
+  ReviewBookingNoShowDto,
+} from '../dto/review-booking-no-show.dto';
+import {
+  createVietnamDateTime,
+  VN_NOW_SQL,
+} from 'src/common/helpers/vietnam-time.helper';
+import { NO_SHOW_WARNING_POINTS } from 'src/modules/booking/services/booking-checkin.service';
 import {
   BookingSettlementLedgerSnapshot,
   resolveBookingPaymentBreakdown,
 } from '../helpers/booking-payment-breakdown.helper';
+import { BookingLifecycleSchedulerService } from 'src/modules/booking/services/booking-lifecycle-scheduler.service';
+import { BookingSettlementService } from 'src/modules/booking/services/booking-settlement.service';
+import { overdueCompletionSql } from 'src/modules/booking/helpers/booking-lifecycle.helper';
 
 interface BookingStatusCountRow {
   status: BookingStatus;
@@ -102,7 +126,16 @@ interface AdminBookingListRow {
   waitingFee: string | number | null;
   checkinFar: boolean | null;
   checkinDistanceMeters: string | number | null;
+  checkinAccuracyMeters: string | number | null;
+  checkinLatitude: string | number | null;
+  checkinLongitude: string | number | null;
+  checkinTargetLatitude: string | number | null;
+  checkinTargetLongitude: string | number | null;
   checkinProofPhotoUrl: string | null;
+  checkinReviewStatus: BookingCheckinReviewStatus;
+  checkinVerificationSource: BookingCheckinVerificationSource | null;
+  noShowReviewStatus: BookingNoShowReviewStatus;
+  noShowDetectedAt: Date | null;
   createdAt: Date;
 }
 
@@ -135,7 +168,6 @@ const BUSY_TASKER_BOOKING_STATUSES = [
 
 const ADMIN_FORWARD_STATUS: Partial<Record<BookingStatus, BookingStatus>> = {
   [BookingStatus.CONFIRMED]: BookingStatus.TASKER_ON_THE_WAY,
-  [BookingStatus.TASKER_ON_THE_WAY]: BookingStatus.CHECKED_IN,
   [BookingStatus.CHECKED_IN]: BookingStatus.IN_PROGRESS,
   [BookingStatus.IN_PROGRESS]: BookingStatus.COMPLETED,
 };
@@ -150,6 +182,8 @@ const CANCELLABLE_BY_ADMIN_STATUSES = [
 
 @Injectable()
 export class AdminBookingRepository {
+  private readonly logger = new Logger(AdminBookingRepository.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly pricingService: PricingService,
@@ -162,6 +196,9 @@ export class AdminBookingRepository {
     private readonly bookingScheduleService: BookingScheduleService,
     private readonly bookingLocationPolicyService: BookingLocationPolicyService,
     private readonly vouchersService: VouchersService,
+    private readonly incidentAdminService: IncidentAdminService,
+    private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
+    private readonly bookingSettlementService: BookingSettlementService,
   ) {}
 
   async createBooking(adminUserId: string, dto: CreateAdminBookingDto) {
@@ -375,6 +412,10 @@ export class AdminBookingRepository {
       };
     });
 
+    if (result.taskerUserId) {
+      void this.activateConfirmedLifecycle(result.booking.id);
+    }
+
     await Promise.allSettled([
       this.notificationService.notify({
         userId: result.customerUserId,
@@ -583,6 +624,7 @@ export class AdminBookingRepository {
     if (notifications.length) {
       await Promise.allSettled(notifications);
     }
+    await this.bookingLifecycleScheduler.deactivateBooking(result.bookingId);
 
     return result.response;
   }
@@ -656,6 +698,8 @@ export class AdminBookingRepository {
       };
     });
 
+    void this.activateConfirmedLifecycle(result.bookingId);
+
     await Promise.allSettled([
       ...(result.customerUserId
         ? [
@@ -702,6 +746,9 @@ export class AdminBookingRepository {
       surchargeDisputed,
       serviceTier,
       farCheckin,
+      checkinReviewStatus,
+      noShowReviewStatus,
+      overdueCompletion,
       page = 1,
       limit = 10,
     } = queryDto;
@@ -791,6 +838,24 @@ export class AdminBookingRepository {
     if (farCheckin) {
       query.andWhere('booking.checkinFar = true');
     }
+    if (checkinReviewStatus) {
+      query
+        .andWhere('booking.checkinReviewStatus = :checkinReviewStatus')
+        .andWhere('booking.checkedInAt IS NOT NULL')
+        .setParameter('checkinReviewStatus', checkinReviewStatus);
+    }
+    if (noShowReviewStatus) {
+      query
+        .andWhere('booking.noShowReviewStatus = :noShowReviewStatus')
+        .setParameter('noShowReviewStatus', noShowReviewStatus);
+    }
+    if (overdueCompletion) {
+      query
+        .andWhere('booking.status = :overdueCompletionStatus', {
+          overdueCompletionStatus: BookingStatus.IN_PROGRESS,
+        })
+        .andWhere(overdueCompletionSql('booking', VN_NOW_SQL));
+    }
 
     const statusCountRows = await query
       .clone()
@@ -854,7 +919,16 @@ export class AdminBookingRepository {
         'booking.waitingFee AS "waitingFee"',
         'booking.checkinFar AS "checkinFar"',
         'booking.checkinDistanceMeters AS "checkinDistanceMeters"',
+        'booking.checkinAccuracyMeters AS "checkinAccuracyMeters"',
+        'booking.checkinLatitude AS "checkinLatitude"',
+        'booking.checkinLongitude AS "checkinLongitude"',
+        'booking.checkinTargetLatitude AS "checkinTargetLatitude"',
+        'booking.checkinTargetLongitude AS "checkinTargetLongitude"',
         'booking.checkinProofPhotoUrl AS "checkinProofPhotoUrl"',
+        'booking.checkinReviewStatus AS "checkinReviewStatus"',
+        'booking.checkinVerificationSource AS "checkinVerificationSource"',
+        'booking.noShowReviewStatus AS "noShowReviewStatus"',
+        'booking.noShowDetectedAt AS "noShowDetectedAt"',
         'booking.createdAt AS "createdAt"',
       ])
       .orderBy('booking.createdAt', 'DESC')
@@ -920,7 +994,29 @@ export class AdminBookingRepository {
             row.checkinDistanceMeters != null
               ? Number(row.checkinDistanceMeters)
               : null,
+          checkinAccuracyMeters:
+            row.checkinAccuracyMeters != null
+              ? Number(row.checkinAccuracyMeters)
+              : null,
+          checkinLatitude:
+            row.checkinLatitude != null ? Number(row.checkinLatitude) : null,
+          checkinLongitude:
+            row.checkinLongitude != null ? Number(row.checkinLongitude) : null,
+          checkinTargetLatitude:
+            row.checkinTargetLatitude != null
+              ? Number(row.checkinTargetLatitude)
+              : null,
+          checkinTargetLongitude:
+            row.checkinTargetLongitude != null
+              ? Number(row.checkinTargetLongitude)
+              : null,
           checkinProofPhotoUrl: row.checkinProofPhotoUrl ?? null,
+          checkinReviewStatus: row.checkinReviewStatus,
+          checkinVerificationSource: row.checkinVerificationSource ?? null,
+        },
+        noShow: {
+          reviewStatus: row.noShowReviewStatus,
+          detectedAt: row.noShowDetectedAt ?? null,
         },
         createdAt: row.createdAt,
       })),
@@ -944,6 +1040,14 @@ export class AdminBookingRepository {
       .leftJoinAndSelect('booking.tasker', 'tasker')
       .leftJoinAndSelect('tasker.user', 'taskerUser')
       .leftJoinAndSelect('booking.addressRef', 'addressRef')
+      .leftJoinAndSelect(
+        'booking.checkinReviewedByAdmin',
+        'checkinReviewedByAdmin',
+      )
+      .leftJoinAndSelect(
+        'booking.noShowReviewedByAdmin',
+        'noShowReviewedByAdmin',
+      )
       .leftJoinAndSelect('booking.package', 'package')
       .leftJoinAndSelect('booking.bookingSubServices', 'bookingSubServices')
       .leftJoinAndSelect('bookingSubServices.subService', 'subService')
@@ -954,7 +1058,14 @@ export class AdminBookingRepository {
       throw new NotFoundException(`Không tìm thấy booking với id ${bookingId}`);
     }
 
-    const [payment, timeline, voucher, settlementLedger] = await Promise.all([
+    const [
+      payment,
+      timeline,
+      voucher,
+      settlementLedger,
+      checkinIncident,
+      noShowIncident,
+    ] = await Promise.all([
       this.dataSource.getRepository(PaymentEntity).findOne({
         where: { booking: { id: booking.id } },
         order: { createdAt: 'DESC' },
@@ -970,6 +1081,30 @@ export class AdminBookingRepository {
           })
         : Promise.resolve(null),
       this.getSettlementLedger(booking.id),
+      this.dataSource
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('incident')
+        .where('incident.booking_id = :bookingId', { bookingId: booking.id })
+        .andWhere('incident.type = :type', {
+          type: IncidentType.CHECKIN_VIOLATION,
+        })
+        .andWhere('incident.status != :closed', {
+          closed: IncidentStatus.CLOSED,
+        })
+        .orderBy('incident.reportedAt', 'DESC')
+        .getOne(),
+      this.dataSource
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('incident')
+        .where('incident.booking_id = :bookingId', { bookingId: booking.id })
+        .andWhere('incident.type = :type', {
+          type: IncidentType.NO_SHOW,
+        })
+        .andWhere('incident.status != :closed', {
+          closed: IncidentStatus.CLOSED,
+        })
+        .orderBy('incident.reportedAt', 'DESC')
+        .getOne(),
     ]);
 
     const totalPrice = Number(booking.totalPrice);
@@ -1079,11 +1214,15 @@ export class AdminBookingRepository {
         latitude:
           booking.addressRef?.latitude != null
             ? Number(booking.addressRef.latitude)
-            : null,
+            : booking.latitude != null
+              ? Number(booking.latitude)
+              : null,
         longitude:
           booking.addressRef?.longitude != null
             ? Number(booking.addressRef.longitude)
-            : null,
+            : booking.longitude != null
+              ? Number(booking.longitude)
+              : null,
         hasPet: booking.addressRef?.hasPet ?? false,
       },
       schedule: {
@@ -1114,6 +1253,7 @@ export class AdminBookingRepository {
         premiumFee: Number(booking.premiumFee ?? 0),
         preferredTaskerId: booking.preferredTaskerId ?? null,
         workTiming: {
+          checkedInAt: booking.checkedInAt ?? null,
           overtimeMinutes: Number(booking.overtimeMinutes ?? 0),
           earlyMinutes: Number(booking.earlyMinutes ?? 0),
           surchargeFee: Number(booking.waitingFee ?? 0),
@@ -1130,6 +1270,74 @@ export class AdminBookingRepository {
               ? Number(booking.checkinDistanceMeters)
               : null,
           checkinProofPhotoUrl: booking.checkinProofPhotoUrl ?? null,
+          checkinLatitude:
+            booking.checkinLatitude != null
+              ? Number(booking.checkinLatitude)
+              : null,
+          checkinLongitude:
+            booking.checkinLongitude != null
+              ? Number(booking.checkinLongitude)
+              : null,
+          checkinAccuracyMeters:
+            booking.checkinAccuracyMeters != null
+              ? Number(booking.checkinAccuracyMeters)
+              : null,
+          checkinTargetLatitude:
+            booking.checkinTargetLatitude != null
+              ? Number(booking.checkinTargetLatitude)
+              : null,
+          checkinTargetLongitude:
+            booking.checkinTargetLongitude != null
+              ? Number(booking.checkinTargetLongitude)
+              : null,
+          checkinVerificationSource: booking.checkinVerificationSource ?? null,
+          checkinReviewStatus: booking.checkinReviewStatus,
+          checkinReviewedAt: booking.checkinReviewedAt ?? null,
+          checkinReviewReason: booking.checkinReviewReason ?? null,
+          checkinReviewedByAdmin: booking.checkinReviewedByAdmin
+            ? {
+                id: booking.checkinReviewedByAdmin.id,
+                fullName: booking.checkinReviewedByAdmin.fullName,
+              }
+            : null,
+          checkinIncident: checkinIncident
+            ? {
+                id: checkinIncident.id,
+                incidentCode: checkinIncident.incidentCode ?? null,
+                status: checkinIncident.status,
+                claimedAmount:
+                  checkinIncident.claimedAmount != null
+                    ? Number(checkinIncident.claimedAmount)
+                    : null,
+              }
+            : null,
+        },
+        noShow: {
+          reviewStatus: booking.noShowReviewStatus,
+          detectedAt: booking.noShowDetectedAt ?? null,
+          explanation: booking.noShowExplanation ?? null,
+          explanationSubmittedAt: booking.noShowExplanationSubmittedAt ?? null,
+          reviewedAt: booking.noShowReviewedAt ?? null,
+          reviewReason: booking.noShowReviewReason ?? null,
+          warningPoints: Number(booking.noShowWarningPoints ?? 0),
+          refundAmount: Number(booking.noShowRefundAmount ?? 0),
+          reviewedByAdmin: booking.noShowReviewedByAdmin
+            ? {
+                id: booking.noShowReviewedByAdmin.id,
+                fullName: booking.noShowReviewedByAdmin.fullName,
+              }
+            : null,
+          incident: noShowIncident
+            ? {
+                id: noShowIncident.id,
+                incidentCode: noShowIncident.incidentCode ?? null,
+                status: noShowIncident.status,
+                claimedAmount:
+                  noShowIncident.claimedAmount != null
+                    ? Number(noShowIncident.claimedAmount)
+                    : null,
+              }
+            : null,
         },
         timeline: timeline.map((log) => ({
           id: log.id,
@@ -1462,6 +1670,8 @@ export class AdminBookingRepository {
       };
     });
 
+    void this.activateConfirmedLifecycle(assignment.booking.id);
+
     await Promise.allSettled([
       // Đơn offline/vãng lai không có tài khoản khách → chỉ thông báo tasker.
       ...(assignment.customerUserId
@@ -1509,6 +1719,369 @@ export class AdminBookingRepository {
       tasker: assignment.tasker,
       statusLogId: assignment.statusLogId,
       assignedAt: assignment.booking.updatedAt,
+    };
+  }
+
+  async reviewCheckin(
+    bookingId: string,
+    adminUserId: string,
+    dto: ReviewBookingCheckinDto,
+  ) {
+    if (
+      dto.openIncident &&
+      dto.decision !== AdminCheckinReviewDecision.REJECT
+    ) {
+      throw new BadRequestException(
+        'Chỉ có thể mở Incident khi Admin từ chối check-in',
+      );
+    }
+
+    const targetReviewStatus =
+      dto.decision === AdminCheckinReviewDecision.APPROVE
+        ? BookingCheckinReviewStatus.APPROVED
+        : dto.decision === AdminCheckinReviewDecision.REJECT
+          ? BookingCheckinReviewStatus.REJECTED
+          : BookingCheckinReviewStatus.NOT_VERIFIABLE;
+
+    const reviewed = await this.dataSource.transaction(async (manager) => {
+      const booking = await manager
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'customerUser')
+        .leftJoinAndSelect('booking.tasker', 'tasker')
+        .leftJoinAndSelect('tasker.user', 'taskerUser')
+        .setLock('pessimistic_write', undefined, ['booking'])
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+      if (!booking) {
+        throw new NotFoundException(
+          `Không tìm thấy booking với id ${bookingId}`,
+        );
+      }
+      if (!booking.checkedInAt) {
+        throw new ConflictException('Booking chưa check-in');
+      }
+
+      const isIdempotentRetry =
+        booking.checkinReviewStatus === targetReviewStatus &&
+        booking.checkinReviewReason === dto.reason;
+      if (
+        booking.checkinReviewStatus !==
+          BookingCheckinReviewStatus.PENDING_REVIEW &&
+        !isIdempotentRetry
+      ) {
+        throw new ConflictException(
+          `Check-in đã được xử lý ở trạng thái ${booking.checkinReviewStatus}`,
+        );
+      }
+      if (dto.openIncident && (!booking.customer || !booking.tasker)) {
+        throw new UnprocessableEntityException(
+          'Booking phải có customer và tasker để mở hồ sơ bồi thường',
+        );
+      }
+
+      if (dto.openIncident) {
+        const activeIncident = await manager
+          .getRepository(IncidentEntity)
+          .createQueryBuilder('incident')
+          .where('incident.booking_id = :bookingId', { bookingId })
+          .andWhere('incident.status != :closed', {
+            closed: IncidentStatus.CLOSED,
+          })
+          .getOne();
+        if (
+          activeIncident &&
+          activeIncident.type !== IncidentType.CHECKIN_VIOLATION
+        ) {
+          throw new ConflictException({
+            message: 'Đơn này đã có sự cố khác đang xử lý',
+            incidentId: activeIncident.id,
+          });
+        }
+      }
+
+      if (isIdempotentRetry) {
+        return {
+          booking,
+          auditId: null as string | null,
+          customerUserId: booking.customer?.user?.id ?? null,
+          taskerUserId: booking.tasker?.user?.id ?? null,
+        };
+      }
+
+      booking.checkinReviewStatus = targetReviewStatus;
+      booking.checkinReviewedByAdmin = { id: adminUserId } as UserEntity;
+      booking.checkinReviewedAt = new Date();
+      booking.checkinReviewReason = dto.reason;
+      const saved = await manager.getRepository(BookingEntity).save(booking);
+      const audit = await manager.getRepository(BookingStatusLogEntity).save(
+        manager.getRepository(BookingStatusLogEntity).create({
+          booking: saved,
+          oldStatus: booking.status,
+          newStatus: booking.status,
+          changedByUser: { id: adminUserId } as UserEntity,
+          note: `Admin review check-in: ${targetReviewStatus} — ${dto.reason}`,
+          cancellationFee: 0,
+          refundAmount: 0,
+        }),
+      );
+
+      return {
+        booking: saved,
+        auditId: audit.id as string | null,
+        customerUserId: booking.customer?.user?.id ?? null,
+        taskerUserId: booking.tasker?.user?.id ?? null,
+      };
+    });
+
+    let incidentId: string | null = null;
+    if (dto.openIncident) {
+      const incident =
+        await this.incidentAdminService.createFromCheckinViolation(
+          adminUserId,
+          bookingId,
+          {
+            claimedAmount: dto.claimedAmount!,
+            reviewReason: dto.reason,
+          },
+        );
+      incidentId = incident.id;
+    }
+
+    if (reviewed.auditId) {
+      const reviewLabel =
+        targetReviewStatus === BookingCheckinReviewStatus.APPROVED
+          ? 'được chấp nhận'
+          : targetReviewStatus === BookingCheckinReviewStatus.REJECTED
+            ? 'bị từ chối'
+            : 'không đủ dữ liệu xác minh';
+      await Promise.allSettled([
+        ...(reviewed.taskerUserId
+          ? [
+              this.notificationService.notify({
+                userId: reviewed.taskerUserId,
+                type: NotificationType.SYSTEM,
+                title: 'Đã có kết quả review check-in',
+                content: `Check-in đơn ${reviewed.booking.bookingCode} ${reviewLabel}. Lý do: ${dto.reason}`,
+                referenceType: NotificationRefType.BOOKING,
+                referenceId: bookingId,
+                dedupeKey: `checkin-review:${reviewed.auditId}:tasker`,
+              }),
+            ]
+          : []),
+        ...(reviewed.customerUserId
+          ? [
+              this.notificationService.notify({
+                userId: reviewed.customerUserId,
+                type: NotificationType.SYSTEM,
+                title: 'CleanZ đã review check-in',
+                content: `Check-in đơn ${reviewed.booking.bookingCode} ${reviewLabel}.`,
+                referenceType: NotificationRefType.BOOKING,
+                referenceId: bookingId,
+                dedupeKey: `checkin-review:${reviewed.auditId}:customer`,
+              }),
+            ]
+          : []),
+      ]);
+    }
+
+    return {
+      ...(await this.getBookingDetail(bookingId)),
+      checkinReviewResult: {
+        status: targetReviewStatus,
+        incidentId,
+      },
+    };
+  }
+
+  async reviewNoShow(
+    bookingId: string,
+    adminUserId: string,
+    dto: ReviewBookingNoShowDto,
+  ) {
+    if (
+      dto.openIncident &&
+      dto.decision !== AdminNoShowReviewDecision.CONFIRM_NO_SHOW
+    ) {
+      throw new BadRequestException(
+        'Chỉ có thể mở Incident khi Admin xác nhận Tasker no-show',
+      );
+    }
+
+    const targetStatus =
+      dto.decision === AdminNoShowReviewDecision.CONFIRM_NO_SHOW
+        ? BookingNoShowReviewStatus.CONFIRMED
+        : BookingNoShowReviewStatus.EXCUSED;
+
+    const reviewed = await this.dataSource.transaction(async (manager) => {
+      const booking = await manager
+        .getRepository(BookingEntity)
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'customerUser')
+        .leftJoinAndSelect('booking.tasker', 'tasker')
+        .leftJoinAndSelect('tasker.user', 'taskerUser')
+        .setLock('pessimistic_write', undefined, ['booking'])
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+      if (!booking) {
+        throw new NotFoundException(
+          `Không tìm thấy booking với id ${bookingId}`,
+        );
+      }
+      if (
+        booking.status !== BookingStatus.CANCELLED ||
+        !booking.noShowDetectedAt
+      ) {
+        throw new ConflictException(
+          'Booking không phải case tự hủy do no-show',
+        );
+      }
+
+      const isIdempotentRetry =
+        booking.noShowReviewStatus === targetStatus &&
+        booking.noShowReviewReason === dto.reason;
+      if (
+        booking.noShowReviewStatus !==
+          BookingNoShowReviewStatus.PENDING_REVIEW &&
+        !isIdempotentRetry
+      ) {
+        throw new ConflictException(
+          `No-show đã được xử lý ở trạng thái ${booking.noShowReviewStatus}`,
+        );
+      }
+      if (dto.openIncident && (!booking.customer || !booking.tasker)) {
+        throw new UnprocessableEntityException(
+          'Booking phải có customer và tasker để mở hồ sơ bồi thường',
+        );
+      }
+      if (dto.openIncident) {
+        const activeIncident = await manager
+          .getRepository(IncidentEntity)
+          .createQueryBuilder('incident')
+          .where('incident.booking_id = :bookingId', { bookingId })
+          .andWhere('incident.status != :closed', {
+            closed: IncidentStatus.CLOSED,
+          })
+          .getOne();
+        if (activeIncident && activeIncident.type !== IncidentType.NO_SHOW) {
+          throw new ConflictException({
+            message: 'Đơn này đã có sự cố khác đang xử lý',
+            incidentId: activeIncident.id,
+          });
+        }
+      }
+      if (isIdempotentRetry) {
+        return {
+          booking,
+          auditId: null as string | null,
+          customerUserId: booking.customer?.user?.id ?? null,
+          taskerUserId: booking.tasker?.user?.id ?? null,
+        };
+      }
+
+      booking.noShowReviewStatus = targetStatus;
+      booking.noShowReviewedByAdmin = { id: adminUserId } as UserEntity;
+      booking.noShowReviewedAt = new Date();
+      booking.noShowReviewReason = dto.reason;
+      if (targetStatus === BookingNoShowReviewStatus.CONFIRMED) {
+        booking.noShowWarningPoints = NO_SHOW_WARNING_POINTS;
+        if (booking.tasker) {
+          await manager
+            .getRepository(TaskerEntity)
+            .increment(
+              { id: booking.tasker.id },
+              'warningPoints',
+              NO_SHOW_WARNING_POINTS,
+            );
+        }
+      } else {
+        booking.noShowWarningPoints = 0;
+      }
+
+      const saved = await manager.getRepository(BookingEntity).save(booking);
+      const audit = await manager.getRepository(BookingStatusLogEntity).save(
+        manager.getRepository(BookingStatusLogEntity).create({
+          booking: saved,
+          oldStatus: BookingStatus.CANCELLED,
+          newStatus: BookingStatus.CANCELLED,
+          changedByUser: { id: adminUserId } as UserEntity,
+          note:
+            `Admin review no-show: ${targetStatus} — ${dto.reason}` +
+            (targetStatus === BookingNoShowReviewStatus.CONFIRMED
+              ? ` (+${NO_SHOW_WARNING_POINTS} điểm cảnh báo)`
+              : ' (không phạt Tasker)'),
+          cancellationFee: 0,
+          refundAmount: 0,
+        }),
+      );
+      return {
+        booking: saved,
+        auditId: audit.id as string | null,
+        customerUserId: booking.customer?.user?.id ?? null,
+        taskerUserId: booking.tasker?.user?.id ?? null,
+      };
+    });
+
+    let incidentId: string | null = null;
+    if (dto.openIncident) {
+      const incident =
+        await this.incidentAdminService.createFromNoShowViolation(
+          adminUserId,
+          bookingId,
+          {
+            claimedAmount: dto.claimedAmount!,
+            reviewReason: dto.reason,
+          },
+        );
+      incidentId = incident.id;
+    }
+
+    if (reviewed.auditId) {
+      const confirmed = targetStatus === BookingNoShowReviewStatus.CONFIRMED;
+      await Promise.allSettled([
+        ...(reviewed.taskerUserId
+          ? [
+              this.notificationService.notify({
+                userId: reviewed.taskerUserId,
+                type: NotificationType.SYSTEM,
+                title: confirmed
+                  ? 'Admin xác nhận vi phạm no-show'
+                  : 'Bạn được miễn trách nhiệm no-show',
+                content: confirmed
+                  ? `Booking ${reviewed.booking.bookingCode}: bạn bị cộng ${NO_SHOW_WARNING_POINTS} điểm cảnh báo. Lý do: ${dto.reason}`
+                  : `Booking ${reviewed.booking.bookingCode}: Admin đã chấp nhận giải trình, không cộng điểm. Lý do: ${dto.reason}`,
+                referenceType: NotificationRefType.BOOKING,
+                referenceId: bookingId,
+                dedupeKey: `no-show-review:${reviewed.auditId}:tasker`,
+              }),
+            ]
+          : []),
+        ...(reviewed.customerUserId
+          ? [
+              this.notificationService.notify({
+                userId: reviewed.customerUserId,
+                type: NotificationType.SYSTEM,
+                title: 'CleanZ đã kết luận case no-show',
+                content: confirmed
+                  ? `Tasker của booking ${reviewed.booking.bookingCode} đã được xác nhận vi phạm.`
+                  : `Booking ${reviewed.booking.bookingCode}: Admin xác định Tasker có lý do được miễn trách nhiệm. Khoản hoàn của bạn không thay đổi.`,
+                referenceType: NotificationRefType.BOOKING,
+                referenceId: bookingId,
+                dedupeKey: `no-show-review:${reviewed.auditId}:customer`,
+              }),
+            ]
+          : []),
+      ]);
+    }
+
+    return {
+      ...(await this.getBookingDetail(bookingId)),
+      noShowReviewResult: {
+        status: targetStatus,
+        incidentId,
+      },
     };
   }
 
@@ -1637,11 +2210,29 @@ export class AdminBookingRepository {
           );
         }
 
-        if (dto.status === BookingStatus.CHECKED_IN) {
-          booking.checkedInAt = new Date();
-        }
         if (dto.status === BookingStatus.COMPLETED) {
-          await this.settleCompletedBooking(manager, booking);
+          if (isSurchargePending(booking.surchargeStatus)) {
+            throw new ConflictException(
+              'Đơn đang chờ xác nhận phần phát sinh. Hãy xử lý hoặc chờ hết hạn phụ phí trước khi hoàn thành.',
+            );
+          }
+          if (
+            booking.paymentMethod !== PaymentMethod.CASH &&
+            booking.paymentStatus !== PaymentStatus.PAID
+          ) {
+            throw new ConflictException(
+              'Booking chưa thanh toán nên không thể hoàn thành',
+            );
+          }
+
+          await this.bookingSettlementService.settleCompletedBooking(manager, {
+            booking,
+            tasker: booking.tasker,
+            actorUserId: adminUserId,
+            note: dto.reason,
+            surchargeStatus: booking.surchargeStatus,
+            writeStatusLog: false,
+          });
         } else {
           booking.status = dto.status;
         }
@@ -1688,6 +2279,20 @@ export class AdminBookingRepository {
     });
 
     await this.notifyAdminStatusChange(result, dto.status, result.audit.id);
+    if (
+      dto.status === BookingStatus.CANCELLED ||
+      dto.status === BookingStatus.COMPLETED
+    ) {
+      void this.bookingLifecycleScheduler.deactivateBooking(result.booking.id);
+    } else if (dto.status === BookingStatus.POSTED) {
+      void this.bookingLifecycleScheduler
+        .activatePostedDispatch(result.booking.id)
+        .catch((error) =>
+          this.logger.error(
+            `Không thể khôi phục dispatch booking=${result.booking.id}: ${String(error)}`,
+          ),
+        );
+    }
 
     return {
       id: result.booking.id,
@@ -1700,103 +2305,6 @@ export class AdminBookingRepository {
       cancelledAt: result.booking.cancelledAt ?? null,
       audit: result.audit,
     };
-  }
-
-  private async settleCompletedBooking(
-    manager: EntityManager,
-    booking: BookingEntity,
-  ): Promise<void> {
-    if (!booking.tasker) {
-      throw new ConflictException(
-        'Booking chưa có Tasker nên không thể hoàn thành',
-      );
-    }
-    if (
-      booking.paymentMethod !== PaymentMethod.CASH &&
-      booking.paymentStatus !== PaymentStatus.PAID
-    ) {
-      throw new ConflictException(
-        'Booking chưa thanh toán nên không thể hoàn thành',
-      );
-    }
-
-    const completedAt = new Date();
-    booking.status = BookingStatus.COMPLETED;
-    booking.completedAt = completedAt;
-    if (booking.paymentMethod === PaymentMethod.CASH) {
-      booking.paymentStatus = PaymentStatus.PAID;
-      await this.paymentService.markLatestPendingPaymentAsPaid(
-        manager,
-        booking.id,
-        completedAt,
-      );
-    }
-    await this.vouchersService.markBookingVoucherUsed(manager, booking.id);
-
-    const totalPrice = Number(booking.totalPrice);
-    const subtotal = totalPrice + Number(booking.discountAmount);
-    const commissionRate =
-      await this.pricingService.getPlatformCommissionRate(manager);
-    const platformFee = Math.round((subtotal * commissionRate) / 100);
-    const taskerIncome = Math.max(subtotal - platformFee, 0);
-
-    // Đơn trả bằng ví: tiền đã giữ ở ví SYSTEM → chỉ chuyển công cho tasker.
-    const settledFromWallet =
-      await this.bookingWalletPaymentService.settleOnCompletion(
-        manager,
-        booking,
-        taskerIncome,
-      );
-    if (!settledFromWallet) {
-      if (booking.paymentMethod === PaymentMethod.CASH) {
-        if (platformFee > 0) {
-          await this.taskerBalanceService.deductCashCommission(
-            manager,
-            booking.tasker.id,
-            booking,
-            platformFee,
-          );
-        }
-      } else {
-        const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
-          manager,
-          booking.tasker,
-        );
-        await this.walletService.creditWallet(manager, {
-          wallet: taskerWallet,
-          amount: taskerIncome,
-          type: WalletTransactionType.TASKER_EARNING,
-          booking,
-          description:
-            `Thu nhập booking ${booking.bookingCode} (Admin hoàn thành): ` +
-            `tổng công ${subtotal.toLocaleString('vi-VN')}đ − ` +
-            `chiết khấu nền tảng ${platformFee.toLocaleString('vi-VN')}đ`,
-        });
-      }
-      if (platformFee > 0) {
-        await this.walletService.recordPlatformIncome(
-          manager,
-          platformFee,
-          booking,
-          `Phí nền tảng từ booking ${booking.bookingCode} do Admin hoàn thành`,
-        );
-      }
-    }
-
-    await manager.increment(
-      TaskerEntity,
-      { id: booking.tasker.id },
-      'totalCompletedJobs',
-      1,
-    );
-    if (booking.customer) {
-      await manager.increment(
-        CustomerEntity,
-        { id: booking.customer.id },
-        'totalBookings',
-        1,
-      );
-    }
   }
 
   private async notifyAdminStatusChange(
@@ -1840,6 +2348,16 @@ export class AdminBookingRepository {
         }),
       ),
     );
+  }
+
+  private async activateConfirmedLifecycle(bookingId: string): Promise<void> {
+    try {
+      await this.bookingLifecycleScheduler.activateConfirmedBooking(bookingId);
+    } catch (error) {
+      this.logger.error(
+        `Không thể kích hoạt lifecycle booking=${bookingId}: ${String(error)}`,
+      );
+    }
   }
 
   private async findAssignableBooking(
@@ -2010,7 +2528,7 @@ export class AdminBookingRepository {
   }
 
   async expireOverdueBookings() {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const bookings = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
@@ -2056,5 +2574,12 @@ export class AdminBookingRepository {
         bookingIds: bookings.map((booking) => booking.id),
       };
     });
+
+    await Promise.all(
+      result.bookingIds.map((bookingId) =>
+        this.bookingLifecycleScheduler.deactivateBooking(bookingId),
+      ),
+    );
+    return result;
   }
 }

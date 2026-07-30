@@ -42,12 +42,6 @@ const NAV_ITEMS = [
 export const MobileBottomNav = () => {
   const pathname = usePathname();
 
-  // Ẩn vĩnh viễn trên các trang đặt lịch (booking wizard) để nhường chỗ cho nút Tiếp tục ghim đáy
-  if (pathname.startsWith('/customer/booking') || pathname.startsWith('/booking')) {
-    return null;
-  }
-
-  // Logic theo dõi cuộn để tự động ẩn/hiện menu chính trên di động
   const [showNav, setShowNav] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -68,6 +62,11 @@ export const MobileBottomNav = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Ẩn trên luồng booking để nhường chỗ cho nút hành động ghim đáy.
+  if (pathname.startsWith('/customer/booking') || pathname.startsWith('/booking')) {
+    return null;
+  }
 
   return (
     <nav className={cn(

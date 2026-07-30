@@ -1,8 +1,19 @@
 "use client";
 
-import { ShieldAlert, UserX, Headset, IdCard, Banknote, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  ShieldAlert,
+  UserX,
+  Headset,
+  IdCard,
+  Banknote,
+  CheckCircle,
+  AlertTriangle,
+  Camera,
+  Clock3,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AdminCard } from "@/components/admin";
+import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 import { useAlerts } from "../../hooks/useDashboard";
 import { WidgetSkeleton } from "./WidgetSkeleton";
@@ -28,7 +39,10 @@ export function AlertsWidget() {
       icon: ShieldAlert,
       label: "Sự cố tài sản",
       count: data.openIncidents.count,
-      hint: data.openIncidents.overdueCount > 0 ? `${data.openIncidents.overdueCount} case quá hạn` : "Đang mở",
+      hint:
+        data.openIncidents.overdueCount > 0
+          ? `${data.openIncidents.overdueCount} case quá hạn`
+          : "Đang mở",
       level: "crit",
       href: "/admin/incidents",
     },
@@ -36,15 +50,40 @@ export function AlertsWidget() {
       icon: UserX,
       label: "Đơn chưa nhận",
       count: data.unassignedBookings.count,
-      hint: data.unassignedBookings.urgentCount > 0 ? `${data.unassignedBookings.urgentCount} sắp hết hạn` : "Đơn mới đăng",
+      hint:
+        data.unassignedBookings.urgentCount > 0
+          ? `${data.unassignedBookings.urgentCount} sắp hết hạn`
+          : "Đơn mới đăng",
       level: "crit",
       href: "/admin/bookings",
+    },
+    {
+      icon: Camera,
+      label: "Check-in chờ duyệt",
+      count: data.pendingCheckinReviews.count,
+      hint:
+        data.pendingCheckinReviews.completedCount > 0
+          ? `${data.pendingCheckinReviews.completedCount} đơn đã hoàn thành`
+          : "Cần hậu kiểm",
+      level: data.pendingCheckinReviews.completedCount > 0 ? "crit" : "warn",
+      href: ROUTES.ADMIN.CHECKIN_REVIEWS,
+    },
+    {
+      icon: Clock3,
+      label: "Đơn quá giờ",
+      count: data.overdueInProgressBookings.count,
+      hint: "Cần xác minh hoàn thành",
+      level: "crit",
+      href: `${ROUTES.ADMIN.BOOKINGS}?overdueCompletion=true`,
     },
     {
       icon: Headset,
       label: "Ticket hỗ trợ",
       count: data.openTickets.count,
-      hint: data.openTickets.slaBreachedCount > 0 ? `${data.openTickets.slaBreachedCount} trễ SLA` : "Chờ xử lý",
+      hint:
+        data.openTickets.slaBreachedCount > 0
+          ? `${data.openTickets.slaBreachedCount} trễ SLA`
+          : "Chờ xử lý",
       level: "warn",
       href: "/admin/support-tickets",
     },
@@ -60,9 +99,10 @@ export function AlertsWidget() {
       icon: Banknote,
       label: "Rút tiền chờ duyệt",
       count: data.pendingWithdrawals.count,
-      hint: data.pendingWithdrawals.totalAmount > 0
-        ? `Tổng ${(data.pendingWithdrawals.totalAmount / 1_000_000).toFixed(1)}M đ`
-        : "Chờ phê duyệt",
+      hint:
+        data.pendingWithdrawals.totalAmount > 0
+          ? `Tổng ${(data.pendingWithdrawals.totalAmount / 1_000_000).toFixed(1)}M đ`
+          : "Chờ phê duyệt",
       level: "warn",
       href: "/admin/finances",
     },
@@ -70,7 +110,6 @@ export function AlertsWidget() {
 
   const live = items.filter((item) => item.count > 0);
   const totalCount = live.reduce((sum, item) => sum + item.count, 0);
-
 
   return (
     <AdminCard>
@@ -97,7 +136,7 @@ export function AlertsWidget() {
                 {totalCount} mục · {live.length} loại
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
               {live.map(({ icon: Icon, label, count, hint, level, href }) => (
                 <div
                   key={label}
@@ -114,7 +153,7 @@ export function AlertsWidget() {
                     "rounded-xl p-3.5 cursor-pointer transition-all hover:-translate-y-0.5 border flex flex-col justify-between min-h-[105px]",
                     level === "crit"
                       ? "bg-[rgba(225,29,72,0.06)] hover:bg-[rgba(225,29,72,0.12)] border-[rgba(225,29,72,0.20)] text-[#E11D48]"
-                      : "bg-[rgba(217,119,6,0.08)] hover:bg-[rgba(217,119,6,0.14)] border-[rgba(217,119,6,0.22)] text-[#D97706]"
+                      : "bg-[rgba(217,119,6,0.08)] hover:bg-[rgba(217,119,6,0.14)] border-[rgba(217,119,6,0.22)] text-[#D97706]",
                   )}
                 >
                   <div className="flex items-center gap-1.5 text-xs font-semibold">
@@ -122,8 +161,12 @@ export function AlertsWidget() {
                     <span className="truncate">{label}</span>
                   </div>
                   <div className="mt-2">
-                    <div className="text-3xl font-bold leading-none tabular-nums">{count}</div>
-                    <div className="text-[10.5px] mt-1 opacity-90 truncate leading-none">{hint}</div>
+                    <div className="text-3xl font-bold leading-none tabular-nums">
+                      {count}
+                    </div>
+                    <div className="text-[10.5px] mt-1 opacity-90 truncate leading-none">
+                      {hint}
+                    </div>
                   </div>
                 </div>
               ))}

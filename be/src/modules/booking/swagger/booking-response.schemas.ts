@@ -73,6 +73,27 @@ const bookingInvitationSchema = {
   },
 };
 
+const noShowSchema = {
+  type: 'object',
+  properties: {
+    reviewStatus: {
+      type: 'string',
+      enum: ['NONE', 'PENDING_REVIEW', 'CONFIRMED', 'EXCUSED'],
+    },
+    detectedAt: { type: 'string', format: 'date-time', nullable: true },
+    explanation: nullableString,
+    explanationSubmittedAt: {
+      type: 'string',
+      format: 'date-time',
+      nullable: true,
+    },
+    reviewedAt: { type: 'string', format: 'date-time', nullable: true },
+    reviewReason: nullableString,
+    warningPoints: { type: 'integer', example: 3 },
+    refundAmount: money,
+  },
+};
+
 export const CUSTOMER_BOOKING_QUOTE_SCHEMA = {
   type: 'object',
   properties: {
@@ -125,6 +146,7 @@ export const CUSTOMER_BOOKING_DETAIL_SCHEMA = {
     voucher: { type: 'object', nullable: true },
     tasker: { type: 'object', nullable: true },
     statusLogs: { type: 'array', items: { type: 'object' } },
+    noShow: noShowSchema,
     note: nullableString,
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
@@ -218,6 +240,7 @@ export const TASKER_ASSIGNED_BOOKING_SCHEMA = {
     customer: { type: 'object' },
     note: nullableString,
     flags: { type: 'object' },
+    noShow: noShowSchema,
     checkedInAt: { type: 'string', format: 'date-time', nullable: true },
     completedAt: { type: 'string', format: 'date-time', nullable: true },
     createdAt: { type: 'string', format: 'date-time' },

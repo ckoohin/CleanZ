@@ -22,9 +22,7 @@ import {
   ShieldAlert,
   XCircle,
   Crown,
-  Camera,
 } from "lucide-react";
-import http from "@/lib/api/http";
 import {
   usePostedBookingDetail,
   useAssignedBookingDetail,
@@ -36,6 +34,7 @@ import {
   useCancelByTasker,
   useRequestOvertime,
   useConfirmSurchargeReceived,
+  useSubmitNoShowExplanation,
   isSilentTaskerBookingError,
 } from "@/features/booking/hooks/useTaskerBooking";
 import type {
@@ -49,6 +48,8 @@ import { useTaskerLocationTracking } from "@/features/booking/hooks/useBookingTr
 import { BookingTrackingMap } from "./BookingTrackingMap";
 import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
+import { TaskerCheckinProofSheet } from "./TaskerCheckinProofSheet";
+import { TaskerNoShowPanel } from "./TaskerNoShowPanel";
 import { toast } from "sonner";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ async function getCurrentCoords(): Promise<TaskerCheckinPayload | null> {
         resolve({
           currentLatitude: position.coords.latitude,
           currentLongitude: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
         }),
       () => resolve(null),
       {
@@ -84,8 +86,8 @@ async function getCurrentCoords(): Promise<TaskerCheckinPayload | null> {
 }
 
 function extractCheckinErrorMessage(err: unknown): string | null {
-  const data = (err as { response?: { data?: { message?: unknown } } })?.response
-    ?.data;
+  const data = (err as { response?: { data?: { message?: unknown } } })
+    ?.response?.data;
   const message = data?.message;
   if (typeof message === "string") return message;
   if (Array.isArray(message) && typeof message[0] === "string") {
@@ -955,8 +957,7 @@ function TaskerOvertimeSection({
                   Báo khách có phát sinh thêm giờ
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Gửi thông báo để khách biết công việc có thể kéo dài. Không
-                  chốt trước số phút hay số tiền.
+                  Báo khách phát sinh thêm giờ làm việc.
                 </p>
               </div>
 
@@ -965,9 +966,7 @@ function TaskerOvertimeSection({
                   Phụ phí phụ thuộc thời gian checkout
                 </p>
                 <p className="text-[11px] text-amber-600 leading-relaxed">
-                  Hệ thống tính thời gian làm thực tế từ check-in đến checkout.
-                  Phát sinh bao nhiêu phút sẽ tính đúng bấy nhiêu phút và gửi
-                  khách xác nhận.
+                  Hệ thống sẽ tính toán phụ phí dựa trên thời gian bạn checkout thực tế.
                 </p>
               </div>
 
@@ -1002,150 +1001,6 @@ function TaskerOvertimeSection({
   );
 }
 
-// ─── Check-in Proof Sheet ─────────────────────────────────────────────────────
-/**
- * Hiện khi backend từ chối check-in vì tasker ở ngoài bán kính cho phép hoặc
- * không lấy được GPS. Tasker chụp/chọn 1 ảnh làm minh chứng rồi check-in tiếp.
- */
-function CheckinProofSheet({
-  reason,
-  isSubmitting,
-  onClose,
-  onSubmit,
-}: {
-  reason: string;
-  isSubmitting: boolean;
-  onClose: () => void;
-  onSubmit: (proofPhotoUrl: string) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-
-  const handleUpload = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await http.post("/upload/image", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const url = (res.data?.data ?? res.data)?.url as string | undefined;
-      if (!url) throw new Error("missing url");
-      setPhotoUrl(url);
-    } catch {
-      toast.error("Không thể tải ảnh lên, vui lòng thử lại");
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const isBusy = isUploading || isSubmitting;
-
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 z-50"
-        onClick={isBusy ? undefined : onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-x-4 top-[18%] md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
-      >
-        <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
-          <Camera className="size-6" />
-        </div>
-        <div className="space-y-1 text-center">
-          <h3 className="text-base font-bold text-foreground">
-            Cần ảnh minh chứng
-          </h3>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {reason}
-          </p>
-        </div>
-
-        {photoUrl ? (
-          <div className="relative overflow-hidden rounded-2xl border border-border/50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photoUrl}
-              alt="Ảnh minh chứng check-in"
-              className="max-h-56 w-full object-cover"
-            />
-            <button
-              type="button"
-              onClick={() => setPhotoUrl(null)}
-              disabled={isBusy}
-              className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white active:scale-90 disabled:opacity-60"
-              aria-label="Xóa ảnh"
-            >
-              <XCircle className="size-4" />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isBusy}
-            className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/60 py-8 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
-          >
-            {isUploading ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Camera className="size-5" />
-            )}
-            <span className="text-xs font-semibold">
-              {isUploading ? "Đang tải ảnh…" : "Chụp / chọn ảnh hiện trường"}
-            </span>
-          </button>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/jpg"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => void handleUpload(e.target.files)}
-        />
-
-        <div className="flex gap-3 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isBusy}
-            className="flex-1 rounded-xl border border-border bg-muted/20 py-3 text-xs font-bold text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
-          >
-            Để tôi tới gần hơn
-          </button>
-          <button
-            type="button"
-            onClick={() => photoUrl && onSubmit(photoUrl)}
-            disabled={isBusy || !photoUrl}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-3 text-xs font-bold text-white shadow-md shadow-amber-500/20 transition-all active:scale-95 disabled:opacity-60"
-          >
-            {isSubmitting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <MapPin className="size-3.5" />
-            )}
-            Check-in kèm ảnh
-          </button>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
 // ─── Assigned Detail View ─────────────────────────────────────────────────────
 function AssignedDetailView({
   data,
@@ -1160,6 +1015,7 @@ function AssignedDetailView({
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
   const cancelByTasker = useCancelByTasker(bookingId);
+  const submitNoShowExplanation = useSubmitNoShowExplanation(bookingId);
   const checkinRequestLockRef = useRef(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -1188,8 +1044,16 @@ function AssignedDetailView({
     });
   };
 
-  const runCheckin = (payload: TaskerCheckinPayload) => {
-    if (checkinRequestLockRef.current || markCheckedIn.isPending) return;
+  const runCheckin = (
+    payload: TaskerCheckinPayload,
+    locationLockAlreadyHeld = false,
+  ) => {
+    if (
+      (!locationLockAlreadyHeld && checkinRequestLockRef.current) ||
+      markCheckedIn.isPending
+    ) {
+      return;
+    }
     checkinRequestLockRef.current = true;
     markCheckedIn.mutate(payload, {
       onSuccess: () => {
@@ -1214,12 +1078,17 @@ function AssignedDetailView({
 
   const handleCheckin = () => {
     if (checkinRequestLockRef.current || markCheckedIn.isPending) return;
+    // Khóa ngay từ lúc trình duyệt bắt đầu lấy GPS; nếu chỉ khóa khi API chạy,
+    // nhiều lần chạm trong 10 giây chờ GPS có thể tạo các request nối tiếp.
+    checkinRequestLockRef.current = true;
     // Lấy GPS trước mỗi lần check-in; từ chối quyền hoặc lỗi định vị thì gửi
     // request không có toạ độ để BE trả về yêu cầu ảnh minh chứng.
-    void getCurrentCoords().then((coords) => {
-      checkinCoordsRef.current = coords;
-      runCheckin(coords ?? {});
-    });
+    void getCurrentCoords()
+      .catch(() => null)
+      .then((coords) => {
+        checkinCoordsRef.current = coords;
+        runCheckin(coords ?? {}, true);
+      });
   };
 
   const handleSubmitCheckinProof = (proofPhotoUrl: string) => {
@@ -1402,7 +1271,7 @@ function AssignedDetailView({
 
         <AnimatePresence>
           {showCheckinProof && (
-            <CheckinProofSheet
+            <TaskerCheckinProofSheet
               reason={checkinProofReason}
               isSubmitting={markCheckedIn.isPending}
               onClose={() => setShowCheckinProof(false)}
@@ -1639,19 +1508,32 @@ function AssignedDetailView({
         </div>
       )}
       {data.status === "CANCELLED" && (
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center">
-          <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-          <p className="text-sm font-bold text-foreground">Đơn đã bị hủy</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Đơn có thể đã bị hủy do không check-in đúng giờ hoặc do yêu cầu hủy
-          </p>
-          <button
-            onClick={() => router.push("/tasker/jobs")}
-            className="mt-3 text-xs font-bold text-primary"
-          >
-            ← Về danh sách đơn
-          </button>
-        </div>
+        <>
+          {data.noShow && data.noShow.reviewStatus !== "NONE" ? (
+            <TaskerNoShowPanel
+              noShow={data.noShow}
+              isPending={submitNoShowExplanation.isPending}
+              onSubmit={(explanation) =>
+                submitNoShowExplanation.mutate(explanation)
+              }
+              onBack={() => router.push("/tasker/jobs")}
+            />
+          ) : (
+            <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center">
+              <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+              <p className="text-sm font-bold text-foreground">Đơn đã bị hủy</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Đơn đã kết thúc theo yêu cầu hủy.
+              </p>
+              <button
+                onClick={() => router.push("/tasker/jobs")}
+                className="mt-3 text-xs font-bold text-primary"
+              >
+                ← Về danh sách đơn
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Complete Confirmation Modal */}

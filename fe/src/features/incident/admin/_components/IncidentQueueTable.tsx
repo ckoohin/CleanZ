@@ -2,7 +2,6 @@
 
 import React, { useCallback, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -10,10 +9,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BaseTableList, type Column, type RowAction } from "@/components/ui/base/base_table_list";
+import {
+  BaseTableList,
+  type Column,
+  type RowAction,
+} from "@/components/ui/base/base_table_list";
 import { AdminButton } from "@/components/admin";
-import { Eye, ListFilter, ArrowDownUp, AlertTriangle, Settings, Plus } from "lucide-react";
-import { useAdminIncidents, useCustomerLookup, useTaskerLookup } from "../hooks/useAdminIncident";
+import {
+  Eye,
+  ListFilter,
+  ArrowDownUp,
+  AlertTriangle,
+  Settings,
+  Plus,
+} from "lucide-react";
+import {
+  useAdminIncidents,
+  useCustomerLookup,
+  useTaskerLookup,
+} from "../hooks/useAdminIncident";
 import { LookupCombobox } from "./LookupCombobox";
 import { IncidentDetailDrawer } from "./IncidentDetailDrawer";
 import { FromTicketDialog } from "./FromTicketDialog";
@@ -37,7 +51,10 @@ import {
   COMP_STATUS_LABEL,
   SEVERITY_LABEL,
 } from "@/features/incident/shared/incident.labels";
-import type { AdminIncidentQuery, IncidentSummary } from "@/features/incident/shared/incident.types";
+import type {
+  AdminIncidentQuery,
+  IncidentSummary,
+} from "@/features/incident/shared/incident.types";
 
 const SORT_OPTIONS = [
   { value: "reportedAt", label: "Mới nhất" },
@@ -50,7 +67,9 @@ export function IncidentQueueTable() {
   const pathname = usePathname();
   const sp = useSearchParams();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    sp.get("incidentId"),
+  );
   const [showCreate, setShowCreate] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [customerLabel, setCustomerLabel] = useState<string | null>(null);
@@ -83,7 +102,9 @@ export function IncidentQueueTable() {
     page,
     limit,
     ...(sel("status") !== "ALL" && { status: sel("status") as IncidentStatus }),
-    ...(sel("comp") !== "ALL" && { compensationStatus: sel("comp") as CompensationStatus }),
+    ...(sel("comp") !== "ALL" && {
+      compensationStatus: sel("comp") as CompensationStatus,
+    }),
     ...(sel("severity") !== "ALL" && { severity: sel("severity") as Severity }),
     ...(sel("overdue") !== "ALL" && { overdue: sel("overdue") === "true" }),
     ...(get("customer") && { customerId: get("customer") }),
@@ -99,12 +120,21 @@ export function IncidentQueueTable() {
       title: "Sự cố",
       render: (r) => (
         <div>
-          <p className="font-mono text-xs font-bold text-[var(--c-primary-strong)]">{r.incidentCode ?? "—"}</p>
-          <p className="line-clamp-1 max-w-[220px] text-xs text-[var(--c-muted)]">{r.title}</p>
+          <p className="font-mono text-xs font-bold text-[var(--c-primary-strong)]">
+            {r.incidentCode ?? "—"}
+          </p>
+          <p className="line-clamp-1 max-w-[220px] text-xs text-[var(--c-muted)]">
+            {r.title}
+          </p>
         </div>
       ),
     },
-    { key: "severity", title: "Mức độ", hideOnMobile: true, render: (r) => <SeverityBadge severity={r.severity} /> },
+    {
+      key: "severity",
+      title: "Mức độ",
+      hideOnMobile: true,
+      render: (r) => <SeverityBadge severity={r.severity} />,
+    },
     {
       key: "status",
       title: "Trạng thái",
@@ -115,13 +145,35 @@ export function IncidentQueueTable() {
         </div>
       ),
     },
-    { key: "claimedAmount", title: "Yêu cầu", hideOnMobile: true, render: (r) => <span className="text-xs font-semibold">{formatVnd(r.claimedAmount)}</span> },
-    { key: "approvedAmount", title: "Duyệt", hideOnMobile: true, render: (r) => <span className="text-xs text-[#0E9F6E]">{formatVnd(r.approvedAmount)}</span> },
+    {
+      key: "claimedAmount",
+      title: "Yêu cầu",
+      hideOnMobile: true,
+      render: (r) => (
+        <span className="text-xs font-semibold">
+          {formatVnd(r.claimedAmount)}
+        </span>
+      ),
+    },
+    {
+      key: "approvedAmount",
+      title: "Duyệt",
+      hideOnMobile: true,
+      render: (r) => (
+        <span className="text-xs text-[#0E9F6E]">
+          {formatVnd(r.approvedAmount)}
+        </span>
+      ),
+    },
     {
       key: "reportedAt",
       title: "Báo cáo",
       hideOnMobile: true,
-      render: (r) => <span className="text-xs text-[var(--c-muted)]">{new Date(r.reportedAt).toLocaleDateString("vi-VN")}</span>,
+      render: (r) => (
+        <span className="text-xs text-[var(--c-muted)]">
+          {new Date(r.reportedAt).toLocaleDateString("vi-VN")}
+        </span>
+      ),
     },
   ];
 
@@ -130,17 +182,30 @@ export function IncidentQueueTable() {
       type: "view",
       label: "Xem chi tiết",
       icon: Eye,
-      onClick: (r) => setSelectedId(r.id),
+      onClick: (r) => {
+        setSelectedId(r.id);
+        setParams({ incidentId: r.id }, false);
+      },
     },
   ];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end gap-2">
-        <AdminButton size="sm" variant="secondary" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowConfig(true)}>
+        <AdminButton
+          size="sm"
+          variant="secondary"
+          className="rounded-full gap-1.5 text-xs font-semibold"
+          onClick={() => setShowConfig(true)}
+        >
           <Settings className="size-3.5" /> Cấu hình
         </AdminButton>
-        <AdminButton size="sm" variant="primary" className="rounded-full gap-1.5 text-xs font-semibold" onClick={() => setShowCreate(true)}>
+        <AdminButton
+          size="sm"
+          variant="primary"
+          className="rounded-full gap-1.5 text-xs font-semibold"
+          onClick={() => setShowCreate(true)}
+        >
           <Plus className="size-3.5" /> Tạo từ Ticket
         </AdminButton>
       </div>
@@ -148,7 +213,10 @@ export function IncidentQueueTable() {
       {/* Toolbar — 2 cụm filter đều nhau */}
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="grid grid-cols-2 gap-2">
-          <Select value={sel("status")} onValueChange={(v) => setParams({ status: v })}>
+          <Select
+            value={sel("status")}
+            onValueChange={(v) => setParams({ status: v })}
+          >
             <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <ListFilter className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
               <SelectValue placeholder="Trạng thái" />
@@ -156,43 +224,60 @@ export function IncidentQueueTable() {
             <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
               {INCIDENT_STATUS.map((s) => (
-                <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                <SelectItem key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={sel("comp")} onValueChange={(v) => setParams({ comp: v })}>
+          <Select
+            value={sel("comp")}
+            onValueChange={(v) => setParams({ comp: v })}
+          >
             <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <SelectValue placeholder="Bồi thường" />
             </SelectTrigger>
             <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả bồi thường</SelectItem>
               {COMPENSATION_STATUS.map((c) => (
-                <SelectItem key={c} value={c}>{COMP_STATUS_LABEL[c]}</SelectItem>
+                <SelectItem key={c} value={c}>
+                  {COMP_STATUS_LABEL[c]}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={sel("severity")} onValueChange={(v) => setParams({ severity: v })}>
+          <Select
+            value={sel("severity")}
+            onValueChange={(v) => setParams({ severity: v })}
+          >
             <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <SelectValue placeholder="Mức độ" />
             </SelectTrigger>
             <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả mức độ</SelectItem>
               {SEVERITY.map((s) => (
-                <SelectItem key={s} value={s}>{SEVERITY_LABEL[s]}</SelectItem>
+                <SelectItem key={s} value={s}>
+                  {SEVERITY_LABEL[s]}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={sel("overdue")} onValueChange={(v) => setParams({ overdue: v })}>
+          <Select
+            value={sel("overdue")}
+            onValueChange={(v) => setParams({ overdue: v })}
+          >
             <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <SelectValue placeholder="Quá hạn" />
             </SelectTrigger>
             <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               <SelectItem value="ALL">Tất cả</SelectItem>
               <SelectItem value="true">
-                <div className="flex items-center gap-1.5"><AlertTriangle className="size-3.5 text-[#E11D48]" /> Quá hạn</div>
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="size-3.5 text-[#E11D48]" /> Quá hạn
+                </div>
               </SelectItem>
               <SelectItem value="false">Trong hạn</SelectItem>
             </SelectContent>
@@ -200,14 +285,19 @@ export function IncidentQueueTable() {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <Select value={get("sort") || "reportedAt"} onValueChange={(v) => setParams({ sort: v })}>
+          <Select
+            value={get("sort") || "reportedAt"}
+            onValueChange={(v) => setParams({ sort: v })}
+          >
             <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
               <ArrowDownUp className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
               <SelectValue placeholder="Sắp xếp" />
             </SelectTrigger>
             <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
               {SORT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -218,7 +308,9 @@ export function IncidentQueueTable() {
             isLoading={customerLookup.isFetching}
             onQueryChange={setCustomerQuery}
             selectedKey={get("customer") || null}
-            selectedLabel={customerLabel ?? (get("customer") ? "Đã chọn khách" : null)}
+            selectedLabel={
+              customerLabel ?? (get("customer") ? "Đã chọn khách" : null)
+            }
             onSelect={(it) => {
               setCustomerLabel(it.label);
               setParams({ customer: it.id });
@@ -234,7 +326,9 @@ export function IncidentQueueTable() {
             isLoading={taskerLookup.isFetching}
             onQueryChange={setTaskerQuery}
             selectedKey={get("tasker") || null}
-            selectedLabel={taskerLabel ?? (get("tasker") ? "Đã chọn Tasker" : null)}
+            selectedLabel={
+              taskerLabel ?? (get("tasker") ? "Đã chọn Tasker" : null)
+            }
             onSelect={(it) => {
               setTaskerLabel(it.label);
               setParams({ tasker: it.id });
@@ -267,11 +361,20 @@ export function IncidentQueueTable() {
         <IncidentDetailDrawer
           incidentId={selectedId}
           isOpen={!!selectedId}
-          onClose={() => setSelectedId(null)}
+          onClose={() => {
+            setSelectedId(null);
+            setParams({ incidentId: undefined }, false);
+          }}
         />
       )}
-      <FromTicketDialog open={showCreate} onClose={() => setShowCreate(false)} />
-      <IncidentConfigForm open={showConfig} onClose={() => setShowConfig(false)} />
+      <FromTicketDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
+      <IncidentConfigForm
+        open={showConfig}
+        onClose={() => setShowConfig(false)}
+      />
     </div>
   );
 }

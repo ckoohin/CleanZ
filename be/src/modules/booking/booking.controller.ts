@@ -61,6 +61,7 @@ import { CustomerConfirmCompletionService } from './services/customer-confirm-co
 import { ConfirmCompletionDto } from './dto/confirm-completion.dto';
 import { RejectSurchargeDto } from './dto/reject-surcharge.dto';
 import { RespondOvertimeDto } from './dto/overtime-request.dto';
+import { SubmitNoShowExplanationDto } from './dto/submit-no-show-explanation.dto';
 import { BookingOvertimeRequestService } from './services/booking-overtime-request.service';
 import {
   BookingExpirationService,
@@ -576,7 +577,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 6 — Check-in khi đến nơi',
     description:
-      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Yêu cầu tọa độ GPS hiện tại; cách địa chỉ khách quá 50m (hoặc thiếu GPS) thì phải kèm proofPhotoUrl mới check-in được và đơn bị gắn cờ cho admin. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime.',
+      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Yêu cầu tọa độ và độ chính xác GPS hiện tại; cách địa chỉ khách quá 50m, thiếu GPS/đích hoặc GPS sai số trên 100m thì phải kèm proofPhotoUrl và được đưa vào hàng chờ Admin hậu kiểm. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime.',
   })
   @ApiParam({
     name: 'id',
@@ -655,6 +656,32 @@ export class BookingController {
     @Param('id') bookingId: string,
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return this.taskerBookingService.markCompleted(userId, bookingId);
+  }
+
+  @Patch('tasker/:id/no-show-explanation')
+  @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({
+    summary: 'Tasker giải trình booking tự hủy do không check-in',
+    description:
+      'Chỉ Tasker của booking và chỉ khi hồ sơ no-show còn PENDING_REVIEW. Retry cùng nội dung là idempotent; Tasker được cập nhật giải trình cho tới khi Admin kết luận.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiBody({ type: SubmitNoShowExplanationDto })
+  @ApiOkResponse({
+    description: 'Chi tiết booking sau khi lưu giải trình',
+    schema: TASKER_ASSIGNED_BOOKING_SCHEMA,
+  })
+  submitNoShowExplanation(
+    @CurrentUser('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) bookingId: string,
+    @Body() dto: SubmitNoShowExplanationDto,
+  ): Promise<TaskerAssignedBookingDetailResponse> {
+    return this.taskerBookingService.submitNoShowExplanation(
+      userId,
+      bookingId,
+      dto,
+    );
   }
 
   @Post('admin/expire-overdue')

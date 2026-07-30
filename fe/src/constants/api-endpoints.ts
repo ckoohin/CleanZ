@@ -24,8 +24,7 @@ export const API_ENDPOINTS = {
     DEFAULT_ADDRESS: (id: string) => `/customer/addresses/${id}/default`,
     VOUCHERS_AVAILABLE: "/customer/vouchers/available",
     FAVORITE_TASKERS: "/customer/favorite-taskers",
-    FAVORITE_TASKERS_AVAILABILITY:
-      "/customer/favorite-taskers/availability",
+    FAVORITE_TASKERS_AVAILABILITY: "/customer/favorite-taskers/availability",
     FAVORITE_TASKER: (taskerId: string) =>
       `/customer/favorite-taskers/${taskerId}`,
     FAVORITE_TASKER_CONTACT: (taskerId: string) =>
@@ -107,6 +106,8 @@ export const API_ENDPOINTS = {
     // Tasker xác nhận đã nhận đủ tiền mặt phần phát sinh
     TASKER_CONFIRM_SURCHARGE_RECEIVED: (id: string) =>
       `/booking/tasker/${id}/confirm-surcharge-received`,
+    TASKER_NO_SHOW_EXPLANATION: (id: string) =>
+      `/booking/tasker/${id}/no-show-explanation`,
     TASKER_CANCEL: (id: string) => `/booking/tasker/${id}/cancel`,
   },
   ADMIN_SUPPORT_TICKETS: {
@@ -244,6 +245,9 @@ export const API_ENDPOINTS = {
       `/admin/bookings/${id}/available-taskers`,
     ASSIGN_TASKER: (id: string) => `/admin/bookings/${id}/tasker`,
     STATUS: (id: string) => `/admin/bookings/${id}/status`,
+    CHECKIN_REVIEW: (id: string) => `/admin/bookings/${id}/checkin-review`,
+    NO_SHOW_REVIEW: (id: string) => `/admin/bookings/${id}/no-show-review`,
+    CHECKIN_OVERRIDE: (id: string) => `/admin/bookings/${id}/checkin-override`,
     CANCEL: (id: string) => `/admin/bookings/${id}/cancel`,
     EXPIRE_OVERDUE: "/admin/bookings/expire-overdue",
     ACTIVE_TASKERS: "/admin/bookings/taskers/active",

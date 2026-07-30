@@ -23,6 +23,9 @@ import { TaskerLevelEntity } from 'src/modules/tasker/entity/tasker-level.entity
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
 import { GroupBy } from '../dto/date-range-query.dto';
 import { PricingService } from 'src/modules/pricing/services/pricing.service';
+import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
+import { overdueCompletionSql } from 'src/modules/booking/helpers/booking-lifecycle.helper';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 @Injectable()
 export class AdminDashboardRepository {
@@ -42,6 +45,9 @@ export class AdminDashboardRepository {
       slaBreached,
       pendingWithdrawals,
       withdrawalTotal,
+      pendingCheckinReviews,
+      overdueInProgressBookings,
+      completedPendingCheckinReviews,
     ] = await Promise.all([
       this.dataSource
         .getRepository(BookingEntity)
@@ -120,6 +126,39 @@ export class AdminDashboardRepository {
         .getRawOne()
         .then((r) => Number(r?.total ?? 0))
         .catch(() => 0),
+
+      // Check-in ngoài vùng / GPS không đủ tin cậy đang chờ Admin hậu kiểm.
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.checkinReviewStatus = :reviewStatus', {
+          reviewStatus: BookingCheckinReviewStatus.PENDING_REVIEW,
+        })
+        .andWhere('b.checkedInAt IS NOT NULL')
+        .getCount(),
+
+      // Đơn đang làm đã quá T_end+30: không tự quyết toán, đưa Admin xử lý.
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.status = :status', {
+          status: BookingStatus.IN_PROGRESS,
+        })
+        .andWhere(overdueCompletionSql('b', VN_NOW_SQL))
+        .getCount(),
+
+      // Đơn đã hoàn thành vẫn phải còn hiện rõ trong hàng chờ hậu kiểm.
+      this.dataSource
+        .getRepository(BookingEntity)
+        .createQueryBuilder('b')
+        .where('b.checkinReviewStatus = :reviewStatus', {
+          reviewStatus: BookingCheckinReviewStatus.PENDING_REVIEW,
+        })
+        .andWhere('b.status = :completedStatus', {
+          completedStatus: BookingStatus.COMPLETED,
+        })
+        .andWhere('b.checkedInAt IS NOT NULL')
+        .getCount(),
     ]);
 
     return {
@@ -130,6 +169,13 @@ export class AdminDashboardRepository {
       pendingWithdrawals: {
         count: pendingWithdrawals,
         totalAmount: withdrawalTotal,
+      },
+      pendingCheckinReviews: {
+        count: pendingCheckinReviews,
+        completedCount: completedPendingCheckinReviews,
+      },
+      overdueInProgressBookings: {
+        count: overdueInProgressBookings,
       },
     };
   }

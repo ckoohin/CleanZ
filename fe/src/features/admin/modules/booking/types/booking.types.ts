@@ -32,6 +32,108 @@ export interface ChangeBookingStatusDto {
   reason: string;
 }
 
+export type AdminCheckinReviewStatus =
+  | "NOT_REQUIRED"
+  | "PENDING_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "NOT_VERIFIABLE";
+
+export type AdminCheckinVerificationSource =
+  | "GPS"
+  | "GPS_WITH_PROOF"
+  | "GPS_LOW_ACCURACY_WITH_PROOF"
+  | "NO_GPS_WITH_PROOF"
+  | "TARGET_MISSING_WITH_PROOF"
+  | "ADMIN_OVERRIDE";
+
+export interface ReviewBookingCheckinDto {
+  decision: "APPROVE" | "REJECT" | "MARK_NOT_VERIFIABLE";
+  reason: string;
+  openIncident?: boolean;
+  claimedAmount?: number;
+}
+
+export interface AdminCheckinOverrideDto {
+  reason: string;
+}
+
+export type AdminNoShowReviewStatus =
+  | "NONE"
+  | "PENDING_REVIEW"
+  | "CONFIRMED"
+  | "EXCUSED";
+
+export interface ReviewBookingNoShowDto {
+  decision: "CONFIRM_NO_SHOW" | "EXCUSE_TASKER";
+  reason: string;
+  openIncident?: boolean;
+  claimedAmount?: number;
+}
+
+export interface AdminBookingNoShow {
+  reviewStatus: AdminNoShowReviewStatus;
+  detectedAt: string | null;
+  explanation?: string | null;
+  explanationSubmittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewReason?: string | null;
+  warningPoints?: number;
+  refundAmount?: number;
+  reviewedByAdmin?: {
+    id: string;
+    fullName: string;
+  } | null;
+  incident?: {
+    id: string;
+    incidentCode: string | null;
+    status: string;
+    claimedAmount: number | null;
+  } | null;
+}
+
+export interface AdminBookingWorkTiming {
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  overtimeMinutes: number;
+  earlyMinutes: number;
+  surchargeFee: number;
+  surchargePending?: boolean;
+  surchargeStatus?:
+    | "NONE"
+    | "PENDING_CUSTOMER"
+    | "PENDING_TASKER_CONFIRM"
+    | "PAID"
+    | "WAIVED"
+    | "DISPUTED";
+  surchargeDisputeReason?: string | null;
+  platformAdvanceAmount?: number;
+  approvedOvertimeMinutes?: number;
+  isEarlyAbnormal: boolean;
+  isCheckinFar: boolean;
+  checkinDistanceMeters: number | null;
+  checkinProofPhotoUrl: string | null;
+  checkinLatitude?: number | null;
+  checkinLongitude?: number | null;
+  checkinAccuracyMeters?: number | null;
+  checkinTargetLatitude?: number | null;
+  checkinTargetLongitude?: number | null;
+  checkinVerificationSource: AdminCheckinVerificationSource | null;
+  checkinReviewStatus: AdminCheckinReviewStatus;
+  checkinReviewedAt?: string | null;
+  checkinReviewReason?: string | null;
+  checkinReviewedByAdmin?: {
+    id: string;
+    fullName: string;
+  } | null;
+  checkinIncident?: {
+    id: string;
+    incidentCode: string | null;
+    status: string;
+    claimedAmount: number | null;
+  } | null;
+}
+
 export interface AdminBookingItem {
   id: string;
   bookingCode: string;
@@ -70,6 +172,8 @@ export interface AdminBookingItem {
   status: string;
   paymentStatus: string;
   paymentMethod: string;
+  workTiming?: AdminBookingWorkTiming;
+  noShow?: Pick<AdminBookingNoShow, "reviewStatus" | "detectedAt">;
   createdAt: string;
 }
 
@@ -156,8 +260,11 @@ export interface AdminBookingDetail {
   operation?: {
     acceptedAt: string | null;
     checkedInAt: string | null;
+    checkedOutAt: string | null;
     completedAt: string | null;
     cancelledAt: string | null;
+    workTiming: AdminBookingWorkTiming;
+    noShow: AdminBookingNoShow;
     timeline: AdminBookingTimelineEntry[];
   };
 

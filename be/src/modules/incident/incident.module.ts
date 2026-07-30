@@ -78,6 +78,6 @@ import { IncidentAlertService } from './services/incident-alert.service';
     IncidentReconciliationService,
     IncidentAlertService,
   ],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule, IncidentAdminService],
 })
 export class IncidentModule {}

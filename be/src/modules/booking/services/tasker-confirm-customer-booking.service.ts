@@ -18,6 +18,7 @@ import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
+import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingPolicyService } from './booking-policy.service';
@@ -36,6 +37,7 @@ export class TaskerConfirmCustomerBookingService {
     private readonly pricingService: PricingService,
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
+    private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
   ) {}
 
   async confirmByCustomer(
@@ -138,6 +140,14 @@ export class TaskerConfirmCustomerBookingService {
         return savedBooking;
       });
 
+      void this.bookingLifecycleScheduler
+        .activateConfirmedBooking(result.id)
+        .catch((err) =>
+          this.logger.warn(
+            `Không thể kích hoạt lifecycle booking=${result.id}: ${err}`,
+          ),
+        );
+
       // Notify tasker
       if (taskerUserId) {
         void this.notificationService
@@ -233,6 +243,8 @@ export class TaskerConfirmCustomerBookingService {
 
         return savedBooking;
       });
+
+      await this.bookingLifecycleScheduler.deactivateBooking(bookingId);
 
       // Notify tasker
       if (taskerUserId) {

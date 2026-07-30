@@ -19,6 +19,7 @@ import { BookingEntity } from '../entity/booking.entity';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
+import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
 
 export interface ExpireOverdueBookingsResponse {
   expiredCount: number;
@@ -40,6 +41,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     private readonly vouchersService: VouchersService,
     private readonly notificationService: NotificationService,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
+    private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
     configService: ConfigService,
   ) {
     this.intervalMs = Number(
@@ -87,6 +89,12 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
       } finally {
         this.isRunning = false;
       }
+
+      await Promise.all(
+        bookings.map((booking) =>
+          this.bookingLifecycleScheduler.deactivateBooking(booking.id),
+        ),
+      );
 
       // Notify customers sau khi transaction commit.
       // Đơn tạo hộ cho khách không có tài khoản thì customer là null → bỏ qua.
@@ -244,6 +252,12 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
       if (!bookings.length) {
         return { cancelledCount: 0, bookingIds: [] };
       }
+
+      await Promise.all(
+        bookings.map((booking) =>
+          this.bookingLifecycleScheduler.deactivateBooking(booking.id),
+        ),
+      );
 
       // Notify tasker và customer sau khi transaction commit.
       // Đơn tạo hộ cho khách không có tài khoản thì customer là null → chỉ báo tasker.

@@ -12,6 +12,7 @@ import { ActiveBookingWidget } from '@/features/booking/components/ActiveBooking
 import { CustomerRealtimeNotifications } from '@/features/customer/_components/CustomerRealtimeNotifications'
 import { NotificationBell } from '@/features/notifications/_components/NotificationBell'
 import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { MobileViewportPortal } from '@/components/layouts/mobile/MobileViewportPortal'
 
 const CUSTOMER_NAV_LINKS = [
   { label: "Trang chủ",   href: "/customer" },
@@ -52,12 +53,14 @@ export default function CustomerLayout({
                     </header>
 
                     {/* Main content */}
-                    <main className="flex-1 pb-24 md:pb-12 animate-in fade-in duration-500">
+                    <main className="flex-1 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-12 animate-in fade-in duration-500">
                         {children}
                     </main>
 
                     {/* Bottom Navigation dành cho Mobile */}
-                    <BottomNav />
+                    <MobileViewportPortal>
+                        <BottomNav />
+                    </MobileViewportPortal>
 
                     {/* Widget theo dõi đơn hàng hoạt động — cô lập để lỗi widget
                         (socket/query) không làm trắng cả layout customer. */}

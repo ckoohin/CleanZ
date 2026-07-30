@@ -33,6 +33,7 @@ import { BookingSettlementService } from './services/booking-settlement.service'
 import { CustomerConfirmCompletionService } from './services/customer-confirm-completion.service';
 import { BookingOvertimeRequestService } from './services/booking-overtime-request.service';
 import { TaskerScheduleAvailabilityService } from './services/tasker-schedule-availability.service';
+import { BookingLifecycleSchedulerService } from './services/booking-lifecycle-scheduler.service';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { TaskerScheduleAvailabilityService } from './services/tasker-schedule-av
     BookingDispatchProcessor,
     BookingCheckinService,
     BookingCheckinProcessor,
+    BookingLifecycleSchedulerService,
     TaskerCreateBookingService,
     TaskerConfirmCustomerBookingService,
     BookingWalletPaymentService,
@@ -79,6 +81,9 @@ import { TaskerScheduleAvailabilityService } from './services/tasker-schedule-av
     BookingPolicyService,
     BookingScheduleService,
     BookingWalletPaymentService,
+    BookingSettlementService,
+    BookingLifecycleSchedulerService,
+    TaskerBookingService,
   ],
 })
 export class BookingModule {}

@@ -29,6 +29,7 @@ import {
   VouchersService,
 } from 'src/modules/voucher/services/vouchers.service';
 import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
+import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
 import { CreateBookingForCustomerDto } from '../dto/create-booking-for-customer.dto';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingSubServiceEntity } from '../entity/booking-sub-service.entity';
@@ -106,6 +107,7 @@ export class TaskerCreateBookingService {
     private readonly notificationService: NotificationService,
     private readonly vouchersService: VouchersService,
     private readonly taskerBalanceService: TaskerBalanceService,
+    private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
   ) {}
 
   async createForCustomer(
@@ -337,6 +339,16 @@ export class TaskerCreateBookingService {
         createdBookingId = savedBooking.id;
         return savedBooking;
       });
+
+      if (isGuest) {
+        void this.bookingLifecycleScheduler
+          .activateConfirmedBooking(result.id)
+          .catch((err) =>
+            this.logger.warn(
+              `Không thể kích hoạt lifecycle booking=${result.id}: ${err}`,
+            ),
+          );
+      }
 
       // 8. Notify customer — guest không có tài khoản để nhận thông báo.
       if (createdBookingId && !isGuest && customerUserId) {

@@ -433,6 +433,19 @@ export class AdminDashboardReportService {
             note: '',
           },
           {
+            label: 'Check-in bất thường chờ hậu kiểm',
+            count: a.pendingCheckinReviews.count,
+            level:
+              a.pendingCheckinReviews.completedCount > 0 ? 'Khẩn' : 'Cảnh báo',
+            note: `${a.pendingCheckinReviews.completedCount} đơn đã hoàn thành vẫn chờ duyệt`,
+          },
+          {
+            label: 'Đơn quá giờ chưa hoàn thành',
+            count: a.overdueInProgressBookings.count,
+            level: 'Khẩn',
+            note: 'Đã quá giờ kết thúc dự kiến ít nhất 30 phút',
+          },
+          {
             label: 'Sự cố đang mở',
             count: a.openIncidents.count,
             level: a.openIncidents.overdueCount > 0 ? 'Khẩn' : 'Cảnh báo',
