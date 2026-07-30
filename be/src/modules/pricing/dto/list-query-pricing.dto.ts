@@ -1,5 +1,4 @@
 import {
-  IsUUID,
   IsOptional,
   IsInt,
   Min,

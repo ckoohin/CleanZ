@@ -1,8 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/api/error-message';
+import { toast } from '@/lib/toast';
 import { adminPolicyService } from '../services/admin-policy.service';
 import { PolicyCategory } from '../types/policy.type';
 
@@ -14,10 +13,6 @@ export const POLICY_KEYS = {
   defaults:  ['admin-policies-defaults'] as const,
   byPackage: (pkgId: string) => ['admin-policies-package', pkgId] as const,
 };
-
-function onApiError(error: unknown) {
-  toast.error(getApiErrorMessage(error));
-}
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
@@ -50,7 +45,6 @@ export const useSeedPolicies = () => {
       toast.success(`Seed xong: +${data.created} mới, ${data.skipped} đã có`);
       qc.invalidateQueries({ queryKey: POLICY_KEYS.all });
     },
-    onError: onApiError,
   });
 };
 
@@ -63,7 +57,6 @@ export const useAssignPoliciesToPackage = (packageId: string) => {
       toast.success('Đã gán chính sách!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.byPackage(packageId) });
     },
-    onError: onApiError,
   });
 };
 
@@ -76,7 +69,6 @@ export const useRemovePolicyFromPackage = (packageId: string) => {
       toast.success('Đã gỡ chính sách!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.byPackage(packageId) });
     },
-    onError: onApiError,
   });
 };
 
@@ -88,7 +80,6 @@ export const useApplyDefaultPolicies = (packageId: string) => {
       toast.success('Đã áp dụng chính sách mặc định!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.byPackage(packageId) });
     },
-    onError: onApiError,
   });
 };
 

@@ -607,9 +607,13 @@ function SidebarMenuSkeleton({
   showIcon?: boolean;
 }) {
   // Random width between 50 to 90%.
+  /* eslint-disable react-hooks/purity -- bề rộng skeleton loader ngẫu nhiên cho
+     tự nhiên; chỉ lệch hydration ở phần giữ chỗ, thoáng qua. Code upstream của
+     shadcn/ui, giữ nguyên để dễ cập nhật. */
   const width = React.useMemo(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`;
   }, []);
+  /* eslint-enable react-hooks/purity */
 
   return (
     <div

@@ -51,7 +51,7 @@ import type {
   TaskerWalletTransaction,
   TaskerWithdrawalRequest,
 } from "@/features/tasker/types/tasker-wallet.types";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 const TRANSACTION_LABELS: Record<string, string> = {
   DEPOSIT: "Nạp tiền",

@@ -51,7 +51,7 @@ import {
   DrawerFooter,
   DrawerClose,
 } from "@/components/ui/drawer";
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { usePublicServices } from '@/features/services/hooks/usePublicServices';
 import { useBookingQuoteQuery, useCreateBooking } from '@/features/booking/hooks/useCustomerBooking';
 import { useMyAddresses } from '@/features/customer/hooks/useCustomerAddress';

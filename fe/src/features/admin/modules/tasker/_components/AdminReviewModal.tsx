@@ -34,6 +34,7 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({
   // Chỉ xóa nội dung khi modal đóng. Parent chỉ đóng khi submit thành công, nên
   // text được giữ lại nếu mutation lỗi (người dùng không phải gõ lại).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     if (!isOpen) setNotes("");
   }, [isOpen]);
 

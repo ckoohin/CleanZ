@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { CalendarCheck } from "lucide-react";
 import { useSocketEvent } from "@/hooks/use-socket";
 import { RealtimeActionDialog } from "@/components/realtime/RealtimeActionDialog";

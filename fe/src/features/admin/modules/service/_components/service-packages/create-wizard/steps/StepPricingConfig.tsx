@@ -5,7 +5,7 @@ import {
   DollarSign, Settings2, Clock, Plus, ShoppingCart, Calendar, Zap, Sparkles, Info, HelpCircle,
   Search, Edit, Eye, Trash2, Layers, ScrollText, ChevronRight, Package, ImageIcon, Check, X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { BaseButton } from "@/components/ui/base/base_button";
 import { Badge } from "@/components/ui/badge";

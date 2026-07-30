@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useVerifyOtp } from "@/features/auth/hooks/auth.hooks";
 import { getApiErrorMessage } from "@/lib/api/error-message";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import Footer from "@/features/auth/_components/Footer";
 import { useLoginContext } from "@/features/auth/context/login.context";
 

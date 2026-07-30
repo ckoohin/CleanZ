@@ -19,9 +19,10 @@ export const ThemeToggleProvider = ({ children }: { children: React.ReactNode })
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
       setTheme(saved);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // apply vào DOM + save

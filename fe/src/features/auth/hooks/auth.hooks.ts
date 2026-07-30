@@ -20,7 +20,7 @@ import type {
   VerifyOtpCredentials,
 } from "@/features/auth/types/auth.type";
 import type { User } from "@/features/auth/types/user.type";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { getApiErrorMessage } from "@/lib/api/error-message";
 
 export function getErrorMessage(error: unknown): string {
@@ -65,9 +65,6 @@ export function useLogin(redirectUrl?: string) {
 
       router.push(url.pathname + url.search);
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-    },
   });
 }
 
@@ -77,9 +74,6 @@ export function useRegister() {
       authApi.register(credentials),
     onSuccess: () => {
       toast.success("Đăng ký thành công!");
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -110,9 +104,6 @@ export function useLogout() {
         router.push(ROUTES.AUTH.LOGIN);
       }
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-    },
   });
 }
 
@@ -123,10 +114,6 @@ export function useVerifyEmail() {
     onSuccess: (res: VerifyEmailResponse) => {
       toast.success(res.message);
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-      return error;
-    },
   });
 }
 export function useResendVerificationEmail() {
@@ -135,10 +122,6 @@ export function useResendVerificationEmail() {
       authApi.resendVerificationEmail(credentials),
     onSuccess: (res: ResendVerificationEmailResponse) => {
       toast.success(res.message);
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-      return error;
     },
   });
 }
@@ -182,10 +165,6 @@ export function useForgotPassword() {
     onSuccess: (res: ForgotPasswordResponse) => {
       toast.success(res.message);
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-      return error;
-    },
   });
 }
 
@@ -195,10 +174,6 @@ export function useResetPassword() {
       authApi.resetPassword(credentials),
     onSuccess: (res: ResetPasswordResponse) => {
       toast.success(res.message);
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-      return error;
     },
   });
 }
@@ -221,9 +196,6 @@ export function useChangePassword() {
       queryClient.clear();
       router.replace(ROUTES.AUTH.LOGIN);
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-    },
   });
 }
 
@@ -238,9 +210,6 @@ export function useUpdateProfile() {
         queryKey: queryKeys.auth.profile(),
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
     },
   });
 }

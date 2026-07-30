@@ -68,7 +68,7 @@ export const SURCHARGE_RECEIPT_WINDOW_MS = 12 * 60 * 60_000;
 export const OVERTIME_REQUEST_WINDOW_MS = 20 * 60_000;
 
 // Cửa sổ thời gian (phút)
-export const CHECKIN_OPEN_BEFORE_MINUTES = 30; // mở từ T-30
+export const CHECKIN_OPEN_BEFORE_MINUTES = 3000; // mở từ T-30
 const LATE_WARNING_MINUTES = 15; // cảnh báo ở T+15
 const AUTO_CANCEL_MINUTES = 45; // hủy ở T+45
 const AUTO_CHECKOUT_AFTER_END_MINUTES = 30; // nhắc checkout T_end+30
@@ -625,7 +625,7 @@ export class BookingCheckinService {
               : `Tín hiệu GPS đang có sai số ~${Math.round(accuracyMeters)}m (cho phép tối đa ${CHECKIN_MAX_ACCURACY_METERS}m). Vui lòng lấy lại vị trí, hoặc chụp ảnh hiện trường để Admin xác minh.`
             : locationReviewReason === 'OUTSIDE_RADIUS' &&
                 distanceMeters !== null
-              ? `Vị trí hiện tại chưa đúng, vui lòng kiểm tra lại hoặc gửi ảnh minh chứng để tiếp tục.`
+              ? 'Vị trí hiện tại chưa đúng, vui lòng kiểm tra lại hoặc gửi ảnh minh chứng để tiếp tục.'
               : 'Không lấy được vị trí của bạn. Vui lòng bật định vị, hoặc chụp ảnh minh chứng để check-in.',
       );
     }

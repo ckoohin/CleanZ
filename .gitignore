@@ -5,6 +5,7 @@
 /.next
 /.skills
 .env
+.env.ex
 .env.local
 .env.production
 .env.development

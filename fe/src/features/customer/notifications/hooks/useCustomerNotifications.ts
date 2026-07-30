@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { customerNotificationApi } from "../services/notification.service";
 import type { NotificationQueryParams } from "../types/notification.types";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";

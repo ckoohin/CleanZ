@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { queryKeys } from "@/features/auth/queries/auth.query";
 import type { Profile, User } from "@/features/auth/types/user.type";
 import { customerProfileApi } from "../services/customer-profile.service";

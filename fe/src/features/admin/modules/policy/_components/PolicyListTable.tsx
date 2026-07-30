@@ -222,7 +222,7 @@ export function PolicyListTable() {
             </div>
             <h3 className="text-base font-semibold mb-1 text-[var(--c-ink)]">Chưa có chính sách nào</h3>
             <p className="text-sm text-[var(--c-muted)] mb-5 max-w-xs mx-auto">
-              Nhấn "Seed mặc định" để tạo bộ chính sách chuẩn, hoặc tạo mới thủ công.
+              Nhấn &quot;Seed mặc định&quot; để tạo bộ chính sách chuẩn, hoặc tạo mới thủ công.
             </p>
             <div className="flex justify-center gap-2">
               <AdminButton

@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import { ImageCarousel } from '@/features/auth/_components/authv1/ImageCarousel'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, Loader2, Lock, Mail, ChevronDown, ArrowRight } from 'lucide-react'

@@ -39,7 +39,7 @@ export function useAdminCategories() {
 }
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { getApiErrorMessage } from "@/lib/api/error-message";
 
 export function useCreateCategory() {

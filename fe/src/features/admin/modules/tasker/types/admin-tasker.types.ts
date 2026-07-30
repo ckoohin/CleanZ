@@ -125,3 +125,66 @@ export interface TaskerEarningsDetailItem {
   platformCommission: number;
   createdAt: string;
 }
+
+export interface TaskerScheduleItem {
+  id?: string;
+  dayOfWeek: number;
+  shift: "MORNING" | "AFTERNOON" | "EVENING";
+  isAvailable: boolean;
+}
+
+export interface TaskerCoverageItem {
+  id?: string;
+  districtCode: string;
+  districtName: string;
+}
+
+export interface TaskerEquipmentItem {
+  id: string;
+  name: string;
+  type: string;
+  issuedAt: string;
+  status: string;
+  price: number;
+  paid: boolean;
+  remainingDebt?: number;
+}
+
+export interface TaskerEquipmentData {
+  equipments: TaskerEquipmentItem[];
+  debt: {
+    totalDebt: number;
+  } | null;
+}
+
+export interface TaskerWalletTransaction {
+  id: string;
+  date: string;
+  type: string;
+  label: string;
+  amount: number;
+  isPositive: boolean;
+  balance: number;
+  status: string;
+}
+
+export interface TaskerReviewItem {
+  id: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  tags: string[];
+  createdAt: string;
+  bookingCode: string;
+}
+
+export interface TaskerServiceItem {
+  id: string;
+  serviceId?: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  passedTrainingAt: string | null;
+  requiresCert: boolean;
+  certUploaded?: boolean;
+}

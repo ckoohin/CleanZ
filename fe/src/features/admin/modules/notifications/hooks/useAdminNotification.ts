@@ -1,11 +1,10 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { notificationAdminApi } from "../services/notification-admin.service";
 import type {
   AdminNotificationQueryParams,
   BroadcastNotificationDto,
 } from "../types/notification.types";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 
 export const notificationAdminKeys = {
   history: (params?: AdminNotificationQueryParams) =>
@@ -29,6 +28,5 @@ export function useBroadcastNotification() {
         `Broadcast thành công! Đã enqueue ${res.enqueued} người dùng (${res.chunks} chunks)`
       );
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }

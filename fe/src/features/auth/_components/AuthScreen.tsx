@@ -11,6 +11,8 @@ type AuthMode = "login" | "register";
 export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [isLogin, setIsLogin] = useState(mode === "login");
 
+  /* eslint-disable react-hooks/purity -- Math.random cho particle trang trí;
+     đã bọc useMemo nên giá trị ổn định sau lần render đầu. */
   const particles = useMemo(
     () =>
       Array.from({ length: 20 }, (_, i) => ({
@@ -23,6 +25,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
       })),
     []
   );
+  /* eslint-enable react-hooks/purity */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#6B9440] via-[#7FA84F] to-[#5A8435] flex items-center justify-center p-4 overflow-hidden relative">

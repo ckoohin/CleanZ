@@ -62,7 +62,7 @@ export class FinanceService {
       where: { id },
       relations: ['wallet', 'tasker', 'tasker.user'],
     });
-    if (!wr) throw new NotFoundException('WITHDRAWAL_NOT_FOUND');
+    if (!wr) throw new NotFoundException('Không tìm thấy yêu cầu rút tiền');
     return wr;
   }
 
@@ -90,7 +90,7 @@ export class FinanceService {
       });
 
       if (!withdrawal) {
-        throw new NotFoundException('WITHDRAWAL_NOT_FOUND');
+        throw new NotFoundException('Không tìm thấy yêu cầu rút tiền');
       }
 
       if (withdrawal.status !== WithdrawalStatus.PENDING) {
@@ -100,7 +100,9 @@ export class FinanceService {
       }
 
       if (!withdrawal.taskerId) {
-        throw new BadRequestException('WITHDRAWAL_TASKER_NOT_FOUND');
+        throw new BadRequestException(
+          'Không tìm thấy Tasker của yêu cầu rút tiền này',
+        );
       }
 
       if (dto.status === WithdrawalStatus.APPROVED) {
@@ -109,7 +111,7 @@ export class FinanceService {
         });
 
         if (!wallet) {
-          throw new NotFoundException('WALLET_NOT_FOUND');
+          throw new NotFoundException('Không tìm thấy ví');
         }
 
         await this.walletService.debitWallet(manager, {
@@ -282,15 +284,16 @@ export class FinanceService {
         }),
       ]);
 
-      if (!wallet) throw new NotFoundException('WALLET_NOT_FOUND');
-      if (!admin) throw new NotFoundException('ADMIN_USER_NOT_FOUND');
+      if (!wallet) throw new NotFoundException('Không tìm thấy ví');
+      if (!admin)
+        throw new NotFoundException('Không tìm thấy tài khoản quản trị viên');
 
       const balanceBefore = Number(wallet.balance);
       const newBalance = balanceBefore + Number(dto.amount);
 
       if (newBalance < 0) {
         throw new BadRequestException(
-          'INSUFFICIENT_BALANCE: Adjustment would result in negative balance',
+          'Số dư không đủ — điều chỉnh này sẽ làm số dư ví bị âm',
         );
       }
 
@@ -327,7 +330,7 @@ export class FinanceService {
       where: { id },
       relations: ['tasker', 'tasker.user', 'customer', 'customer.user'],
     });
-    if (!wallet) throw new NotFoundException('WALLET_NOT_FOUND');
+    if (!wallet) throw new NotFoundException('Không tìm thấy ví');
     return wallet;
   }
 
@@ -340,7 +343,7 @@ export class FinanceService {
       });
 
     if (!customer) {
-      throw new NotFoundException('CUSTOMER_NOT_FOUND');
+      throw new NotFoundException('Không tìm thấy khách hàng');
     }
 
     let wallet = await this.dataSource.getRepository(WalletEntity).findOne({

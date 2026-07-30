@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { BellRing } from "lucide-react";
 import { useSocketEvent } from "@/hooks/use-socket";
 import { NOTIFICATION_EVENT_NEW } from "@/features/notifications/types";

@@ -83,11 +83,11 @@ export const authApi = {
   verifyOtp: async (
     credentials: VerifyOtpCredentials,
   ): Promise<VerifyOtpResponse> => {
-    const res = await http.post(
-      "/auth/verify-login-otp",
-      credentials,
-      skipErrorToast,
-    );
+    const res = await http.post("/auth/verify-login-otp", credentials, {
+      // Lỗi OTP hiển thị inline ngay dưới ô nhập (kèm số lần thử còn lại), nên
+      // không cần toast toàn cục — tránh báo lỗi hai lớp.
+      skipErrorToast: true,
+    } as Parameters<typeof http.post>[2]);
     return res.data;
   },
 

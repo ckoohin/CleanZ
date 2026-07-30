@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { getApiErrorMessage } from '@/lib/api/error-message';
+import { toast } from '@/lib/toast';
 import {
   adminPolicyService,
   CreatePolicyDto,
@@ -52,10 +51,6 @@ export function usePackagePolicies(packageId: string) {
 
 // ─── Mutation Hooks ────────────────────────────────────────────────────────────
 
-function onApiError(error: unknown) {
-  toast.error(getApiErrorMessage(error));
-}
-
 export function useCreatePolicy() {
   const qc = useQueryClient();
   return useMutation({
@@ -64,7 +59,6 @@ export function useCreatePolicy() {
       toast.success('Đã tạo chính sách!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.all });
     },
-    onError: onApiError,
   });
 }
 
@@ -78,7 +72,6 @@ export function useUpdatePolicy() {
       qc.invalidateQueries({ queryKey: POLICY_KEYS.all });
       qc.invalidateQueries({ queryKey: POLICY_KEYS.detail(id) });
     },
-    onError: onApiError,
   });
 }
 
@@ -90,7 +83,6 @@ export function useDeletePolicy() {
       toast.success('Đã xóa chính sách!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.all });
     },
-    onError: onApiError,
   });
 }
 
@@ -102,7 +94,6 @@ export function useSeedPolicies() {
       toast.success(`Seed thành công: +${data.created} mới, ${data.skipped} đã có`);
       qc.invalidateQueries({ queryKey: POLICY_KEYS.all });
     },
-    onError: onApiError,
   });
 }
 
@@ -115,7 +106,6 @@ export function useAssignPoliciesToPackage(packageId: string) {
       toast.success('Đã gán chính sách!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.byPackage(packageId) });
     },
-    onError: onApiError,
   });
 }
 
@@ -128,7 +118,6 @@ export function useRemovePolicyFromPackage(packageId: string) {
       toast.success('Đã gỡ chính sách!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.byPackage(packageId) });
     },
-    onError: onApiError,
   });
 }
 
@@ -140,6 +129,5 @@ export function useApplyDefaultPolicies(packageId: string) {
       toast.success('Đã áp dụng chính sách mặc định!');
       qc.invalidateQueries({ queryKey: POLICY_KEYS.byPackage(packageId) });
     },
-    onError: onApiError,
   });
 }

@@ -38,6 +38,8 @@ export function AuthScreen() {
   };
 
   // Generate floating particles
+  /* eslint-disable react-hooks/purity -- Math.random cho particle trang trí:
+     giá trị thuần thẩm mỹ, và component này hiện chưa được import ở đâu. */
   const particles = Array.from({ length: 20 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
@@ -46,6 +48,7 @@ export function AuthScreen() {
     duration: Math.random() * 10 + 15,
     delay: Math.random() * 5
   }));
+  /* eslint-enable react-hooks/purity */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#6B9440] via-[#7FA84F] to-[#5A8435] flex items-center justify-center p-4 overflow-hidden relative">

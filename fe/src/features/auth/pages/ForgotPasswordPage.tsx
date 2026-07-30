@@ -42,8 +42,10 @@ export default function ForgotPasswordPage() {
       await forgotPassword.mutateAsync({ email });
       setStatus("success");
     } catch {
+      // Lỗi từ server đã được interceptor hiện toast với message thật; không
+      // ghi thêm câu chung chung ở đây để tránh báo lỗi hai lớp.
+      // errorMsg chỉ dành cho lỗi validate phía client (ở trên).
       setStatus("error");
-      setErrorMsg("Có lỗi xảy ra, vui lòng thử lại.");
     }
   };
 

@@ -21,7 +21,7 @@ import {
   ServiceDurationEntity, ServiceAddonEntity, AddonPriceUnit, ServiceSubscriptionEntity, SubscriptionBillingCycle, ServicePeakHourEntity,
 } from "@/features/admin/modules/service/services/admin-services.service";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { ROUTES } from "@/constants/routes";
 import BaseEmptyState from "@/components/ui/base/base_empty_state";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

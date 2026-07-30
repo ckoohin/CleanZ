@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { useLogin, getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/features/auth/services/auth.service";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { getApiBaseUrl } from "@/lib/api/base-url";
 

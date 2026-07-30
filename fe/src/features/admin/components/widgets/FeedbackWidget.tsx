@@ -37,7 +37,7 @@ export function FeedbackWidget() {
                   {f.rating.toFixed(1)} ★
                 </span>
               </div>
-              <p className="text-[12.5px] text-[var(--c-muted)] italic">"{f.comment}"</p>
+              <p className="text-[12.5px] text-[var(--c-muted)] italic">&quot;{f.comment}&quot;</p>
             </div>
           ))}
         </div>

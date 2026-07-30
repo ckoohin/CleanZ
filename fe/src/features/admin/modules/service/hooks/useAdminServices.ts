@@ -9,7 +9,7 @@ import {
   SubServiceLinkItem,
   AnalyticsFilter,
 } from '../services/admin-services.service';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 
 // ─── COVERAGE AREAS KEYS ─────────────────────────────────────────────────────

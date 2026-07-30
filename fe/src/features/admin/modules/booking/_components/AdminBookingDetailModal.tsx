@@ -29,7 +29,7 @@ import {
 import { AdminButton, StatusBadge, BadgeTone } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   useAdminCheckinOverride,
   useCancelAdminBooking,

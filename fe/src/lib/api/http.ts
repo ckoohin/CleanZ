@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { authApi } from "@/features/auth/services/auth.service";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { getApiBaseUrl } from "@/lib/api/base-url";
 import { getApiErrorMessage } from "@/lib/api/error-message";
 
@@ -58,7 +58,7 @@ export interface ApiErrorResponse {
 // xử lý lỗi api
 const handleApiErrorGlobal = (error: AxiosError<ApiErrorResponse>) => {
   const finalMessage = getApiErrorMessage(error);
-  toast.error(finalMessage, { id: finalMessage });
+  toast.error(finalMessage);
 };
 
 http.interceptors.request.use(

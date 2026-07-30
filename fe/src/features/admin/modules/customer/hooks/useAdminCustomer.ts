@@ -10,7 +10,7 @@ import type {
   CreateCustomerPayload,
   UpdateCustomerPayload,
 } from '../types/customer.types';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { getApiErrorMessage } from '@/lib/api/error-message';
 
 /** Pull a human-friendly message off an axios error, falling back to a default. */

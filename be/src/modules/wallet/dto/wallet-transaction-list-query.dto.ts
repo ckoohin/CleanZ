@@ -44,8 +44,10 @@ export class WalletTransactionListQueryDto {
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ enum: ['IN', 'OUT'], description: 'IN: Cộng tiền (+), OUT: Trừ tiền (-)' })
+  @ApiPropertyOptional({
+    enum: ['IN', 'OUT'],
+    description: 'IN: Cộng tiền (+), OUT: Trừ tiền (-)',
+  })
   @IsOptional()
   direction?: 'IN' | 'OUT';
 }
-

@@ -23,7 +23,7 @@ import {
   StatusBadge,
   BadgeTone,
 } from "@/components/admin";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { useAdminBookings } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 import { adminBookingService } from "@/features/admin/modules/booking/services/admin-booking.service";

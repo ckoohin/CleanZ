@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useSocketEvent } from "@/hooks/use-socket";
 import { myTicketApi } from "../services/my-ticket.service";
 import type {
@@ -7,7 +7,6 @@ import type {
   MyTicketQueryParams,
   SubmitSurveyDto,
 } from "../types/my-ticket.types";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 
 // ─── Query Keys ──────────────────────────────────────────────────────────────
 export const myTicketKeys = {
@@ -72,7 +71,6 @@ export function useCreateTicket() {
       toast.success("Đã gửi yêu cầu hỗ trợ thành công!");
       queryClient.invalidateQueries({ queryKey: myTicketKeys.all });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 
@@ -85,7 +83,6 @@ export function useSubmitSurvey(id: string) {
       toast.success("Cảm ơn bạn đã đánh giá dịch vụ hỗ trợ!");
       queryClient.invalidateQueries({ queryKey: myTicketKeys.detail(id) });
     },
-    onError: (error: unknown) => toast.error(getErrorMessage(error)),
   });
 }
 

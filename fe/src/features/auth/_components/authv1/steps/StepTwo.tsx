@@ -30,6 +30,7 @@ export function StepTwo() {
   // Đồng bộ giá trị input khi formData.dateOfBirth thay đổi (do pick lịch)
   useEffect(() => {
     if (formData.dateOfBirth) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
       setDateInput(format(new Date(formData.dateOfBirth), "dd/MM/yyyy"));
     } else {
       setDateInput("");

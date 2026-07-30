@@ -7,7 +7,7 @@ import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X } from "luc
 import { ROUTES } from "@/constants/routes";
 import { useMyTicketList, useCreateTicket, useMyBookings, useMyTicketUnreadRealtime } from "@/features/support-tickets/hooks/useMyTicket";
 import { myTicketApi } from "@/features/support-tickets/services/my-ticket.service";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type {
   MyTicketSummary,
   TicketStatus,

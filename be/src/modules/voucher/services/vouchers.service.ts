@@ -57,15 +57,13 @@ export class VouchersService {
   async create(dto: CreateVoucherDto): Promise<VoucherEntity> {
     if (dto.type === VoucherType.PERCENT && dto.value > 100) {
       throw new BadRequestException(
-        'PERCENT_VOUCHER_MAX_100: Percent value cannot exceed 100',
+        'Voucher giảm theo phần trăm không được vượt quá 100%',
       );
     }
 
     const exists = await this.voucherRepo.existsByCode(dto.code);
     if (exists) {
-      throw new ConflictException(
-        'VOUCHER_CODE_EXISTS: This code is already in use',
-      );
+      throw new ConflictException('Mã voucher này đã tồn tại');
     }
 
     if (
@@ -73,9 +71,7 @@ export class VouchersService {
       dto.endDate &&
       new Date(dto.startDate) >= new Date(dto.endDate)
     ) {
-      throw new BadRequestException(
-        'INVALID_DATE_RANGE: startDate must be before endDate',
-      );
+      throw new BadRequestException('Ngày bắt đầu phải trước ngày kết thúc');
     }
 
     const entity = this.voucherRepo.create({
@@ -110,7 +106,7 @@ export class VouchersService {
     const voucher = await this.voucherRepo.findOne({
       where: { id },
     });
-    if (!voucher) throw new NotFoundException('VOUCHER_NOT_FOUND');
+    if (!voucher) throw new NotFoundException('Không tìm thấy voucher');
     return voucher;
   }
 
@@ -231,14 +227,16 @@ export class VouchersService {
 
     if (dto.code && dto.code !== voucher.code) {
       const exists = await this.voucherRepo.existsByCode(dto.code, id);
-      if (exists) throw new ConflictException('VOUCHER_CODE_EXISTS');
+      if (exists) throw new ConflictException('Mã voucher này đã tồn tại');
     }
 
     if (
       dto.type === VoucherType.PERCENT &&
       (dto.value ?? voucher.value) > 100
     ) {
-      throw new BadRequestException('PERCENT_VOUCHER_MAX_100');
+      throw new BadRequestException(
+        'Voucher giảm theo phần trăm không được vượt quá 100%',
+      );
     }
 
     Object.assign(voucher, {
@@ -289,9 +287,7 @@ export class VouchersService {
     const voucher = await this.findOne(voucherId);
 
     if (!voucher.isActive) {
-      throw new BadRequestException(
-        'VOUCHER_INACTIVE: Cannot issue an inactive voucher',
-      );
+      throw new BadRequestException('Voucher đang bị tắt, không thể phát hành');
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -383,7 +379,7 @@ export class VouchersService {
       .where('voucher.id = :voucherId', { voucherId: input.voucherId })
       .getOne();
 
-    if (!voucher) throw new NotFoundException('VOUCHER_NOT_FOUND');
+    if (!voucher) throw new NotFoundException('Không tìm thấy voucher');
     if (
       voucher.usageLimit !== null &&
       voucher.usageLimit !== undefined &&

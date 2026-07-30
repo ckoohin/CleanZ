@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { getApiErrorMessage } from "@/lib/api/error-message";
 import { adminBlogApi, adminBlogCategoryApi, blogApi } from "../services/blog.service";
 import type { BlogCategoryFormInput, BlogFormInput, BlogListParams, BlogStatus } from "../types/blog.types";
@@ -18,18 +18,9 @@ export const blogKeys = {
   publicTags: () => [...blogKeys.all, "public-tags"] as const,
 };
 
+// Backend đã trả message tiếng Việt trực tiếp (không còn mã BLOG_* nữa), nên
+// không cần bảng dịch ở client — getApiErrorMessage đọc thẳng message của server.
 function getBlogErrorMessage(error: unknown, fallback: string): string {
-  const response = (error as { response?: { data?: { message?: string; errorCode?: string } } })?.response?.data;
-  const message = response?.message || response?.errorCode;
-
-  if (message === "BLOG_SLUG_EXISTS") return "Đường dẫn bài viết đã tồn tại.";
-  if (message === "BLOG_CATEGORY_NOT_FOUND") return "Danh mục không tồn tại.";
-  if (message === "BLOG_CATEGORY_IN_USE") return "Không thể xóa danh mục đang được bài viết sử dụng.";
-  if (message === "BLOG_CATEGORY_SLUG_EXISTS") return "Đường dẫn danh mục đã tồn tại.";
-  if (message === "BLOG_CATEGORY_SLUG_REQUIRED") return "Vui lòng nhập đường dẫn danh mục.";
-  if (message === "BLOG_SLUG_REQUIRED") return "Vui lòng nhập đường dẫn bài viết.";
-  if (message === "BLOG_TAG_LIMIT_EXCEEDED") return "Số lượng thẻ vượt quá giới hạn.";
-  if (message === "BLOG_TAG_INVALID") return "Thẻ không hợp lệ hoặc quá dài.";
   return getApiErrorMessage(error, fallback);
 }
 

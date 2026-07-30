@@ -2,13 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   reviewApi,
   CreateReviewPayload,
   ReportReason,
 } from "../services/review.service";
-import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 
 export const reviewKeys = {
   myReview: (bookingId: string) => ["reviews", "booking", bookingId] as const,
@@ -62,9 +61,6 @@ export function useCreateReview(bookingId: string) {
       });
       router.push("/customer/history");
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
-    },
   });
 }
 
@@ -81,9 +77,6 @@ export function useReportReview() {
     }) => reviewApi.report(reviewId, reason, description),
     onSuccess: (res) => {
       toast.success(res.message || "Đã gửi báo cáo thành công!");
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error));
     },
   });
 }

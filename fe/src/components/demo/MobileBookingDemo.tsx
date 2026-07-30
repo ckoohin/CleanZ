@@ -7,7 +7,7 @@ import {
   Check, Phone, ShieldCheck, Heart, User, Bell, Search, 
   Bookmark, Award, Home, Coffee, Wind, Wrench, ChevronLeft
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 // Mock Services Data
 interface ServiceItem {

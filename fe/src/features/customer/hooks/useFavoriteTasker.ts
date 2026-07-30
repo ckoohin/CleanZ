@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { favoriteTaskerApi } from "../services/favorite-tasker.service";
 import { getApiErrorMessage } from "@/lib/api/error-message";
 import type { FavoriteTaskerAvailabilityParams } from "@/features/booking/types/booking.types";

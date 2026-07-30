@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerAddressApi } from "../services/address.service";
 import type { UpsertCustomerAddressDto } from "../services/address.service";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 export const ADDRESS_QUERY_KEYS = {
   list: ["customer", "addresses"],

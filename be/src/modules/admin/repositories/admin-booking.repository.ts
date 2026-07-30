@@ -1862,8 +1862,8 @@ export class AdminBookingRepository {
               this.notificationService.notify({
                 userId: reviewed.taskerUserId,
                 type: NotificationType.SYSTEM,
-                title: 'Đã có kết quả review check-in',
-                content: `Check-in đơn ${reviewed.booking.bookingCode} ${reviewLabel}. Lý do: ${dto.reason}`,
+                title: 'Thông báo hệ thống',
+                content: `Hệ thống đã xác nhận booking ${reviewed.booking.bookingCode}.`,
                 referenceType: NotificationRefType.BOOKING,
                 referenceId: bookingId,
                 dedupeKey: `checkin-review:${reviewed.auditId}:tasker`,

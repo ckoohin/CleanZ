@@ -50,7 +50,11 @@ import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
 import { TaskerCheckinProofSheet } from "./TaskerCheckinProofSheet";
 import { TaskerNoShowPanel } from "./TaskerNoShowPanel";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
+import {
+  extractCheckinErrorMessage,
+  getCheckinProofReason,
+} from "@/features/booking/utils/checkin-proof-error";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -83,17 +87,6 @@ async function getCurrentCoords(): Promise<TaskerCheckinPayload | null> {
       },
     );
   });
-}
-
-function extractCheckinErrorMessage(err: unknown): string | null {
-  const data = (err as { response?: { data?: { message?: unknown } } })
-    ?.response?.data;
-  const message = data?.message;
-  if (typeof message === "string") return message;
-  if (Array.isArray(message) && typeof message[0] === "string") {
-    return message[0];
-  }
-  return null;
 }
 
 const STATUS_CONFIG: Record<
@@ -183,7 +176,7 @@ function ActionButton({
 }
 
 // ─── Checkin Window Banner ────────────────────────────────────────────────────
-const CHECKIN_OPEN_BEFORE = 30; // T-30
+const CHECKIN_OPEN_BEFORE = 3000; // T-30
 const CHECKIN_AUTO_CANCEL = 45; // T+45
 
 function parseScheduledStart(schedule: BookingSchedule): Date | null {
@@ -957,7 +950,8 @@ function TaskerOvertimeSection({
                   Báo khách có phát sinh thêm giờ
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Báo khách phát sinh thêm giờ làm việc.
+                  Gửi thông báo để khách biết công việc có thể kéo dài. Không
+                  chốt trước số phút hay số tiền.
                 </p>
               </div>
 
@@ -966,7 +960,9 @@ function TaskerOvertimeSection({
                   Phụ phí phụ thuộc thời gian checkout
                 </p>
                 <p className="text-[11px] text-amber-600 leading-relaxed">
-                  Hệ thống sẽ tính toán phụ phí dựa trên thời gian bạn checkout thực tế.
+                  Hệ thống tính thời gian làm thực tế từ check-in đến checkout.
+                  Phát sinh bao nhiêu phút sẽ tính đúng bấy nhiêu phút và gửi
+                  khách xác nhận.
                 </p>
               </div>
 
@@ -1063,8 +1059,9 @@ function AssignedDetailView({
       onError: (err) => {
         // BE là nơi quyết định 50m — FE chỉ mở sheet ảnh khi BE yêu cầu.
         const message = extractCheckinErrorMessage(err);
-        if (message && /minh chứng/i.test(message)) {
-          setCheckinProofReason(message);
+        const proofReason = getCheckinProofReason(err);
+        if (proofReason) {
+          setCheckinProofReason(proofReason);
           setShowCheckinProof(true);
           return;
         }

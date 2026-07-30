@@ -4,7 +4,7 @@ import React from "react";
 import { Loader2, Trash2, X } from "lucide-react";
 import { Policy } from "../types/policy.type";
 import { useDeletePolicy } from "@/features/admin/modules/policy/hooks/useDeletePolicy";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 type Props = {
   open: boolean;

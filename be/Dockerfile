@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:20-bookworm-slim AS builder
 WORKDIR /usr/src/app
 
@@ -14,7 +16,8 @@ RUN npm ci --no-audit --no-fund
 COPY tsconfig*.json nest-cli.json ./
 COPY src ./src
 
-RUN npm run build
+RUN --mount=type=secret,id=backend_env,target=/usr/src/app/.env,required=true \
+    npm run build
 
 FROM node:20-bookworm-slim AS runner
 WORKDIR /usr/src/app

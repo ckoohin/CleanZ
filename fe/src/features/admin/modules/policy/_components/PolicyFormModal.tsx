@@ -120,6 +120,7 @@ export function PolicyFormModal({ open, onClose, policy }: PolicyFormModalProps)
   // Populate form when dialog opens
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
     setErrors({});
     if (policy) {
       setForm({

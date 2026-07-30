@@ -716,7 +716,7 @@ describe('Money path integration (P1.5)', () => {
         'CleanZ ghi nhận sự cố nhưng không phát sinh bồi thường theo chính sách.',
     } as never);
     // không cần Tasker phản hồi → finalize thẳng
-    view = await decision.finalizeDecision(admin1, inc, {
+    await decision.finalizeDecision(admin1, inc, {
       expectedDecisionVersion: view.decision.version,
     } as never);
 

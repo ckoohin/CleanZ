@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { customerIncidentApi } from "../services/customer-incident.service";
 import type {
   CreateIncidentInput,

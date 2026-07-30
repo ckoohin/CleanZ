@@ -18,6 +18,7 @@ describe('assessCheckinLocation', () => {
     const result = assessCheckinLocation({
       currentLatitude: latOffsetMeters(30),
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: ADDRESS_LAT,
       addressLongitude: ADDRESS_LNG,
     });
@@ -32,6 +33,7 @@ describe('assessCheckinLocation', () => {
     const result = assessCheckinLocation({
       currentLatitude: latOffsetMeters(49),
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: ADDRESS_LAT,
       addressLongitude: ADDRESS_LNG,
     });
@@ -43,6 +45,7 @@ describe('assessCheckinLocation', () => {
     const result = assessCheckinLocation({
       currentLatitude: latOffsetMeters(60),
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: ADDRESS_LAT,
       addressLongitude: ADDRESS_LNG,
     });
@@ -55,6 +58,7 @@ describe('assessCheckinLocation', () => {
     const result = assessCheckinLocation({
       currentLatitude: latOffsetMeters(2_000),
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: ADDRESS_LAT,
       addressLongitude: ADDRESS_LNG,
     });
@@ -68,12 +72,30 @@ describe('assessCheckinLocation', () => {
     const result = assessCheckinLocation({
       currentLatitude: ADDRESS_LAT,
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: ADDRESS_LAT,
       addressLongitude: ADDRESS_LNG,
     });
 
     expect(result.isFar).toBe(false);
     expect(result.distanceMeters).toBeCloseTo(0, 5);
+    expect(result.reviewReason).toBeNull();
+  });
+
+  it('đúng vị trí nhưng GPS sai số lớn → cần ảnh và hậu kiểm', () => {
+    const result = assessCheckinLocation({
+      currentLatitude: ADDRESS_LAT,
+      currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 250,
+      addressLatitude: ADDRESS_LAT,
+      addressLongitude: ADDRESS_LNG,
+    });
+
+    expect(result).toEqual({
+      distanceMeters: 0,
+      isFar: true,
+      reviewReason: 'LOW_ACCURACY',
+    });
   });
 
   it('thiếu GPS (tasker từ chối định vị) → coi như xa, không đo được', () => {
@@ -82,7 +104,11 @@ describe('assessCheckinLocation', () => {
       addressLongitude: ADDRESS_LNG,
     });
 
-    expect(result).toEqual({ distanceMeters: null, isFar: true });
+    expect(result).toEqual({
+      distanceMeters: null,
+      isFar: true,
+      reviewReason: 'GPS_UNAVAILABLE',
+    });
   });
 
   it('GPS không hợp lệ (NaN) → coi như xa', () => {
@@ -93,24 +119,34 @@ describe('assessCheckinLocation', () => {
       addressLongitude: ADDRESS_LNG,
     });
 
-    expect(result).toEqual({ distanceMeters: null, isFar: true });
+    expect(result).toEqual({
+      distanceMeters: null,
+      isFar: true,
+      reviewReason: 'GPS_UNAVAILABLE',
+    });
   });
 
-  it('địa chỉ thiếu tọa độ (dữ liệu cũ) → KHÔNG chặn tasker', () => {
+  it('địa chỉ thiếu tọa độ → cần ảnh và chuyển Admin hậu kiểm', () => {
     const result = assessCheckinLocation({
       currentLatitude: ADDRESS_LAT,
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: null,
       addressLongitude: null,
     });
 
-    expect(result).toEqual({ distanceMeters: null, isFar: false });
+    expect(result).toEqual({
+      distanceMeters: null,
+      isFar: true,
+      reviewReason: 'TARGET_UNAVAILABLE',
+    });
   });
 
   it('tôn trọng maxDistanceMeters tuỳ biến', () => {
     const result = assessCheckinLocation({
       currentLatitude: latOffsetMeters(80),
       currentLongitude: ADDRESS_LNG,
+      accuracyMeters: 10,
       addressLatitude: ADDRESS_LAT,
       addressLongitude: ADDRESS_LNG,
       maxDistanceMeters: 100,

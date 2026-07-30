@@ -13,7 +13,7 @@ import {
   ServiceDurationEntity, ServiceAddonEntity, AddonPriceUnit, ServiceSubscriptionEntity, SubscriptionBillingCycle, ServicePeakHourEntity,
 } from "@/features/admin/modules/service/services/admin-services.service";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { ROUTES } from "@/constants/routes";
 import { useQueryClient } from "@tanstack/react-query";
 import { adminWorkflowService } from "@/features/admin/modules/service/services/admin-workflow.service";

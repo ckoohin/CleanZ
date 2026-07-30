@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { slideInVariants } from "@/constants/motion";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 
 import {

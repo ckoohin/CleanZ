@@ -6,11 +6,16 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
+import type {
+  DateSelectArg,
+  EventClickArg,
+  EventInput,
+} from '@fullcalendar/core';
 
 interface CalendarProps {
-  events?: any[];
-  onEventClick?: (info: any) => void;
-  onDateSelect?: (selectInfo: any) => void;
+  events?: EventInput[];
+  onEventClick?: (info: EventClickArg) => void;
+  onDateSelect?: (selectInfo: DateSelectArg) => void;
 }
 
 /**

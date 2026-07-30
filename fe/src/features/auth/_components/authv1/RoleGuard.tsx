@@ -300,6 +300,7 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
       // Thử làm mới token 1 lần (refresh strategy đọc role mới từ DB) rồi mới quyết
       // định — giúp role vừa được nâng có hiệu lực ngay mà không cần đăng nhập lại.
       if (!roleRecheckDone) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state sau mount / khi mở form; giữ nguyên hành vi hiện tại
         setRoleRecheckDone(true);
         void (async () => {
           try {

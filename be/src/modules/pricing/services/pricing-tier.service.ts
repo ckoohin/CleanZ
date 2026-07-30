@@ -60,7 +60,7 @@ export class PricingTierService {
     const pkg = await this.dataSource
       .getRepository(ServicePackageEntity)
       .findOne({ where: { id: dto.packageId } });
-    if (!pkg) throw new NotFoundException('SERVICE_PACKAGE_NOT_FOUND');
+    if (!pkg) throw new NotFoundException('Không tìm thấy gói dịch vụ');
 
     // Validate AREA_HOURLY: areaMin < areaMax
     if (dto.pricingMode === PricingMode.AREA_HOURLY) {
@@ -126,7 +126,7 @@ export class PricingTierService {
 
   async findOne(id: string): Promise<PricingTierEntity> {
     const tier = await this.tierRepo.findOne({ where: { id } });
-    if (!tier) throw new NotFoundException('PRICING_TIER_NOT_FOUND');
+    if (!tier) throw new NotFoundException('Không tìm thấy bậc giá');
     return tier;
   }
 
@@ -149,13 +149,16 @@ export class PricingTierService {
   async calculatePrice(dto: CalculatePriceDto): Promise<CalculatePriceResult> {
     // 1. Load tier
     const tier = await this.findOne(dto.pricingTierId);
-    if (!tier.isActive) throw new BadRequestException('PRICING_TIER_INACTIVE');
+    if (!tier.isActive)
+      throw new BadRequestException(
+        'Bậc giá này đang bị tắt, không thể sử dụng',
+      );
 
     // 2. Load package để lấy phụ phí gói
     const pkg = await this.dataSource
       .getRepository(ServicePackageEntity)
       .findOne({ where: { id: dto.packageId, isActive: true } });
-    if (!pkg) throw new NotFoundException('SERVICE_PACKAGE_NOT_FOUND');
+    if (!pkg) throw new NotFoundException('Không tìm thấy gói dịch vụ');
 
     // 3. Tính BASE PRICE theo mode
     let basePrice = 0;

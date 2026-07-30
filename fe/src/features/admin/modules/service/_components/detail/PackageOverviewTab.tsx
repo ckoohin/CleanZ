@@ -9,7 +9,7 @@ import { useUpdateAdminPackage } from "@/features/admin/modules/service/hooks/us
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BaseButton } from "@/components/ui/base/base_button";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/constants/routes";
 
