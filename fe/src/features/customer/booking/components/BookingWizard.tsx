@@ -26,6 +26,7 @@ import {
   useBookingQuote,
   useBookingQuoteQuery,
   useCreateBooking,
+  useCustomerSchedulingPolicy,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
@@ -60,8 +61,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import axios from "axios";
 import {
+  DEFAULT_MIN_SCHEDULE_LEAD_MINUTES,
   getEarliestAvailableSchedule,
-  MIN_SCHEDULE_LEAD_MINUTES,
   MINUTE_STEP,
 } from "@/features/customer/booking/utils/booking-schedule-time";
 
@@ -83,12 +84,12 @@ interface ServiceOption {
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface WizardState {
-  serviceId: string;        // ServicePackage ID
+  serviceId: string; // ServicePackage ID
   pricingTierId: string;
   durationHours: number | null;
   durationMode: "preset" | "custom";
   areaM2: number | null;
-  addonIds: string[];  // Option/dịch vụ thêm IDs chọn thêm
+  addonIds: string[]; // Option/dịch vụ thêm IDs chọn thêm
   // Địa chỉ
   addressId: string;
   selectedAddress: string; // địa chỉ hiển thị
@@ -163,9 +164,7 @@ function getDurationStandardPrice(
   }
 
   return (
-    duration.durationHours *
-    service.baseHourlyRate *
-    duration.priceMultiplier
+    duration.durationHours * service.baseHourlyRate * duration.priceMultiplier
   );
 }
 
@@ -174,9 +173,7 @@ function getPricingTierStandardPrice(
   fallbackHours = 1,
 ): number {
   const hours = tier.defaultHours ?? tier.minHours ?? fallbackHours;
-  return (
-    tier.fixedPrice ?? (tier.pricePerHour ? tier.pricePerHour * hours : 0)
-  );
+  return tier.fixedPrice ?? (tier.pricePerHour ? tier.pricePerHour * hours : 0);
 }
 
 function getCustomDurationStandardPrice(
@@ -210,14 +207,16 @@ function formatVietnamDate(date: Date): string {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
 
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function getNext7Days() {
+function getScheduleDays(maxAdvanceDays: number) {
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < maxAdvanceDays; i++) {
     const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
     const date = formatVietnamDate(d);
     days.push({
@@ -278,7 +277,10 @@ function isValidCustomerDurationHours(
   );
 }
 
-function buildCustomDurationOptions(minHours: number, maxHours: number): number[] {
+function buildCustomDurationOptions(
+  minHours: number,
+  maxHours: number,
+): number[] {
   const startMinutes = Math.max(
     CUSTOMER_MIN_DURATION_MINUTES,
     Math.ceil((minHours * 60) / CUSTOMER_DURATION_STEP_MINUTES) *
@@ -297,8 +299,7 @@ function buildCustomDurationOptions(minHours: number, maxHours: number): number[
           (endMinutes - startMinutes) / CUSTOMER_DURATION_STEP_MINUTES,
         ) + 1,
     },
-    (_, index) =>
-      (startMinutes + index * CUSTOMER_DURATION_STEP_MINUTES) / 60,
+    (_, index) => (startMinutes + index * CUSTOMER_DURATION_STEP_MINUTES) / 60,
   );
 }
 
@@ -314,12 +315,15 @@ function getScheduleDateTime(date: string, time = "00:00"): Date {
   return new Date(`${date}T${time}:00+07:00`);
 }
 
-function isBeforeMinimumScheduleLead(date: string, time = "00:00"): boolean {
+function isBeforeMinimumScheduleLead(
+  date: string,
+  time = "00:00",
+  minAdvanceMinutes = DEFAULT_MIN_SCHEDULE_LEAD_MINUTES,
+): boolean {
   if (!date) return false;
 
   const selectedDateTime = getScheduleDateTime(date, time);
-  const minimumDateTime =
-    Date.now() + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000;
+  const minimumDateTime = Date.now() + minAdvanceMinutes * 60 * 1000;
 
   return (
     Number.isNaN(selectedDateTime.getTime()) ||
@@ -334,17 +338,16 @@ function isPastDate(date: string): boolean {
 function isConfiguredAddon(addon: PublicAddon): boolean {
   const price = Number(addon.price);
   return (
-    !!addon.id &&
-    !!addon.name?.trim() &&
-    Number.isFinite(price) &&
-    price >= 0
+    !!addon.id && !!addon.name?.trim() && Number.isFinite(price) && price >= 0
   );
 }
 
 // Một số dịch vụ thêm phát sinh thời gian làm việc thật (addon.durationMinutes),
 // cộng dồn vào tổng giờ công việc để so với maxHours của gói — tránh chọn addon
 // khiến tổng thời lượng thực tế vượt quá số giờ tối đa gói cho phép.
-function getAddonExtraHours(addon: Pick<PublicAddon, "durationMinutes">): number {
+function getAddonExtraHours(
+  addon: Pick<PublicAddon, "durationMinutes">,
+): number {
   return addon.durationMinutes ? addon.durationMinutes / 60 : 0;
 }
 
@@ -398,7 +401,9 @@ function getVietnamTimeParts(date: Date): { hour: string; minute: string } {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
 
   return {
     hour: values.hour === "24" ? "00" : values.hour,
@@ -435,10 +440,13 @@ function roundUpToMinuteStep(date: Date): Date {
   return rounded;
 }
 
-function getEarliestSelectableTime(date: string): string {
+function getEarliestSelectableTime(
+  date: string,
+  minAdvanceMinutes: number,
+): string {
   if (date === formatVietnamDate(new Date())) {
     const suggested = roundUpToMinuteStep(
-      new Date(Date.now() + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000),
+      new Date(Date.now() + minAdvanceMinutes * 60 * 1000),
     );
     const { hour, minute } = getVietnamTimeParts(suggested);
     return `${hour}:${minute}`;
@@ -462,7 +470,9 @@ function toDateKey(value: string | Date): string {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
   return `${values.year}-${values.month}-${values.day}`;
 }
 
@@ -473,7 +483,10 @@ function getVietnamDayOfWeek(date: string): number {
   return parsed.getUTCDay();
 }
 
-function isPeakDayMatch(rawPeakDay: unknown, bookingDayOfWeek: number): boolean {
+function isPeakDayMatch(
+  rawPeakDay: unknown,
+  bookingDayOfWeek: number,
+): boolean {
   const peakDay = Number(rawPeakDay);
   if (!Number.isFinite(peakDay)) return false;
   if (peakDay === 7) return true;
@@ -651,11 +664,7 @@ function StepService({
           : getServiceStartingStandardPrice(selectedService)
     : 0;
   const selectedPremiumPrice = selectedService
-    ? applyServiceTierPrice(
-        selectedStandardPrice,
-        selectedService,
-        "PREMIUM",
-      )
+    ? applyServiceTierPrice(selectedStandardPrice, selectedService, "PREMIUM")
     : null;
   const previewPremiumFee =
     selectedPremiumPrice !== null
@@ -679,7 +688,8 @@ function StepService({
 
   const handleSelectPackage = (svc: ServiceOption) => {
     const defaultTier = svc.pricingTiers[0];
-    const defaultDuration = svc.durations.find((duration) => duration.isPopular) ?? svc.durations[0];
+    const defaultDuration =
+      svc.durations.find((duration) => duration.isPopular) ?? svc.durations[0];
     const resetPremiumTier =
       form.serviceTier === "PREMIUM" && !hasPremiumPrice(svc);
     onChange({
@@ -784,8 +794,7 @@ function StepService({
       durationsForHour.find(
         (duration) =>
           durationHoursToMinutes(duration) % 60 === selectedCustomMinute,
-      ) ??
-      durationsForHour[0];
+      ) ?? durationsForHour[0];
 
     if (nextDuration !== undefined) {
       handleSelectCustomDuration(nextDuration);
@@ -793,9 +802,7 @@ function StepService({
   };
 
   const handleCustomMinuteSelect = (minuteValue: string) => {
-    handleSelectCustomDuration(
-      selectedCustomHour + Number(minuteValue) / 60,
-    );
+    handleSelectCustomDuration(selectedCustomHour + Number(minuteValue) / 60);
   };
 
   const toggleAddon = (addonId: string) => {
@@ -803,8 +810,11 @@ function StepService({
     if (!exists && selectedService?.maxHours != null) {
       const addon = selectedService.addons.find((item) => item.id === addonId);
       const nextTotal =
-        getTotalWorkHours(selectedService.addons, form.durationHours, form.addonIds) +
-        (addon ? getAddonExtraHours(addon) : 0);
+        getTotalWorkHours(
+          selectedService.addons,
+          form.durationHours,
+          form.addonIds,
+        ) + (addon ? getAddonExtraHours(addon) : 0);
       if (nextTotal > selectedService.maxHours) {
         toast.warning(
           `Không thể thêm "${addon?.name ?? "dịch vụ này"}" vì tổng thời lượng công việc sẽ vượt quá số giờ tối đa của gói (${selectedService.maxHours} giờ).`,
@@ -886,7 +896,8 @@ function StepService({
 
       {lockedServiceId && visibleServices.length === 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          Không tìm thấy gói dịch vụ đã chọn. Vui lòng quay lại danh sách dịch vụ và thử lại.
+          Không tìm thấy gói dịch vụ đã chọn. Vui lòng quay lại danh sách dịch
+          vụ và thử lại.
         </div>
       )}
 
@@ -953,10 +964,14 @@ function StepService({
                           <p className="mt-2 text-xs font-semibold text-primary">
                             <Clock className="mr-1 inline size-3" />
                             {duration.durationHours} giờ
-                            {duration.suggestedArea ? ` · ${duration.suggestedArea}m²` : ""}
+                            {duration.suggestedArea
+                              ? ` · ${duration.suggestedArea}m²`
+                              : ""}
                           </p>
                         </div>
-                        {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
+                        {selected && (
+                          <CheckCircle2 className="size-5 shrink-0 text-primary" />
+                        )}
                       </div>
                       {price !== null && price > 0 && (
                         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -983,7 +998,11 @@ function StepService({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {selectedService.pricingTiers.map((tier) => {
                   const selected = form.pricingTierId === tier.id;
-                  const hours = tier.defaultHours ?? tier.minHours ?? form.durationHours ?? 1;
+                  const hours =
+                    tier.defaultHours ??
+                    tier.minHours ??
+                    form.durationHours ??
+                    1;
                   const price = applyServiceTierPrice(
                     getPricingTierStandardPrice(tier, hours),
                     selectedService,
@@ -1003,7 +1022,9 @@ function StepService({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-black text-foreground">{tier.name}</p>
+                          <p className="text-sm font-black text-foreground">
+                            {tier.name}
+                          </p>
                           {tier.description && (
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                               {tier.description}
@@ -1014,7 +1035,9 @@ function StepService({
                             {hours} giờ
                           </p>
                         </div>
-                        {selected && <CheckCircle2 className="size-5 shrink-0 text-primary" />}
+                        {selected && (
+                          <CheckCircle2 className="size-5 shrink-0 text-primary" />
+                        )}
                       </div>
                       {price !== null && price > 0 && (
                         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1034,7 +1057,8 @@ function StepService({
               </div>
             ) : (
               <p className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                Gói này chưa có gói giờ setup sẵn, hệ thống sẽ tính theo dịch vụ con được chọn.
+                Gói này chưa có gói giờ setup sẵn, hệ thống sẽ tính theo dịch vụ
+                con được chọn.
               </p>
             )}
 
@@ -1063,8 +1087,7 @@ function StepService({
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-black leading-tight text-primary">
-                      {customDurationPrice !== null &&
-                      customDurationPrice > 0
+                      {customDurationPrice !== null && customDurationPrice > 0
                         ? fmtCurrency(customDurationPrice)
                         : selectedTier?.pricingMode === "AREA_HOURLY"
                           ? "Nhập diện tích"
@@ -1082,9 +1105,7 @@ function StepService({
                 {form.durationMode === "custom" && (
                   <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
                     <div>
-                      <label className="sr-only">
-                        Số giờ
-                      </label>
+                      <label className="sr-only">Số giờ</label>
                       <Select
                         value={String(selectedCustomHour)}
                         onValueChange={handleCustomHourSelect}
@@ -1106,9 +1127,7 @@ function StepService({
                     </div>
 
                     <div>
-                      <label className="sr-only">
-                        Số phút
-                      </label>
+                      <label className="sr-only">Số phút</label>
                       <Select
                         value={String(selectedCustomMinute)}
                         onValueChange={handleCustomMinuteSelect}
@@ -1154,7 +1173,8 @@ function StepService({
                   className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Gói này tính giá theo diện tích, vui lòng nhập đúng m² để báo giá chính xác.
+                  Gói này tính giá theo diện tích, vui lòng nhập đúng m² để báo
+                  giá chính xác.
                 </p>
               </div>
             )}
@@ -1197,7 +1217,9 @@ function StepService({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <p className="text-sm font-bold text-foreground">{addon.name}</p>
+                            <p className="text-sm font-bold text-foreground">
+                              {addon.name}
+                            </p>
                             {addon.description && (
                               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                                 {addon.description}
@@ -1210,14 +1232,16 @@ function StepService({
                             )}
                             {extraHours > 0 && (
                               <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
-                                <Clock className="mr-1 inline size-3" />
-                                +{addon.durationMinutes} phút làm việc
+                                <Clock className="mr-1 inline size-3" />+
+                                {addon.durationMinutes} phút làm việc
                               </p>
                             )}
                           </div>
                           <div
                             className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
-                              selected ? "border-primary bg-primary text-white" : "border-border"
+                              selected
+                                ? "border-primary bg-primary text-white"
+                                : "border-border"
                             }`}
                           >
                             {selected && <CheckCircle2 className="size-3.5" />}
@@ -1229,7 +1253,9 @@ function StepService({
                 </div>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">Gói này không có dịch vụ thêm.</p>
+              <p className="text-xs text-muted-foreground">
+                Gói này không có dịch vụ thêm.
+              </p>
             )}
           </div>
         </div>
@@ -1259,7 +1285,12 @@ function StepAddress({
   // Tự chọn địa chỉ mặc định khi chưa có lựa chọn nào (không chạy lúc map đang
   // mở — nếu không nó sẽ đè lên trạng thái "đang ghim vị trí mới" của khách).
   useEffect(() => {
-    if (isMapOpen || form.addressId || form.selectedAddress || addresses.length === 0) {
+    if (
+      isMapOpen ||
+      form.addressId ||
+      form.selectedAddress ||
+      addresses.length === 0
+    ) {
       return;
     }
     const defaultAddress = addresses.find((address) => address.isDefault);
@@ -1315,9 +1346,7 @@ function StepAddress({
           onChange({ addressId: "", selectedAddress: description });
         }
       })
-      .catch(() =>
-        onChange({ addressId: "", selectedAddress: description }),
-      );
+      .catch(() => onChange({ addressId: "", selectedAddress: description }));
   };
 
   const handleUseMapAddress = async () => {
@@ -1361,9 +1390,7 @@ function StepAddress({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-foreground">
-          Địa chỉ đã lưu
-        </p>
+        <p className="text-xs font-semibold text-foreground">Địa chỉ đã lưu</p>
         <Select
           value={form.addressId || undefined}
           onValueChange={handleSavedAddressSelect}
@@ -1515,12 +1542,16 @@ function StepSchedule({
   form,
   onChange,
   totalDurationHours,
+  minAdvanceMinutes,
+  maxAdvanceDays,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
   totalDurationHours: number;
+  minAdvanceMinutes: number;
+  maxAdvanceDays: number;
 }) {
-  const days = getNext7Days();
+  const days = getScheduleDays(maxAdvanceDays);
   const { data: publicServicesData } = usePublicServices();
   const selectedPackage = publicServicesData?.data.find(
     (pkg) => pkg.id === form.serviceId,
@@ -1541,10 +1572,10 @@ function StepSchedule({
 
     const currentTimeIsTooSoon =
       form.scheduledTime &&
-      isBeforeMinimumScheduleLead(date, form.scheduledTime);
+      isBeforeMinimumScheduleLead(date, form.scheduledTime, minAdvanceMinutes);
     const nextTime =
       !form.scheduledTime || currentTimeIsTooSoon
-        ? getEarliestSelectableTime(date)
+        ? getEarliestSelectableTime(date, minAdvanceMinutes)
         : normalizeSelectableTime(form.scheduledTime);
     const scheduleChanged =
       date !== form.scheduledDate || nextTime !== form.scheduledTime;
@@ -1561,7 +1592,7 @@ function StepSchedule({
 
     if (currentTimeIsTooSoon) {
       toast.warning(
-        "Khung giờ đã chọn cần cách hiện tại tối thiểu 1 tiếng.",
+        `Khung giờ đã chọn cần cách hiện tại tối thiểu ${minAdvanceMinutes} phút.`,
       );
     }
   };
@@ -1571,9 +1602,11 @@ function StepSchedule({
       toast.info("Vui lòng chọn ngày trước");
       return;
     }
-    if (isBeforeMinimumScheduleLead(form.scheduledDate, time)) {
+    if (
+      isBeforeMinimumScheduleLead(form.scheduledDate, time, minAdvanceMinutes)
+    ) {
       toast.error(
-        "Vui lòng chọn thời gian cách hiện tại tối thiểu 1 tiếng để tasker chuẩn bị.",
+        `Vui lòng chọn thời gian cách hiện tại tối thiểu ${minAdvanceMinutes} phút để Tasker chuẩn bị.`,
       );
       return;
     }
@@ -1597,7 +1630,10 @@ function StepSchedule({
   };
 
   const handleEarliestTimeSelect = () => {
-    const earliest = getEarliestAvailableSchedule();
+    const earliest = getEarliestAvailableSchedule(
+      new Date(),
+      minAdvanceMinutes,
+    );
     const scheduleChanged =
       earliest.scheduledDate !== form.scheduledDate ||
       earliest.scheduledTime !== form.scheduledTime;
@@ -1647,7 +1683,7 @@ function StepSchedule({
                     ? "border-primary bg-primary text-white shadow-md shadow-primary/30"
                     : past
                       ? "cursor-not-allowed border-border/30 bg-muted/40 text-muted-foreground/50"
-                    : "border-border/60 bg-background text-muted-foreground hover:border-primary/40"
+                      : "border-border/60 bg-background text-muted-foreground hover:border-primary/40"
                 }`}
               >
                 <span className="text-xs font-bold">{d.weekday}</span>
@@ -1676,9 +1712,7 @@ function StepSchedule({
             <div className="flex h-12 w-[150px] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-primary/45 bg-background px-2">
               <Select
                 value={selectedTimeParts.hour}
-                onValueChange={(value) =>
-                  handleTimePartSelect("hour", value)
-                }
+                onValueChange={(value) => handleTimePartSelect("hour", value)}
               >
                 <SelectTrigger
                   aria-label="Giờ"
@@ -1702,15 +1736,11 @@ function StepSchedule({
                 </SelectContent>
               </Select>
 
-              <span className="text-lg font-black text-foreground">
-                :
-              </span>
+              <span className="text-lg font-black text-foreground">:</span>
 
               <Select
                 value={selectedTimeParts.minute}
-                onValueChange={(value) =>
-                  handleTimePartSelect("minute", value)
-                }
+                onValueChange={(value) => handleTimePartSelect("minute", value)}
               >
                 <SelectTrigger
                   aria-label="Phút"
@@ -1742,15 +1772,13 @@ function StepSchedule({
           onClick={handleEarliestTimeSelect}
           className="rounded-lg border border-border/70 bg-background px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
         >
-          Sớm nhất có thể 
+          Sớm nhất có thể
         </button>
 
         {selectedTimeIsPeak && (
           <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 fill-amber-400 text-amber-500" />
-            <p>
-              Giá tăng do nhu cầu công việc tăng cao vào thời điểm này.
-            </p>
+            <p>Giá tăng do nhu cầu công việc tăng cao vào thời điểm này.</p>
           </div>
         )}
       </div>
@@ -1768,16 +1796,14 @@ function StepSchedule({
           </div>
           <FavoriteTaskerPicker
             value={form.preferredTaskerId}
-            onChange={(preferredTaskerId) =>
-              onChange({ preferredTaskerId })
-            }
+            onChange={(preferredTaskerId) => onChange({ preferredTaskerId })}
             scheduledDate={form.scheduledDate}
             scheduledTime={form.scheduledTime}
             durationHours={totalDurationHours}
           />
           <p className="text-[11px] text-muted-foreground">
-            Tasker được chọn sẽ nhận lời mời riêng trước; nếu họ không nhận,
-            hệ thống tự tìm Tasker Cao cấp khác.
+            Tasker được chọn sẽ nhận lời mời riêng trước; nếu họ không nhận, hệ
+            thống tự tìm Tasker Cao cấp khác.
           </p>
         </div>
       )}
@@ -2104,14 +2130,21 @@ export const BookingWizard = ({
   const [quote, setQuote] = useState<BookingQuoteResponse | null>(null);
   const [createdId, setCreatedId] = useState<string>("");
 
-  const { data: publicServicesData, isLoading: isServicesLoading } = usePublicServices();
-  const [resolvedServiceId, setResolvedServiceId] = useState<string | null>(null);
+  const { data: publicServicesData, isLoading: isServicesLoading } =
+    usePublicServices();
+  const { data: customerSchedulingPolicy } = useCustomerSchedulingPolicy();
+  const minAdvanceMinutes =
+    customerSchedulingPolicy?.minAdvanceMinutes ??
+    DEFAULT_MIN_SCHEDULE_LEAD_MINUTES;
+  const maxAdvanceDays = customerSchedulingPolicy?.maxAdvanceDays ?? 30;
+  const [resolvedServiceId, setResolvedServiceId] = useState<string | null>(
+    null,
+  );
 
   const parentPackage = useMemo(() => {
     if (!initialServiceId || !publicServicesData?.data) return null;
     return (
-      publicServicesData.data.find((pkg) => pkg.id === initialServiceId) ??
-      null
+      publicServicesData.data.find((pkg) => pkg.id === initialServiceId) ?? null
     );
   }, [initialServiceId, publicServicesData]);
 
@@ -2135,7 +2168,10 @@ export const BookingWizard = ({
           defaultTier?.minHours ??
           prev.durationHours,
         durationMode: "preset",
-        areaM2: defaultDuration?.suggestedArea ?? defaultTier?.areaMinM2 ?? prev.areaM2,
+        areaM2:
+          defaultDuration?.suggestedArea ??
+          defaultTier?.areaMinM2 ??
+          prev.areaM2,
         addonIds: [],
       }));
     }, 0);
@@ -2170,8 +2206,7 @@ export const BookingWizard = ({
     },
     step === 3 && form.paymentMethod === "WALLET",
   );
-  const estimatedTotalPrice =
-    walletPreviewQuote.data?.price.totalPrice ?? null;
+  const estimatedTotalPrice = walletPreviewQuote.data?.price.totalPrice ?? null;
   const isWalletValidationPending =
     form.paymentMethod === "WALLET" &&
     (isWalletLoading ||
@@ -2255,7 +2290,11 @@ export const BookingWizard = ({
       return (
         !!form.scheduledDate &&
         !!form.scheduledTime &&
-        !isBeforeMinimumScheduleLead(form.scheduledDate, form.scheduledTime)
+        !isBeforeMinimumScheduleLead(
+          form.scheduledDate,
+          form.scheduledTime,
+          minAdvanceMinutes,
+        )
       );
     if (step === 3)
       return !isWalletValidationPending && !isWalletShortAtPayment;
@@ -2275,10 +2314,14 @@ export const BookingWizard = ({
       step === 2 &&
       form.scheduledDate &&
       form.scheduledTime &&
-      isBeforeMinimumScheduleLead(form.scheduledDate, form.scheduledTime)
+      isBeforeMinimumScheduleLead(
+        form.scheduledDate,
+        form.scheduledTime,
+        minAdvanceMinutes,
+      )
     ) {
       toast.error(
-        "Thời gian đặt lịch phải cách hiện tại tối thiểu 1 tiếng.",
+        `Thời gian đặt lịch phải cách hiện tại tối thiểu ${minAdvanceMinutes} phút.`,
       );
       return;
     }
@@ -2317,9 +2360,7 @@ export const BookingWizard = ({
 
         setQuote(result);
         setStep(4);
-      } catch {
-  
-      }
+      } catch {}
       return;
     }
 
@@ -2508,6 +2549,8 @@ export const BookingWizard = ({
                 form={form}
                 onChange={update}
                 totalDurationHours={totalBookingWorkHours}
+                minAdvanceMinutes={minAdvanceMinutes}
+                maxAdvanceDays={maxAdvanceDays}
               />
             </motion.div>
           )}

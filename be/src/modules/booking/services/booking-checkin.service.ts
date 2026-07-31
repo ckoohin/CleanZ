@@ -39,6 +39,7 @@ import {
   CheckinTimingPolicy,
   resolveCheckinTimingPolicy,
 } from './booking-checkin.policy';
+import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 
 export const BOOKING_CHECKIN_QUEUE = 'bookingCheckinQueue';
 
@@ -67,8 +68,7 @@ export const SURCHARGE_RECEIPT_WINDOW_MS = 12 * 60 * 60_000;
 /** Chờ khách duyệt yêu cầu thêm giờ — phải đủ ngắn để tasker kịp checkout đúng giờ. */
 export const OVERTIME_REQUEST_WINDOW_MS = 20 * 60_000;
 
-// Cửa sổ thời gian (phút)
-export const CHECKIN_OPEN_BEFORE_MINUTES = 3000; // mở từ T-30
+// Các mốc lifecycle chưa nằm trong scope cấu hình của tab Vận hành.
 const LATE_WARNING_MINUTES = 15; // cảnh báo ở T+15
 const AUTO_CANCEL_MINUTES = 45; // hủy ở T+45
 const AUTO_CHECKOUT_AFTER_END_MINUTES = 30; // nhắc checkout T_end+30
@@ -88,6 +88,13 @@ export const NO_SHOW_WARNING_POINTS = 3;
 export interface CheckinJobData {
   bookingId: string;
 }
+
+export interface TaskerCheckinPolicy extends CheckinTimingPolicy {
+  openBeforeMinutes: number;
+  autoApproveRadiusMeters: number;
+  maxAccuracyMeters: number;
+  autoCancelAfterMinutes: number;
+}
 function checkinJobId(bookingId: string, kind: string): string {
   return `${bookingId}-${kind}`;
 }
@@ -104,6 +111,7 @@ export class BookingCheckinService {
     private readonly bookingSettlementService: BookingSettlementService,
     private readonly paymentService: PaymentService,
     private readonly voucherService: VouchersService,
+    private readonly systemConfigService: SystemConfigService,
   ) {}
 
   // ── Timeout xác nhận phụ phí phát sinh ─────────────────────────────────────
@@ -551,9 +559,13 @@ export class BookingCheckinService {
 
     const now = new Date();
     const minutesDiff = (now.getTime() - scheduledStart.getTime()) / 60_000;
+    const operationPolicy =
+      await this.systemConfigService.getCheckinOperationPolicy(manager);
 
-    if (minutesDiff < -CHECKIN_OPEN_BEFORE_MINUTES) {
-      const remaining = Math.ceil(-minutesDiff - CHECKIN_OPEN_BEFORE_MINUTES);
+    if (minutesDiff < -operationPolicy.openBeforeMinutes) {
+      const remaining = Math.ceil(
+        -minutesDiff - operationPolicy.openBeforeMinutes,
+      );
       throw new BadRequestException(
         `Chưa đến cửa sổ check-in. Còn ${remaining} phút nữa.`,
       );
@@ -565,7 +577,7 @@ export class BookingCheckinService {
       );
     }
 
-    // ── Chốt vị trí: phải ở trong bán kính 50m quanh địa chỉ khách ──────────
+    // ── Chốt vị trí theo bán kính tự duyệt đang cấu hình quanh địa chỉ khách ──
     // GPS thiếu (từ chối quyền định vị) được đối xử như đang ở xa: muốn
     // check-in phải kèm ảnh minh chứng, và đơn bị gắn cờ cho admin theo dõi.
     const { currentLatitude, currentLongitude, accuracyMeters, proofPhotoUrl } =
@@ -613,6 +625,7 @@ export class BookingCheckinService {
       accuracyMeters,
       addressLatitude: targetLatitude,
       addressLongitude: targetLongitude,
+      maxDistanceMeters: operationPolicy.autoApproveRadiusMeters,
     });
 
     if (isFarCheckin && !proofPhotoUrl) {
@@ -746,6 +759,21 @@ export class BookingCheckinService {
       scheduledStart,
       createdAt: booking.createdAt,
     });
+  }
+
+  async getTaskerCheckinPolicy(
+    manager: EntityManager,
+    booking: BookingEntity,
+  ): Promise<TaskerCheckinPolicy> {
+    const operationPolicy =
+      await this.systemConfigService.getCheckinOperationPolicy(manager);
+    return {
+      ...this.getTimingPolicy(booking),
+      openBeforeMinutes: operationPolicy.openBeforeMinutes,
+      autoApproveRadiusMeters: operationPolicy.autoApproveRadiusMeters,
+      maxAccuracyMeters: CHECKIN_MAX_ACCURACY_METERS,
+      autoCancelAfterMinutes: AUTO_CANCEL_MINUTES,
+    };
   }
 
   private resolveScheduledEnd(booking: BookingEntity): Date | null {

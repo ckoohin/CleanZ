@@ -9,6 +9,21 @@ import {
   SystemConfigDefinition,
   findSystemConfigDefinition,
 } from './system-config.registry';
+import {
+  CheckinOperationPolicy,
+  CustomerSchedulingPolicy,
+  OPERATIONAL_POLICY_KEYS,
+  OperationalPolicies,
+  OperationalPolicyKey,
+  TaskerCancelPenaltyRule,
+  TaskerCancellationPolicy,
+  normalizeCheckinOperationPolicy,
+  normalizeCustomerSchedulingPolicy,
+  normalizeTaskerCancellationPolicy,
+  parseCheckinOperationPolicy,
+  parseCustomerSchedulingPolicy,
+  parseTaskerCancellationPolicy,
+} from './operational-policy';
 
 export interface SystemConfigItem extends SystemConfigDefinition {
   value: number;
@@ -142,6 +157,193 @@ export class SystemConfigService {
     return this.getAdminConfigs(manager);
   }
 
+  /**
+   * Policy vận hành không dùng cache RAM: thay đổi tài chính/check-in/lịch phải
+   * có hiệu lực nhất quán ngay cả khi backend chạy nhiều instance.
+   */
+  async getOperationalPolicies(
+    manager: EntityManager,
+  ): Promise<OperationalPolicies> {
+    const keys = Object.values(OPERATIONAL_POLICY_KEYS);
+    const rows = await manager.getRepository(SystemConfigEntity).find({
+      where: keys.map((configKey) => ({ configKey })),
+    });
+    const values = new Map(rows.map((row) => [row.configKey, row]));
+    const cancellationConfig = values.get(
+      OPERATIONAL_POLICY_KEYS.TASKER_CANCELLATION,
+    );
+
+    return {
+      taskerCancellation: parseTaskerCancellationPolicy(
+        cancellationConfig?.configValue ?? null,
+        cancellationConfig?.updatedAt,
+      ),
+      checkin: parseCheckinOperationPolicy(
+        values.get(OPERATIONAL_POLICY_KEYS.CHECKIN)?.configValue ?? null,
+      ),
+      customerScheduling: parseCustomerSchedulingPolicy(
+        values.get(OPERATIONAL_POLICY_KEYS.CUSTOMER_SCHEDULING)?.configValue ??
+          null,
+      ),
+    };
+  }
+
+  async getTaskerCancellationPolicy(
+    manager: EntityManager,
+  ): Promise<TaskerCancellationPolicy> {
+    const config = await this.findFreshConfig(
+      manager,
+      OPERATIONAL_POLICY_KEYS.TASKER_CANCELLATION,
+    );
+    return parseTaskerCancellationPolicy(
+      config?.configValue.trim() || null,
+      config?.updatedAt,
+    );
+  }
+
+  async getCheckinOperationPolicy(
+    manager: EntityManager,
+  ): Promise<CheckinOperationPolicy> {
+    return parseCheckinOperationPolicy(
+      await this.findFreshValue(manager, OPERATIONAL_POLICY_KEYS.CHECKIN),
+    );
+  }
+
+  async getCustomerSchedulingPolicy(
+    manager: EntityManager,
+  ): Promise<CustomerSchedulingPolicy> {
+    return parseCustomerSchedulingPolicy(
+      await this.findFreshValue(
+        manager,
+        OPERATIONAL_POLICY_KEYS.CUSTOMER_SCHEDULING,
+      ),
+    );
+  }
+
+  async updateTaskerCancellationPolicy(
+    manager: EntityManager,
+    rules: TaskerCancelPenaltyRule[],
+  ): Promise<TaskerCancellationPolicy> {
+    return this.updateOperationalPolicy(
+      manager,
+      OPERATIONAL_POLICY_KEYS.TASKER_CANCELLATION,
+      (current) =>
+        normalizeTaskerCancellationPolicy({
+          version: current.version + 1,
+          effectiveFrom: new Date().toISOString(),
+          rules,
+        }),
+    );
+  }
+
+  async updateCheckinOperationPolicy(
+    manager: EntityManager,
+    input: Pick<
+      CheckinOperationPolicy,
+      'openBeforeMinutes' | 'autoApproveRadiusMeters'
+    >,
+  ): Promise<CheckinOperationPolicy> {
+    return this.updateOperationalPolicy(
+      manager,
+      OPERATIONAL_POLICY_KEYS.CHECKIN,
+      (current) =>
+        normalizeCheckinOperationPolicy({
+          version: current.version + 1,
+          effectiveFrom: new Date().toISOString(),
+          ...input,
+        }),
+    );
+  }
+
+  async updateCustomerSchedulingPolicy(
+    manager: EntityManager,
+    input: Pick<
+      CustomerSchedulingPolicy,
+      'minAdvanceMinutes' | 'maxAdvanceDays'
+    >,
+  ): Promise<CustomerSchedulingPolicy> {
+    return this.updateOperationalPolicy(
+      manager,
+      OPERATIONAL_POLICY_KEYS.CUSTOMER_SCHEDULING,
+      (current) =>
+        normalizeCustomerSchedulingPolicy({
+          version: current.version + 1,
+          effectiveFrom: new Date().toISOString(),
+          ...input,
+        }),
+    );
+  }
+
+  private async updateOperationalPolicy<T extends { version: number }>(
+    manager: EntityManager,
+    key: OperationalPolicyKey,
+    build: (current: T) => T,
+  ): Promise<T> {
+    const repository = manager.getRepository(SystemConfigEntity);
+    const existing = await repository.findOne({
+      where: { configKey: key },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const current = this.parseOperationalPolicy(
+      key,
+      existing?.configValue,
+      existing?.updatedAt,
+    ) as unknown as T;
+
+    let next: T;
+    try {
+      next = build(current);
+    } catch (error: unknown) {
+      throw new AppException(
+        error instanceof Error ? error.message : 'Policy vận hành không hợp lệ',
+      );
+    }
+
+    const description = this.operationalPolicyDescription(key);
+    if (existing) {
+      existing.configValue = JSON.stringify(next);
+      existing.description = description;
+      await repository.save(existing);
+    } else {
+      await repository.save(
+        repository.create({
+          configKey: key,
+          configValue: JSON.stringify(next),
+          description,
+        }),
+      );
+    }
+    this.clearConfigCache(key);
+    return next;
+  }
+
+  private parseOperationalPolicy(
+    key: OperationalPolicyKey,
+    raw?: string | null,
+    updatedAt?: Date,
+  ):
+    | TaskerCancellationPolicy
+    | CheckinOperationPolicy
+    | CustomerSchedulingPolicy {
+    if (key === OPERATIONAL_POLICY_KEYS.TASKER_CANCELLATION) {
+      return parseTaskerCancellationPolicy(raw ?? null, updatedAt);
+    }
+    if (key === OPERATIONAL_POLICY_KEYS.CHECKIN) {
+      return parseCheckinOperationPolicy(raw ?? null);
+    }
+    return parseCustomerSchedulingPolicy(raw ?? null);
+  }
+
+  private operationalPolicyDescription(key: OperationalPolicyKey): string {
+    if (key === OPERATIONAL_POLICY_KEYS.TASKER_CANCELLATION) {
+      return 'Phí hủy Tasker theo thời gian còn lại trước ca làm';
+    }
+    if (key === OPERATIONAL_POLICY_KEYS.CHECKIN) {
+      return 'Cửa sổ và bán kính tự duyệt check-in';
+    }
+    return 'Giới hạn đặt lịch trước của khách hàng';
+  }
+
   /** Ràng buộc chéo giữa các setting (min không được vượt max...). */
   private async assertConsistent(
     manager: EntityManager,
@@ -197,6 +399,23 @@ export class SystemConfigService {
     const value = config.configValue.trim();
     this.configCache.set(key, { value, ts: now });
     return value;
+  }
+
+  private async findFreshValue(
+    manager: EntityManager,
+    key: string,
+  ): Promise<string | null> {
+    const config = await this.findFreshConfig(manager, key);
+    return config?.configValue.trim() || null;
+  }
+
+  private findFreshConfig(
+    manager: EntityManager,
+    key: string,
+  ): Promise<SystemConfigEntity | null> {
+    return manager.getRepository(SystemConfigEntity).findOne({
+      where: { configKey: key },
+    });
   }
 
   async getRequiredNumber(

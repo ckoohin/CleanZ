@@ -91,6 +91,14 @@ export class BookingController {
     private readonly bookingOvertimeRequestService: BookingOvertimeRequestService,
   ) {}
 
+  @Get('customer/scheduling-policy')
+  @Auth(UserRole.CUSTOMER)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({ summary: 'Customer xem giới hạn đặt lịch đang hiệu lực' })
+  getCustomerSchedulingPolicy() {
+    return this.customerBookingService.getCustomerSchedulingPolicy();
+  }
+
   @Post()
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.CREATED)
@@ -577,7 +585,7 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 6 — Check-in khi đến nơi',
     description:
-      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Yêu cầu tọa độ và độ chính xác GPS hiện tại; cách địa chỉ khách quá 50m, thiếu GPS/đích hoặc GPS sai số trên 100m thì phải kèm proofPhotoUrl và được đưa vào hàng chờ Admin hậu kiểm. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime.',
+      'Chỉ booking ở TASKER_ON_THE_WAY mới được chuyển sang CHECKED_IN. Yêu cầu tọa độ và độ chính xác GPS hiện tại; ở ngoài bán kính tự duyệt đang cấu hình, thiếu GPS/đích hoặc GPS sai số trên 100m thì phải kèm proofPhotoUrl và được đưa vào hàng chờ Admin hậu kiểm. Sau bước này hệ thống emit socket tasker:arrived để FE dừng tracking realtime.',
   })
   @ApiParam({
     name: 'id',

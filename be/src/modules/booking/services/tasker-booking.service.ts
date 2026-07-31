@@ -53,6 +53,7 @@ import {
   BookingCheckinService,
   OVERTIME_REQUEST_WINDOW_MS,
   SURCHARGE_CONFIRM_WINDOW_MS,
+  TaskerCheckinPolicy,
 } from './booking-checkin.service';
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { BookingServiceTier } from 'src/common/enums/booking-service-tier.enum';
@@ -68,12 +69,10 @@ import {
   overtimeFeeForMinutes,
 } from '../helpers/work-timing.helper';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
-import type {
-  CheckinAssessment,
-  CheckinTimingPolicy,
-} from './booking-checkin.policy';
+import type { CheckinAssessment } from './booking-checkin.policy';
 import { SubmitNoShowExplanationDto } from '../dto/submit-no-show-explanation.dto';
 import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
+import type { TaskerCancelPenaltyPreview } from 'src/modules/system-config/operational-policy';
 
 interface TaskerPostedBookingItem {
   id: string;
@@ -210,7 +209,8 @@ export interface TaskerAssignedBookingDetailResponse {
   status: BookingStatus;
   source: BookingEntity['source'];
   canContactCustomer: boolean;
-  checkinPolicy: CheckinTimingPolicy;
+  checkinPolicy: TaskerCheckinPolicy;
+  taskerCancelPenalty: TaskerCancelPenaltyPreview;
   checkinResult?: CheckinAssessment;
   service: {
     id: string;
@@ -1900,7 +1900,17 @@ export class TaskerBookingService {
     const canContactCustomer = CUSTOMER_CONTACT_VISIBLE_STATUSES.includes(
       booking.status,
     );
-    const price = await this.buildTaskerPriceBreakdown(booking);
+    const [price, taskerCancelPenalty, checkinPolicy] = await Promise.all([
+      this.buildTaskerPriceBreakdown(booking),
+      this.bookingPolicyService.resolveTaskerCancelPenalty(
+        this.dataSource.manager,
+        booking,
+      ),
+      this.bookingCheckinService.getTaskerCheckinPolicy(
+        this.dataSource.manager,
+        booking,
+      ),
+    ]);
     const baseResponse = {
       id: booking.id,
       bookingCode: booking.bookingCode,
@@ -1908,7 +1918,8 @@ export class TaskerBookingService {
       serviceTier: booking.serviceTier,
       source: booking.source,
       canContactCustomer,
-      checkinPolicy: this.bookingCheckinService.getTimingPolicy(booking),
+      checkinPolicy,
+      taskerCancelPenalty,
       service,
       distance,
       schedule: {
@@ -2192,6 +2203,8 @@ export class TaskerBookingService {
   ): Promise<{
     message: string;
     penaltyAmount: number;
+    penaltyPercent: number;
+    policyVersion: number;
     weeklyCount: number;
     suspended: boolean;
     suspendedUntil?: string;
@@ -2201,6 +2214,8 @@ export class TaskerBookingService {
       let taskerUserId: string = userId;
       let bookingCode = '';
       let penaltyAmount = 0;
+      let penaltyPercent = 0;
+      let penaltyPolicyVersion = 0;
       let weeklyCount = 0;
       let suspended = false;
       let suspendedUntil: Date | undefined;
@@ -2236,12 +2251,26 @@ export class TaskerBookingService {
         // Đếm lần hủy trong 7 ngày (TRƯỚC lần này)
         weeklyCount = await this.bookingPolicyService.countWeeklyCancels(
           manager,
-          tasker.id,
+          taskerUserId,
         );
         // Lần hủy này là weeklyCount + 1
         const thisCancel = weeklyCount + 1;
-        penaltyAmount =
-          this.bookingPolicyService.resolveCancelPenaltyAmount(thisCancel);
+        const penalty =
+          await this.bookingPolicyService.resolveTaskerCancelPenalty(
+            manager,
+            booking,
+          );
+        if (
+          dto.expectedPenaltyPolicyVersion !== undefined &&
+          dto.expectedPenaltyPolicyVersion !== penalty.policyVersion
+        ) {
+          throw new ConflictException(
+            'Chính sách phí hủy vừa thay đổi. Vui lòng tải lại đơn và kiểm tra mức phí mới trước khi hủy.',
+          );
+        }
+        penaltyAmount = penalty.amount;
+        penaltyPercent = penalty.penaltyPercent;
+        penaltyPolicyVersion = penalty.policyVersion;
 
         // 1. Hủy đơn. Đơn offline/vãng lai (không gắn customer) KHÔNG re-post lên
         //    chợ — không có khách thật để phục vụ lại → hủy chốt luôn.
@@ -2285,6 +2314,17 @@ export class TaskerBookingService {
           cancelledByUser: { id: userId } as UserEntity,
           cancelReason: dto.reason?.trim() || null,
           cancellationFee: penaltyAmount,
+          policySnapshot: {
+            type: 'TASKER_CANCELLATION',
+            totalPrice: toNumber(booking.totalPrice),
+            amount: penalty.amount,
+            penaltyPercent: penalty.penaltyPercent,
+            hoursBeforeStart: penalty.hoursBeforeStart,
+            matchedRule: penalty.matchedRule,
+            policyVersion: penalty.policyVersion,
+            effectiveFrom: penalty.effectiveFrom,
+            calculatedAt: new Date().toISOString(),
+          },
           refundAmount: 0,
         });
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
@@ -2360,9 +2400,13 @@ export class TaskerBookingService {
 
       return {
         message: suspended
-          ? `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ. Tài khoản bị khóa nhận đơn ${CANCEL_SUSPENSION_DAYS} ngày.`
-          : `Đã hủy đơn.`,
+          ? `Đã hủy đơn${penaltyAmount > 0 ? `. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ` : ''}. Tài khoản bị khóa nhận đơn ${CANCEL_SUSPENSION_DAYS} ngày.`
+          : penaltyAmount > 0
+            ? `Đã hủy đơn. Phí phạt ${penaltyAmount.toLocaleString('vi-VN')}đ đã bị trừ.`
+            : 'Đã hủy đơn. Không áp dụng phí hủy.',
         penaltyAmount,
+        penaltyPercent,
+        policyVersion: penaltyPolicyVersion,
         weeklyCount: weeklyCount + 1,
         suspended,
         suspendedUntil: suspendedUntil?.toISOString(),

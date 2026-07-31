@@ -255,6 +255,11 @@ export interface CancelBookingDto {
   reason?: string;
 }
 
+export interface CustomerSchedulingPolicy {
+  minAdvanceMinutes: number;
+  maxAdvanceDays: number;
+}
+
 // BE chỉ nhận addressId (địa chỉ đã lưu, có tọa độ validated) — không nhận
 // tọa độ tự do vì dispatch tasker cần địa chỉ chuẩn hoá.
 export interface UpdateBookingScheduleDto {
@@ -428,7 +433,7 @@ export interface TaskerAcceptResponse {
 }
 
 /**
- * Body của PATCH tasker/:id/check-in. Thiếu GPS hoặc cách khách >50m thì backend
+ * Body của PATCH tasker/:id/check-in. Thiếu GPS hoặc ngoài bán kính policy thì backend
  * yêu cầu proofPhotoUrl (ảnh minh chứng) mới cho check-in.
  */
 export interface TaskerCheckinPayload {
@@ -448,6 +453,21 @@ export interface TaskerAssignedBookingDetail {
   checkinPolicy: {
     exemptFromLatePenalty: boolean;
     lateGraceMinutes: number;
+    openBeforeMinutes: number;
+    autoApproveRadiusMeters: number;
+    maxAccuracyMeters: number;
+    autoCancelAfterMinutes: number;
+  };
+  taskerCancelPenalty: {
+    amount: number;
+    penaltyPercent: number;
+    hoursBeforeStart: number;
+    matchedRule: {
+      hoursBeforeStart: number;
+      penaltyPercent: number;
+    };
+    policyVersion: number;
+    effectiveFrom: string | null;
   };
   checkinResult?: {
     minutesLate: number;

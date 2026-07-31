@@ -37,6 +37,7 @@ import {
   useConfirmTaskerBooking,
   useDeclineTaskerBooking,
   useUpdateBookingSchedule,
+  useCustomerSchedulingPolicy,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { TaskerTrackingMap } from "./TaskerTrackingMap";
 import { toast } from "@/lib/toast";
@@ -58,6 +59,7 @@ import {
   useTaskerPublicReviews,
 } from "@/features/customer/history/hooks/useReview";
 import { CustomerNoShowPanel } from "./CustomerNoShowPanel";
+import { DEFAULT_MIN_SCHEDULE_LEAD_MINUTES } from "@/features/customer/booking/utils/booking-schedule-time";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -165,9 +167,9 @@ function formatVietnamDateString(date: Date): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function getNext7Days() {
+function getScheduleDays(maxAdvanceDays: number) {
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < maxAdvanceDays; i++) {
     const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
     days.push({
       date: formatVietnamDateString(d),
@@ -652,14 +654,16 @@ function CancelDialog({
 }
 
 // ─── Edit Schedule & Address Sheet ────────────────────────────────────────────
-const MIN_EDIT_LEAD_MINUTES = 60;
-
-function isBeforeEditLead(date: string, time: string): boolean {
+function isBeforeEditLead(
+  date: string,
+  time: string,
+  minAdvanceMinutes: number,
+): boolean {
   if (!date || !time) return false;
   const selected = new Date(`${date}T${time}:00+07:00`);
   return (
     Number.isNaN(selected.getTime()) ||
-    selected.getTime() < Date.now() + MIN_EDIT_LEAD_MINUTES * 60 * 1000
+    selected.getTime() < Date.now() + minAdvanceMinutes * 60 * 1000
   );
 }
 
@@ -689,11 +693,18 @@ function EditScheduleSheet({
   const update = useUpdateBookingSchedule(bookingId);
   const { data: addresses = [], isLoading: isAddressesLoading } =
     useCustomerAddresses();
-  const days = getNext7Days();
+  const { data: customerSchedulingPolicy } = useCustomerSchedulingPolicy();
+  const minAdvanceMinutes =
+    customerSchedulingPolicy?.minAdvanceMinutes ??
+    DEFAULT_MIN_SCHEDULE_LEAD_MINUTES;
+  const maxAdvanceDays = customerSchedulingPolicy?.maxAdvanceDays ?? 30;
+  const days = getScheduleDays(maxAdvanceDays);
 
   const handleSave = () => {
-    if (isBeforeEditLead(selectedDate, selectedTime)) {
-      toast.error("Thời gian đặt lịch phải cách hiện tại tối thiểu 1 tiếng.");
+    if (isBeforeEditLead(selectedDate, selectedTime, minAdvanceMinutes)) {
+      toast.error(
+        `Thời gian đặt lịch phải cách hiện tại tối thiểu ${minAdvanceMinutes} phút.`,
+      );
       return;
     }
 

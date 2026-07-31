@@ -62,6 +62,7 @@ import { BookingDispatchService } from './booking-dispatch.service';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { TaskerScheduleAvailabilityService } from './tasker-schedule-availability.service';
 import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
+import { SystemConfigService } from 'src/modules/system-config/system-config.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -123,9 +124,23 @@ export class CustomerBookingService {
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly taskerScheduleAvailabilityService: TaskerScheduleAvailabilityService,
     private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
+    private readonly systemConfigService: SystemConfigService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
+
+  async getCustomerSchedulingPolicy(): Promise<{
+    minAdvanceMinutes: number;
+    maxAdvanceDays: number;
+  }> {
+    const policy = await this.systemConfigService.getCustomerSchedulingPolicy(
+      this.dataSource.manager,
+    );
+    return {
+      minAdvanceMinutes: policy.minAdvanceMinutes,
+      maxAdvanceDays: policy.maxAdvanceDays,
+    };
+  }
 
   async quote(
     userId: string,
@@ -1151,6 +1166,10 @@ export class CustomerBookingService {
     currentBookingId?: string,
   ): Promise<BookingPricingContext> {
     const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
+    await this.assertCustomerScheduleAllowed(
+      manager,
+      scheduleStart.scheduledStart,
+    );
 
     const customerRepository = manager.getRepository(CustomerEntity);
     const addressRepository = manager.getRepository(CustomerAddressEntity);
@@ -1250,6 +1269,30 @@ export class CustomerBookingService {
       serviceTier: price.serviceTier,
       premiumFee: price.premiumFee,
     };
+  }
+
+  private async assertCustomerScheduleAllowed(
+    manager: EntityManager,
+    scheduledStart: Date,
+    now = new Date(),
+  ): Promise<void> {
+    const policy =
+      await this.systemConfigService.getCustomerSchedulingPolicy(manager);
+    const startMs = scheduledStart.getTime();
+    const minStartMs = now.getTime() + policy.minAdvanceMinutes * 60 * 1000;
+    const maxStartMs =
+      now.getTime() + policy.maxAdvanceDays * 24 * 60 * 60 * 1000;
+
+    if (startMs < minStartMs) {
+      throw new BadRequestException(
+        `Thời gian đặt lịch phải cách hiện tại tối thiểu ${policy.minAdvanceMinutes} phút`,
+      );
+    }
+    if (startMs > maxStartMs) {
+      throw new BadRequestException(
+        `Chỉ có thể đặt lịch trước tối đa ${policy.maxAdvanceDays} ngày`,
+      );
+    }
   }
 
   private async generateUniqueBookingCode(

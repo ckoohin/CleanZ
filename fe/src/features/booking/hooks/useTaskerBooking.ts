@@ -201,7 +201,7 @@ export function useMarkOnTheWay(bookingId: string) {
   });
 }
 
-/** 09. Check-in khi đến nơi (kèm GPS; xa >50m phải kèm ảnh minh chứng) */
+/** 09. Check-in khi đến nơi (kèm GPS; ngoài bán kính policy phải có ảnh) */
 export function useMarkCheckedIn(bookingId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -359,11 +359,18 @@ export function useCreateBookingForCustomer() {
 }
 
 /** 12. Tasker hủy đơn */
-export function useCancelByTasker(bookingId: string) {
+export function useCancelByTasker(
+  bookingId: string,
+  expectedPenaltyPolicyVersion?: number,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (reason?: string) =>
-      taskerBookingApi.cancelByTasker(bookingId, reason),
+      taskerBookingApi.cancelByTasker(
+        bookingId,
+        reason,
+        expectedPenaltyPolicyVersion,
+      ),
     onSuccess: (res) => {
       toast.success(res.message ?? "Đã hủy đơn. Đơn đang được tìm tasker mới.");
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });

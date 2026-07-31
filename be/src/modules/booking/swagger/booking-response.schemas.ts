@@ -230,6 +230,31 @@ export const TASKER_ASSIGNED_BOOKING_SCHEMA = {
     bookingCode: { type: 'string' },
     status: { type: 'string' },
     canContactCustomer: { type: 'boolean' },
+    checkinPolicy: {
+      type: 'object',
+      properties: {
+        exemptFromLatePenalty: { type: 'boolean' },
+        lateGraceMinutes: { type: 'integer' },
+        openBeforeMinutes: { type: 'integer' },
+        autoApproveRadiusMeters: { type: 'integer' },
+        maxAccuracyMeters: { type: 'integer' },
+        autoCancelAfterMinutes: { type: 'integer' },
+      },
+    },
+    taskerCancelPenalty: {
+      type: 'object',
+      properties: {
+        amount: money,
+        penaltyPercent: { type: 'integer' },
+        hoursBeforeStart: { type: 'number' },
+        policyVersion: { type: 'integer' },
+        effectiveFrom: {
+          type: 'string',
+          format: 'date-time',
+          nullable: true,
+        },
+      },
+    },
     service: serviceSchema,
     distance: distanceSchema,
     area: { type: 'object' },

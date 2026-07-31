@@ -147,6 +147,28 @@ const SNAPSHOT_TARGETS: SnapshotTarget[] = [
   },
 ];
 
+const SYSTEM_CONFIG_POLICY_TARGETS: Array<{
+  path: RegExp;
+  key: string;
+  label: string;
+}> = [
+  {
+    path: /^system-config\/operations\/tasker-cancellation(?:\/|$)/,
+    key: 'TASKER_CANCEL_TIME_PENALTY_RULES',
+    label: 'Phí phạt Tasker',
+  },
+  {
+    path: /^system-config\/operations\/checkin(?:\/|$)/,
+    key: 'CHECKIN_OPERATION_POLICY',
+    label: 'Chính sách check-in',
+  },
+  {
+    path: /^system-config\/operations\/customer-scheduling(?:\/|$)/,
+    key: 'CUSTOMER_SCHEDULING_POLICY',
+    label: 'Quy tắc đặt lịch khách',
+  },
+];
+
 const IGNORED_DIFF_FIELDS = new Set([
   'id',
   'createdAt',
@@ -307,6 +329,10 @@ export class AdminActivitySnapshotService {
     path: string,
     params: Record<string, unknown> | undefined,
   ): Promise<AdminActivitySnapshot | null> {
+    const configTarget = this.resolveSystemConfigPolicyTarget(path);
+    if (configTarget) {
+      return this.readSystemConfigPolicy(configTarget.key, configTarget.label);
+    }
     const target = this.resolveTarget(path);
     if (!target) return null;
     const idValue = params?.[target.idParam];
@@ -327,6 +353,23 @@ export class AdminActivitySnapshotService {
     result: unknown;
     before: AdminActivitySnapshot | null;
   }): Promise<Record<string, unknown> | null> {
+    const configTarget = this.resolveSystemConfigPolicyTarget(input.path);
+    if (configTarget) {
+      const afterSnapshot = await this.readSystemConfigPolicy(
+        configTarget.key,
+        configTarget.label,
+      );
+      const body = asRecord(input.body);
+      const fields = buildAuditFieldChanges(
+        input.before?.values ?? null,
+        afterSnapshot.values,
+        body,
+      );
+      return {
+        fields,
+        targetLabel: configTarget.label,
+      };
+    }
     const target = this.resolveTarget(input.path);
     const resultPayload = this.resultPayload(input.result);
     const resultId = resultPayload?.id;
@@ -378,6 +421,37 @@ export class AdminActivitySnapshotService {
   private resolveTarget(path: string): SnapshotTarget | null {
     const cleanPath = normalizedPath(path);
     return SNAPSHOT_TARGETS.find((item) => item.path.test(cleanPath)) ?? null;
+  }
+
+  private resolveSystemConfigPolicyTarget(path: string) {
+    const cleanPath = normalizedPath(path);
+    return (
+      SYSTEM_CONFIG_POLICY_TARGETS.find((item) => item.path.test(cleanPath)) ??
+      null
+    );
+  }
+
+  private async readSystemConfigPolicy(
+    key: string,
+    label: string,
+  ): Promise<AdminActivitySnapshot> {
+    const row = await this.dataSource
+      .getRepository('SystemConfigEntity')
+      .findOne({ where: { configKey: key } });
+    let values: Record<string, unknown> | null = null;
+    if (row && typeof row.configValue === 'string') {
+      try {
+        values = asRecord(JSON.parse(row.configValue) as unknown);
+      } catch {
+        values = { configValue: '[INVALID_JSON]' };
+      }
+    }
+    return {
+      entityName: 'SystemConfigEntity',
+      id: typeof row?.id === 'string' ? row.id : null,
+      values,
+      targetLabel: label,
+    };
   }
 
   private paramId(

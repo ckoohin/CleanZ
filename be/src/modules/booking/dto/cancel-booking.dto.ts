@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CancelBookingDto {
   @ApiPropertyOptional({
@@ -10,4 +11,15 @@ export class CancelBookingDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Version policy phí hủy mà Tasker đã xem trước. Backend từ chối nếu policy vừa thay đổi.',
+    example: 3,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  expectedPenaltyPolicyVersion?: number;
 }

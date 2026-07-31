@@ -8,6 +8,7 @@ import type {
 
 export const systemConfigKeys = {
   all: ["admin-system-config"] as const,
+  operations: ["admin-system-config", "operations"] as const,
 };
 
 export function useSystemConfig() {
@@ -28,4 +29,51 @@ export function useUpdateSystemConfig() {
       toast.success("Đã lưu cấu hình hệ thống");
     },
   });
+}
+
+export function useOperationalPolicies() {
+  return useQuery({
+    queryKey: systemConfigKeys.operations,
+    queryFn: () => systemConfigApi.getOperationalPolicies(),
+  });
+}
+
+function useOperationalPolicyMutation<Payload>(
+  mutationFn: (payload: Payload) => Promise<unknown>,
+  successMessage: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: async () => {
+      toast.success(successMessage);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: systemConfigKeys.operations,
+        }),
+        queryClient.invalidateQueries({ queryKey: ["admin-activities"] }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateTaskerCancellationPolicy() {
+  return useOperationalPolicyMutation(
+    systemConfigApi.updateTaskerCancellation,
+    "Đã cập nhật phí hủy Tasker",
+  );
+}
+
+export function useUpdateCheckinOperationPolicy() {
+  return useOperationalPolicyMutation(
+    systemConfigApi.updateCheckin,
+    "Đã cập nhật chính sách check-in",
+  );
+}
+
+export function useUpdateCustomerSchedulingPolicy() {
+  return useOperationalPolicyMutation(
+    systemConfigApi.updateCustomerScheduling,
+    "Đã cập nhật quy tắc đặt lịch",
+  );
 }

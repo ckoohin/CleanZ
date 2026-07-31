@@ -12,6 +12,7 @@ import type {
 import { getApiErrorMessage } from "@/lib/api/error-message";
 
 const QUERY_KEYS = {
+  schedulingPolicy: ["booking", "customer-scheduling-policy"] as const,
   myActive: ["booking", "my-active"],
   myList: ["booking", "my-list"],
   detail: (id: string) => ["booking", id],
@@ -22,6 +23,14 @@ function getBookingErrorMessage(error: unknown, fallback: string): string {
 }
 
 // ─── Customer Hooks ───────────────────────────────────────────────────────────
+
+export function useCustomerSchedulingPolicy() {
+  return useQuery({
+    queryKey: QUERY_KEYS.schedulingPolicy,
+    queryFn: () => customerBookingApi.getSchedulingPolicy(),
+    staleTime: 60_000,
+  });
+}
 
 /** Xem báo giá (gọi thủ công khi user submit form) */
 export function useBookingQuote() {

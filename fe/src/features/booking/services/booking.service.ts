@@ -8,6 +8,7 @@ import type {
   CustomerActiveBookingResponse,
   CustomerBookingDetail,
   CustomerBookingListResponse,
+  CustomerSchedulingPolicy,
   CustomerLookupResult,
   QuoteBookingDto,
   TaskerAcceptResponse,
@@ -36,6 +37,11 @@ export interface OvertimeRequestResult {
 
 // ─── Customer Booking APIs ─────────────────────────────────────────────────────
 export const customerBookingApi = {
+  getSchedulingPolicy: (): Promise<CustomerSchedulingPolicy> =>
+    http
+      .get(API_ENDPOINTS.BOOKING.CUSTOMER_SCHEDULING_POLICY)
+      .then((r) => r.data.data ?? r.data),
+
   /** 01. Xem báo giá trước khi tạo */
   quote: (dto: QuoteBookingDto): Promise<BookingQuoteResponse> =>
     http
@@ -217,7 +223,7 @@ export const taskerBookingApi = {
       .patch(API_ENDPOINTS.BOOKING.TASKER_ON_WAY(id))
       .then((r) => r.data.data ?? r.data),
 
-  /** 09. Check-in khi đến nơi (kèm GPS; xa >50m phải kèm ảnh minh chứng) */
+  /** 09. Check-in khi đến nơi (kèm GPS; ngoài bán kính policy phải có ảnh) */
   markCheckedIn: (
     id: string,
     payload: TaskerCheckinPayload = {},
@@ -313,14 +319,20 @@ export const taskerBookingApi = {
   cancelByTasker: (
     id: string,
     reason?: string,
+    expectedPenaltyPolicyVersion?: number,
   ): Promise<{
     message: string;
     penaltyAmount: number;
+    penaltyPercent: number;
+    policyVersion: number;
     weeklyCount: number;
     suspended: boolean;
     suspendedUntil?: string;
   }> =>
     http
-      .patch(API_ENDPOINTS.BOOKING.TASKER_CANCEL(id), { reason })
+      .patch(API_ENDPOINTS.BOOKING.TASKER_CANCEL(id), {
+        reason,
+        expectedPenaltyPolicyVersion,
+      })
       .then((r) => r.data.data ?? r.data),
 };

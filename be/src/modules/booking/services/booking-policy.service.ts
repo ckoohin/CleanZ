@@ -20,13 +20,14 @@ import {
   TASKER_MAX_CONCURRENT_BOOKINGS,
 } from '../helpers/tasker-schedule-availability.helper';
 import { TaskerScheduleAvailabilityService } from './tasker-schedule-availability.service';
+import { SystemConfigService } from 'src/modules/system-config/system-config.service';
+import {
+  TaskerCancelPenaltyPreview,
+  calculateTaskerCancelPenalty,
+} from 'src/modules/system-config/operational-policy';
+import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
+import { toNumber } from 'src/common/helpers/number.helper';
 
-/** Phí phạt (VND) theo số lần hủy trong 7 ngày (1-indexed: lần 1, 2, 3+) */
-export const TASKER_CANCEL_PENALTY_TIERS: Record<number, number> = {
-  1: 50_000,
-  2: 100_000,
-  3: 200_000,
-};
 export const WEEKLY_CANCEL_LIMIT = 3;
 
 /** Số lần khách để đơn rơi vào tranh chấp phụ phí trước khi bị chặn đặt đơn tiền mặt. */
@@ -54,6 +55,7 @@ const CUSTOMER_CANCELABLE_STATUSES = [
 export class BookingPolicyService {
   constructor(
     private readonly taskerScheduleAvailabilityService: TaskerScheduleAvailabilityService,
+    private readonly systemConfigService: SystemConfigService,
   ) {}
 
   async assertCustomerCanCreateBooking(
@@ -132,15 +134,14 @@ export class BookingPolicyService {
 
   async countWeeklyCancels(
     manager: EntityManager,
-    taskerId: string,
+    taskerUserId: string,
   ): Promise<number> {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return manager
       .getRepository(BookingStatusLogEntity)
       .createQueryBuilder('log')
-      .innerJoin('log.booking', 'booking')
-      .innerJoin('booking.tasker', 'tasker')
-      .where('tasker.id = :taskerId', { taskerId })
+      .innerJoin('log.cancelledByUser', 'cancelledByUser')
+      .where('cancelledByUser.id = :taskerUserId', { taskerUserId })
       .andWhere('log.cancelledBy = :by', { by: CancelledBy.TASKER })
       .andWhere('log.createdAt >= :since', { since })
       .getCount();
@@ -190,12 +191,33 @@ export class BookingPolicyService {
     }
   }
 
-  resolveCancelPenaltyAmount(weeklyCount: number): number {
-    const tier = Math.min(weeklyCount, WEEKLY_CANCEL_LIMIT);
-    return (
-      TASKER_CANCEL_PENALTY_TIERS[tier] ??
-      TASKER_CANCEL_PENALTY_TIERS[WEEKLY_CANCEL_LIMIT]
-    );
+  async resolveTaskerCancelPenalty(
+    manager: EntityManager,
+    booking: BookingEntity,
+    now = new Date(),
+  ): Promise<TaskerCancelPenaltyPreview> {
+    const scheduledStart =
+      booking.scheduledStart instanceof Date &&
+      !Number.isNaN(booking.scheduledStart.getTime())
+        ? booking.scheduledStart
+        : booking.scheduledStartDate && booking.scheduledStartTime
+          ? createVietnamDateTime(
+              booking.scheduledStartDate,
+              booking.scheduledStartTime.slice(0, 5),
+            )
+          : null;
+    if (!scheduledStart || Number.isNaN(scheduledStart.getTime())) {
+      throw new BadRequestException('Booking thiếu thông tin lịch hẹn');
+    }
+
+    const policy =
+      await this.systemConfigService.getTaskerCancellationPolicy(manager);
+    return calculateTaskerCancelPenalty({
+      policy,
+      scheduledStart,
+      totalPrice: toNumber(booking.totalPrice),
+      now,
+    });
   }
 
   assertTaskerCanAcceptBooking(tasker: TaskerEntity): void {

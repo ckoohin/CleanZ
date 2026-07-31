@@ -90,6 +90,9 @@ export class BookingStatusLogEntity {
   })
   refundAmount!: number;
 
+  @Column({ name: 'policy_snapshot', type: 'jsonb', nullable: true })
+  policySnapshot?: Record<string, unknown> | null;
+
   @ManyToOne(() => PaymentEntity, {
     nullable: true,
     onDelete: 'SET NULL',

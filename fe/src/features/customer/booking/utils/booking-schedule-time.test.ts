@@ -31,4 +31,16 @@ describe("getEarliestAvailableSchedule", () => {
       scheduledTime: "00:30",
     });
   });
+
+  it("dùng thời gian đặt trước do backend cung cấp", () => {
+    const result = getEarliestAvailableSchedule(
+      new Date("2026-07-24T18:07:00+07:00"),
+      120,
+    );
+
+    expect(result).toEqual({
+      scheduledDate: "2026-07-24",
+      scheduledTime: "20:15",
+    });
+  });
 });

@@ -53,7 +53,7 @@ export function resolveCheckinTimingPolicy(input: {
 export const CHECKIN_MAX_DISTANCE_METERS = 50;
 /**
  * Sai số GPS lớn hơn ngưỡng này không đủ tin cậy để tự duyệt check-in, kể cả
- * tọa độ trả về đang nằm trong bán kính 50m.
+ * tọa độ trả về đang nằm trong bán kính tự duyệt được truyền vào.
  */
 export const CHECKIN_MAX_ACCURACY_METERS = 100;
 

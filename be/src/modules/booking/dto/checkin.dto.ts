@@ -16,7 +16,7 @@ import { OptionalTaskerBookingLocationDto } from './tasker-booking-location.dto'
  *
  * Tọa độ optional vì tasker có thể từ chối quyền định vị — khi đó backend coi
  * như đang ở ngoài bán kính cho phép và yêu cầu ảnh minh chứng. Backend là nơi
- * quyết định 50m, FE không tự tính.
+ * quyết định theo bán kính đang cấu hình, FE không tự tính.
  */
 export class CheckinDto extends OptionalTaskerBookingLocationDto {
   @ApiProperty({

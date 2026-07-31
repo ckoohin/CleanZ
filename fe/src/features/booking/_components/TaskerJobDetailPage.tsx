@@ -176,9 +176,6 @@ function ActionButton({
 }
 
 // ─── Checkin Window Banner ────────────────────────────────────────────────────
-const CHECKIN_OPEN_BEFORE = 3000; // T-30
-const CHECKIN_AUTO_CANCEL = 45; // T+45
-
 function parseScheduledStart(schedule: BookingSchedule): Date | null {
   if (!schedule.scheduledStartDate || !schedule.scheduledStartTime) return null;
   const d = new Date(
@@ -211,6 +208,10 @@ function CheckinWindowBanner({
   const timingPolicy = policy ?? {
     exemptFromLatePenalty: false,
     lateGraceMinutes: 5,
+    openBeforeMinutes: 30,
+    autoApproveRadiusMeters: 50,
+    maxAccuracyMeters: 100,
+    autoCancelAfterMinutes: 45,
   };
 
   useEffect(() => {
@@ -224,10 +225,17 @@ function CheckinWindowBanner({
   const startMs = scheduledStart.getTime();
   const diffMin = (now - startMs) / 60_000;
 
-  const windowOpenTime = new Date(startMs - CHECKIN_OPEN_BEFORE * 60_000);
-  const autoCancelTime = new Date(startMs + CHECKIN_AUTO_CANCEL * 60_000);
+  const windowOpenTime = new Date(
+    startMs - timingPolicy.openBeforeMinutes * 60_000,
+  );
+  const autoCancelTime = new Date(
+    startMs + timingPolicy.autoCancelAfterMinutes * 60_000,
+  );
 
-  if (timingPolicy.exemptFromLatePenalty && diffMin <= CHECKIN_AUTO_CANCEL) {
+  if (
+    timingPolicy.exemptFromLatePenalty &&
+    diffMin <= timingPolicy.autoCancelAfterMinutes
+  ) {
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <div className="mb-1 flex items-center gap-2">
@@ -243,8 +251,10 @@ function CheckinWindowBanner({
     );
   }
 
-  if (diffMin < -CHECKIN_OPEN_BEFORE) {
-    const secsUntilOpen = Math.ceil((-diffMin - CHECKIN_OPEN_BEFORE) * 60);
+  if (diffMin < -timingPolicy.openBeforeMinutes) {
+    const secsUntilOpen = Math.ceil(
+      (-diffMin - timingPolicy.openBeforeMinutes) * 60,
+    );
     return (
       <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
         <div className="flex items-center gap-2 mb-1">
@@ -258,15 +268,17 @@ function CheckinWindowBanner({
           <span className="font-black">{fmtCountdown(secsUntilOpen)}</span>
         </p>
         <p className="text-[11px] text-blue-600 mt-1">
-          Hãy di chuyển để đến nơi đúng giờ. Check-in sớm nhất từ 30 phút trước
-          lịch hẹn.
+          Hãy di chuyển để đến nơi đúng giờ. Check-in sớm nhất từ{" "}
+          {timingPolicy.openBeforeMinutes} phút trước lịch hẹn.
         </p>
       </div>
     );
   }
 
   if (diffMin <= timingPolicy.lateGraceMinutes) {
-    const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
+    const secsUntilCancel = Math.ceil(
+      (timingPolicy.autoCancelAfterMinutes - diffMin) * 60,
+    );
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <div className="flex items-center gap-2 mb-1">
@@ -290,8 +302,10 @@ function CheckinWindowBanner({
     );
   }
 
-  if (diffMin <= CHECKIN_AUTO_CANCEL) {
-    const secsUntilCancel = Math.ceil((CHECKIN_AUTO_CANCEL - diffMin) * 60);
+  if (diffMin <= timingPolicy.autoCancelAfterMinutes) {
+    const secsUntilCancel = Math.ceil(
+      (timingPolicy.autoCancelAfterMinutes - diffMin) * 60,
+    );
     const minutesLate = Math.ceil(diffMin);
     const warningPoints = diffMin > 15 ? 2 : 1;
     return (
@@ -488,14 +502,9 @@ const PRESET_CANCEL_REASONS = [
   "Sai thông tin lịch hẹn",
 ];
 
-const CANCEL_POLICY_ITEMS = [
-  { title: "Lần 1 / tuần", value: "50.000đ" },
-  { title: "Lần 2 / tuần", value: "100.000đ" },
-  { title: "Lần 3+ / tuần", value: "200.000đ", note: "Khóa 7 ngày" },
-];
-
 function TaskerCancelDialog({
   bookingCode,
+  penalty,
   isPending,
   cancelReason,
   onReasonChange,
@@ -503,6 +512,7 @@ function TaskerCancelDialog({
   onConfirm,
 }: {
   bookingCode: string;
+  penalty: TaskerAssignedBookingDetail["taskerCancelPenalty"];
   isPending: boolean;
   cancelReason: string;
   onReasonChange: (v: string) => void;
@@ -554,25 +564,23 @@ function TaskerCancelDialog({
               Chính sách phạt hủy đơn
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            {CANCEL_POLICY_ITEMS.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-xl border border-red-200/80 bg-white/65 px-2 py-2 text-center"
-              >
-                <p className="text-[10px] font-bold text-red-500">
-                  {item.title}
-                </p>
-                <p className="mt-1 text-xs font-black text-red-600">
-                  {item.value}
-                </p>
-                {item.note && (
-                  <p className="mt-0.5 text-[9px] font-semibold text-red-400">
-                    {item.note}
-                  </p>
-                )}
-              </div>
-            ))}
+          <div className="rounded-xl border border-red-200/80 bg-white/65 px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-red-600">
+                Phí áp dụng tại thời điểm này
+              </span>
+              <span className="text-sm font-black text-red-700">
+                {fmtCurrency(penalty.amount)}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-red-500">
+              {penalty.penaltyPercent}% tổng giá trị đơn · mốc từ{" "}
+              {penalty.matchedRule.hoursBeforeStart} giờ trước ca.
+            </p>
+            <p className="mt-2 border-t border-red-100 pt-2 text-[10px] leading-relaxed text-red-400">
+              Số lần hủy vẫn được theo dõi riêng. Hủy từ 3 lần trong 7 ngày sẽ
+              bị khóa nhận đơn 7 ngày.
+            </p>
           </div>
         </div>
 
@@ -1010,12 +1018,15 @@ function AssignedDetailView({
   const markCheckedIn = useMarkCheckedIn(bookingId);
   const markStart = useMarkStart(bookingId);
   const markComplete = useMarkComplete(bookingId);
-  const cancelByTasker = useCancelByTasker(bookingId);
+  const cancelByTasker = useCancelByTasker(
+    bookingId,
+    data.taskerCancelPenalty.policyVersion,
+  );
   const submitNoShowExplanation = useSubmitNoShowExplanation(bookingId);
   const checkinRequestLockRef = useRef(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  // Check-in xa: BE từ chối vì >50m / mất GPS → mở sheet chụp ảnh minh chứng.
+  // Check-in ngoài policy / mất GPS → mở sheet chụp ảnh minh chứng.
   const [showCheckinProof, setShowCheckinProof] = useState(false);
   const [checkinProofReason, setCheckinProofReason] = useState("");
   const checkinCoordsRef = useRef<TaskerCheckinPayload | null>(null);
@@ -1057,7 +1068,7 @@ function AssignedDetailView({
         setCheckinProofReason("");
       },
       onError: (err) => {
-        // BE là nơi quyết định 50m — FE chỉ mở sheet ảnh khi BE yêu cầu.
+        // BE quyết định theo bán kính policy — FE chỉ mở sheet khi BE yêu cầu.
         const message = extractCheckinErrorMessage(err);
         const proofReason = getCheckinProofReason(err);
         if (proofReason) {
@@ -1446,6 +1457,7 @@ function AssignedDetailView({
       {showCancelDialog && (
         <TaskerCancelDialog
           bookingCode={data.bookingCode}
+          penalty={data.taskerCancelPenalty}
           isPending={cancelByTasker.isPending}
           cancelReason={cancelReason}
           onReasonChange={setCancelReason}

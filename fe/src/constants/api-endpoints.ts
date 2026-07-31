@@ -66,6 +66,7 @@ export const API_ENDPOINTS = {
   BOOKING: {
     // Customer APIs
     QUOTE: "/booking/quote",
+    CUSTOMER_SCHEDULING_POLICY: "/booking/customer/scheduling-policy",
     CREATE: "/booking",
     MY_ACTIVE: "/booking/my-booking",
     MY_LIST: "/booking/my-bookings",

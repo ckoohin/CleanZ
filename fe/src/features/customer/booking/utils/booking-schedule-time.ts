@@ -1,7 +1,7 @@
 const VIETNAM_TIMEZONE = "Asia/Ho_Chi_Minh";
 
 export const MINUTE_STEP = 15;
-export const MIN_SCHEDULE_LEAD_MINUTES = 60;
+export const DEFAULT_MIN_SCHEDULE_LEAD_MINUTES = 60;
 
 function formatVietnamDate(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -33,12 +33,12 @@ function formatVietnamTime(date: Date): string {
 
 export function getEarliestAvailableSchedule(
   now = new Date(),
+  minAdvanceMinutes = DEFAULT_MIN_SCHEDULE_LEAD_MINUTES,
 ): {
   scheduledDate: string;
   scheduledTime: string;
 } {
-  const minimumStartMs =
-    now.getTime() + MIN_SCHEDULE_LEAD_MINUTES * 60 * 1000;
+  const minimumStartMs = now.getTime() + minAdvanceMinutes * 60 * 1000;
   const stepMs = MINUTE_STEP * 60 * 1000;
   const roundedStart = new Date(Math.ceil(minimumStartMs / stepMs) * stepMs);
 
