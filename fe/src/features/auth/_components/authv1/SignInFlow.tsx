@@ -204,7 +204,7 @@ export const SignInFlow = () => {
                 <motion.div custom={3} variants={isMobile ? undefined : fadeUp} initial={isMobile ? "show" : "hidden"} animate="show">
                     <SocialSignIn
                         url_gg={`${apiBaseUrl}/auth/google?state=customer`}
-                        url_facebook={`${apiBaseUrl}/auth/facebook`}
+                        url_facebook={`${apiBaseUrl}/auth/facebook?state=customer`}
                         text_gg="Đăng nhập với Google"
                         text_facebook="Đăng nhập với Facebook"
                     />

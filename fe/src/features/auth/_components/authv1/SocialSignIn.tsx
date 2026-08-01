@@ -11,19 +11,6 @@ export function SocialSignIn({
 }: SocialSignInProps) {
   const router = useRouter()
 
-  const openPopup = (url: string, title: string) => {
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    window.open(
-      url,
-      title,
-      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
-    );
-  };
-
   return (
     <div className="space-y-2 flex flex-col">
       <ConfirmDialog
@@ -51,21 +38,29 @@ export function SocialSignIn({
       />
 
       {url_facebook && text_facebook && (
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="w-full hover:bg-blue-600 hover:text-white group"
-          onClick={() => openPopup(url_facebook, 'Facebook Sign In')}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" className='text-[#1877F2] group-hover:!text-white' fill="currentColor">
-            <path d="M279.14 288l14.22-92.66h-88.91V127.66c0-25.35  
-              12.42-50.06 52.24-50.06H293V6.26S259.43 
-              0 225.36 0C141.09 0 89.09 54.42 
-              89.09 153.12V195.3H0V288h89.09v224h107.45V288z"/>
-          </svg>
-          <span>{text_facebook}</span>
-        </Button>
+        <ConfirmDialog
+          trigger={
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full hover:bg-blue-600 hover:text-white group"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" className='text-[#1877F2] group-hover:!text-white' fill="currentColor">
+                <path d="M279.14 288l14.22-92.66h-88.91V127.66c0-25.35
+                  12.42-50.06 52.24-50.06H293V6.26S259.43
+                  0 225.36 0C141.09 0 89.09 54.42
+                  89.09 153.12V195.3H0V288h89.09v224h107.45V288z"/>
+              </svg>
+              <span>{text_facebook}</span>
+            </Button>
+          }
+          title="Xác nhận"
+          description="Bạn có chắc chắn muốn đăng nhập với Facebook"
+          onConfirm={() => {
+            router.push(url_facebook);
+          }}
+        />
       )}
     </div>
   );

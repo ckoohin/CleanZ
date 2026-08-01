@@ -7,10 +7,16 @@ import { FacebookStrategy } from './strategies/facebook.stratrgy';
 import { PassportModule } from '@nestjs/passport';
 import { CookieHelper } from 'src/common/helpers/cookie.helper';
 import { CustomerModule } from '../customer/customer.module';
+import { FacebookAuthGuard } from './guards/facebook-auth.guard';
 
 @Module({
   imports: [UsersModule, AuthModule, PassportModule, CustomerModule],
   controllers: [AuthFacebookController],
-  providers: [AuthFacebookService, FacebookStrategy, CookieHelper],
+  providers: [
+    AuthFacebookService,
+    FacebookStrategy,
+    FacebookAuthGuard,
+    CookieHelper,
+  ],
 })
 export class AuthFacebookModule {}
