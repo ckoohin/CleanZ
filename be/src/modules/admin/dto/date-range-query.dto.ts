@@ -9,7 +9,7 @@ import {
   IsInt,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 @ValidatorConstraint({ name: 'isAfterFromDate', async: false })
 class IsAfterFromDate implements ValidatorConstraintInterface {
@@ -30,12 +30,20 @@ export enum GroupBy {
 }
 
 export class DateRangeQueryDto {
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : value,
+  )
+  @IsOptional()
   @IsDateString()
-  fromDate!: string;
+  fromDate?: string;
 
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : value,
+  )
+  @IsOptional()
   @IsDateString()
   @Validate(IsAfterFromDate)
-  toDate!: string;
+  toDate?: string;
 }
 
 export class RevenueChartQueryDto extends DateRangeQueryDto {

@@ -144,9 +144,9 @@ export const TaskerListTable: React.FC<TaskerListTableProps> = ({
       render: (row) => (
         <button
           type="button"
-          onClick={() => window.open(`/admin/taskers/${row.id}`, "_blank")}
+          onClick={() => router.push(`/admin/taskers/${row.id}`)}
           className="flex items-center gap-3 text-left cursor-pointer group"
-          title="Mở chi tiết Tasker trong tab mới"
+          title="Xem chi tiết Tasker"
         >
           <div className="relative w-9 h-9 rounded-xl bg-[var(--c-primary-soft)] text-[var(--c-primary-strong)] flex items-center justify-center font-bold text-xs shrink-0 group-hover:ring-2 group-hover:ring-[var(--c-primary-strong)] transition-all">
             {row.avatarUrl ? (
@@ -266,7 +266,7 @@ export const TaskerListTable: React.FC<TaskerListTableProps> = ({
       type: "view",
       label: "Xem chi tiết",
       icon: Eye,
-      onClick: (row) => window.open(`/admin/taskers/${row.id}`, "_blank"),
+      onClick: (row) => router.push(`/admin/taskers/${row.id}`),
     },
     {
       type: "approve",
@@ -282,7 +282,7 @@ export const TaskerListTable: React.FC<TaskerListTableProps> = ({
       label: "Duyệt Premium",
       icon: Crown,
       onClick: (row) =>
-        window.open(`/admin/taskers/${row.id}?tab=premium`, "_blank"),
+        router.push(`/admin/taskers/${row.id}?tab=premium`),
       hidden: (row) => row.equipment?.status !== "PENDING",
     },
     {

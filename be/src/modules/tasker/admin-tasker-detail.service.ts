@@ -10,6 +10,7 @@ import { TaskerEntity } from './entity/tasker.entity';
 import { WalletEntity } from '../wallet/entity/wallet.entity';
 import { WalletTransactionEntity } from '../wallet/entity/wallet-transaction.entity';
 import { WalletOwnerType } from '../../common/enums/wallet-owner-type.enum';
+import { WalletTransactionType } from '../../common/enums/wallet-transaction-type.enum';
 @Injectable()
 export class AdminTaskerDetailService {
   constructor(
@@ -124,17 +125,119 @@ export class AdminTaskerDetailService {
       take: 50, // Get last 50 transactions
     });
 
+    const creditTypes = new Set<string>([
+      WalletTransactionType.TASKER_EARNING,
+      WalletTransactionType.DEPOSIT,
+      WalletTransactionType.REFUND,
+      WalletTransactionType.DEPOSIT_RELEASE,
+    ]);
+
     return {
       data: transactions.map((tx) => ({
         id: tx.id,
         date: tx.createdAt,
         type: tx.type,
         label: tx.description || tx.type,
-        amount: Number(tx.amount),
-        isPositive: Number(tx.amount) > 0,
+        amount: Math.abs(Number(tx.amount)),
+        isPositive: creditTypes.has(tx.type),
         balance: Number(tx.balanceAfter),
-        status: 'SUCCESS', // Mock status for now as wallet transactions are completed upon creation
+        status: 'SUCCESS',
       })),
+    };
+  }
+
+  async getTaskerWalletCashflowChart(
+    taskerId: string,
+    fromDate?: string,
+    toDate?: string,
+  ): Promise<{
+    data: Array<{
+      date: string;
+      plusAmount: number;
+      minusAmount: number;
+      netChange: number;
+    }>;
+    summary: {
+      totalPlus: number;
+      totalMinus: number;
+      netTotal: number;
+    };
+  }> {
+    const wallet = await this.walletRepository.findOne({
+      where: { tasker: { id: taskerId }, ownerType: WalletOwnerType.TASKER },
+    });
+    if (!wallet) {
+      return {
+        data: [],
+        summary: { totalPlus: 0, totalMinus: 0, netTotal: 0 },
+      };
+    }
+
+    const query = this.walletTransactionRepository
+      .createQueryBuilder('tx')
+      .where('tx.wallet = :walletId', { walletId: wallet.id });
+
+    if (fromDate && toDate) {
+      const toDateEnd = `${toDate.substring(0, 10)} 23:59:59.999`;
+      query.andWhere('tx.createdAt BETWEEN :from AND :to', {
+        from: fromDate,
+        to: toDateEnd,
+      });
+    }
+
+    const transactions = await query
+      .orderBy('tx.createdAt', 'ASC')
+      .getMany();
+
+    const creditTypes = new Set<string>([
+      WalletTransactionType.TASKER_EARNING,
+      WalletTransactionType.DEPOSIT,
+      WalletTransactionType.REFUND,
+      WalletTransactionType.DEPOSIT_RELEASE,
+    ]);
+
+    const grouped: Record<
+      string,
+      { date: string; plusAmount: number; minusAmount: number }
+    > = {};
+
+    let totalPlus = 0;
+    let totalMinus = 0;
+
+    for (const tx of transactions) {
+      const d = tx.createdAt ? new Date(tx.createdAt) : new Date();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${d.getFullYear()}-${m}-${day}`;
+
+      if (!grouped[dateStr]) {
+        grouped[dateStr] = { date: dateStr, plusAmount: 0, minusAmount: 0 };
+      }
+
+      const amt = Math.abs(Number(tx.amount));
+      if (creditTypes.has(tx.type)) {
+        grouped[dateStr].plusAmount += amt;
+        totalPlus += amt;
+      } else {
+        grouped[dateStr].minusAmount += amt;
+        totalMinus += amt;
+      }
+    }
+
+    const chartItems = Object.values(grouped)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((item) => ({
+        ...item,
+        netChange: item.plusAmount - item.minusAmount,
+      }));
+
+    return {
+      data: chartItems,
+      summary: {
+        totalPlus,
+        totalMinus,
+        netTotal: totalPlus - totalMinus,
+      },
     };
   }
 

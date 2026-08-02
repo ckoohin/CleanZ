@@ -89,6 +89,7 @@ export const navGroups: NavGroup[] = [
         href: A.TASKERS.BASE,
         icon: BadgeCheck,
         children: [
+          { title: "Danh sách Tasker", href: A.TASKERS.BASE },
           { title: "Xác minh KYC", href: A.TASKERS.VERIFICATION },
           { title: "Duyệt Premium", href: A.TASKERS.PREMIUM },
         ],

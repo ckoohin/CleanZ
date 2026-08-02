@@ -62,7 +62,7 @@ export function useAdminTaskerEarnings(id: string, range: TaskerEarningsQuery) {
   return useQuery({
     queryKey: adminTaskerKeys.earnings(id, range),
     queryFn: () => adminTaskerApi.getTaskerEarnings(id, range),
-    enabled: !!id && !!range.fromDate && !!range.toDate,
+    enabled: !!id,
   });
 }
 
@@ -73,7 +73,7 @@ export function useAdminTaskerEarningsDetails(
   return useQuery({
     queryKey: adminTaskerKeys.earningsDetails(id, range),
     queryFn: () => adminTaskerApi.getTaskerEarningsDetails(id, range),
-    enabled: !!id && !!range.fromDate && !!range.toDate,
+    enabled: !!id,
   });
 }
 
@@ -299,6 +299,17 @@ export function useAdminTaskerWalletSummary(id: string) {
   return useQuery({
     queryKey: [...adminTaskerKeys.detail(id), "wallet-summary"],
     queryFn: () => adminTaskerApi.getTaskerWalletSummary(id),
+    enabled: !!id,
+  });
+}
+
+export function useAdminTaskerWalletCashflowChart(
+  id: string,
+  range: TaskerEarningsQuery
+) {
+  return useQuery({
+    queryKey: [...adminTaskerKeys.detail(id), "wallet-cashflow-chart", range],
+    queryFn: () => adminTaskerApi.getTaskerWalletCashflowChart(id, range),
     enabled: !!id,
   });
 }

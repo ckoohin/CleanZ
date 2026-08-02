@@ -173,6 +173,19 @@ export interface TaskerWalletTransaction {
   status: string;
 }
 
+export interface TaskerWalletSummary {
+  balance: number;
+  deposit: number;
+}
+
+export interface TaskerWalletTransactionsResponse {
+  data: TaskerWalletTransaction[];
+}
+
+export interface TaskerWalletSummaryResponse {
+  data: TaskerWalletSummary;
+}
+
 export interface TaskerReviewItem {
   id: string;
   customerName: string;
@@ -192,4 +205,41 @@ export interface TaskerServiceItem {
   passedTrainingAt: string | null;
   requiresCert: boolean;
   certUploaded?: boolean;
+}
+
+// ── Response wrappers ────────────────────────────────────────────────────────
+
+export interface TaskerServicesResponse {
+  data: TaskerServiceItem[];
+}
+
+export interface TaskerScheduleResponse {
+  data: {
+    schedules: TaskerScheduleItem[];
+    coverages: TaskerCoverageItem[];
+  };
+}
+
+export interface TaskerEquipmentsResponse {
+  data: TaskerEquipmentData;
+}
+
+export interface TaskerReviewsResponse {
+  data: TaskerReviewItem[];
+}
+
+export interface TaskerWalletCashflowItem {
+  date: string;
+  plusAmount: number;
+  minusAmount: number;
+  netChange: number;
+}
+
+export interface TaskerWalletCashflowResponse {
+  data: TaskerWalletCashflowItem[];
+  summary: {
+    totalPlus: number;
+    totalMinus: number;
+    netTotal: number;
+  };
 }

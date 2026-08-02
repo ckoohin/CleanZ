@@ -122,11 +122,11 @@ export function RevenueStatsView() {
               <DateRangePicker
                 startDate={dateRange.startDate?.toISOString() ?? ""}
                 endDate={dateRange.endDate?.toISOString() ?? ""}
-                onStartChange={(v) =>
-                  setDateRange((p) => ({ ...p, startDate: new Date(v) }))
-                }
-                onEndChange={(v) =>
-                  setDateRange((p) => ({ ...p, endDate: new Date(v) }))
+                onRangeChange={(startStr, endStr) =>
+                  setDateRange({
+                    startDate: startStr ? new Date(startStr) : null,
+                    endDate: endStr ? new Date(endStr) : null,
+                  })
                 }
                 placeholder="Lọc theo khoảng thời gian"
               />

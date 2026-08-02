@@ -10,6 +10,13 @@ import type {
   TaskerEarningsDetailItem,
   TaskerEarningsQuery,
   TaskerEarningsSummary,
+  TaskerWalletTransactionsResponse,
+  TaskerWalletSummaryResponse,
+  TaskerWalletCashflowResponse,
+  TaskerServicesResponse,
+  TaskerEquipmentsResponse,
+  TaskerScheduleResponse,
+  TaskerReviewsResponse,
 } from "../types/admin-tasker.types";
 
 const BASE = "/tasker/admin";
@@ -118,38 +125,58 @@ export const adminTaskerApi = {
   getTaskerEarnings: (
     id: string,
     params: TaskerEarningsQuery
-  ): Promise<TaskerEarningsSummary> =>
-    http.get(`${BASE}/${id}/earnings`, { params }).then((res) => res.data),
+  ): Promise<TaskerEarningsSummary> => {
+    const cleanParams: Record<string, string> = {};
+    if (params?.fromDate) cleanParams.fromDate = params.fromDate;
+    if (params?.toDate) cleanParams.toDate = params.toDate;
+    return http.get(`${BASE}/${id}/earnings`, { params: cleanParams }).then((res) => res.data);
+  },
 
   getTaskerEarningsDetails: (
     id: string,
     params: TaskerEarningsQuery
-  ): Promise<TaskerEarningsDetailItem[]> =>
-    http
-      .get(`${BASE}/${id}/earnings/details`, { params })
-      .then((res) => res.data),
+  ): Promise<TaskerEarningsDetailItem[]> => {
+    const cleanParams: Record<string, string> = {};
+    if (params?.fromDate) cleanParams.fromDate = params.fromDate;
+    if (params?.toDate) cleanParams.toDate = params.toDate;
+    return http
+      .get(`${BASE}/${id}/earnings/details`, { params: cleanParams })
+      .then((res) => res.data);
+  },
+
+  getTaskerWalletCashflowChart: (
+    id: string,
+    params: TaskerEarningsQuery
+  ): Promise<TaskerWalletCashflowResponse> => {
+    const cleanParams: Record<string, string> = {};
+    if (params?.fromDate) cleanParams.fromDate = params.fromDate;
+    if (params?.toDate) cleanParams.toDate = params.toDate;
+    return http
+      .get(`${BASE}/${id}/wallet/cashflow-chart`, { params: cleanParams })
+      .then((res) => res.data);
+  },
 
   // ==========================================
   // TASKER 360 VIEW
   // ==========================================
-  getTaskerServices: (id: string): Promise<unknown> =>
+  getTaskerServices: (id: string): Promise<TaskerServicesResponse> =>
     http.get(`${BASE}/${id}/services`).then((res) => res.data),
 
   toggleTaskerService: (id: string, serviceId: string, isActive: boolean): Promise<unknown> =>
     http.patch(`${BASE}/${id}/services/${serviceId}/toggle`, { isActive }).then((res) => res.data),
 
-  getTaskerEquipments: (id: string): Promise<unknown> =>
+  getTaskerEquipments: (id: string): Promise<TaskerEquipmentsResponse> =>
     http.get(`${BASE}/${id}/equipments`).then((res) => res.data),
 
-  getTaskerSchedule: (id: string): Promise<unknown> =>
+  getTaskerSchedule: (id: string): Promise<TaskerScheduleResponse> =>
     http.get(`${BASE}/${id}/schedule`).then((res) => res.data),
 
-  getTaskerWalletTransactions: (id: string): Promise<unknown> =>
+  getTaskerWalletTransactions: (id: string): Promise<TaskerWalletTransactionsResponse> =>
     http.get(`${BASE}/${id}/wallet/transactions`).then((res) => res.data),
 
-  getTaskerWalletSummary: (id: string): Promise<unknown> =>
+  getTaskerWalletSummary: (id: string): Promise<TaskerWalletSummaryResponse> =>
     http.get(`${BASE}/${id}/wallet/summary`).then((res) => res.data),
 
-  getTaskerReviews: (id: string): Promise<unknown> =>
+  getTaskerReviews: (id: string): Promise<TaskerReviewsResponse> =>
     http.get(`${BASE}/${id}/reviews`).then((res) => res.data),
 };
