@@ -32,7 +32,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TicketAdminService } from './services/ticket-admin.service';
 import { AdminQueryTicketDto } from './dto/admin-query-ticket.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
-import { AssignTicketDto } from './dto/assign-ticket.dto';
+import { AssignTicketDto, BulkAssignTicketDto } from './dto/assign-ticket.dto';
+import { StatsQueryDto, STATS_DEFAULT_DAYS } from './dto/stats-query.dto';
+import { TicketStatsService } from './services/ticket-stats.service';
 import { ReclassifyTicketDto } from './dto/reclassify-ticket.dto';
 import { CreateTicketAdminDto } from './dto/create-ticket-admin.dto';
 import {
@@ -54,6 +56,7 @@ export class TicketAdminController {
     private readonly adminService: TicketAdminService,
     private readonly resolutionService: TicketResolutionService,
     private readonly configService: TicketConfigService,
+    private readonly statsService: TicketStatsService,
   ) {}
 
   @Get('config')
@@ -87,6 +90,27 @@ export class TicketAdminController {
     @Query() query: AdminQueryTicketDto,
   ) {
     return this.adminService.list(query, adminId);
+  }
+
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Thống kê vận hành: SLA, thời gian xử lý, CSAT (mặc định 30 ngày)',
+  })
+  stats(@Query() query: StatsQueryDto) {
+    const to = query.to ?? new Date();
+    const from =
+      query.from ??
+      new Date(to.getTime() - STATS_DEFAULT_DAYS * 24 * 3600 * 1000);
+    return this.statsService.getStats(from, to);
+  }
+
+  @Patch('bulk/assign')
+  @ApiOperation({ summary: 'Gán hàng loạt ticket đang chọn ở hàng đợi' })
+  bulkAssign(
+    @CurrentUser('id') adminId: string,
+    @Body() dto: BulkAssignTicketDto,
+  ) {
+    return this.adminService.bulkAssign(dto, adminId);
   }
 
   @Get('unread-total')
@@ -212,9 +236,10 @@ export class TicketAdminController {
   @Patch(':id/category')
   @ApiOperation({ summary: 'Phân loại lại ticket (cho OTHER)' })
   reclassify(
+    @CurrentUser('id') adminId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReclassifyTicketDto,
   ) {
-    return this.adminService.reclassify(id, dto);
+    return this.adminService.reclassify(id, dto, adminId);
   }
 }

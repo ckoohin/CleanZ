@@ -29,6 +29,7 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { QueryTicketDto } from './dto/query-ticket.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MarkReadDto } from './dto/mark-read.dto';
+import { ReopenTicketDto } from './dto/reopen-ticket.dto';
 import { SubmitSurveyDto } from './dto/submit-survey.dto';
 import { TicketSurveyService } from './services/ticket-survey.service';
 
@@ -47,6 +48,9 @@ export class TicketController {
 
   @Post()
   @ApiOperation({ summary: 'Tạo ticket khiếu nại từ đơn của tôi' })
+  // Chống spam tạo ticket hàng loạt (mỗi ticket còn kéo theo ảnh lên Cloudinary).
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
+  @UseGuards(ThrottlerGuard)
   create(
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: string,
@@ -69,6 +73,17 @@ export class TicketController {
   @ApiOperation({ summary: 'Tổng số tin chưa đọc (badge)' })
   async unreadTotal(@CurrentUser('id') userId: string) {
     return { count: await this.ticketService.unreadTotal(userId, false) };
+  }
+
+  // LƯU Ý: mọi route tĩnh phải khai báo TRƯỚC `@Get(':id')` — nếu không sẽ bị
+  // match vào `:id` và ParseUUIDPipe trả 400.
+  @Get('eligible-bookings')
+  @ApiOperation({
+    summary:
+      'Đơn có thể khiếu nại (select "Đơn liên quan") — dùng chung customer & tasker',
+  })
+  eligibleBookings(@CurrentUser('id') userId: string) {
+    return this.ticketService.listEligibleBookings(userId);
   }
 
   @Get(':id')
@@ -115,6 +130,20 @@ export class TicketController {
     return this.ticketService.markThreadRead(userId, id, dto);
   }
 
+  @Post(':id/reopen')
+  @ApiOperation({
+    summary: 'Người gửi mở lại ticket đã đóng (trong hạn cho phép)',
+  })
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
+  @UseGuards(ThrottlerGuard)
+  reopen(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReopenTicketDto,
+  ) {
+    return this.ticketService.reopenByUser(userId, id, dto.reason);
+  }
+
   @Post(':id/survey')
   @ApiOperation({ summary: 'Gửi đánh giá hài lòng (CSAT)' })
   submitSurvey(
@@ -128,6 +157,9 @@ export class TicketController {
   @Post(':id/attachments')
   @ApiOperation({ summary: 'Upload ảnh bằng chứng' })
   @ApiConsumes('multipart/form-data')
+  // Ảnh đi thẳng lên Cloudinary — giới hạn để không ai đốt quota bằng vòng lặp.
+  @Throttle({ default: { limit: 30, ttl: 600_000 } })
+  @UseGuards(ThrottlerGuard)
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   uploadAttachment(
     @CurrentUser('id') userId: string,

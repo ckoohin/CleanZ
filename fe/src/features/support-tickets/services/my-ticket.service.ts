@@ -17,21 +17,25 @@ const EP = API_ENDPOINTS.SUPPORT_TICKETS;
 
 export interface MyBookingOption {
   id: string;
-  bookingCode: string;
+  bookingCode: string | null;
   status: string;
   scheduledStart: string | null;
   serviceName: string | null;
+  /** Vai của tôi trong đơn — tasker và customer dùng chung một select. */
+  myRole: "CUSTOMER" | "TASKER";
 }
 
 export const myTicketApi = {
-  /** Booking của khách (cho select khi tạo ticket). */
+  /**
+   * Đơn có thể khiếu nại (select "Đơn liên quan").
+   * Dùng endpoint của chính module ticket — hoạt động cho CẢ customer lẫn tasker
+   * và đã lọc sẵn đơn quá hạn khiếu nại. Trước đây gọi `/booking/my-bookings`
+   * (chỉ mở cho CUSTOMER) nên tasker nhận 403 và không tạo được ticket gắn đơn.
+   */
   listMyBookings: (): Promise<MyBookingOption[]> =>
     http
-      .get<{ items: MyBookingOption[]; total: number }>(API_ENDPOINTS.BOOKING.MY_LIST)
-      .then((r) => {
-        const res = r.data as unknown as { items: MyBookingOption[] };
-        return res.items ?? [];
-      }),
+      .get<MyBookingOption[]>(API_ENDPOINTS.SUPPORT_TICKETS.ELIGIBLE_BOOKINGS)
+      .then((r) => r.data ?? []),
 
   /** Tạo ticket khiếu nại từ đơn của tôi */
   create: (dto: CreateTicketDto): Promise<MyTicketDetail> =>
@@ -62,6 +66,10 @@ export const myTicketApi = {
   /** Tổng số tin chưa đọc trên tất cả ticket của tôi (badge nav) */
   unreadTotal: (): Promise<{ count: number }> =>
     http.get<{ count: number }>(EP.UNREAD_TOTAL).then((r) => r.data),
+
+  /** Người gửi mở lại ticket đã đóng (kèm lý do, BE kiểm hạn mở lại) */
+  reopen: (id: string, reason: string): Promise<MyTicketDetail> =>
+    http.post<MyTicketDetail>(EP.REOPEN(id), { reason }).then((r) => r.data),
 
   /** Gửi đánh giá hài lòng (CSAT) */
   submitSurvey: (id: string, dto: SubmitSurveyDto): Promise<{ message: string }> =>

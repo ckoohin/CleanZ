@@ -10,6 +10,13 @@ import {
 
 /** Tiền tố đánh dấu giá trị đã mã hoá (versioned envelope). */
 const PREFIX = 'enc:v1:';
+
+/**
+ * Trả về khi KHÔNG giải mã được (mất khoá, xoay khoá, ciphertext hỏng).
+ * Trước đây trả chuỗi rỗng — không phân biệt được với "tin nhắn trống", nên cả
+ * lịch sử chat có thể im lặng biến thành rỗng mà không ai nhận ra.
+ */
+export const DECRYPT_FAILED = '[Không giải mã được nội dung tin nhắn]';
 const OAEP = {
   padding: constants.RSA_PKCS1_OAEP_PADDING,
   oaepHash: 'sha256' as const,
@@ -45,6 +52,14 @@ export class MessageCryptoService {
     this.publicKey = normalizePem(process.env.TICKET_MSG_PUBLIC_KEY);
     this.privateKey = normalizePem(process.env.TICKET_MSG_PRIVATE_KEY);
     if (!this.enabled) {
+      // Ở production, thiếu khoá nghĩa là TOÀN BỘ nội dung khiếu nại được lưu
+      // thô mà không ai hay biết — đó là sự cố bảo mật, không phải cảnh báo.
+      // Dừng ngay lúc khởi động để lỗi cấu hình lộ ra trước khi có dữ liệu thật.
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'Thiếu TICKET_MSG_PUBLIC_KEY/TICKET_MSG_PRIVATE_KEY — không thể bật mã hoá tin nhắn ticket at-rest.',
+        );
+      }
       this.logger.warn(
         'TICKET_MSG_PUBLIC_KEY/TICKET_MSG_PRIVATE_KEY chưa cấu hình — ' +
           'tin nhắn ticket sẽ lưu DẠNG THƯỜNG. Cấu hình cặp khoá RSA để bật mã hoá at-rest.',
@@ -90,7 +105,7 @@ export class MessageCryptoService {
     if (stored == null || !stored.startsWith(PREFIX)) return stored;
     if (!this.privateKey) {
       this.logger.error('Nhận ciphertext nhưng thiếu private key để giải mã');
-      return '';
+      return DECRYPT_FAILED;
     }
     try {
       const json = Buffer.from(stored.slice(PREFIX.length), 'base64').toString(
@@ -118,7 +133,7 @@ export class MessageCryptoService {
       ]).toString('utf8');
     } catch (e) {
       this.logger.error('Giải mã tin nhắn thất bại', e as Error);
-      return '';
+      return DECRYPT_FAILED;
     }
   }
 

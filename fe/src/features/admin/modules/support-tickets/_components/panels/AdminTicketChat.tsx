@@ -60,8 +60,15 @@ function AdminThreadPanel({
           audience,
           lastMessageId: dto.lastMessageId,
         });
-        // Đọc xong → cập nhật badge hàng đợi admin.
-        queryClient.invalidateQueries({ queryKey: ["admin-support-tickets"] });
+        // Chỉ làm mới DANH SÁCH + badge, không đụng `detail` — invalidate cả
+        // tiền tố `admin-support-tickets` sẽ refetch luôn chi tiết ticket đang
+        // mở, mà chính nó lại sinh ra lượt markRead kế tiếp.
+        queryClient.invalidateQueries({
+          queryKey: ["admin-support-tickets", "list"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["admin-support-tickets", "unread-total"],
+        });
         return res;
       },
       loadOlder: (beforeId) =>
@@ -89,6 +96,7 @@ function AdminThreadPanel({
       <TicketChatBox
         ticketId={ticket.id}
         currentUserId={currentUserId}
+        currentUserRole="ADMIN"
         initialMessages={messages}
         api={api}
         audience={audience}
@@ -122,20 +130,20 @@ export const AdminTicketChat: React.FC<{ ticket: TicketAdminDetail }> = ({
       [
         {
           key: "REPORTER" as TicketAudience,
-          label: ticket.reporter?.fullName
-            ? `Người báo cáo`
-            : "Người báo cáo",
+          // Hiện TÊN người báo cáo khi có — biết đang chat với ai quan trọng hơn
+          // nhãn vai chung chung (trước đây ternary hai nhánh giống hệt nhau).
+          label: ticket.reporter?.fullName ?? "Người báo cáo",
           icon: User,
           disabled: false,
         },
         {
           key: "COUNTERPARTY" as TicketAudience,
-          label: "Đối tượng",
+          label: ticket.counterparty?.fullName ?? "Đối tượng",
           icon: Users,
           disabled: !hasCounterparty,
         },
       ] as const,
-    [ticket.reporter?.fullName, hasCounterparty],
+    [ticket.reporter?.fullName, ticket.counterparty?.fullName, hasCounterparty],
   );
 
   const [active, setActive] = useState<TicketAudience>("REPORTER");
@@ -165,8 +173,8 @@ export const AdminTicketChat: React.FC<{ ticket: TicketAdminDetail }> = ({
                   : "text-[var(--c-muted)]"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label} ({count(t.key)})
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{t.label}</span> ({count(t.key)})
             </button>
           );
         })}

@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X } from "lucide-react";
+import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X, AlertCircle, Clock } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
-import { useMyTicketList, useCreateTicket, useMyBookings, useMyTicketUnreadRealtime } from "@/features/support-tickets/hooks/useMyTicket";
+import { useMyTicketInfiniteList, useCreateTicket, useMyBookings, useMyTicketUnreadRealtime } from "@/features/support-tickets/hooks/useMyTicket";
 import { myTicketApi } from "@/features/support-tickets/services/my-ticket.service";
 import { toast } from "@/lib/toast";
 import type {
@@ -15,26 +15,37 @@ import type {
   CreateTicketDto,
 } from "@/features/support-tickets/types/my-ticket.types";
 import {
-  CATEGORY_OPTIONS,
-  CATEGORY_LABEL,
+  categoryOptionsFor,
+  categoryLabelFor,
+  pendingHintFor,
   STATUS_LABEL,
   STATUS_TONE,
   PRIORITY_LABEL,
   TONE_BADGE_CLASS,
 } from "@/features/support-tickets/shared/ticket.labels";
 import { NO_BOOKING_CATEGORIES } from "@/features/support-tickets/shared/ticket.enums";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
+
+/** Vai của người đang dùng màn hình này (customer app vs tasker app). */
+type ViewerRole = "CUSTOMER" | "TASKER";
+
+/** Ẩn scrollbar nhưng vẫn cuộn được (hàng tab trạng thái cuộn ngang). */
+const SCROLLBAR_HIDDEN =
+  "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
 
 function CreateTicketSheet({
   open,
   onClose,
+  viewerRole,
 }: {
   open: boolean;
   onClose: () => void;
+  viewerRole: ViewerRole;
 }) {
   const createTicket = useCreateTicket();
   const searchParams = useSearchParams();
   const { data: bookings, isLoading: bookingsLoading } = useMyBookings(open);
-  const [images, setImages] = useState<File[]>([]);
+  const [images, setImages] = useState<{ file: File; url: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<{
     category: TicketCategory | "";
@@ -62,12 +73,50 @@ function CreateTicketSheet({
     }
   }, [open, searchParams]);
 
+  // Giữ blob URL cùng file để thu hồi được (gọi createObjectURL thẳng trong JSX
+  // sẽ sinh blob mới mỗi lần re-render và không bao giờ giải phóng).
+  useEffect(
+    () => () => images.forEach((p) => URL.revokeObjectURL(p.url)),
+    [images],
+  );
+
   const addImages = (files: FileList | null) => {
     if (!files) return;
-    const picked = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    setImages((prev) => [...prev, ...picked].slice(0, 5));
+    const chosen = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    setImages((prev) => {
+      const room = 5 - prev.length;
+      return [
+        ...prev,
+        ...chosen
+          .slice(0, Math.max(0, room))
+          .map((file) => ({ file, url: URL.createObjectURL(file) })),
+      ];
+    });
   };
-  const removeImage = (idx: number) => setImages((prev) => prev.filter((_, i) => i !== idx));
+  const removeImage = (idx: number) =>
+    setImages((prev) => {
+      URL.revokeObjectURL(prev[idx].url);
+      return prev.filter((_, i) => i !== idx);
+    });
+
+  // Loại vấn đề lọc theo vai: tasker không tự khiếu nại chất lượng/hành vi của
+  // chính mình. Nhãn cũng đổi theo vai cho khỏi hiểu ngược chiều.
+  const categoryOptions = React.useMemo(
+    () =>
+      categoryOptionsFor(viewerRole).map((o) => ({
+        ...o,
+        label: categoryLabelFor(o.value, viewerRole),
+      })),
+    [viewerRole],
+  );
+
+  // Đổi vai (hiếm, nhưng có thể xảy ra khi chuyển tài khoản) mà category đang
+  // chọn không còn hợp lệ → bỏ chọn để không gửi lên loại bị ẩn.
+  React.useEffect(() => {
+    if (form.category && !categoryOptions.some((o) => o.value === form.category)) {
+      setForm((p) => ({ ...p, category: "", bookingId: "" }));
+    }
+  }, [categoryOptions, form.category]);
 
   // bookingId bắt buộc trừ category ∈ {ACCOUNT_TECHNICAL, OTHER} (spec §1.1)
   const requiresBooking =
@@ -88,19 +137,24 @@ function CreateTicketSheet({
 
     if (images.length > 0 && created?.id) {
       setUploading(true);
-      try {
-        for (const file of images) {
-          await myTicketApi.uploadAttachment(created.id, file);
-        }
-      } catch {
-        toast.error("Tạo ticket thành công nhưng có ảnh tải lên thất bại");
-      } finally {
-        setUploading(false);
+      // Tải SONG SONG: vòng lặp await tuần tự khiến 5 ảnh phải chờ 5 lượt
+      // round-trip nối đuôi nhau. `allSettled` để một ảnh hỏng không chặn ảnh
+      // còn lại, rồi báo đúng số ảnh thất bại.
+      const results = await Promise.allSettled(
+        images.map((p) => myTicketApi.uploadAttachment(created.id, p.file)),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(
+          `Tạo yêu cầu thành công nhưng ${failed}/${images.length} ảnh tải lên thất bại`,
+        );
       }
+      setUploading(false);
     }
 
     onClose();
     setForm({ category: "", subject: "", description: "", bookingId: "" });
+    images.forEach((p) => URL.revokeObjectURL(p.url));
     setImages([]);
   };
 
@@ -140,7 +194,7 @@ function CreateTicketSheet({
                     Loại vấn đề *
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {CATEGORY_OPTIONS.map((opt) => (
+                    {categoryOptions.map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() =>
@@ -210,9 +264,11 @@ function CreateTicketSheet({
                       </option>
                       {(bookings ?? []).map((b) => (
                         <option key={b.id} value={b.id}>
-                          {b.bookingCode}
+                          {b.bookingCode ?? b.id.slice(0, 8)}
                           {b.serviceName ? ` · ${b.serviceName}` : ""}
-                          {` · ${b.status}`}
+                          {b.scheduledStart
+                            ? ` · ${new Date(b.scheduledStart).toLocaleDateString("vi-VN")}`
+                            : ""}
                         </option>
                       ))}
                     </select>
@@ -230,10 +286,10 @@ function CreateTicketSheet({
                     Hình ảnh đính kèm (tối đa 5)
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {images.map((file, idx) => (
-                      <div key={idx} className="relative size-16 overflow-hidden rounded-xl border border-border/50">
+                    {images.map((p, idx) => (
+                      <div key={p.url} className="relative size-16 overflow-hidden rounded-xl border border-border/50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={URL.createObjectURL(file)} alt="đính kèm" className="size-full object-cover" />
+                        <img src={p.url} alt="đính kèm" className="size-full object-cover" />
                         <button
                           type="button"
                           aria-label="Xoá ảnh"
@@ -285,7 +341,22 @@ function CreateTicketSheet({
 }
 
 // ─── Ticket Card ──────────────────────────────────────────────────────────────
-function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () => void }) {
+function TicketCard({
+  ticket,
+  viewerRole,
+  onClick,
+}: {
+  ticket: MyTicketSummary;
+  viewerRole: ViewerRole;
+  onClick: () => void;
+}) {
+  // Ticket nhắm VÀO người xem — cần nổi bật vì đây là loại cần họ phản hồi.
+  const isAboutMe = ticket.myRole === "COUNTERPARTY";
+  // "Tạm chờ" mà không nói chờ AI thì vô dụng — làm rõ bóng đang ở sân ai.
+  const pendingHint =
+    ticket.status === "PENDING"
+      ? pendingHintFor(ticket.pendingReason, ticket.awaitingMe)
+      : null;
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -296,11 +367,22 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          {/* Code + priority */}
-          <div className="flex items-center gap-1.5 mb-1">
+          {/* Code + vai + priority */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-1">
             {ticket.ticketCode && (
               <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">
                 {ticket.ticketCode}
+              </span>
+            )}
+            {ticket.myRole && (
+              <span
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                  isAboutMe
+                    ? "text-amber-700 dark:text-amber-400 bg-amber-500/10"
+                    : "text-muted-foreground bg-muted"
+                }`}
+              >
+                {isAboutMe ? "Về bạn" : "Bạn gửi"}
               </span>
             )}
             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
@@ -315,7 +397,7 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
 
           <h3 className="font-semibold text-sm text-foreground line-clamp-1">{ticket.subject}</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {CATEGORY_LABEL[ticket.category]}
+            {categoryLabelFor(ticket.category, viewerRole)}
           </p>
         </div>
 
@@ -336,6 +418,23 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
         </div>
       </div>
 
+      {pendingHint && (
+        <div
+          className={`mt-2.5 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+            pendingHint.urgent
+              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {pendingHint.urgent ? (
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          ) : (
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+          )}
+          {pendingHint.text}
+        </div>
+      )}
+
       <div className="flex items-center justify-end mt-3 pt-3 border-t border-border/30">
         <span className="text-xs text-primary font-semibold flex items-center gap-0.5">
           {!!ticket.unreadCount && ticket.unreadCount > 0
@@ -349,7 +448,15 @@ function TicketCard({ ticket, onClick }: { ticket: MyTicketSummary; onClick: () 
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type FilterTab = "ALL" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+/**
+ * Tab trạng thái — phủ ĐỦ 5 trạng thái của vòng đời. Trước đây thiếu `NEW` và
+ * `PENDING`: ticket vừa gửi (NEW) hoặc đang chờ chính người dùng phản hồi
+ * (PENDING — trạng thái cần họ hành động nhất) chỉ lọt vào mục "Tất cả".
+ * BE chỉ nhận MỘT `status` nên mỗi tab ánh xạ 1-1, không gộp nhóm.
+ */
+type FilterTab = "ALL" | TicketStatus;
+/** Phạm vi: tất cả / ticket tôi gửi / khiếu nại nhắm vào tôi. */
+type ScopeTab = "ALL" | "reporter" | "counterparty";
 
 interface MyTicketListPageProps {
   /**
@@ -365,8 +472,12 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
+  const [scope, setScope] = useState<ScopeTab>("ALL");
   const [showCreate, setShowCreate] = useState(false);
   useMyTicketUnreadRealtime(); // tin mới → badge ngoài ticket cập nhật tức thì
+
+  const { data: me } = useAuth();
+  const viewerRole: ViewerRole = me?.role === "TASKER" ? "TASKER" : "CUSTOMER";
 
   // Tự động mở Modal tạo mới nếu phát hiện có tham số khiếu nại đơn từ URL
   React.useEffect(() => {
@@ -377,27 +488,66 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   }, [searchParams]);
 
   const statusFilter: TicketStatus | undefined =
-    activeTab === "ALL" ? undefined :
-    activeTab === "IN_PROGRESS" ? "IN_PROGRESS" :
-    activeTab === "RESOLVED" ? "RESOLVED" : "CLOSED";
+    activeTab === "ALL" ? undefined : activeTab;
 
-  const { data, isLoading } = useMyTicketList({
-    page: 1,
-    limit: 20,
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useMyTicketInfiniteList({
     ...(statusFilter && { status: statusFilter }),
+    ...(scope !== "ALL" && { role: scope }),
   });
 
+  // Gộp các trang đã tải; `total` lấy ở trang đầu để hiện "đã xem X/Y".
+  const tickets = React.useMemo(
+    () => data?.pages.flatMap((p) => p.data) ?? [],
+    [data],
+  );
+  const total = data?.pages[0]?.meta.total ?? 0;
+  const isFiltering = activeTab !== "ALL" || scope !== "ALL";
+
+  // Tự tải trang kế khi chạm đáy (rootMargin để nạp TRƯỚC khi người dùng thấy
+  // khoảng trống). Nút "Xem thêm" bên dưới là đường dự phòng khi IO không chạy.
+  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void fetchNextPage();
+      },
+      { rootMargin: "240px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Ánh xạ 1-1 với TicketStatus — đủ vòng đời, không gộp nhóm.
   const tabs: { key: FilterTab; label: string }[] = [
     { key: "ALL", label: "Tất cả" },
-    { key: "IN_PROGRESS", label: "Đang xử lý" },
-    { key: "RESOLVED", label: "Đã xử lý" },
-    { key: "CLOSED", label: "Đã đóng" },
+    { key: "NEW", label: STATUS_LABEL.NEW },
+    { key: "IN_PROGRESS", label: STATUS_LABEL.IN_PROGRESS },
+    { key: "PENDING", label: STATUS_LABEL.PENDING },
+    { key: "RESOLVED", label: STATUS_LABEL.RESOLVED },
+    { key: "CLOSED", label: STATUS_LABEL.CLOSED },
+  ];
+
+  const scopeTabs: { key: ScopeTab; label: string }[] = [
+    { key: "ALL", label: "Tất cả" },
+    { key: "reporter", label: "Tôi gửi" },
+    {
+      key: "counterparty",
+      label: viewerRole === "TASKER" ? "Khiếu nại về tôi" : "Liên quan tới tôi",
+    },
   ];
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm sticky top-0 z-20">
+      <div className="bg-card px-4 pt-[max(3rem,env(safe-area-inset-top))] pb-4 shadow-sm sticky top-0 z-20">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <button
@@ -416,13 +566,36 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
           </button>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex bg-muted p-1 rounded-xl gap-1">
+        {/* Phạm vi: tôi gửi vs nhắm vào tôi (BE: ?role=reporter|counterparty) */}
+        <div className="mb-2 flex gap-1.5 overflow-x-auto">
+          {scopeTabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setScope(t.key)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+                scope === t.key
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter Tabs — 6 mục nên cuộn ngang thay vì chia đều (chữ bị vỡ dòng) */}
+        <div
+          className={`flex gap-1 rounded-xl bg-muted p-1 overflow-x-auto ${SCROLLBAR_HIDDEN}`}
+          role="tablist"
+          aria-label="Lọc theo trạng thái"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.key}
+              role="tab"
+              aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-all ${
                 activeTab === tab.key
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground"
@@ -440,7 +613,7 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-card rounded-2xl border border-border/50 p-4 h-28 animate-pulse" />
           ))
-        ) : !data?.data?.length ? (
+        ) : tickets.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -449,38 +622,96 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
               <HeadphonesIcon className="w-8 h-8 text-primary" />
             </div>
-            <h3 className="font-bold text-foreground mb-1">Chưa có yêu cầu nào</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mb-6">
-              Nếu bạn gặp vấn đề, hãy tạo yêu cầu hỗ trợ — chúng tôi sẽ phản hồi sớm nhất!
-            </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl shadow-md shadow-primary/25"
-            >
-              <Plus className="w-4 h-4" /> Tạo yêu cầu đầu tiên
-            </button>
+            {/* Rỗng do BỘ LỌC khác hẳn rỗng do CHƯA CÓ ticket nào — không mời
+                "tạo yêu cầu đầu tiên" với người đang lọc mà đã có ticket khác. */}
+            {isFiltering ? (
+              <>
+                <h3 className="font-bold text-foreground mb-1">
+                  Không có yêu cầu nào ở mục này
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                  Thử chọn mục khác hoặc xem tất cả yêu cầu của bạn.
+                </p>
+                <button
+                  onClick={() => {
+                    setActiveTab("ALL");
+                    setScope("ALL");
+                  }}
+                  className="rounded-2xl border border-border px-6 py-3 text-sm font-bold text-foreground"
+                >
+                  Xoá bộ lọc
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold text-foreground mb-1">Chưa có yêu cầu nào</h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                  Nếu bạn gặp vấn đề, hãy tạo yêu cầu hỗ trợ — chúng tôi sẽ phản hồi sớm nhất!
+                </p>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl shadow-md shadow-primary/25"
+                >
+                  <Plus className="w-4 h-4" /> Tạo yêu cầu đầu tiên
+                </button>
+              </>
+            )}
           </motion.div>
         ) : (
-          <AnimatePresence mode="popLayout">
-            {data.data.map((ticket, index) => (
-              <motion.div
-                key={ticket.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <TicketCard
-                  ticket={ticket}
-                  onClick={() => router.push(`${basePath}/${ticket.id}`)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          <>
+            <AnimatePresence mode="popLayout">
+              {tickets.map((ticket, index) => (
+                <motion.div
+                  key={ticket.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  // Chỉ trễ theo thứ tự TRONG TRANG ĐẦU — trang tải thêm hiện
+                  // ngay, tránh chờ dồn khi danh sách đã dài.
+                  transition={{ delay: Math.min(index, 5) * 0.05 }}
+                >
+                  <TicketCard
+                    ticket={ticket}
+                    viewerRole={viewerRole}
+                    onClick={() => router.push(`${basePath}/${ticket.id}`)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Mốc kích hoạt tải trang kế + nút dự phòng */}
+            <div ref={loadMoreRef} className="pt-1">
+              {isFetchingNextPage ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-28 animate-pulse rounded-2xl border border-border/50 bg-card"
+                    />
+                  ))}
+                </div>
+              ) : hasNextPage ? (
+                <button
+                  onClick={() => void fetchNextPage()}
+                  className="w-full rounded-2xl border border-border bg-card py-3 text-sm font-bold text-primary"
+                >
+                  Xem thêm
+                </button>
+              ) : (
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  Đã hiển thị tất cả {total} yêu cầu
+                </p>
+              )}
+            </div>
+          </>
         )}
       </div>
 
       {/* Create Sheet */}
-      <CreateTicketSheet open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateTicketSheet
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        viewerRole={viewerRole}
+      />
     </div>
   );
 };

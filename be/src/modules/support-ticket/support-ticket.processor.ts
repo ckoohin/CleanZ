@@ -13,6 +13,7 @@ import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum
 import {
   ST_JOB_AUTO_CLOSE,
   ST_JOB_CSAT_INVITE,
+  ST_JOB_FIRST_RESPONSE_BREACH,
   ST_JOB_SLA_BREACH,
   SUPPORT_TICKET_QUEUE,
 } from './support-ticket.constants';
@@ -42,6 +43,9 @@ export class SupportTicketProcessor extends WorkerHost {
     switch (job.name) {
       case ST_JOB_SLA_BREACH:
         await this.handleBreach(ticketId);
+        break;
+      case ST_JOB_FIRST_RESPONSE_BREACH:
+        await this.handleFirstResponseBreach(ticketId);
         break;
       case ST_JOB_AUTO_CLOSE:
         await this.handleAutoClose(ticketId);
@@ -78,6 +82,45 @@ export class SupportTicketProcessor extends WorkerHost {
         ticketId,
         'Ticket vi phạm SLA',
         t.ticketCode,
+      );
+    }
+  }
+
+  /**
+   * Quá hạn PHẢN HỒI LẦN ĐẦU. Bỏ qua nếu admin đã trả lời, ticket đã xong, hoặc
+   * đã đánh dấu rồi (job có thể chạy lại sau retry). Cảnh báo cho admin phụ
+   * trách; nếu ticket còn chưa ai nhận thì báo cho toàn phòng admin, vì đây
+   * chính là tình huống "ticket bị bỏ quên" mà SLA phản hồi sinh ra để bắt.
+   */
+  private async handleFirstResponseBreach(ticketId: string): Promise<void> {
+    const t = await this.ticketRepo.findOne({
+      where: { id: ticketId },
+      relations: ['assignedAdmin'],
+    });
+    if (!t) return;
+    if (
+      t.firstRespondedAt ||
+      t.firstResponseBreached ||
+      t.status === SupportTicketStatus.RESOLVED ||
+      t.status === SupportTicketStatus.CLOSED
+    ) {
+      return;
+    }
+    t.firstResponseBreached = true;
+    await this.ticketRepo.save(t);
+    this.logger.warn(
+      `[metric] notification.ticket.first_response_breach ticket=${ticketId} priority=${t.priority}`,
+    );
+    if (t.assignedAdmin?.id) {
+      await this.safeNotify(
+        t.assignedAdmin.id,
+        ticketId,
+        'Ticket quá hạn phản hồi lần đầu',
+        t.ticketCode,
+      );
+    } else {
+      this.logger.warn(
+        `[metric] notification.ticket.unassigned_first_response_breach ticket=${ticketId}`,
       );
     }
   }

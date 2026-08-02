@@ -11,8 +11,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AdminButton, StatusBadge as Pill, type BadgeTone } from "@/components/admin";
-import { BaseTableList, type Column, type RowAction } from "@/components/ui/base/base_table_list";
-import { useTicketList, useAdminTicketUnreadRealtime } from "../hooks/useSupportTicket";
+import {
+  BaseTableList,
+  type BulkAction,
+  type Column,
+  type RowAction,
+} from "@/components/ui/base/base_table_list";
+import {
+  useTicketList,
+  useAdminTicketUnreadRealtime,
+  useBulkAssign,
+} from "../hooks/useSupportTicket";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { TicketStatsPanel } from "./TicketStatsPanel";
 import { useAdminList, useCustomerLookup, useBookingLookup } from "../hooks/useAdminLookup";
 import type {
   TicketSummary,
@@ -21,7 +32,7 @@ import type {
   TicketPriority,
   AdminTicketQueryParams,
 } from "../types/support-ticket.types";
-import { AlertTriangle, CheckCircle2, Eye, Plus, ListFilter, Settings, ArrowDownUp, Search, X, StickyNote } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, Plus, ListFilter, Settings, ArrowDownUp, Search, X, StickyNote, UserCheck } from "lucide-react";
 import { SupportTicketDetailDrawer } from "./SupportTicketDetailDrawer";
 import { InternalNotesDrawer } from "./InternalNotesDrawer";
 import { CreateTicketDialog } from "./CreateTicketDialog";
@@ -56,6 +67,58 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 }
 function PriorityBadge({ priority }: { priority: TicketPriority }) {
   return <Pill tone={TONE_TO_CZ[PRIORITY_TONE[priority]]}>{PRIORITY_LABEL[priority]}</Pill>;
+}
+
+/** Mốc thời gian hiện tại, cập nhật mỗi phút (giữ render thuần). */
+function useNow(intervalMs = 60_000): number {
+  const [now, setNow] = useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
+/**
+ * Hạn xử lý dưới dạng "còn bao lâu / trễ bao lâu". Hàng đợi cần thấy ticket SẮP
+ * trễ, không chỉ ticket ĐÃ trễ (badge SLA đỏ chỉ bật sau khi vi phạm).
+ */
+function DueCell({
+  dueAt,
+  breached,
+  now,
+}: {
+  dueAt: string | null;
+  breached: boolean;
+  /** Mốc "bây giờ" truyền từ ngoài — render phải thuần, và nhờ vậy ô tự đếm lùi. */
+  now: number;
+}) {
+  if (!dueAt) return <span className="text-xs text-[var(--c-muted)]">—</span>;
+  const diffMins = (new Date(dueAt).getTime() - now) / 60000;
+  const overdue = diffMins < 0 || breached;
+  const abs = Math.abs(diffMins);
+  const text =
+    abs < 60
+      ? `${Math.round(abs)} phút`
+      : abs < 1440
+        ? `${Math.round(abs / 60)} giờ`
+        : `${Math.round(abs / 1440)} ngày`;
+  // Sắp tới hạn (dưới 4 giờ) cũng cần nổi bật, không đợi tới lúc vi phạm.
+  const soon = !overdue && diffMins < 240;
+  return (
+    <span
+      className={`text-xs font-medium ${
+        overdue
+          ? "text-[#E11D48]"
+          : soon
+            ? "text-[#D97706]"
+            : "text-[var(--c-ink-soft)]"
+      }`}
+      title={new Date(dueAt).toLocaleString("vi-VN")}
+    >
+      {overdue ? `Trễ ${text}` : `Còn ${text}`}
+    </span>
+  );
 }
 
 const SORT_OPTIONS = [
@@ -119,6 +182,25 @@ export const SupportTicketTable: React.FC = () => {
 
   const { data: response, isLoading } = useTicketList(apiParams);
   useAdminTicketUnreadRealtime(); // tin mới của user → badge hàng đợi cập nhật
+  const bulkAssign = useBulkAssign();
+  const { data: me } = useAuth();
+
+  // ── Ô tìm kiếm: gõ cục bộ, đẩy lên URL sau 400ms ──────────────────────────
+  // Trước đây mỗi phím gõ là một lần router.replace + refetch: "TK-2026" = 7
+  // request và 7 mục lịch sử trình duyệt.
+  const urlKeyword = get("q");
+  const [keyword, setKeyword] = useState(urlKeyword);
+  React.useEffect(() => {
+    setKeyword(urlKeyword);
+  }, [urlKeyword]);
+  React.useEffect(() => {
+    if (keyword === urlKeyword) return;
+    const t = setTimeout(() => setParams({ q: keyword || undefined }), 400);
+    return () => clearTimeout(t);
+  }, [keyword, urlKeyword, setParams]);
+
+  const mineActive = !!me?.id && get("assignee") === me.id;
+  const now = useNow();
 
   const columns: Column<TicketSummary>[] = [
     {
@@ -178,6 +260,18 @@ export const SupportTicketTable: React.FC = () => {
       ),
     },
     {
+      key: "resolutionDueAt",
+      title: "Hạn xử lý",
+      hideOnMobile: true,
+      render: (row) => (
+        <DueCell
+          dueAt={row.resolutionDueAt ?? null}
+          breached={row.slaBreached}
+          now={now}
+        />
+      ),
+    },
+    {
       key: "createdAt",
       title: "Ngày tạo",
       hideOnMobile: true,
@@ -189,8 +283,23 @@ export const SupportTicketTable: React.FC = () => {
     },
   ];
 
+  const bulkActions: BulkAction<TicketSummary>[] = [
+    {
+      label: "Nhận xử lý",
+      icon: UserCheck,
+      onClick: (rows) =>
+        bulkAssign.mutate({ ticketIds: rows.map((r) => r.id) }),
+    },
+  ];
+
   const rowActions: RowAction<TicketSummary>[] = [
     { type: "view", label: "Xem chi tiết", icon: Eye, onClick: (row) => setSelectedId(row.id) },
+    {
+      // Nhận ticket ngay ở hàng đợi, không phải mở drawer → tab Hành động → panel.
+      label: "Nhận xử lý",
+      icon: UserCheck,
+      onClick: (row) => bulkAssign.mutate({ ticketIds: [row.id] }),
+    },
     {
       label: "Ghi chú nội bộ",
       icon: StickyNote,
@@ -200,6 +309,8 @@ export const SupportTicketTable: React.FC = () => {
 
   return (
     <>
+      <TicketStatsPanel />
+
       {/* ── Toolbar ── */}
       <div className="mb-4 space-y-3">
         {/* Hàng 1: tìm kiếm + hành động */}
@@ -207,16 +318,16 @@ export const SupportTicketTable: React.FC = () => {
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--c-muted)]" />
             <Input
-              value={get("q")}
-              onChange={(e) => setParams({ q: e.target.value })}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
               placeholder="Tìm theo mã ticket hoặc tiêu đề..."
               className="h-10 rounded-full pl-9 pr-9 text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
             />
-            {get("q") && (
+            {keyword && (
               <button
                 type="button"
                 aria-label="Xoá tìm kiếm"
-                onClick={() => setParams({ q: undefined })}
+                onClick={() => setKeyword("")}
                 className="absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-[var(--c-muted)] hover:bg-[var(--c-card-2)] hover:text-[var(--c-ink)]"
               >
                 <X className="size-3.5" />
@@ -224,6 +335,18 @@ export const SupportTicketTable: React.FC = () => {
             )}
           </div>
           <div className="flex gap-2 sm:ml-auto">
+            {/* Lối tắt hay dùng nhất: hàng đợi của chính mình. */}
+            <AdminButton
+              variant={mineActive ? "primary" : "secondary"}
+              size="sm"
+              className="rounded-full"
+              icon={<UserCheck className="w-3.5 h-3.5" />}
+              onClick={() =>
+                setParams({ assignee: mineActive ? undefined : me?.id })
+              }
+            >
+              Của tôi
+            </AdminButton>
             <AdminButton variant="secondary" size="sm" className="rounded-full" icon={<Settings className="w-3.5 h-3.5" />} onClick={() => setShowConfig(true)}>
               Cấu hình
             </AdminButton>
@@ -372,6 +495,7 @@ export const SupportTicketTable: React.FC = () => {
         emptyTitle="Chưa có ticket nào"
         emptyDescription="Chưa có yêu cầu hỗ trợ nào phù hợp với bộ lọc."
         rowActions={rowActions}
+        bulkActions={bulkActions}
         inlineActionCount={2}
       />
 

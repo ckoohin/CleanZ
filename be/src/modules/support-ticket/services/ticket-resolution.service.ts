@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
@@ -27,8 +32,19 @@ export class TicketResolutionService {
     actingAdminId: string,
   ): Promise<ResolutionView> {
     return asyncHandleOperation(async () => {
-      const ticket = await this.ticketRepo.findOne({ where: { id: ticketId } });
+      const ticket = await this.ticketRepo.findOne({
+        where: { id: ticketId },
+        relations: ['assignedAdmin'],
+      });
       if (!ticket) throw new NotFoundException('Không tìm thấy ticket');
+      // Kết luận xử lý là quyết định nghiệp vụ (có thể kèm tiền) — chỉ người
+      // đang phụ trách được ghi, tránh hai admin cùng chốt hai hướng khác nhau.
+      const owner = ticket.assignedAdmin?.id;
+      if (owner && owner !== actingAdminId) {
+        throw new UnprocessableEntityException(
+          'Ticket đang do admin khác phụ trách. Hãy gán lại cho bạn trước khi ghi kết luận.',
+        );
+      }
 
       let resolution = await this.resolutionRepo.save(
         this.resolutionRepo.create({
@@ -51,17 +67,6 @@ export class TicketResolutionService {
 
       return this.toView(resolution, actingAdminId);
     }, 'Lỗi khi ghi nhận kết luận xử lý');
-  }
-
-  async listByTicket(ticketId: string): Promise<ResolutionView[]> {
-    return asyncHandleOperation(async () => {
-      const rows = await this.resolutionRepo.find({
-        where: { ticket: { id: ticketId } },
-        relations: ['proposedBy'],
-        order: { createdAt: 'ASC' },
-      });
-      return rows.map((r) => this.toView(r, r.proposedBy?.id ?? null));
-    }, 'Lỗi khi lấy kết luận xử lý');
   }
 
   private toView(

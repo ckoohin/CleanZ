@@ -102,10 +102,16 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
                 break;
               }
             }
-            const seenReached =
-              !!otherLastReadId &&
-              messages.findIndex((x) => x.id === otherLastReadId) >=
-                messages.findIndex((x) => x.id === lastMineId);
+            // Chưa có tin nào của mình → không có gì để hiện "đã xem".
+            // (findIndex trả -1 khi không tìm thấy, mà `-1 >= -1` là đúng, nên
+            // thiếu bước kiểm này thì cờ "đã xem" bật sai.)
+            const mineIdx = lastMineId
+              ? messages.findIndex((x) => x.id === lastMineId)
+              : -1;
+            const readIdx = otherLastReadId
+              ? messages.findIndex((x) => x.id === otherLastReadId)
+              : -1;
+            const seenReached = mineIdx >= 0 && readIdx >= mineIdx;
             return messages.map((m) => (
               <div key={m.id} style={OFFSCREEN_SKIP}>
                 <ChatBubble

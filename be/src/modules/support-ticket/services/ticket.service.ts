@@ -5,7 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
@@ -16,14 +16,18 @@ import { SupportTicketEntity } from '../entity/support-ticket.entity';
 import { TicketMessageEntity } from '../entity/ticket-message.entity';
 import { TicketAttachmentEntity } from '../entity/ticket-attachment.entity';
 import { TicketStatusLogEntity } from '../entity/ticket-status-log.entity';
+import { TicketResolutionEntity } from '../entity/ticket-resolution.entity';
 import { CreateTicketDto } from '../dto/create-ticket.dto';
 import { QueryTicketDto } from '../dto/query-ticket.dto';
 import {
+  AttachmentView,
+  EligibleBooking,
   MessagePage,
   PaginatedTickets,
   PublicMessage,
   TicketPublicView,
   toPublicMessages,
+  toPublicResolutions,
   toPublicView,
   toTicketSummary,
 } from '../dto/ticket-response.dto';
@@ -40,6 +44,12 @@ import { TicketThreadReadEntity } from '../entity/ticket-thread-read.entity';
 import { TicketRealtimeService } from '../realtime/ticket-realtime.service';
 import { MarkReadDto } from '../dto/mark-read.dto';
 import { MessageCryptoService } from './message-crypto.service';
+
+/**
+ * Tin KHÔNG do admin gửi. Dùng cho badge chưa đọc phía admin: hàng đợi chỉ nên
+ * sáng lên khi có tin mới từ KHÁCH/TASKER, không phải khi đồng nghiệp trả lời.
+ */
+const NOT_FROM_ADMIN = `(sender.role IS NULL OR sender.role <> 'ADMIN')`;
 
 const NO_BOOKING_CATEGORIES = [
   TicketCategory.ACCOUNT_TECHNICAL,
@@ -69,6 +79,8 @@ export class TicketService {
     @InjectRepository(TicketThreadReadEntity)
     private readonly threadReadRepo: Repository<TicketThreadReadEntity>,
     private readonly crypto: MessageCryptoService,
+    @InjectRepository(TicketResolutionEntity)
+    private readonly resolutionRepo: Repository<TicketResolutionEntity>,
   ) {}
 
   async create(
@@ -155,23 +167,79 @@ export class TicketService {
           }),
         );
 
-        if (dto.attachmentIds?.length) {
+        // Chỉ nhận ảnh CHƯA thuộc ticket nào, CHƯA gắn message và do CHÍNH
+        // người tạo upload — không cho kéo ảnh của ticket/người khác vào đây.
+        const stagedIds = TicketService.normalizeIds(dto.attachmentIds);
+        if (stagedIds.length) {
           await manager
             .getRepository(TicketAttachmentEntity)
             .createQueryBuilder()
             .update()
             .set({ ticket: { id: result.id } })
-            .whereInIds(dto.attachmentIds)
+            .whereInIds(stagedIds)
             .andWhere('ticket_id IS NULL')
+            .andWhere('message_id IS NULL')
+            .andWhere('uploaded_by_user_id = :uid', { uid: reporterUserId })
             .execute();
         }
         return result;
       });
 
       await this.sla.scheduleBreach(saved);
+      await this.sla.scheduleFirstResponse(saved);
 
       return toPublicView(saved, []);
     }, 'Lỗi khi tạo ticket');
+  }
+
+  /**
+   * Danh sách đơn mà NGƯỜI ĐANG ĐĂNG NHẬP được phép khiếu nại — dùng cho select
+   * "Đơn liên quan" ở form tạo ticket.
+   *
+   * Dùng chung cho CUSTOMER và TASKER: điều kiện lấy đơn khớp ĐÚNG luật phân
+   * quyền của {@link create} (là customer HOẶC tasker của đơn), nên FE không cần
+   * rẽ nhánh theo role và không còn phụ thuộc `/booking/my-bookings` vốn chỉ mở
+   * cho CUSTOMER (trước đây tasker nhận 403 → không tạo được ticket gắn đơn).
+   *
+   * Đồng thời LOẠI TRƯỚC các đơn đã hết hạn khiếu nại, để người dùng không chọn
+   * xong mới bị 422 "Quá hạn khiếu nại cho đơn này".
+   */
+  async listEligibleBookings(userId: string): Promise<EligibleBooking[]> {
+    return asyncHandleOperation(async () => {
+      const windowDays = await this.config.getComplaintWindowDays();
+      // Mốc sớm nhất còn khiếu nại được: completedAt phải sau thời điểm này.
+      const earliestCompletedAt = new Date(Date.now() - windowDays * 86400000);
+
+      const rows = await this.bookingRepo
+        .createQueryBuilder('b')
+        .leftJoin('b.customer', 'c')
+        .leftJoin('c.user', 'cu')
+        .leftJoin('b.tasker', 't')
+        .leftJoin('t.user', 'tu')
+        .leftJoin('b.package', 'p')
+        .select([
+          'b.id AS "id"',
+          'b.booking_code AS "bookingCode"',
+          'b.status AS "status"',
+          'b.scheduled_start AS "scheduledStart"',
+          'p.name AS "serviceName"',
+          "CASE WHEN cu.id = :uid THEN 'CUSTOMER' ELSE 'TASKER' END AS \"myRole\"",
+        ])
+        .where('(cu.id = :uid OR tu.id = :uid)', { uid: userId })
+        // Còn trong hạn khiếu nại: chưa hoàn thành, hoặc hoàn thành chưa quá hạn.
+        .andWhere(
+          `(b.status <> :completed OR b.completed_at IS NULL OR b.completed_at > :earliest)`,
+          {
+            completed: BookingStatus.COMPLETED,
+            earliest: earliestCompletedAt,
+          },
+        )
+        .orderBy('b.created_at', 'DESC')
+        .limit(50)
+        .getRawMany<EligibleBooking>();
+
+      return rows;
+    }, 'Lỗi khi lấy danh sách đơn có thể khiếu nại');
   }
 
   async uploadAttachment(
@@ -205,11 +273,14 @@ export class TicketService {
         throw new ConflictException('Ticket đã đóng');
       }
       const body = dto.body?.trim() ?? '';
-      if (!body && !dto.attachmentIds?.length) {
+      const attachmentIds = TicketService.normalizeIds(dto.attachmentIds);
+      if (!body && attachmentIds.length === 0) {
         throw new UnprocessableEntityException(
           'Tin nhắn phải có nội dung hoặc ảnh đính kèm',
         );
       }
+      // Kiểm quyền ảnh TRƯỚC khi lưu message (tránh message mồ côi khi 422).
+      await this.assertAttachmentsUsable(ticket.id, userId, attachmentIds);
 
       const isReporter = ticket.reporter?.id === userId;
       // Định tuyến luồng theo người gửi (mô hình admin trung gian 2 thread).
@@ -227,27 +298,14 @@ export class TicketService {
           audience,
         }),
       );
-      let attachments: { id: string; url: string }[] = [];
-      if (dto.attachmentIds?.length) {
-        await this.attachmentRepo
-          .createQueryBuilder()
-          .update()
-          .set({ message: { id: msg.id }, ticket: { id: ticket.id } })
-          .whereInIds(dto.attachmentIds)
-          .execute();
-        const rows = await this.attachmentRepo.find({
-          where: { message: { id: msg.id } },
-        });
-        attachments = rows.map((a) => ({ id: a.id, url: a.url }));
-      }
+      const attachments = await this.attachToMessage(
+        ticket.id,
+        msg.id,
+        userId,
+        attachmentIds,
+      );
 
-      const awaitsThisParty =
-        ticket.status === SupportTicketStatus.PENDING &&
-        ((ticket.pendingReason === TicketPendingReason.WAIT_CUSTOMER &&
-          isReporter) ||
-          (ticket.pendingReason === TicketPendingReason.WAIT_TASKER &&
-            !isReporter));
-      if (awaitsThisParty) {
+      if (TicketService.awaitsParty(ticket, isReporter)) {
         const from = ticket.status;
         ticket.status = SupportTicketStatus.IN_PROGRESS;
         ticket.pendingReason = null;
@@ -298,6 +356,10 @@ export class TicketService {
       const qb = this.ticketRepo
         .createQueryBuilder('t')
         .leftJoinAndSelect('t.booking', 'b')
+        // Chỉ lấy id reporter (không nạp cả UserEntity) để suy ra `myRole`:
+        // người xem là người GỬI khiếu nại hay là bên BỊ khiếu nại.
+        .leftJoin('t.reporter', 'rp')
+        .addSelect('rp.id')
         .orderBy('t.createdAt', 'DESC')
         .skip((page - 1) * limit)
         .take(limit);
@@ -326,10 +388,19 @@ export class TicketService {
         rows.map((r) => r.id),
       );
       return {
-        data: rows.map((r) => ({
-          ...toTicketSummary(r),
-          unreadCount: unread[r.id] ?? 0,
-        })),
+        data: rows.map((r) => {
+          const myRole = this.viewerAudience(r, userId);
+          return {
+            ...toTicketSummary(r),
+            unreadCount: unread[r.id] ?? 0,
+            myRole,
+            pendingReason: r.pendingReason ?? null,
+            awaitingMe: TicketService.awaitsParty(
+              r,
+              myRole === TicketMessageAudience.REPORTER,
+            ),
+          };
+        }),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }, 'Lỗi khi lấy danh sách ticket');
@@ -346,8 +417,12 @@ export class TicketService {
     ticketIds: string[],
   ): Promise<Record<string, number>> {
     if (ticketIds.length === 0) return {};
+    // Với admin: chỉ đếm tin đến TỪ NGƯỜI DÙNG. Trước đây điều kiện duy nhất là
+    // "không phải tin của tôi", nên tin do ADMIN KHÁC gửi cũng bị tính — admin A
+    // trả lời khách thì admin B lập tức thấy badge "1 tin chưa đọc" dù không có
+    // gì mới từ phía khách.
     const audienceFilter = isAdmin
-      ? `m.audience IN ('REPORTER','COUNTERPARTY')`
+      ? `m.audience IN ('REPORTER','COUNTERPARTY') AND ${NOT_FROM_ADMIN}`
       : `m.audience = (CASE WHEN t.reporter_user_id = $1 THEN 'REPORTER'::ticket_message_audience
                             WHEN t.counterparty_user_id = $1 THEN 'COUNTERPARTY'::ticket_message_audience END)`;
     const rows: { ticketId: string; count: string }[] =
@@ -355,6 +430,7 @@ export class TicketService {
         `SELECT m.ticket_id AS "ticketId", COUNT(*)::int AS "count"
          FROM ticket_messages m
          JOIN support_tickets t ON t.id = m.ticket_id
+         LEFT JOIN users sender ON sender.id = m.sender_user_id
          LEFT JOIN ticket_thread_reads r
            ON r.ticket_id = m.ticket_id AND r.user_id = $1 AND r.audience = m.audience
          LEFT JOIN ticket_messages lr ON lr.id = r.last_read_message_id
@@ -373,7 +449,7 @@ export class TicketService {
   /** Tổng số tin chưa đọc trên TẤT CẢ ticket của người xem (badge trên nav). */
   async unreadTotal(viewerId: string, isAdmin: boolean): Promise<number> {
     const scope = isAdmin
-      ? `m.audience IN ('REPORTER','COUNTERPARTY')`
+      ? `m.audience IN ('REPORTER','COUNTERPARTY') AND ${NOT_FROM_ADMIN}`
       : `(t.reporter_user_id = $1 OR t.counterparty_user_id = $1)
          AND m.audience = (CASE WHEN t.reporter_user_id = $1 THEN 'REPORTER'::ticket_message_audience
                                 WHEN t.counterparty_user_id = $1 THEN 'COUNTERPARTY'::ticket_message_audience END)`;
@@ -381,6 +457,7 @@ export class TicketService {
       `SELECT COUNT(*)::int AS c
        FROM ticket_messages m
        JOIN support_tickets t ON t.id = m.ticket_id
+       LEFT JOIN users sender ON sender.id = m.sender_user_id
        LEFT JOIN ticket_thread_reads r
          ON r.ticket_id = m.ticket_id AND r.user_id = $1 AND r.audience = m.audience
        LEFT JOIN ticket_messages lr ON lr.id = r.last_read_message_id
@@ -403,11 +480,34 @@ export class TicketService {
       // giờ thấy INTERNAL hay luồng của bên kia (AD7/BR-8/FR-D2).
       // Chỉ tải TRANG MỚI NHẤT (cursor pagination) để tránh ứ đọng ticket dài.
       const viewerAudience = this.viewerAudience(ticket, userId);
-      const { messages, attachments, hasMore } = await this.loadMessagePage(
-        ticketId,
-        viewerAudience,
-      );
-      return toPublicView(ticket, messages, attachments, hasMore);
+      const [{ messages, attachments, hasMore }, resolutions] =
+        await Promise.all([
+          this.loadMessagePage(ticketId, viewerAudience),
+          this.resolutionRepo.find({
+            where: { ticket: { id: ticketId } },
+            order: { createdAt: 'ASC' },
+          }),
+        ]);
+      // `myRole` trùng chính luồng của người xem — nguồn sự thật duy nhất.
+      const deadline = await this.reopenDeadline(ticket);
+      return {
+        ...toPublicView(ticket, messages, attachments, hasMore),
+        myRole: viewerAudience,
+        resolutions: toPublicResolutions(resolutions),
+        resolutionDueAt: ticket.resolutionDueAt ?? null,
+        pendingReason: ticket.pendingReason ?? null,
+        awaitingMe: TicketService.awaitsParty(
+          ticket,
+          viewerAudience === TicketMessageAudience.REPORTER,
+        ),
+        // Điều kiện mở lại tính ở BE (cửa sổ thời gian nằm trong config) để FE
+        // chỉ việc hiện/ẩn nút, không phải chép lại luật.
+        canReopen:
+          ticket.status === SupportTicketStatus.CLOSED &&
+          viewerAudience === TicketMessageAudience.REPORTER &&
+          (!deadline || new Date() <= deadline),
+        reopenDeadline: deadline,
+      };
     }, 'Lỗi khi lấy chi tiết ticket');
   }
 
@@ -434,10 +534,128 @@ export class TicketService {
     }, 'Lỗi khi tải tin nhắn');
   }
 
+  /** Hạn chót còn mở lại được ticket đã đóng (null nếu chưa đóng). */
+  private async reopenDeadline(
+    ticket: SupportTicketEntity,
+  ): Promise<Date | null> {
+    if (!ticket.closedAt) return null;
+    const days = await this.config.getReopenWindowDays();
+    return new Date(ticket.closedAt.getTime() + days * 86400000);
+  }
+
+  /**
+   * Đưa ticket đã đóng/đã giải quyết trở lại IN_PROGRESS.
+   *
+   * MUTATE `ticket` tại chỗ và xếp lại hàng đợi job — KHÔNG lưu; nơi gọi tự
+   * `save()` rồi ghi status log theo ngữ cảnh của mình (admin đổi trạng thái vs
+   * người dùng bấm "Mở lại"). Dùng chung để hai đường không lệch nhau.
+   *
+   * SLA được tính LẠI TỪ BÂY GIỜ: hạn cũ đã trôi qua từ lâu, nếu giữ nguyên thì
+   * ticket vừa mở lại đã vi phạm ngay. Vì đặt hạn mới nên các cờ vi phạm cũ
+   * cũng được xoá — nếu không, ticket sẽ mang cờ "vi phạm SLA" vĩnh viễn.
+   */
+  async prepareReopen(
+    ticket: SupportTicketEntity,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const deadline = await this.reopenDeadline(ticket);
+    if (deadline && now > deadline) {
+      const days = await this.config.getReopenWindowDays();
+      throw new UnprocessableEntityException(
+        `Quá hạn mở lại ticket (${days} ngày kể từ khi đóng)`,
+      );
+    }
+
+    const due = await this.sla.computeDue(ticket.priority, now);
+    ticket.status = SupportTicketStatus.IN_PROGRESS;
+    ticket.pendingReason = null;
+    ticket.closedAt = null;
+    ticket.resolvedAt = null;
+    ticket.slaPausedAt = null;
+    ticket.slaBreached = false;
+    ticket.resolutionDueAt = due.resolutionDueAt;
+    // Nếu chưa từng có phản hồi đầu tiên thì đặt lại hạn phản hồi; đã phản hồi
+    // rồi thì mốc lịch sử giữ nguyên (không "xoá" thành tích cũ).
+    if (!ticket.firstRespondedAt) {
+      ticket.firstResponseDueAt = due.firstResponseDueAt;
+      ticket.firstResponseBreached = false;
+    }
+
+    await this.sla.cancelAutoClose(ticket.id);
+    await this.sla.scheduleBreach(ticket);
+    if (!ticket.firstRespondedAt) {
+      await this.sla.scheduleFirstResponse(ticket);
+    }
+  }
+
+  /**
+   * NGƯỜI GỬI tự mở lại ticket đã đóng trong thời hạn cho phép. Counterparty
+   * không được mở lại khiếu nại của người khác.
+   */
+  async reopenByUser(
+    userId: string,
+    ticketId: string,
+    reason: string,
+  ): Promise<TicketPublicView> {
+    return asyncHandleOperation(async () => {
+      const ticket = await this.loadAccessible(ticketId, userId);
+      if (ticket.reporter?.id !== userId) {
+        throw new UnprocessableEntityException(
+          'Chỉ người gửi yêu cầu mới có thể mở lại ticket này',
+        );
+      }
+      if (ticket.status !== SupportTicketStatus.CLOSED) {
+        throw new ConflictException('Ticket chưa đóng nên không cần mở lại');
+      }
+
+      await this.prepareReopen(ticket);
+      await this.ticketRepo.save(ticket);
+      await this.statusLogRepo.save(
+        this.statusLogRepo.create({
+          ticket: { id: ticket.id },
+          oldStatus: SupportTicketStatus.CLOSED,
+          newStatus: SupportTicketStatus.IN_PROGRESS,
+          changedBy: { id: userId },
+          note: `Người gửi mở lại: ${reason}`,
+        }),
+      );
+
+      // Báo cho admin phụ trách; chưa gán thì đánh động cả phòng admin.
+      if (ticket.assignedAdmin?.id) {
+        this.realtime.emitUnread(ticket.assignedAdmin.id, ticket.id);
+      } else {
+        this.realtime.emitUnreadToAdmins(ticket.id);
+      }
+
+      return this.findOneForUser(userId, ticketId);
+    }, 'Lỗi khi mở lại ticket');
+  }
+
+  /**
+   * Ticket có đang chờ ĐÚNG bên này phản hồi không.
+   *
+   * Đây là NGUỒN SỰ THẬT DUY NHẤT cho quy ước `WAIT_CUSTOMER` ⇔ reporter và
+   * `WAIT_TASKER` ⇔ counterparty. Dùng ở 2 chỗ phải luôn khớp nhau:
+   *  - {@link addUserMessage}: bên được chờ nhắn tin → tự mở lại IN_PROGRESS;
+   *  - {@link listMine}/{@link findOneForUser}: cờ `awaitingMe` để UI hiện
+   *    "Đang chờ bạn phản hồi".
+   * Tách ra hàm riêng để nhãn hiển thị không thể lệch khỏi hành vi thật.
+   */
+  static awaitsParty(
+    ticket: Pick<SupportTicketEntity, 'status' | 'pendingReason'>,
+    isReporter: boolean,
+  ): boolean {
+    if (ticket.status !== SupportTicketStatus.PENDING) return false;
+    return isReporter
+      ? ticket.pendingReason === TicketPendingReason.WAIT_CUSTOMER
+      : ticket.pendingReason === TicketPendingReason.WAIT_TASKER;
+  }
+
+  /** Luồng (và cũng là vai) của người xem trong ticket — không bao giờ INTERNAL. */
   private viewerAudience(
     ticket: SupportTicketEntity,
     userId: string,
-  ): TicketMessageAudience {
+  ): TicketMessageAudience.REPORTER | TicketMessageAudience.COUNTERPARTY {
     return ticket.reporter?.id === userId
       ? TicketMessageAudience.REPORTER
       : TicketMessageAudience.COUNTERPARTY;
@@ -565,6 +783,78 @@ export class TicketService {
     row.lastReadMessage = resolvedId ? ({ id: resolvedId } as never) : null;
     const saved = await this.threadReadRepo.save(row);
     return { lastReadMessageId: resolvedId, readAt: saved.readAt };
+  }
+
+  /**
+   * Chuẩn hoá danh sách attachmentId người dùng gửi lên: bỏ rỗng + bỏ trùng.
+   * Trùng id sẽ làm sai phép đối chiếu số lượng ở {@link assertAttachmentsUsable}.
+   */
+  static normalizeIds(ids?: string[] | null): string[] {
+    return [...new Set((ids ?? []).filter(Boolean))];
+  }
+
+  /**
+   * KIỂM QUYỀN ảnh đính kèm TRƯỚC khi tạo message.
+   *
+   * Một attachment chỉ được gắn khi thoả ĐỦ 3 điều kiện:
+   *  1. thuộc ĐÚNG ticket này (`ticket_id = ticketId`),
+   *  2. CHƯA gắn vào message nào (`message_id IS NULL`) — chống gắn lại/di chuyển,
+   *  3. do CHÍNH người đang gửi upload (`uploaded_by_user_id = uploaderUserId`).
+   *
+   * Thiếu bất kỳ điều kiện nào → 422 (không phải 404) để không xác nhận sự tồn
+   * tại của ảnh thuộc ticket khác. Trước đây chỉ dùng `whereInIds` nên ai biết
+   * UUID của ảnh ở ticket khác đều re-parent được sang ticket mình — vừa lộ bằng
+   * chứng của người khác, vừa xoá bằng chứng khỏi ticket gốc.
+   *
+   * Gọi TRƯỚC khi lưu message để không để lại message mồ côi khi validate hỏng.
+   */
+  async assertAttachmentsUsable(
+    ticketId: string,
+    uploaderUserId: string,
+    attachmentIds: string[],
+  ): Promise<void> {
+    if (attachmentIds.length === 0) return;
+    const usable = await this.attachmentRepo.count({
+      where: {
+        id: In(attachmentIds),
+        ticket: { id: ticketId },
+        message: IsNull(),
+        uploadedBy: { id: uploaderUserId },
+      },
+    });
+    if (usable !== attachmentIds.length) {
+      throw new UnprocessableEntityException(
+        'Ảnh đính kèm không hợp lệ: không thuộc yêu cầu hỗ trợ này, đã được gửi trước đó, hoặc không do bạn tải lên',
+      );
+    }
+  }
+
+  /**
+   * Gắn ảnh vào message vừa tạo. Lặp lại ĐÚNG bộ điều kiện của
+   * {@link assertAttachmentsUsable} ngay trong mệnh đề UPDATE (không chỉ dựa vào
+   * lần kiểm trước đó) → hai request đồng thời cũng không thể cùng chiếm 1 ảnh.
+   * Trả về danh sách ảnh THỰC SỰ đã gắn cho response.
+   */
+  async attachToMessage(
+    ticketId: string,
+    messageId: string,
+    uploaderUserId: string,
+    attachmentIds: string[],
+  ): Promise<AttachmentView[]> {
+    if (attachmentIds.length === 0) return [];
+    await this.attachmentRepo
+      .createQueryBuilder()
+      .update()
+      .set({ message: { id: messageId } })
+      .whereInIds(attachmentIds)
+      .andWhere('ticket_id = :tid', { tid: ticketId })
+      .andWhere('message_id IS NULL')
+      .andWhere('uploaded_by_user_id = :uid', { uid: uploaderUserId })
+      .execute();
+    const rows = await this.attachmentRepo.find({
+      where: { message: { id: messageId } },
+    });
+    return rows.map((a) => ({ id: a.id, url: a.url }));
   }
 
   private async loadAccessible(
