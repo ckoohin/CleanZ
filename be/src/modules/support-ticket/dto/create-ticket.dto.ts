@@ -43,6 +43,12 @@ export class CreateTicketDto {
   @IsEnum(TicketPriority)
   priority?: TicketPriority;
 
+  /**
+   * Ảnh đã upload TRƯỚC khi tạo ticket. Hiện chưa có endpoint upload nào chạy
+   * được trước lúc ticket tồn tại (`POST /:id/attachments` cần ticketId), nên
+   * client đang tạo ticket xong mới tải ảnh. Giữ trường này cho luồng "soạn
+   * trước" trong tương lai — service đã kiểm quyền đầy đủ nếu có ai dùng tới.
+   */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)

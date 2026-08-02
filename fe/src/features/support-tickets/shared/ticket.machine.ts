@@ -6,7 +6,9 @@ export const TICKET_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   IN_PROGRESS: ['PENDING', 'RESOLVED'],
   PENDING: ['IN_PROGRESS'],
   RESOLVED: ['CLOSED', 'IN_PROGRESS'],
-  CLOSED: [],
+  // Mở lại ticket đã đóng — BE còn kiểm thêm hạn mở lại
+  // (TICKET_REOPEN_WINDOW_DAYS, tính từ closedAt) nên có thể trả 422.
+  CLOSED: ['IN_PROGRESS'],
 };
 
 export function nextStatuses(current: TicketStatus): TicketStatus[] {
@@ -48,7 +50,16 @@ export function canResolve(ticket: {
 export function isMessagingLocked(status: TicketStatus): boolean {
   return status === 'CLOSED';
 }
-export function canSubmitSurvey(status: TicketStatus): boolean {
+/**
+ * CSAT chỉ dành cho NGƯỜI GỬI ticket. Bên bị khiếu nại (counterparty) không
+ * được đánh giá — BE chặn bằng `ticket.reporter?.id !== userId` → 404; nếu FE
+ * vẫn hiện form thì tasker bấm gửi sẽ ăn lỗi.
+ */
+export function canSubmitSurvey(
+  status: TicketStatus,
+  myRole?: 'REPORTER' | 'COUNTERPARTY',
+): boolean {
+  if (myRole === 'COUNTERPARTY') return false;
   return status === 'RESOLVED' || status === 'CLOSED';
 }
 

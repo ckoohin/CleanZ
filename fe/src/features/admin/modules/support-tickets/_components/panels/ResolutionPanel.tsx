@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/select";
 import { CheckCircle2 } from "lucide-react";
 import { useAddResolution } from "../../hooks/useSupportTicket";
+import { useBookingLookup } from "../../hooks/useAdminLookup";
+import { LookupCombobox } from "../LookupCombobox";
+import type { BookingLookupItem } from "../../services/admin-lookup.service";
 import type { TicketAdminDetail } from "../../types/support-ticket.types";
 import { RESOLUTION_LABEL } from "@/features/support-tickets/shared/ticket.labels";
 import {
@@ -32,6 +35,9 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
   const [amount, setAmount] = useState("");
   const [voucherId, setVoucherId] = useState("");
   const [recleanBookingId, setRecleanBookingId] = useState("");
+  const [recleanLabel, setRecleanLabel] = useState<string | null>(null);
+  const [bookingQuery, setBookingQuery] = useState("");
+  const bookingLookup = useBookingLookup(bookingQuery);
   const [note, setNote] = useState("");
 
   const isMoney = type ? MONEY_RESOLUTION_TYPES.includes(type) : false;
@@ -43,6 +49,7 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
     setAmount("");
     setVoucherId("");
     setRecleanBookingId("");
+    setRecleanLabel(null);
     setNote("");
   };
 
@@ -102,12 +109,26 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
         />
       )}
       {type === "RECLEAN" && (
-        <Input
-          value={recleanBookingId}
-          onChange={(e) => setRecleanBookingId(e.target.value)}
-          placeholder="Mã đơn làm lại (tuỳ chọn)..."
-          className="h-9 rounded-lg text-sm bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
-          aria-label="Mã đơn làm lại"
+        // Tra cứu bằng combobox thay vì bắt admin gõ tay UUID — không ai nhập
+        // được UUID bằng tay, mà module đã có sẵn LookupCombobox.
+        <LookupCombobox<BookingLookupItem>
+          placeholder="Tìm đơn làm lại..."
+          items={bookingLookup.data ?? []}
+          isLoading={bookingLookup.isFetching}
+          onQueryChange={setBookingQuery}
+          getKey={(b) => b.id}
+          getLabel={(b) => b.bookingCode ?? b.id}
+          getSub={(b) => b.customerName ?? ""}
+          selectedKey={recleanBookingId || null}
+          selectedLabel={recleanLabel}
+          onSelect={(b) => {
+            setRecleanBookingId(b.id);
+            setRecleanLabel(b.bookingCode ?? b.id);
+          }}
+          onClear={() => {
+            setRecleanBookingId("");
+            setRecleanLabel(null);
+          }}
         />
       )}
 
@@ -140,8 +161,17 @@ export function ResolutionPanel({ ticket }: { ticket: TicketAdminDetail }) {
               <p className="font-semibold text-[var(--c-ink-soft)]">{RESOLUTION_LABEL[r.type] ?? r.type}</p>
               {r.note && <p className="text-[var(--c-muted)] mt-0.5">{r.note}</p>}
               {r.amount && (
-                <p className="text-[var(--c-primary-strong)] font-bold">
-                  +{Number(r.amount).toLocaleString("vi-VN")}đ{" "}
+                // Dấu theo CHIỀU dòng tiền: phạt Tasker là khoản THU về, không
+                // phải khoản chi cho khách — dùng "+" cho mọi loại là sai nghĩa.
+                <p
+                  className={`font-bold ${
+                    r.type === "TASKER_PENALTY"
+                      ? "text-[#E11D48]"
+                      : "text-[var(--c-primary-strong)]"
+                  }`}
+                >
+                  {r.type === "TASKER_PENALTY" ? "−" : "+"}
+                  {Number(r.amount).toLocaleString("vi-VN")}đ{" "}
                   {!r.walletTransactionId && (
                     <span className="font-normal text-[var(--c-muted)]">(chưa chuyển tiền)</span>
                   )}

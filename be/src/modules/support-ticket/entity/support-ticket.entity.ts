@@ -108,8 +108,17 @@ export class SupportTicketEntity {
   @Column({ name: 'sla_paused_accum_ms', type: 'bigint', default: 0 })
   slaPausedAccumMs!: string;
 
+  /** Vi phạm hạn XỬ LÝ (resolutionDueAt). */
   @Column({ name: 'sla_breached', type: 'boolean', default: false })
   slaBreached!: boolean;
+
+  /** Vi phạm hạn PHẢN HỒI LẦN ĐẦU (firstResponseDueAt) — tách khỏi slaBreached. */
+  @Column({
+    name: 'first_response_breached',
+    type: 'boolean',
+    default: false,
+  })
+  firstResponseBreached!: boolean;
 
   @Column({
     name: 'pending_reason',

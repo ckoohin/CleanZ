@@ -283,7 +283,6 @@ export class IncidentEntity {
   })
   uncoveredLiabilityAmount?: number | null;
 
-  // P0.3 — phần nợ uncovered đã thu hồi (outstanding = uncovered_liability - cột này).
   @Column({
     name: 'uncovered_recovered_amount',
     type: 'numeric',

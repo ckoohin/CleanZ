@@ -24,6 +24,19 @@ export interface AttachmentView {
   url: string;
 }
 
+/**
+ * Đơn dịch vụ mà người dùng được phép khiếu nại (select "Đơn liên quan").
+ * Dùng chung cho customer & tasker — `myRole` cho biết họ đứng ở vai nào trong đơn.
+ */
+export interface EligibleBooking {
+  id: string;
+  bookingCode: string | null;
+  status: string;
+  scheduledStart: Date | null;
+  serviceName: string | null;
+  myRole: 'CUSTOMER' | 'TASKER';
+}
+
 export interface TicketSummary {
   id: string;
   ticketCode: string | null;
@@ -40,6 +53,20 @@ export interface TicketSummary {
   updatedAt: Date;
   /** Số tin nhắn chưa đọc của người xem (badge ngoài ticket). */
   unreadCount?: number;
+  /**
+   * Vai của NGƯỜI ĐANG XEM trong ticket: `REPORTER` = họ gửi khiếu nại này,
+   * `COUNTERPARTY` = khiếu nại nhắm vào họ. Chỉ set ở API của user (listMine /
+   * findOneForUser) — hàng đợi admin không dùng.
+   */
+  myRole?: TicketMessageAudience.REPORTER | TicketMessageAudience.COUNTERPARTY;
+  /** Lý do tạm chờ (chỉ có nghĩa khi status = PENDING). */
+  pendingReason?: TicketPendingReason | null;
+  /**
+   * Ticket đang chờ CHÍNH NGƯỜI XEM phản hồi. Tính ở BE bằng đúng biểu thức
+   * quyết định auto-resume (xem `TicketService.awaitsParty`) — để nhãn trên UI
+   * không bao giờ lệch với hành vi thật của hệ thống.
+   */
+  awaitingMe?: boolean;
 }
 
 export interface PartyRef {
@@ -66,6 +93,18 @@ export interface TicketPublicView extends TicketSummary {
   messages: PublicMessage[];
   /** Còn tin cũ hơn để "tải thêm" không. */
   hasMoreMessages: boolean;
+  /**
+   * Kết luận xử lý mà admin đã ghi — khách/tasker CÓ QUYỀN biết vụ việc của
+   * mình được kết luận thế nào (hoàn tiền? làm lại? giải thích?). Chỉ trả các
+   * trường an toàn, không lộ người đề xuất hay mã giao dịch ví nội bộ.
+   */
+  resolutions?: PublicResolutionView[];
+  /** Hạn xử lý cam kết — đã lộ `slaBreached` rồi thì hạn cũng nên minh bạch. */
+  resolutionDueAt?: Date | null;
+  /** Người xem có được bấm "Mở lại" ticket này không (BE tính, FE chỉ hiển thị). */
+  canReopen?: boolean;
+  /** Hạn chót còn mở lại được (null nếu ticket chưa đóng). */
+  reopenDeadline?: Date | null;
 }
 
 /** Một trang tin nhắn (cursor) — dùng cho endpoint "tải tin cũ hơn". */
@@ -111,6 +150,9 @@ export function toTicketSummary(t: SupportTicketEntity): TicketSummary {
 export interface AdminTicketSummary extends TicketSummary {
   assignedAdmin: PartyRef | null;
   reporter: { id: string; fullName: string; phone: string | null } | null;
+  /** Hạn xử lý — để hàng đợi thấy ticket SẮP trễ, không chỉ ticket ĐÃ trễ. */
+  resolutionDueAt: Date | null;
+  firstResponseBreached: boolean;
 }
 
 /** Summary cho hàng đợi admin (kèm admin phụ trách). KHÔNG dùng cho user. */
@@ -133,6 +175,8 @@ export function toAdminTicketSummary(
           phone: t.reporter.phone ?? null,
         }
       : null,
+    resolutionDueAt: t.resolutionDueAt ?? null,
+    firstResponseBreached: t.firstResponseBreached ?? false,
   };
 }
 
@@ -206,6 +250,27 @@ export interface StatusLogView {
   note: string | null;
   createdAt: Date;
 }
+/** Bản rút gọn của kết luận xử lý dành cho khách/tasker. */
+export interface PublicResolutionView {
+  id: string;
+  type: string;
+  amount: string | null;
+  note: string | null;
+  createdAt: Date;
+}
+
+export function toPublicResolutions(
+  rows: TicketResolutionEntity[] = [],
+): PublicResolutionView[] {
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    amount: r.amount ?? null,
+    note: r.note ?? null,
+    createdAt: r.createdAt,
+  }));
+}
+
 export interface ResolutionView {
   id: string;
   type: string;
@@ -229,6 +294,8 @@ export interface TicketAdminView extends TicketSummary {
   firstResponseDueAt: Date | null;
   resolutionDueAt: Date | null;
   firstRespondedAt: Date | null;
+  /** Quá hạn PHẢN HỒI LẦN ĐẦU — tách khỏi `slaBreached` (quá hạn xử lý). */
+  firstResponseBreached: boolean;
   resolvedAt: Date | null;
   closedAt: Date | null;
   /** Trang tin MỚI NHẤT của các luồng hội thoại (REPORTER+COUNTERPARTY). */
@@ -242,6 +309,14 @@ export interface TicketAdminView extends TicketSummary {
   resolutions: ResolutionView[];
   /** Ảnh đính kèm ở cấp ticket (không thuộc message nào). */
   attachments: AttachmentView[];
+  /** Kết quả CSAT của ticket (null nếu chưa mời hoặc chưa chấm). */
+  survey: SurveyView | null;
+}
+
+export interface SurveyView {
+  rating: number | null;
+  comment: string | null;
+  submittedAt: Date | null;
 }
 
 /** Map list message entity → AdminMessage[] (giữ nguyên audience + isInternal). */
@@ -272,6 +347,7 @@ export function toAdminView(
     REPORTER: { hasMore: false, total: 0 },
     COUNTERPARTY: { hasMore: false, total: 0 },
   },
+  survey: SurveyView | null = null,
 ): TicketAdminView {
   const ticketLevel: AttachmentView[] = attachments
     .filter((a) => !a.message?.id)
@@ -307,6 +383,7 @@ export function toAdminView(
     firstResponseDueAt: t.firstResponseDueAt ?? null,
     resolutionDueAt: t.resolutionDueAt ?? null,
     firstRespondedAt: t.firstRespondedAt ?? null,
+    firstResponseBreached: t.firstResponseBreached ?? false,
     resolvedAt: t.resolvedAt ?? null,
     closedAt: t.closedAt ?? null,
     messages: toAdminMessages(messages, attachments),
@@ -331,5 +408,6 @@ export function toAdminView(
       note: r.note ?? null,
       createdAt: r.createdAt,
     })),
+    survey,
   };
 }

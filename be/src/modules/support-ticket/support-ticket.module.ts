@@ -22,6 +22,7 @@ import { TicketConfigService } from './services/ticket-config.service';
 import { TicketResolutionService } from './services/ticket-resolution.service';
 import { TicketSlaService } from './services/ticket-sla.service';
 import { TicketSurveyService } from './services/ticket-survey.service';
+import { TicketStatsService } from './services/ticket-stats.service';
 import { SupportTicketProcessor } from './support-ticket.processor';
 import { TicketRealtimeService } from './realtime/ticket-realtime.service';
 import { SupportChatGateway } from './realtime/support-chat.gateway';
@@ -59,6 +60,7 @@ import { SUPPORT_TICKET_QUEUE } from './support-ticket.constants';
     TicketResolutionService,
     TicketSlaService,
     TicketSurveyService,
+    TicketStatsService,
     SupportTicketProcessor,
     TicketRealtimeService,
     SupportChatGateway,

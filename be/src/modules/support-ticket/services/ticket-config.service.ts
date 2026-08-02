@@ -90,6 +90,24 @@ export class TicketConfigService {
     return Number.isFinite(n) ? n : ST_DEFAULTS.COMPLAINT_WINDOW_DAYS;
   }
 
+  /**
+   * Có dừng đồng hồ SLA khi chờ Tasker giải trình không (mặc định CÓ).
+   * Khoá `TICKET_SLA_PAUSE_ON_WAIT_TASKER` trước đây được khai báo nhưng không
+   * ai đọc — nay là công tắc thật.
+   */
+  async getPauseOnWaitTasker(): Promise<boolean> {
+    const raw = await this.getRaw(ST_CONFIG_KEYS.SLA_PAUSE_ON_WAIT_TASKER);
+    if (raw === null) return true;
+    return raw !== 'false' && raw !== '0';
+  }
+
+  /** Số ngày còn mở lại được ticket đã đóng (tính từ `closedAt`). */
+  async getReopenWindowDays(): Promise<number> {
+    const raw = await this.getRaw(ST_CONFIG_KEYS.REOPEN_WINDOW_DAYS);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : ST_DEFAULTS.REOPEN_WINDOW_DAYS;
+  }
+
   async getAutoCloseHours(): Promise<number> {
     const raw = await this.getRaw(ST_CONFIG_KEYS.AUTOCLOSE_HOURS);
     const n = raw ? Number(raw) : NaN;

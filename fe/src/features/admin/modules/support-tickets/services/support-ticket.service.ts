@@ -18,7 +18,10 @@ import type {
   InternalNote,
   TicketAudience,
 } from "../types/support-ticket.types";
-import type { AdminMessagePage } from "@/features/support-tickets/shared/ticket.types";
+import type {
+  AdminMessagePage,
+  TicketStats,
+} from "@/features/support-tickets/shared/ticket.types";
 
 const EP = API_ENDPOINTS.ADMIN_SUPPORT_TICKETS;
 
@@ -33,6 +36,22 @@ export const supportTicketAdminApi = {
   // ── Ticket List ────────────────────────────────────────────────────────────
   list: (params?: AdminTicketQueryParams): Promise<PaginatedTickets> =>
     http.get<PaginatedTickets>(EP.BASE, { params }).then((r) => r.data),
+
+  // ── Thống kê vận hành (SLA / thời gian xử lý / CSAT) ─────────────────────
+  getStats: (params?: { from?: string; to?: string }): Promise<TicketStats> =>
+    http.get<TicketStats>(EP.STATS, { params }).then((r) => r.data),
+
+  // ── Gán hàng loạt từ hàng đợi ────────────────────────────────────────────
+  bulkAssign: (
+    ticketIds: string[],
+    assignedAdminId?: string,
+  ): Promise<{ assigned: number; skipped: string[] }> =>
+    http
+      .patch<{ assigned: number; skipped: string[] }>(EP.BULK_ASSIGN, {
+        ticketIds,
+        ...(assignedAdminId ? { assignedAdminId } : {}),
+      })
+      .then((r) => r.data),
 
   // ── Tổng tin chưa đọc (badge) ────────────────────────────────────────────
   unreadTotal: (): Promise<{ count: number }> =>

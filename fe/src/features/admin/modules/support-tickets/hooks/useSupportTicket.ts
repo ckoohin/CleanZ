@@ -43,6 +43,40 @@ export function useUpdateTicketConfig() {
   });
 }
 
+// ─── Thống kê vận hành ────────────────────────────────────────────────────────
+export function useTicketStats(params?: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: ["admin-support-tickets", "stats", params],
+    queryFn: () => supportTicketAdminApi.getStats(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ─── Gán hàng loạt ────────────────────────────────────────────────────────────
+export function useBulkAssign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      ticketIds,
+      assignedAdminId,
+    }: {
+      ticketIds: string[];
+      assignedAdminId?: string;
+    }) => supportTicketAdminApi.bulkAssign(ticketIds, assignedAdminId),
+    onSuccess: (res) => {
+      // Thao tác hàng loạt "làm được gì làm nấy" → báo cáo cả phần bị bỏ qua.
+      if (res.skipped.length > 0) {
+        toast.success(
+          `Đã gán ${res.assigned} ticket. Bỏ qua ${res.skipped.length} ticket đang do admin khác phụ trách.`,
+        );
+      } else {
+        toast.success(`Đã gán ${res.assigned} ticket`);
+      }
+      queryClient.invalidateQueries({ queryKey: supportTicketKeys.all });
+    },
+  });
+}
+
 // ─── List ─────────────────────────────────────────────────────────────────────
 export function useTicketList(params?: AdminTicketQueryParams) {
   return useQuery({

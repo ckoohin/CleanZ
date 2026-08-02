@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSocket } from "@/hooks/use-socket";
 import type {
   MarkReadDto,
+  MessageSenderRole,
   PublicMessage,
   SendMessageDto,
   TicketAttachment,
@@ -34,6 +35,11 @@ export interface ChatApi {
 interface UseTicketChatArgs {
   ticketId: string;
   currentUserId: string | null;
+  /**
+   * Vai của người đang gửi — dùng cho tin optimistic để bong bóng "đang gửi"
+   * mang đúng senderRole (trước đây hardcode "CUSTOMER", sai với tasker/admin).
+   */
+  currentUserRole?: MessageSenderRole;
   initialMessages: PublicMessage[];
   api: ChatApi;
   /** Lọc theo luồng (admin truyền REPORTER/COUNTERPARTY); user bỏ trống = luồng của họ. */
@@ -57,6 +63,7 @@ function dedupeById(list: PublicMessage[]): PublicMessage[] {
 export function useTicketChat({
   ticketId,
   currentUserId,
+  currentUserRole,
   initialMessages,
   api,
   audience,
@@ -64,7 +71,18 @@ export function useTicketChat({
   initialHasMore,
 }: UseTicketChatArgs) {
   const socket = useSocket();
-  const [messages, setMessages] = useState<PublicMessage[]>(initialMessages);
+  /**
+   * State chia 2 rổ thay vì một mảng gộp:
+   *  - `olderPages`: các trang tin CŨ do người dùng chủ động bấm "tải thêm";
+   *  - `extra`: tin đến qua realtime + tin optimistic CHƯA có trong trang server.
+   *
+   * `initialMessages` (trang mới nhất từ server) là NGUỒN SỰ THẬT và không được
+   * sao chép vào state. Cách cũ merge tất cả vào một mảng và không bao giờ loại
+   * bớt: state phình dần khi chuyển qua lại giữa các luồng, và tin đã xoá ở
+   * server thì vĩnh viễn không biến mất khỏi UI.
+   */
+  const [olderPages, setOlderPages] = useState<PublicMessage[]>([]);
+  const [extra, setExtra] = useState<PublicMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(!!initialHasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -73,11 +91,27 @@ export function useTicketChat({
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingEmitRef = useRef<number>(0);
 
-  // Đồng bộ khi dữ liệu server đổi (refetch): MERGE theo id, giữ cả tin đã nhận
-  // qua realtime / vừa gửi (chưa kịp về trong refetch) — server thắng nếu trùng id.
+  // Server đã trả tin nào thì bỏ bản sao trong `extra` — giữ `extra` luôn nhỏ.
   useEffect(() => {
-    setMessages((prev) => dedupeById([...prev, ...initialMessages]));
+    const baseIds = new Set(initialMessages.map((m) => m.id));
+    setExtra((prev) =>
+      prev.some((m) => baseIds.has(m.id))
+        ? prev.filter((m) => !baseIds.has(m.id))
+        : prev,
+    );
   }, [initialMessages]);
+
+  const messages = useMemo(
+    () => dedupeById([...olderPages, ...initialMessages, ...extra]),
+    [olderPages, initialMessages, extra],
+  );
+
+  // `loadOlder` cần id tin cũ nhất nhưng KHÔNG được phụ thuộc vào `messages`,
+  // nếu không hàm bị tạo lại mỗi lần có tin mới và phá memo của ChatThread.
+  const oldestIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    oldestIdRef.current = messages[0]?.id;
+  }, [messages]);
 
   useEffect(() => {
     setHasMore(!!initialHasMore);
@@ -88,16 +122,15 @@ export function useTicketChat({
     if (!api.loadOlder || loadingOlder || !hasMore) return;
     setLoadingOlder(true);
     try {
-      const oldestId = messages[0]?.id;
-      const res = await api.loadOlder(oldestId);
-      setMessages((prev) => dedupeById([...res.messages, ...prev]));
+      const res = await api.loadOlder(oldestIdRef.current);
+      setOlderPages((prev) => dedupeById([...res.messages, ...prev]));
       setHasMore(res.hasMore);
     } catch {
       // im lặng — người dùng có thể bấm lại
     } finally {
       setLoadingOlder(false);
     }
-  }, [api, hasMore, loadingOlder, messages]);
+  }, [api, hasMore, loadingOlder]);
 
   const matchesThread = useCallback(
     (evtAudience: TicketAudience) => !audience || audience === evtAudience,
@@ -123,7 +156,7 @@ export function useTicketChat({
 
     const onMessage = (evt?: TicketMessageEvent | null) => {
       if (!evt?.message || evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
-      setMessages((prev) => dedupeById([...prev, evt.message]));
+      setExtra((prev) => dedupeById([...prev, evt.message]));
     };
     const onTyping = (evt?: TicketTypingEvent | null) => {
       if (!evt || evt.ticketId !== ticketId || !matchesThread(evt.audience)) return;
@@ -152,11 +185,18 @@ export function useTicketChat({
   }, [socket, ticketId, currentUserId, matchesThread]);
 
   // ─── Đánh dấu đã đọc khi có tin mới của đối phương ──────────────────────────
+  // Mỗi lần gọi kéo theo một lượt invalidate danh sách ở phía trên, nên phải
+  // chống gọi lặp cho CÙNG một tin (effect chạy lại khi `api` đổi định danh).
+  const lastMarkedRef = useRef<string | null>(null);
   const lastMsg = messages[messages.length - 1];
   useEffect(() => {
     if (!api.markRead || !lastMsg || lastMsg.pending) return;
     if (lastMsg.senderUserId === currentUserId) return;
-    void api.markRead({ lastMessageId: lastMsg.id }).catch(() => undefined);
+    if (lastMarkedRef.current === lastMsg.id) return;
+    lastMarkedRef.current = lastMsg.id;
+    void api.markRead({ lastMessageId: lastMsg.id }).catch(() => {
+      lastMarkedRef.current = null; // lỗi → cho phép thử lại
+    });
   }, [api, lastMsg, currentUserId]);
 
   // ─── Báo đang gõ (debounce ~1.5s) ───────────────────────────────────────────
@@ -176,19 +216,25 @@ export function useTicketChat({
       if (!text && files.length === 0) return false;
 
       const tempId = `temp-${Date.now()}`;
+      // Ảnh xem trước dùng blob URL — PHẢI thu hồi sau khi tin optimistic bị
+      // thay bằng tin thật (hoặc bị gỡ khi lỗi), nếu không blob nằm lại trong
+      // bộ nhớ cho tới khi tải lại trang.
+      const previewUrls = files.map((f) => URL.createObjectURL(f));
+      const revokePreviews = () => previewUrls.forEach(URL.revokeObjectURL);
+
       const optimistic: PublicMessage = {
         id: tempId,
         senderUserId: currentUserId,
-        senderRole: "CUSTOMER",
+        senderRole: currentUserRole ?? "CUSTOMER",
         body: text,
-        attachments: files.map((f, i) => ({
+        attachments: previewUrls.map((url, i) => ({
           id: `${tempId}-${i}`,
-          url: URL.createObjectURL(f),
+          url,
         })),
         createdAt: new Date().toISOString(),
         pending: true,
       };
-      setMessages((prev) => [...prev, optimistic]);
+      setExtra((prev) => [...prev, optimistic]);
       setSending(true);
       try {
         let attachmentIds: string[] | undefined;
@@ -200,18 +246,20 @@ export function useTicketChat({
           body: text || undefined,
           ...(attachmentIds ? { attachmentIds } : {}),
         });
-        setMessages((prev) =>
+        setExtra((prev) =>
           dedupeById(prev.filter((m) => m.id !== tempId).concat(real)),
         );
+        revokePreviews();
         return true;
       } catch {
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        setExtra((prev) => prev.filter((m) => m.id !== tempId));
+        revokePreviews();
         return false;
       } finally {
         setSending(false);
       }
     },
-    [api, currentUserId, locked, sending],
+    [api, currentUserId, currentUserRole, locked, sending],
   );
 
   const typingLabel = useMemo(() => {

@@ -21,6 +21,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useTicketDetail } from "../hooks/useSupportTicket";
+import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -56,6 +57,7 @@ interface Props {
 
 export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, onClose }) => {
   const { data: ticket, isLoading } = useTicketDetail(ticketId);
+  const { data: me } = useAuth();
 
   return (
     <Sheet open={isOpen} onOpenChange={(o) => !o && onClose()}>
@@ -126,7 +128,14 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                   </InfoItem>
                 )}
                 <InfoItem label="Hạn phản hồi (SLA)">
-                  <span className="text-xs">{fmtDate(ticket.firstResponseDueAt)}</span>
+                  {ticket.firstResponseBreached ? (
+                    <span className="flex items-center gap-1 text-xs font-bold text-[#E11D48]">
+                      <AlertTriangle className="w-3 h-3" /> Quá hạn ·{" "}
+                      {fmtDate(ticket.firstResponseDueAt)}
+                    </span>
+                  ) : (
+                    <span className="text-xs">{fmtDate(ticket.firstResponseDueAt)}</span>
+                  )}
                 </InfoItem>
                 <InfoItem label="Hạn xử lý (SLA)">
                   <span className="text-xs">{fmtDate(ticket.resolutionDueAt)}</span>
@@ -137,6 +146,29 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                   </InfoItem>
                 )}
               </div>
+
+              {/* CSAT — trước đây dữ liệu ghi vào DB rồi không ai đọc ra được */}
+              {ticket.survey?.rating != null && (
+                <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-3">
+                  <p className="mb-1 text-xs font-bold text-[var(--c-muted)]">
+                    Đánh giá của khách
+                  </p>
+                  <p className="text-sm font-semibold text-[var(--c-primary-strong)]">
+                    {"★".repeat(ticket.survey.rating)}
+                    <span className="text-[var(--c-muted)]">
+                      {"★".repeat(5 - ticket.survey.rating)}
+                    </span>
+                    <span className="ml-1.5 text-[var(--c-ink-soft)]">
+                      {ticket.survey.rating}/5
+                    </span>
+                  </p>
+                  {ticket.survey.comment && (
+                    <p className="mt-1 text-xs italic text-[var(--c-ink-soft)]">
+                      &quot;{ticket.survey.comment}&quot;
+                    </p>
+                  )}
+                </div>
+              )}
 
               {ticket.description && (
                 <div className="rounded-xl bg-[var(--c-card-2)] border border-[var(--c-line)] p-3 text-sm text-[var(--c-ink-soft)]">
@@ -166,7 +198,12 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
                 <TabsList className="w-full rounded-xl bg-[var(--c-card-2)]">
                   <TabsTrigger value="messages" className="flex-1 text-xs">
                     <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                    Tin nhắn ({ticket.messages.filter((m) => m.audience !== "INTERNAL").length})
+                    {/* Tổng THẬT theo server, không phải số tin đã tải (≤30/luồng)
+                        — nếu không, con số ở tab cha lệch với số ở tab con. */}
+                    Tin nhắn (
+                    {(ticket.messagePaging?.REPORTER.total ?? 0) +
+                      (ticket.messagePaging?.COUNTERPARTY.total ?? 0)}
+                    )
                   </TabsTrigger>
                   <TabsTrigger value="actions" className="flex-1 text-xs">
                     <ArrowRight className="w-3.5 h-3.5 mr-1" />
@@ -185,10 +222,22 @@ export const SupportTicketDetailDrawer: React.FC<Props> = ({ ticketId, isOpen, o
 
                 {/* Actions */}
                 <TabsContent value="actions" className="space-y-5 mt-4">
+                  {/* Ticket của admin khác: báo TRƯỚC thay vì để họ bấm rồi ăn 422. */}
+                  {ticket.assignedAdmin?.id &&
+                    me?.id &&
+                    ticket.assignedAdmin.id !== me.id && (
+                      <p className="rounded-lg border border-[#D97706]/30 bg-[#D97706]/10 p-3 text-xs text-[#B45309]">
+                        <strong>{ticket.assignedAdmin.fullName}</strong> đang phụ
+                        trách ticket này. Hãy gán lại cho bạn ở mục &quot;Gán admin
+                        xử lý&quot; trước khi đổi trạng thái, trả lời hay ghi kết
+                        luận.
+                      </p>
+                    )}
                   <StatusChangePanel ticket={ticket} />
                   {ticket.status === "CLOSED" ? (
                     <p className="rounded-lg bg-[var(--c-card-2)] border border-[var(--c-line)] p-3 text-xs text-[var(--c-muted)]">
-                      Ticket đã đóng — không thể gán, phân loại lại hay ghi nhận kết luận.
+                      Ticket đã đóng — chuyển về &quot;Đang xử lý&quot; ở trên để mở
+                      lại, sau đó mới gán, phân loại lại hay ghi nhận kết luận.
                     </p>
                   ) : (
                     <>

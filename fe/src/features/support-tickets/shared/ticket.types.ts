@@ -92,6 +92,10 @@ export interface TicketSummary {
   assignedAdmin?: PartyRef | null;
   /** Số tin nhắn chưa đọc — badge ngoài ticket. */
   unreadCount?: number;
+  /** Hạn xử lý (hàng đợi admin) — để thấy ticket SẮP trễ, không chỉ ĐÃ trễ. */
+  resolutionDueAt?: string | null;
+  /** Vi phạm hạn phản hồi lần đầu (hàng đợi admin). */
+  firstResponseBreached?: boolean;
 }
 
 export interface TicketPublicView extends TicketSummary {
@@ -125,6 +129,8 @@ export interface TicketAdminView extends TicketPublicView {
   pendingReason: PendingReason | null;
   firstResponseDueAt: string | null;
   resolutionDueAt: string | null;
+  /** Quá hạn PHẢN HỒI LẦN ĐẦU — khác `slaBreached` (quá hạn xử lý). */
+  firstResponseBreached?: boolean;
   messages: AdminMessage[];
   /** Phân trang theo từng luồng hội thoại. */
   messagePaging?: Record<
@@ -133,6 +139,38 @@ export interface TicketAdminView extends TicketPublicView {
   >;
   statusLogs: StatusLog[];
   resolutions: Resolution[];
+  /** Kết quả CSAT (null nếu chưa mời hoặc khách chưa chấm). */
+  survey?: {
+    rating: number | null;
+    comment: string | null;
+    submittedAt: string | null;
+  } | null;
+}
+
+/** Thống kê vận hành cho dashboard admin (GET /admin/support-tickets/stats). */
+export interface TicketStats {
+  range: { from: string; to: string };
+  total: number;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
+  byPriority: Record<string, number>;
+  sla: {
+    resolutionBreached: number;
+    firstResponseBreached: number;
+    resolutionComplianceRate: number;
+    firstResponseComplianceRate: number;
+  };
+  handling: {
+    resolvedCount: number;
+    avgFirstResponseMins: number | null;
+    avgResolutionMins: number | null;
+  };
+  csat: {
+    invited: number;
+    responses: number;
+    avgRating: number | null;
+    distribution: Record<string, number>;
+  };
 }
 
 export interface CreateTicketInput {

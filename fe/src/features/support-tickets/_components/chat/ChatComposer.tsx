@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Paperclip, Send, X } from "lucide-react";
 import {
   ALLOWED_IMAGE_MIME,
@@ -22,40 +22,61 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  // Giữ blob URL cùng file để THU HỒI được. Trước đây gọi
+  // `URL.createObjectURL(f)` thẳng trong JSX → mỗi lần re-render tạo thêm một
+  // blob mới và không cái nào được giải phóng.
+  const [picked, setPicked] = useState<{ file: File; url: string }[]>([]);
+  const files = useMemo(() => picked.map((p) => p.file), [picked]);
+
+  // Rời khỏi khung soạn tin → trả lại toàn bộ blob còn treo.
+  useEffect(
+    () => () => picked.forEach((p) => URL.revokeObjectURL(p.url)),
+    [picked],
+  );
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
-    const picked = Array.from(list).filter((f) =>
+    const chosen = Array.from(list).filter((f) =>
       ALLOWED_IMAGE_MIME.includes(f.type),
     );
-    setFiles((prev) => [...prev, ...picked].slice(0, MAX_CHAT_IMAGES));
+    setPicked((prev) => {
+      const room = MAX_CHAT_IMAGES - prev.length;
+      const added = chosen
+        .slice(0, Math.max(0, room))
+        .map((file) => ({ file, url: URL.createObjectURL(file) }));
+      return [...prev, ...added];
+    });
     if (inputRef.current) inputRef.current.value = "";
   };
   const removeFile = (idx: number) =>
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
+    setPicked((prev) => {
+      URL.revokeObjectURL(prev[idx].url);
+      return prev.filter((_, i) => i !== idx);
+    });
 
-  const canSend = (text.trim().length > 0 || files.length > 0) && !sending;
+  const canSend = (text.trim().length > 0 || picked.length > 0) && !sending;
 
   const handleSend = () => {
     if (!canSend) return;
     onSend(text, files);
     setText("");
-    setFiles([]);
+    // `useTicketChat` tự tạo blob riêng cho tin optimistic nên thu hồi ở đây an toàn.
+    picked.forEach((p) => URL.revokeObjectURL(p.url));
+    setPicked([]);
   };
 
   return (
     <div className={className}>
-      {files.length > 0 && (
+      {picked.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
-          {files.map((f, idx) => (
+          {picked.map((p, idx) => (
             <div
-              key={idx}
+              key={p.url}
               className="relative size-14 overflow-hidden rounded-lg border border-border/50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={URL.createObjectURL(f)}
+                src={p.url}
                 alt="đính kèm"
                 className="size-full object-cover"
               />
