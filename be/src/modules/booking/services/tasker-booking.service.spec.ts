@@ -35,33 +35,34 @@ type PostedBookingReader = {
   }>;
 };
 
+/**
+ * Dựng service KHÔNG qua constructor, chỉ gắn đúng dependency mà test dùng.
+ *
+ * Trước đây spec truyền một dãy dài `undefined as never` theo vị trí. Mỗi lần
+ * `TaskerBookingService` nhận thêm một dependency là dãy này lệch, `tsc` báo lỗi arity
+ * còn Jest thì vẫn xanh (không kiểm kiểu lúc chạy) — lỗi trôi qua CI mà không ai thấy.
+ * Gắn theo TÊN thuộc tính thì test miễn nhiễm với thay đổi constructor.
+ */
+function instantiate(deps: Record<string, unknown>): TaskerBookingService {
+  const service = Object.create(
+    TaskerBookingService.prototype,
+  ) as TaskerBookingService;
+  Object.assign(service, deps);
+  return service;
+}
+
 function buildService(
   query: jest.Mock,
   premiumWaitMs = 15 * 60 * 1000,
 ): BookingAccessReader {
-  const dataSource = { query } as unknown as DataSource;
-  const bookingDispatchService = {
-    getPremiumDispatchConfig: jest
-      .fn()
-      .mockResolvedValue({ favoriteWaitMs: premiumWaitMs }),
-  };
-
-  return new TaskerBookingService(
-    dataSource,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    undefined as never,
-    bookingDispatchService as never,
-    undefined as never,
-    undefined as never,
-  ) as unknown as BookingAccessReader;
+  return instantiate({
+    dataSource: { query } as unknown as DataSource,
+    bookingDispatchService: {
+      getPremiumDispatchConfig: jest
+        .fn()
+        .mockResolvedValue({ favoriteWaitMs: premiumWaitMs }),
+    },
+  }) as unknown as BookingAccessReader;
 }
 
 const booking = {
@@ -189,27 +190,14 @@ describe('TaskerBookingService — danh sách booking posted', () => {
         getRepository: jest.fn().mockReturnValue(packageRepository),
       },
     } as unknown as DataSource;
-    const bookingDispatchService = {
-      getPremiumDispatchConfig: jest
-        .fn()
-        .mockResolvedValue({ favoriteWaitMs: 15 * 60 * 1000 }),
-    };
-    const service = new TaskerBookingService(
+    const service = instantiate({
       dataSource,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      undefined as never,
-      bookingDispatchService as never,
-      undefined as never,
-      undefined as never,
-    );
+      bookingDispatchService: {
+        getPremiumDispatchConfig: jest
+          .fn()
+          .mockResolvedValue({ favoriteWaitMs: 15 * 60 * 1000 }),
+      },
+    });
     (
       service as unknown as {
         findTaskerProfile: jest.Mock;

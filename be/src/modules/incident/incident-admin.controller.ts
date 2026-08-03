@@ -32,16 +32,16 @@ import { IncidentAutomationService } from './services/incident-automation.servic
 import { IncidentConfigService } from './services/incident-config.service';
 import { QueryAdminIncidentDto } from './dto/query-admin-incident.dto';
 import { AcceptIncidentDto } from './dto/accept-incident.dto';
-import { VerifyItemsDto } from './dto/verify-items.dto';
 import { CreateFromTicketDto } from './dto/create-from-ticket.dto';
-import { SaveIncidentDecisionDraftDto } from './dto/save-incident-decision-draft.dto';
-import { SubmitIncidentDecisionDraftDto } from './dto/submit-incident-decision-draft.dto';
-import { ReviewIncidentDecisionResponseDto } from './dto/review-incident-decision-response.dto';
-import { ReviseIncidentDecisionDto } from './dto/revise-incident-decision.dto';
+import {
+  SaveIncidentDecisionDto,
+  SendDecisionToTaskerDto,
+} from './dto/save-incident-decision.dto';
 import { FinalizeIncidentDecisionDto } from './dto/finalize-incident-decision.dto';
+import { WithdrawDecisionDto } from './dto/withdraw-decision.dto';
 import { ReverseCompensationDto } from './dto/reverse-compensation.dto';
 import { ManualCompensateDto } from './dto/manual-compensate.dto';
-import { SecondApprovalIncidentDecisionDto } from './dto/second-approval-incident-decision.dto';
+import { WriteOffDebtDto } from './dto/write-off-debt.dto';
 import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
@@ -117,9 +117,7 @@ export class IncidentAdminController {
   }
 
   @Patch(':id/accept')
-  @ApiOperation({
-    summary: 'Tiếp nhận thẩm định (REPORTED → INVESTIGATING)',
-  })
+  @ApiOperation({ summary: 'Tiếp nhận thẩm định (REPORTED → REVIEWING)' })
   accept(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -128,79 +126,36 @@ export class IncidentAdminController {
     return this.adminService.accept(adminUserId, id, dto);
   }
 
-  @Patch(':id/items/verify')
-  @ApiOperation({ summary: 'Xác minh thiệt hại từng hạng mục' })
-  verifyItems(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: VerifyItemsDto,
-  ) {
-    return this.adminService.verifyItems(id, dto);
-  }
-
-  @Patch(':id/decision-draft')
-  @ApiOperation({ summary: 'Luu/sua draft quyet dinh incident v1.4.2' })
-  saveDecisionDraft(
+  @Put(':id/decision')
+  @ApiOperation({
+    summary:
+      'Soạn/sửa quyết định (gộp thẩm định hạng mục + duyệt tiền + phân bổ)',
+  })
+  saveDecision(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SaveIncidentDecisionDraftDto,
+    @Body() dto: SaveIncidentDecisionDto,
   ) {
-    return this.decisionService.saveDraft(adminUserId, id, dto);
+    return this.decisionService.saveDecision(adminUserId, id, dto);
   }
 
-  @Post(':id/decision-draft/submit')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Submit draft bat loi cho Tasker phan hoi' })
-  submitDecisionDraft(
-    @CurrentUser('id') adminUserId: string,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SubmitIncidentDecisionDraftDto,
-  ) {
-    return this.decisionService.submitDraftForTaskerResponse(
-      adminUserId,
-      id,
-      dto,
-    );
-  }
-
-  @Post(':id/decision/extend-response')
+  @Post(':id/decision/send')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'C6 — Gia hạn bắt buộc cho Tasker phản hồi (draft bất lợi, đã hết hạn)',
+      'Gửi quyết định dự kiến cho Tasker phản biện (khi Tasker chịu tiền)',
   })
-  extendTaskerResponse(
+  sendDecisionToTasker(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SubmitIncidentDecisionDraftDto,
+    @Body() dto: SendDecisionToTaskerDto,
   ) {
-    return this.decisionService.extendTaskerResponse(adminUserId, id, dto);
-  }
-
-  @Patch(':id/decision-response/review')
-  @ApiOperation({ summary: 'Admin review phan hoi quyet dinh cua Tasker' })
-  reviewDecisionResponse(
-    @CurrentUser('id') adminUserId: string,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ReviewIncidentDecisionResponseDto,
-  ) {
-    return this.decisionService.reviewDecisionResponse(adminUserId, id, dto);
-  }
-
-  @Patch(':id/decision/revise')
-  @ApiOperation({
-    summary: 'Admin revise noi dung decision va tao version moi',
-  })
-  reviseDecision(
-    @CurrentUser('id') adminUserId: string,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ReviseIncidentDecisionDto,
-  ) {
-    return this.decisionService.reviseDecision(adminUserId, id, dto);
+    return this.decisionService.sendToTasker(adminUserId, id, dto);
   }
 
   @Post(':id/decision/finalize')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Finalize decision hoac chuyen sang Admin #2' })
+  @ApiOperation({ summary: 'Chốt quyết định (một Admin, không duyệt cấp 2)' })
   finalizeDecision(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -209,14 +164,18 @@ export class IncidentAdminController {
     return this.decisionService.finalizeDecision(adminUserId, id, dto);
   }
 
-  @Patch(':id/second-approval')
-  @ApiOperation({ summary: 'Admin #2 approve hoac request changes decision' })
-  secondApproval(
+  @Post(':id/decision/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Thu hồi quyết định đã chốt nhưng CHƯA chi trả, mở lại để soạn/chốt lại',
+  })
+  withdrawDecision(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SecondApprovalIncidentDecisionDto,
+    @Body() dto: WithdrawDecisionDto,
   ) {
-    return this.decisionService.secondApproval(adminUserId, id, dto);
+    return this.decisionService.withdrawDecision(adminUserId, id, dto);
   }
 
   @Post(':id/compensate')
@@ -232,14 +191,34 @@ export class IncidentAdminController {
   @Post(':id/compensation/reverse')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'P1.1 — Thu hồi/đảo bồi thường đã chi (Admin #2), reopen để sửa',
+    summary:
+      'Thu hồi/đảo bồi thường đã chi (trong 72h), mở lại để soạn quyết định mới',
   })
   reverseCompensation(
     @CurrentUser('id') adminUserId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReverseCompensationDto,
   ) {
-    return this.compensationExecutor.reverse(adminUserId, id, dto.reason);
+    return this.compensationExecutor.reverse(
+      adminUserId,
+      id,
+      dto.reason,
+      dto.expectedDecisionVersion,
+    );
+  }
+
+  @Post(':id/debt/write-off')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Xoá nợ bồi thường không thu hồi được (nền tảng chịu mất) — mở lối đóng hồ sơ',
+  })
+  writeOffDebt(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: WriteOffDebtDto,
+  ) {
+    return this.adminService.writeOffDebt(adminUserId, id, dto.reason);
   }
 
   @Post('evidences/transfer-proof')

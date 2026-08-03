@@ -1,8 +1,9 @@
 import { IncidentAutomationService } from './incident-automation.service';
+import { IncidentStateService } from './incident-state.service';
 
 interface AutomationInternals {
   sweepSlaOverdue: () => Promise<number>;
-  sweepCompRetry: () => Promise<number>;
+  sweepPayoutOverdue: () => Promise<number>;
 }
 
 function makeService(overrides: {
@@ -30,9 +31,15 @@ function makeService(overrides: {
     }),
   } as never;
   const alert = { send: jest.fn().mockResolvedValue(false) } as never;
+  const state = new IncidentStateService();
+  const evidenceLifecycle = {
+    purgeAbandonedUploads: jest.fn().mockResolvedValue(0),
+  } as never;
   const service = new IncidentAutomationService(
     dataSource,
     config,
+    state,
+    evidenceLifecycle,
     notifier,
     executor,
     depositHold,
@@ -85,8 +92,12 @@ describe('IncidentAutomationService S7 sweeps', () => {
     });
   });
 
-  describe('sweepCompRetry', () => {
-    it('retries a FAILED incident using the finalizing admin as actor', async () => {
+  /**
+   * Thay cho `sweepCompRetry` cũ (quét `compensationStatus=FAILED` — giá trị không nơi
+   * nào ghi, nên vòng quét đó chưa từng chạy). Tín hiệu thật là sự cố kẹt ở AWAITING_PAYOUT.
+   */
+  describe('sweepPayoutOverdue', () => {
+    it('nhắc Admin đã chốt khi sự cố kẹt ở trạng thái chờ chi trả', async () => {
       const find = jest.fn().mockResolvedValue([
         {
           id: 'inc-1',
@@ -94,39 +105,24 @@ describe('IncidentAutomationService S7 sweeps', () => {
           finalizedByAdmin: { id: 'admin-1' },
         },
       ]);
-      const execute = jest.fn().mockResolvedValue(undefined);
-      const { service } = makeService({ find, execute });
+      const { service, notify } = makeService({ find });
 
-      expect(await service.sweepCompRetry()).toBe(1);
-      expect(execute).toHaveBeenCalledWith('admin-1', 'inc-1');
+      expect(await service.sweepPayoutOverdue()).toBe(1);
+      expect(notify).toHaveBeenCalledWith(
+        'admin-1',
+        'inc-1',
+        expect.any(String),
+        expect.any(String),
+        'payout-overdue',
+      );
     });
 
-    it('skips incidents missing a finalizing admin (no FK actor to log)', async () => {
-      const find = jest
-        .fn()
-        .mockResolvedValue([
-          { id: 'inc-1', incidentCode: 'INC-1', finalizedByAdmin: null },
-        ]);
-      const execute = jest.fn();
-      const { service } = makeService({ find, execute });
-
-      expect(await service.sweepCompRetry()).toBe(0);
-      expect(execute).not.toHaveBeenCalled();
-    });
-
-    it('isolates a per-incident execute failure from the rest', async () => {
-      const find = jest.fn().mockResolvedValue([
-        { id: 'inc-1', incidentCode: 'INC-1', finalizedByAdmin: { id: 'a1' } },
-        { id: 'inc-2', incidentCode: 'INC-2', finalizedByAdmin: { id: 'a2' } },
-      ]);
-      const execute = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('boom'))
-        .mockResolvedValueOnce(undefined);
-      const { service } = makeService({ find, execute });
-
-      expect(await service.sweepCompRetry()).toBe(1);
-      expect(execute).toHaveBeenCalledTimes(2);
+    it('không nhắc gì khi không có sự cố nào quá hạn chi trả', async () => {
+      const { service, notify } = makeService({
+        find: jest.fn().mockResolvedValue([]),
+      });
+      expect(await service.sweepPayoutOverdue()).toBe(0);
+      expect(notify).not.toHaveBeenCalled();
     });
   });
 });

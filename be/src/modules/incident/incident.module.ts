@@ -31,7 +31,6 @@ import { IncidentAutomationService } from './services/incident-automation.servic
 import { IncidentNotificationOutboxWorkerService } from './services/incident-notification-outbox-worker.service';
 import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
 import { IncidentDepositHoldService } from './services/incident-deposit-hold.service';
-import { IncidentDebtRecoveryService } from './services/incident-debt-recovery.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
 import { IncidentAlertService } from './services/incident-alert.service';
 
@@ -74,7 +73,6 @@ import { IncidentAlertService } from './services/incident-alert.service';
     IncidentNotificationOutboxWorkerService,
     IncidentEvidenceLifecycleService,
     IncidentDepositHoldService,
-    IncidentDebtRecoveryService,
     IncidentReconciliationService,
     IncidentAlertService,
   ],

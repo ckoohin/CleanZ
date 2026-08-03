@@ -1,15 +1,20 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 import { IncidentResponsibilityParty } from 'src/common/enums/incident-responsibility-party.enum';
-import { IncidentDecisionResponseReviewResult } from 'src/common/enums/incident-decision-response-review-result.enum';
+import { IncidentDamageItemVerificationStatus } from 'src/common/enums/incident-damage-item-verification-status.enum';
+import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import { IncidentEntity } from '../entity/incident.entity';
-import { IncidentDecisionResponseEntity } from '../entity/incident-decision-response.entity';
-import { IncidentDecisionDraftDecision } from '../dto/save-incident-decision-draft.dto';
+import { IncidentDecisionOutcome } from '../dto/save-incident-decision.dto';
 import { IncidentDecisionService } from './incident-decision.service';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
-import { IncidentResponseWindowStatus } from 'src/common/enums/incident-response-window-status.enum';
 
-describe('IncidentDecisionService save draft validation', () => {
+interface TestPolicy {
+  policyVersion: string;
+  policyCap: number;
+  responseWindowHours: number;
+  severityRuleSnapshot: Record<string, unknown>;
+}
+
+describe('IncidentDecisionService — chuẩn hoá & kiểm tra quyết định', () => {
   const service = new IncidentDecisionService(
     {} as never,
     {} as never,
@@ -18,397 +23,307 @@ describe('IncidentDecisionService save draft validation', () => {
     {} as never,
     {} as never,
   ) as unknown as {
-    normalizeDecisionDraft: (
+    normalize: (
       dto: Record<string, unknown>,
       items: IncidentDamageItemEntity[],
-      policy: { policyCap: number; dualApprovalThreshold: number },
-    ) => unknown;
-    validateDecisionDraft: (
-      items: IncidentDamageItemEntity[],
-      draft: unknown,
-      policy: { policyCap: number; dualApprovalThreshold: number },
-    ) => void;
-    isAdverseIncidentDraft: (incident: IncidentEntity) => boolean;
-    buildTaskerSafeDecisionDraftPayload: (
-      incident: IncidentEntity,
     ) => Record<string, unknown>;
-    buildTaskerDraftSubmittedDedupeKey: (
-      incidentId: string,
-      decisionVersion: number,
-      taskerUserId: string,
-    ) => string;
-    normalizeAdminReviewNote: (note?: string | null) => string;
-    isSameReview: (
-      response: IncidentDecisionResponseEntity,
-      result: IncidentDecisionResponseReviewResult,
-      normalizedNote: string,
-    ) => boolean;
-    shouldReopenTaskerResponse: (
-      previous: {
-        responsibilityParty: IncidentResponsibilityParty | null;
-        taskerBorneAmount: number;
-        taskerDecisionReason: string | null;
-      },
-      revised: {
-        responsibilityParty: IncidentResponsibilityParty | null;
-        taskerBorneAmount: number;
-        taskerDecisionReason: string | null;
-      },
-    ) => boolean;
-    applyDecisionDraft: (
+    validate: (
+      items: IncidentDamageItemEntity[],
+      decision: unknown,
+      policy: TestPolicy,
+    ) => void;
+    validateFinal: (
       incident: IncidentEntity,
       items: IncidentDamageItemEntity[],
-      draft: {
-        itemApprovals: Map<string, number>;
-        totalApprovedAmount: number;
-        taskerBorneAmount: number;
-        platformBorneAmount: number;
-        allocationReason: string | null;
-        compensationSource: null;
-        responsibilityParty: IncidentResponsibilityParty | null;
-        responsibilityReason: string | null;
-        internalDecisionNote: string | null;
-        taskerDecisionReason: string | null;
-        customerDecisionSummary: string;
-      },
+      policy: TestPolicy,
+    ) => void;
+    apply: (
+      incident: IncidentEntity,
+      items: IncidentDamageItemEntity[],
+      decision: unknown,
       adminUserId: string,
     ) => void;
-    requiresSecondAdminApproval: (
-      incident: IncidentEntity,
-      policy: { policyCap: number; dualApprovalThreshold: number },
-    ) => boolean;
-    buildCustomerFinalDecisionPayload: (
-      incident: IncidentEntity,
-    ) => Record<string, unknown>;
-    assertDifferentSecondApprovalAdmin: (
-      incident: IncidentEntity,
-      adminUserId: string,
-    ) => void;
-    normalizeSecondApprovalNote: (note?: string | null) => string;
   };
 
-  const policy = { policyCap: 10_000_000, dualApprovalThreshold: 5_000_000 };
+  const policy: TestPolicy = {
+    policyVersion: 'test',
+    policyCap: 10_000_000,
+    responseWindowHours: 48,
+    severityRuleSnapshot: {},
+  };
 
-  const items = [
+  const makeItems = (): IncidentDamageItemEntity[] => [
     {
-      id: 'damage-item-1',
-      verifiedAmount: 1_000_000,
+      id: 'item-1',
+      description: 'Vỡ mặt bàn kính',
+      claimedAmount: 1_000_000,
+      verifiedAmount: null,
       approvedAmount: null,
+      verificationStatus: IncidentDamageItemVerificationStatus.PENDING,
     } as IncidentDamageItemEntity,
   ];
 
-  function normalize(dto: Record<string, unknown>): unknown {
-    return service.normalizeDecisionDraft(dto, items, policy);
-  }
+  const compensateDto = (over: Record<string, unknown> = {}) => ({
+    expectedDecisionVersion: 0,
+    outcome: IncidentDecisionOutcome.COMPENSATE,
+    items: [{ damageItemId: 'item-1', approvedAmount: 1_000_000 }],
+    responsibilityParty: IncidentResponsibilityParty.TASKER,
+    responsibilityReason: 'Tasker làm vỡ trong lúc lau dọn.',
+    taskerBorneAmount: 1_000_000,
+    platformBorneAmount: 0,
+    customerDecisionSummary: 'CleanZ duyệt bồi thường cho bạn.',
+    ...over,
+  });
 
-  it('rejects PLATFORM responsibility with tasker borne amount', () => {
-    const draft = normalize({
-      expectedDecisionVersion: 0,
-      decision: IncidentDecisionDraftDecision.APPROVE,
-      items: [{ damageItemId: 'damage-item-1', approvedAmount: 1_000_000 }],
-      responsibilityParty: IncidentResponsibilityParty.PLATFORM,
-      responsibilityReason: 'CleanZ accepts responsibility.',
-      taskerBorneAmount: 100_000,
-      platformBorneAmount: 900_000,
-      customerDecisionSummary: 'CleanZ approves this compensation.',
+  const run = (dto: Record<string, unknown>, items = makeItems()) => {
+    const decision = service.normalize(dto, items);
+    service.validate(items, decision, policy);
+    return decision;
+  };
+
+  describe('gộp thẩm định vào duyệt tiền (một con số mỗi hạng mục)', () => {
+    it('duyệt tiền không cần bước xác minh riêng trước đó', () => {
+      const items = makeItems();
+      expect(() => run(compensateDto(), items)).not.toThrow();
     });
 
-    expect(() => service.validateDecisionDraft(items, draft, policy)).toThrow(
-      UnprocessableEntityException,
-    );
-  });
-
-  it('does not cap tasker borne amount by current deposit in phase 1', () => {
-    const draft = normalize({
-      expectedDecisionVersion: 0,
-      decision: IncidentDecisionDraftDecision.APPROVE,
-      items: [{ damageItemId: 'damage-item-1', approvedAmount: 1_000_000 }],
-      responsibilityParty: IncidentResponsibilityParty.TASKER,
-      responsibilityReason: 'Tasker caused the verified damage.',
-      taskerBorneAmount: 1_000_000,
-      platformBorneAmount: 0,
-      customerDecisionSummary: 'CleanZ approves this compensation.',
+    it('chặn duyệt vượt số khách yêu cầu ở hạng mục đó', () => {
+      const items = makeItems();
+      expect(() =>
+        run(
+          compensateDto({
+            items: [{ damageItemId: 'item-1', approvedAmount: 2_000_000 }],
+            taskerBorneAmount: 2_000_000,
+          }),
+          items,
+        ),
+      ).toThrow(UnprocessableEntityException);
     });
 
-    expect(() =>
-      service.validateDecisionDraft(items, draft, policy),
-    ).not.toThrow();
-  });
+    it('apply() ghi verifiedAmount = approvedAmount để đối soát vẫn đọc được', () => {
+      const items = makeItems();
+      const decision = run(compensateDto(), items);
+      const incident = {
+        decisionVersion: 3,
+        status: IncidentStatus.REVIEWING,
+      } as IncidentEntity;
 
-  it('rejects allocation total mismatch', () => {
-    const draft = normalize({
-      expectedDecisionVersion: 0,
-      decision: IncidentDecisionDraftDecision.APPROVE,
-      items: [{ damageItemId: 'damage-item-1', approvedAmount: 1_000_000 }],
-      responsibilityParty: IncidentResponsibilityParty.SHARED,
-      responsibilityReason: 'Both sides share responsibility.',
-      taskerBorneAmount: 400_000,
-      platformBorneAmount: 500_000,
-      customerDecisionSummary: 'CleanZ approves this compensation.',
+      service.apply(incident, items, decision, 'admin-1');
+
+      expect(items[0].approvedAmount).toBe(1_000_000);
+      expect(items[0].verifiedAmount).toBe(1_000_000);
+      expect(items[0].verificationStatus).toBe(
+        IncidentDamageItemVerificationStatus.VERIFIED,
+      );
+      expect(incident.decisionVersion).toBe(4);
+      // Sang version mới thì bản đã gửi Tasker hết hiệu lực.
+      expect(incident.sentTaskerBorneAmount).toBeNull();
+      expect(incident.taskerResponseDeadline).toBeNull();
     });
 
-    expect(() => service.validateDecisionDraft(items, draft, policy)).toThrow(
-      UnprocessableEntityException,
-    );
-  });
+    it('duyệt 0đ thì hạng mục tự chuyển sang REJECTED, duyệt >0 thì VERIFIED', () => {
+      const items = [
+        ...makeItems(),
+        {
+          id: 'item-2',
+          description: 'Xước sàn gỗ',
+          claimedAmount: 500_000,
+          verificationStatus: IncidentDamageItemVerificationStatus.PENDING,
+        } as IncidentDamageItemEntity,
+      ];
+      const decision = run(
+        compensateDto({
+          items: [
+            { damageItemId: 'item-1', approvedAmount: 1_000_000 },
+            { damageItemId: 'item-2', approvedAmount: 0 },
+          ],
+        }),
+        items,
+      ) as unknown as { itemStatuses: Map<string, string> };
 
-  it('rejects REJECT payload with approved amount', () => {
-    expect(() =>
-      normalize({
-        expectedDecisionVersion: 0,
-        decision: IncidentDecisionDraftDecision.REJECT,
-        items: [{ damageItemId: 'damage-item-1', approvedAmount: 1 }],
-        customerDecisionSummary: 'CleanZ rejects this compensation.',
-      }),
-    ).toThrow(UnprocessableEntityException);
-  });
-
-  it('detects adverse tasker draft by responsibility or tasker amount', () => {
-    expect(
-      service.isAdverseIncidentDraft({
-        responsibilityParty: IncidentResponsibilityParty.PLATFORM,
-        taskerBorneAmount: 0,
-      } as IncidentEntity),
-    ).toBe(false);
-    expect(
-      service.isAdverseIncidentDraft({
-        responsibilityParty: IncidentResponsibilityParty.TASKER,
-        taskerBorneAmount: 0,
-      } as IncidentEntity),
-    ).toBe(true);
-    expect(
-      service.isAdverseIncidentDraft({
-        responsibilityParty: IncidentResponsibilityParty.PLATFORM,
-        taskerBorneAmount: 1,
-      } as IncidentEntity),
-    ).toBe(true);
-  });
-
-  it('builds tasker-safe payload without internal admin note', () => {
-    const payload = service.buildTaskerSafeDecisionDraftPayload({
-      id: 'incident-1',
-      incidentCode: 'IC-1',
-      decisionVersion: 3,
-      responsibilityParty: IncidentResponsibilityParty.TASKER,
-      taskerDecisionReason: 'Tasker-facing reason',
-      internalDecisionNote: 'admin-only',
-      approvedCompensationAmount: 1_000_000,
-      taskerBorneAmount: 400_000,
-      taskerResponseDeadline: new Date('2026-07-05T10:00:00Z'),
-    } as IncidentEntity);
-
-    expect(payload).toMatchObject({
-      incidentId: 'incident-1',
-      incidentCode: 'IC-1',
-      decisionVersion: 3,
-      responsibilityParty: IncidentResponsibilityParty.TASKER,
-      taskerDecisionReason: 'Tasker-facing reason',
-      approvedAmount: 1_000_000,
-      taskerBorneAmount: 400_000,
+      expect(decision.itemStatuses.get('item-1')).toBe(
+        IncidentDamageItemVerificationStatus.VERIFIED,
+      );
+      expect(decision.itemStatuses.get('item-2')).toBe(
+        IncidentDamageItemVerificationStatus.REJECTED,
+      );
     });
-    expect(payload).not.toHaveProperty('internalDecisionNote');
+
+    it('chặn hạng mục trùng trong cùng request', () => {
+      expect(() =>
+        run(
+          compensateDto({
+            items: [
+              { damageItemId: 'item-1', approvedAmount: 600_000 },
+              { damageItemId: 'item-1', approvedAmount: 400_000 },
+            ],
+          }),
+        ),
+      ).toThrow(UnprocessableEntityException);
+    });
   });
 
-  it('builds submit outbox dedupe key with incident, version, and recipient', () => {
-    expect(
-      service.buildTaskerDraftSubmittedDedupeKey(
-        'incident-1',
-        3,
-        'tasker-user-1',
-      ),
-    ).toBe(
-      'incident:incident-1:decision:3:tasker-draft-submitted:tasker-user-1',
-    );
-  });
+  describe('phân bổ phải nhất quán với bên chịu trách nhiệm', () => {
+    it('PLATFORM chịu trách nhiệm thì Tasker không chịu tiền', () => {
+      expect(() =>
+        run(
+          compensateDto({
+            responsibilityParty: IncidentResponsibilityParty.PLATFORM,
+            taskerBorneAmount: 100_000,
+            platformBorneAmount: 900_000,
+          }),
+        ),
+      ).toThrow(UnprocessableEntityException);
+    });
 
-  it('requires meaningful admin review note', () => {
-    expect(() => service.normalizeAdminReviewNote('short')).toThrow(
-      UnprocessableEntityException,
-    );
-    expect(service.normalizeAdminReviewNote('  This review is valid. ')).toBe(
-      'This review is valid.',
-    );
-  });
+    it('UNDETERMINED phải để nền tảng gánh toàn bộ + có lý do phân bổ', () => {
+      expect(() =>
+        run(
+          compensateDto({
+            responsibilityParty: IncidentResponsibilityParty.UNDETERMINED,
+            taskerBorneAmount: 0,
+            platformBorneAmount: 1_000_000,
+          }),
+        ),
+      ).toThrow(UnprocessableEntityException);
 
-  it('detects same reviewed response payload for idempotency', () => {
-    const response = {
-      reviewResult: IncidentDecisionResponseReviewResult.KEEP_DECISION,
-      adminReviewNote: 'Decision remains valid.',
-    } as IncidentDecisionResponseEntity;
+      expect(() =>
+        run(
+          compensateDto({
+            responsibilityParty: IncidentResponsibilityParty.UNDETERMINED,
+            taskerBorneAmount: 0,
+            platformBorneAmount: 1_000_000,
+            allocationReason: 'Chưa đủ căn cứ quy trách nhiệm cho Tasker.',
+          }),
+        ),
+      ).not.toThrow();
+    });
 
-    expect(
-      service.isSameReview(
-        response,
-        IncidentDecisionResponseReviewResult.KEEP_DECISION,
-        'Decision remains valid.',
-      ),
-    ).toBe(true);
-    expect(
-      service.isSameReview(
-        response,
-        IncidentDecisionResponseReviewResult.REVISE_DECISION,
-        'Decision remains valid.',
-      ),
-    ).toBe(false);
-  });
+    it('tổng phân bổ phải bằng tổng duyệt', () => {
+      expect(() =>
+        run(
+          compensateDto({
+            taskerBorneAmount: 400_000,
+            platformBorneAmount: 500_000,
+          }),
+        ),
+      ).toThrow(UnprocessableEntityException);
+    });
 
-  it('requires reopened tasker response when revision becomes more adverse', () => {
-    expect(
-      service.shouldReopenTaskerResponse(
+    it('vượt trần chính sách bị chặn', () => {
+      const items = [
         {
-          responsibilityParty: IncidentResponsibilityParty.PLATFORM,
-          taskerBorneAmount: 0,
-          taskerDecisionReason: null,
-        },
-        {
-          responsibilityParty: IncidentResponsibilityParty.TASKER,
-          taskerBorneAmount: 0,
-          taskerDecisionReason: 'Tasker now has responsibility.',
-        },
-      ),
-    ).toBe(true);
-
-    expect(
-      service.shouldReopenTaskerResponse(
-        {
-          responsibilityParty: IncidentResponsibilityParty.TASKER,
-          taskerBorneAmount: 500_000,
-          taskerDecisionReason: 'Tasker caused damage.',
-        },
-        {
-          responsibilityParty: IncidentResponsibilityParty.TASKER,
-          taskerBorneAmount: 300_000,
-          taskerDecisionReason: 'Tasker caused damage.',
-        },
-      ),
-    ).toBe(false);
+          id: 'item-1',
+          description: 'Hỏng tủ lạnh',
+          claimedAmount: 20_000_000,
+          verificationStatus: IncidentDamageItemVerificationStatus.PENDING,
+        } as IncidentDamageItemEntity,
+      ];
+      expect(() =>
+        run(
+          compensateDto({
+            items: [{ damageItemId: 'item-1', approvedAmount: 11_000_000 }],
+            taskerBorneAmount: 11_000_000,
+          }),
+          items,
+        ),
+      ).toThrow(UnprocessableEntityException);
+    });
   });
 
-  it('apply draft resets response, finalization, and approval fields for revise', () => {
-    const incident = {
-      decisionStatus: IncidentDecisionStatus.DRAFT,
-      decisionVersion: 3,
-      taskerResponseDeadline: new Date(),
-      taskerResponseReviewedAt: new Date(),
-      responseWindowStatus: IncidentResponseWindowStatus.REVIEWED,
-      secondApprovalNote: 'old',
-      secondApprovalRequestedAt: new Date(),
-      secondApprovalDueAt: new Date(),
-      secondApprovedByAdmin: { id: 'admin-2' },
-      secondApprovedAt: new Date(),
-      finalizedByAdmin: { id: 'admin-1' },
-      finalizedAt: new Date(),
-    } as IncidentEntity;
-    const item = {
-      id: 'damage-item-1',
-      approvedAmount: 1,
-    } as IncidentDamageItemEntity;
+  describe('quyết định không bồi thường', () => {
+    it('REJECT / NO_COMPENSATION không được kèm số tiền', () => {
+      for (const outcome of [
+        IncidentDecisionOutcome.REJECT,
+        IncidentDecisionOutcome.NO_COMPENSATION,
+      ]) {
+        expect(() =>
+          run({
+            expectedDecisionVersion: 0,
+            outcome,
+            taskerBorneAmount: 100_000,
+            customerDecisionSummary: 'Không đủ căn cứ bồi thường.',
+          }),
+        ).toThrow(UnprocessableEntityException);
+      }
+    });
 
-    service.applyDecisionDraft(
-      incident,
-      [item],
-      {
-        itemApprovals: new Map([['damage-item-1', 100]]),
-        totalApprovedAmount: 100,
-        taskerBorneAmount: 100,
+    it('REJECT hợp lệ khi không có tiền, không cần bên chịu trách nhiệm', () => {
+      expect(() =>
+        run({
+          expectedDecisionVersion: 0,
+          outcome: IncidentDecisionOutcome.REJECT,
+          customerDecisionSummary: 'Bằng chứng không khớp với hiện trường.',
+        }),
+      ).not.toThrow();
+    });
+
+    it('tóm tắt gửi khách phải đủ dài', () => {
+      expect(() =>
+        run({
+          expectedDecisionVersion: 0,
+          outcome: IncidentDecisionOutcome.REJECT,
+          customerDecisionSummary: 'ngắn',
+        }),
+      ).toThrow(UnprocessableEntityException);
+    });
+  });
+
+  describe('validateFinal — chốt chặn cuối trước khi chuyển tiền', () => {
+    const finalItems = (approved: number, status?: string) =>
+      [
+        {
+          id: 'item-1',
+          description: 'Vỡ mặt bàn kính',
+          claimedAmount: 1_000_000,
+          approvedAmount: approved,
+          verifiedAmount: approved,
+          verificationStatus:
+            status ?? IncidentDamageItemVerificationStatus.VERIFIED,
+        },
+      ] as IncidentDamageItemEntity[];
+
+    it('tự kiểm tổng duyệt = tổng các hạng mục, không tin bước trước', () => {
+      const incident = {
+        approvedCompensationAmount: 1_500_000,
+        taskerBorneAmount: 1_500_000,
         platformBorneAmount: 0,
-        allocationReason: null,
-        compensationSource: null,
         responsibilityParty: IncidentResponsibilityParty.TASKER,
-        responsibilityReason: 'Tasker caused damage.',
-        internalDecisionNote: null,
-        taskerDecisionReason: 'Tasker-facing reason.',
-        customerDecisionSummary: 'Customer-facing summary.',
-      },
-      'admin-1',
-    );
-
-    expect(incident.decisionVersion).toBe(4);
-    expect(incident.responseWindowStatus).toBe(
-      IncidentResponseWindowStatus.NONE,
-    );
-    expect(incident.taskerResponseDeadline).toBeNull();
-    expect(incident.taskerResponseReviewedAt).toBeNull();
-    expect(incident.secondApprovalRequestedAt).toBeNull();
-    expect(incident.secondApprovedByAdmin).toBeNull();
-    expect(incident.finalizedAt).toBeNull();
-    expect(item.approvedAmount).toBe(100);
-  });
-
-  it('requires second admin for threshold and allocation exceptions', () => {
-    expect(
-      service.requiresSecondAdminApproval(
-        {
-          approvedCompensationAmount: 2_000_000,
-          responsibilityParty: IncidentResponsibilityParty.PLATFORM,
-          taskerBorneAmount: 0,
-          platformBorneAmount: 2_000_000,
-        } as IncidentEntity,
-        { policyCap: 10_000_000, dualApprovalThreshold: 2_000_000 },
-      ),
-    ).toBe(true);
-
-    expect(
-      service.requiresSecondAdminApproval(
-        {
-          approvedCompensationAmount: 100_000,
-          responsibilityParty: IncidentResponsibilityParty.TASKER,
-          taskerBorneAmount: 0,
-          platformBorneAmount: 100_000,
-        } as IncidentEntity,
-        { policyCap: 10_000_000, dualApprovalThreshold: 2_000_000 },
-      ),
-    ).toBe(true);
-  });
-
-  it('builds customer final payload without internal allocation split', () => {
-    const payload = service.buildCustomerFinalDecisionPayload({
-      id: 'incident-1',
-      incidentCode: 'IC-1',
-      decisionVersion: 4,
-      status: 'APPROVED',
-      approvedCompensationAmount: 1_000_000,
-      taskerBorneAmount: 400_000,
-      platformBorneAmount: 600_000,
-      allocationReason: 'internal split',
-      internalDecisionNote: 'admin only',
-      customerDecisionSummary: 'Customer-facing final summary.',
-    } as unknown as IncidentEntity);
-
-    expect(payload).toMatchObject({
-      incidentId: 'incident-1',
-      incidentCode: 'IC-1',
-      decisionVersion: 4,
-      status: 'APPROVED',
-      approvedAmount: 1_000_000,
-      customerDecisionSummary: 'Customer-facing final summary.',
+      } as IncidentEntity;
+      expect(() =>
+        service.validateFinal(incident, finalItems(1_000_000), policy),
+      ).toThrow(UnprocessableEntityException);
     });
-    expect(payload).not.toHaveProperty('taskerBorneAmount');
-    expect(payload).not.toHaveProperty('platformBorneAmount');
-    expect(payload).not.toHaveProperty('allocationReason');
-    expect(payload).not.toHaveProperty('internalDecisionNote');
-  });
 
-  it('requires different admin for second approval', () => {
-    expect(() =>
-      service.assertDifferentSecondApprovalAdmin(
-        { finalizedByAdmin: { id: 'admin-1' } } as IncidentEntity,
-        'admin-1',
-      ),
-    ).toThrow();
+    it('chặn chốt khi còn hạng mục chờ bổ sung bằng chứng', () => {
+      const incident = {
+        approvedCompensationAmount: 1_000_000,
+        taskerBorneAmount: 1_000_000,
+        platformBorneAmount: 0,
+        responsibilityParty: IncidentResponsibilityParty.TASKER,
+      } as IncidentEntity;
+      expect(() =>
+        service.validateFinal(
+          incident,
+          finalItems(
+            1_000_000,
+            IncidentDamageItemVerificationStatus.NEED_MORE_EVIDENCE,
+          ),
+          policy,
+        ),
+      ).toThrow(UnprocessableEntityException);
+    });
 
-    expect(() =>
-      service.assertDifferentSecondApprovalAdmin(
-        { finalizedByAdmin: { id: 'admin-1' } } as IncidentEntity,
-        'admin-2',
-      ),
-    ).not.toThrow();
-  });
-
-  it('requires note for second approval request changes', () => {
-    expect(() => service.normalizeSecondApprovalNote('short')).toThrow();
-    expect(
-      service.normalizeSecondApprovalNote('  Please verify quote again. '),
-    ).toBe('Please verify quote again.');
+    it('quyết định hợp lệ đi qua', () => {
+      const incident = {
+        approvedCompensationAmount: 1_000_000,
+        taskerBorneAmount: 600_000,
+        platformBorneAmount: 400_000,
+        responsibilityParty: IncidentResponsibilityParty.SHARED,
+      } as IncidentEntity;
+      expect(() =>
+        service.validateFinal(incident, finalItems(1_000_000), policy),
+      ).not.toThrow();
+    });
   });
 });

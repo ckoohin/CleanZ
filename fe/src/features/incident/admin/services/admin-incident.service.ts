@@ -3,18 +3,14 @@ import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import type {
   AcceptInput,
   AdminIncidentQuery,
-  DecisionDraftInput,
   FinalizeDecisionInput,
   FromTicketInput,
   IncidentAdminView,
   IncidentConfigMap,
   IncidentSummary,
   Paginated,
-  ReviewDecisionResponseInput,
-  ReviseDecisionInput,
-  SecondApprovalInput,
-  SubmitDecisionDraftInput,
-  VerifyItemsInput,
+  SaveDecisionInput,
+  SendToTaskerInput,
 } from "@/features/incident/shared/incident.types";
 
 const EP = API_ENDPOINTS.ADMIN_INCIDENTS;
@@ -29,38 +25,18 @@ export const adminIncidentApi = {
   accept: (id: string, dto: AcceptInput): Promise<IncidentAdminView> =>
     http.patch<IncidentAdminView>(EP.ACCEPT(id), dto).then((r) => r.data),
 
-  verifyItems: (id: string, dto: VerifyItemsInput): Promise<IncidentAdminView> =>
-    http.patch<IncidentAdminView>(EP.VERIFY(id), dto).then((r) => r.data),
-
-  saveDecisionDraft: (
+  /** Soạn/sửa quyết định (upsert) — thay cho cặp verify + saveDraft + revise cũ. */
+  saveDecision: (
     id: string,
-    dto: DecisionDraftInput,
+    dto: SaveDecisionInput,
   ): Promise<IncidentAdminView> =>
-    http.patch<IncidentAdminView>(EP.DECISION_DRAFT(id), dto).then((r) => r.data),
+    http.put<IncidentAdminView>(EP.DECISION(id), dto).then((r) => r.data),
 
-  submitDecisionDraft: (
+  sendDecisionToTasker: (
     id: string,
-    dto: SubmitDecisionDraftInput,
+    dto: SendToTaskerInput,
   ): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.DECISION_DRAFT_SUBMIT(id), dto).then((r) => r.data),
-
-  reviewDecisionResponse: (
-    id: string,
-    dto: ReviewDecisionResponseInput,
-  ): Promise<IncidentAdminView> =>
-    http.patch<IncidentAdminView>(EP.DECISION_RESPONSE_REVIEW(id), dto).then((r) => r.data),
-
-  reviseDecision: (
-    id: string,
-    dto: ReviseDecisionInput,
-  ): Promise<IncidentAdminView> =>
-    http.patch<IncidentAdminView>(EP.DECISION_REVISE(id), dto).then((r) => r.data),
-
-  extendTaskerResponse: (
-    id: string,
-    dto: SubmitDecisionDraftInput,
-  ): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.DECISION_EXTEND_RESPONSE(id), dto).then((r) => r.data),
+    http.post<IncidentAdminView>(EP.DECISION_SEND(id), dto).then((r) => r.data),
 
   finalizeDecision: (
     id: string,
@@ -68,8 +44,25 @@ export const adminIncidentApi = {
   ): Promise<IncidentAdminView> =>
     http.post<IncidentAdminView>(EP.DECISION_FINALIZE(id), dto).then((r) => r.data),
 
-  reverseCompensation: (id: string, reason: string): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.COMPENSATION_REVERSE(id), { reason }).then((r) => r.data),
+  /**
+   * Thu hồi quyết định đã chốt nhưng CHƯA chi trả — sửa sai trước khi tiền rời ví, thay vì
+   * phải chi rồi mới đảo.
+   */
+  withdrawDecision: (
+    id: string,
+    dto: { expectedDecisionVersion: number; reason: string },
+  ): Promise<IncidentAdminView> =>
+    http.post<IncidentAdminView>(EP.DECISION_WITHDRAW(id), dto).then((r) => r.data),
+
+  /** Xoá nợ không thu hồi được — nền tảng chịu mất, mở lối đóng hồ sơ. */
+  writeOffDebt: (id: string, reason: string): Promise<IncidentAdminView> =>
+    http.post<IncidentAdminView>(EP.DEBT_WRITE_OFF(id), { reason }).then((r) => r.data),
+
+  reverseCompensation: (
+    id: string,
+    dto: { expectedDecisionVersion: number; reason: string },
+  ): Promise<IncidentAdminView> =>
+    http.post<IncidentAdminView>(EP.COMPENSATION_REVERSE(id), dto).then((r) => r.data),
 
   /** P0.4 — upload ảnh minh chứng chuyển khoản (chi trả thủ công). */
   uploadTransferProof: (file: File): Promise<{ id: string; url: string }> => {
@@ -88,12 +81,6 @@ export const adminIncidentApi = {
     dto: { proofEvidenceId: string; note?: string },
   ): Promise<IncidentAdminView> =>
     http.post<IncidentAdminView>(EP.COMPENSATE_MANUAL(id), dto).then((r) => r.data),
-
-  secondApproval: (
-    id: string,
-    dto: SecondApprovalInput,
-  ): Promise<IncidentAdminView> =>
-    http.patch<IncidentAdminView>(EP.SECOND_APPROVAL(id), dto).then((r) => r.data),
 
   compensate: (id: string): Promise<IncidentAdminView> =>
     http.post<IncidentAdminView>(EP.COMPENSATE(id), {}).then((r) => r.data),

@@ -11,8 +11,6 @@ import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
-import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
@@ -32,8 +30,13 @@ import {
   toCustomerView,
   toIncidentSummary,
 } from '../dto/incident-response.dto';
+import {
+  isActiveIncidentPerBookingConflict,
+  isUniqueViolation,
+} from '../domain/incident-conflict.helpers';
 import { IncidentCodeService } from './incident-code.service';
 import { IncidentConfigService } from './incident-config.service';
+import { IncidentStateService } from './incident-state.service';
 import { IncidentNotifier } from './incident-notifier.service';
 import { IncidentDepositHoldService } from './incident-deposit-hold.service';
 import {
@@ -43,7 +46,7 @@ import {
 
 const WITHDRAWABLE_STATUSES = [
   IncidentStatus.REPORTED,
-  IncidentStatus.INVESTIGATING,
+  IncidentStatus.REVIEWING,
 ];
 
 @Injectable()
@@ -60,6 +63,7 @@ export class IncidentService {
     private readonly bookingRepo: Repository<BookingEntity>,
     private readonly incidentCode: IncidentCodeService,
     private readonly config: IncidentConfigService,
+    private readonly state: IncidentStateService,
     private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
     private readonly notifier: IncidentNotifier,
     private readonly depositHold: IncidentDepositHoldService,
@@ -90,18 +94,37 @@ export class IncidentService {
   ): Promise<IncidentCustomerView> {
     return asyncHandleOperation(async () => {
       await this.dataSource.transaction(async (manager) => {
-        const incident = await this.loadOwned(incidentId, customerUserId);
-        if (incident.status !== IncidentStatus.INVESTIGATING) {
+        // Khoá hồ sơ TRONG transaction. `loadOwned` dùng repository riêng nên đọc ngoài
+        // transaction, không khoá: khách bấm gửi đúng lúc Admin bấm chốt thì cả hai cùng
+        // thấy REVIEWING, và bản ghi hạng mục bị kéo về PENDING SAU khi quyết định đã chốt
+        // — đúng thứ `validateFinal` sinh ra để ngăn, mà giờ không ai kiểm lại nữa.
+        const incident = await manager
+          .getRepository(IncidentEntity)
+          .createQueryBuilder('i')
+          .innerJoin('i.customer', 'c')
+          .innerJoin('c.user', 'u')
+          .setLock('pessimistic_write', undefined, ['i'])
+          .where('i.id = :id', { id: incidentId })
+          .andWhere('u.id = :uid', { uid: customerUserId })
+          .getOne();
+        if (!incident) {
+          throw new NotFoundException('Không tìm thấy sự cố');
+        }
+        if (incident.status !== IncidentStatus.REVIEWING) {
           throw new ConflictException({
             code: 'INCIDENT_NOT_EDITABLE',
             message: 'Chỉ bổ sung bằng chứng khi sự cố đang được thẩm định',
           });
         }
+        // Khoá luôn hạng mục sắp sửa: `saveDecision` cũng khoá bảng này, nên hai bên xếp
+        // hàng thay vì cùng ghi đè `verificationStatus`.
         const item = await manager
           .getRepository(IncidentDamageItemEntity)
-          .findOne({
-            where: { id: itemId, incident: { id: incidentId } },
-          });
+          .createQueryBuilder('item')
+          .setLock('pessimistic_write', undefined, ['item'])
+          .where('item.id = :itemId', { itemId })
+          .andWhere('item.incident_id = :incidentId', { incidentId })
+          .getOne();
         if (!item) {
           throw new NotFoundException('Không tìm thấy hạng mục thiệt hại');
         }
@@ -197,7 +220,10 @@ export class IncidentService {
         .andWhere('i.status != :closed', { closed: IncidentStatus.CLOSED })
         .getOne();
       if (active) {
+        // Cùng mã lỗi với nhánh va chạm unique index: client không nên phải phân biệt
+        // "ai chặn" — pha kiểm này hay ràng buộc DB — cho cùng một tình huống.
         throw new ConflictException({
+          code: 'INCIDENT_ALREADY_ACTIVE_FOR_BOOKING',
           message: 'Đơn này đã có sự cố đang xử lý',
           incidentId: active.id,
         });
@@ -211,12 +237,15 @@ export class IncidentService {
             'Số tiền yêu cầu phải là số nguyên dương (VND)',
           );
         }
-        if (item.claimedAmount > claimMax) {
-          throw new UnprocessableEntityException(
-            `Số tiền yêu cầu vượt trần cho phép (${claimMax} VND)`,
-          );
-        }
         totalClaimed += item.claimedAmount;
+      }
+      // Trần áp cho TỔNG, không phải từng hạng mục: nếu chỉ chặn từng hạng mục thì khai
+      // nhiều dòng là vượt trần tuỳ ý, và `claimedAmount` còn quyết định số tiền tạm giữ
+      // ví Tasker lúc tiếp nhận — khai khống sẽ đóng băng toàn bộ ví của họ.
+      if (totalClaimed > claimMax) {
+        throw new UnprocessableEntityException(
+          `Tổng số tiền yêu cầu vượt trần cho phép (${claimMax} VND)`,
+        );
       }
       const severity = await this.config.computeSeverity(totalClaimed);
 
@@ -339,10 +368,6 @@ export class IncidentService {
         .take(limit);
       if (query.status)
         qb.andWhere('i.status = :status', { status: query.status });
-      if (query.compensationStatus)
-        qb.andWhere('i.compensation_status = :cs', {
-          cs: query.compensationStatus,
-        });
 
       const [rows, total] = await qb.getManyAndCount();
       return {
@@ -404,32 +429,20 @@ export class IncidentService {
         if (!incident) {
           throw new NotFoundException('Không tìm thấy sự cố');
         }
+        // Một điều kiện duy nhất: chỉ rút khi chưa gửi quyết định cho Tasker và chưa chốt.
+        // (Trước đây phải kiểm chéo 3 cột status/decisionStatus/compensationStatus.)
         if (!WITHDRAWABLE_STATUSES.includes(incident.status)) {
-          throw new ConflictException(
-            'Không thể rút sau khi đã duyệt bồi thường',
-          );
-        }
-
-        if (
-          ![IncidentDecisionStatus.NONE, IncidentDecisionStatus.DRAFT].includes(
-            incident.decisionStatus,
-          )
-        ) {
           throw new ConflictException({
-            code: 'DECISION_ALREADY_SUBMITTED',
-            message: 'Không thể rút sau khi quyết định đã được submit',
-          });
-        }
-
-        // BR29 — chỉ tự rút khi chưa phát sinh bồi thường (compensation_status=NONE).
-        if (incident.compensationStatus !== IncidentCompensationStatus.NONE) {
-          throw new ConflictException({
-            code: 'COMPENSATION_IN_PROGRESS',
-            message: 'Không thể rút khi đã phát sinh xử lý bồi thường',
+            code: 'INCIDENT_NOT_WITHDRAWABLE',
+            message:
+              'Không thể rút sau khi quyết định đã được gửi Tasker hoặc đã chốt',
           });
         }
 
         const from = incident.status;
+        // Rút báo cáo cũng phải khai báo trong bảng chuyển trạng thái, không gán thẳng —
+        // để `WITHDRAWABLE_STATUSES` và bảng trạng thái không thể lệch nhau trong im lặng.
+        this.state.assertStatusTransition(from, IncidentStatus.CLOSED);
         incident.status = IncidentStatus.CLOSED;
         incident.closureReason = IncidentClosureReason.WITHDRAWN;
         // P0.2 — rút báo cáo khi đang điều tra → giải phóng phần ví đã HOLD.
@@ -450,6 +463,11 @@ export class IncidentService {
     }, 'Lỗi khi rút báo cáo sự cố');
   }
 
+  /**
+   * Pha kiểm trùng ở trên là check-then-act nên vẫn thua hai request song song; chốt chặn
+   * THẬT là partial unique index `uq_inc_active_per_booking`. Ở đây chỉ dịch va chạm đó
+   * thành 409 kèm id hồ sơ đang mở để client điều hướng tới đúng chỗ.
+   */
   private async createWithConflictGuard<T>(
     bookingId: string,
     fn: () => Promise<T>,
@@ -457,21 +475,19 @@ export class IncidentService {
     try {
       return await fn();
     } catch (err) {
-      const pgErr = err as { code?: string; constraint?: string };
-      if (pgErr?.code === '23505') {
-        if (pgErr.constraint === 'uq_inc_active_per_booking') {
-          const existing = await this.incidentRepo
-            .createQueryBuilder('i')
-            .where('i.booking_id = :bid', { bid: bookingId })
-            .andWhere('i.status != :closed', {
-              closed: IncidentStatus.CLOSED,
-            })
-            .getOne();
-          throw new ConflictException({
-            message: 'Đơn này đã có sự cố đang xử lý',
-            incidentId: existing?.id,
-          });
-        }
+      if (isActiveIncidentPerBookingConflict(err)) {
+        const existing = await this.incidentRepo
+          .createQueryBuilder('i')
+          .where('i.booking_id = :bid', { bid: bookingId })
+          .andWhere('i.status != :closed', { closed: IncidentStatus.CLOSED })
+          .getOne();
+        throw new ConflictException({
+          code: 'INCIDENT_ALREADY_ACTIVE_FOR_BOOKING',
+          message: 'Đơn này đã có sự cố đang xử lý',
+          incidentId: existing?.id,
+        });
+      }
+      if (isUniqueViolation(err)) {
         throw new ConflictException('Xung đột khi tạo sự cố, vui lòng thử lại');
       }
       throw err;

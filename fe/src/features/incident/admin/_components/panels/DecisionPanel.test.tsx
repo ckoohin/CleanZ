@@ -9,30 +9,28 @@ import type {
 vi.mock("../../hooks/useAdminIncident", () => {
   const hook = () => ({ mutate: vi.fn(), isPending: false });
   return {
-    useSaveDecisionDraft: hook,
-    useSubmitDecisionDraft: hook,
-    useReviewDecisionResponse: hook,
-    useReviseDecision: hook,
-    useExtendTaskerResponse: hook,
+    useSaveDecision: hook,
+    useSendDecisionToTasker: hook,
     useFinalizeDecision: hook,
-    useSecondApproval: hook,
   };
 });
 
 function makeIncident(
   allowedActions: IncidentDecisionAction[],
-  status = "PENDING_TASKER_RESPONSE",
+  status: IncidentAdminView["status"] = "REVIEWING",
 ): IncidentAdminView {
   return {
     id: "inc-1",
+    status,
     damageItems: [
       {
         id: "item-1",
         description: "Vỡ kính",
         claimedAmount: 300000,
-        verifiedAmount: 240000,
+        verifiedAmount: 200000,
         approvedAmount: 200000,
         verificationStatus: "VERIFIED",
+        evidences: [],
       },
     ],
     approvedAmount: 200000,
@@ -42,50 +40,43 @@ function makeIncident(
     decisionResponses: [],
     decision: {
       version: 1,
-      status,
-      responseWindowStatus: "OPEN",
+      outcome: "COMPENSATE",
       taskerResponseDeadline: null,
+      sentTaskerBorneAmount: null,
       responsibilityParty: "SHARED",
       responsibilityReason: "Hai bên cùng có lỗi nên chia sẻ trách nhiệm",
       taskerDecisionReason: "tasker chịu",
-      customerDecisionSummary: "tóm tắt cho khách",
+      customerDecisionSummary: "tóm tắt cho khách hàng",
       internalDecisionNote: "note nội bộ",
       allowedActions,
       blockedReasons: [],
       policyVersion: null,
       policyCapSnapshot: null,
-      dualApprovalThresholdSnapshot: null,
       responseWindowHoursSnapshot: null,
       finalizedAt: null,
-      secondApprovedAt: null,
+      requiresTaskerResponse: true,
     },
   } as unknown as IncidentAdminView;
 }
 
 describe("DecisionPanel — gating theo allowedActions (BE-driven)", () => {
-  it("bật nút Gửi cho Tasker khi allowedActions có SUBMIT_DRAFT (regression: trước dùng sai key)", () => {
-    render(<DecisionPanel incident={makeIncident(["SAVE_DRAFT", "SUBMIT_DRAFT"], "DRAFT")} />);
-    const submit = screen.getByRole("button", { name: /Gửi cho Tasker/i });
-    expect(submit).toBeEnabled();
-  });
-
-  it("tắt nút Gửi cho Tasker khi allowedActions KHÔNG có SUBMIT_DRAFT", () => {
-    render(<DecisionPanel incident={makeIncident(["RESPOND"])} />);
-    const submit = screen.getByRole("button", { name: /Gửi cho Tasker/i });
-    expect(submit).toBeDisabled();
-  });
-
-  it("hiện khối Sửa lại khi allowedActions có REVISE_DECISION", () => {
-    render(<DecisionPanel incident={makeIncident(["REVISE_DECISION", "RESPOND"])} />);
+  it("hiện khối Gửi Tasker khi allowedActions có SEND_TO_TASKER", () => {
+    render(
+      <DecisionPanel
+        incident={makeIncident(["SAVE_DECISION", "SEND_TO_TASKER"])}
+      />,
+    );
     expect(
-      screen.getByRole("button", { name: /Sửa .* tạo phiên bản mới/i }),
-    ).toBeInTheDocument();
+      screen.getByRole("button", { name: /Gửi cho Tasker/i }),
+    ).toBeEnabled();
   });
 
-  it("ẩn khối Sửa lại khi không có REVISE_DECISION", () => {
-    render(<DecisionPanel incident={makeIncident(["SAVE_DRAFT", "SUBMIT_DRAFT"], "DRAFT")} />);
+  it("ẩn khối Gửi Tasker khi BE không cho (Tasker không chịu tiền)", () => {
+    render(
+      <DecisionPanel incident={makeIncident(["SAVE_DECISION", "FINALIZE"])} />,
+    );
     expect(
-      screen.queryByRole("button", { name: /Sửa .* tạo phiên bản mới/i }),
+      screen.queryByRole("button", { name: /Gửi cho Tasker/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -96,13 +87,39 @@ describe("DecisionPanel — gating theo allowedActions (BE-driven)", () => {
     ).toBeEnabled();
   });
 
-  it("bật nút Lưu nháp khi allowedActions có SAVE_DRAFT", () => {
-    render(<DecisionPanel incident={makeIncident(["SAVE_DRAFT", "SUBMIT_DRAFT"], "DRAFT")} />);
-    expect(screen.getByRole("button", { name: /Lưu nháp/i })).toBeEnabled();
+  it("tắt nút Chốt khi BE chưa cho (đang chờ Tasker phản biện)", () => {
+    render(
+      <DecisionPanel
+        incident={makeIncident(["SAVE_DECISION"], "AWAITING_RESPONSE")}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /Chốt quyết định/i }),
+    ).toBeDisabled();
   });
 
-  it("tắt nút Lưu nháp khi decision đã FINAL (không lọt 409 trên sự cố đã đóng)", () => {
-    render(<DecisionPanel incident={makeIncident(["COMPENSATE"], "FINAL")} />);
-    expect(screen.getByRole("button", { name: /Lưu nháp/i })).toBeDisabled();
+  it("bật nút Lưu quyết định khi allowedActions có SAVE_DECISION", () => {
+    render(<DecisionPanel incident={makeIncident(["SAVE_DECISION"])} />);
+    expect(
+      screen.getByRole("button", { name: /Lưu quyết định/i }),
+    ).toBeEnabled();
+  });
+
+  it("tắt nút Lưu khi sự cố đã chốt (không lọt 409 trên hồ sơ đã đóng)", () => {
+    render(
+      <DecisionPanel incident={makeIncident(["COMPENSATE"], "AWAITING_PAYOUT")} />,
+    );
+    expect(
+      screen.getByRole("button", { name: /Lưu quyết định/i }),
+    ).toBeDisabled();
+  });
+
+  it("giải thích blockedReasons bằng tiếng Việt thay vì mã lỗi", () => {
+    const inc = makeIncident(["SAVE_DECISION"], "AWAITING_RESPONSE");
+    inc.decision.blockedReasons = ["WAITING_FOR_TASKER_RESPONSE"];
+    render(<DecisionPanel incident={inc} />);
+    expect(
+      screen.getByText(/Đang trong thời hạn Tasker phản biện/i),
+    ).toBeInTheDocument();
   });
 });

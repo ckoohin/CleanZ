@@ -11,6 +11,7 @@ describe('IncidentTaskerService decision response helpers', () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   ) as unknown as {
     validateDecisionResponsePayload: (dto: Record<string, unknown>) => void;
     isSameDecisionResponsePayload: (

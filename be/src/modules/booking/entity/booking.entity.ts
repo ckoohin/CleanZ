@@ -246,6 +246,20 @@ export class BookingEntity {
   })
   discountAmount!: number;
 
+  /**
+   * Hoa hồng đơn TIỀN MẶT đang được giữ trên ví Tasker (giữ lúc nhận đơn, thu lúc quyết
+   * toán). Null/0 = không giữ gì. Giữ trước để lúc hoàn tất đơn không thể thiếu tiền —
+   * fail phải xảy ra lúc nhận đơn, không phải lúc việc đã làm xong.
+   */
+  @Column({
+    name: 'tasker_commission_hold_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  taskerCommissionHoldAmount?: number | null;
+
   @Column({
     name: 'total_price',
     type: 'numeric',

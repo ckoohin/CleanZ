@@ -376,9 +376,10 @@ export class AdminBookingRepository {
             manager,
             booking,
           );
-          await this.taskerBalanceService.assertCanCoverCashCommission(
+          await this.taskerBalanceService.holdCashCommission(
             manager,
             assignedTasker.id,
+            booking,
             platformFee,
           );
         }
@@ -1620,9 +1621,12 @@ export class AdminBookingRepository {
 
       if (booking.paymentMethod === PaymentMethod.CASH) {
         const platformFee = await this.getRequiredPlatformFee(manager, booking);
-        await this.taskerBalanceService.assertCanCoverCashCommission(
+        // Đổi Tasker: hold cũ được giải phóng bên trong holdCashCommission trước khi
+        // giữ cho người mới (booking.tasker lúc này vẫn là người cũ).
+        await this.taskerBalanceService.holdCashCommission(
           manager,
           tasker.id,
+          booking,
           platformFee,
         );
       }

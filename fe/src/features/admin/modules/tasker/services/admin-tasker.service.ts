@@ -10,9 +10,34 @@ import type {
   TaskerEarningsDetailItem,
   TaskerEarningsQuery,
   TaskerEarningsSummary,
+  TaskerScheduleItem,
+  TaskerCoverageItem,
+  TaskerEquipmentData,
+  TaskerWalletTransaction,
+  TaskerServiceItem,
+  TaskerReviewItem,
 } from "../types/admin-tasker.types";
 
 const BASE = "/tasker/admin";
+
+/**
+ * Vỏ response `{ data }` của các endpoint quản trị Tasker. Trước đây khai `unknown`
+ * khiến mọi truy cập `.data` thành lỗi kiểu — lỗi này tồn tại lâu vì Jest không kiểm
+ * kiểu xuyên file (`isolatedModules`), chỉ `tsc` mới thấy.
+ */
+export interface Envelope<T> {
+  data?: T;
+}
+
+export interface TaskerScheduleData {
+  schedules: TaskerScheduleItem[];
+  coverages: TaskerCoverageItem[];
+}
+
+export interface TaskerWalletSummaryData {
+  balance: number;
+  deposit: number;
+}
 
 export interface TaskerDocumentItem {
   id: string;
@@ -132,24 +157,30 @@ export const adminTaskerApi = {
   // ==========================================
   // TASKER 360 VIEW
   // ==========================================
-  getTaskerServices: (id: string): Promise<unknown> =>
+  getTaskerServices: (id: string): Promise<Envelope<TaskerServiceItem[]>> =>
     http.get(`${BASE}/${id}/services`).then((res) => res.data),
 
   toggleTaskerService: (id: string, serviceId: string, isActive: boolean): Promise<unknown> =>
     http.patch(`${BASE}/${id}/services/${serviceId}/toggle`, { isActive }).then((res) => res.data),
 
-  getTaskerEquipments: (id: string): Promise<unknown> =>
+  getTaskerEquipments: (
+    id: string,
+  ): Promise<Envelope<TaskerEquipmentData>> =>
     http.get(`${BASE}/${id}/equipments`).then((res) => res.data),
 
-  getTaskerSchedule: (id: string): Promise<unknown> =>
+  getTaskerSchedule: (id: string): Promise<Envelope<TaskerScheduleData>> =>
     http.get(`${BASE}/${id}/schedule`).then((res) => res.data),
 
-  getTaskerWalletTransactions: (id: string): Promise<unknown> =>
+  getTaskerWalletTransactions: (
+    id: string,
+  ): Promise<Envelope<TaskerWalletTransaction[]>> =>
     http.get(`${BASE}/${id}/wallet/transactions`).then((res) => res.data),
 
-  getTaskerWalletSummary: (id: string): Promise<unknown> =>
+  getTaskerWalletSummary: (
+    id: string,
+  ): Promise<Envelope<TaskerWalletSummaryData>> =>
     http.get(`${BASE}/${id}/wallet/summary`).then((res) => res.data),
 
-  getTaskerReviews: (id: string): Promise<unknown> =>
+  getTaskerReviews: (id: string): Promise<Envelope<TaskerReviewItem[]>> =>
     http.get(`${BASE}/${id}/reviews`).then((res) => res.data),
 };

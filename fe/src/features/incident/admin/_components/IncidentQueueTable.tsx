@@ -34,21 +34,17 @@ import { FromTicketDialog } from "./FromTicketDialog";
 import { IncidentConfigForm } from "./IncidentConfigForm";
 import {
   IncidentStatusBadge,
-  CompensationBadge,
   SeverityBadge,
 } from "@/features/incident/shared/_components/badges";
 import { formatVnd } from "@/features/incident/shared/incident.labels";
 import {
   INCIDENT_STATUS,
-  COMPENSATION_STATUS,
   SEVERITY,
   type IncidentStatus,
-  type CompensationStatus,
   type Severity,
 } from "@/features/incident/shared/incident.enums";
 import {
   STATUS_LABEL,
-  COMP_STATUS_LABEL,
   SEVERITY_LABEL,
 } from "@/features/incident/shared/incident.labels";
 import type {
@@ -102,9 +98,6 @@ export function IncidentQueueTable() {
     page,
     limit,
     ...(sel("status") !== "ALL" && { status: sel("status") as IncidentStatus }),
-    ...(sel("comp") !== "ALL" && {
-      compensationStatus: sel("comp") as CompensationStatus,
-    }),
     ...(sel("severity") !== "ALL" && { severity: sel("severity") as Severity }),
     ...(sel("overdue") !== "ALL" && { overdue: sel("overdue") === "true" }),
     ...(get("customer") && { customerId: get("customer") }),
@@ -139,10 +132,7 @@ export function IncidentQueueTable() {
       key: "status",
       title: "Trạng thái",
       render: (r) => (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <IncidentStatusBadge status={r.status} />
-          <CompensationBadge status={r.compensationStatus} />
-        </div>
+        <IncidentStatusBadge status={r.status} />
       ),
     },
     {
@@ -231,22 +221,6 @@ export function IncidentQueueTable() {
             </SelectContent>
           </Select>
 
-          <Select
-            value={sel("comp")}
-            onValueChange={(v) => setParams({ comp: v })}
-          >
-            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
-              <SelectValue placeholder="Bồi thường" />
-            </SelectTrigger>
-            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
-              <SelectItem value="ALL">Tất cả bồi thường</SelectItem>
-              {COMPENSATION_STATUS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {COMP_STATUS_LABEL[c]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
           <Select
             value={sel("severity")}

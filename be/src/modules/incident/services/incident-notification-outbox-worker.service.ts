@@ -17,6 +17,7 @@ import {
   INCIDENT_NOTIFICATION_OUTBOX_MAX_RETRIES,
 } from '../incident.constants';
 import { NotificationOutboxEntity } from '../entity/notification-outbox.entity';
+import { IncidentAlertService } from './incident-alert.service';
 
 export interface NotificationOutboxRunResult {
   processed: number;
@@ -47,6 +48,7 @@ export class IncidentNotificationOutboxWorkerService
   constructor(
     private readonly dataSource: DataSource,
     private readonly notification: NotificationService,
+    private readonly alert: IncidentAlertService,
     configService: ConfigService,
   ) {
     this.intervalMs = this.readPositiveNumber(
@@ -135,6 +137,15 @@ export class IncidentNotificationOutboxWorkerService
         this.logger.warn(
           `Notification outbox terminal failures: new=${result.terminalFailed} total=${totalFailed}`,
         );
+        // Quỹ thấp và đối soát lệch đều bắn ra kênh cảnh báo, còn thông báo chết vĩnh viễn
+        // thì chỉ nằm trong log — trong khi một quyết định bồi thường đã chốt mà khách
+        // KHÔNG BAO GIỜ nhận được tin là sự cố nghiệp vụ, không phải lỗi kỹ thuật vặt.
+        await this.alert.send(
+          'incident-outbox-terminal-failed',
+          `Thông báo sự cố gửi thất bại vĩnh viễn: thêm ${result.terminalFailed} (tổng ${totalFailed}) ` +
+            `sau ${this.maxRetries} lần thử. Khách/Tasker không nhận được cập nhật về hồ sơ của họ.`,
+          'CRITICAL',
+        );
       }
     } catch (e) {
       this.logger.error(`Notification outbox worker error: ${String(e)}`);
@@ -184,10 +195,17 @@ export class IncidentNotificationOutboxWorkerService
     });
   }
 
+  /**
+   * `nextRetryAt` được GHI bằng đồng hồ DB (`calculateNextRetryAt(dbNow, …)`), nên phải
+   * ĐỌC cũng bằng `now()` của DB.
+   *
+   * So bằng đồng hồ app tạo ra sai lệch CÓ HỆ THỐNG chứ không phải nhiễu ngẫu nhiên: app
+   * chạy nhanh hơn DB thì mọi lần thử lại đều sớm hơn dự định đúng bằng độ lệch, chậm hơn
+   * thì mọi lần đều muộn — và không có gì trong log hé lộ điều đó.
+   */
   private lockNextDueRow(
     manager: EntityManager,
   ): Promise<NotificationOutboxEntity | null> {
-    const now = new Date();
     return (
       manager
         .getRepository(NotificationOutboxEntity)
@@ -198,18 +216,14 @@ export class IncidentNotificationOutboxWorkerService
         .setLock('pessimistic_write', undefined, ['outbox'])
         .setOnLocked('skip_locked')
         .where(
-          '(outbox.status = :pending AND (outbox.nextRetryAt IS NULL OR outbox.nextRetryAt <= :now))',
-          {
-            pending: NotificationOutboxStatus.PENDING,
-            now,
-          },
+          '(outbox.status = :pending AND (outbox.nextRetryAt IS NULL OR outbox.nextRetryAt <= now()))',
+          { pending: NotificationOutboxStatus.PENDING },
         )
         .orWhere(
-          '(outbox.status = :failed AND outbox.retryCount < :maxRetries AND outbox.nextRetryAt IS NOT NULL AND outbox.nextRetryAt <= :now)',
+          '(outbox.status = :failed AND outbox.retryCount < :maxRetries AND outbox.nextRetryAt IS NOT NULL AND outbox.nextRetryAt <= now())',
           {
             failed: NotificationOutboxStatus.FAILED,
             maxRetries: this.maxRetries,
-            now,
           },
         )
         .orderBy('outbox.createdAt', 'ASC')
@@ -232,8 +246,13 @@ export class IncidentNotificationOutboxWorkerService
 
   private buildTitle(row: NotificationOutboxEntity): string {
     switch (row.eventType) {
+      // `INCIDENT_DECISION_DRAFT_SUBMITTED` là tên cũ của cùng sự kiện; giữ để các bản ghi
+      // tồn từ trước vẫn hiển thị đúng.
+      case 'INCIDENT_DECISION_SENT_TO_TASKER':
       case 'INCIDENT_DECISION_DRAFT_SUBMITTED':
         return 'Quyết định sự cố cần bạn phản hồi';
+      case 'INCIDENT_DECISION_WITHDRAWN':
+        return 'Quyết định sự cố đã được thu hồi để xem xét lại';
       case 'INCIDENT_TASKER_DECISION_RESPONDED':
         return 'Tasker đã phản hồi quyết định sự cố';
       case 'INCIDENT_DECISION_FINALIZED':
@@ -252,10 +271,16 @@ export class IncidentNotificationOutboxWorkerService
     const suffix = code ? ` (mã ${code})` : '';
 
     switch (row.eventType) {
+      case 'INCIDENT_DECISION_SENT_TO_TASKER':
       case 'INCIDENT_DECISION_DRAFT_SUBMITTED': {
         const deadline = this.payloadDate(row, 'taskerResponseDeadline');
         const deadlineText = deadline ? ` trước ${deadline}` : '';
         return `CleanZ đã gửi quyết định xử lý sự cố${suffix} và cần bạn phản hồi (đồng ý hoặc phản đối)${deadlineText}. Vui lòng mở sự cố để xem chi tiết và phản hồi.`;
+      }
+      case 'INCIDENT_DECISION_WITHDRAWN': {
+        const reason = this.payloadString(row, 'reason');
+        const reasonText = reason ? ` Lý do: ${reason}` : '';
+        return `CleanZ đã thu hồi quyết định xử lý sự cố${suffix} để xem xét lại; chưa có khoản chi trả nào được thực hiện.${reasonText}`;
       }
       case 'INCIDENT_TASKER_DECISION_RESPONDED': {
         const t = this.payloadString(row, 'responseType');

@@ -24,6 +24,7 @@ import { SYSTEM_CONFIG_KEYS } from '../system-config/system-config.keys';
 import { SystemConfigService } from '../system-config/system-config.service';
 import type { TaskerEarningsPeriod } from './dto/tasker-earnings-breakdown-query.dto';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
+import { sumOutstandingDebt } from './entity/tasker-debt.entity';
 
 interface WalletMutationInput {
   wallet: WalletEntity;
@@ -711,15 +712,29 @@ export class WalletService {
         const wallet = await this.getOrCreateTaskerWallet(manager, tasker);
         const lockedWallet = await this.lockWallet(manager, wallet.id);
 
-        // P0.2 — khóa rút tiền khi Tasker đang có sự cố bồi thường điều tra / chờ chi trả,
-        // chống rút trốn nghĩa vụ. Dùng raw query để không tạo phụ thuộc vòng vào IncidentModule.
+        // Khóa rút tiền khi Tasker đang có sự cố bồi thường dang dở, chống rút trốn nghĩa
+        // vụ. Dùng raw query để không tạo phụ thuộc vòng vào IncidentModule.
         const activeIncident: unknown[] = await manager.query(
-          `SELECT 1 FROM incidents WHERE tasker_id = $1 AND status IN ('INVESTIGATING','APPROVED') LIMIT 1`,
+          `SELECT 1 FROM incidents
+            WHERE tasker_id = $1
+              AND status IN ('REVIEWING','AWAITING_RESPONSE','AWAITING_PAYOUT')
+            LIMIT 1`,
           [tasker.id],
         );
         if (activeIncident.length > 0) {
           throw new BadRequestException(
             'Bạn đang có sự cố bồi thường đang xử lý — tạm khóa rút tiền cho tới khi hoàn tất.',
+          );
+        }
+
+        // Còn NỢ thì cũng không cho rút: nếu chỉ chặn lúc đang xử lý sự cố, Tasker rút
+        // sạch ví ngay sau khi chi trả là khoản nợ không bao giờ đòi được. Sổ nợ đã trừ
+        // sẵn phần Admin xoá nên không khoá nhầm khoản không ai còn đòi.
+        const debt = await sumOutstandingDebt(manager, tasker.id);
+        if (debt > 0) {
+          throw new BadRequestException(
+            `Bạn còn nợ bồi thường ${debt.toLocaleString('vi-VN')}đ với nền tảng — ` +
+              'khoản này sẽ được trừ dần từ thu nhập. Tạm khóa rút tiền cho tới khi trả hết.',
           );
         }
 
@@ -1266,9 +1281,21 @@ export class WalletService {
     return customer;
   }
 
+  /**
+   * Chuẩn hoá số tiền cho MỌI bút toán ví: VND không có đơn vị nhỏ hơn đồng, nên làm tròn
+   * về số nguyên ngay tại tầng ví thay vì để từng module tự lo (trước đây chỉ module sự cố
+   * `Math.floor`, các module khác có thể ghi số lẻ xu vào sổ và gây lệch khi đối soát).
+   *
+   * Làm tròn TRƯỚC rồi mới kiểm > 0, để một khoản < 0.5đ bị chặn thay vì lặng lẽ thành 0.
+   */
   private normalizeAmount(amount: number): number {
-    const normalizedAmount = Number(amount);
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    const parsed = Number(amount);
+    if (!Number.isFinite(parsed)) {
+      throw new BadRequestException('Số tiền giao dịch không hợp lệ');
+    }
+
+    const normalizedAmount = Math.round(parsed);
+    if (normalizedAmount <= 0) {
       throw new BadRequestException('Số tiền giao dịch không hợp lệ');
     }
 

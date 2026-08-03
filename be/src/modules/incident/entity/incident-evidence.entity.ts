@@ -15,8 +15,14 @@ import { IncidentDecisionResponseEntity } from './incident-decision-response.ent
 
 export type IncidentEvidenceType = 'IMAGE' | 'VIDEO';
 
+/** Chế độ lưu trên storage — quyết định URL có cần chữ ký của server hay không. */
+export type IncidentEvidenceStorageType = 'PUBLIC' | 'AUTHENTICATED';
+
 @Entity('incident_evidences')
 @Index('idx_ie_damage_item', ['damageItem'])
+@Index('idx_ie_incident', ['incident'])
+// Partial index cho vòng quét dọn ảnh bỏ dở (WHERE incident_id IS NULL) — xem migration.
+@Index('idx_ie_detached_created', { synchronize: false })
 export class IncidentEvidenceEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -45,6 +51,18 @@ export class IncidentEvidenceEntity {
 
   @Column({ name: 'storage_public_id', type: 'text', nullable: true })
   storagePublicId?: string | null;
+
+  /**
+   * `AUTHENTICATED` = file chỉ tải được bằng URL do server ký, nên `visibility` mới thật sự
+   * có hiệu lực tới tầng file. `PUBLIC` = ảnh cũ upload trước thay đổi này, URL vẫn mở.
+   */
+  @Column({
+    name: 'storage_type',
+    type: 'varchar',
+    length: 20,
+    default: 'PUBLIC',
+  })
+  storageType!: IncidentEvidenceStorageType;
 
   @Column({
     type: 'enum',

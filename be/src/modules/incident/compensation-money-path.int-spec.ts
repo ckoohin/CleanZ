@@ -7,8 +7,8 @@
  *   2. Full flow chi trả tiền thật, bảo toàn tổng (P2.1)
  *   3. Idempotency: double-compensate tuần tự + concurrent race (C8)
  *   4. Quỹ SYSTEM thiếu → 409 + rollback nguyên tử (P0.4-guard)
- *   5. Uncovered → topup_due + thu hồi nợ → gỡ soft-block (P0.3)
- *   6. Reversal (Admin #2) → hoàn tiền + reopen + re-compensate version mới (P1.1)
+ *   5. Uncovered → ghi nợ + thu hồi dần khi Tasker có thu nhập
+ *   6. Reversal (trong 72h) → hoàn tiền + reopen + re-compensate version mới
  *
  * Chạy: `npm run test:integration` (cần Postgres theo .env; tạo/xoá DB `cleanz_money_test`).
  */
@@ -23,14 +23,22 @@ import { IncidentDecisionService } from './services/incident-decision.service';
 import { IncidentTaskerService } from './services/incident-tasker.service';
 import { IncidentService } from './services/incident.service';
 import { CompensationExecutorService } from './services/compensation-executor.service';
-import { IncidentDebtRecoveryService } from './services/incident-debt-recovery.service';
+import { TaskerDebtService } from '../wallet/tasker-debt.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
+import { IncidentAutomationService } from './services/incident-automation.service';
 import { WalletService } from '../wallet/wallet.service';
+import { SystemConfigService } from '../system-config/system-config.service';
 import { IncidentAdminView } from './dto/incident-response.dto';
+import { expectMoneyConserved } from 'src/common/testing/money-conservation';
+import {
+  purgeQueuePrefix,
+  useIsolatedQueuePrefix,
+} from 'src/common/testing/queue-isolation';
 
 jest.setTimeout(300_000);
 
 const TESTDB = 'cleanz_money_test';
+let queuePrefix = '';
 
 function loadEnv(): void {
   const p = resolve(process.cwd(), '.env');
@@ -56,9 +64,11 @@ describe('Money path integration (P1.5)', () => {
   let taskerSvc: IncidentTaskerService;
   let incidentSvc: IncidentService;
   let executor: CompensationExecutorService;
-  let debtRecovery: IncidentDebtRecoveryService;
+  let debtRecovery: TaskerDebtService;
   let reconciliation: IncidentReconciliationService;
+  let automation: IncidentAutomationService;
   let wallet: WalletService;
+  let systemConfig: SystemConfigService;
 
   // Fixture ids
   let admin1: string;
@@ -102,6 +112,9 @@ describe('Money path integration (P1.5)', () => {
     await mig.destroy();
 
     // 2) Boot app thật trỏ vào DB scratch; tắt các timer nền.
+    // Prefix Redis riêng cho suite này — xem .
+    queuePrefix = useIsolatedQueuePrefix(TESTDB);
+    await purgeQueuePrefix(queuePrefix);
     process.env.DB_DATABASE = TESTDB;
     process.env.INCIDENT_HOUSEKEEPING_INTERVAL_MS = '0';
     process.env.INCIDENT_NOTIFICATION_OUTBOX_INTERVAL_MS = '0';
@@ -114,9 +127,11 @@ describe('Money path integration (P1.5)', () => {
     taskerSvc = app.get(IncidentTaskerService);
     incidentSvc = app.get(IncidentService);
     executor = app.get(CompensationExecutorService);
-    debtRecovery = app.get(IncidentDebtRecoveryService);
+    debtRecovery = app.get(TaskerDebtService);
     reconciliation = app.get(IncidentReconciliationService);
+    automation = app.get(IncidentAutomationService);
     wallet = app.get(WalletService);
+    systemConfig = app.get(SystemConfigService);
 
     // 3) Fixtures nền.
     const u = async (email: string, role: string): Promise<string> =>
@@ -140,8 +155,8 @@ describe('Money path integration (P1.5)', () => {
     )[0].id as string;
     taskerId = (
       await ds.query(
-        `INSERT INTO taskers (user_id, status, doc_status, deposit_amount, current_deposit_balance)
-         VALUES ($1,'ACTIVE','APPROVED',400000,400000) RETURNING id`,
+        `INSERT INTO taskers (user_id, status, doc_status)
+         VALUES ($1,'ACTIVE','APPROVED') RETURNING id`,
         [taskerUserId],
       )
     )[0].id as string;
@@ -154,6 +169,8 @@ describe('Money path integration (P1.5)', () => {
 
   afterAll(async () => {
     await app?.close();
+    // Đóng app xong mới dọn: worker phải dừng trước, không thì nó ghi lại job mới.
+    await purgeQueuePrefix(queuePrefix);
     loadEnv();
     const admin = new DataSource({
       type: 'postgres',
@@ -236,7 +253,6 @@ describe('Money path integration (P1.5)', () => {
   async function balances(): Promise<{
     tasker: number;
     taskerHold: number;
-    deposit: number;
     customer: number;
     system: number;
   }> {
@@ -251,14 +267,9 @@ describe('Money path integration (P1.5)', () => {
     const [s] = await ds.query(
       `SELECT balance FROM wallets WHERE owner_type='SYSTEM'`,
     );
-    const [d] = await ds.query(
-      `SELECT current_deposit_balance FROM taskers WHERE id=$1`,
-      [taskerId],
-    );
     return {
       tasker: Number(t?.balance ?? 0),
       taskerHold: Number(t?.hold_balance ?? 0),
-      deposit: Number(d.current_deposit_balance),
       customer: Number(c?.balance ?? 0),
       system: Number(s?.balance ?? 0),
     };
@@ -267,72 +278,82 @@ describe('Money path integration (P1.5)', () => {
   /** Xoá nhiễu giữa các test: coi mọi nợ cũ đã thu hồi + gỡ soft-block. */
   async function clearDebts(): Promise<void> {
     await ds.query(
-      `UPDATE incidents SET uncovered_recovered_amount = COALESCE(uncovered_liability_amount,0)
+      `UPDATE tasker_debts SET recovered_amount = original_amount, status='RECOVERED'
         WHERE tasker_id=$1`,
       [taskerId],
     );
-    await ds.query(`UPDATE taskers SET deposit_topup_due=NULL WHERE id=$1`, [
-      taskerId,
-    ]);
+    // Sàn nhận đơn ảnh hưởng số thu hồi được → reset để test không lệ thuộc test trước.
+    await setMinAcceptBalance(0);
   }
 
-  /** Drive quyết định BẤT LỢI (Tasker chịu toàn bộ) tới FINAL/APPROVED/PENDING. */
+  /** Sàn số dư ví để Tasker được nhận đơn (0 = không giới hạn). */
+  async function setMinAcceptBalance(value: number): Promise<void> {
+    await ds.query(
+      `INSERT INTO system_configs (config_key, config_value)
+       VALUES ('TASKER_MIN_ACCEPT_BALANCE_VND', $1)
+       ON CONFLICT (config_key) DO UPDATE SET config_value = EXCLUDED.config_value`,
+      [String(value)],
+    );
+    // Config có cache RAM 10 phút → phải xoá, nếu không test đọc lại giá trị cũ.
+    systemConfig.clearConfigCache('TASKER_MIN_ACCEPT_BALANCE_VND');
+  }
+
+  /** Nợ tồn đọng của Tasker — cùng công thức mà guard rút tiền và housekeeping dùng. */
+  async function outstandingDebtOf(id: string): Promise<number> {
+    const [r] = await ds.query(
+      `SELECT COALESCE(SUM(original_amount - recovered_amount - written_off_amount), 0) t
+         FROM tasker_debts
+        WHERE tasker_id=$1 AND status='OUTSTANDING'`,
+      [id],
+    );
+    return Number(r.t);
+  }
+
+  /**
+   * Drive quyết định BẤT LỢI (Tasker chịu toàn bộ) tới AWAITING_PAYOUT.
+   * Luồng mới: soạn → gửi Tasker → Tasker phản hồi → chốt. Không còn bước xác minh
+   * hạng mục riêng, không còn bước review phản hồi, không còn duyệt cấp 2.
+   */
   async function driveAdverseToFinal(
     incidentId: string,
     approved: number,
   ): Promise<IncidentAdminView> {
     let view = await adminSvc.findOne(incidentId);
     const itemId = view.damageItems[0].id;
-    view = await adminSvc.verifyItems(incidentId, {
-      items: [{ itemId, verifiedAmount: approved }],
-    } as never);
-    view = await decision.saveDraft(admin1, incidentId, {
+    view = await decision.saveDecision(admin1, incidentId, {
       expectedDecisionVersion: view.decision.version,
-      decision: 'APPROVE',
+      outcome: 'COMPENSATE',
       items: [{ damageItemId: itemId, approvedAmount: approved }],
       responsibilityParty: 'TASKER',
       responsibilityReason: 'Tasker trực tiếp gây thiệt hại (integration)',
       taskerBorneAmount: approved,
       platformBorneAmount: 0,
-      taskerDecisionReason: 'Trừ vào ví/cọc theo quy định',
+      taskerDecisionReason: 'Trừ vào ví theo quy định',
       customerDecisionSummary: 'CleanZ duyệt bồi thường theo thẩm định.',
     } as never);
-    view = await decision.submitDraftForTaskerResponse(admin1, incidentId, {
+    view = await decision.sendToTasker(admin1, incidentId, {
       expectedDecisionVersion: view.decision.version,
     } as never);
-    const resp = (await taskerSvc.upsertDecisionResponse(
-      taskerUserId,
-      incidentId,
-      {
-        decisionVersion: view.decision.version,
-        responseType: 'AGREE',
-        content: 'Đồng ý với quyết định (integration test)',
-      } as never,
-    )) as { id: string };
-    view = await decision.reviewDecisionResponse(admin1, incidentId, {
-      expectedDecisionVersion: view.decision.version,
-      responseId: resp.id,
-      result: 'KEEP_DECISION',
-      adminReviewNote: 'Giữ nguyên quyết định (integration test)',
+    await taskerSvc.upsertDecisionResponse(taskerUserId, incidentId, {
+      decisionVersion: view.decision.version,
+      responseType: 'AGREE',
+      content: 'Đồng ý với quyết định (integration test)',
     } as never);
     return decision.finalizeDecision(admin1, incidentId, {
       expectedDecisionVersion: view.decision.version,
     } as never);
   }
 
-  /** Drive quyết định KHÔNG bất lợi (Quỹ chịu toàn bộ) — finalize thẳng từ DRAFT. */
+  /** Drive quyết định KHÔNG bất lợi (Quỹ chịu toàn bộ) — chốt thẳng, không cần phản biện. */
   async function drivePlatformToFinal(
     incidentId: string,
     approved: number,
   ): Promise<IncidentAdminView> {
     let view = await adminSvc.findOne(incidentId);
     const itemId = view.damageItems[0].id;
-    view = await adminSvc.verifyItems(incidentId, {
-      items: [{ itemId, verifiedAmount: approved }],
-    } as never);
-    view = await decision.saveDraft(admin1, incidentId, {
+    view = await decision.saveDecision(admin1, incidentId, {
       expectedDecisionVersion: view.decision.version,
-      decision: 'APPROVE',
+      outcome: 'COMPENSATE',
       items: [{ damageItemId: itemId, approvedAmount: approved }],
       responsibilityParty: 'PLATFORM',
       responsibilityReason: 'Lỗi quy trình nền tảng (integration test)',
@@ -393,13 +414,13 @@ describe('Money path integration (P1.5)', () => {
     await setSystemWallet(2_000_000);
 
     await driveAdverseToFinal(inc, 1_500_000);
-    await executor.execute(admin1, inc);
+    // Chi trả digital chỉ chuyển tiền giữa các ví → tổng hệ thống phải không đổi.
+    await expectMoneyConserved(ds, () => executor.execute(admin1, inc));
 
     const b = await balances();
     // hold 1.5tr released về balance rồi bị trừ đúng 1.5tr → tasker còn 500k
     expect(b.tasker).toBe(500_000);
     expect(b.taskerHold).toBe(0);
-    expect(b.deposit).toBe(400_000); // ví đủ, không đụng cọc gốc
     expect(b.customer).toBe(1_500_000);
     expect(b.system).toBe(2_000_000); // không cần quỹ ứng
 
@@ -408,12 +429,23 @@ describe('Money path integration (P1.5)', () => {
     expect(txs.map((t) => t.type).sort()).toEqual(['DEPOSIT_DEDUCT', 'REFUND']);
     for (const t of txs) expect(t.ref).toBe('INCIDENT_COMPENSATION:v1');
 
-    const [st] = await ds.query(
-      `SELECT status, compensation_status cs FROM incidents WHERE id=$1`,
+    const [st] = await ds.query(`SELECT status FROM incidents WHERE id=$1`, [
+      inc,
+    ]);
+    expect(st.status).toBe('COMPENSATED');
+
+    // Luồng digital: khách thấy "đã hoàn vào ví", và KHÔNG ghi sổ chi ngoài (tránh
+    // nền tảng bị tính chi hai lần).
+    const customerView = await incidentSvc.findOneForCustomer(
+      customerUserId,
+      inc,
+    );
+    expect(customerView.payoutChannel).toBe('WALLET');
+    const [ledger] = await ds.query(
+      `SELECT external_payout_amount amt FROM incidents WHERE id=$1`,
       [inc],
     );
-    expect(st.status).toBe('COMPENSATED');
-    expect(st.cs).toBe('RECORDED');
+    expect(ledger.amt).toBeNull();
   });
 
   it('3. Idempotency: double-compensate tuần tự + concurrent race không nhân đôi bút toán', async () => {
@@ -444,9 +476,6 @@ describe('Money path integration (P1.5)', () => {
     await setTaskerWallet(0);
     await setCustomerWallet(0);
     await setSystemWallet(0);
-    await ds.query(`UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`, [
-      taskerId,
-    ]);
 
     const inc = await mintIncident(1_000_000);
     await adminSvc.accept(admin1, inc, {});
@@ -455,12 +484,10 @@ describe('Money path integration (P1.5)', () => {
     await expect(executor.execute(admin1, inc)).rejects.toThrow(
       /Quỹ nền tảng không đủ/,
     );
-    const [st] = await ds.query(
-      `SELECT status, compensation_status cs FROM incidents WHERE id=$1`,
-      [inc],
-    );
-    expect(st.status).toBe('APPROVED'); // rollback — chưa COMPENSATED
-    expect(st.cs).toBe('PENDING');
+    const [st] = await ds.query(`SELECT status FROM incidents WHERE id=$1`, [
+      inc,
+    ]);
+    expect(st.status).toBe('AWAITING_PAYOUT'); // rollback — chưa COMPENSATED
     expect((await balances()).customer).toBe(0);
 
     // nạp quỹ → chi trả được
@@ -471,10 +498,6 @@ describe('Money path integration (P1.5)', () => {
     expect(b.system).toBe(1_000_000); // quỹ chi 1tr
 
     // khôi phục cọc gốc cho test sau
-    await ds.query(
-      `UPDATE taskers SET current_deposit_balance=400000 WHERE id=$1`,
-      [taskerId],
-    );
   });
 
   it('5. Uncovered: nợ + topup_due; thu hồi dần → gỡ soft-block, hoàn quỹ SYSTEM', async () => {
@@ -482,9 +505,6 @@ describe('Money path integration (P1.5)', () => {
     await setTaskerWallet(0);
     await setCustomerWallet(0);
     await setSystemWallet(3_000_000);
-    await ds.query(`UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`, [
-      taskerId,
-    ]);
 
     const inc = await mintIncident(1_000_000);
     await adminSvc.accept(admin1, inc, {}); // ví 0 → hold 0
@@ -492,56 +512,72 @@ describe('Money path integration (P1.5)', () => {
     await executor.execute(admin1, inc);
 
     let [row] = await ds.query(
-      `SELECT uncovered_liability_amount u, uncovered_recovered_amount r FROM incidents WHERE id=$1`,
+      `SELECT i.uncovered_liability_amount u,
+              COALESCE(d.recovered_amount, 0) r
+         FROM incidents i
+         LEFT JOIN tasker_debts d
+           ON d.source = 'INCIDENT_COMPENSATION' AND d.source_ref_id = i.id
+        WHERE i.id=$1`,
       [inc],
     );
     expect(Number(row.u)).toBe(1_000_000); // toàn bộ thành nợ
     expect(Number(row.r)).toBe(0);
-    let [tk] = await ds.query(
-      `SELECT deposit_topup_due d FROM taskers WHERE id=$1`,
-      [taskerId],
-    );
-    expect(tk.d).not.toBeNull(); // soft-block
     expect((await balances()).system).toBe(2_000_000); // quỹ ứng 1tr
     expect((await balances()).customer).toBe(1_000_000); // khách vẫn đủ
 
-    // Tasker nạp 600k → thu hồi một phần
+    // Còn nợ ⇒ chặn rút tiền (thay cho soft-block `deposit_topup_due` đã gỡ cùng ký quỹ).
+    expect(await outstandingDebtOf(taskerId)).toBe(1_000_000);
+
+    // Sàn nhận đơn = 0 cho phần đầu: thu hồi vét đúng số dư, dễ suy luận.
+    await setMinAcceptBalance(0);
+
+    // Tasker có thu nhập 600k → thu hồi một phần
     await setTaskerWallet(600_000);
-    const r1 = await ds.transaction((m) =>
-      debtRecovery.recoverForTasker(m, taskerId),
+    const r1 = await expectMoneyConserved(ds, () =>
+      ds.transaction((m) => debtRecovery.recoverForTasker(m, taskerId)),
     );
     expect(r1).toBe(600_000);
-    [tk] = await ds.query(
-      `SELECT deposit_topup_due d FROM taskers WHERE id=$1`,
-      [taskerId],
-    );
-    expect(tk.d).not.toBeNull(); // còn nợ → còn block
+    expect(await outstandingDebtOf(taskerId)).toBe(400_000); // còn nợ → còn chặn rút
 
-    // nạp nốt 400k → hết nợ, gỡ block, quỹ hoàn đủ
-    await setTaskerWallet(400_000);
+    /**
+     * Thu hồi phải CHỪA sàn số dư nhận đơn: vét sạch ví thì Tasker rơi dưới sàn, không
+     * nhận được đơn mới, không có thu nhập — chính khoản nợ này sẽ không bao giờ đòi được.
+     */
+    await setMinAcceptBalance(100_000);
+    await setTaskerWallet(150_000);
+    const rFloor = await ds.transaction((m) =>
+      debtRecovery.recoverForTasker(m, taskerId),
+    );
+    expect(rFloor).toBe(50_000); // chỉ phần TRÊN sàn
+    expect((await balances()).tasker).toBe(100_000); // sàn còn nguyên
+
+    // Số dư đúng bằng sàn → không thu thêm gì nữa.
+    expect(
+      await ds.transaction((m) => debtRecovery.recoverForTasker(m, taskerId)),
+    ).toBe(0);
+
+    // Bỏ sàn rồi nạp nốt phần còn thiếu → hết nợ, quỹ hoàn đủ.
+    await setMinAcceptBalance(0);
+    await setTaskerWallet(350_000);
     const r2 = await ds.transaction((m) =>
       debtRecovery.recoverForTasker(m, taskerId),
     );
-    expect(r2).toBe(400_000);
+    expect(r2).toBe(350_000);
     [row] = await ds.query(
-      `SELECT uncovered_liability_amount u, uncovered_recovered_amount r FROM incidents WHERE id=$1`,
+      `SELECT i.uncovered_liability_amount u,
+              COALESCE(d.recovered_amount, 0) r
+         FROM incidents i
+         LEFT JOIN tasker_debts d
+           ON d.source = 'INCIDENT_COMPENSATION' AND d.source_ref_id = i.id
+        WHERE i.id=$1`,
       [inc],
     );
     expect(Number(row.u) - Number(row.r)).toBe(0);
-    [tk] = await ds.query(
-      `SELECT deposit_topup_due d FROM taskers WHERE id=$1`,
-      [taskerId],
-    );
-    expect(tk.d).toBeNull();
+    expect(await outstandingDebtOf(taskerId)).toBe(0);
     expect((await balances()).system).toBe(3_000_000); // hoàn đủ phần ứng
-
-    await ds.query(
-      `UPDATE taskers SET current_deposit_balance=400000 WHERE id=$1`,
-      [taskerId],
-    );
   });
 
-  it('6. Reversal: chặn maker, Admin #2 đảo → hoàn tiền + reopen v2 + re-compensate được', async () => {
+  it('6. Reversal: cùng Admin đảo được (có lý do) → hoàn tiền + reopen v2 + re-compensate', async () => {
     await clearDebts();
     await setTaskerWallet(0);
     await setCustomerWallet(0);
@@ -554,26 +590,32 @@ describe('Money path integration (P1.5)', () => {
     await executor.execute(admin1, inc);
     expect((await balances()).customer).toBe(1_000_000);
     expect((await balances()).system).toBe(4_000_000);
-
-    // maker (admin1) không được reverse
+    const versionBeforeReversal = (await adminSvc.findOne(inc)).decision
+      .version;
+    // Lý do quá ngắn vẫn bị chặn (kiểm soát còn lại sau khi bỏ duyệt cấp 2).
     await expect(
-      executor.reverse(admin1, inc, 'Sai số tiền cần đảo lại'),
-    ).rejects.toThrow(/Admin khác/);
+      executor.reverse(admin1, inc, 'ngắn', versionBeforeReversal),
+    ).rejects.toThrow();
 
     // Admin #2 reverse → tiền hoàn về, reopen v2
-    await executor.reverse(admin2, inc, 'Sai số tiền, cần soạn lại quyết định');
+    await expectMoneyConserved(ds, () =>
+      executor.reverse(
+        admin1,
+        inc,
+        'Sai số tiền, cần soạn lại quyết định',
+        versionBeforeReversal,
+      ),
+    );
     let b = await balances();
     expect(b.customer).toBe(0);
     expect(b.system).toBe(5_000_000);
     const [st] = await ds.query(
-      `SELECT status, decision_status dst, decision_version v, compensation_status cs
+      `SELECT status, decision_version v
          FROM incidents WHERE id=$1`,
       [inc],
     );
-    expect(st.status).toBe('INVESTIGATING');
-    expect(st.dst).toBe('DRAFT');
+    expect(st.status).toBe('REVIEWING');
     expect(Number(st.v)).toBe(2);
-    expect(st.cs).toBe('NONE');
 
     // re-finalize + re-compensate ở v2 — versioned unique index không được chặn
     const view = await adminSvc.findOne(inc);
@@ -596,16 +638,12 @@ describe('Money path integration (P1.5)', () => {
     await setTaskerWallet(600_000);
     await setCustomerWallet(0);
     await setSystemWallet(0); // quỹ cạn
-    await ds.query(
-      `UPDATE taskers SET current_deposit_balance=400000 WHERE id=$1`,
-      [taskerId],
-    );
 
     const inc = await mintIncident(1_500_000);
     await adminSvc.accept(admin1, inc, {}); // hold 600k (ví)
     await driveAdverseToFinal(inc, 1_500_000);
 
-    // digital chặn vì quỹ thiếu (uncovered... recoverable 1tr < 1.5tr → cần SYSTEM ứng 500k)
+    // digital chặn vì quỹ cạn (ví Tasker chỉ 600k < 1.5tr → cần SYSTEM ứng 900k)
     await expect(executor.execute(admin1, inc)).rejects.toThrow(
       /Quỹ nền tảng không đủ/,
     );
@@ -628,21 +666,49 @@ describe('Money path integration (P1.5)', () => {
         [admin1],
       )
     )[0].id as string;
-    await executor.executeManual(admin1, inc, proofId, 'chuyển VCB');
+    await expectMoneyConserved(ds, () =>
+      executor.executeManual(admin1, inc, proofId, 'chuyển VCB'),
+    );
 
     const b = await balances();
     expect(b.customer).toBe(0); // khách nhận NGOÀI — ví không đổi
     expect(b.tasker).toBe(0); // ví 600k bị trừ hết
-    expect(b.deposit).toBe(0); // cọc 400k bị trừ nốt (recoverable 1tr)
-    expect(b.system).toBe(1_000_000); // thu hồi từ Tasker chảy về quỹ
+    // Ví SYSTEM KHÔNG bị debit (luồng này chạy đúng lúc quỹ cạn); chỉ nhận phần thu từ Tasker.
+    expect(b.system).toBe(600_000);
 
     const [st] = await ds.query(
-      `SELECT status, compensation_status cs, uncovered_liability_amount u FROM incidents WHERE id=$1`,
+      `SELECT status, uncovered_liability_amount u FROM incidents WHERE id=$1`,
       [inc],
     );
     expect(st.status).toBe('COMPENSATED');
-    expect(st.cs).toBe('RECORDED');
-    expect(Number(st.u)).toBe(500_000); // phần thiếu thành nợ
+    expect(Number(st.u)).toBe(900_000); // phần Tasker chưa trả nổi thành nợ
+
+    // Sổ chi ngoài: tiền rời ngân hàng công ty phải được ghi lại — đây là bản ghi DUY NHẤT
+    // cho khoản đó (không có bút toán ví nào tương ứng).
+    const [ledger] = await ds.query(
+      `SELECT external_payout_amount amt, external_payout_at at, external_payout_note note
+         FROM incidents WHERE id=$1`,
+      [inc],
+    );
+    expect(Number(ledger.amt)).toBe(1_500_000);
+    expect(ledger.at).not.toBeNull();
+    expect(ledger.note).toBe('chuyển VCB');
+
+    // Đối soát phải cộng khoản này vào tổng chi ngoài của nền tảng.
+    const recon = await reconciliation.reconcile();
+    expect(recon.platformOutlay.external).toBeGreaterThanOrEqual(1_500_000);
+    expect(
+      recon.discrepancies.filter(
+        (d) => d.incidentId === inc && d.kind.startsWith('EXTERNAL_PAYOUT'),
+      ),
+    ).toHaveLength(0);
+
+    // Khách phải thấy đúng kênh chi trả — chuyển khoản, KHÔNG phải vào ví.
+    const customerView = await incidentSvc.findOneForCustomer(
+      customerUserId,
+      inc,
+    );
+    expect(customerView.payoutChannel).toBe('BANK_TRANSFER');
 
     const [proof] = await ds.query(
       `SELECT incident_id FROM incident_evidences WHERE id=$1`,
@@ -652,7 +718,12 @@ describe('Money path integration (P1.5)', () => {
 
     // manual không tự đảo được
     await expect(
-      executor.reverse(admin2, inc, 'Thử đảo chi trả thủ công'),
+      executor.reverse(
+        admin2,
+        inc,
+        'Thử đảo chi trả thủ công',
+        (await adminSvc.findOne(inc)).decision.version,
+      ),
     ).rejects.toThrow(/thủ công/);
   });
 
@@ -672,7 +743,7 @@ describe('Money path integration (P1.5)', () => {
 
     // Bơm lệch allocation trên 1 incident đã settle → phải bắt được CRITICAL.
     const [row] = await ds.query(
-      `SELECT id FROM incidents WHERE status='COMPENSATED' AND compensation_status='RECORDED' LIMIT 1`,
+      `SELECT id FROM incidents WHERE status='COMPENSATED' LIMIT 1`,
     );
     const before = (
       await ds.query(
@@ -708,27 +779,26 @@ describe('Money path integration (P1.5)', () => {
     await adminSvc.accept(admin1, inc, {});
 
     let view = await adminSvc.findOne(inc);
-    view = await decision.saveDraft(admin1, inc, {
+    view = await decision.saveDecision(admin1, inc, {
       expectedDecisionVersion: view.decision.version,
-      decision: 'APPROVE_NO_COMPENSATION',
+      outcome: 'NO_COMPENSATION',
       internalDecisionNote: 'Lỗi thuộc về khách, ngoài phạm vi bồi thường',
       customerDecisionSummary:
         'CleanZ ghi nhận sự cố nhưng không phát sinh bồi thường theo chính sách.',
     } as never);
-    // không cần Tasker phản hồi → finalize thẳng
+    // Tasker không chịu tiền → chốt thẳng, không cần phản biện
     await decision.finalizeDecision(admin1, inc, {
       expectedDecisionVersion: view.decision.version,
     } as never);
 
     const [st] = await ds.query(
-      `SELECT status, compensation_status cs, closure_reason cr, decision_outcome outcome,
+      `SELECT status, closure_reason cr, decision_outcome outcome,
               approved_compensation_amount approved FROM incidents WHERE id=$1`,
       [inc],
     );
     expect(st.status).toBe('CLOSED');
-    expect(st.cs).toBe('NONE');
     expect(st.cr).toBe('NO_COMPENSATION');
-    expect(st.outcome).toBe('APPROVE_NO_COMPENSATION');
+    expect(st.outcome).toBe('NO_COMPENSATION');
     expect(Number(st.approved)).toBe(0);
 
     // không chuyển tiền + không phát sinh bút toán settlement
@@ -749,7 +819,7 @@ describe('Money path integration (P1.5)', () => {
     );
     expect(strikes[0].n).toBe(0);
 
-    // reconciliation không tính sự cố CLOSED (chỉ COMPENSATED/RECORDED) → không cờ.
+    // Sự cố không chi tiền (resolved_at NULL) không nằm trong phạm vi đối soát → không cờ.
     const recon = await reconciliation.reconcile();
     expect(
       recon.discrepancies.find((d) => d.incidentId === inc),
@@ -769,17 +839,14 @@ describe('Money path integration (P1.5)', () => {
     expect(st.status).toBe('CLOSED');
     expect(st.cr).toBe('WITHDRAWN');
 
-    // Sau khi submit quyết định cho Tasker → decisionStatus rời NONE/DRAFT → chặn.
+    // Sau khi gửi quyết định cho Tasker (AWAITING_RESPONSE) → chặn rút.
     const inc2 = await mintIncident(500_000);
     await adminSvc.accept(admin1, inc2, {});
     let view = await adminSvc.findOne(inc2);
     const itemId = view.damageItems[0].id;
-    view = await adminSvc.verifyItems(inc2, {
-      items: [{ itemId, verifiedAmount: 500_000 }],
-    } as never);
-    view = await decision.saveDraft(admin1, inc2, {
+    view = await decision.saveDecision(admin1, inc2, {
       expectedDecisionVersion: view.decision.version,
-      decision: 'APPROVE',
+      outcome: 'COMPENSATE',
       items: [{ damageItemId: itemId, approvedAmount: 500_000 }],
       responsibilityParty: 'TASKER',
       responsibilityReason: 'Tasker gây thiệt hại (BR29 test)',
@@ -788,21 +855,19 @@ describe('Money path integration (P1.5)', () => {
       taskerDecisionReason: 'Trừ theo quy định',
       customerDecisionSummary: 'CleanZ duyệt bồi thường theo thẩm định.',
     } as never);
-    await decision.submitDraftForTaskerResponse(admin1, inc2, {
+    // Còn ở REVIEWING thì vẫn rút được.
+    view = await decision.sendToTasker(admin1, inc2, {
       expectedDecisionVersion: view.decision.version,
     } as never);
     await expect(
       incidentSvc.withdraw(customerUserId, inc2, {} as never),
-    ).rejects.toThrow(/submit/);
+    ).rejects.toThrow(/gửi Tasker|chốt/);
   });
 
   it('11. Rounding: số dư ví lẻ xu → phần trừ & snapshot nguyên VND, bảo toàn tổng', async () => {
     await clearDebts();
     await setCustomerWallet(0);
     await setSystemWallet(5_000_000);
-    await ds.query(`UPDATE taskers SET current_deposit_balance=0 WHERE id=$1`, [
-      taskerId,
-    ]);
 
     const inc = await mintIncident(1_000_000);
     await adminSvc.accept(admin1, inc, {}); // ví 0 → hold 0
@@ -839,5 +904,78 @@ describe('Money path integration (P1.5)', () => {
       [inc],
     );
     expect(Number(tx.delta)).toBe(500_000);
+  });
+
+  it('12. Write-off: nợ không thu được → xoá có kiểm soát, gỡ khoá rút tiền + cho auto-close', async () => {
+    await clearDebts();
+    await setTaskerWallet(0);
+    await setCustomerWallet(0);
+    await setSystemWallet(3_000_000);
+
+    const inc = await mintIncident(1_000_000);
+    await adminSvc.accept(admin1, inc, {}); // ví 0 → hold 0
+    await driveAdverseToFinal(inc, 1_000_000); // Tasker chịu toàn bộ
+    await executor.execute(admin1, inc);
+
+    // Đóng các sự cố dở dang của những test trước, để guard rút tiền chỉ còn phản ứng
+    // với ĐIỀU KIỆN NỢ (không lẫn với guard "đang có sự cố xử lý").
+    await ds.query(
+      `UPDATE incidents SET status='CLOSED'
+        WHERE tasker_id=$1 AND id <> $2
+          AND status IN ('REVIEWING','AWAITING_RESPONSE','AWAITING_PAYOUT')`,
+      [taskerId, inc],
+    );
+
+    expect(await outstandingDebtOf(taskerId)).toBe(1_000_000);
+
+    // Ví trống nên Tasker bị khoá rút tiền vì còn nợ.
+    await expect(
+      wallet.createTaskerWithdrawalRequest(taskerUserId, {
+        amount: 1,
+      } as never),
+    ).rejects.toThrow(/nợ bồi thường/);
+
+    // Chưa đủ thời hạn chờ thu hồi tự động → chặn xoá nợ.
+    await expect(
+      adminSvc.writeOffDebt(admin1, inc, 'Tasker đã nghỉ việc, ví trống'),
+    ).rejects.toThrow();
+
+    // Tuổi khoản nợ nay tính trên SỔ NỢ, không còn suy từ mốc chi trả của sự cố.
+    await ds.query(
+      `UPDATE tasker_debts SET created_at = now() - interval '200 days'
+        WHERE source='INCIDENT_COMPENSATION' AND source_ref_id=$1`,
+      [inc],
+    );
+    const view = await adminSvc.writeOffDebt(
+      admin1,
+      inc,
+      'Tasker đã nghỉ việc, ví trống suốt 200 ngày — không thể thu hồi',
+    );
+
+    // Nợ về 0 nhưng con số THU HỒI THẬT không bị thổi phồng.
+    expect(await outstandingDebtOf(taskerId)).toBe(0);
+    expect(view.uncoveredWrittenOffAmount).toBe(1_000_000);
+    expect(view.uncoveredRecoveredAmount).toBe(0);
+    expect(view.outstandingDebtAmount).toBe(0);
+    expect(view.debtWriteOff?.reason).toMatch(/nghỉ việc/);
+
+    // Hết nợ → rút tiền không còn bị chặn bởi nợ nữa.
+    await setTaskerWallet(500_000);
+    await expect(
+      wallet.createTaskerWithdrawalRequest(taskerUserId, {
+        amount: 1,
+      } as never),
+    ).rejects.not.toThrow(/nợ bồi thường/);
+
+    // Và hồ sơ giờ đủ điều kiện auto-close (trước đó bị chặn vì còn nợ).
+    await ds.query(
+      `UPDATE incidents SET updated_at = now() - interval '30 days' WHERE id=$1`,
+      [inc],
+    );
+    await automation.runHousekeeping();
+    const [st] = await ds.query(`SELECT status FROM incidents WHERE id=$1`, [
+      inc,
+    ]);
+    expect(st.status).toBe('CLOSED');
   });
 });

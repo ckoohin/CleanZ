@@ -11,6 +11,18 @@ import { createVietnamDateTime } from 'src/common/helpers/vietnam-time.helper';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingCheckinService } from './booking-checkin.service';
 import { BookingDispatchService } from './booking-dispatch.service';
+import { TaskerBalanceService } from 'src/modules/wallet/tasker-balance.service';
+
+/**
+ * Đơn đã kết thúc — không còn lý do gì giữ tiền hoa hồng của Tasker.
+ * COMPLETED nằm trong danh sách vì hold lẽ ra đã được capture lúc quyết toán; nếu vẫn còn
+ * thì đó là dấu hiệu bất thường và tiền phải được trả lại, không để treo.
+ */
+const TERMINAL_BOOKING_STATUSES = [
+  BookingStatus.COMPLETED,
+  BookingStatus.CANCELLED,
+  BookingStatus.EXPIRED,
+];
 
 const RECONCILABLE_BOOKING_STATUSES = [
   BookingStatus.CONFIRMED,
@@ -46,6 +58,7 @@ export class BookingLifecycleSchedulerService
     private readonly dataSource: DataSource,
     private readonly dispatchService: BookingDispatchService,
     private readonly checkinService: BookingCheckinService,
+    private readonly taskerBalanceService: TaskerBalanceService,
     configService: ConfigService,
   ) {
     const configuredInterval = Number(
@@ -238,6 +251,64 @@ export class BookingLifecycleSchedulerService
     } catch (error) {
       this.logger.error(
         'Lifecycle reconciliation thất bại',
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+    await this.releaseOrphanCommissionHoldsSilently();
+  }
+
+  /**
+   * Dọn hoa hồng tiền mặt còn bị GIỮ trên ví Tasker của những đơn đã kết thúc.
+   *
+   * Đây là lưới an toàn, không phải đường xử lý chính: huỷ đơn xảy ra ở nhiều nơi
+   * (khách huỷ, Tasker huỷ, admin huỷ, hết hạn, no-show…). Nếu chỉ dựa vào việc sửa tay
+   * từng nhánh thì bỏ sót một nhánh = tiền Tasker bị treo vĩnh viễn — hậu quả còn tệ hơn
+   * chính lỗi mà cơ chế giữ tiền này sinh ra để sửa. Sweep đảm bảo mọi nhánh đều được dọn.
+   */
+  async releaseOrphanCommissionHolds(): Promise<number> {
+    const repo = this.dataSource.getRepository(BookingEntity);
+    const stuck = await repo
+      .createQueryBuilder('b')
+      .leftJoinAndSelect('b.tasker', 'tasker')
+      .where('COALESCE(b.tasker_commission_hold_amount, 0) > 0')
+      .andWhere('b.status IN (:...done)', { done: TERMINAL_BOOKING_STATUSES })
+      .take(this.batchSize)
+      .getMany();
+
+    let released = 0;
+    for (const booking of stuck) {
+      try {
+        await this.dataSource.transaction(async (manager) => {
+          const amount =
+            await this.taskerBalanceService.releaseCashCommissionHold(
+              manager,
+              booking,
+            );
+          await manager
+            .getRepository(BookingEntity)
+            .update({ id: booking.id }, { taskerCommissionHoldAmount: 0 });
+          if (amount > 0) released += 1;
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Không giải phóng được hold hoa hồng cho booking ${booking.bookingCode}: ${String(error)}`,
+        );
+      }
+    }
+    return released;
+  }
+
+  private async releaseOrphanCommissionHoldsSilently(): Promise<void> {
+    try {
+      const released = await this.releaseOrphanCommissionHolds();
+      if (released > 0) {
+        this.logger.log(
+          `Đã giải phóng hold hoa hồng cho ${released} đơn đã kết thúc`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        'Dọn hold hoa hồng thất bại',
         error instanceof Error ? error.stack : undefined,
       );
     }

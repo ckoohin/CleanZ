@@ -48,10 +48,20 @@ export class TaskerEquipmentEntity {
   })
   status!: TaskerEquipmentIssueStatus;
 
-  @Column({ name: 'unit_price', type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({
+    name: 'unit_price',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
   unitPrice!: number;
 
-  @Column({ name: 'issued_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'issued_at',
+    type: 'timestamptz',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   issuedAt!: Date;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

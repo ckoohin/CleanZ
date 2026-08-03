@@ -18,10 +18,22 @@ export class TaskerEquipmentDebtEntity {
   @JoinColumn({ name: 'tasker_id' })
   tasker!: TaskerEntity;
 
-  @Column({ name: 'total_debt', type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({
+    name: 'total_debt',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
   totalDebt!: number;
 
-  @Column({ name: 'paid_amount', type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({
+    name: 'paid_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
   paidAmount!: number;
 
   @Column({ name: 'is_cleared', type: 'boolean', default: false })

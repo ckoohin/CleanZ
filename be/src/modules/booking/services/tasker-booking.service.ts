@@ -710,9 +710,11 @@ export class TaskerBookingService {
           const platformFee = Math.round(
             (subtotalForCommission * commissionRate) / 100,
           );
-          await this.taskerBalanceService.assertCanCoverCashCommission(
+          // Giữ luôn phí thay vì chỉ kiểm số dư: tới lúc quyết toán không thể thiếu tiền.
+          await this.taskerBalanceService.holdCashCommission(
             manager,
             tasker.id,
+            booking,
             platformFee,
           );
         }

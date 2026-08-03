@@ -525,7 +525,11 @@ export class TaskerController {
     @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Body('isActive') isActive: boolean,
   ) {
-    return this.adminTaskerDetailService.toggleTaskerService(id, serviceId, isActive);
+    return this.adminTaskerDetailService.toggleTaskerService(
+      id,
+      serviceId,
+      isActive,
+    );
   }
 
   @Get('admin/:id/equipments')

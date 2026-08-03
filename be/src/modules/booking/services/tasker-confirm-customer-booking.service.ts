@@ -110,9 +110,10 @@ export class TaskerConfirmCustomerBookingService {
           const subtotal =
             toNumber(booking.totalPrice) + toNumber(booking.discountAmount);
           const platformFee = Math.round((subtotal * commissionRate) / 100);
-          await this.taskerBalanceService.assertCanCoverCashCommission(
+          await this.taskerBalanceService.holdCashCommission(
             manager,
             tasker.id,
+            booking,
             platformFee,
           );
         }

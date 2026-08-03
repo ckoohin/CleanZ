@@ -14,6 +14,8 @@ export type AllConfigType = {
   REDIS_HOST: string;
   REDIS_PORT: number;
   REDIS_PASSWORD?: string;
+  /** Không gian tên khoá BullMQ. Bỏ trống = `bull`; đặt riêng để cô lập test khỏi dev. */
+  BULL_PREFIX?: string;
 
   MAIL_HOST: string;
   MAIL_PORT: number;

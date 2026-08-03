@@ -31,6 +31,8 @@ const inc = (over: Record<string, unknown> = {}) => ({
   recoverable: '1000000',
   uncovered: '0',
   uncovered_recovered: '0',
+  uncovered_written_off: '0',
+  external_payout: null,
   ...over,
 });
 
@@ -123,10 +125,12 @@ describe('IncidentReconciliationService.reconcile', () => {
 
   it('manual (không REFUND, có proof) khớp SYSTEM=recoverable → 0 chênh lệch', async () => {
     const svc = makeService(
-      [inc()],
+      [inc({ external_payout: '1000000' })],
       [
         tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000'),
-        tx('ADJUSTMENT', 'SYSTEM', '1000000'), // thu hồi từ Tasker về SYSTEM
+        // Khoản trả khách đi từ ngân hàng công ty, không qua ví SYSTEM; ví SYSTEM chỉ
+        // nhận lại phần thu được từ Tasker.
+        tx('ADJUSTMENT', 'SYSTEM', '1000000'),
       ],
       [{ incident_id: 'i1' }],
     );
@@ -137,7 +141,7 @@ describe('IncidentReconciliationService.reconcile', () => {
 
   it('manual nhưng SYSTEM lệch → SYSTEM_LEDGER_MISMATCH (WARNING)', async () => {
     const svc = makeService(
-      [inc()],
+      [inc({ external_payout: '1000000' })],
       [
         tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000'),
         tx('ADJUSTMENT', 'SYSTEM', '400000'),
@@ -148,6 +152,70 @@ describe('IncidentReconciliationService.reconcile', () => {
     const d = r.discrepancies.find((x) => x.kind === 'SYSTEM_LEDGER_MISMATCH');
     expect(d?.severity).toBe('WARNING');
     expect(r.criticalCount).toBe(0);
+  });
+
+  // Sổ chi ngoài là bản ghi DUY NHẤT cho tiền rời tài khoản ngân hàng công ty.
+  it('manual mà KHÔNG ghi sổ chi ngoài → EXTERNAL_PAYOUT_MISMATCH (CRITICAL)', async () => {
+    const svc = makeService(
+      [inc({ external_payout: null })],
+      [
+        tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000'),
+        tx('ADJUSTMENT', 'SYSTEM', '1000000'),
+      ],
+      [{ incident_id: 'i1' }],
+    );
+    const r = await svc.reconcile();
+    const d = r.discrepancies.find(
+      (x) => x.kind === 'EXTERNAL_PAYOUT_MISMATCH',
+    );
+    expect(d?.severity).toBe('CRITICAL');
+    expect(d?.expected).toBe(1_000_000);
+    expect(d?.actual).toBe(0);
+  });
+
+  it('digital mà vẫn ghi sổ chi ngoài → EXTERNAL_PAYOUT_UNEXPECTED (chống tính chi 2 lần)', async () => {
+    const svc = makeService(
+      [inc({ external_payout: '1000000' })],
+      [
+        tx('REFUND', 'CUSTOMER', '1000000'),
+        tx('DEPOSIT_DEDUCT', 'TASKER', '-1000000'),
+        tx('ADJUSTMENT', 'SYSTEM', '0'),
+      ],
+      [],
+    );
+    const r = await svc.reconcile();
+    const d = r.discrepancies.find(
+      (x) => x.kind === 'EXTERNAL_PAYOUT_UNEXPECTED',
+    );
+    expect(d?.severity).toBe('CRITICAL');
+  });
+
+  it('tổng hợp chi của nền tảng tách theo hai sổ + phần xoá nợ', async () => {
+    const svc = makeService(
+      [
+        inc({
+          approved: '1500000',
+          tasker_borne: '1000000',
+          platform_borne: '500000',
+          recoverable: '600000',
+          uncovered: '400000',
+          uncovered_written_off: '400000',
+          external_payout: null,
+        }),
+      ],
+      [
+        tx('REFUND', 'CUSTOMER', '1500000'),
+        tx('DEPOSIT_DEDUCT', 'TASKER', '-600000'),
+        tx('ADJUSTMENT', 'SYSTEM', '-900000'),
+      ],
+      [],
+    );
+    const r = await svc.reconcile();
+    expect(r.platformOutlay).toEqual({
+      viaWallet: 900_000, // platformBorne 500k + ứng nợ 400k
+      external: 0,
+      writtenOff: 400_000,
+    });
   });
 
   it('không có incident nào → report rỗng, không query tx', async () => {

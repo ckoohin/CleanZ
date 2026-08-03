@@ -1,78 +1,58 @@
 import { ConflictException } from '@nestjs/common';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
-import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentStateService } from './incident-state.service';
 
-describe('IncidentStateService (TC-U-STATE)', () => {
+describe('IncidentStateService — một trục trạng thái', () => {
   const service = new IncidentStateService();
 
-  describe('status transitions (chiều A)', () => {
-    it('REPORTED → INVESTIGATING hợp lệ', () => {
-      expect(() =>
-        service.assertStatusTransition(
-          IncidentStatus.REPORTED,
-          IncidentStatus.INVESTIGATING,
-        ),
-      ).not.toThrow();
-    });
-    it('REPORTED → APPROVED bị chặn', () => {
-      expect(() =>
-        service.assertStatusTransition(
-          IncidentStatus.REPORTED,
-          IncidentStatus.APPROVED,
-        ),
-      ).toThrow(ConflictException);
-    });
-    it('CLOSED là terminal — không chuyển đi đâu', () => {
-      for (const to of Object.values(IncidentStatus)) {
-        expect(() =>
-          service.assertStatusTransition(IncidentStatus.CLOSED, to),
-        ).toThrow(ConflictException);
-      }
-    });
-    it('INVESTIGATING → APPROVED/REJECTED/CLOSED hợp lệ', () => {
-      for (const to of [
-        IncidentStatus.APPROVED,
-        IncidentStatus.REJECTED,
-        IncidentStatus.CLOSED,
-      ]) {
-        expect(() =>
-          service.assertStatusTransition(IncidentStatus.INVESTIGATING, to),
-        ).not.toThrow();
-      }
-    });
+  const ok = (from: IncidentStatus, to: IncidentStatus) =>
+    expect(() => service.assertStatusTransition(from, to)).not.toThrow();
+  const blocked = (from: IncidentStatus, to: IncidentStatus) =>
+    expect(() => service.assertStatusTransition(from, to)).toThrow(
+      ConflictException,
+    );
+
+  it('REPORTED → REVIEWING (tiếp nhận) hợp lệ', () => {
+    ok(IncidentStatus.REPORTED, IncidentStatus.REVIEWING);
   });
 
-  describe('compensation transitions (chiều B)', () => {
-    it('NONE→PENDING→PROCESSING→RECORDED hợp lệ', () => {
-      expect(() =>
-        service.assertCompensationTransition(
-          IncidentCompensationStatus.NONE,
-          IncidentCompensationStatus.PENDING,
-        ),
-      ).not.toThrow();
-      expect(() =>
-        service.assertCompensationTransition(
-          IncidentCompensationStatus.PROCESSING,
-          IncidentCompensationStatus.RECORDED,
-        ),
-      ).not.toThrow();
-    });
-    it('FAILED → PROCESSING (retry) hợp lệ', () => {
-      expect(() =>
-        service.assertCompensationTransition(
-          IncidentCompensationStatus.FAILED,
-          IncidentCompensationStatus.PROCESSING,
-        ),
-      ).not.toThrow();
-    });
-    it('RECORDED là terminal của chiều B', () => {
-      expect(() =>
-        service.assertCompensationTransition(
-          IncidentCompensationStatus.RECORDED,
-          IncidentCompensationStatus.PENDING,
-        ),
-      ).toThrow(ConflictException);
-    });
+  it('REPORTED không nhảy thẳng sang chờ chi trả', () => {
+    blocked(IncidentStatus.REPORTED, IncidentStatus.AWAITING_PAYOUT);
+  });
+
+  it('REVIEWING → gửi Tasker / chốt / bác bỏ / đóng đều hợp lệ', () => {
+    for (const to of [
+      IncidentStatus.AWAITING_RESPONSE,
+      IncidentStatus.AWAITING_PAYOUT,
+      IncidentStatus.REJECTED,
+      IncidentStatus.CLOSED,
+    ]) {
+      ok(IncidentStatus.REVIEWING, to);
+    }
+  });
+
+  it('AWAITING_RESPONSE → REVIEWING (admin sửa lại quyết định) hợp lệ', () => {
+    ok(IncidentStatus.AWAITING_RESPONSE, IncidentStatus.REVIEWING);
+  });
+
+  it('AWAITING_PAYOUT chỉ đi tới COMPENSATED hoặc quay về REVIEWING', () => {
+    ok(IncidentStatus.AWAITING_PAYOUT, IncidentStatus.COMPENSATED);
+    ok(IncidentStatus.AWAITING_PAYOUT, IncidentStatus.REVIEWING);
+    blocked(IncidentStatus.AWAITING_PAYOUT, IncidentStatus.REJECTED);
+  });
+
+  it('COMPENSATED → REVIEWING hợp lệ — đảo bồi thường được KHAI BÁO trong bảng, không bypass', () => {
+    ok(IncidentStatus.COMPENSATED, IncidentStatus.REVIEWING);
+  });
+
+  it('CLOSED là terminal', () => {
+    for (const to of Object.values(IncidentStatus)) {
+      if (to === IncidentStatus.CLOSED) continue;
+      blocked(IncidentStatus.CLOSED, to);
+    }
+  });
+
+  it('chuyển sang chính nó là no-op, không ném', () => {
+    ok(IncidentStatus.REVIEWING, IncidentStatus.REVIEWING);
   });
 });

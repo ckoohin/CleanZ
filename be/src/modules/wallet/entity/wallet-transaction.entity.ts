@@ -59,6 +59,11 @@ export class WalletTransactionEntity {
   })
   type!: WalletTransactionType;
 
+  /**
+   * LUÔN là giá trị DƯƠNG, kể cả với bút toán trừ tiền — dấu nằm ở `balanceAfter -
+   * balanceBefore`. Đừng cộng trực tiếp cột này để ra dòng tiền ròng; dùng
+   * `signedAmount()` / `SIGNED_AMOUNT_SQL` bên dưới.
+   */
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   amount!: number;
 
@@ -84,3 +89,22 @@ export class WalletTransactionEntity {
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }
+
+/**
+ * Tác động RÒNG có dấu của một bút toán lên số dư ví: âm = tiền ra, dương = tiền vào.
+ *
+ * Cột `amount` luôn dương nên `SUM(amount)` cho ra tổng vô nghĩa (cộng cả tiền vào lẫn
+ * tiền ra). Quy ước này trước đây chỉ nằm trong comment của service đối soát; tách ra
+ * thành helper để mọi báo cáo mới dùng đúng ngay từ đầu.
+ */
+export function signedAmount(
+  tx: Pick<WalletTransactionEntity, 'balanceBefore' | 'balanceAfter'>,
+): number {
+  return Number(tx.balanceAfter) - Number(tx.balanceBefore);
+}
+
+/** Bản SQL của `signedAmount` — dùng trong raw query/đối soát. */
+export const SIGNED_AMOUNT_SQL = (alias = ''): string => {
+  const p = alias ? `${alias}.` : '';
+  return `(${p}balance_after - ${p}balance_before)`;
+};

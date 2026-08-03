@@ -8,8 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
-import { IncidentResponseWindowStatus } from 'src/common/enums/incident-response-window-status.enum';
 import { IncidentDecisionResponseType } from 'src/common/enums/incident-decision-response-type.enum';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
 import { NotificationOutboxStatus } from 'src/common/enums/notification-outbox-status.enum';
@@ -37,6 +35,8 @@ import {
   INCIDENT_EVIDENCE_VISIBILITY,
   IncidentEvidenceLifecycleService,
 } from './incident-evidence-lifecycle.service';
+import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
+import { TaskerDebtSource } from 'src/modules/wallet/entity/tasker-debt.entity';
 
 @Injectable()
 export class IncidentTaskerService {
@@ -51,6 +51,7 @@ export class IncidentTaskerService {
     @InjectRepository(IncidentStatementEntity)
     private readonly statementRepo: Repository<IncidentStatementEntity>,
     private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
+    private readonly taskerDebt: TaskerDebtService,
   ) {}
 
   async uploadEvidence(
@@ -125,12 +126,18 @@ export class IncidentTaskerService {
         arr.push(e);
         byItem.set(key, arr);
       }
+      const outstandingDebt = await this.taskerDebt.getOutstandingForSource(
+        this.dataSource.manager,
+        TaskerDebtSource.INCIDENT_COMPENSATION,
+        incidentId,
+      );
       return toTaskerView(
         incident,
         items,
         byItem,
         statements,
         this.canSubmit(incident),
+        outstandingDebt,
       );
     }, 'Lỗi khi lấy chi tiết sự cố');
   }
@@ -140,64 +147,87 @@ export class IncidentTaskerService {
     incidentId: string,
     dto: SubmitStatementDto,
   ): Promise<StatementView> {
-    return asyncHandleOperation(async () => {
-      const incident = await this.loadOwned(incidentId, taskerUserId);
-      if (!this.canSubmit(incident)) {
-        if (incident.status !== IncidentStatus.INVESTIGATING) {
-          throw new ConflictException(
-            'Chỉ giải trình khi sự cố đang được thẩm định',
+    return asyncHandleOperation(
+      () =>
+        this.dataSource.transaction(async (manager) => {
+          // Khoá hồ sơ và kiểm điều kiện TRONG transaction. `canSubmit` chỉ dùng để dựng
+          // giao diện; chốt chặn thật phải đọc trạng thái mới nhất, nếu không Tasker gửi
+          // giải trình đúng lúc Admin chốt sẽ ghi vào một hồ sơ đã khép lại.
+          const incident = await this.lockOwnedIncident(
+            manager,
+            incidentId,
+            taskerUserId,
           );
-        }
-        throw new ConflictException('Đã quá thời hạn giải trình');
-      }
+          if (
+            incident.status !== IncidentStatus.REVIEWING &&
+            incident.status !== IncidentStatus.AWAITING_RESPONSE
+          ) {
+            throw new ConflictException(
+              'Chỉ giải trình khi sự cố đang được thẩm định',
+            );
+          }
+          // Hạn nộp do DB sinh ra ⟹ so bằng đồng hồ DB, không phải đồng hồ app.
+          const dbNow = await this.getDatabaseNow(manager);
+          if (
+            incident.statementDueAt &&
+            dbNow.getTime() > incident.statementDueAt.getTime()
+          ) {
+            throw new ConflictException('Đã quá thời hạn giải trình');
+          }
 
-      if (dto.evidenceIds?.length) {
-        const owned = await this.evidenceRepo.find({
-          where: {
-            id: In(dto.evidenceIds),
-            incident: IsNull(),
-            isSoftDeleted: false,
-          },
-          relations: ['uploadedBy'],
-        });
-        const ownedIds = new Set(
-          owned
-            .filter((e) => e.uploadedBy?.id === taskerUserId)
-            .map((e) => e.id),
-        );
-        if (ownedIds.size !== dto.evidenceIds.length) {
-          throw new UnprocessableEntityException(
-            'Bằng chứng không hợp lệ hoặc đã được sử dụng',
+          const evidenceRepo = manager.getRepository(IncidentEvidenceEntity);
+          if (dto.evidenceIds?.length) {
+            const owned = await evidenceRepo.find({
+              where: {
+                id: In(dto.evidenceIds),
+                incident: IsNull(),
+                isSoftDeleted: false,
+              },
+              relations: ['uploadedBy'],
+            });
+            const ownedIds = new Set(
+              owned
+                .filter((e) => e.uploadedBy?.id === taskerUserId)
+                .map((e) => e.id),
+            );
+            if (ownedIds.size !== dto.evidenceIds.length) {
+              throw new UnprocessableEntityException(
+                'Bằng chứng không hợp lệ hoặc đã được sử dụng',
+              );
+            }
+            await evidenceRepo
+              .createQueryBuilder()
+              .update()
+              .set({
+                incident: { id: incident.id },
+                purpose: IncidentEvidencePurpose.TASKER_STATEMENT,
+                visibility: INCIDENT_EVIDENCE_VISIBILITY.ADMIN_TASKER,
+              })
+              .whereInIds(dto.evidenceIds)
+              .execute();
+          }
+
+          // Cùng transaction với phần gắn bằng chứng: trước đây hai bước ghi rời nhau, lỗi
+          // ở bước sau để lại ảnh đã gắn vào hồ sơ mà không có giải trình nào đi kèm.
+          const statementRepo = manager.getRepository(IncidentStatementEntity);
+          const statement = await statementRepo.save(
+            statementRepo.create({
+              incident: { id: incident.id },
+              submittedBy: { id: taskerUserId },
+              body: dto.body,
+            }),
           );
-        }
-        await this.evidenceRepo
-          .createQueryBuilder()
-          .update()
-          .set({
-            incident: { id: incident.id },
-            purpose: IncidentEvidencePurpose.TASKER_STATEMENT,
-            visibility: INCIDENT_EVIDENCE_VISIBILITY.ADMIN_TASKER,
-          })
-          .whereInIds(dto.evidenceIds)
-          .execute();
-      }
-
-      const statement = await this.statementRepo.save(
-        this.statementRepo.create({
-          incident: { id: incident.id },
-          submittedBy: { id: taskerUserId },
-          body: dto.body,
+          return {
+            id: statement.id,
+            submittedByUserId: taskerUserId,
+            submittedByName: incident.tasker?.user?.fullName ?? null,
+            submittedByRole: incident.tasker?.user?.role ?? null,
+            body: statement.body,
+            createdAt: statement.createdAt,
+          };
         }),
-      );
-      return {
-        id: statement.id,
-        submittedByUserId: taskerUserId,
-        submittedByName: incident.tasker?.user?.fullName ?? null,
-        submittedByRole: incident.tasker?.user?.role ?? null,
-        body: statement.body,
-        createdAt: statement.createdAt,
-      };
-    }, 'Lỗi khi gửi giải trình');
+      'Lỗi khi gửi giải trình',
+    );
   }
 
   async upsertDecisionResponse(
@@ -209,7 +239,7 @@ export class IncidentTaskerService {
       let responseId: string | null = null;
 
       await this.dataSource.transaction(async (manager) => {
-        const incident = await this.lockOwnedIncidentForDecisionResponse(
+        const incident = await this.lockOwnedIncident(
           manager,
           incidentId,
           taskerUserId,
@@ -221,17 +251,7 @@ export class IncidentTaskerService {
           !incident.taskerResponseDeadline ||
           dbNow.getTime() > incident.taskerResponseDeadline.getTime()
         ) {
-          const oldWindowStatus = incident.responseWindowStatus;
-          incident.responseWindowStatus = IncidentResponseWindowStatus.EXPIRED;
-          await manager.getRepository(IncidentEntity).save(incident);
-          await this.logDecisionResponseStatus(
-            manager,
-            incident.id,
-            oldWindowStatus,
-            IncidentResponseWindowStatus.EXPIRED,
-            taskerUserId,
-            'Tasker response window expired',
-          );
+          // Hết hạn được suy ra từ deadline — không cần ghi trạng thái cửa sổ riêng.
           throw new ConflictException({
             code: 'TASKER_RESPONSE_WINDOW_EXPIRED',
             message: 'Đã quá thời hạn phản hồi quyết định',
@@ -304,9 +324,6 @@ export class IncidentTaskerService {
           );
         }
 
-        const oldWindowStatus = incident.responseWindowStatus;
-        incident.responseWindowStatus = IncidentResponseWindowStatus.RESPONDED;
-        await manager.getRepository(IncidentEntity).save(incident);
         await this.ensureAdminTaskerResponseOutbox(
           manager,
           incident,
@@ -316,10 +333,10 @@ export class IncidentTaskerService {
         await this.logDecisionResponseStatus(
           manager,
           incident.id,
-          oldWindowStatus,
-          IncidentResponseWindowStatus.RESPONDED,
+          null,
+          incident.status,
           taskerUserId,
-          `Tasker submitted decision response revision ${response.responseRevision}`,
+          `Tasker gửi phản hồi quyết định (bản ${response.responseRevision})`,
         );
       });
 
@@ -334,13 +351,27 @@ export class IncidentTaskerService {
     }, 'Lỗi khi gửi phản hồi quyết định');
   }
 
+  /**
+   * Gợi ý cho GIAO DIỆN: Tasker có còn được gửi giải trình không.
+   *
+   * Chỉ dùng để bật/tắt nút — cố tình so bằng đồng hồ app để không tốn thêm một round-trip
+   * chỉ để tô một nút. Chốt chặn thật nằm trong `submitStatement`, đọc trạng thái dưới khoá
+   * và so hạn bằng đồng hồ DB; lệch vài giây giữa hai nơi chỉ khiến nút hiện sai chốc lát,
+   * không cho phép ghi thứ gì đáng lẽ bị chặn.
+   */
   private canSubmit(incident: IncidentEntity): boolean {
-    if (incident.status !== IncidentStatus.INVESTIGATING) return false;
+    if (
+      incident.status !== IncidentStatus.REVIEWING &&
+      incident.status !== IncidentStatus.AWAITING_RESPONSE
+    ) {
+      return false;
+    }
     if (!incident.statementDueAt) return true;
     return Date.now() <= incident.statementDueAt.getTime();
   }
 
-  private async lockOwnedIncidentForDecisionResponse(
+  /** Khoá hồ sơ và xác nhận nó thuộc về Tasker này — dùng cho mọi lệnh ghi phía Tasker. */
+  private async lockOwnedIncident(
     manager: EntityManager,
     incidentId: string,
     taskerUserId: string,
@@ -350,7 +381,6 @@ export class IncidentTaskerService {
       .createQueryBuilder('i')
       .innerJoinAndSelect('i.tasker', 't')
       .innerJoinAndSelect('t.user', 'u')
-      .leftJoinAndSelect('i.decidedByAdmin', 'decidedByAdmin')
       .setLock('pessimistic_write', undefined, ['i'])
       .where('i.id = :id', { id: incidentId })
       .andWhere('u.id = :uid', { uid: taskerUserId })
@@ -380,15 +410,8 @@ export class IncidentTaskerService {
       });
     }
 
-    if (
-      incident.status !== IncidentStatus.INVESTIGATING ||
-      incident.decisionStatus !==
-        IncidentDecisionStatus.PENDING_TASKER_RESPONSE ||
-      ![
-        IncidentResponseWindowStatus.OPEN,
-        IncidentResponseWindowStatus.RESPONDED,
-      ].includes(incident.responseWindowStatus)
-    ) {
+    // Một điều kiện duy nhất: sự cố đang chờ Tasker phản biện. Hạn nộp kiểm riêng ở caller.
+    if (incident.status !== IncidentStatus.AWAITING_RESPONSE) {
       throw new ConflictException({
         code: 'TASKER_RESPONSE_NOT_OPEN',
         message: 'Cửa sổ phản hồi quyết định không mở',
@@ -536,7 +559,7 @@ export class IncidentTaskerService {
     response: IncidentDecisionResponseEntity,
     taskerUserId: string,
   ): Promise<void> {
-    const adminUserId = incident.decidedByAdmin?.id;
+    const adminUserId = incident.responsibilityDecidedByAdmin?.id;
     if (!adminUserId) return;
 
     await manager
@@ -582,7 +605,7 @@ export class IncidentTaskerService {
   private async logDecisionResponseStatus(
     manager: EntityManager,
     incidentId: string,
-    oldValue: string,
+    oldValue: string | null,
     newValue: string,
     changedByUserId: string,
     reason: string,

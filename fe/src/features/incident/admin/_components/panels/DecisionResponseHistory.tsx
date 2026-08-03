@@ -1,10 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  RESPONSE_TYPE_LABEL,
-  REVIEW_RESULT_LABEL,
-} from "@/features/incident/shared/incident.labels";
+import { RESPONSE_TYPE_LABEL } from "@/features/incident/shared/incident.labels";
 import type { AdminDecisionResponse } from "@/features/incident/shared/incident.types";
 
 function fmt(d: string | null | undefined) {
@@ -55,20 +52,15 @@ export function DecisionResponseHistory({
               ))}
             </div>
           )}
-          {r.reviewedAt ? (
+          {/* Ghi chú review là dữ liệu lịch sử — luồng review riêng đã gỡ, Admin đọc
+              phản hồi rồi chốt luôn hoặc sửa quyết định. */}
+          {r.adminReviewNote && (
             <div className="rounded-md bg-[var(--c-card)] p-2 text-xs">
-              <span className="font-semibold text-[var(--c-ink)]">
-                Admin đã xem xét: {r.reviewResult ? REVIEW_RESULT_LABEL[r.reviewResult] : "-"}
-              </span>
-              {r.adminReviewNote && (
-                <span className="text-[var(--c-muted)]"> — {r.adminReviewNote}</span>
+              <span className="text-[var(--c-muted)]">Ghi chú Admin: {r.adminReviewNote}</span>
+              {r.reviewedAt && (
+                <span className="ml-1 text-[var(--c-muted)]">({fmt(r.reviewedAt)})</span>
               )}
-              <span className="ml-1 text-[var(--c-muted)]">({fmt(r.reviewedAt)})</span>
             </div>
-          ) : (
-            <span className="inline-block rounded-full bg-[#F59E0B]/15 px-2 py-0.5 text-[11px] font-semibold text-[#B45309]">
-              Chờ Admin xem xét
-            </span>
           )}
         </div>
       ))}
