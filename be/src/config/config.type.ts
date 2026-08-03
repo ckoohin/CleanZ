@@ -54,4 +54,9 @@ export type AllConfigType = {
   PAYOS_CLIENT_ID?: string;
   PAYOS_API_KEY?: string;
   PAYOS_CHECKSUM_KEY?: string;
+
+  // PayOS Payout (rút tiền tasker).
+  PAYOS_PAYOUT_CLIENT_ID?: string;
+  PAYOS_PAYOUT_API_KEY?: string;
+  PAYOS_PAYOUT_CHECKSUM_KEY?: string;
 };

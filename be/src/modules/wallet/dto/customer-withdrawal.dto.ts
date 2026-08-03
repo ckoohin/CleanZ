@@ -27,6 +27,12 @@ export class CreateCustomerWithdrawalDto {
   @MaxLength(100)
   bankName!: string;
 
+  @ApiPropertyOptional({ example: '970436' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  bankBin?: string;
+
   @ApiPropertyOptional({ example: 'Rút phần được bồi thường' })
   @IsOptional()
   @IsString()

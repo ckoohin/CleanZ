@@ -132,6 +132,12 @@ export const WalletDashboard = () => {
 
   const handleDepositClick = () => setTopupOpen(true);
 
+  const handleScrollToWithdrawal = () => {
+    document
+      .getElementById("withdrawal-section")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const handleScrollToHistory = () => {
     historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -252,10 +258,10 @@ export const WalletDashboard = () => {
           </button>
 
           <button
-            disabled
-            className="flex flex-col items-center gap-2 group opacity-40 cursor-not-allowed"
+            onClick={handleScrollToWithdrawal}
+            className="flex flex-col items-center gap-2 group cursor-pointer"
           >
-            <div className="w-12 h-12 bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 rounded-full flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
               <ArrowUpRight className="w-6 h-6" />
             </div>
             <span className="text-xs font-bold text-foreground/90">

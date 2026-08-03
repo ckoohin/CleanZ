@@ -46,6 +46,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.21",
     "@payos/node": "^2.0.5",
+    "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.76.9",
     "class-transformer": "^0.5.1",

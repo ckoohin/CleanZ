@@ -76,6 +76,14 @@ export class WithdrawalRequestEntity {
   @Column({ type: 'timestamp', nullable: true, name: 'processed_at' })
   processedAt!: Date | null;
 
+  @Column({
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+    name: 'payos_reference_id',
+  })
+  payosReferenceId!: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

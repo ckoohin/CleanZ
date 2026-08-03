@@ -1,32 +1,36 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
   ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
+import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
+import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
+import { PayoutService } from 'src/modules/wallet/payout.service';
+import { WalletService } from 'src/modules/wallet/wallet.service';
 import { DataSource } from 'typeorm';
+import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
+import { PaginatedData } from '../../../common/helpers/response.interface';
+import { User } from '../../users/entities/user.entity';
+
+import { WalletTransactionEntity } from '../../wallet/entity/wallet-transaction.entity';
+import { WalletEntity } from '../../wallet/entity/wallet.entity';
+import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
+import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
+
+import { RevenueQueryDto } from '../dto/revenue-query.dto';
+import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
+import { ReviewWithdrawalDto } from '../dto/review-with-drawal.dto';
+
+import { TransactionFlowSummaryQueryDto } from '../dto/transaction-flow-summary-query.dto';
+import { WithdrawalListQueryDto } from '../dto/with-drawal-list-query.dto';
+import { WithdrawalRequestEntity } from '../entity/withdrawal-request.entity';
 import {
   WalletRepository,
   WalletTransactionRepository,
   WithdrawalRequestRepository,
 } from '../finance.repository';
-import { WithdrawalRequestEntity } from '../entity/withdrawal-request.entity';
-import { WalletTransactionEntity } from '../../wallet/entity/wallet-transaction.entity';
-import { WalletEntity } from '../../wallet/entity/wallet.entity';
-import { PaginatedData } from '../../../common/helpers/response.interface';
-import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
-import { WithdrawalListQueryDto } from '../dto/with-drawal-list-query.dto';
-import { ReviewWithdrawalDto } from '../dto/review-with-drawal.dto';
-import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
-import { RevenueQueryDto } from '../dto/revenue-query.dto';
-import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
-import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
-import { WalletService } from 'src/modules/wallet/wallet.service';
-import { PayoutService } from 'src/modules/wallet/payout.service';
-import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
-import { User } from '../../users/entities/user.entity';
-import { TransactionFlowSummaryQueryDto } from '../dto/transaction-flow-summary-query.dto';
-import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
 
 export interface CustomerSpendingItem {
   customerId: string;
@@ -41,6 +45,8 @@ export interface CustomerSpendingItem {
 
 @Injectable()
 export class FinanceService {
+  private readonly logger = new Logger(FinanceService.name);
+
   constructor(
     private readonly walletRepo: WalletRepository,
     private readonly transactionRepo: WalletTransactionRepository,
@@ -82,6 +88,10 @@ export class FinanceService {
   ): Promise<WithdrawalRequestEntity> {
     let withdrawalSnapshot: WithdrawalRequestEntity | null = null;
 
+    this.logger.log(
+      `reviewWithdrawal bắt đầu: withdrawalId=${id}, status=${dto.status}`,
+    );
+
     // Phase 1: DB transaction — lock, debit wallet, mark APPROVED
     await this.dataSource.transaction(async (manager) => {
       const withdrawalRepository = manager.getRepository(
@@ -116,6 +126,10 @@ export class FinanceService {
           throw new NotFoundException('WALLET_NOT_FOUND');
         }
 
+        this.logger.log(
+          `Phase 1 - debitWallet: withdrawalId=${id}, walletId=${wallet.id}, amount=${withdrawal.amount}`,
+        );
+
         await this.walletService.debitWallet(manager, {
           wallet,
           amount: Number(withdrawal.amount),
@@ -124,6 +138,10 @@ export class FinanceService {
           referenceType: 'WITHDRAWAL_REQUEST',
           description: `Rút tiền về ${withdrawal.bankName ?? 'tài khoản'} - ${withdrawal.bankAccount ?? ''}`,
         });
+
+        this.logger.log(
+          `Phase 1 - debitWallet thành công: withdrawalId=${id}, WalletTransaction WITHDRAW đã tạo`,
+        );
 
         withdrawalSnapshot = withdrawal;
       }
@@ -137,6 +155,10 @@ export class FinanceService {
           : {}),
         reviewedAt: new Date(),
       });
+
+      this.logger.log(
+        `Phase 1 hoàn tất: withdrawalId=${id}, status → ${dto.status}`,
+      );
     });
 
     // Phase 2 & 3: PayOS payout + finalize status (only for APPROVED)
@@ -144,29 +166,53 @@ export class FinanceService {
       const snap = withdrawalSnapshot as WithdrawalRequestEntity;
 
       if (!snap.bankBin || !snap.bankAccount) {
-        // Ví đã bị trừ nhưng thiếu thông tin BIN — hoàn tiền và báo lỗi
+        this.logger.warn(
+          `Thiếu bankBin/bankAccount: withdrawalId=${id}, taskerId=${snap.taskerId} — hoàn tiền và reset PENDING`,
+        );
         await this.reverseWithdrawalDebit(snap);
-        await this.withdrawalRepo.update(id, { status: WithdrawalStatus.PENDING });
+        await this.withdrawalRepo.update(id, {
+          status: WithdrawalStatus.PENDING,
+        });
         throw new BadRequestException(
           'WITHDRAWAL_MISSING_BANK_BIN: Tasker chưa cập nhật mã BIN ngân hàng',
         );
       }
 
       try {
-        await this.payoutService.createSinglePayout({
+        this.logger.log(
+          `Phase 2 - gọi PayOS payout: withdrawalId=${id}, amount=${snap.amount}, toAccount=${snap.bankAccount}, bankBin=${snap.bankBin}`,
+        );
+
+        const payosReferenceId = await this.payoutService.createSinglePayout({
           amount: Number(snap.amount),
-          description: `Rut tien CleanZ - ${snap.bankAccount}`,
+          description: `Rut tien - ${snap.bankAccount}`.slice(0, 25),
           toBin: snap.bankBin,
           toAccountNumber: snap.bankAccount,
+          category: ['salary'],
         });
+
+        this.logger.log(
+          `Phase 3 - lưu PROCESSED: withdrawalId=${id}, payosReferenceId=${payosReferenceId}`,
+        );
+
         await this.withdrawalRepo.update(id, {
           status: WithdrawalStatus.PROCESSED,
           processedAt: new Date(),
+          payosReferenceId,
         });
+
+        this.logger.log(
+          `reviewWithdrawal hoàn tất: withdrawalId=${id}, payosReferenceId=${payosReferenceId}`,
+        );
       } catch (err) {
+        this.logger.error(
+          `Phase 2 thất bại: withdrawalId=${id}, error=${(err as Error).message} — hoàn tiền, reset PENDING`,
+        );
         // Payout thất bại → hoàn tiền về ví, reset về PENDING để admin retry
         await this.reverseWithdrawalDebit(snap);
-        await this.withdrawalRepo.update(id, { status: WithdrawalStatus.PENDING });
+        await this.withdrawalRepo.update(id, {
+          status: WithdrawalStatus.PENDING,
+        });
         throw err;
       }
     }

@@ -58,6 +58,7 @@ export interface CustomerWithdrawal {
   status: WithdrawalStatus;
   bankAccount: string | null;
   bankName: string | null;
+  bankBin: string | null;
   note: string | null;
   adminNote: string | null;
   reviewedAt: string | null;
@@ -69,6 +70,7 @@ export interface CreateCustomerWithdrawalInput {
   amount: number;
   bankAccount: string;
   bankName: string;
+  bankBin?: string;
   note?: string;
 }
 

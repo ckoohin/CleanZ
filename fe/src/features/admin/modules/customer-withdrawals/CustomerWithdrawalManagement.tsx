@@ -15,7 +15,7 @@ const fmt = (d: string) => new Date(d).toLocaleString("vi-VN");
 
 const STATUS_TABS: { value: WithdrawalStatus | "ALL"; label: string }[] = [
   { value: "PENDING", label: "Chờ duyệt" },
-  { value: "APPROVED", label: "Đã duyệt" },
+  { value: "PROCESSED", label: "Đã duyệt" },
   { value: "REJECTED", label: "Từ chối" },
   { value: "ALL", label: "Tất cả" },
 ];
