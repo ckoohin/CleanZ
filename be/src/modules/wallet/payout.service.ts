@@ -32,7 +32,7 @@ export class PayoutService {
 
   private buildSignature(fields: Record<string, unknown>): string {
     const checksumKey =
-      this.configService.get('PAYOS_CHECKSUM_KEY', { infer: true }) ?? '';
+      this.configService.get('PAYOS_PAYOUT_CHECKSUM_KEY', { infer: true }) ?? '';
 
     const payload = Object.keys(fields)
       .sort()

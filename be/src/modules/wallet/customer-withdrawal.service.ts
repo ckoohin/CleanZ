@@ -265,9 +265,7 @@ export class CustomerWithdrawalService {
           `Hoàn ví thất bại — cần xử lý thủ công: customerWithdrawalId=${id}, err=${(rollbackErr as Error).message}`,
         );
       }
-      throw new InternalServerErrorException(
-        (err as Error).message,
-      );
+      throw new InternalServerErrorException((err as Error).message);
     }
 
     // Phase 3: mark PROCESSED
