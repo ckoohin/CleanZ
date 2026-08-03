@@ -8,8 +8,10 @@ import type {
   CustomerWithdrawalRequest,
   FinanceOverview,
   PaginatedCustomerSpending,
+  PaginatedRevenuePayroll,
   PaginatedWallets,
   PaginatedWalletTransactions,
+  RevenuePayrollQuery,
   RevenueSummaryQuery,
   RevenueSummaryResponse,
   TransactionFlowSummary,
@@ -52,6 +54,9 @@ export const walletAdminApi = {
 
   revenueSummary: (params?: RevenueSummaryQuery): Promise<RevenueSummaryResponse[]> =>
     http.get(`${BASE}/revenue`, { params }).then((response) => response.data.data),
+
+  revenuePayroll: (params?: RevenuePayrollQuery): Promise<PaginatedRevenuePayroll> =>
+    http.get(`${BASE}/revenue-payroll`, { params }).then((response) => response.data.data),
 
   transactionsSummary: (
     params?: TransactionFlowSummaryQuery,

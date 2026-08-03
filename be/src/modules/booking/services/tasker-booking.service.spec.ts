@@ -61,6 +61,7 @@ function buildService(
     bookingDispatchService as never,
     undefined as never,
     undefined as never,
+    undefined as never,
   ) as unknown as BookingAccessReader;
 }
 
@@ -207,6 +208,7 @@ describe('TaskerBookingService — danh sách booking posted', () => {
       undefined as never,
       undefined as never,
       bookingDispatchService as never,
+      undefined as never,
       undefined as never,
       undefined as never,
     );

@@ -20,4 +20,14 @@ export class RevenueQueryDto {
   @IsOptional()
   @IsDateString()
   toDate?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by tasker ID' })
+  @IsOptional()
+  @IsString()
+  taskerId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by service package ID' })
+  @IsOptional()
+  @IsString()
+  serviceId?: string;
 }

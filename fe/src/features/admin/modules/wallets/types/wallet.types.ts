@@ -219,6 +219,8 @@ export interface RevenueSummaryQuery {
   granularity?: "day" | "week" | "month";
   fromDate?: string;
   toDate?: string;
+  taskerId?: string;
+  serviceId?: string;
 }
 
 export interface RevenueSummaryResponse {
@@ -227,6 +229,37 @@ export interface RevenueSummaryResponse {
   totalPlatformCommission: number;
   totalTaskerEarnings: number;
   totalTransactions: number;
+}
+
+export interface RevenuePayrollQuery {
+  page?: number;
+  limit?: number;
+  fromDate?: string;
+  toDate?: string;
+  taskerId?: string;
+  serviceId?: string;
+  search?: string;
+}
+
+export interface RevenuePayrollItem {
+  bookingId: string;
+  bookingCode: string;
+  completedAt: string;
+  customerName: string;
+  taskerName: string;
+  serviceName: string;
+  serviceIconUrl?: string | null;
+  totalPrice: number;
+  taskerEarning: number;
+  platformCommission: number;
+}
+
+export interface PaginatedRevenuePayroll {
+  items: RevenuePayrollItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface WalletTransactionDetail {

@@ -20,6 +20,7 @@ import { ReviewWithdrawalDto } from '../dto/review-with-drawal.dto';
 import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
 import { RevenueQueryDto } from '../dto/revenue-query.dto';
 import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
+import { RevenuePayrollQueryDto } from '../dto/revenue-payroll-query.dto';
 import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
@@ -146,6 +147,10 @@ export class FinanceService {
     query: RevenueQueryDto,
   ): Promise<RevenueSummaryResponseDto[]> {
     return this.transactionRepo.getRevenueSummary(query);
+  }
+
+  async getRevenuePayroll(query: RevenuePayrollQueryDto) {
+    return this.transactionRepo.getRevenuePayroll(query);
   }
 
   async getFinancialOverview(): Promise<{
