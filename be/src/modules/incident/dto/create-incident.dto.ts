@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsInt,
@@ -11,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IC_INPUT_LIMITS } from '../incident.constants';
 
 export class DamageItemInput {
   @ApiProperty({ example: 'Mặt bàn bị trầy xước' })
@@ -18,10 +20,14 @@ export class DamageItemInput {
   @MaxLength(255)
   description!: string;
 
+  /**
+   * Trần THẬT là `INCIDENT_CLAIM_MAX_AMOUNT`, áp cho TỔNG và do service kiểm. Ở đây chỉ chặn
+   * số phi lý — nếu chép trần chính sách vào decorator thì hạ config sẽ không có tác dụng.
+   */
   @ApiProperty({ example: 500000, description: 'VND, số nguyên dương' })
   @IsInt()
   @IsPositive()
-  @Max(20_000_000)
+  @Max(IC_INPUT_LIMITS.AMOUNT_SANITY_MAX)
   claimedAmount!: number;
 
   @ApiProperty({
@@ -30,6 +36,7 @@ export class DamageItemInput {
   })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(IC_INPUT_LIMITS.EVIDENCE_MAX)
   @IsUUID('4', { each: true })
   evidenceIds!: string[];
 }
@@ -46,11 +53,18 @@ export class CreateIncidentDto {
 
   @ApiProperty({ example: 'Tasker làm vỡ bình hoa và trầy mặt bàn.' })
   @IsString()
+  @MaxLength(IC_INPUT_LIMITS.DESCRIPTION_MAX)
   description!: string;
 
+  /**
+   * Có trần vì service ghi từng hạng mục bằng một INSERT riêng trong CÙNG một transaction:
+   * không chặn thì một request hợp lệ về mặt kiểu dữ liệu vẫn mở được transaction hàng nghìn
+   * lệnh, giữ khoá và bơm phồng cả `claimedAmount` lẫn khoản hold ví Tasker.
+   */
   @ApiProperty({ type: [DamageItemInput] })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(IC_INPUT_LIMITS.DAMAGE_ITEMS_MAX)
   @ValidateNested({ each: true })
   @Type(() => DamageItemInput)
   damageItems!: DamageItemInput[];

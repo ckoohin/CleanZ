@@ -3,8 +3,21 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { HeadphonesIcon, Plus, ChevronRight, ArrowLeft, ImagePlus, X, AlertCircle, Clock } from "lucide-react";
+import {
+  HeadphonesIcon,
+  Plus,
+  ChevronRight,
+  ArrowLeft,
+  ImagePlus,
+  X,
+  AlertCircle,
+  Clock,
+  Check,
+  Inbox,
+  SlidersHorizontal,
+} from "lucide-react";
 import { ROUTES } from "@/constants/routes";
+import { cn } from "@/lib/utils";
 import { useMyTicketInfiniteList, useCreateTicket, useMyBookings, useMyTicketUnreadRealtime } from "@/features/support-tickets/hooks/useMyTicket";
 import { myTicketApi } from "@/features/support-tickets/services/my-ticket.service";
 import { toast } from "@/lib/toast";
@@ -22,7 +35,13 @@ import {
   STATUS_TONE,
   PRIORITY_LABEL,
   TONE_BADGE_CLASS,
+  type Tone,
 } from "@/features/support-tickets/shared/ticket.labels";
+import {
+  CATEGORY_ICON,
+  categoryHintFor,
+  OTHER_CATEGORY_HINT,
+} from "@/features/support-tickets/shared/ticket.category-meta";
 import { NO_BOOKING_CATEGORIES } from "@/features/support-tickets/shared/ticket.enums";
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 
@@ -32,6 +51,19 @@ type ViewerRole = "CUSTOMER" | "TASKER";
 /** Ẩn scrollbar nhưng vẫn cuộn được (hàng tab trạng thái cuộn ngang). */
 const SCROLLBAR_HIDDEN =
   "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
+
+/**
+ * Vạch màu dọc bên trái card, đọc được trạng thái ticket chỉ bằng liếc mắt mà
+ * không phải tìm badge. Tách khỏi `TONE_BADGE_CLASS` (badge có nền + viền nhạt)
+ * vì ở đây cần MÀU ĐẶC mới thấy trên dải 3px.
+ */
+const TONE_BAR_CLASS: Record<Tone, string> = {
+  neutral: "bg-foreground/25",
+  info: "bg-primary",
+  warning: "bg-amber-500",
+  success: "bg-emerald-500",
+  muted: "bg-border",
+};
 
 function CreateTicketSheet({
   open,
@@ -110,6 +142,12 @@ function CreateTicketSheet({
     [viewerRole],
   );
 
+  // "Khác" tách khỏi lưới: nó là lối thoát khi không loại nào khớp, nên phải
+  // thấy được NGAY sau khi đã lướt hết các loại cụ thể — nằm lẫn trong lưới thì
+  // vừa dễ bị chọn nhầm cho tiện, vừa dễ bị bỏ sót khi thật sự cần.
+  const gridOptions = categoryOptions.filter((o) => o.value !== "OTHER");
+  const otherOption = categoryOptions.find((o) => o.value === "OTHER");
+
   // Đổi vai (hiếm, nhưng có thể xảy ra khi chuyển tài khoản) mà category đang
   // chọn không còn hợp lệ → bỏ chọn để không gửi lên loại bị ẩn.
   React.useEffect(() => {
@@ -117,6 +155,13 @@ function CreateTicketSheet({
       setForm((p) => ({ ...p, category: "", bookingId: "" }));
     }
   }, [categoryOptions, form.category]);
+
+  const pickCategory = (value: TicketCategory) =>
+    setForm((p) => ({
+      ...p,
+      category: value,
+      bookingId: NO_BOOKING_CATEGORIES.includes(value) ? "" : p.bookingId,
+    }));
 
   // bookingId bắt buộc trừ category ∈ {ACCOUNT_TECHNICAL, OTHER} (spec §1.1)
   const requiresBooking =
@@ -158,6 +203,11 @@ function CreateTicketSheet({
     setImages([]);
   };
 
+  const fieldClass =
+    "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+  const labelClass =
+    "mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground";
+
   return (
     <AnimatePresence>
       {open && (
@@ -167,7 +217,7 @@ function CreateTicketSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
             onClick={onClose}
           />
           {/* Sheet */}
@@ -176,88 +226,173 @@ function CreateTicketSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl max-h-[90vh] overflow-y-auto"
+            className={cn(
+              "fixed bottom-0 left-0 right-0 z-50 flex max-h-[92vh] flex-col rounded-t-3xl bg-card shadow-2xl",
+              SCROLLBAR_HIDDEN,
+            )}
           >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-10 h-1 bg-border rounded-full" />
+            {/* Handle + tiêu đề dính trên: cuộn form dài vẫn biết đang ở đâu */}
+            <div className="shrink-0 rounded-t-3xl border-b border-border/40 bg-card px-5 pb-4 pt-3">
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
+              <div className="flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <HeadphonesIcon className="size-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-bold text-foreground">
+                    Gửi yêu cầu hỗ trợ
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Mô tả vấn đề của bạn, chúng tôi sẽ phản hồi sớm nhất.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Đóng"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="px-5 pb-8">
-              <h2 className="text-xl font-bold text-foreground mb-1">Gửi yêu cầu hỗ trợ</h2>
-              <p className="text-sm text-muted-foreground mb-5">Mô tả vấn đề của bạn, chúng tôi sẽ phản hồi sớm nhất.</p>
-
-              <div className="space-y-4">
+            <div className={cn("flex-1 overflow-y-auto px-5 pb-8 pt-5", SCROLLBAR_HIDDEN)}>
+              <div className="space-y-5">
                 {/* Category */}
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                    Loại vấn đề *
-                  </label>
+                  <label className={labelClass}>Loại vấn đề *</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {categoryOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() =>
-                          setForm((p) => ({
-                            ...p,
-                            category: opt.value,
-                            bookingId: NO_BOOKING_CATEGORIES.includes(opt.value)
-                              ? ""
-                              : p.bookingId,
-                          }))
-                        }
-                        className={`py-3 px-4 rounded-xl text-sm font-semibold text-left border transition-all ${
-                          form.category === opt.value
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-background text-foreground/70 hover:border-primary/50"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                    {gridOptions.map((opt) => {
+                      const Icon = CATEGORY_ICON[opt.value];
+                      const selected = form.category === opt.value;
+                      const hint = categoryHintFor(opt.value, viewerRole);
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => pickCategory(opt.value)}
+                          className={cn(
+                            "flex flex-col gap-1.5 rounded-xl border p-3 text-left transition-all active:scale-[0.98]",
+                            selected
+                              ? "border-primary bg-primary/10 ring-2 ring-primary/25"
+                              : "border-border bg-background hover:border-primary/40",
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              "size-4 shrink-0",
+                              selected ? "text-primary" : "text-muted-foreground",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "text-sm font-semibold leading-tight",
+                              selected ? "text-primary" : "text-foreground",
+                            )}
+                          >
+                            {opt.label}
+                          </span>
+                          {hint && (
+                            <span className="text-[10px] leading-tight text-muted-foreground">
+                              {hint}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {/* "Khác" — lối thoát cuối, tách hẳn khỏi lưới và chiếm trọn
+                      chiều ngang để không bị nhìn ngang hàng với loại cụ thể. */}
+                  {otherOption && (
+                    <>
+                      <div className="my-3 flex items-center gap-3">
+                        <span className="h-px flex-1 bg-border/70" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Không thấy loại phù hợp?
+                        </span>
+                        <span className="h-px flex-1 bg-border/70" />
+                      </div>
+                      <button
+                        type="button"
+                        aria-pressed={form.category === "OTHER"}
+                        onClick={() => pickCategory("OTHER")}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-2xl border-2 p-3.5 text-left transition-all active:scale-[0.99]",
+                          form.category === "OTHER"
+                            ? "border-primary bg-primary/10 ring-2 ring-primary/25"
+                            : "border-dashed border-primary/40 bg-primary/[0.04] hover:border-primary/70 hover:bg-primary/10",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+                            form.category === "OTHER"
+                              ? "bg-primary text-white"
+                              : "bg-primary/15 text-primary",
+                          )}
+                        >
+                          {React.createElement(CATEGORY_ICON.OTHER, {
+                            className: "size-5",
+                          })}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-primary">
+                            {otherOption.label}
+                          </p>
+                          <p className="text-[11px] leading-snug text-muted-foreground">
+                            {OTHER_CATEGORY_HINT}
+                          </p>
+                        </div>
+                        {form.category === "OTHER" && (
+                          <Check className="size-5 shrink-0 text-primary" />
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Subject */}
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                    Tiêu đề *
-                  </label>
+                  <div className="flex items-baseline justify-between">
+                    <label className={labelClass}>Tiêu đề *</label>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">
+                      {form.subject.length}/255
+                    </span>
+                  </div>
                   <input
                     type="text"
                     maxLength={255}
                     placeholder="Mô tả ngắn vấn đề..."
                     value={form.subject}
                     onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className={fieldClass}
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                    Mô tả chi tiết *
-                  </label>
+                  <label className={labelClass}>Mô tả chi tiết *</label>
                   <textarea
                     rows={4}
                     placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
                     value={form.description}
                     onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                    className={cn(fieldClass, "resize-none")}
                   />
                 </div>
 
                 {/* Đơn liên quan — chỉ hiện khi loại vấn đề cần gắn đơn */}
                 {requiresBooking && (
                   <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                      Đơn liên quan *
-                    </label>
+                    <label className={labelClass}>Đơn liên quan *</label>
                     <select
                       value={form.bookingId}
                       onChange={(e) => setForm((p) => ({ ...p, bookingId: e.target.value }))}
                       disabled={bookingsLoading}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+                      className={cn(fieldClass, "disabled:opacity-60")}
                     >
                       <option value="">
                         {bookingsLoading ? "Đang tải đơn..." : "-- Chọn đơn liên quan --"}
@@ -273,7 +408,7 @@ function CreateTicketSheet({
                       ))}
                     </select>
                     {!bookingsLoading && (bookings?.length ?? 0) === 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="mt-1.5 text-xs text-muted-foreground">
                         Bạn chưa có đơn nào để chọn.
                       </p>
                     )}
@@ -282,9 +417,12 @@ function CreateTicketSheet({
 
                 {/* Hình ảnh đính kèm (tuỳ chọn) */}
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                    Hình ảnh đính kèm (tối đa 5)
-                  </label>
+                  <div className="flex items-baseline justify-between">
+                    <label className={labelClass}>Hình ảnh đính kèm</label>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">
+                      {images.length}/5
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {images.map((p, idx) => (
                       <div key={p.url} className="relative size-16 overflow-hidden rounded-xl border border-border/50">
@@ -301,7 +439,7 @@ function CreateTicketSheet({
                       </div>
                     ))}
                     {images.length < 5 && (
-                      <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary">
+                      <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary">
                         <ImagePlus className="size-4" />
                         <span className="text-[10px]">Thêm</span>
                         <input
@@ -320,13 +458,16 @@ function CreateTicketSheet({
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit || createTicket.isPending || uploading}
-                  className="w-full py-4 bg-primary text-white font-bold rounded-2xl text-sm shadow-lg shadow-primary/30 hover:bg-orange-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                 >
                   {createTicket.isPending || uploading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <>
+                      <div className="size-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      {uploading ? "Đang tải ảnh..." : "Đang gửi..."}
+                    </>
                   ) : (
                     <>
-                      <HeadphonesIcon className="w-4 h-4" />
+                      <HeadphonesIcon className="size-4" />
                       Gửi yêu cầu hỗ trợ
                     </>
                   )}
@@ -357,62 +498,90 @@ function TicketCard({
     ticket.status === "PENDING"
       ? pendingHintFor(ticket.pendingReason, ticket.awaitingMe)
       : null;
+  const needsMe = !!pendingHint?.urgent;
+  const unread = ticket.unreadCount ?? 0;
+  const CategoryIcon = CATEGORY_ICON[ticket.category];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="bg-card rounded-2xl border border-border/50 p-4 shadow-sm cursor-pointer hover:border-primary/30 transition-all"
+      className={cn(
+        "relative cursor-pointer overflow-hidden rounded-2xl border bg-card pl-4 pr-4 py-4 shadow-sm transition-all hover:shadow-md",
+        // Ticket đang chờ CHÍNH NGƯỜI NÀY thì phải nhảy ra khỏi danh sách.
+        needsMe
+          ? "border-amber-500/40 shadow-amber-500/10 ring-1 ring-amber-500/20"
+          : "border-border/50 hover:border-primary/30",
+      )}
     >
+      {/* Vạch trạng thái — đọc được ticket đang ở đâu mà không cần tìm badge */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 w-1",
+          needsMe ? "bg-amber-500" : TONE_BAR_CLASS[STATUS_TONE[ticket.status]],
+        )}
+      />
+
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           {/* Code + vai + priority */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
             {ticket.ticketCode && (
-              <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">
+              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
                 {ticket.ticketCode}
               </span>
             )}
             {ticket.myRole && (
               <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                className={cn(
+                  "rounded-md px-1.5 py-0.5 text-[10px] font-bold",
                   isAboutMe
-                    ? "text-amber-700 dark:text-amber-400 bg-amber-500/10"
-                    : "text-muted-foreground bg-muted"
-                }`}
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                    : "bg-muted text-muted-foreground",
+                )}
               >
                 {isAboutMe ? "Về bạn" : "Bạn gửi"}
               </span>
             )}
-            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {PRIORITY_LABEL[ticket.priority]}
             </span>
             {ticket.slaBreached && (
-              <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
+              <span className="rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500">
                 SLA
               </span>
             )}
           </div>
 
-          <h3 className="font-semibold text-sm text-foreground line-clamp-1">{ticket.subject}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {categoryLabelFor(ticket.category, viewerRole)}
+          <h3 className="line-clamp-1 text-sm font-semibold text-foreground">
+            {ticket.subject}
+          </h3>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CategoryIcon className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {categoryLabelFor(ticket.category, viewerRole)}
+            </span>
           </p>
         </div>
 
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {!!ticket.unreadCount && ticket.unreadCount > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white shadow-sm">
-              {ticket.unreadCount > 9 ? "9+" : ticket.unreadCount}
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          {unread > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold tabular-nums text-white shadow-sm">
+              {unread > 9 ? "9+" : unread}
             </span>
           )}
           <span
-            className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${TONE_BADGE_CLASS[STATUS_TONE[ticket.status]]}`}
+            className={cn(
+              "rounded-md border px-2 py-0.5 text-[11px] font-bold",
+              TONE_BADGE_CLASS[STATUS_TONE[ticket.status]],
+            )}
           >
             {STATUS_LABEL[ticket.status]}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[10px] tabular-nums text-muted-foreground">
             {new Date(ticket.updatedAt).toLocaleDateString("vi-VN")}
           </span>
         </div>
@@ -420,27 +589,31 @@ function TicketCard({
 
       {pendingHint && (
         <div
-          className={`mt-2.5 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+          className={cn(
+            "mt-3 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold",
             pendingHint.urgent
-              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-              : "bg-muted text-muted-foreground"
-          }`}
+              ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+              : "bg-muted text-muted-foreground",
+          )}
         >
           {pendingHint.urgent ? (
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <AlertCircle className="size-3.5 shrink-0" />
           ) : (
-            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <Clock className="size-3.5 shrink-0" />
           )}
           {pendingHint.text}
         </div>
       )}
 
-      <div className="flex items-center justify-end mt-3 pt-3 border-t border-border/30">
-        <span className="text-xs text-primary font-semibold flex items-center gap-0.5">
-          {!!ticket.unreadCount && ticket.unreadCount > 0
-            ? `${ticket.unreadCount} tin mới`
-            : "Xem chi tiết"}{" "}
-          <ChevronRight className="w-3.5 h-3.5" />
+      <div className="mt-3 flex items-center justify-end border-t border-border/30 pt-3">
+        <span
+          className={cn(
+            "flex items-center gap-0.5 text-xs font-semibold",
+            unread > 0 ? "text-destructive" : "text-primary",
+          )}
+        >
+          {unread > 0 ? `${unread} tin mới` : "Xem chi tiết"}
+          <ChevronRight className="size-3.5" />
         </span>
       </div>
     </motion.div>
@@ -509,6 +682,13 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   const total = data?.pages[0]?.meta.total ?? 0;
   const isFiltering = activeTab !== "ALL" || scope !== "ALL";
 
+  // Số ticket đang chờ CHÍNH người dùng phản hồi — dòng nhắc trên đầu danh sách
+  // để họ không phải tự dò từng card mới biết có việc cần làm.
+  const awaitingMeCount = React.useMemo(
+    () => tickets.filter((t) => t.status === "PENDING" && t.awaitingMe).length,
+    [tickets],
+  );
+
   // Tự tải trang kế khi chạm đáy (rootMargin để nạp TRƯỚC khi người dùng thấy
   // khoảng trống). Nút "Xem thêm" bên dưới là đường dự phòng khi IO không chạy.
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
@@ -547,45 +727,64 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="bg-card px-4 pt-[max(3rem,env(safe-area-inset-top))] pb-4 shadow-sm sticky top-0 z-20">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-20 border-b border-border/40 bg-card px-4 pb-3 pt-[max(3rem,env(safe-area-inset-top))] shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center"
+              aria-label="Quay lại"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted transition-colors hover:bg-muted/70"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="size-4" />
             </button>
-            <h1 className="text-xl font-bold text-foreground">Yêu cầu hỗ trợ</h1>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold leading-tight text-foreground">
+                Yêu cầu hỗ trợ
+              </h1>
+              {total > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {total} yêu cầu{isFiltering ? " khớp bộ lọc" : ""}
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-3 py-2 rounded-xl shadow-md shadow-primary/25"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white shadow-md shadow-primary/25 transition-all hover:brightness-105 active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5" /> Tạo mới
+            <Plus className="size-3.5" /> Tạo mới
           </button>
         </div>
 
         {/* Phạm vi: tôi gửi vs nhắm vào tôi (BE: ?role=reporter|counterparty) */}
-        <div className="mb-2 flex gap-1.5 overflow-x-auto">
+        <div
+          className={cn("mb-2 flex gap-1.5 overflow-x-auto pb-0.5", SCROLLBAR_HIDDEN)}
+        >
           {scopeTabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setScope(t.key)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-all",
                 scope === t.key
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground"
-              }`}
+                  ? "border-primary bg-primary text-white shadow-sm shadow-primary/25"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+              )}
             >
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* Filter Tabs — 6 mục nên cuộn ngang thay vì chia đều (chữ bị vỡ dòng) */}
+        {/* Filter Tabs — 6 mục.
+            KHÔNG cuộn ngang: ở 390px chỉ có 338px khả dụng trong khi hàng tab
+            rộng 469px, nên 131px (gồm trọn mục "Đã đóng") nằm ngoài khung. Vì
+            thanh cuộn bị ẩn cho gọn, người dùng không có dấu hiệu nào để biết
+            còn vuốt được — nhìn ra thành giao diện vỡ, chữ bị cắt giữa từ.
+            `flex-wrap` cho tràn xuống dòng 2: mọi mục luôn hiện đủ, không cần
+            thao tác phụ, và vẫn vừa ở màn 320px. */}
         <div
-          className={`flex gap-1 rounded-xl bg-muted p-1 overflow-x-auto ${SCROLLBAR_HIDDEN}`}
+          className="flex flex-wrap gap-1 rounded-xl bg-muted p-1"
           role="tablist"
           aria-label="Lọc theo trạng thái"
         >
@@ -595,11 +794,12 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-all ${
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition-all",
                 activeTab === tab.key
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
+                  ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
               {tab.label}
             </button>
@@ -608,10 +808,23 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
       </div>
 
       {/* Content */}
-      <div className="px-4 py-4 space-y-3">
+      <div className="space-y-3 px-4 py-4">
+        {/* Nhắc việc cần làm — chỉ hiện khi thật sự có ticket chờ người dùng */}
+        {!isLoading && awaitingMeCount > 0 && (
+          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>
+              {awaitingMeCount} yêu cầu đang chờ bạn phản hồi
+            </span>
+          </div>
+        )}
+
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-card rounded-2xl border border-border/50 p-4 h-28 animate-pulse" />
+            <div
+              key={i}
+              className="h-28 animate-pulse rounded-2xl border border-border/50 bg-card"
+            />
           ))
         ) : tickets.length === 0 ? (
           <motion.div
@@ -619,17 +832,21 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-20 text-center"
           >
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-              <HeadphonesIcon className="w-8 h-8 text-primary" />
+            <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-primary/10">
+              {isFiltering ? (
+                <SlidersHorizontal className="size-8 text-primary" />
+              ) : (
+                <Inbox className="size-8 text-primary" />
+              )}
             </div>
             {/* Rỗng do BỘ LỌC khác hẳn rỗng do CHƯA CÓ ticket nào — không mời
                 "tạo yêu cầu đầu tiên" với người đang lọc mà đã có ticket khác. */}
             {isFiltering ? (
               <>
-                <h3 className="font-bold text-foreground mb-1">
+                <h3 className="mb-1 font-bold text-foreground">
                   Không có yêu cầu nào ở mục này
                 </h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                <p className="mb-6 max-w-xs text-sm text-muted-foreground">
                   Thử chọn mục khác hoặc xem tất cả yêu cầu của bạn.
                 </p>
                 <button
@@ -637,22 +854,22 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
                     setActiveTab("ALL");
                     setScope("ALL");
                   }}
-                  className="rounded-2xl border border-border px-6 py-3 text-sm font-bold text-foreground"
+                  className="rounded-2xl border border-border px-6 py-3 text-sm font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary"
                 >
                   Xoá bộ lọc
                 </button>
               </>
             ) : (
               <>
-                <h3 className="font-bold text-foreground mb-1">Chưa có yêu cầu nào</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                <h3 className="mb-1 font-bold text-foreground">Chưa có yêu cầu nào</h3>
+                <p className="mb-6 max-w-xs text-sm text-muted-foreground">
                   Nếu bạn gặp vấn đề, hãy tạo yêu cầu hỗ trợ — chúng tôi sẽ phản hồi sớm nhất!
                 </p>
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl shadow-md shadow-primary/25"
+                  className="flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 font-bold text-white shadow-md shadow-primary/25 transition-all hover:brightness-105 active:scale-95"
                 >
-                  <Plus className="w-4 h-4" /> Tạo yêu cầu đầu tiên
+                  <Plus className="size-4" /> Tạo yêu cầu đầu tiên
                 </button>
               </>
             )}
@@ -692,7 +909,7 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
               ) : hasNextPage ? (
                 <button
                   onClick={() => void fetchNextPage()}
-                  className="w-full rounded-2xl border border-border bg-card py-3 text-sm font-bold text-primary"
+                  className="w-full rounded-2xl border border-border bg-card py-3 text-sm font-bold text-primary transition-colors hover:border-primary/50 hover:bg-primary/5"
                 >
                   Xem thêm
                 </button>

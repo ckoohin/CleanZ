@@ -2,7 +2,15 @@
 
 import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, CheckCircle2, ImagePlus, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock,
+  CheckCircle2,
+  ImagePlus,
+  AlertTriangle,
+  Wallet,
+  Landmark,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -20,11 +28,11 @@ import {
 } from "../hooks/useCustomerIncident";
 import {
   IncidentStatusBadge,
-  CompensationBadge,
   SeverityBadge,
 } from "@/features/incident/shared/_components/badges";
 import { formatVnd, CLOSURE_LABEL } from "@/features/incident/shared/incident.labels";
 import { canWithdraw } from "@/features/incident/shared/incident.machine";
+import { ROUTES } from "@/constants/routes";
 
 function fmt(d: string | null | undefined) {
   return d ? new Date(d).toLocaleString("vi-VN") : "—";
@@ -153,11 +161,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
     );
   }
 
-  const withdrawable = canWithdraw(
-    inc.status,
-    inc.compensationStatus,
-    inc.decisionStatus,
-  );
+  const withdrawable = canWithdraw(inc.status);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -174,7 +178,6 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
       <div className="mx-auto max-w-lg space-y-5 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <IncidentStatusBadge status={inc.status} />
-          <CompensationBadge status={inc.compensationStatus} />
           <SeverityBadge severity={inc.severity} />
           {inc.closureReason && (
             <span className="text-xs text-muted-foreground">· {CLOSURE_LABEL[inc.closureReason]}</span>
@@ -218,7 +221,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
                   ))}
                 </div>
               )}
-              {inc.status === "INVESTIGATING" &&
+              {inc.status === "REVIEWING" &&
                 it.verificationStatus === "NEED_MORE_EVIDENCE" && (
                   <NeedEvidenceUploader incidentId={incidentId} itemId={it.id} />
                 )}
@@ -245,6 +248,48 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
             </div>
           )}
         </div>
+
+        {/* Khách phải biết tiền đã đi đường nào — nếu không, khoản chuyển khoản ngoài ví
+            trông y hệt "chưa nhận được gì". */}
+        {inc.payoutChannel === "WALLET" && (
+          <div className="space-y-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+              <Wallet className="size-4" /> Đã hoàn {formatVnd(inc.approvedAmount)} vào ví CleanZ
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Số tiền đã được cộng vào ví của bạn. Bạn có thể dùng để thanh toán đơn tiếp
+              theo hoặc rút về tài khoản ngân hàng.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full rounded-xl"
+              onClick={() => router.push(ROUTES.CUSTOMER.WALLET)}
+            >
+              Mở ví của tôi
+            </Button>
+          </div>
+        )}
+        {inc.payoutChannel === "BANK_TRANSFER" && (
+          <div className="space-y-1 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+              <Landmark className="size-4" /> Đã chuyển khoản {formatVnd(inc.approvedAmount)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              CleanZ đã chuyển khoản số tiền này tới tài khoản ngân hàng bạn cung cấp
+              (không cộng vào ví). Nếu sau 1–2 ngày làm việc chưa thấy tiền về, vui lòng
+              liên hệ hỗ trợ.
+            </p>
+          </div>
+        )}
+
+        {inc.decisionSummary && (
+          <div className="rounded-2xl border border-border/40 bg-muted/30 p-3 text-sm">
+            <p className="mb-1 text-xs font-bold text-muted-foreground">
+              Kết luận của CleanZ
+            </p>
+            {inc.decisionSummary}
+          </div>
+        )}
 
         {withdrawable && (
           <Button variant="outline" className="w-full rounded-xl text-red-600 hover:bg-red-500/10" onClick={() => setShowWithdraw(true)}>

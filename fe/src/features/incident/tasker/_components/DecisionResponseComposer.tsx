@@ -19,11 +19,10 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
   const [content, setContent] = useState("");
   const [evidences, setEvidences] = useState<Evidence[]>([]);
 
-  const open =
-    incident.canRespondToDecision ||
-    incident.responseWindowStatus === "OPEN" ||
-    incident.responseWindowStatus === "RESPONDED";
-  const expired = incident.responseWindowStatus === "EXPIRED";
+  // Cửa sổ phản biện do BE tính (`canRespondToDecision`) — không so hạn ở render, vì đọc
+  // đồng hồ trong lúc render là hàm không thuần và cho kết quả đổi theo mỗi lần re-render.
+  const open = incident.canRespondToDecision;
+  const expired = incident.status === "AWAITING_RESPONSE" && !open;
 
   if (!open) {
     return (

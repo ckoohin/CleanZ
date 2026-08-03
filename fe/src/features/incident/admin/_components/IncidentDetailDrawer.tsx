@@ -14,7 +14,6 @@ import { Wallet, Clock, FileText, ClipboardCheck, MessageSquare } from "lucide-r
 import { useAdminIncidentDetail } from "../hooks/useAdminIncident";
 import {
   IncidentStatusBadge,
-  CompensationBadge,
   SeverityBadge,
 } from "@/features/incident/shared/_components/badges";
 import { StatementThread } from "@/features/incident/shared/_components/StatementThread";
@@ -24,9 +23,13 @@ import {
   VERIFICATION_STATUS_LABEL,
 } from "@/features/incident/shared/incident.labels";
 import { AcceptPanel } from "./panels/AcceptPanel";
-import { VerifyItemsPanel } from "./panels/VerifyItemsPanel";
 import { DecisionPanel } from "./panels/DecisionPanel";
-import { CompensatePanel, ReverseCompensationPanel } from "./panels/CompensationPanels";
+import {
+  CompensatePanel,
+  ReverseCompensationPanel,
+  WithdrawDecisionPanel,
+  WriteOffDebtPanel,
+} from "./panels/CompensationPanels";
 import { DecisionResponseHistory } from "./panels/DecisionResponseHistory";
 import { UnlockReporterButton } from "./UnlockReporterButton";
 
@@ -59,10 +62,13 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
   const { data: inc, isLoading } = useAdminIncidentDetail(incidentId);
   const actions = inc?.decision.allowedActions ?? [];
   const canAccept = inc?.status === "REPORTED";
-  const canVerify = inc?.status === "INVESTIGATING";
-  const showDecision = inc?.status === "INVESTIGATING";
+  // Thẩm định hạng mục nay nằm trong form quyết định — không còn bước "Xác minh" riêng.
+  const showDecision =
+    inc?.status === "REVIEWING" || inc?.status === "AWAITING_RESPONSE";
   const canCompensate = actions.includes("COMPENSATE" as never);
-  const noAction = inc && !canAccept && !canVerify && !showDecision && !canCompensate;
+  const canReverse = actions.includes("REVERSE" as never);
+  const noAction =
+    inc && !canAccept && !showDecision && !canCompensate && !canReverse;
 
   const responses = inc?.decisionResponses ?? [];
   const appendixCount = (inc?.statements.length ?? 0) + responses.length;
@@ -80,7 +86,6 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
               <span className="flex flex-wrap items-center gap-1.5 pl-2">
                 <SeverityBadge severity={inc.severity} />
                 <IncidentStatusBadge status={inc.status} />
-                <CompensationBadge status={inc.compensationStatus} />
               </span>
             )}
           </DialogTitle>
@@ -127,7 +132,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                   <Item label="Cửa sổ báo cáo">{fmt(inc.reportWindowUntil)}</Item>
                   <Item label="Hạn quyết định (SLA)">{fmt(inc.decisionDueAt)}</Item>
                   <Item label="Hạn giải trình">{fmt(inc.statementDueAt)}</Item>
-                  <Item label="Cooling đến">{fmt(inc.coolingUntil)}</Item>
+                  <Item label="Hạn Tasker phản biện">{fmt(inc.decision.taskerResponseDeadline)}</Item>
                 </div>
 
                 {/* Tình trạng tiền: phần ví đang tạm giữ chờ xử lý bồi thường */}
@@ -216,20 +221,18 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             <TabsContent value="assessment" className="min-h-0 flex-1 overflow-y-auto p-6">
               <div className="mx-auto w-full max-w-3xl space-y-5">
                 {canAccept && <AcceptPanel id={inc.id} severity={inc.severity} />}
-                {canVerify && <VerifyItemsPanel id={inc.id} items={inc.damageItems} />}
                 {showDecision && <DecisionPanel incident={inc} />}
-                {inc.status === "APPROVED" && (
+                {inc.status === "AWAITING_PAYOUT" && (
                   <CompensatePanel
                     id={inc.id}
                     code={inc.incidentCode}
                     amount={inc.approvedAmount}
-                    taskerBorne={inc.taskerBorneAmount}
-                    platformBorne={inc.platformBorneAmount}
+                    preview={inc.payoutPreview}
                     blockedReason={
                       canCompensate
                         ? undefined
                         : inc.decision.blockedReasons?.join(" · ") ||
-                        "Quyết định phải được chốt (FINAL) trước khi chi trả bồi thường"
+                          "Quyết định phải được chốt trước khi chi trả bồi thường"
                     }
                   />
                 )}
@@ -248,7 +251,26 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                     </div>
                   </div>
                 )}
-                {inc.status === "COMPENSATED" && <ReverseCompensationPanel id={inc.id} />}
+                {actions.includes("WITHDRAW_DECISION") && (
+                  <WithdrawDecisionPanel id={inc.id} decisionVersion={inc.decision.version} />
+                )}
+                {/* Nút đảo bám theo allowedActions: BE biết trước 72h/chi thủ công/đã thu nợ
+                    thì không đảo được, nên không bật nút rồi để Admin ăn 409 sau khi gõ lý do. */}
+                {inc.status === "COMPENSATED" && (
+                  <ReverseCompensationPanel
+                    id={inc.id}
+                    decisionVersion={inc.decision.version}
+                    blockedReasons={
+                      actions.includes("REVERSE") ? [] : (inc.decision.blockedReasons ?? [])
+                    }
+                  />
+                )}
+                <WriteOffDebtPanel
+                  id={inc.id}
+                  outstanding={inc.outstandingDebtAmount}
+                  canWriteOff={inc.canWriteOffDebt}
+                  writeOff={inc.debtWriteOff}
+                />
                 {noAction && inc.status !== "COMPENSATED" && (
                   <p className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-3 text-xs text-[var(--c-muted)]">
                     <Clock className="mr-1 inline size-3.5" /> Không có hành động khả dụng ở trạng thái hiện tại.

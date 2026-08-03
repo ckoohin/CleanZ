@@ -1,38 +1,41 @@
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
-import { IncidentResponseWindowStatus } from 'src/common/enums/incident-response-window-status.enum';
+import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 
+/** Hành động khả dụng trên một sự cố. Bốn hành động của Admin + một của Tasker. */
 export type IncidentDecisionAction =
-  | 'SAVE_DRAFT'
-  | 'SUBMIT_DRAFT'
-  | 'RESPOND'
-  | 'REVIEW_RESPONSE'
-  | 'REVISE_DECISION'
-  | 'EXTEND_RESPONSE'
+  | 'ACCEPT'
+  | 'SAVE_DECISION'
+  | 'SEND_TO_TASKER'
   | 'FINALIZE'
-  | 'SECOND_APPROVE'
-  | 'REQUEST_CHANGES'
-  | 'COMPENSATE';
+  /** Gỡ dấu "đã chốt" khi chưa chi trả, để soạn/chốt lại. */
+  | 'WITHDRAW_DECISION'
+  | 'COMPENSATE'
+  | 'REVERSE'
+  | 'RESPOND';
 
 export interface IncidentDecisionStateInput {
-  decisionStatus: IncidentDecisionStatus;
+  status: IncidentStatus;
   decisionVersion: number;
-  responseWindowStatus: IncidentResponseWindowStatus;
+  /** Đã soạn quyết định nào chưa (`decisionOutcome != null`). */
+  hasDecision?: boolean;
+  /** Phần Tasker phải chịu ở bản quyết định hiện tại. > 0 ⟹ bắt buộc cho phản biện. */
+  taskerBorneAmount?: number;
+  /** Mốc `taskerBorne` của bản ĐÃ GỬI Tasker. Bản hiện tại lớn hơn ⟹ phải gửi lại. */
+  sentTaskerBorneAmount?: number | null;
   taskerResponseDeadline?: Date | null;
-  hasUnreviewedResponse?: boolean;
-  requiresSecondApproval?: boolean;
-  /**
-   * Draft có bất lợi cho Tasker không (taskerBorne > 0 hoặc trách nhiệm
-   * TASKER/SHARED). Draft KHÔNG bất lợi (từ chối / nền tảng chịu) được finalize
-   * thẳng từ DRAFT; draft bất lợi phải gửi Tasker phản hồi trước.
-   */
-  isAdverseDraft?: boolean;
-  /**
-   * C6 — Đã cấp lần gia hạn bắt buộc cho Tasker phản hồi chưa. Khi window bất lợi
-   * hết hạn lần đầu và CHƯA gia hạn → phải EXTEND_RESPONSE (nhắc Tasker) trước, chưa
-   * cho FINALIZE. Sau khi đã gia hạn mà vẫn hết hạn → cho FINALIZE.
-   */
-  taskerResponseExtended?: boolean;
+  /** Tasker đã phản hồi ở version hiện tại chưa. */
+  hasTaskerResponse?: boolean;
+
+  // ── Điều kiện đảo bồi thường (chỉ có nghĩa khi đã COMPENSATED) ──────────────
+  /** Thời điểm chi trả — mốc tính cửa sổ đảo. */
+  resolvedAt?: Date | null;
+  /** Đã chi bằng chuyển khoản ngoài ví ⟹ không có bút toán để đảo tự động. */
+  paidExternally?: boolean;
+  /** Đã thu hồi được một phần nợ ⟹ đảo tự động sẽ làm lệch sổ. */
+  debtRecoveryStarted?: boolean;
 }
+
+/** Cửa sổ cho phép đảo bồi thường đã chi (giờ) — dùng chung giữa cổng và bộ thực thi. */
+export const REVERSAL_WINDOW_HOURS = 72;
 
 export interface IncidentDecisionActionView {
   allowedActions: IncidentDecisionAction[];

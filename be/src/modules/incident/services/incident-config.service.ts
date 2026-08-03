@@ -127,6 +127,20 @@ export class IncidentConfigService {
     );
   }
 
+  getEvidenceOrphanAfterHours(): Promise<number> {
+    return this.getNumber(
+      IC_CONFIG_KEYS.EVIDENCE_ORPHAN_AFTER_HOURS,
+      IC_DEFAULTS.EVIDENCE_ORPHAN_AFTER_HOURS,
+    );
+  }
+
+  getDebtWriteOffAfterDays(): Promise<number> {
+    return this.getNumber(
+      IC_CONFIG_KEYS.DEBT_WRITE_OFF_AFTER_DAYS,
+      IC_DEFAULTS.DEBT_WRITE_OFF_AFTER_DAYS,
+    );
+  }
+
   getAutoCloseHours(): Promise<number> {
     return this.getNumber(
       IC_CONFIG_KEYS.AUTOCLOSE_HOURS,
@@ -171,13 +185,6 @@ export class IncidentConfigService {
     this.clearCache();
   }
 
-  getDualApprovalThreshold(): Promise<number> {
-    return this.getNumber(
-      IC_CONFIG_KEYS.DUAL_APPROVAL_THRESHOLD,
-      IC_DEFAULTS.DUAL_APPROVAL_THRESHOLD,
-    );
-  }
-
   getCompensationPolicyCap(): Promise<number> {
     return this.getNumber(
       IC_CONFIG_KEYS.COMPENSATION_POLICY_CAP,
@@ -196,13 +203,6 @@ export class IncidentConfigService {
     return this.getNumber(
       IC_CONFIG_KEYS.RESPONSE_WINDOW_HOURS,
       IC_DEFAULTS.RESPONSE_WINDOW_HOURS,
-    );
-  }
-
-  getCoolingPeriodHours(): Promise<number> {
-    return this.getNumber(
-      IC_CONFIG_KEYS.COOLING_PERIOD_HOURS,
-      IC_DEFAULTS.COOLING_PERIOD_HOURS,
     );
   }
 

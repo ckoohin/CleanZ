@@ -3,14 +3,14 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
-import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentEntity } from '../entity/incident.entity';
 import { CompensationExecutorService } from './compensation-executor.service';
 
-describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
+describe('CompensationExecutorService — helper dòng tiền', () => {
   const service = new CompensationExecutorService(
+    {} as never,
+    {} as never,
     {} as never,
     {} as never,
     {} as never,
@@ -28,26 +28,32 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
     ) => void;
   };
 
-  it('blocks compensation before decision is FINAL', () => {
-    expect(() =>
-      service.assertCompensationPreconditions({
-        status: IncidentStatus.APPROVED,
-        decisionStatus: IncidentDecisionStatus.DRAFT,
-        compensationStatus: IncidentCompensationStatus.PENDING,
-      } as IncidentEntity),
-    ).toThrow(ConflictException);
+  it('chặn chi trả khi quyết định chưa chốt', () => {
+    for (const status of [
+      IncidentStatus.REVIEWING,
+      IncidentStatus.AWAITING_RESPONSE,
+      IncidentStatus.REPORTED,
+    ]) {
+      expect(() =>
+        service.assertCompensationPreconditions({ status } as IncidentEntity),
+      ).toThrow(ConflictException);
+    }
   });
 
-  it('ignores legacy cooling/checker fields when v1.4.2 preconditions are met', () => {
+  it('cho chi trả khi đang chờ chi (AWAITING_PAYOUT)', () => {
     expect(() =>
       service.assertCompensationPreconditions({
-        status: IncidentStatus.APPROVED,
-        decisionStatus: IncidentDecisionStatus.FINAL,
-        compensationStatus: IncidentCompensationStatus.PENDING,
-        coolingUntil: new Date(Date.now() + 86_400_000),
-        approvedByChecker: null,
+        status: IncidentStatus.AWAITING_PAYOUT,
       } as IncidentEntity),
     ).not.toThrow();
+  });
+
+  it('không chi trả lần hai cho sự cố đã chi', () => {
+    expect(() =>
+      service.assertCompensationPreconditions({
+        status: IncidentStatus.COMPENSATED,
+      } as IncidentEntity),
+    ).toThrow(ConflictException);
   });
 
   it('rejects invalid compensation allocation invariant', () => {
@@ -138,8 +144,15 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
         {} as never,
         walletService as never,
         {} as never,
+        {} as never,
+        {} as never,
       ) as unknown as {
         settleCompensation: (
+          manager: unknown,
+          incident: IncidentEntity,
+          taskerWallet: unknown,
+        ) => Promise<void>;
+        settleManual: (
           manager: unknown,
           incident: IncidentEntity,
           taskerWallet: unknown,
@@ -233,6 +246,87 @@ describe('CompensationExecutorService v1.4.2 record-only helpers', () => {
           balance: 1_000_000,
         }),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('settleManual — chi trả thủ công', () => {
+    const makeSvc = (walletService: Record<string, jest.Mock>) =>
+      new CompensationExecutorService(
+        {} as never,
+        {} as never,
+        {} as never,
+        walletService as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      ) as unknown as {
+        settleManual: (
+          manager: unknown,
+          incident: IncidentEntity,
+          taskerWallet: unknown,
+        ) => Promise<void>;
+      };
+
+    const incident = {
+      id: 'inc-m',
+      incidentCode: 'IC-M',
+      decisionVersion: 1,
+      approvedCompensationAmount: 1_500_000,
+      recoverableFromDepositAmount: 1_000_000,
+      uncoveredLiabilityAmount: 200_000,
+      platformBorneAmount: 300_000,
+      tasker: { id: 'tk' },
+      customer: { id: 'cus' },
+    } as unknown as IncidentEntity;
+
+    const walletMocks = () => ({
+      debitWallet: jest.fn().mockResolvedValue({}),
+      creditWallet: jest.fn().mockResolvedValue({}),
+      getOrCreateSystemWallet: jest.fn().mockResolvedValue({ id: 'sys-w' }),
+      getOrCreateCustomerWallet: jest.fn(),
+    });
+
+    it('trừ ví Tasker phần thu hồi được và chuyển về ví SYSTEM', async () => {
+      const walletService = walletMocks();
+      const taskerWallet = { id: 'tk-w', balance: 1_000_000 };
+      await makeSvc(walletService).settleManual({}, incident, taskerWallet);
+
+      expect(walletService.debitWallet).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({
+          wallet: taskerWallet,
+          amount: 1_000_000,
+          type: WalletTransactionType.DEPOSIT_DEDUCT,
+        }),
+      );
+      expect(walletService.creditWallet).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({
+          amount: 1_000_000,
+          type: WalletTransactionType.ADJUSTMENT,
+        }),
+      );
+    });
+
+    it('KHÔNG debit ví SYSTEM — luồng này chạy đúng lúc ví SYSTEM đang cạn', async () => {
+      const walletService = walletMocks();
+      await makeSvc(walletService).settleManual({}, incident, {
+        id: 'tk-w',
+        balance: 1_000_000,
+      });
+      const systemDebits = walletService.debitWallet.mock.calls.filter(
+        (c) => (c[1] as { wallet: { id: string } }).wallet.id === 'sys-w',
+      );
+      expect(systemDebits).toHaveLength(0);
+    });
+
+    it('không hoàn ví Khách (tiền đã chuyển khoản ngoài)', async () => {
+      const walletService = walletMocks();
+      await makeSvc(walletService).settleManual({}, incident, {
+        id: 'tk-w',
+        balance: 1_000_000,
+      });
+      expect(walletService.getOrCreateCustomerWallet).not.toHaveBeenCalled();
     });
   });
 });

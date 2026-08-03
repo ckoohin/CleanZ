@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { toNumber } from 'src/common/helpers/number.helper';
+import { SIGNED_AMOUNT_SQL } from 'src/modules/wallet/entity/wallet-transaction.entity';
 
 const EPS = 0.01;
 
@@ -24,6 +25,18 @@ export interface ReconciliationReport {
   discrepancyCount: number;
   criticalCount: number;
   discrepancies: ReconciliationDiscrepancy[];
+  /**
+   * Tổng chi bồi thường của nền tảng, tách theo hai sổ. Cộng lại mới ra tiền thật đã ra
+   * khỏi công ty — ví SYSTEM một mình không phản ánh phần chuyển khoản ngoài.
+   */
+  platformOutlay: {
+    /** Quỹ SYSTEM đã chi qua ví (platformBorne + phần ứng nợ Tasker). */
+    viaWallet: number;
+    /** Chuyển khoản ngân hàng ngoài ví (luồng chi trả thủ công). */
+    external: number;
+    /** Phần Tasker còn nợ mà Admin đã xoá — nền tảng chịu mất. */
+    writtenOff: number;
+  };
 }
 
 interface IncidentRow {
@@ -36,6 +49,8 @@ interface IncidentRow {
   recoverable: string | null;
   uncovered: string | null;
   uncovered_recovered: string | null;
+  uncovered_written_off: string | null;
+  external_payout: string | null;
 }
 
 interface TxRow {
@@ -60,18 +75,29 @@ export class IncidentReconciliationService {
 
   async reconcile(): Promise<ReconciliationReport> {
     const incidents: IncidentRow[] = await this.dataSource.query(`
-      SELECT id, incident_code, decision_version,
+      SELECT incidents.id, incident_code, decision_version,
              approved_compensation_amount  AS approved,
              tasker_borne_amount           AS tasker_borne,
              platform_borne_amount         AS platform_borne,
              recoverable_from_deposit_amount AS recoverable,
              uncovered_liability_amount    AS uncovered,
-             uncovered_recovered_amount    AS uncovered_recovered
+             external_payout_amount        AS external_payout,
+             COALESCE(d.recovered_amount, 0)   AS uncovered_recovered,
+             COALESCE(d.written_off_amount, 0) AS uncovered_written_off
         FROM incidents
-       WHERE status = 'COMPENSATED' AND compensation_status = 'RECORDED'
+        LEFT JOIN tasker_debts d
+          ON d.source = 'INCIDENT_COMPENSATION' AND d.source_ref_id = incidents.id
+       WHERE incidents.status IN ('COMPENSATED', 'CLOSED')
+         AND incidents.resolved_at IS NOT NULL
+         AND incidents.approved_compensation_amount IS NOT NULL
     `);
 
     const discrepancies: ReconciliationDiscrepancy[] = [];
+    const totals: ReconciliationReport['platformOutlay'] = {
+      viaWallet: 0,
+      external: 0,
+      writtenOff: 0,
+    };
     if (incidents.length === 0) {
       return this.report(0, discrepancies);
     }
@@ -80,11 +106,10 @@ export class IncidentReconciliationService {
 
     // Bút toán settlement theo version (gộp theo ví + loại), kèm số lượng để bắt trùng.
     const txRows: TxRow[] = await this.dataSource.query(
-      // Dấu tác động thực = balance_after − balance_before (cột `amount` của ví luôn
-      // lưu giá trị DƯƠNG; dấu nằm ở thay đổi số dư). Đây mới là net signed effect.
+      // Cột `amount` của ví luôn DƯƠNG; dấu nằm ở thay đổi số dư — xem `SIGNED_AMOUNT_SQL`.
       `SELECT wt.reference_id, wt.reference_type, wt.type,
               w.owner_type,
-              SUM(wt.balance_after - wt.balance_before) AS amount,
+              SUM(${SIGNED_AMOUNT_SQL('wt')}) AS amount,
               COUNT(*) AS cnt
          FROM wallet_transactions wt
          JOIN wallets w ON w.id = wt.wallet_id
@@ -118,6 +143,8 @@ export class IncidentReconciliationService {
       const recoverable = toNumber(inc.recoverable);
       const uncovered = toNumber(inc.uncovered);
       const uncoveredRecovered = toNumber(inc.uncovered_recovered);
+      const uncoveredWrittenOff = toNumber(inc.uncovered_written_off);
+      const externalPayout = toNumber(inc.external_payout);
 
       const refund = pick('CUSTOMER', 'REFUND');
       const refundAmt = toNumber(refund?.amount);
@@ -170,13 +197,14 @@ export class IncidentReconciliationService {
           'recoverable + uncovered ≠ taskerBorne',
         );
       }
-      if (uncoveredRecovered > uncovered + EPS) {
+      // Thu hồi + xoá nợ không được vượt tổng nợ, nếu không sổ nợ đã bị ghi sai ở đâu đó.
+      if (uncoveredRecovered + uncoveredWrittenOff > uncovered + EPS) {
         add(
           'RECOVERED_OVERFLOW',
           'WARNING',
           uncovered,
-          uncoveredRecovered,
-          'uncoveredRecovered > uncovered',
+          uncoveredRecovered + uncoveredWrittenOff,
+          'uncoveredRecovered + uncoveredWrittenOff > uncovered',
         );
       }
 
@@ -210,6 +238,9 @@ export class IncidentReconciliationService {
             'Tổng REFUND ví Khách ≠ approved',
           );
         }
+      }
+
+      if (mode === 'DIGITAL') {
         const expectSystem = -(platformBorne + uncovered);
         if (Math.abs(systemAdjust - expectSystem) > EPS) {
           add(
@@ -222,6 +253,8 @@ export class IncidentReconciliationService {
         }
       }
 
+      // MANUAL: khoản trả khách đi từ tài khoản ngân hàng công ty, KHÔNG qua ví SYSTEM
+      // (luồng này chạy chính vì ví SYSTEM cạn). Ví SYSTEM chỉ nhận phần thu từ Tasker.
       if (mode === 'MANUAL') {
         if (Math.abs(systemAdjust - recoverable) > EPS) {
           add(
@@ -232,7 +265,34 @@ export class IncidentReconciliationService {
             'ADJUSTMENT ví SYSTEM (thu hồi từ Tasker) ≠ recoverable',
           );
         }
+        // Sổ chi ngoài là bản ghi DUY NHẤT cho khoản tiền rời ngân hàng công ty — thiếu
+        // hoặc lệch nghĩa là tổng chi thật của nền tảng đang bị báo cáo sai.
+        if (Math.abs(externalPayout - approved) > EPS) {
+          add(
+            'EXTERNAL_PAYOUT_MISMATCH',
+            'CRITICAL',
+            approved,
+            externalPayout,
+            'Sổ chi ngoài ≠ số đã duyệt (chi trả thủ công phải ghi đủ khoản chuyển khoản)',
+          );
+        }
       }
+
+      // Ngược lại: luồng digital đã hoàn qua ví thì không được có thêm sổ chi ngoài,
+      // nếu không nền tảng bị tính chi hai lần.
+      if (mode === 'DIGITAL' && externalPayout > EPS) {
+        add(
+          'EXTERNAL_PAYOUT_UNEXPECTED',
+          'CRITICAL',
+          0,
+          externalPayout,
+          'Đã hoàn qua ví nhưng vẫn ghi sổ chi ngoài — nguy cơ tính chi hai lần',
+        );
+      }
+
+      totals.viaWallet += mode === 'DIGITAL' ? platformBorne + uncovered : 0;
+      totals.external += externalPayout;
+      totals.writtenOff += uncoveredWrittenOff;
 
       // Phần trừ từ ví Tasker không được vượt recoverable (phần dư là cọc gốc).
       if (Math.abs(taskerDeduct) > recoverable + EPS) {
@@ -246,12 +306,17 @@ export class IncidentReconciliationService {
       }
     }
 
-    return this.report(incidents.length, discrepancies);
+    return this.report(incidents.length, discrepancies, totals);
   }
 
   private report(
     checkedCount: number,
     discrepancies: ReconciliationDiscrepancy[],
+    platformOutlay: ReconciliationReport['platformOutlay'] = {
+      viaWallet: 0,
+      external: 0,
+      writtenOff: 0,
+    },
   ): ReconciliationReport {
     const criticalCount = discrepancies.filter(
       (d) => d.severity === 'CRITICAL',
@@ -267,6 +332,7 @@ export class IncidentReconciliationService {
       discrepancyCount: discrepancies.length,
       criticalCount,
       discrepancies,
+      platformOutlay,
     };
   }
 }

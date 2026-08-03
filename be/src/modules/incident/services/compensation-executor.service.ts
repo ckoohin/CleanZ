@@ -8,13 +8,10 @@ import { DataSource, EntityManager } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
-import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
 import { NotificationOutboxStatus } from 'src/common/enums/notification-outbox-status.enum';
 import { IncidentEntity } from '../entity/incident.entity';
-import { IncidentDecisionResponseEntity } from '../entity/incident-decision-response.entity';
 import { NotificationOutboxEntity } from '../entity/notification-outbox.entity';
 import { IncidentAdminView } from '../dto/incident-response.dto';
 import { IncidentStateService } from './incident-state.service';
@@ -23,8 +20,22 @@ import { WalletService } from '../../wallet/wallet.service';
 import { WalletEntity } from '../../wallet/entity/wallet.entity';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { IncidentDepositHoldService } from './incident-deposit-hold.service';
+import { IncidentAlertService } from './incident-alert.service';
+import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
+import { TaskerDebtSource } from 'src/modules/wallet/entity/tasker-debt.entity';
+import { REVERSAL_WINDOW_HOURS } from '../domain/incident-decision-domain.types';
+import { isExpectedDecisionVersion } from '../domain/incident-decision.helpers';
 
 const INCIDENT_COMPENSATION_REF = 'INCIDENT_COMPENSATION';
+
+/**
+ * Cửa sổ cho phép tự động đảo một bồi thường đã chi. Thay cho chốt chặn "Admin #2 duyệt
+ * trước": sai sót phải được phát hiện và sửa sớm, quá hạn thì buộc xử lý thủ công có kiểm soát.
+ *
+ * Lấy từ domain chứ không khai lại: cổng `allowedActions` dùng chính con số này để nói trước
+ * "hết hạn đảo rồi", nên hai nơi lệch nhau là UI hứa một đằng, BE từ chối một nẻo.
+ */
+export { REVERSAL_WINDOW_HOURS };
 
 @Injectable()
 export class CompensationExecutorService {
@@ -34,7 +45,27 @@ export class CompensationExecutorService {
     private readonly adminService: IncidentAdminService,
     private readonly walletService: WalletService,
     private readonly depositHold: IncidentDepositHoldService,
+    private readonly alert: IncidentAlertService,
+    private readonly taskerDebt: TaskerDebtService,
   ) {}
+
+  /**
+   * Phần Tasker chịu mà ví không đủ → quỹ đã ứng thay, ghi thành một khoản nợ trong SỔ NỢ
+   * của ví. Sự cố không theo dõi việc thu hồi nữa: đó là việc của ví.
+   */
+  private async openUncoveredDebt(
+    manager: EntityManager,
+    incident: IncidentEntity,
+  ): Promise<void> {
+    if (!incident.tasker?.id) return;
+    await this.taskerDebt.openDebt(manager, {
+      taskerId: incident.tasker.id,
+      source: TaskerDebtSource.INCIDENT_COMPENSATION,
+      sourceRefId: incident.id,
+      sourceCode: incident.incidentCode ?? null,
+      amount: toNumber(incident.uncoveredLiabilityAmount),
+    });
+  }
 
   async execute(
     adminUserId: string,
@@ -44,43 +75,21 @@ export class CompensationExecutorService {
       await this.dataSource.transaction(async (manager) => {
         const incident = await this.lockIncident(manager, incidentId);
 
-        if (
-          incident.compensationStatus === IncidentCompensationStatus.RECORDED
-        ) {
+        // Idempotent: đã chi rồi thì chỉ đảm bảo notification tồn tại.
+        if (incident.status === IncidentStatus.COMPENSATED) {
           await this.ensureRecordedNotificationOutbox(manager, incident);
           return;
         }
 
         this.assertCompensationPreconditions(incident);
-        await this.assertNoUnreviewedCurrentResponse(manager, incident);
-        this.assertSecondApprovalSatisfiedIfRequired(incident);
         this.assertCompensationInvariant(incident);
 
         const repo = manager.getRepository(IncidentEntity);
         const dbNow = await this.getDatabaseNow(manager);
-        const fromComp = incident.compensationStatus;
-
-        this.state.assertCompensationTransition(
-          fromComp,
-          IncidentCompensationStatus.PROCESSING,
+        this.state.assertStatusTransition(
+          incident.status,
+          IncidentStatus.COMPENSATED,
         );
-        incident.compensationStatus = IncidentCompensationStatus.PROCESSING;
-        await repo.save(incident);
-        await this.state.log(
-          manager,
-          incident.id,
-          IncidentLogDimension.COMPENSATION,
-          fromComp,
-          IncidentCompensationStatus.PROCESSING,
-          adminUserId,
-          null,
-        );
-
-        this.state.assertCompensationTransition(
-          IncidentCompensationStatus.PROCESSING,
-          IncidentCompensationStatus.RECORDED,
-        );
-        incident.compensationStatus = IncidentCompensationStatus.RECORDED;
         incident.resolvedAt = dbNow;
 
         // P0.2 — giải phóng phần đã HOLD lúc accept, trả về balance để trừ bồi thường.
@@ -101,11 +110,9 @@ export class CompensationExecutorService {
 
         // P2.1 — CHUYỂN TIỀN THẬT qua ví: trừ Tasker, chi quỹ SYSTEM, hoàn ví Customer.
         await this.settleCompensation(manager, incident, taskerWallet);
+        await this.openUncoveredDebt(manager, incident);
 
-        this.state.assertStatusTransition(
-          incident.status,
-          IncidentStatus.COMPENSATED,
-        );
+        const from = incident.status;
         incident.status = IncidentStatus.COMPENSATED;
         incident.closureReason = IncidentClosureReason.COMPENSATED;
         await repo.save(incident);
@@ -115,8 +122,8 @@ export class CompensationExecutorService {
           manager,
           incident.id,
           IncidentLogDimension.COMPENSATION,
-          IncidentCompensationStatus.PROCESSING,
-          IncidentCompensationStatus.RECORDED,
+          from,
+          IncidentStatus.COMPENSATED,
           adminUserId,
           // Phase 2: đã chuyển tiền thật qua ví. Hoàn khách = approvedCompensationAmount
           // (bất biến); phần Tasker thu hồi được = recoverable, phần nợ = uncovered.
@@ -134,7 +141,7 @@ export class CompensationExecutorService {
           manager,
           incident.id,
           IncidentLogDimension.STATUS,
-          IncidentStatus.APPROVED,
+          from,
           IncidentStatus.COMPENSATED,
           adminUserId,
           null,
@@ -142,7 +149,7 @@ export class CompensationExecutorService {
       });
 
       return this.adminService.findOne(incidentId);
-    }, 'Loi khi ghi nhan boi thuong');
+    }, 'Lỗi khi ghi nhận bồi thường');
   }
 
   /**
@@ -150,7 +157,7 @@ export class CompensationExecutorService {
    * toàn bộ `approved` (QR trên UI) và upload ảnh minh chứng. Hệ thống:
    *  - trừ Tasker phần recoverable (ví→cọc) và chuyển vào ví SYSTEM (bù khoản công ty đã chi ngoài),
    *  - KHÔNG credit ví Khách, KHÔNG debit SYSTEM (tiền chi là tiền ngoài, minh chứng = proof),
-   *  - uncovered vẫn ghi nợ + soft-block như luồng digital.
+   *  - uncovered vẫn ghi nợ vào sổ nợ như luồng digital.
    */
   async executeManual(
     adminUserId: string,
@@ -161,14 +168,10 @@ export class CompensationExecutorService {
     return asyncHandleOperation(async () => {
       await this.dataSource.transaction(async (manager) => {
         const incident = await this.lockIncident(manager, incidentId);
-        if (
-          incident.compensationStatus === IncidentCompensationStatus.RECORDED
-        ) {
+        if (incident.status === IncidentStatus.COMPENSATED) {
           return; // idempotent
         }
         this.assertCompensationPreconditions(incident);
-        await this.assertNoUnreviewedCurrentResponse(manager, incident);
-        this.assertSecondApprovalSatisfiedIfRequired(incident);
         this.assertCompensationInvariant(incident);
 
         // Proof bắt buộc: do admin upload, đúng purpose, chưa gắn, chưa xoá.
@@ -194,15 +197,10 @@ export class CompensationExecutorService {
 
         const repo = manager.getRepository(IncidentEntity);
         const dbNow = await this.getDatabaseNow(manager);
-        const fromComp = incident.compensationStatus;
-        this.state.assertCompensationTransition(
-          fromComp,
-          IncidentCompensationStatus.PROCESSING,
+        this.state.assertStatusTransition(
+          incident.status,
+          IncidentStatus.COMPENSATED,
         );
-        incident.compensationStatus = IncidentCompensationStatus.PROCESSING;
-        await repo.save(incident);
-
-        incident.compensationStatus = IncidentCompensationStatus.RECORDED;
         incident.resolvedAt = dbNow;
         await this.depositHold.release(manager, incident, incident.tasker);
 
@@ -218,11 +216,19 @@ export class CompensationExecutorService {
         );
 
         await this.settleManual(manager, incident, taskerWallet);
+        await this.openUncoveredDebt(manager, incident);
 
-        this.state.assertStatusTransition(
-          incident.status,
-          IncidentStatus.COMPENSATED,
+        // Sổ chi ngoài: tiền rời tài khoản ngân hàng công ty, không qua ví SYSTEM nên
+        // không có bút toán ví nào ghi lại. Không lưu ở đây thì tổng chi thật của nền
+        // tảng không truy vấn được từ bất kỳ đâu.
+        incident.externalPayoutAmount = toNumber(
+          incident.approvedCompensationAmount,
         );
+        incident.externalPayoutAt = dbNow;
+        incident.externalPayoutByAdmin = { id: adminUserId } as never;
+        incident.externalPayoutNote = note?.trim() || null;
+
+        const from = incident.status;
         incident.status = IncidentStatus.COMPENSATED;
         incident.closureReason = IncidentClosureReason.COMPENSATED;
         await repo.save(incident);
@@ -232,8 +238,8 @@ export class CompensationExecutorService {
           manager,
           incident.id,
           IncidentLogDimension.COMPENSATION,
-          IncidentCompensationStatus.PROCESSING,
-          IncidentCompensationStatus.RECORDED,
+          from,
+          IncidentStatus.COMPENSATED,
           adminUserId,
           `Settled MANUAL (bank transfer) — customer paid externally=${toNumber(
             incident.approvedCompensationAmount,
@@ -243,12 +249,30 @@ export class CompensationExecutorService {
             incident.uncoveredLiabilityAmount,
           )}, proof=${proofEvidenceId}${note ? `, note=${note}` : ''}`,
         );
+        await this.state.log(
+          manager,
+          incident.id,
+          IncidentLogDimension.STATUS,
+          from,
+          IncidentStatus.COMPENSATED,
+          adminUserId,
+          null,
+        );
       });
       return this.adminService.findOne(incidentId);
     }, 'Lỗi khi chi trả thủ công');
   }
 
-  /** Bút toán cho chi trả thủ công: thu hồi từ Tasker → ví SYSTEM; nợ + soft-block như digital. */
+  /**
+   * Bút toán chi trả THỦ CÔNG — dùng khi ví SYSTEM không đủ để chi tự động.
+   *
+   * Khoản trả khách đi ra từ TÀI KHOẢN NGÂN HÀNG của công ty, không qua ví SYSTEM, nên
+   * KHÔNG ghi debit ví SYSTEM: luồng này tồn tại chính vì ví SYSTEM đang cạn, debit sẽ ném
+   * "Số dư ví không đủ" và chặn mất đường lui duy nhất. Bằng chứng cho khoản chi ngoài là
+   * ảnh chuyển khoản (`COMPENSATION_TRANSFER_PROOF`) gắn vào sự cố.
+   *
+   * Phần thu từ Tasker thì có thật trong hệ thống nên chảy về ví SYSTEM để bù lại.
+   */
   private async settleManual(
     manager: EntityManager,
     incident: IncidentEntity,
@@ -270,7 +294,6 @@ export class CompensationExecutorService {
         description: `Trừ ví Tasker (chi trả thủ công) sự cố ${code}`,
       });
 
-      // Phần thu từ Tasker chảy về ví SYSTEM — bù khoản công ty đã chuyển ngoài cho khách.
       const systemWallet =
         await this.walletService.getOrCreateSystemWallet(manager);
       await this.walletService.creditWallet(manager, {
@@ -279,7 +302,7 @@ export class CompensationExecutorService {
         type: WalletTransactionType.ADJUSTMENT,
         referenceId: refId,
         referenceType: refType,
-        description: `Thu hồi từ Tasker bù chi ngoài (thủ công) sự cố ${code}`,
+        description: `Thu hồi từ Tasker bù khoản chi ngoài (thủ công) sự cố ${code}`,
       });
     }
 
@@ -288,30 +311,67 @@ export class CompensationExecutorService {
   }
 
   /**
-   * P1.1 — Thu hồi/đảo một bồi thường đã chi trả (sửa sai). Bắt buộc Admin #2 (khác người finalize).
-   * Đảo toàn bộ bút toán: đòi lại ví Khách, trả ví Tasker, trả quỹ SYSTEM (ref RIÊNG, không đụng
-   * unique index). Reopen sự cố ở version mới (INVESTIGATING/DRAFT/NONE) để soạn lại + chốt + chi lại.
-   * Chỉ cho reverse khi CHƯA thu hồi nợ (uncoveredRecovered=0) và ví Khách còn đủ để đòi lại.
+   * Thu hồi/đảo một bồi thường đã chi trả (sửa sai).
+   *
+   * Đây là kiểm soát THAY THẾ cho duyệt cấp 2 đã gỡ: mô hình đổi từ "hai người ký trước khi
+   * chi" sang "một người chi, có nút hoàn tác trong cửa sổ giới hạn, mọi lần đều bắn cảnh
+   * báo ra ngoài". Vì đội vận hành chỉ có một Admin nên KHÔNG còn ràng buộc admin khác;
+   * bù lại có `REVERSAL_WINDOW_HOURS` và lý do bắt buộc.
+   *
+   * Đảo toàn bộ bút toán (ref RIÊNG, không đụng unique index) rồi mở lại sự cố ở version
+   * quyết định mới để soạn lại. Chỉ cho đảo khi CHƯA thu hồi nợ và ví Khách còn đủ để đòi lại.
    */
   async reverse(
     adminUserId: string,
     incidentId: string,
     reason: string,
+    expectedDecisionVersion: number,
   ): Promise<IncidentAdminView> {
     return asyncHandleOperation(async () => {
+      let alertPayload: { key: string; message: string } | undefined;
       await this.dataSource.transaction(async (manager) => {
         const incident = await this.lockIncident(manager, incidentId);
 
+        // Kiểm NGAY sau khi khoá, TRƯỚC mọi kiểm khác: nếu Admin đang thao tác trên một
+        // version cũ thì mọi thông báo lỗi phía sau đều nói về một quyết định khác với cái
+        // họ đang nhìn, gây hiểu nhầm còn tệ hơn là không nói gì.
         if (
-          incident.compensationStatus !== IncidentCompensationStatus.RECORDED ||
-          incident.status !== IncidentStatus.COMPENSATED
+          !isExpectedDecisionVersion(
+            incident.decisionVersion,
+            expectedDecisionVersion,
+          )
         ) {
           throw new ConflictException({
-            code: 'COMPENSATION_NOT_REVERSIBLE',
-            message: 'Chỉ thu hồi bồi thường đã chi trả (COMPENSATED/RECORDED)',
+            code: 'DECISION_VERSION_CONFLICT',
+            message:
+              'Quyết định đã được thay đổi ở nơi khác — tải lại trước khi thu hồi bồi thường',
+            currentDecisionVersion: incident.decisionVersion,
           });
         }
-        if (toNumber(incident.uncoveredRecoveredAmount) > 0) {
+
+        if (incident.status !== IncidentStatus.COMPENSATED) {
+          throw new ConflictException({
+            code: 'COMPENSATION_NOT_REVERSIBLE',
+            message: 'Chỉ thu hồi bồi thường đã chi trả',
+          });
+        }
+        const dbNow = await this.getDatabaseNow(manager);
+        const paidAt = incident.resolvedAt?.getTime();
+        if (
+          paidAt != null &&
+          dbNow.getTime() - paidAt > REVERSAL_WINDOW_HOURS * 3_600_000
+        ) {
+          throw new ConflictException({
+            code: 'REVERSAL_WINDOW_EXPIRED',
+            message: `Quá hạn tự động thu hồi (${REVERSAL_WINDOW_HOURS}h kể từ lúc chi trả) — cần xử lý thủ công`,
+          });
+        }
+        const debt = await this.taskerDebt.findBySource(
+          manager,
+          TaskerDebtSource.INCIDENT_COMPENSATION,
+          incident.id,
+        );
+        if (toNumber(debt?.recoveredAmount) > 0) {
           throw new ConflictException({
             code: 'COMPENSATION_DEBT_RECOVERY_STARTED',
             message:
@@ -333,12 +393,6 @@ export class CompensationExecutorService {
             code: 'COMPENSATION_MANUAL_NOT_REVERSIBLE',
             message:
               'Bồi thường được chi trả thủ công (chuyển khoản ngoài) — không thể tự động đảo',
-          });
-        }
-        if (incident.finalizedByAdmin?.id === adminUserId) {
-          throw new ConflictException({
-            code: 'REVERSAL_REQUIRES_DIFFERENT_ADMIN',
-            message: 'Thu hồi bồi thường phải do một Admin khác thực hiện',
           });
         }
         if (!reason || reason.trim().length < 10) {
@@ -408,37 +462,51 @@ export class CompensationExecutorService {
           });
         }
 
-        // Gỡ soft-block nếu sau khi xoá nợ sự cố này, Tasker không còn nợ nào khác.
-
         // Xoá số liệu tiền + reopen ở version mới để soạn lại quyết định.
+        const from = incident.status;
+        this.state.assertStatusTransition(from, IncidentStatus.REVIEWING);
         incident.recoverableFromDepositAmount = null;
         incident.uncoveredLiabilityAmount = null;
-        incident.uncoveredRecoveredAmount = 0;
         incident.depositBalanceSnapshot = null;
         incident.taskerWalletHoldAmount = null;
-        incident.compensationStatus = IncidentCompensationStatus.NONE;
-        incident.status = IncidentStatus.INVESTIGATING;
-        incident.decisionStatus = IncidentDecisionStatus.DRAFT;
+        incident.status = IncidentStatus.REVIEWING;
         incident.decisionVersion = incident.decisionVersion + 1;
+        incident.taskerResponseDeadline = null;
+        incident.sentTaskerBorneAmount = null;
         incident.closureReason = null;
         incident.resolvedAt = null;
         incident.finalizedAt = null;
         incident.finalizedByAdmin = null;
-        incident.secondApprovedAt = null;
-        incident.secondApprovedByAdmin = null;
-        incident.secondApprovalRequestedAt = null;
         await manager.getRepository(IncidentEntity).save(incident);
+        // Đảo bồi thường thì khoản nợ phát sinh từ nó cũng không còn lý do tồn tại.
+        await this.openUncoveredDebt(manager, incident);
 
         await this.state.log(
           manager,
           incident.id,
           IncidentLogDimension.COMPENSATION,
-          IncidentCompensationStatus.RECORDED,
-          IncidentCompensationStatus.NONE,
+          from,
+          IncidentStatus.REVIEWING,
           adminUserId,
-          `Reversed compensation (Admin #2) — reason: ${reason.trim()}`,
+          `Đảo bồi thường — lý do: ${reason.trim()}`,
         );
+        alertPayload = {
+          key: `incident-reversal:${incident.id}:v${incident.decisionVersion}`,
+          message:
+            `Đảo bồi thường sự cố ${code} (${approved} VND) bởi admin ${adminUserId} ` +
+            `— lý do: ${reason.trim()}`,
+        };
       });
+
+      // Không còn duyệt cấp 2 chặn trước, nên mỗi lần đảo tiền phải nhìn thấy được từ bên
+      // ngoài. Gửi SAU transaction: webhook là network call, không giữ trong lock.
+      if (alertPayload) {
+        await this.alert.send(
+          alertPayload.key,
+          alertPayload.message,
+          'WARNING',
+        );
+      }
       return this.adminService.findOne(incidentId);
     }, 'Lỗi khi thu hồi bồi thường');
   }
@@ -454,7 +522,6 @@ export class CompensationExecutorService {
       .leftJoinAndSelect('customer.user', 'customerUser')
       .leftJoinAndSelect('i.tasker', 'tasker')
       .leftJoinAndSelect('tasker.user', 'taskerUser')
-      .leftJoinAndSelect('i.secondApprovedByAdmin', 'secondApprovedByAdmin')
       .leftJoinAndSelect('i.finalizedByAdmin', 'finalizedByAdmin')
       .setLock('pessimistic_write', undefined, ['i'])
       .where('i.id = :id', { id: incidentId })
@@ -463,81 +530,23 @@ export class CompensationExecutorService {
     if (!incident) {
       throw new NotFoundException({
         code: 'INCIDENT_NOT_FOUND',
-        message: 'Khong tim thay su co',
+        message: 'Không tìm thấy sự cố',
       });
     }
 
     return incident;
   }
 
+  /**
+   * Chỉ chi trả cho sự cố đã chốt và đang chờ chi. Toàn bộ điều kiện due process
+   * (Tasker đã được phản biện, quyết định hợp lệ) đã được `finalizeDecision` kiểm khi
+   * chuyển sang `AWAITING_PAYOUT` — trạng thái này chính là bằng chứng chúng đã thoả.
+   */
   private assertCompensationPreconditions(incident: IncidentEntity): void {
-    if (incident.compensationStatus === IncidentCompensationStatus.PROCESSING) {
+    if (incident.status !== IncidentStatus.AWAITING_PAYOUT) {
       throw new ConflictException({
-        code: 'COMPENSATION_IN_PROGRESS',
-        message: 'Compensation dang duoc xu ly',
-      });
-    }
-
-    if (incident.decisionStatus !== IncidentDecisionStatus.FINAL) {
-      throw new ConflictException({
-        code: 'DECISION_NOT_FINAL',
-        message: 'Chi ghi nhan boi thuong sau khi decision FINAL',
-      });
-    }
-
-    if (incident.status !== IncidentStatus.APPROVED) {
-      throw new ConflictException({
-        code: 'INCIDENT_NOT_APPROVED',
-        message: 'Chi ghi nhan boi thuong khi incident APPROVED',
-      });
-    }
-
-    if (
-      ![
-        IncidentCompensationStatus.PENDING,
-        IncidentCompensationStatus.FAILED,
-      ].includes(incident.compensationStatus)
-    ) {
-      throw new ConflictException({
-        code: 'COMPENSATION_NOT_PENDING',
-        message: 'Compensation status khong cho ghi nhan',
-      });
-    }
-  }
-
-  private async assertNoUnreviewedCurrentResponse(
-    manager: EntityManager,
-    incident: IncidentEntity,
-  ): Promise<void> {
-    const count = await manager
-      .getRepository(IncidentDecisionResponseEntity)
-      .createQueryBuilder('response')
-      .leftJoin('response.incident', 'incident')
-      .where('incident.id = :incidentId', { incidentId: incident.id })
-      .andWhere('response.decisionVersion = :decisionVersion', {
-        decisionVersion: incident.decisionVersion,
-      })
-      .andWhere('response.reviewedAt IS NULL')
-      .getCount();
-
-    if (count > 0) {
-      throw new ConflictException({
-        code: 'TASKER_RESPONSE_NOT_REVIEWED',
-        message: 'Con response Tasker chua duoc review',
-      });
-    }
-  }
-
-  private assertSecondApprovalSatisfiedIfRequired(
-    incident: IncidentEntity,
-  ): void {
-    if (
-      incident.secondApprovalRequestedAt &&
-      (!incident.secondApprovedByAdmin || !incident.secondApprovedAt)
-    ) {
-      throw new ConflictException({
-        code: 'SECOND_APPROVAL_REQUIRED',
-        message: 'Decision can Admin #2 approve truoc khi compensate',
+        code: 'INCIDENT_NOT_AWAITING_PAYOUT',
+        message: 'Chỉ chi trả cho sự cố đã chốt và đang chờ chi trả',
       });
     }
   }
@@ -550,7 +559,7 @@ export class CompensationExecutorService {
     if (approved <= 0 || taskerBorne + platformBorne !== approved) {
       throw new UnprocessableEntityException({
         code: 'INVALID_COMPENSATION_ALLOCATION',
-        message: 'Phan bo boi thuong khong hop le',
+        message: 'Phân bổ bồi thường không hợp lệ',
       });
     }
   }
@@ -616,7 +625,7 @@ export class CompensationExecutorService {
       incidentId: incident.id,
       incidentCode: incident.incidentCode ?? null,
       decisionVersion: incident.decisionVersion,
-      status: IncidentCompensationStatus.RECORDED,
+      status: IncidentStatus.COMPENSATED,
       approvedAmount: toNumber(incident.approvedCompensationAmount),
       message: 'Bồi thường đã được ghi nhận',
     };
@@ -629,7 +638,7 @@ export class CompensationExecutorService {
       incidentId: incident.id,
       incidentCode: incident.incidentCode ?? null,
       decisionVersion: incident.decisionVersion,
-      status: IncidentCompensationStatus.RECORDED,
+      status: IncidentStatus.COMPENSATED,
       approvedAmount: toNumber(incident.approvedCompensationAmount),
       taskerBorneAmount: toNumber(incident.taskerBorneAmount),
       message: 'Phần ghi nhận trách nhiệm của Tasker đã được lưu',
@@ -637,13 +646,7 @@ export class CompensationExecutorService {
   }
 
   /**
-   * C2 — ghi nhận số liệu thu hồi từ cọc tại thời điểm RECORDED (record-only, không chuyển tiền):
-   *  - `recoverable` = phần Tasker chịu có thể trừ ngay từ cọc = clamp(min(taskerBorne, deposit), ≥0)
-   *  - `uncovered`   = nghĩa vụ còn nợ = taskerBorne − recoverable
-   * Phase 2 dùng snapshot này để trừ cọc thật + đặt deposit_topup_due + thu hồi phần nợ.
-   */
-  /**
-   * P2.1 — Chuyển tiền thật cho bồi thường (trong transaction đã lock incident).
+   * Chuyển tiền thật cho bồi thường (trong transaction đã lock incident).
    * Bảo toàn tổng tiền: hoàn khách = recoverable(Tasker) + platformBorne + uncovered(quỹ ứng).
    *  1) Trừ Tasker phần thu hồi được: ví trước → cọc gốc sau (DEPOSIT_DEDUCT).
    *  2) Hoàn ví Customer toàn bộ approved (REFUND) — khách luôn được làm đầy đủ.

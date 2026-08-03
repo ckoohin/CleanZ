@@ -3,31 +3,20 @@ import { Badge } from "@/components/ui/badge";
 import {
   STATUS_LABEL,
   STATUS_TONE,
-  COMP_STATUS_LABEL,
-  COMP_STATUS_TONE,
   SEVERITY_LABEL,
   SEVERITY_TONE,
   TONE_BADGE_CLASS,
 } from "../incident.labels";
-import type {
-  CompensationStatus,
-  IncidentStatus,
-  Severity,
-} from "../incident.enums";
+import type { IncidentStatus, Severity } from "../incident.enums";
 
+/**
+ * Badge trạng thái DUY NHẤT. `CompensationBadge` đã bỏ: trục compensationStatus cũ chỉ lặp
+ * lại thông tin mà trạng thái sự cố đã nói (AWAITING_PAYOUT / COMPENSATED).
+ */
 export function IncidentStatusBadge({ status }: { status: IncidentStatus }) {
   return (
     <Badge variant="outline" className={`text-xs font-semibold ${TONE_BADGE_CLASS[STATUS_TONE[status]]}`}>
       {STATUS_LABEL[status]}
-    </Badge>
-  );
-}
-
-export function CompensationBadge({ status }: { status: CompensationStatus }) {
-  if (status === "NONE") return null;
-  return (
-    <Badge variant="outline" className={`text-xs ${TONE_BADGE_CLASS[COMP_STATUS_TONE[status]]}`}>
-      {COMP_STATUS_LABEL[status]}
     </Badge>
   );
 }

@@ -8,7 +8,6 @@ import { StatementComposer } from "./StatementComposer";
 import { DecisionResponseComposer } from "./DecisionResponseComposer";
 import {
   IncidentStatusBadge,
-  CompensationBadge,
   SeverityBadge,
 } from "@/features/incident/shared/_components/badges";
 import { StatementThread } from "@/features/incident/shared/_components/StatementThread";
@@ -53,7 +52,6 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
       <div className="mx-auto max-w-lg space-y-5 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <IncidentStatusBadge status={inc.status} />
-          <CompensationBadge status={inc.compensationStatus} />
           <SeverityBadge severity={inc.severity} />
           {inc.statementDueAt && (
             <span className="flex items-center gap-1 text-xs text-amber-600">
@@ -76,7 +74,6 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
               <p className="font-medium">{it.description}</p>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                 <span>Yêu cầu: <b className="text-foreground/80">{formatVnd(it.claimedAmount)}</b></span>
-                {it.verifiedAmount != null && <span>Xác minh: <b className="text-foreground/80">{formatVnd(it.verifiedAmount)}</b></span>}
                 {it.approvedAmount != null && <span className="text-emerald-600">Duyệt: <b>{formatVnd(it.approvedAmount)}</b></span>}
               </div>
             </div>
@@ -95,10 +92,30 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Cọc trừ thực tế (Phase 2)</p>
-            <p className="font-semibold">{formatVnd(inc.myDepositDeducted)}</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Ví đang tạm giữ</p>
+            <p className="font-semibold">
+              {inc.myWalletHold == null ? "—" : formatVnd(inc.myWalletHold)}
+            </p>
           </div>
+          {inc.myWalletDeducted != null && (
+            <div>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Đã trừ từ ví</p>
+              <p className="font-semibold">{formatVnd(inc.myWalletDeducted)}</p>
+            </div>
+          )}
+          {(inc.myOutstandingDebt ?? 0) > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Còn nợ nền tảng</p>
+              <p className="font-semibold text-amber-600">{formatVnd(inc.myOutstandingDebt)}</p>
+            </div>
+          )}
         </div>
+        {(inc.myOutstandingDebt ?? 0) > 0 && (
+          <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-snug text-amber-700 dark:text-amber-400">
+            Nền tảng đã ứng trả khách thay bạn <b>{formatVnd(inc.myOutstandingDebt)}</b>. Khoản này
+            sẽ được trừ dần từ thu nhập các đơn tiếp theo, và bạn tạm chưa rút được tiền cho tới khi trả hết.
+          </p>
+        )}
 
         {/* Giải trình */}
         <div className="space-y-2">

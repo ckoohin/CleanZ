@@ -147,14 +147,13 @@ export class BookingSettlementService {
 
     if (!settledFromWallet) {
       if (savedBooking.paymentMethod === PaymentMethod.CASH) {
-        if (platformFee > 0) {
-          await this.taskerBalanceService.deductCashCommission(
-            manager,
-            tasker.id,
-            savedBooking,
-            platformFee,
-          );
-        }
+        // Phí đã được GIỮ từ lúc nhận đơn → chỉ thu khoản giữ, không thể thiếu tiền.
+        await this.taskerBalanceService.captureCashCommission(
+          manager,
+          tasker.id,
+          savedBooking,
+          platformFee,
+        );
       } else {
         const taskerWallet = await this.walletService.getOrCreateTaskerWallet(
           manager,

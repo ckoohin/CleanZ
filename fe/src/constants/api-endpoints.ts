@@ -179,22 +179,19 @@ export const API_ENDPOINTS = {
     RECONCILIATION: "/admin/incidents/reconciliation",
     DETAIL: (id: string) => `/admin/incidents/${id}`,
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
-    VERIFY: (id: string) => `/admin/incidents/${id}/items/verify`,
-    DECISION_DRAFT: (id: string) => `/admin/incidents/${id}/decision-draft`,
-    DECISION_DRAFT_SUBMIT: (id: string) =>
-      `/admin/incidents/${id}/decision-draft/submit`,
-    DECISION_RESPONSE_REVIEW: (id: string) =>
-      `/admin/incidents/${id}/decision-response/review`,
-    DECISION_REVISE: (id: string) => `/admin/incidents/${id}/decision/revise`,
-    DECISION_EXTEND_RESPONSE: (id: string) =>
-      `/admin/incidents/${id}/decision/extend-response`,
+    /** Soạn/sửa quyết định — gộp thẩm định hạng mục + duyệt tiền + phân bổ. */
+    DECISION: (id: string) => `/admin/incidents/${id}/decision`,
+    DECISION_SEND: (id: string) => `/admin/incidents/${id}/decision/send`,
     DECISION_FINALIZE: (id: string) =>
       `/admin/incidents/${id}/decision/finalize`,
-    SECOND_APPROVAL: (id: string) => `/admin/incidents/${id}/second-approval`,
+    /** Thu hồi quyết định đã chốt khi CHƯA chi trả. */
+    DECISION_WITHDRAW: (id: string) =>
+      `/admin/incidents/${id}/decision/withdraw`,
     COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
     COMPENSATE_MANUAL: (id: string) =>
       `/admin/incidents/${id}/compensate/manual`,
     TRANSFER_PROOF: "/admin/incidents/evidences/transfer-proof",
+    DEBT_WRITE_OFF: (id: string) => `/admin/incidents/${id}/debt/write-off`,
     COMPENSATION_REVERSE: (id: string) =>
       `/admin/incidents/${id}/compensation/reverse`,
     UNLOCK_REPORTER: (id: string) => `/admin/incidents/${id}/unlock-reporter`,

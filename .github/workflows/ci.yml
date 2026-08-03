@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: be
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cleanz_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      # Integration test boot nguyên AppModule, trong đó có BullMQ. Thiếu Redis thì phần
+      # hàng đợi không được chạy thật ở CI — đúng chỗ vừa phát sinh lỗi rò job giữa các suite.
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: cleanz_ci
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      # Runner CI mỗi lượt là máy sạch, nhưng đặt tường minh để không bao giờ đụng `bull`
+      # của môi trường khác nếu sau này CI dùng Redis dùng chung.
+      BULL_PREFIX: bullci
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: be/package-lock.json
+      - run: npm ci
+
+      # Cổng kiểu PHẢI chạy riêng: tsconfig bật `isolatedModules` nên ts-jest chỉ
+      # transpile — Jest KHÔNG bắt được lỗi kiểu xuyên file (đã có tiền lệ lọt lưới).
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Chặn ERROR (hiện 0). KHÔNG dùng --max-warnings=0: đang tồn ~300 warning,
+      # bật lên là cổng đỏ vĩnh viễn và mọi người sẽ học cách bỏ qua CI.
+      - name: Lint
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+      - name: Unit tests
+        run: npx jest --testPathIgnorePatterns ".*\.int-spec\.ts$"
+
+      # Integration dựng DB scratch từ 0 → cũng là kiểm tra migration chain chạy sạch.
+      - name: Integration tests (money path)
+        run: npm run test:integration
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fe
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: fe/package-lock.json
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx eslint
+
+      - name: Unit tests
+        run: npm test

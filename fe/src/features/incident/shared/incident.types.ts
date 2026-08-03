@@ -7,20 +7,23 @@
 import type {
   ClosureReason,
   CompensationSource,
-  CompensationStatus,
-  Decision,
+  DamageItemStatus,
+  DecisionAction,
+  DecisionOutcome,
   DecisionResponseType,
   IncidentStatus,
-  IncidentDecisionStatus,
   ResponseReviewResult,
-  ResponseWindowStatus,
   ResponsibilityParty,
-  SecondApprovalAction,
   Severity,
 } from "./incident.enums";
 
 // Re-export các type dùng lại ở tầng component (import gọn từ incident.types).
-export type { ResponsibilityParty, ResponseReviewResult };
+export type {
+  ResponsibilityParty,
+  ResponseReviewResult,
+  DecisionOutcome,
+  DecisionAction,
+};
 
 // ─── Pagination (chuẩn dự án) ────────────────────────────────────────────────
 export interface PaginationMeta {
@@ -75,8 +78,6 @@ export interface IncidentSummary {
   source: "CUSTOMER_REPORT" | "SUPPORT_TICKET" | "CHECKIN_REVIEW";
   severity: Severity;
   status: IncidentStatus;
-  compensationStatus: CompensationStatus;
-  decisionStatus: IncidentDecisionStatus;
   decisionVersion: number;
   closureReason: ClosureReason | null;
   claimedAmount: number | null;
@@ -90,6 +91,10 @@ export interface IncidentCustomerView extends IncidentSummary {
   description: string;
   damageItems: DamageItem[];
   resolvedAt: string | null;
+  /** Tiền đã đi đường nào: hoàn vào ví hay chuyển khoản. null = chưa chi trả. */
+  payoutChannel: 'WALLET' | 'BANK_TRANSFER' | null;
+  /** Nội dung quyết định CleanZ gửi khách. */
+  decisionSummary: string | null;
 }
 
 // ─── Tasker view (chỉ cọc của chính mình) ────────────────────────────────────
@@ -98,36 +103,28 @@ export interface IncidentTaskerView extends IncidentSummary {
   damageItems: DamageItem[];
   statements: Statement[];
   statementDueAt: string | null;
-  responseWindowStatus: ResponseWindowStatus;
   taskerResponseDeadline: string | null;
   canSubmitStatement: boolean;
   canRespondToDecision: boolean;
-  /** Phần Tasker chịu đã ghi nhận (record-only); null khi quyết định chưa gửi cho Tasker. */
+  /** Phần Tasker chịu; null khi quyết định chưa được gửi cho Tasker. */
   myBorneAmount: number | null;
-  myDepositHold: number | null;
-  myDepositDeducted: number | null;
+  /** Số tiền ví đang bị tạm giữ cho sự cố này. */
+  myWalletHold: number | null;
+  /** Đã trừ thật từ ví khi chi trả. */
+  myWalletDeducted: number | null;
+  /** Còn nợ nền tảng (quỹ đã ứng thay), sẽ trừ dần từ thu nhập. */
+  myOutstandingDebt: number | null;
 }
 
-// NOTE: các hằng phải khớp chính xác chuỗi BE emit trong
-// getIncidentDecisionActionView (incident-decision.helpers.ts).
-export type IncidentDecisionAction =
-  | "SAVE_DRAFT"
-  | "SUBMIT_DRAFT"
-  | "RESPOND"
-  | "REVIEW_RESPONSE"
-  | "REVISE_DECISION"
-  | "EXTEND_RESPONSE"
-  | "FINALIZE"
-  | "SECOND_APPROVE"
-  | "REQUEST_CHANGES"
-  | "COMPENSATE";
+/** Alias giữ tên cũ cho các component đang import. */
+export type IncidentDecisionAction = DecisionAction;
 
 export interface IncidentDecisionView {
-  status: IncidentDecisionStatus;
+  outcome: DecisionOutcome | null;
   version: number;
-  responseWindowStatus: ResponseWindowStatus;
   taskerResponseDeadline: string | null;
-  taskerResponseReviewedAt: string | null;
+  /** Mốc `taskerBorne` của bản đã gửi Tasker — bản hiện tại lớn hơn ⟹ phải gửi lại. */
+  sentTaskerBorneAmount: number | null;
   responsibilityParty: ResponsibilityParty | null;
   responsibilityReason: string | null;
   internalDecisionNote: string | null;
@@ -136,21 +133,26 @@ export interface IncidentDecisionView {
   depositBalanceSnapshot: number | null;
   recoverableFromDepositAmount: number | null;
   uncoveredLiabilityAmount: number | null;
-  secondApprovalNote: string | null;
-  secondApprovalRequestedAt: string | null;
-  secondApprovalDueAt: string | null;
-  secondApprovedAt: string | null;
   finalizedAt: string | null;
   policyVersion: string | null;
-  dualApprovalThresholdSnapshot: number | null;
   policyCapSnapshot: number | null;
   responseWindowHoursSnapshot: number | null;
   severityRuleSnapshot: Record<string, unknown> | null;
-  isAdverseToTasker: boolean;
-  requiresSecondAdmin: boolean;
   requiresTaskerResponse: boolean;
-  allowedActions: IncidentDecisionAction[];
+  allowedActions: DecisionAction[];
   blockedReasons: string[];
+}
+
+/**
+ * Xem trước dòng tiền TRƯỚC khi bấm chi trả. BE tính bằng đúng công thức lúc ghi sổ
+ * (floor về VND nguyên) — dùng số này trên nút xác nhận, không tự suy từ taskerBorne.
+ */
+export interface PayoutPreview {
+  customerRefund: number;
+  recoverableFromTasker: number;
+  uncoveredFromTasker: number;
+  platformPayout: number;
+  taskerWalletBalance: number;
 }
 
 export interface DecisionResponseView {
@@ -199,13 +201,25 @@ export interface IncidentAdminView extends IncidentSummary {
   transferProofEvidences: Evidence[];
   decisionResponses: AdminDecisionResponse[];
   taskerWalletHoldAmount: number | null;
+  /** Tiền THẬT đã thu lại được từ Tasker. */
   uncoveredRecoveredAmount: number;
+  /** Phần nợ Admin đã xoá (nền tảng chịu mất) — tách khỏi số thu hồi thật. */
+  uncoveredWrittenOffAmount: number;
+  /** Nợ còn lại = uncoveredLiability − đã thu − đã xoá. */
+  outstandingDebtAmount: number;
+  debtWriteOff: {
+    at: string;
+    reason: string | null;
+    byAdminName: string | null;
+  } | null;
+  /** Đủ điều kiện xoá nợ (còn nợ + đã quá thời hạn chờ thu hồi tự động). */
+  canWriteOffDebt: boolean;
   taskerBorneAmount: number | null;
   platformBorneAmount: number | null;
   allocationReason: string | null;
   compensationSource: CompensationSource | null;
   decision: IncidentDecisionView;
-  coolingUntil: string | null;
+  payoutPreview: PayoutPreview | null;
   receivedDueAt: string | null;
   statementDueAt: string | null;
   decisionDueAt: string | null;
@@ -235,22 +249,16 @@ export interface SubmitStatementInput {
 export interface AcceptInput {
   note?: string;
 }
-export interface VerifyItemsInput {
-  items: {
-    itemId: string;
-    verifiedAmount: number;
-    status?: Exclude<DamageItemVerificationStatus, "PENDING">;
-  }[];
-}
-export interface DecisionDraftItemInput {
-  // BE DTO (SaveIncidentDecisionDraftDto) dùng `damageItemId`, khác với verify/decide (`itemId`).
+export interface DecisionItemInput {
   damageItemId: string;
   approvedAmount: number;
+  status?: Exclude<DamageItemStatus, 'PENDING'>;
 }
-export interface DecisionDraftInput {
+/** Body cho PUT :id/decision — gộp thẩm định hạng mục + duyệt tiền + phân bổ. */
+export interface SaveDecisionInput {
   expectedDecisionVersion: number;
-  decision: Decision;
-  items?: DecisionDraftItemInput[];
+  outcome: DecisionOutcome;
+  items?: DecisionItemInput[];
   responsibilityParty?: ResponsibilityParty | null;
   responsibilityReason?: string | null;
   taskerBorneAmount?: number;
@@ -260,24 +268,12 @@ export interface DecisionDraftInput {
   taskerDecisionReason?: string | null;
   customerDecisionSummary?: string | null;
 }
-export interface SubmitDecisionDraftInput {
+export interface SendToTaskerInput {
   expectedDecisionVersion: number;
 }
-export interface ReviewDecisionResponseInput {
-  expectedDecisionVersion: number;
-  responseId: string;
-  result: ResponseReviewResult;
-  adminReviewNote: string;
-}
-export type ReviseDecisionInput = DecisionDraftInput;
 export interface FinalizeDecisionInput {
   expectedDecisionVersion: number;
   rejectAsFraud?: boolean;
-}
-export interface SecondApprovalInput {
-  expectedDecisionVersion: number;
-  action: SecondApprovalAction;
-  note?: string;
 }
 export interface UpsertDecisionResponseInput {
   decisionVersion: number;
@@ -302,13 +298,11 @@ export interface MyIncidentQuery {
   page?: number;
   limit?: number;
   status?: IncidentStatus;
-  compensationStatus?: CompensationStatus;
 }
 export interface AdminIncidentQuery {
   page?: number;
   limit?: number;
   status?: IncidentStatus;
-  compensationStatus?: CompensationStatus;
   severity?: Severity;
   taskerId?: string;
   customerId?: string;
@@ -321,8 +315,7 @@ export interface IncidentConfig {
   reportWindowSevereHours?: number;
   claimMax?: number;
   policyCap?: number;
-  dualApprovalThreshold?: number;
-  coolingHours?: number;
-  autoCloseDays?: number;
+  responseWindowHours?: number;
+  autoCloseHours?: number;
   [key: string]: unknown;
 }

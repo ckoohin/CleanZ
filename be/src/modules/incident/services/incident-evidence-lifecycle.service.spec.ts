@@ -27,7 +27,9 @@ describe('IncidentEvidenceLifecycleService', () => {
       service.uploadDetachedEvidence('user-1', {} as Express.Multer.File),
     ).rejects.toThrow('db down');
 
-    expect(upload.deleteImage).toHaveBeenCalledWith('CleanZ/uploads/evidence');
+    expect(upload.deleteImage).toHaveBeenCalledWith('CleanZ/uploads/evidence', {
+      authenticated: true,
+    });
   });
 
   it('does not create DB evidence when upload fails', async () => {
@@ -91,6 +93,162 @@ describe('IncidentEvidenceLifecycleService', () => {
         .filterForAudience([report, response, adminOnly, deleted], 'ADMIN')
         .map((item) => item.id),
     ).toEqual(['report', 'response', 'admin']);
+  });
+
+  /**
+   * `visibility` trước đây chỉ lọc ở tầng JSON, còn file thì nằm sau một URL công khai vĩnh
+   * viễn — ai có link đều xem được ảnh trong nhà khách hoặc ảnh chuyển khoản. Nay URL phải
+   * do server ký, và chữ ký chỉ sinh cho ảnh vừa qua được bộ lọc.
+   */
+  describe('ký URL giao hàng', () => {
+    const withSigner = () => {
+      const upload = {
+        signedUrl: jest.fn((id: string) => `https://cdn/signed/${id}?sig=abc`),
+      };
+      return {
+        upload,
+        service: new IncidentEvidenceLifecycleService(
+          {} as never,
+          upload as never,
+        ),
+      };
+    };
+
+    it('ảnh có ký được thay URL mới mỗi lần trả về', () => {
+      const { service, upload } = withSigner();
+      const item = evidence({
+        id: 'e1',
+        storageType: 'AUTHENTICATED',
+        storagePublicId: 'CleanZ/uploads/e1',
+        fileUrl: 'https://cdn/authenticated/e1.jpg',
+      });
+
+      const [out] = service.filterForAudience([item], 'ADMIN');
+
+      expect(out.fileUrl).toBe('https://cdn/signed/CleanZ/uploads/e1?sig=abc');
+      expect(upload.signedUrl).toHaveBeenCalledWith('CleanZ/uploads/e1');
+    });
+
+    it('ảnh cũ (PUBLIC) giữ nguyên URL — ký vào sẽ trỏ tài sản không tồn tại', () => {
+      const { service, upload } = withSigner();
+      const legacy = evidence({
+        id: 'old',
+        storageType: 'PUBLIC',
+        storagePublicId: 'CleanZ/uploads/old',
+        fileUrl: 'https://cdn/upload/old.jpg',
+      });
+
+      const [out] = service.filterForAudience([legacy], 'ADMIN');
+
+      expect(out.fileUrl).toBe('https://cdn/upload/old.jpg');
+      expect(upload.signedUrl).not.toHaveBeenCalled();
+    });
+
+    it('ảnh ngoài tầm nhìn và ảnh đã xoá mềm KHÔNG bao giờ được ký', () => {
+      const { service, upload } = withSigner();
+      const adminOnly = evidence({
+        id: 'proof',
+        visibility: INCIDENT_EVIDENCE_VISIBILITY.ADMIN_ONLY,
+        storageType: 'AUTHENTICATED',
+        storagePublicId: 'CleanZ/uploads/proof',
+      });
+      const deleted = evidence({
+        id: 'deleted',
+        isSoftDeleted: true,
+        storageType: 'AUTHENTICATED',
+        storagePublicId: 'CleanZ/uploads/deleted',
+      });
+
+      expect(
+        service.filterForAudience([adminOnly, deleted], 'CUSTOMER'),
+      ).toHaveLength(0);
+      expect(upload.signedUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Ảnh upload rồi bỏ ngang form không có gì dọn: rác tăng đều theo số người bỏ giữa chừng,
+   * âm thầm — không lỗi, không cảnh báo, chỉ phình cùng chi phí lưu trữ.
+   */
+  describe('purgeAbandonedUploads', () => {
+    const makeRepo = (rows: Partial<IncidentEvidenceEntity>[]) => {
+      const deleted: string[] = [];
+      const qb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(rows),
+      };
+      const repo = {
+        createQueryBuilder: jest.fn(() => qb),
+        delete: jest.fn((where: { id: string }) => {
+          deleted.push(where.id);
+          return Promise.resolve({});
+        }),
+      };
+      return { repo, deleted };
+    };
+
+    it('xoá file rồi mới xoá bản ghi, đúng chế độ lưu của từng ảnh', async () => {
+      const { repo, deleted } = makeRepo([
+        evidence({
+          id: 'new',
+          storageType: 'AUTHENTICATED',
+          storagePublicId: 'CleanZ/uploads/new',
+        }),
+        evidence({
+          id: 'legacy',
+          storageType: 'PUBLIC',
+          storagePublicId: 'CleanZ/uploads/legacy',
+        }),
+      ]);
+      const upload = { destroyQuietly: jest.fn().mockResolvedValue(true) };
+      const service = new IncidentEvidenceLifecycleService(
+        repo as never,
+        upload as never,
+      );
+
+      expect(await service.purgeAbandonedUploads(24)).toBe(2);
+      expect(upload.destroyQuietly).toHaveBeenCalledWith('CleanZ/uploads/new', {
+        authenticated: true,
+      });
+      expect(upload.destroyQuietly).toHaveBeenCalledWith(
+        'CleanZ/uploads/legacy',
+        { authenticated: false },
+      );
+      expect(deleted).toEqual(['new', 'legacy']);
+    });
+
+    /** Xoá bản ghi khi file chưa xoá được thì mất luôn `storagePublicId` → rác vô chủ. */
+    it('storage lỗi → giữ nguyên bản ghi để vòng quét sau thử lại', async () => {
+      const { repo, deleted } = makeRepo([
+        evidence({ id: 'stuck', storagePublicId: 'CleanZ/uploads/stuck' }),
+      ]);
+      const upload = { destroyQuietly: jest.fn().mockResolvedValue(false) };
+      const service = new IncidentEvidenceLifecycleService(
+        repo as never,
+        upload as never,
+      );
+
+      expect(await service.purgeAbandonedUploads(24)).toBe(0);
+      expect(deleted).toEqual([]);
+    });
+
+    it('bản ghi không có file trên storage vẫn được dọn', async () => {
+      const { repo, deleted } = makeRepo([
+        evidence({ id: 'no-file', storagePublicId: null }),
+      ]);
+      const upload = { destroyQuietly: jest.fn() };
+      const service = new IncidentEvidenceLifecycleService(
+        repo as never,
+        upload as never,
+      );
+
+      expect(await service.purgeAbandonedUploads(24)).toBe(1);
+      expect(upload.destroyQuietly).not.toHaveBeenCalled();
+      expect(deleted).toEqual(['no-file']);
+    });
   });
 
   it('replaces response evidence without hard delete and links old row to replacement', async () => {

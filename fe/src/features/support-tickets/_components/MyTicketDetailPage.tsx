@@ -13,7 +13,18 @@ import {
   AlertCircle,
   Clock,
   RotateCcw,
+  CalendarPlus,
+  CalendarClock,
+  Hash,
+  Flag,
+  Radio,
+  ShieldCheck,
+  ShieldAlert,
+  Timer,
+  UserCog,
+  type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   useMyTicketDetail,
   useReopenTicket,
@@ -32,6 +43,7 @@ import {
   RESOLUTION_LABEL,
   SOURCE_LABEL,
 } from "@/features/support-tickets/shared/ticket.labels";
+import { CATEGORY_ICON } from "@/features/support-tickets/shared/ticket.category-meta";
 import {
   isMessagingLocked,
   canSubmitSurvey,
@@ -53,6 +65,9 @@ function fmtDate(d: string | null | undefined) {
 }
 
 // ─── CSAT Survey ─────────────────────────────────────────────────────────────
+/** Nhãn theo mức sao — nói rõ 3 sao nghĩa là gì thay vì để người dùng tự đoán. */
+const RATING_LABEL = ["", "Rất tệ", "Chưa tốt", "Bình thường", "Hài lòng", "Tuyệt vời"];
+
 function CSATSurvey({ ticketId }: { ticketId: string }) {
   const submit = useSubmitSurvey(ticketId);
   const [rating, setRating] = useState(0);
@@ -61,9 +76,9 @@ function CSATSurvey({ ticketId }: { ticketId: string }) {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-500" />
-        <p className="text-sm font-bold text-emerald-700">
+      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
+        <CheckCircle2 className="mx-auto mb-2 size-8 text-emerald-500" />
+        <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
           Cảm ơn bạn đã đánh giá!
         </p>
       </div>
@@ -71,30 +86,56 @@ function CSATSurvey({ ticketId }: { ticketId: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-4">
-      <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-foreground">
-        <Star className="h-4 w-4 text-amber-400" /> Bạn hài lòng với hỗ trợ này
-        không?
+    <div className="rounded-2xl border border-border/50 bg-card p-4 shadow-sm">
+      <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-foreground">
+        <Star className="size-4 fill-amber-400 text-amber-400" />
+        Bạn hài lòng với hỗ trợ này không?
       </p>
-      <div className="mb-3 flex gap-2">
+      <p className="mb-3 text-xs text-muted-foreground">
+        Đánh giá của bạn giúp chúng tôi cải thiện chất lượng hỗ trợ.
+      </p>
+
+      <div className="mb-1 flex gap-2">
         {[1, 2, 3, 4, 5].map((s) => (
           <button
             key={s}
+            type="button"
+            aria-label={`${s} sao — ${RATING_LABEL[s]}`}
+            aria-pressed={rating === s}
             onClick={() => setRating(s)}
-            className={`flex-1 rounded-xl py-2 text-lg transition-all ${
-              rating >= s ? "scale-105 bg-amber-400" : "bg-muted"
-            }`}
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-xl border py-2.5 transition-all active:scale-95",
+              rating >= s
+                ? "border-amber-400 bg-amber-400/15"
+                : "border-border bg-muted hover:border-amber-400/50",
+            )}
           >
-            ⭐
+            <Star
+              className={cn(
+                "size-5 transition-colors",
+                rating >= s
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-muted-foreground",
+              )}
+            />
           </button>
         ))}
       </div>
+      <p
+        className={cn(
+          "mb-3 h-4 text-center text-xs font-semibold transition-colors",
+          rating ? "text-amber-600 dark:text-amber-400" : "text-transparent",
+        )}
+      >
+        {RATING_LABEL[rating] || "—"}
+      </p>
+
       <textarea
         rows={2}
         placeholder="Nhận xét thêm (tuỳ chọn)..."
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        className="mb-3 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+        className="mb-3 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       <button
         onClick={() => {
@@ -105,10 +146,10 @@ function CSATSurvey({ ticketId }: { ticketId: string }) {
           );
         }}
         disabled={!rating || submit.isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-md shadow-primary/25 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-md shadow-primary/25 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
       >
         {submit.isPending ? (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         ) : (
           "Gửi đánh giá"
         )}
@@ -133,16 +174,17 @@ function ReopenBox({
   const reopen = useReopenTicket(ticketId);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const tooShort = reason.trim().length < 10;
+  const trimmed = reason.trim();
+  const tooShort = trimmed.length < 10;
 
   if (!open) {
     return (
       <div className="border-t border-border/40 bg-card p-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
         <button
           onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 py-3 text-sm font-bold text-primary"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/5 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
         >
-          <RotateCcw className="h-4 w-4" /> Mở lại yêu cầu
+          <RotateCcw className="size-4" /> Mở lại yêu cầu
         </button>
         <p className="mt-2 text-center text-xs text-muted-foreground">
           {deadline
@@ -161,22 +203,27 @@ function ReopenBox({
         placeholder="Vì sao bạn cần mở lại yêu cầu này? (ít nhất 10 ký tự)"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+        className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
+      {tooShort && trimmed.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Còn {10 - trimmed.length} ký tự nữa.
+        </p>
+      )}
       <div className="flex gap-2">
         <button
           onClick={() => {
             setOpen(false);
             setReason("");
           }}
-          className="flex-1 rounded-xl border border-border py-3 text-sm font-bold text-muted-foreground"
+          className="flex-1 rounded-xl border border-border py-3 text-sm font-bold text-muted-foreground transition-colors hover:bg-muted"
         >
           Huỷ
         </button>
         <button
-          onClick={() => reopen.mutate(reason.trim())}
+          onClick={() => reopen.mutate(trimmed)}
           disabled={tooShort || reopen.isPending}
-          className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white disabled:opacity-50"
+          className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-all hover:brightness-105 disabled:opacity-50"
         >
           {reopen.isPending ? "Đang gửi..." : "Gửi yêu cầu mở lại"}
         </button>
@@ -234,7 +281,7 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
       <div className="min-h-screen bg-background pb-24">
         <div className="bg-card px-4 pb-4 pt-[max(3rem,env(safe-area-inset-top))] shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 animate-pulse rounded-xl bg-muted" />
+            <div className="size-9 animate-pulse rounded-xl bg-muted" />
             <div className="h-6 w-32 animate-pulse rounded bg-muted" />
           </div>
         </div>
@@ -258,7 +305,10 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
       ?.status;
     const notFound = status === 404 || status === 403;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-8 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-8 text-center">
+        <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
+          <AlertCircle className="size-7 text-muted-foreground" />
+        </div>
         <p className="text-sm text-muted-foreground">
           {notFound
             ? "Không tìm thấy yêu cầu này, hoặc bạn không có quyền xem."
@@ -269,14 +319,14 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
             <button
               onClick={() => void refetch()}
               disabled={isFetching}
-              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white transition-all hover:brightness-105 disabled:opacity-50"
             >
               {isFetching ? "Đang tải…" : "Thử lại"}
             </button>
           )}
           <button
             onClick={() => router.back()}
-            className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground"
+            className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
           >
             Quay lại
           </button>
@@ -289,22 +339,24 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
     ticket.status === "PENDING"
       ? pendingHintFor(ticket.pendingReason, ticket.awaitingMe)
       : null;
+  const CategoryIcon = CATEGORY_ICON[ticket.category];
 
   const threadHeader = (
     <div className="space-y-3 px-4 pt-4">
       {/* Bóng đang ở sân ai — đặt ngay đầu luồng chat để thấy trước khi gõ. */}
       {pendingHint && (
         <div
-          className={`flex items-start gap-2 rounded-2xl border p-3 text-sm font-semibold ${
+          className={cn(
+            "flex items-start gap-2 rounded-2xl border p-3 text-sm font-semibold",
             pendingHint.urgent
-              ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-              : "border-border/30 bg-muted/50 text-muted-foreground"
-          }`}
+              ? "border-amber-500/30 bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/15 dark:text-amber-400"
+              : "border-border/30 bg-muted/50 text-muted-foreground",
+          )}
         >
           {pendingHint.urgent ? (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
           ) : (
-            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <Clock className="mt-0.5 size-4 shrink-0" />
           )}
           <span>
             {pendingHint.text}
@@ -318,23 +370,23 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
       )}
       {/* Kết luận xử lý — thứ khách quan tâm nhất, trước đây không hiển thị ở đâu */}
       {!!ticket.resolutions?.length && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Kết luận xử lý
+        <div className="overflow-hidden rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.07]">
+          <p className="flex items-center gap-1.5 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="size-3.5" /> Kết luận xử lý
           </p>
-          <div className="space-y-2">
+          <div className="divide-y divide-emerald-500/15">
             {ticket.resolutions.map((r) => (
-              <div key={r.id}>
-                <p className="text-sm font-semibold text-foreground">
-                  {RESOLUTION_LABEL[r.type] ?? r.type}
+              <div key={r.id} className="px-4 py-2.5">
+                <p className="flex items-baseline justify-between gap-2 text-sm font-semibold text-foreground">
+                  <span>{RESOLUTION_LABEL[r.type] ?? r.type}</span>
                   {r.amount && (
-                    <span className="ml-1.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="shrink-0 tabular-nums text-emerald-700 dark:text-emerald-400">
                       {Number(r.amount).toLocaleString("vi-VN")}đ
                     </span>
                   )}
                 </p>
                 {r.note && (
-                  <p className="text-xs text-foreground/70">{r.note}</p>
+                  <p className="mt-0.5 text-xs text-foreground/70">{r.note}</p>
                 )}
               </div>
             ))}
@@ -343,67 +395,153 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
       )}
       {ticket.description && (
         <div className="rounded-2xl border border-border/30 bg-muted/50 p-4">
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            Mô tả ban đầu
+          <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            <FileText className="size-3.5" /> Mô tả ban đầu
           </p>
-          <p className="text-sm text-foreground/80">{ticket.description}</p>
+          <p className="whitespace-pre-wrap text-sm text-foreground/80">
+            {ticket.description}
+          </p>
         </div>
       )}
     </div>
   );
 
+  // Bảng thông tin — mỗi dòng có icon để quét nhanh, dòng nào cần chú ý thì
+  // tô màu (SLA vi phạm, đang chờ chính người dùng).
+  const infoRows: {
+    label: string;
+    value: string;
+    icon: LucideIcon;
+    tone?: "warning" | "success";
+  }[] = [
+    { label: "Mã ticket", value: ticket.ticketCode ?? "—", icon: Hash },
+    {
+      label: "Vai của bạn",
+      value:
+        ticket.myRole === "COUNTERPARTY"
+          ? "Bên được yêu cầu phản hồi"
+          : "Người gửi yêu cầu",
+      icon: UserCog,
+    },
+    {
+      label: "Loại",
+      value: categoryLabelFor(ticket.category, viewerRole),
+      icon: CategoryIcon,
+    },
+    ...(pendingHint
+      ? [
+          {
+            label: "Đang chờ",
+            value: pendingHint.text,
+            icon: Clock,
+            ...(pendingHint.urgent ? { tone: "warning" as const } : {}),
+          },
+        ]
+      : []),
+    { label: "Độ ưu tiên", value: PRIORITY_LABEL[ticket.priority], icon: Flag },
+    {
+      label: "Nguồn",
+      value: SOURCE_LABEL[ticket.source] ?? ticket.source,
+      icon: Radio,
+    },
+    {
+      label: "SLA",
+      value: ticket.slaBreached ? "Vi phạm SLA" : "Trong hạn",
+      icon: ticket.slaBreached ? ShieldAlert : ShieldCheck,
+      tone: ticket.slaBreached ? ("warning" as const) : ("success" as const),
+    },
+    ...(ticket.resolutionDueAt
+      ? [
+          {
+            label: "Hạn xử lý",
+            value: fmtDate(ticket.resolutionDueAt),
+            icon: Timer,
+          },
+        ]
+      : []),
+    { label: "Ngày tạo", value: fmtDate(ticket.createdAt), icon: CalendarPlus },
+    {
+      label: "Cập nhật",
+      value: fmtDate(ticket.updatedAt),
+      icon: CalendarClock,
+    },
+  ];
+
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Header */}
-      <div className="z-20 bg-card px-4 pb-4 pt-[max(3rem,env(safe-area-inset-top))] shadow-sm">
-        <div className="mb-3 flex items-center gap-3">
+      <div className="z-20 border-b border-border/40 bg-card px-4 pb-3 pt-[max(3rem,env(safe-area-inset-top))] shadow-sm">
+        <div className="mb-3 flex items-start gap-3">
           <button
             onClick={() => router.back()}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted"
+            aria-label="Quay lại"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted transition-colors hover:bg-muted/70"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[10px] font-bold text-primary">
-              {ticket.ticketCode ?? "TICKET"}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
+                {ticket.ticketCode ?? "TICKET"}
+              </span>
               {ticket.myRole === "COUNTERPARTY" && (
-                <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-amber-700 dark:text-amber-400">
+                <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">
                   Về bạn
                 </span>
               )}
-            </p>
-            <h1 className="line-clamp-1 text-sm font-bold text-foreground">
+              {ticket.slaBreached && (
+                <span className="rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500">
+                  SLA
+                </span>
+              )}
+            </div>
+            <h1 className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-foreground">
               {ticket.subject}
             </h1>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <CategoryIcon className="size-3 shrink-0" />
+              <span className="truncate">
+                {categoryLabelFor(ticket.category, viewerRole)}
+              </span>
+            </p>
           </div>
           <span
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold ${TONE_BADGE_CLASS[STATUS_TONE[ticket.status]]}`}
+            className={cn(
+              "shrink-0 rounded-lg border px-2 py-1 text-xs font-bold",
+              TONE_BADGE_CLASS[STATUS_TONE[ticket.status]],
+            )}
           >
             {STATUS_LABEL[ticket.status]}
           </span>
         </div>
 
         {/* Tabs */}
-        <div className="flex rounded-xl bg-muted p-1">
+        <div className="flex rounded-xl bg-muted p-1" role="tablist">
           <button
+            role="tab"
+            aria-selected={activeTab === "messages"}
             onClick={() => setActiveTab("messages")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all",
               activeTab === "messages"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground"
-            }`}
+                ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            <MessageSquare className="h-3.5 w-3.5" /> Hội thoại
+            <MessageSquare className="size-3.5" /> Hội thoại
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === "info"}
             onClick={() => setActiveTab("info")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all",
               activeTab === "info"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground"
-            }`}
+                ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            <FileText className="h-3.5 w-3.5" /> Thông tin
+            <FileText className="size-3.5" /> Thông tin
           </button>
         </div>
       </div>
@@ -445,45 +583,33 @@ export const MyTicketDetailPage: React.FC<{ ticketId: string }> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
+            className="flex-1 overflow-y-auto px-4 py-4"
           >
-            {[
-              { label: "Mã ticket", value: ticket.ticketCode ?? "—" },
-              {
-                label: "Vai của bạn",
-                value:
-                  ticket.myRole === "COUNTERPARTY"
-                    ? "Bên được yêu cầu phản hồi"
-                    : "Người gửi yêu cầu",
-              },
-              { label: "Loại", value: categoryLabelFor(ticket.category, viewerRole) },
-              ...(pendingHint
-                ? [{ label: "Đang chờ", value: pendingHint.text }]
-                : []),
-              { label: "Độ ưu tiên", value: PRIORITY_LABEL[ticket.priority] },
-              { label: "Nguồn", value: SOURCE_LABEL[ticket.source] ?? ticket.source },
-              {
-                label: "SLA",
-                value: ticket.slaBreached ? "⚠️ Vi phạm SLA" : "✅ Trong hạn",
-              },
-              ...(ticket.resolutionDueAt
-                ? [{ label: "Hạn xử lý", value: fmtDate(ticket.resolutionDueAt) }]
-                : []),
-              { label: "Ngày tạo", value: fmtDate(ticket.createdAt) },
-              { label: "Cập nhật", value: fmtDate(ticket.updatedAt) },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between border-b border-border/30 py-3"
-              >
-                <span className="text-sm text-muted-foreground">
-                  {item.label}
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {item.value}
-                </span>
-              </div>
-            ))}
+            <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
+              {infoRows.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
+                >
+                  <span className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+                    <item.icon className="size-4 shrink-0" />
+                    {item.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-right text-sm font-semibold",
+                      item.tone === "warning" &&
+                        "text-amber-700 dark:text-amber-400",
+                      item.tone === "success" &&
+                        "text-emerald-700 dark:text-emerald-400",
+                      !item.tone && "text-foreground",
+                    )}
+                  >
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
           </motion.div>
         </AnimatePresence>
       )}

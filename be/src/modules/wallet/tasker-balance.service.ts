@@ -13,6 +13,10 @@ import { SystemConfigService } from 'src/modules/system-config/system-config.ser
 import { TaskerDepositTransactionEntity } from './entity/tasker-deposit-transaction.entity';
 import { WalletService } from './wallet.service';
 import { WalletEntity } from './entity/wallet.entity';
+import { sumOutstandingDebt } from './entity/tasker-debt.entity';
+
+/** Ref cho bút toán giữ/thu/giải phóng hoa hồng đơn tiền mặt. */
+const CASH_COMMISSION_HOLD_REF = 'BOOKING_CASH_COMMISSION_HOLD';
 
 /**
  * Tasker chỉ còn MỘT ví (bảng `wallets`) — cơ chế ký quỹ riêng đã bị bỏ, số dư cọc cũ
@@ -59,22 +63,166 @@ export class TaskerBalanceService {
     }
   }
 
-  /** Đơn tiền mặt: Tasker thu hộ tiền của khách nên ví phải đủ để trả lại hoa hồng nền tảng. */
-  async assertCanCoverCashCommission(
+  /**
+   * GIỮ hoa hồng đơn tiền mặt trên ví Tasker tại thời điểm nhận đơn.
+   *
+   * Ghi `booking.taskerCommissionHoldAmount` (chưa save — caller lưu booking sau) để lúc
+   * quyết toán biết thu bao nhiêu, và để sweep dọn được hold sót nếu đơn kết thúc bất
+   * thường. Idempotent: gọi lại trên booking đã giữ thì giải phóng khoản cũ trước.
+   *
+   * Cũng là chốt chặn NỢ bồi thường. Chỉ chặn riêng đơn tiền mặt — đây là loại đơn duy
+   * nhất Tasker trực tiếp cầm tiền của khách, rủi ro cao nhất khi họ đang nợ. Đơn trả qua
+   * ví/online vẫn mở để họ còn đường kiếm thu nhập mà trả nợ; chặn hết mọi loại đơn sẽ
+   * thành bẫy nợ: không có việc → không có thu nhập → nợ không bao giờ thu hồi được.
+   */
+  async holdCashCommission(
     manager: EntityManager,
     taskerId: string,
+    booking: BookingEntity,
     commissionAmount: number,
   ): Promise<void> {
+    const debt = await sumOutstandingDebt(manager, taskerId);
+    if (debt > 0) {
+      throw new BadRequestException(
+        `Bạn còn nợ ${debt.toLocaleString('vi-VN')}đ với nền tảng nên tạm thời chưa nhận được ` +
+          'đơn thanh toán tiền mặt. Bạn vẫn nhận được đơn thanh toán qua ví/online, ' +
+          'và khoản nợ sẽ được trừ dần từ thu nhập.',
+      );
+    }
+
+    await this.releaseCashCommissionHold(manager, booking);
+
+    const amount = Math.round(commissionAmount);
+    if (amount <= 0) {
+      booking.taskerCommissionHoldAmount = 0;
+      return;
+    }
+
     const tasker = await this.lockTasker(manager, taskerId);
     const wallet = await this.lockTaskerWallet(manager, tasker);
     const balance = toNumber(wallet.balance);
-
-    if (balance < commissionAmount) {
+    if (balance < amount) {
       throw new BadRequestException(
-        `Số dư ví không đủ để nhận đơn tiền mặt. Cần ${commissionAmount.toLocaleString('vi-VN')}đ, ` +
-          `ví đang có ${balance.toLocaleString('vi-VN')}đ`,
+        `Số dư ví không đủ để nhận đơn tiền mặt. Cần giữ ${amount.toLocaleString('vi-VN')}đ ` +
+          `cho phí nền tảng, ví đang có ${balance.toLocaleString('vi-VN')}đ`,
       );
     }
+
+    await this.walletService.holdFunds(manager, {
+      wallet,
+      amount,
+      type: WalletTransactionType.DEPOSIT_HOLD,
+      booking,
+      referenceId: booking.id,
+      referenceType: CASH_COMMISSION_HOLD_REF,
+      description: `Tạm giữ phí nền tảng đơn tiền mặt ${booking.bookingCode}`,
+    });
+    booking.taskerCommissionHoldAmount = amount;
+  }
+
+  /**
+   * THU khoản đã giữ khi quyết toán. Không thể thiếu tiền vì đã giữ từ lúc nhận đơn.
+   *
+   * Giá đơn có thể đổi giữa chừng (phụ phí, admin sửa giá) nên phí thực tế lệch khoản đã
+   * giữ: thiếu thì trừ thêm phần chênh từ số dư, thừa thì trả lại. Phần chênh nhỏ hơn
+   * nhiều so với toàn bộ phí nên rủi ro thất bại giảm hẳn.
+   */
+  async captureCashCommission(
+    manager: EntityManager,
+    taskerId: string,
+    booking: BookingEntity,
+    commissionAmount: number,
+  ): Promise<void> {
+    const fee = Math.round(commissionAmount);
+    const held = Math.round(toNumber(booking.taskerCommissionHoldAmount));
+    if (fee <= 0 && held <= 0) return;
+
+    const tasker = await this.lockTasker(manager, taskerId);
+    const wallet = await this.lockTaskerWallet(manager, tasker);
+    const captured = Math.min(held, fee);
+
+    if (captured > 0) {
+      await this.walletService.captureHeldFunds(manager, {
+        wallet,
+        amount: captured,
+        type: WalletTransactionType.PLATFORM_FEE,
+        booking,
+        referenceId: booking.id,
+        referenceType: CASH_COMMISSION_HOLD_REF,
+        description: `Thu phí nền tảng (đã tạm giữ) đơn ${booking.bookingCode}`,
+      });
+    }
+    if (held > fee) {
+      await this.walletService.releaseFunds(manager, {
+        wallet,
+        amount: held - fee,
+        type: WalletTransactionType.DEPOSIT_RELEASE,
+        booking,
+        referenceId: booking.id,
+        referenceType: CASH_COMMISSION_HOLD_REF,
+        description: `Hoàn phần giữ thừa đơn ${booking.bookingCode}`,
+      });
+    }
+    if (fee > held) {
+      // Giá đơn tăng sau khi nhận → thu nốt phần chênh từ số dư khả dụng.
+      await this.walletService.debitWallet(manager, {
+        wallet,
+        amount: fee - held,
+        type: WalletTransactionType.PLATFORM_FEE,
+        booking,
+        description: `Thu phần phí nền tảng phát sinh thêm đơn ${booking.bookingCode}`,
+      });
+    }
+    await this.clearHoldMarker(manager, booking);
+  }
+
+  /**
+   * Giải phóng khoản giữ (huỷ đơn, đổi Tasker, hoặc sweep dọn hold sót). Idempotent và
+   * chịu được trường hợp ví đã bị giải phóng bằng đường khác.
+   */
+  async releaseCashCommissionHold(
+    manager: EntityManager,
+    booking: BookingEntity,
+  ): Promise<number> {
+    const held = Math.round(toNumber(booking.taskerCommissionHoldAmount));
+    const taskerId = booking.tasker?.id;
+    if (held <= 0 || !taskerId) {
+      await this.clearHoldMarker(manager, booking);
+      return 0;
+    }
+
+    const tasker = await this.lockTasker(manager, taskerId);
+    const wallet = await this.lockTaskerWallet(manager, tasker);
+    const releasable = Math.min(held, toNumber(wallet.holdBalance));
+    if (releasable > 0) {
+      await this.walletService.releaseFunds(manager, {
+        wallet,
+        amount: releasable,
+        type: WalletTransactionType.DEPOSIT_RELEASE,
+        booking,
+        referenceId: booking.id,
+        referenceType: CASH_COMMISSION_HOLD_REF,
+        description: `Giải phóng phí nền tảng đã giữ đơn ${booking.bookingCode}`,
+      });
+    }
+    await this.clearHoldMarker(manager, booking);
+    return releasable;
+  }
+
+  /**
+   * Xoá mốc hold trên booking — ghi xuống DB luôn, không chờ caller save.
+   * Quyết toán lưu booking TRƯỚC khi thu phí, nên nếu chỉ sửa entity trong bộ nhớ thì mốc
+   * cũ còn nguyên dưới DB và sweep sẽ tưởng là hold sót rồi "giải phóng" khoản đã thu.
+   */
+  private async clearHoldMarker(
+    manager: EntityManager,
+    booking: BookingEntity,
+  ): Promise<void> {
+    booking.taskerCommissionHoldAmount = 0;
+    if (!booking.id) return;
+    await manager
+      .getRepository(BookingEntity)
+      .update({ id: booking.id }, { taskerCommissionHoldAmount: 0 });
   }
 
   async deductCashCommission(

@@ -10,7 +10,6 @@ import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
-import { IncidentDamageItemVerificationStatus } from 'src/common/enums/incident-damage-item-verification-status.enum';
 import { IncidentSource } from 'src/common/enums/incident-source.enum';
 import { IncidentType } from 'src/common/enums/incident-type.enum';
 import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
@@ -29,15 +28,16 @@ import { SupportTicketEntity } from 'src/modules/support-ticket/entity/support-t
 import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { QueryAdminIncidentDto } from '../dto/query-admin-incident.dto';
 import { AcceptIncidentDto } from '../dto/accept-incident.dto';
-import { VerifyItemsDto } from '../dto/verify-items.dto';
 import { CreateFromTicketDto } from '../dto/create-from-ticket.dto';
 import {
   IncidentAdminView,
+  IncidentDebtView,
   PaginatedAdminIncidents,
   toAdminView,
   toIncidentSummary,
 } from '../dto/incident-response.dto';
 import { IncidentStateService } from './incident-state.service';
+import { isActiveIncidentPerBookingConflict } from '../domain/incident-conflict.helpers';
 import { IncidentConfigService } from './incident-config.service';
 import { IncidentCodeService } from './incident-code.service';
 import { FraudStrikeService } from './fraud-strike.service';
@@ -47,6 +47,12 @@ import {
 } from './incident-evidence-lifecycle.service';
 import { IncidentDepositHoldService } from './incident-deposit-hold.service';
 import { IncidentNotifier } from './incident-notifier.service';
+import { IncidentAlertService } from './incident-alert.service';
+import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
+import {
+  TaskerDebtSource,
+  debtOutstanding,
+} from 'src/modules/wallet/entity/tasker-debt.entity';
 
 export interface CreateCheckinViolationIncidentInput {
   claimedAmount: number;
@@ -85,6 +91,8 @@ export class IncidentAdminService {
     private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
     private readonly depositHold: IncidentDepositHoldService,
     private readonly notifier: IncidentNotifier,
+    private readonly taskerDebt: TaskerDebtService,
+    private readonly alert: IncidentAlertService,
   ) {}
 
   async createFromTicket(
@@ -131,6 +139,7 @@ export class IncidentAdminService {
           { incidentId: active.id },
         );
         throw new ConflictException({
+          code: 'INCIDENT_ALREADY_ACTIVE_FOR_BOOKING',
           message: 'Đơn này đã có sự cố đang xử lý',
           incidentId: active.id,
         });
@@ -140,6 +149,15 @@ export class IncidentAdminService {
         (sum, it) => sum + it.claimedAmount,
         0,
       );
+      // Trần áp cho TỔNG, giống hệt luồng khách tự báo cáo. Thiếu chốt này thì nâng cấp từ
+      // ticket là đường vòng qua được trần chính sách — và `claimedAmount` còn quyết định
+      // khoản tạm giữ ví Tasker lúc tiếp nhận.
+      const claimMax = await this.config.getClaimMaxAmount();
+      if (totalClaimed > claimMax) {
+        throw new UnprocessableEntityException(
+          `Tổng số tiền yêu cầu vượt trần cho phép (${claimMax} VND)`,
+        );
+      }
       const severity = await this.config.computeSeverity(totalClaimed);
       const code = await this.code.next();
 
@@ -184,9 +202,15 @@ export class IncidentAdminService {
             .update({ id: ticketId }, { incidentId: incident.id });
           return incident.id;
         })
-        .catch((err: { code?: string; constraint?: string }) => {
-          if (err?.code === '23505') {
-            throw new ConflictException('Đơn này đã có sự cố đang xử lý');
+        // Pha kiểm `active` ở trên thua race; chốt chặn thật là partial unique index.
+        // Bắt đúng constraint đó thôi — 23505 của mã sự cố là chuyện khác hẳn, gộp chung
+        // sẽ báo sai nguyên nhân cho admin.
+        .catch((err: unknown) => {
+          if (isActiveIncidentPerBookingConflict(err)) {
+            throw new ConflictException({
+              code: 'INCIDENT_ALREADY_ACTIVE_FOR_BOOKING',
+              message: 'Đơn này đã có sự cố đang xử lý',
+            });
           }
           throw err;
         });
@@ -219,113 +243,128 @@ export class IncidentAdminService {
 
       const severity = await this.config.computeSeverity(input.claimedAmount);
       const code = await this.code.next();
-      const incidentId = await this.dataSource.transaction(async (manager) => {
-        const booking = await manager
-          .getRepository(BookingEntity)
-          .createQueryBuilder('booking')
-          .leftJoinAndSelect('booking.customer', 'customer')
-          .leftJoinAndSelect('customer.user', 'customerUser')
-          .leftJoinAndSelect('booking.tasker', 'tasker')
-          .leftJoinAndSelect('tasker.user', 'taskerUser')
-          .setLock('pessimistic_write', undefined, ['booking'])
-          .where('booking.id = :bookingId', { bookingId })
-          .getOne();
-        if (!booking) {
-          throw new NotFoundException('Không tìm thấy booking');
-        }
-        if (
-          booking.checkinReviewStatus !== BookingCheckinReviewStatus.REJECTED
-        ) {
-          throw new UnprocessableEntityException(
-            'Chỉ mở hồ sơ vi phạm sau khi Admin từ chối check-in',
-          );
-        }
-        if (!booking.customer || !booking.tasker) {
-          throw new UnprocessableEntityException(
-            'Booking phải có customer và tasker để mở hồ sơ bồi thường',
-          );
-        }
-
-        const active = await manager
-          .getRepository(IncidentEntity)
-          .createQueryBuilder('incident')
-          .where('incident.booking_id = :bookingId', { bookingId })
-          .andWhere('incident.status != :closed', {
-            closed: IncidentStatus.CLOSED,
-          })
-          .getOne();
-        if (active) {
-          if (
-            active.type === IncidentType.CHECKIN_VIOLATION &&
-            active.source === IncidentSource.CHECKIN_REVIEW
-          ) {
-            return active.id;
+      const incidentId = await this.dataSource
+        .transaction(async (manager) => {
+          const booking = await manager
+            .getRepository(BookingEntity)
+            .createQueryBuilder('booking')
+            .leftJoinAndSelect('booking.customer', 'customer')
+            .leftJoinAndSelect('customer.user', 'customerUser')
+            .leftJoinAndSelect('booking.tasker', 'tasker')
+            .leftJoinAndSelect('tasker.user', 'taskerUser')
+            .setLock('pessimistic_write', undefined, ['booking'])
+            .where('booking.id = :bookingId', { bookingId })
+            .getOne();
+          if (!booking) {
+            throw new NotFoundException('Không tìm thấy booking');
           }
-          throw new ConflictException({
-            message: 'Đơn này đã có sự cố khác đang xử lý',
-            incidentId: active.id,
-          });
-        }
+          if (
+            booking.checkinReviewStatus !== BookingCheckinReviewStatus.REJECTED
+          ) {
+            throw new UnprocessableEntityException(
+              'Chỉ mở hồ sơ vi phạm sau khi Admin từ chối check-in',
+            );
+          }
+          if (!booking.customer || !booking.tasker) {
+            throw new UnprocessableEntityException(
+              'Booking phải có customer và tasker để mở hồ sơ bồi thường',
+            );
+          }
 
-        const distance =
-          booking.checkinDistanceMeters != null
-            ? `${Math.round(Number(booking.checkinDistanceMeters))}m`
-            : 'không đo được';
-        const incident = await manager.getRepository(IncidentEntity).save(
-          manager.getRepository(IncidentEntity).create({
-            incidentCode: code,
-            booking: { id: booking.id } as BookingEntity,
-            customer: { id: booking.customer.id },
-            tasker: { id: booking.tasker.id },
-            title: `Vi phạm check-in đơn ${booking.bookingCode}`,
-            description:
-              `Admin xác nhận check-in cần xử lý vi phạm. ` +
-              `Khoảng cách: ${distance}. Lý do: ${input.reviewReason}`,
-            type: IncidentType.CHECKIN_VIOLATION,
-            source: IncidentSource.CHECKIN_REVIEW,
-            severity,
-            status: IncidentStatus.REPORTED,
-            claimedAmount: input.claimedAmount,
-            reportedAt: new Date(),
-          }),
-        );
-        const item = await manager.getRepository(IncidentDamageItemEntity).save(
-          manager.getRepository(IncidentDamageItemEntity).create({
-            incident: { id: incident.id },
-            description: 'Ảnh hưởng do vi phạm quy trình check-in',
-            claimedAmount: input.claimedAmount,
-          }),
-        );
+          const active = await manager
+            .getRepository(IncidentEntity)
+            .createQueryBuilder('incident')
+            .where('incident.booking_id = :bookingId', { bookingId })
+            .andWhere('incident.status != :closed', {
+              closed: IncidentStatus.CLOSED,
+            })
+            .getOne();
+          if (active) {
+            if (
+              active.type === IncidentType.CHECKIN_VIOLATION &&
+              active.source === IncidentSource.CHECKIN_REVIEW
+            ) {
+              return active.id;
+            }
+            throw new ConflictException({
+              message: 'Đơn này đã có sự cố khác đang xử lý',
+              incidentId: active.id,
+            });
+          }
 
-        if (booking.checkinProofPhotoUrl) {
-          await manager.getRepository(IncidentEvidenceEntity).save(
-            manager.getRepository(IncidentEvidenceEntity).create({
-              incident: { id: incident.id },
-              damageItem: { id: item.id },
-              fileUrl: booking.checkinProofPhotoUrl,
-              fileType: 'IMAGE',
-              purpose: IncidentEvidencePurpose.OTHER,
-              visibility: INCIDENT_EVIDENCE_VISIBILITY.INCIDENT_PARTIES,
-              // Upload generic hiện chưa có asset ownership record; không gán
-              // uploader giả chỉ từ người gửi URL check-in.
-              uploadedBy: null,
-              isSoftDeleted: false,
-              isActiveForResponse: true,
+          const distance =
+            booking.checkinDistanceMeters != null
+              ? `${Math.round(Number(booking.checkinDistanceMeters))}m`
+              : 'không đo được';
+          const incident = await manager.getRepository(IncidentEntity).save(
+            manager.getRepository(IncidentEntity).create({
+              incidentCode: code,
+              booking: { id: booking.id } as BookingEntity,
+              customer: { id: booking.customer.id },
+              tasker: { id: booking.tasker.id },
+              title: `Vi phạm check-in đơn ${booking.bookingCode}`,
+              description:
+                `Admin xác nhận check-in cần xử lý vi phạm. ` +
+                `Khoảng cách: ${distance}. Lý do: ${input.reviewReason}`,
+              type: IncidentType.CHECKIN_VIOLATION,
+              source: IncidentSource.CHECKIN_REVIEW,
+              severity,
+              status: IncidentStatus.REPORTED,
+              claimedAmount: input.claimedAmount,
+              reportedAt: new Date(),
             }),
           );
-        }
+          const item = await manager
+            .getRepository(IncidentDamageItemEntity)
+            .save(
+              manager.getRepository(IncidentDamageItemEntity).create({
+                incident: { id: incident.id },
+                description: 'Ảnh hưởng do vi phạm quy trình check-in',
+                claimedAmount: input.claimedAmount,
+              }),
+            );
 
-        await this.state.log(
-          manager,
-          incident.id,
-          IncidentLogDimension.STATUS,
-          null,
-          IncidentStatus.REPORTED,
-          adminUserId,
-          `Mở từ kết quả review check-in booking ${booking.bookingCode}`,
-        );
-        return incident.id;
-      });
+          if (booking.checkinProofPhotoUrl) {
+            await manager.getRepository(IncidentEvidenceEntity).save(
+              manager.getRepository(IncidentEvidenceEntity).create({
+                incident: { id: incident.id },
+                damageItem: { id: item.id },
+                fileUrl: booking.checkinProofPhotoUrl,
+                fileType: 'IMAGE',
+                purpose: IncidentEvidencePurpose.OTHER,
+                visibility: INCIDENT_EVIDENCE_VISIBILITY.INCIDENT_PARTIES,
+                // Upload generic hiện chưa có asset ownership record; không gán
+                // uploader giả chỉ từ người gửi URL check-in.
+                uploadedBy: null,
+                isSoftDeleted: false,
+                isActiveForResponse: true,
+              }),
+            );
+          }
+
+          await this.state.log(
+            manager,
+            incident.id,
+            IncidentLogDimension.STATUS,
+            null,
+            IncidentStatus.REPORTED,
+            adminUserId,
+            `Mở từ kết quả review check-in booking ${booking.bookingCode}`,
+          );
+          return incident.id;
+          // Khoá `pessimistic_write` trên booking chỉ chặn được hai Admin tranh nhau; luồng
+          // khách tự báo cáo KHÔNG khoá booking nên vẫn có thể chen vào giữa. Partial unique
+          // index mới là chốt chặn, và va chạm của nó phải ra 409 chứ không phải 500.
+        })
+        .catch((err: unknown) => {
+          if (isActiveIncidentPerBookingConflict(err)) {
+            throw new ConflictException({
+              code: 'INCIDENT_ALREADY_ACTIVE_FOR_BOOKING',
+              message: 'Đơn này đã có sự cố đang xử lý',
+            });
+          }
+          throw err;
+        });
 
       const incident = await this.loadFull(incidentId);
       this.notifier.notify(
@@ -370,90 +409,101 @@ export class IncidentAdminService {
 
       const severity = await this.config.computeSeverity(input.claimedAmount);
       const code = await this.code.next();
-      const incidentId = await this.dataSource.transaction(async (manager) => {
-        const booking = await manager
-          .getRepository(BookingEntity)
-          .createQueryBuilder('booking')
-          .leftJoinAndSelect('booking.customer', 'customer')
-          .leftJoinAndSelect('customer.user', 'customerUser')
-          .leftJoinAndSelect('booking.tasker', 'tasker')
-          .leftJoinAndSelect('tasker.user', 'taskerUser')
-          .setLock('pessimistic_write', undefined, ['booking'])
-          .where('booking.id = :bookingId', { bookingId })
-          .getOne();
-        if (!booking) {
-          throw new NotFoundException('Không tìm thấy booking');
-        }
-        if (
-          booking.noShowReviewStatus !== BookingNoShowReviewStatus.CONFIRMED
-        ) {
-          throw new UnprocessableEntityException(
-            'Chỉ mở hồ sơ sau khi Admin xác nhận Tasker no-show',
-          );
-        }
-        if (!booking.customer || !booking.tasker) {
-          throw new UnprocessableEntityException(
-            'Booking phải có customer và tasker để mở hồ sơ bồi thường',
-          );
-        }
-
-        const active = await manager
-          .getRepository(IncidentEntity)
-          .createQueryBuilder('incident')
-          .where('incident.booking_id = :bookingId', { bookingId })
-          .andWhere('incident.status != :closed', {
-            closed: IncidentStatus.CLOSED,
-          })
-          .getOne();
-        if (active) {
-          if (
-            active.type === IncidentType.NO_SHOW &&
-            active.source === IncidentSource.NO_SHOW_REVIEW
-          ) {
-            return active.id;
+      const incidentId = await this.dataSource
+        .transaction(async (manager) => {
+          const booking = await manager
+            .getRepository(BookingEntity)
+            .createQueryBuilder('booking')
+            .leftJoinAndSelect('booking.customer', 'customer')
+            .leftJoinAndSelect('customer.user', 'customerUser')
+            .leftJoinAndSelect('booking.tasker', 'tasker')
+            .leftJoinAndSelect('tasker.user', 'taskerUser')
+            .setLock('pessimistic_write', undefined, ['booking'])
+            .where('booking.id = :bookingId', { bookingId })
+            .getOne();
+          if (!booking) {
+            throw new NotFoundException('Không tìm thấy booking');
           }
-          throw new ConflictException({
-            message: 'Đơn này đã có sự cố khác đang xử lý',
-            incidentId: active.id,
-          });
-        }
+          if (
+            booking.noShowReviewStatus !== BookingNoShowReviewStatus.CONFIRMED
+          ) {
+            throw new UnprocessableEntityException(
+              'Chỉ mở hồ sơ sau khi Admin xác nhận Tasker no-show',
+            );
+          }
+          if (!booking.customer || !booking.tasker) {
+            throw new UnprocessableEntityException(
+              'Booking phải có customer và tasker để mở hồ sơ bồi thường',
+            );
+          }
 
-        const incident = await manager.getRepository(IncidentEntity).save(
-          manager.getRepository(IncidentEntity).create({
-            incidentCode: code,
-            booking: { id: booking.id } as BookingEntity,
-            customer: { id: booking.customer.id },
-            tasker: { id: booking.tasker.id },
-            title: `Tasker no-show đơn ${booking.bookingCode}`,
-            description:
-              `Admin xác nhận Tasker không có mặt/check-in đúng hạn. ` +
-              `Lý do kết luận: ${input.reviewReason}`,
-            type: IncidentType.NO_SHOW,
-            source: IncidentSource.NO_SHOW_REVIEW,
-            severity,
-            status: IncidentStatus.REPORTED,
-            claimedAmount: input.claimedAmount,
-            reportedAt: new Date(),
-          }),
-        );
-        await manager.getRepository(IncidentDamageItemEntity).save(
-          manager.getRepository(IncidentDamageItemEntity).create({
-            incident: { id: incident.id },
-            description: 'Ảnh hưởng phát sinh do Tasker no-show',
-            claimedAmount: input.claimedAmount,
-          }),
-        );
-        await this.state.log(
-          manager,
-          incident.id,
-          IncidentLogDimension.STATUS,
-          null,
-          IncidentStatus.REPORTED,
-          adminUserId,
-          `Mở từ kết luận no-show booking ${booking.bookingCode}`,
-        );
-        return incident.id;
-      });
+          const active = await manager
+            .getRepository(IncidentEntity)
+            .createQueryBuilder('incident')
+            .where('incident.booking_id = :bookingId', { bookingId })
+            .andWhere('incident.status != :closed', {
+              closed: IncidentStatus.CLOSED,
+            })
+            .getOne();
+          if (active) {
+            if (
+              active.type === IncidentType.NO_SHOW &&
+              active.source === IncidentSource.NO_SHOW_REVIEW
+            ) {
+              return active.id;
+            }
+            throw new ConflictException({
+              message: 'Đơn này đã có sự cố khác đang xử lý',
+              incidentId: active.id,
+            });
+          }
+
+          const incident = await manager.getRepository(IncidentEntity).save(
+            manager.getRepository(IncidentEntity).create({
+              incidentCode: code,
+              booking: { id: booking.id } as BookingEntity,
+              customer: { id: booking.customer.id },
+              tasker: { id: booking.tasker.id },
+              title: `Tasker no-show đơn ${booking.bookingCode}`,
+              description:
+                `Admin xác nhận Tasker không có mặt/check-in đúng hạn. ` +
+                `Lý do kết luận: ${input.reviewReason}`,
+              type: IncidentType.NO_SHOW,
+              source: IncidentSource.NO_SHOW_REVIEW,
+              severity,
+              status: IncidentStatus.REPORTED,
+              claimedAmount: input.claimedAmount,
+              reportedAt: new Date(),
+            }),
+          );
+          await manager.getRepository(IncidentDamageItemEntity).save(
+            manager.getRepository(IncidentDamageItemEntity).create({
+              incident: { id: incident.id },
+              description: 'Ảnh hưởng phát sinh do Tasker no-show',
+              claimedAmount: input.claimedAmount,
+            }),
+          );
+          await this.state.log(
+            manager,
+            incident.id,
+            IncidentLogDimension.STATUS,
+            null,
+            IncidentStatus.REPORTED,
+            adminUserId,
+            `Mở từ kết luận no-show booking ${booking.bookingCode}`,
+          );
+          return incident.id;
+          // Cùng lý do như luồng check-in: khoá booking không chặn được luồng khách tự báo cáo.
+        })
+        .catch((err: unknown) => {
+          if (isActiveIncidentPerBookingConflict(err)) {
+            throw new ConflictException({
+              code: 'INCIDENT_ALREADY_ACTIVE_FOR_BOOKING',
+              message: 'Đơn này đã có sự cố đang xử lý',
+            });
+          }
+          throw err;
+        });
 
       const incident = await this.loadFull(incidentId);
       this.notifier.notify(
@@ -502,10 +552,6 @@ export class IncidentAdminService {
 
       if (query.status)
         qb.andWhere('i.status = :status', { status: query.status });
-      if (query.compensationStatus)
-        qb.andWhere('i.compensation_status = :cs', {
-          cs: query.compensationStatus,
-        });
       if (query.severity)
         qb.andWhere('i.severity = :sev', { sev: query.severity });
       if (query.taskerId)
@@ -514,7 +560,9 @@ export class IncidentAdminService {
         qb.andWhere('i.customer_id = :cid', { cid: query.customerId });
       if (query.overdue === 'true')
         qb.andWhere('i.decision_due_at IS NOT NULL')
-          .andWhere('i.decision_due_at < :now', { now: new Date() })
+          // `now()` của DB, không phải đồng hồ app: chính DB sinh ra `decision_due_at`, nên
+          // so bằng đồng hồ khác là hàng đợi lệch đúng bằng độ lệch giữa hai máy.
+          .andWhere('i.decision_due_at < now()')
           .andWhere('i.status != :closed', { closed: IncidentStatus.CLOSED });
 
       if (query.sort === 'severity') qb.orderBy('i.severity', 'ASC');
@@ -555,14 +603,14 @@ export class IncidentAdminService {
 
         this.state.assertStatusTransition(
           incident.status,
-          IncidentStatus.INVESTIGATING,
+          IncidentStatus.REVIEWING,
         );
 
         const from = incident.status;
         const sla = await this.config.getSla(incident.severity);
         const now = Date.now();
 
-        incident.status = IncidentStatus.INVESTIGATING;
+        incident.status = IncidentStatus.REVIEWING;
         incident.statementDueAt = new Date(now + sla.statementMins * 60000);
         incident.decisionDueAt = new Date(now + sla.decisionMins * 60000);
 
@@ -581,7 +629,7 @@ export class IncidentAdminService {
           incident.id,
           IncidentLogDimension.STATUS,
           from,
-          IncidentStatus.INVESTIGATING,
+          IncidentStatus.REVIEWING,
           adminUserId,
           `Admin tiếp nhận thẩm định — tạm giữ ví Tasker ${heldAmount} VND` +
             (dto.note?.trim() ? ` — ghi chú: ${dto.note.trim()}` : ''),
@@ -591,82 +639,72 @@ export class IncidentAdminService {
     }, 'Lỗi khi tiếp nhận sự cố');
   }
 
-  async verifyItems(
+  /**
+   * Xoá nợ bồi thường không thu hồi được — lối ra cho hồ sơ mắc kẹt ở COMPENSATED vì
+   * auto-close cố tình bỏ qua sự cố còn nợ. Sau khi xoá, nợ về 0 nên Tasker được rút tiền
+   * trở lại và hồ sơ đủ điều kiện đóng nguội.
+   */
+  async writeOffDebt(
+    adminUserId: string,
     incidentId: string,
-    dto: VerifyItemsDto,
+    reason: string,
   ): Promise<IncidentAdminView> {
     return asyncHandleOperation(async () => {
-      const needEvidenceItems: { id: string; description: string }[] = [];
-      let customerUserId: string | null = null;
-      let incidentCode: string | null = null;
-      await this.dataSource.transaction(async (manager) => {
-        const incident = await manager.getRepository(IncidentEntity).findOne({
-          where: { id: incidentId },
-          relations: ['customer', 'customer.user'],
-        });
-        if (!incident) throw new NotFoundException('Không tìm thấy sự cố');
-        if (incident.status !== IncidentStatus.INVESTIGATING) {
-          throw new ConflictException(
-            'Chỉ xác minh khi sự cố đang được thẩm định',
-          );
-        }
-        customerUserId = incident.customer?.user?.id ?? null;
-        incidentCode = incident.incidentCode ?? null;
-        const items = await manager
-          .getRepository(IncidentDamageItemEntity)
-          .find({
-            where: { incident: { id: incidentId } },
-          });
-        const itemById = new Map(items.map((i) => [i.id, i]));
-        for (const input of dto.items) {
-          const item = itemById.get(input.itemId);
-          if (!item) {
-            throw new NotFoundException(
-              `Không tìm thấy hạng mục thiệt hại ${input.itemId}`,
-            );
-          }
-          if (input.verifiedAmount > Number(item.claimedAmount)) {
-            throw new UnprocessableEntityException(
-              'Giá trị xác minh không được vượt số tiền yêu cầu',
-            );
-          }
-          const status =
-            input.status ??
-            (input.verifiedAmount > 0
-              ? IncidentDamageItemVerificationStatus.VERIFIED
-              : IncidentDamageItemVerificationStatus.REJECTED);
-          if (status === IncidentDamageItemVerificationStatus.REJECTED) {
-            item.verifiedAmount = 0;
-          } else if (
-            status === IncidentDamageItemVerificationStatus.NEED_MORE_EVIDENCE
-          ) {
-            item.verifiedAmount = null;
-            needEvidenceItems.push({
-              id: item.id,
-              description: item.description,
-            });
-          } else {
-            item.verifiedAmount = input.verifiedAmount;
-          }
-          item.verificationStatus = status;
-          await manager.getRepository(IncidentDamageItemEntity).save(item);
-        }
+      const minAgeDays = await this.config.getDebtWriteOffAfterDays();
+      const result = await this.dataSource.transaction(async (manager) => {
+        const out = await this.taskerDebt.writeOff(
+          manager,
+          TaskerDebtSource.INCIDENT_COMPENSATION,
+          incidentId,
+          adminUserId,
+          reason,
+          minAgeDays,
+        );
+        await this.state.log(
+          manager,
+          incidentId,
+          IncidentLogDimension.COMPENSATION,
+          null,
+          'DEBT_WRITTEN_OFF',
+          adminUserId,
+          `Xoá nợ ${out.writtenOff} VND — lý do: ${reason.trim()}`,
+        );
+        return out;
       });
 
-      if (customerUserId && needEvidenceItems.length > 0) {
-        const day = new Date().toISOString().slice(0, 10);
-        for (const it of needEvidenceItems) {
-          this.notifier.notify(
-            customerUserId,
-            incidentId,
-            'Cần bổ sung bằng chứng',
-            `CleanZ cần thêm bằng chứng cho hạng mục "${it.description}" của sự cố ${incidentCode ?? ''}. Vui lòng mở sự cố và tải lên ảnh bổ sung để tiếp tục thẩm định.`,
-            `need-evidence-${it.id}-${day}`,
-          );
-        }
-      }
+      // Gửi sau khi commit: webhook là network call, không giữ trong lock.
+      await this.alert.send(
+        `incident-debt-write-off:${incidentId}`,
+        `Xoá nợ bồi thường ${result.writtenOff.toLocaleString('vi-VN')}đ — sự cố ` +
+          `${result.sourceCode ?? incidentId}, admin ${adminUserId}. Lý do: ${reason.trim()}`,
+        'WARNING',
+      );
       return this.findOne(incidentId);
-    }, 'Lỗi khi xác minh thiệt hại');
+    }, 'Lỗi khi xoá nợ bồi thường');
+  }
+
+  /**
+   * Nhắc khách bổ sung bằng chứng cho các hạng mục Admin đánh dấu NEED_MORE_EVIDENCE.
+   * Gọi từ `IncidentDecisionService.saveDecision` SAU transaction (thẩm định và duyệt tiền
+   * nay là một bước duy nhất, không còn endpoint `items/verify` riêng).
+   */
+  notifyNeedMoreEvidence(
+    incidentId: string,
+    incidentCode: string | null,
+    customerUserId: string | null,
+    items: { id: string; description: string }[],
+  ): void {
+    if (!customerUserId || items.length === 0) return;
+    const day = new Date().toISOString().slice(0, 10);
+    for (const it of items) {
+      this.notifier.notify(
+        customerUserId,
+        incidentId,
+        'Cần bổ sung bằng chứng',
+        `CleanZ cần thêm bằng chứng cho hạng mục "${it.description}" của sự cố ${incidentCode ?? ''}. Vui lòng mở sự cố và tải lên ảnh bổ sung để tiếp tục thẩm định.`,
+        `need-evidence-${it.id}-${day}`,
+      );
+    }
   }
 
   private async loadFull(incidentId: string): Promise<IncidentEntity> {
@@ -735,6 +773,37 @@ export class IncidentAdminService {
       statementEvidences,
       toNumber(taskerWallet?.balance),
       transferProofEvidences,
+      await this.loadDebtView(incident.id),
     );
+  }
+
+  /** Ảnh chụp khoản nợ của sự cố, đọc từ sổ nợ của ví (`tasker_debts`). */
+  private async loadDebtView(
+    incidentId: string,
+  ): Promise<IncidentDebtView | null> {
+    const debt = await this.taskerDebt.findBySource(
+      this.dataSource.manager,
+      TaskerDebtSource.INCIDENT_COMPENSATION,
+      incidentId,
+    );
+    if (!debt) return null;
+
+    const minAgeDays = await this.config.getDebtWriteOffAfterDays();
+    const outstanding = debtOutstanding(debt);
+    return {
+      recovered: toNumber(debt.recoveredAmount),
+      writtenOff: toNumber(debt.writtenOffAmount),
+      outstanding,
+      canWriteOff:
+        outstanding > 0 &&
+        Date.now() - debt.createdAt.getTime() >= minAgeDays * 86_400_000,
+      writeOff: debt.writtenOffAt
+        ? {
+            at: debt.writtenOffAt,
+            reason: debt.writeOffReason ?? null,
+            byAdminName: debt.writtenOffByAdmin?.fullName ?? null,
+          }
+        : null,
+    };
   }
 }

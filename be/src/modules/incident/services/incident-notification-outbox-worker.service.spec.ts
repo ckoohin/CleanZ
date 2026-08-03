@@ -9,12 +9,16 @@ describe('IncidentNotificationOutboxWorkerService', () => {
     overrides?: Partial<{
       dataSource: Record<string, unknown>;
       notification: Record<string, unknown>;
+      alert: Record<string, unknown>;
       config: Record<string, unknown>;
     }>,
   ) =>
     new IncidentNotificationOutboxWorkerService(
       (overrides?.dataSource ?? {}) as never,
       (overrides?.notification ?? { notify: jest.fn() }) as never,
+      (overrides?.alert ?? {
+        send: jest.fn().mockResolvedValue(false),
+      }) as never,
       (overrides?.config ?? { get: jest.fn() }) as never,
     );
 
@@ -155,6 +159,53 @@ describe('IncidentNotificationOutboxWorkerService', () => {
       failed: 1,
       terminalFailed: 0,
     });
+  });
+
+  /**
+   * Quỹ thấp và đối soát lệch đều bắn ra kênh cảnh báo; thông báo chết vĩnh viễn thì trước
+   * đây chỉ nằm trong log — dù một quyết định đã chốt mà khách không bao giờ nhận được tin
+   * là sự cố nghiệp vụ, không phải lỗi kỹ thuật vặt.
+   */
+  it('gửi cảnh báo CRITICAL khi có thông báo thất bại vĩnh viễn', async () => {
+    const alert = { send: jest.fn().mockResolvedValue(true) };
+    const service = makeService({ alert }) as unknown as {
+      runDueBatch: () => Promise<unknown>;
+      countTerminalFailedRows: () => Promise<number>;
+      runSilently: () => Promise<void>;
+    };
+    service.runDueBatch = jest.fn().mockResolvedValue({
+      processed: 1,
+      sent: 0,
+      failed: 1,
+      terminalFailed: 1,
+    });
+    service.countTerminalFailedRows = jest.fn().mockResolvedValue(4);
+
+    await service.runSilently();
+
+    expect(alert.send).toHaveBeenCalledWith(
+      'incident-outbox-terminal-failed',
+      expect.stringContaining('thất bại vĩnh viễn'),
+      'CRITICAL',
+    );
+  });
+
+  it('không cảnh báo khi mọi thông báo đều gửi được', async () => {
+    const alert = { send: jest.fn() };
+    const service = makeService({ alert }) as unknown as {
+      runDueBatch: () => Promise<unknown>;
+      runSilently: () => Promise<void>;
+    };
+    service.runDueBatch = jest.fn().mockResolvedValue({
+      processed: 2,
+      sent: 2,
+      failed: 0,
+      terminalFailed: 0,
+    });
+
+    await service.runSilently();
+
+    expect(alert.send).not.toHaveBeenCalled();
   });
 });
 

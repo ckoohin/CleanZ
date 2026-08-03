@@ -5,20 +5,24 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DataSource, EntityManager, In, LessThan } from 'typeorm';
+import { DataSource, EntityManager, LessThan } from 'typeorm';
 import { INCIDENT_HOUSEKEEPING_INTERVAL_MS } from '../incident.constants';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
-import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
 import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentStatusLogEntity } from '../entity/incident-status-log.entity';
 import { IncidentConfigService } from './incident-config.service';
+import { IncidentStateService } from './incident-state.service';
+import { IncidentEvidenceLifecycleService } from './incident-evidence-lifecycle.service';
 import { IncidentNotifier } from './incident-notifier.service';
 import { IncidentDepositHoldService } from './incident-deposit-hold.service';
-import { IncidentDebtRecoveryService } from './incident-debt-recovery.service';
+import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
+import {
+  TaskerDebtSource,
+  TaskerDebtStatus,
+} from 'src/modules/wallet/entity/tasker-debt.entity';
 import { IncidentReconciliationService } from './incident-reconciliation.service';
 import { IncidentAlertService } from './incident-alert.service';
 import { CompensationExecutorService } from './compensation-executor.service';
@@ -27,17 +31,16 @@ export interface HousekeepingResult {
   expiredCount: number;
   autoClosedCount: number;
   slaOverdueWarned: number;
-  secondApprovalOverdueWarned: number;
-  compRetried: number;
+  payoutOverdueWarned: number;
   debtRecovered: number;
   systemWalletLowWarned: number;
   reconCritical: number;
+  /** Ảnh upload dở dang đã được dọn (bản ghi + file trên storage). */
+  abandonedEvidencePurged: number;
 }
 
-const SAFE_COMP_FOR_CLOSE = [
-  IncidentCompensationStatus.NONE,
-  IncidentCompensationStatus.RECORDED,
-];
+/** Sau ngần này giờ mà sự cố đã chốt vẫn chưa chi trả xong thì nhắc Admin. */
+const PAYOUT_OVERDUE_HOURS = 24;
 
 @Injectable()
 export class IncidentAutomationService
@@ -54,10 +57,12 @@ export class IncidentAutomationService
   constructor(
     private readonly dataSource: DataSource,
     private readonly config: IncidentConfigService,
+    private readonly state: IncidentStateService,
+    private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
     private readonly notifier: IncidentNotifier,
     private readonly compensationExecutor: CompensationExecutorService,
     private readonly depositHold: IncidentDepositHoldService,
-    private readonly debtRecovery: IncidentDebtRecoveryService,
+    private readonly debtRecovery: TaskerDebtService,
     private readonly reconciliation: IncidentReconciliationService,
     private readonly alert: IncidentAlertService,
     configService: ConfigService,
@@ -86,12 +91,12 @@ export class IncidentAutomationService
         r.expiredCount ||
         r.autoClosedCount ||
         r.slaOverdueWarned ||
-        r.secondApprovalOverdueWarned ||
-        r.compRetried ||
-        r.debtRecovered
+        r.payoutOverdueWarned ||
+        r.debtRecovered ||
+        r.abandonedEvidencePurged
       ) {
         this.logger.log(
-          `Housekeeping: expired=${r.expiredCount} autoClosed=${r.autoClosedCount} slaOverdueWarned=${r.slaOverdueWarned} secondApprovalOverdueWarned=${r.secondApprovalOverdueWarned} compRetried=${r.compRetried} debtRecovered=${r.debtRecovered}`,
+          `Housekeeping: expired=${r.expiredCount} autoClosed=${r.autoClosedCount} slaOverdueWarned=${r.slaOverdueWarned} payoutOverdueWarned=${r.payoutOverdueWarned} debtRecovered=${r.debtRecovered} evidencePurged=${r.abandonedEvidencePurged}`,
         );
       }
     } catch (e) {
@@ -105,11 +110,11 @@ export class IncidentAutomationService
         expiredCount: 0,
         autoClosedCount: 0,
         slaOverdueWarned: 0,
-        secondApprovalOverdueWarned: 0,
-        compRetried: 0,
+        payoutOverdueWarned: 0,
         debtRecovered: 0,
         systemWalletLowWarned: 0,
         reconCritical: 0,
+        abandonedEvidencePurged: 0,
       };
       if (this.isRunning) return empty;
       this.isRunning = true;
@@ -117,21 +122,20 @@ export class IncidentAutomationService
         const expiredCount = await this.sweepReportedExpiry();
         const autoClosedCount = await this.sweepAutoClose();
         const slaOverdueWarned = await this.sweepSlaOverdue();
-        const secondApprovalOverdueWarned =
-          await this.sweepSecondApprovalOverdue();
-        const compRetried = await this.sweepCompRetry();
+        const payoutOverdueWarned = await this.sweepPayoutOverdue();
         const debtRecovered = await this.sweepDebtRecovery();
         const systemWalletLowWarned = await this.sweepSystemWalletFloat();
         const reconCritical = await this.sweepReconciliation();
+        const abandonedEvidencePurged = await this.sweepAbandonedEvidence();
         return {
           expiredCount,
           autoClosedCount,
           slaOverdueWarned,
-          secondApprovalOverdueWarned,
-          compRetried,
+          payoutOverdueWarned,
           debtRecovered,
           systemWalletLowWarned,
           reconCritical,
+          abandonedEvidencePurged,
         };
       } finally {
         this.isRunning = false;
@@ -148,10 +152,13 @@ export class IncidentAutomationService
   private async sweepSlaOverdue(): Promise<number> {
     const now = new Date();
     const incidents = await this.dataSource.getRepository(IncidentEntity).find({
-      where: {
-        status: IncidentStatus.INVESTIGATING,
-        decisionDueAt: LessThan(now),
-      },
+      where: [
+        { status: IncidentStatus.REVIEWING, decisionDueAt: LessThan(now) },
+        {
+          status: IncidentStatus.AWAITING_RESPONSE,
+          decisionDueAt: LessThan(now),
+        },
+      ],
       relations: { tasker: { user: true }, customer: { user: true } },
       take: 100,
     });
@@ -179,18 +186,19 @@ export class IncidentAutomationService
   }
 
   /**
-   * C7 — Duyệt cấp 2 quá SLA (mặc định 24h, mốc `secondApprovalDueAt` đặt lúc finalize).
-   * Incident đang `PENDING_ADMIN_APPROVAL` mà quá hạn → escalate: nhắc Admin #1 (người
-   * finalize) đôn đốc một Admin khác duyệt. Chỉ cảnh báo, KHÔNG tự duyệt/từ chối.
-   * Idempotent nhờ dedupe key theo (incident, event).
+   * Sự cố đã chốt nhưng kẹt ở `AWAITING_PAYOUT` quá lâu → nhắc Admin đã chốt. Chỉ cảnh
+   * báo, KHÔNG tự chi.
+   *
+   * Thay cho `sweepCompRetry` cũ: nhánh đó quét `compensationStatus=FAILED` — một giá trị
+   * KHÔNG nơi nào ghi (chi trả lỗi thì rollback nguyên transaction về trạng thái chờ chi),
+   * nên vòng quét đó không bao giờ chạy. Sự cố kẹt ở `AWAITING_PAYOUT` mới là tín hiệu thật.
    */
-  private async sweepSecondApprovalOverdue(): Promise<number> {
-    const now = new Date();
+  private async sweepPayoutOverdue(): Promise<number> {
+    const cutoff = new Date(Date.now() - PAYOUT_OVERDUE_HOURS * 3_600_000);
     const incidents = await this.dataSource.getRepository(IncidentEntity).find({
       where: {
-        status: IncidentStatus.INVESTIGATING,
-        decisionStatus: IncidentDecisionStatus.PENDING_ADMIN_APPROVAL,
-        secondApprovalDueAt: LessThan(now),
+        status: IncidentStatus.AWAITING_PAYOUT,
+        finalizedAt: LessThan(cutoff),
       },
       relations: { finalizedByAdmin: true },
       take: 100,
@@ -200,49 +208,13 @@ export class IncidentAutomationService
       this.notifier.notify(
         inc.finalizedByAdmin?.id,
         inc.id,
-        'Duyệt cấp 2 quá hạn',
-        `Sự cố ${inc.incidentCode} đã quá hạn chờ duyệt cấp 2 (SLA). Vui lòng đôn đốc một quản trị viên khác duyệt hoặc yêu cầu chỉnh sửa.`,
-        'second-approval-overdue',
+        'Sự cố đã chốt nhưng chưa chi trả',
+        `Sự cố ${inc.incidentCode} đã chốt quá ${PAYOUT_OVERDUE_HOURS}h mà chưa chi trả. Kiểm tra quỹ nền tảng hoặc dùng luồng chuyển khoản thủ công.`,
+        'payout-overdue',
       );
       warned += 1;
     }
     return warned;
-  }
-
-  /**
-   * Comp-retry — tự động thử lại các Incident có `compensationStatus=FAILED`
-   * (đã APPROVED + decisionStatus=FINAL). `execute` idempotent (RECORDED → no-op)
-   * và có precondition riêng; lỗi từng incident không chặn incident khác.
-   */
-  private async sweepCompRetry(): Promise<number> {
-    const incidents = await this.dataSource.getRepository(IncidentEntity).find({
-      where: {
-        status: IncidentStatus.APPROVED,
-        decisionStatus: IncidentDecisionStatus.FINAL,
-        compensationStatus: IncidentCompensationStatus.FAILED,
-      },
-      relations: { finalizedByAdmin: true },
-      take: 50,
-    });
-    let retried = 0;
-    for (const inc of incidents) {
-      const actorId = inc.finalizedByAdmin?.id;
-      if (!actorId) {
-        this.logger.warn(
-          `Comp-retry bỏ qua ${inc.incidentCode}: thiếu admin actor để ghi log`,
-        );
-        continue;
-      }
-      try {
-        await this.compensationExecutor.execute(actorId, inc.id);
-        retried += 1;
-      } catch (e) {
-        this.logger.warn(
-          `Comp-retry ${inc.incidentCode} thất bại, sẽ thử lại lần sau: ${String(e)}`,
-        );
-      }
-    }
-    return retried;
   }
 
   private async sweepReportedExpiry(): Promise<number> {
@@ -269,18 +241,36 @@ export class IncidentAutomationService
     });
   }
 
+  /**
+   * Đóng nguội sự cố đã xử lý xong. QUAN TRỌNG: không đóng khi Tasker còn nợ chưa thu hồi
+   * — `sweepDebtRecovery` và `reconcile()` đều chỉ quét `status = COMPENSATED`, nên đóng
+   * sớm sẽ khiến khoản nợ vĩnh viễn không thu được và cũng rơi khỏi phạm vi đối soát.
+   */
   private async sweepAutoClose(): Promise<number> {
     const hours = await this.config.getAutoCloseHours();
     const cutoff = new Date(Date.now() - hours * 3_600_000);
     return this.dataSource.transaction(async (manager) => {
-      const incidents = await manager.getRepository(IncidentEntity).find({
-        where: {
-          status: In([IncidentStatus.COMPENSATED, IncidentStatus.REJECTED]),
-          compensationStatus: In(SAFE_COMP_FOR_CLOSE),
-          updatedAt: LessThan(cutoff),
-        },
-        take: 100,
-      });
+      const incidents = await manager
+        .getRepository(IncidentEntity)
+        .createQueryBuilder('i')
+        .where('i.status IN (:...statuses)', {
+          statuses: [IncidentStatus.COMPENSATED, IncidentStatus.REJECTED],
+        })
+        .andWhere('i.updated_at < :cutoff', { cutoff })
+        .andWhere(
+          `NOT EXISTS (
+             SELECT 1 FROM tasker_debts d
+              WHERE d.source = :debtSource
+                AND d.source_ref_id = i.id
+                AND d.status = :debtOutstanding
+           )`,
+          {
+            debtSource: TaskerDebtSource.INCIDENT_COMPENSATION,
+            debtOutstanding: TaskerDebtStatus.OUTSTANDING,
+          },
+        )
+        .take(100)
+        .getMany();
       for (const inc of incidents) {
         await this.closeIncident(
           manager,
@@ -298,12 +288,14 @@ export class IncidentAutomationService
    * ví → trừ dần chuyển về quỹ SYSTEM (mỗi Tasker 1 transaction lock). Trả tổng đã thu hồi.
    */
   private async sweepDebtRecovery(): Promise<number> {
+    // Quét thẳng SỔ NỢ — không còn phải suy ra nợ từ trạng thái sự cố.
+    // Lọc thô để loại sớm ví trống; `recoverForTasker` còn chừa lại sàn số dư nhận đơn
+    // nên có Tasker lọt qua đây mà vẫn không thu được gì — chấp nhận được.
     const rows: Array<{ tasker_id: string }> = await this.dataSource.query(
-      `SELECT DISTINCT i.tasker_id
-         FROM incidents i
-         JOIN wallets w ON w.tasker_id = i.tasker_id AND w.owner_type = 'TASKER'
-        WHERE i.status = 'COMPENSATED'
-          AND COALESCE(i.uncovered_liability_amount,0) > COALESCE(i.uncovered_recovered_amount,0)
+      `SELECT DISTINCT d.tasker_id
+         FROM tasker_debts d
+         JOIN wallets w ON w.tasker_id = d.tasker_id AND w.owner_type = 'TASKER'
+        WHERE d.status = 'OUTSTANDING'
           AND w.balance > 0
         LIMIT 100`,
     );
@@ -346,6 +338,21 @@ export class IncidentAutomationService
     return 1;
   }
 
+  /**
+   * Dọn ảnh upload rồi bỏ ngang, không bao giờ gắn vào sự cố nào. Lỗi ở đây không được làm
+   * hỏng cả lượt housekeeping — dọn rác là việc phụ, không đáng chặn thu hồi nợ hay đối soát.
+   */
+  private async sweepAbandonedEvidence(): Promise<number> {
+    try {
+      const hours = await this.config.getEvidenceOrphanAfterHours();
+      if (hours <= 0) return 0;
+      return await this.evidenceLifecycle.purgeAbandonedUploads(hours);
+    } catch (e) {
+      this.logger.warn(`Dọn ảnh upload dở dang thất bại: ${String(e)}`);
+      return 0;
+    }
+  }
+
   /** P2 — đối soát định kỳ (throttle 15'); cảnh báo khi có chênh lệch nghiêm trọng. */
   private async sweepReconciliation(): Promise<number> {
     const now = Date.now();
@@ -374,6 +381,10 @@ export class IncidentAutomationService
     note: string,
   ): Promise<void> {
     const from = incident.status;
+    // Đóng nguội cũng phải đi qua bảng chuyển trạng thái. Trước đây nhánh này gán thẳng
+    // `CLOSED`, nên tính đúng đắn phụ thuộc vào câu WHERE của từng sweep thay vì vào bất
+    // biến — nới điều kiện quét ở đâu đó là hồ sơ bị đóng sai trong im lặng.
+    this.state.assertStatusTransition(from, IncidentStatus.CLOSED);
     incident.status = IncidentStatus.CLOSED;
     incident.closureReason = closureReason;
     // P0.2 — auto-close khi đang điều tra → giải phóng phần ví đã HOLD.

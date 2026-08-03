@@ -5,12 +5,10 @@ import {
   SEVERITY,
   type ClosureReason,
   type CompensationSource,
-  type CompensationStatus,
+  type DecisionAction,
+  type DecisionOutcome,
   type DecisionResponseType,
-  type IncidentDecisionStatus,
   type IncidentStatus,
-  type ResponseReviewResult,
-  type ResponseWindowStatus,
   type ResponsibilityParty,
   type Severity,
 } from './incident.enums';
@@ -18,35 +16,22 @@ import {
 export type Tone = 'neutral' | 'info' | 'warning' | 'success' | 'muted' | 'danger';
 
 export const STATUS_LABEL: Record<IncidentStatus, string> = {
-  REPORTED: 'Đã báo cáo',
-  INVESTIGATING: 'Đang thẩm định',
-  APPROVED: 'Đã duyệt',
-  REJECTED: 'Từ chối',
+  REPORTED: 'Chờ tiếp nhận',
+  REVIEWING: 'Đang thẩm định',
+  AWAITING_RESPONSE: 'Chờ Tasker phản biện',
+  AWAITING_PAYOUT: 'Chờ chi trả',
   COMPENSATED: 'Đã bồi thường',
+  REJECTED: 'Đã bác bỏ',
   CLOSED: 'Đã đóng',
 };
 export const STATUS_TONE: Record<IncidentStatus, Tone> = {
   REPORTED: 'neutral',
-  INVESTIGATING: 'info',
-  APPROVED: 'warning',
-  REJECTED: 'danger',
+  REVIEWING: 'info',
+  AWAITING_RESPONSE: 'warning',
+  AWAITING_PAYOUT: 'warning',
   COMPENSATED: 'success',
+  REJECTED: 'danger',
   CLOSED: 'muted',
-};
-
-export const COMP_STATUS_LABEL: Record<CompensationStatus, string> = {
-  NONE: 'Chưa xử lý',
-  PENDING: 'Chờ duyệt',
-  PROCESSING: 'Đang xử lý',
-  RECORDED: 'Đã ghi nhận',
-  FAILED: 'Thất bại',
-};
-export const COMP_STATUS_TONE: Record<CompensationStatus, Tone> = {
-  NONE: 'muted',
-  PENDING: 'warning',
-  PROCESSING: 'info',
-  RECORDED: 'success',
-  FAILED: 'danger',
 };
 
 export const SEVERITY_LABEL: Record<Severity, string> = {
@@ -71,7 +56,7 @@ export const CLOSURE_LABEL: Record<ClosureReason, string> = {
 };
 
 export const COMP_SOURCE_LABEL: Record<CompensationSource, string> = {
-  TASKER_DEPOSIT: 'Cọc Tasker',
+  TASKER_DEPOSIT: 'Ví Tasker',
   PLATFORM_FUND: 'Quỹ nền tảng',
   MIXED: 'Kết hợp',
 };
@@ -83,21 +68,39 @@ export const VERIFICATION_STATUS_LABEL: Record<string, string> = {
   NEED_MORE_EVIDENCE: 'Cần thêm bằng chứng',
 };
 
-// ─── Nhãn luồng quyết định trách nhiệm (Slice 5b) ────────────────────────────
-export const DECISION_STATUS_LABEL: Record<IncidentDecisionStatus, string> = {
-  NONE: 'Chưa có quyết định',
-  DRAFT: 'Bản nháp',
-  PENDING_TASKER_RESPONSE: 'Chờ Tasker phản hồi',
-  PENDING_ADMIN_APPROVAL: 'Chờ duyệt cấp 2',
-  FINAL: 'Đã chốt',
+export const OUTCOME_LABEL: Record<DecisionOutcome, string> = {
+  COMPENSATE: 'Bồi thường',
+  NO_COMPENSATION: 'Công nhận, không bồi thường',
+  REJECT: 'Bác bỏ (báo cáo sai)',
 };
 
-export const RESPONSE_WINDOW_LABEL: Record<ResponseWindowStatus, string> = {
-  NONE: 'Chưa mở',
-  OPEN: 'Đang mở',
-  RESPONDED: 'Đã phản hồi',
-  REVIEWED: 'Đã xem xét',
-  EXPIRED: 'Hết hạn',
+/** Nhãn nút cho hành động BE cho phép — FE không tự suy ra bước tiếp theo. */
+export const ACTION_LABEL: Record<DecisionAction, string> = {
+  ACCEPT: 'Tiếp nhận thẩm định',
+  SAVE_DECISION: 'Lưu quyết định',
+  SEND_TO_TASKER: 'Gửi Tasker phản biện',
+  FINALIZE: 'Chốt quyết định',
+  WITHDRAW_DECISION: 'Thu hồi quyết định',
+  COMPENSATE: 'Chi trả bồi thường',
+  REVERSE: 'Thu hồi bồi thường',
+  RESPOND: 'Gửi phản biện',
+};
+
+/** Giải thích vì sao chưa chốt/chi được — mirror `blockedReasons` từ BE. */
+export const BLOCKED_REASON_LABEL: Record<string, string> = {
+  DECISION_REQUIRED: 'Chưa soạn quyết định nào cho sự cố này.',
+  TASKER_RESPONSE_REQUIRED:
+    'Quyết định bắt Tasker chịu tiền — phải gửi Tasker phản biện trước khi chốt.',
+  WAITING_FOR_TASKER_RESPONSE:
+    'Đang trong thời hạn Tasker phản biện. Chốt được khi Tasker trả lời hoặc hết hạn.',
+  TASKER_RESPONSE_WINDOW_EXPIRED:
+    'Đã hết hạn phản biện, Tasker không trả lời — bạn có thể chốt quyết định.',
+  REVERSAL_WINDOW_EXPIRED:
+    'Đã quá 72 giờ kể từ lúc chi trả — không đảo tự động được nữa, phải xử lý thủ công.',
+  REVERSAL_MANUAL_PAYOUT:
+    'Khoản này chi bằng chuyển khoản ngoài ví nên không có bút toán để đảo — phải thu hồi thủ công.',
+  REVERSAL_DEBT_RECOVERY_STARTED:
+    'Đã bắt đầu thu hồi nợ từ ví Tasker — đảo tự động sẽ làm lệch sổ, cần xử lý thủ công.',
 };
 
 export const RESPONSIBILITY_LABEL: Record<ResponsibilityParty, string> = {
@@ -110,11 +113,6 @@ export const RESPONSIBILITY_LABEL: Record<ResponsibilityParty, string> = {
 export const RESPONSE_TYPE_LABEL: Record<DecisionResponseType, string> = {
   AGREE: 'Đồng ý',
   DISAGREE: 'Không đồng ý',
-};
-
-export const REVIEW_RESULT_LABEL: Record<ResponseReviewResult, string> = {
-  KEEP_DECISION: 'Giữ nguyên quyết định',
-  REVISE_DECISION: 'Sửa lại quyết định',
 };
 
 /** Class badge theo tone — token semantic (frontend-rules 07). Dùng chung table/drawer. */
@@ -172,20 +170,8 @@ export const INCIDENT_CONFIG_META: Record<string, ConfigFieldMeta> = {
     type: 'json',
   },
   INCIDENT_CLAIM_MAX_AMOUNT: {
-    label: 'Trần yêu cầu mỗi hạng mục',
-    hint: 'Số tiền tối đa khách được yêu cầu cho 1 hạng mục',
-    unit: 'VND',
-    type: 'number',
-  },
-  INCIDENT_EVIDENCE_REQUIRED_THRESHOLD: {
-    label: 'Ngưỡng bắt buộc chứng từ',
-    hint: 'Tổng yêu cầu vượt mức này thì bắt buộc đính kèm chứng từ',
-    unit: 'VND',
-    type: 'number',
-  },
-  INCIDENT_DUAL_APPROVAL_THRESHOLD: {
-    label: 'Ngưỡng duyệt 2 cấp (maker-checker)',
-    hint: 'Yêu cầu ≥ mức này cần admin thứ hai duyệt',
+    label: 'Trần tổng yêu cầu mỗi sự cố',
+    hint: 'Tổng số tiền tối đa khách được yêu cầu (cộng tất cả hạng mục)',
     unit: 'VND',
     type: 'number',
   },
@@ -195,16 +181,16 @@ export const INCIDENT_CONFIG_META: Record<string, ConfigFieldMeta> = {
     unit: 'VND',
     type: 'number',
   },
-  INCIDENT_COOLING_PERIOD_HOURS: {
-    label: 'Thời gian chờ (cooling)',
-    hint: 'Khoảng chờ trước khi được thực thi bồi thường',
+  INCIDENT_RESPONSE_WINDOW_HOURS: {
+    label: 'Thời hạn Tasker phản biện',
+    hint: 'Khi quyết định bắt Tasker chịu tiền, Tasker có ngần này giờ để phản biện trước khi Admin được chốt',
     unit: 'giờ',
     type: 'number',
   },
-  INCIDENT_DEPOSIT_TOPUP_GRACE_DAYS: {
-    label: 'Thời hạn nạp lại cọc',
-    hint: 'Số ngày Tasker được nạp lại cọc sau khi bị trừ',
-    unit: 'ngày',
+  INCIDENT_SYSTEM_WALLET_MIN_BALANCE: {
+    label: 'Ngưỡng cảnh báo quỹ nền tảng',
+    hint: 'Số dư ví hệ thống thấp hơn mức này sẽ bắn cảnh báo cho Admin',
+    unit: 'VND',
     type: 'number',
   },
   INCIDENT_AUTOCLOSE_HOURS: {

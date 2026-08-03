@@ -3,40 +3,47 @@ import {
   STATUS_TRANSITIONS,
   canWithdraw,
   checkAllocation,
+  requiresTaskerResponse,
 } from "./incident.machine";
 
 describe("incident.machine — STATUS_TRANSITIONS", () => {
   it("cho phép các chuyển hợp lệ theo vòng đời", () => {
-    expect(STATUS_TRANSITIONS.REPORTED).toContain("INVESTIGATING");
-    expect(STATUS_TRANSITIONS.INVESTIGATING).toEqual(
-      expect.arrayContaining(["APPROVED", "REJECTED", "CLOSED"]),
+    expect(STATUS_TRANSITIONS.REPORTED).toContain("REVIEWING");
+    expect(STATUS_TRANSITIONS.REVIEWING).toEqual(
+      expect.arrayContaining([
+        "AWAITING_RESPONSE",
+        "AWAITING_PAYOUT",
+        "REJECTED",
+        "CLOSED",
+      ]),
     );
-    expect(STATUS_TRANSITIONS.APPROVED).toEqual(["COMPENSATED"]);
+    expect(STATUS_TRANSITIONS.AWAITING_PAYOUT).toContain("COMPENSATED");
   });
 
   it("CLOSED là terminal (không đi đâu)", () => {
     expect(STATUS_TRANSITIONS.CLOSED).toEqual([]);
   });
 
-  it("không cho REPORTED nhảy thẳng APPROVED", () => {
-    expect(STATUS_TRANSITIONS.REPORTED).not.toContain("APPROVED");
+  it("không cho REPORTED nhảy thẳng sang chờ chi trả", () => {
+    expect(STATUS_TRANSITIONS.REPORTED).not.toContain("AWAITING_PAYOUT");
+  });
+
+  it("đảo bồi thường được khai báo tường minh (COMPENSATED → REVIEWING)", () => {
+    expect(STATUS_TRANSITIONS.COMPENSATED).toContain("REVIEWING");
   });
 });
 
 describe("incident.machine — canWithdraw", () => {
-  it("cho rút khi REPORTED/INVESTIGATING và chưa động tới tiền (comp=NONE)", () => {
-    expect(canWithdraw("REPORTED", "NONE")).toBe(true);
-    expect(canWithdraw("INVESTIGATING", "NONE")).toBe(true);
+  it("cho rút khi chưa gửi quyết định cho Tasker", () => {
+    expect(canWithdraw("REPORTED")).toBe(true);
+    expect(canWithdraw("REVIEWING")).toBe(true);
   });
 
-  it("chặn rút khi đã bắt đầu xử lý bồi thường", () => {
-    expect(canWithdraw("INVESTIGATING", "PENDING")).toBe(false);
-    expect(canWithdraw("INVESTIGATING", "RECORDED")).toBe(false);
-  });
-
-  it("chặn rút ở trạng thái cuối", () => {
-    expect(canWithdraw("APPROVED", "NONE")).toBe(false);
-    expect(canWithdraw("CLOSED", "NONE")).toBe(false);
+  it("chặn rút từ khi quyết định đã gửi Tasker trở đi", () => {
+    expect(canWithdraw("AWAITING_RESPONSE")).toBe(false);
+    expect(canWithdraw("AWAITING_PAYOUT")).toBe(false);
+    expect(canWithdraw("COMPENSATED")).toBe(false);
+    expect(canWithdraw("CLOSED")).toBe(false);
   });
 });
 
@@ -56,5 +63,15 @@ describe("incident.machine — checkAllocation (bất biến tasker+platform=Σa
     const r = checkAllocation(200000, -1, 200001);
     expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/không hợp lệ/i);
+  });
+});
+
+describe("incident.machine — requiresTaskerResponse", () => {
+  it("Tasker chịu tiền thì bắt buộc cho phản biện", () => {
+    expect(requiresTaskerResponse(1)).toBe(true);
+  });
+
+  it("Tasker không chịu tiền thì chốt thẳng", () => {
+    expect(requiresTaskerResponse(0)).toBe(false);
   });
 });

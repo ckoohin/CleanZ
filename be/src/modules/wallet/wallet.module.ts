@@ -14,6 +14,8 @@ import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTopupService } from './wallet-topup.service';
 import { PaypalService } from './paypal.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
+import { TaskerDebtEntity } from './entity/tasker-debt.entity';
+import { TaskerDebtService } from './tasker-debt.service';
 
 @Module({
   imports: [
@@ -24,6 +26,7 @@ import { SystemConfigModule } from '../system-config/system-config.module';
       TaskerDepositTransactionEntity,
       CustomerWithdrawalRequestEntity,
       WalletTopupOrderEntity,
+      TaskerDebtEntity,
     ]),
     SystemConfigModule,
   ],
@@ -31,10 +34,16 @@ import { SystemConfigModule } from '../system-config/system-config.module';
   providers: [
     WalletService,
     TaskerBalanceService,
+    TaskerDebtService,
     CustomerWithdrawalService,
     WalletTopupService,
     PaypalService,
   ],
-  exports: [TypeOrmModule, WalletService, TaskerBalanceService],
+  exports: [
+    TypeOrmModule,
+    WalletService,
+    TaskerBalanceService,
+    TaskerDebtService,
+  ],
 })
 export class WalletModule {}

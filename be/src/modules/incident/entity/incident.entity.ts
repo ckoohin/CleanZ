@@ -10,12 +10,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
-import { IncidentCompensationStatus } from 'src/common/enums/incident-compensation-status.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
 import { IncidentSeverity } from 'src/common/enums/incident-severity.enum';
-import { IncidentDecisionStatus } from 'src/common/enums/incident-decision-status.enum';
 import { IncidentResponsibilityParty } from 'src/common/enums/incident-responsibility-party.enum';
-import { IncidentResponseWindowStatus } from 'src/common/enums/incident-response-window-status.enum';
+import { IncidentDecisionOutcome } from 'src/common/enums/incident-decision-outcome.enum';
 import { IncidentSource } from 'src/common/enums/incident-source.enum';
 import { IncidentType } from 'src/common/enums/incident-type.enum';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
@@ -31,8 +29,15 @@ export type IncidentCompensationSource =
   | 'MIXED';
 
 @Entity('incidents')
-@Index('idx_inc_status_comp', ['status', 'compensationStatus'])
+// Danh sách luôn sắp theo `reportedAt`, nên index phải theo cột đó chứ không phải
+// `createdAt` — xem migration 1787200000000.
+@Index('idx_inc_reported_at', ['reportedAt'])
+@Index('idx_inc_status_reported', ['status', 'reportedAt'])
+@Index('idx_inc_customer_reported', ['customer', 'reportedAt'])
+@Index('idx_inc_tasker_reported', ['tasker', 'reportedAt'])
 @Index('idx_inc_severity_created', ['severity', 'createdAt'])
+// Partial index — khai báo ở migration, TypeORM không diễn tả được mệnh đề WHERE.
+@Index('idx_inc_status_decision_due', { synchronize: false })
 @Index('idx_incidents_type_source', { synchronize: false })
 export class IncidentEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -96,36 +101,14 @@ export class IncidentEntity {
   })
   status!: IncidentStatus;
 
-  @Column({
-    name: 'compensation_status',
-    type: 'enum',
-    enum: IncidentCompensationStatus,
-    enumName: 'incident_compensation_status',
-    default: IncidentCompensationStatus.NONE,
-  })
-  compensationStatus!: IncidentCompensationStatus;
-
-  @Column({
-    name: 'decision_status',
-    type: 'enum',
-    enum: IncidentDecisionStatus,
-    enumName: 'incident_decision_status',
-    default: IncidentDecisionStatus.NONE,
-  })
-  decisionStatus!: IncidentDecisionStatus;
-
   @Column({ name: 'decision_version', type: 'int', default: 0 })
   decisionVersion!: number;
 
-  @Column({
-    name: 'response_window_status',
-    type: 'enum',
-    enum: IncidentResponseWindowStatus,
-    enumName: 'incident_response_window_status',
-    default: IncidentResponseWindowStatus.NONE,
-  })
-  responseWindowStatus!: IncidentResponseWindowStatus;
-
+  /**
+   * Hạn Tasker phản biện quyết định dự kiến. Trạng thái cửa sổ được SUY RA, không lưu:
+   *  - `status = AWAITING_RESPONSE` ∧ `now < deadline` → đang mở
+   *  - `status = AWAITING_RESPONSE` ∧ `now >= deadline` → đã hết hạn (được chốt)
+   */
   @Column({
     name: 'tasker_response_deadline',
     type: 'timestamp',
@@ -133,20 +116,19 @@ export class IncidentEntity {
   })
   taskerResponseDeadline?: Date | null;
 
+  /**
+   * Mốc `taskerBorneAmount` của bản quyết định đã gửi Tasker phản biện. Dùng để biết
+   * admin có TĂNG phần Tasker chịu sau khi nghe phản hồi hay không (tăng → phải gửi lại).
+   * Null = chưa từng gửi bản nào ở version hiện tại.
+   */
   @Column({
-    name: 'tasker_response_reviewed_at',
-    type: 'timestamp',
+    name: 'sent_tasker_borne_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
     nullable: true,
   })
-  taskerResponseReviewedAt?: Date | null;
-
-  // C6 — thời điểm Admin cấp lần gia hạn bắt buộc cho Tasker phản hồi (null = chưa gia hạn).
-  @Column({
-    name: 'tasker_response_extended_at',
-    type: 'timestamp',
-    nullable: true,
-  })
-  taskerResponseExtendedAt?: Date | null;
+  sentTaskerBorneAmount?: number | null;
 
   // P0.2 — số tiền ví Tasker đã tạm giữ (hold) khi accept; release khi chốt/bồi thường/đóng.
   @Column({
@@ -167,15 +149,15 @@ export class IncidentEntity {
   })
   closureReason?: IncidentClosureReason | null;
 
-  /** P2 — outcome quyết định (APPROVE / APPROVE_NO_COMPENSATION / REJECT) để finalize
-   * phân biệt được nhánh approved=0. Null khi chưa có quyết định. */
+  /** Kết cục quyết định (COMPENSATE / NO_COMPENSATION / REJECT) — phân biệt được hai
+   * nhánh approved=0. Null khi chưa soạn quyết định nào. */
   @Column({
     name: 'decision_outcome',
     type: 'varchar',
     length: 32,
     nullable: true,
   })
-  decisionOutcome?: string | null;
+  decisionOutcome?: IncidentDecisionOutcome | null;
 
   @Column({
     name: 'claimed_amount',
@@ -283,49 +265,29 @@ export class IncidentEntity {
   })
   uncoveredLiabilityAmount?: number | null;
 
+  /**
+   * Khoản bồi thường công ty chi NGOÀI ví (chuyển khoản ngân hàng thủ công). Không có bút
+   * toán ví tương ứng — luồng thủ công chạy đúng lúc ví SYSTEM cạn nên không thể debit nó.
+   * Đây là sổ chi ngoài; cộng với sổ ví mới ra tổng chi thật của nền tảng.
+   */
   @Column({
-    name: 'uncovered_recovered_amount',
+    name: 'external_payout_amount',
     type: 'numeric',
     precision: 12,
     scale: 2,
-    default: 0,
-  })
-  uncoveredRecoveredAmount!: number;
-
-  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
-  @JoinColumn({ name: 'decided_by_investigator_id' })
-  decidedByInvestigator?: UserEntity | null;
-
-  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
-  @JoinColumn({ name: 'decided_by_admin_id' })
-  decidedByAdmin?: UserEntity | null;
-
-  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
-  @JoinColumn({ name: 'approved_by_checker_id' })
-  approvedByChecker?: UserEntity | null;
-
-  @Column({ name: 'cooling_until', type: 'timestamp', nullable: true })
-  coolingUntil?: Date | null;
-
-  @Column({ name: 'second_approval_note', type: 'text', nullable: true })
-  secondApprovalNote?: string | null;
-
-  @Column({
-    name: 'second_approval_requested_at',
-    type: 'timestamp',
     nullable: true,
   })
-  secondApprovalRequestedAt?: Date | null;
+  externalPayoutAmount?: number | null;
 
-  @Column({ name: 'second_approval_due_at', type: 'timestamp', nullable: true })
-  secondApprovalDueAt?: Date | null;
+  @Column({ name: 'external_payout_at', type: 'timestamp', nullable: true })
+  externalPayoutAt?: Date | null;
+
+  @Column({ name: 'external_payout_note', type: 'text', nullable: true })
+  externalPayoutNote?: string | null;
 
   @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
-  @JoinColumn({ name: 'second_approved_by_admin_id' })
-  secondApprovedByAdmin?: UserEntity | null;
-
-  @Column({ name: 'second_approved_at', type: 'timestamp', nullable: true })
-  secondApprovedAt?: Date | null;
+  @JoinColumn({ name: 'external_payout_by_admin_id' })
+  externalPayoutByAdmin?: UserEntity | null;
 
   @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
   @JoinColumn({ name: 'finalized_by_admin_id' })
@@ -341,15 +303,6 @@ export class IncidentEntity {
     nullable: true,
   })
   policyVersion?: string | null;
-
-  @Column({
-    name: 'dual_approval_threshold_snapshot',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    nullable: true,
-  })
-  dualApprovalThresholdSnapshot?: number | null;
 
   @Column({
     name: 'policy_cap_snapshot',

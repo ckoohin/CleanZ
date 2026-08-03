@@ -12,14 +12,10 @@ import {
 import type {
   AcceptInput,
   AdminIncidentQuery,
-  DecisionDraftInput,
   FinalizeDecisionInput,
   FromTicketInput,
-  ReviewDecisionResponseInput,
-  ReviseDecisionInput,
-  SecondApprovalInput,
-  SubmitDecisionDraftInput,
-  VerifyItemsInput,
+  SaveDecisionInput,
+  SendToTaskerInput,
 } from "@/features/incident/shared/incident.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
 
@@ -74,22 +70,12 @@ function useIncidentAction<TInput>(
 
 export const useAcceptIncident = (id: string) =>
   useIncidentAction<AcceptInput>(id, adminIncidentApi.accept, "Đã tiếp nhận thẩm định");
-export const useVerifyItems = (id: string) =>
-  useIncidentAction<VerifyItemsInput>(id, adminIncidentApi.verifyItems, "Đã xác minh thiệt hại");
-export const useSaveDecisionDraft = (id: string) =>
-  useIncidentAction<DecisionDraftInput>(id, adminIncidentApi.saveDecisionDraft, "Đã lưu bản nháp quyết định");
-export const useSubmitDecisionDraft = (id: string) =>
-  useIncidentAction<SubmitDecisionDraftInput>(id, adminIncidentApi.submitDecisionDraft, "Đã gửi bản nháp cho Tasker phản hồi");
-export const useReviewDecisionResponse = (id: string) =>
-  useIncidentAction<ReviewDecisionResponseInput>(id, adminIncidentApi.reviewDecisionResponse, "Đã xem xét phản hồi của Tasker");
-export const useReviseDecision = (id: string) =>
-  useIncidentAction<ReviseDecisionInput>(id, adminIncidentApi.reviseDecision, "Đã sửa lại quyết định");
-export const useExtendTaskerResponse = (id: string) =>
-  useIncidentAction<SubmitDecisionDraftInput>(id, adminIncidentApi.extendTaskerResponse, "Đã gia hạn và nhắc Tasker phản hồi");
+export const useSaveDecision = (id: string) =>
+  useIncidentAction<SaveDecisionInput>(id, adminIncidentApi.saveDecision, "Đã lưu quyết định");
+export const useSendDecisionToTasker = (id: string) =>
+  useIncidentAction<SendToTaskerInput>(id, adminIncidentApi.sendDecisionToTasker, "Đã gửi quyết định cho Tasker phản biện");
 export const useFinalizeDecision = (id: string) =>
   useIncidentAction<FinalizeDecisionInput>(id, adminIncidentApi.finalizeDecision, "Đã chốt quyết định");
-export const useSecondApproval = (id: string) =>
-  useIncidentAction<SecondApprovalInput>(id, adminIncidentApi.secondApproval, "Đã xử lý duyệt cấp 2");
 
 export function useCompensate(id: string) {
   const qc = useQueryClient();
@@ -128,9 +114,37 @@ export function useCompensateManual(id: string) {
 export function useReverseCompensation(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (reason: string) => adminIncidentApi.reverseCompensation(id, reason),
+    mutationFn: (dto: { expectedDecisionVersion: number; reason: string }) =>
+      adminIncidentApi.reverseCompensation(id, dto),
     onSuccess: () => {
       toast.success("Đã thu hồi bồi thường — sự cố mở lại để soạn quyết định mới");
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+    },
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+export function useWithdrawDecision(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: { expectedDecisionVersion: number; reason: string }) =>
+      adminIncidentApi.withdrawDecision(id, dto),
+    onSuccess: () => {
+      toast.success("Đã thu hồi quyết định — sự cố mở lại để soạn/chốt lại");
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+    },
+    onError: (e: unknown) => toast.error(getErrorMessage(e)),
+  });
+}
+
+export function useWriteOffDebt(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => adminIncidentApi.writeOffDebt(id, reason),
+    onSuccess: () => {
+      toast.success("Đã xoá nợ — nền tảng ghi nhận chịu mất khoản này");
       qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
       qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
     },

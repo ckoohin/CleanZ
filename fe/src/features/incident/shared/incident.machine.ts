@@ -1,55 +1,37 @@
 /**
- * Incident — state machine 2 chiều + gate nghiệp vụ (mirror backend `incident-state.service`).
+ * Incident — state machine MỘT trục (mirror backend `incident-state.service.ts`).
  *
- * Chiều A: IncidentStatus (vòng đời). Chiều B: CompensationStatus (dòng tiền).
- * Dùng để FE chặn trước & hiển thị lý do; BE là chốt chặn cuối (409/422).
+ * FE chỉ chặn trước & giải thích; BE là chốt chặn cuối (409/422). Các hành động khả dụng
+ * KHÔNG suy ra ở đây — chúng đến từ `decision.allowedActions` do BE tính, để hai bên
+ * không thể lệch nhau.
  */
-import type {
-  CompensationStatus,
-  IncidentStatus,
-  IncidentDecisionStatus,
-} from './incident.enums';
+import type { IncidentStatus } from './incident.enums';
 
-// ─── Chiều A — chuyển trạng thái hợp lệ ──────────────────────────────────────
 export const STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  REPORTED: ['INVESTIGATING', 'CLOSED'], // accept | withdraw/close
-  INVESTIGATING: ['APPROVED', 'REJECTED', 'CLOSED'], // decide | withdraw/close
-  APPROVED: ['COMPENSATED'], // compensate (sau checker + cooling)
+  REPORTED: ['REVIEWING', 'CLOSED'],
+  REVIEWING: ['AWAITING_RESPONSE', 'AWAITING_PAYOUT', 'REJECTED', 'CLOSED'],
+  AWAITING_RESPONSE: ['REVIEWING', 'AWAITING_PAYOUT', 'REJECTED', 'CLOSED'],
+  AWAITING_PAYOUT: ['COMPENSATED', 'REVIEWING'],
+  COMPENSATED: ['CLOSED', 'REVIEWING'],
   REJECTED: ['CLOSED'],
-  COMPENSATED: ['CLOSED'],
   CLOSED: [],
 };
 
-// ─── Customer ────────────────────────────────────────────────────────────────
-/** Rút báo cáo chỉ khi REPORTED|INVESTIGATING và cọc CHƯA chuyển hold→deduct (comp=NONE). */
 /**
- * BR29 — Customer tự rút (WITHDRAWN) chỉ khi REPORTED, hoặc INVESTIGATING với
- * decisionStatus ∈ {NONE, DRAFT} và compensationStatus=NONE. Sau khi quyết định đã
- * submit cho Tasker / chờ duyệt cấp 2 / final → BE trả 409 nên ẩn nút.
+ * Khách tự rút báo cáo: chỉ khi quyết định CHƯA được gửi cho Tasker và chưa chốt.
+ * Một điều kiện duy nhất thay cho bộ ba status/decisionStatus/compensationStatus cũ.
  */
-export function canWithdraw(
-  status: IncidentStatus,
-  comp: CompensationStatus,
-  decisionStatus?: IncidentDecisionStatus,
-): boolean {
-  if (comp !== 'NONE') return false;
-  if (status === 'REPORTED') return true;
-  if (status === 'INVESTIGATING') {
-    return (
-      decisionStatus === undefined ||
-      decisionStatus === 'NONE' ||
-      decisionStatus === 'DRAFT'
-    );
-  }
-  return false;
+export function canWithdraw(status: IncidentStatus): boolean {
+  return status === 'REPORTED' || status === 'REVIEWING';
 }
 
-// ─── Bất biến phân bổ tiền (dùng cho DecisionPanel + zod) ─────────────────────
+// ─── Bất biến phân bổ tiền (dùng cho DecisionPanel) ──────────────────────────
 export interface AllocationCheck {
   ok: boolean;
   reason?: string;
 }
-/** taskerBorne + platformBorne PHẢI bằng Σapproved (API spec §3.5). */
+
+/** taskerBorne + platformBorne PHẢI bằng Σ approved. */
 export function checkAllocation(
   sumApproved: number,
   taskerBorne: number,
@@ -63,4 +45,12 @@ export function checkAllocation(
       reason: 'Tổng phân bổ (Tasker + Quỹ) phải bằng tổng được duyệt',
     };
   return { ok: true };
+}
+
+/**
+ * Quy tắc due process DUY NHẤT (mirror `assertDueProcessSatisfied` ở BE):
+ * bắt Tasker chịu tiền ⟹ phải cho họ phản biện trước khi chốt.
+ */
+export function requiresTaskerResponse(taskerBorne: number): boolean {
+  return taskerBorne > 0;
 }
