@@ -776,12 +776,15 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
           ))}
         </div>
 
-        {/* Filter Tabs — 6 mục nên cuộn ngang thay vì chia đều (chữ bị vỡ dòng) */}
+        {/* Filter Tabs — 6 mục.
+            KHÔNG cuộn ngang: ở 390px chỉ có 338px khả dụng trong khi hàng tab
+            rộng 469px, nên 131px (gồm trọn mục "Đã đóng") nằm ngoài khung. Vì
+            thanh cuộn bị ẩn cho gọn, người dùng không có dấu hiệu nào để biết
+            còn vuốt được — nhìn ra thành giao diện vỡ, chữ bị cắt giữa từ.
+            `flex-wrap` cho tràn xuống dòng 2: mọi mục luôn hiện đủ, không cần
+            thao tác phụ, và vẫn vừa ở màn 320px. */}
         <div
-          className={cn(
-            "flex gap-1 overflow-x-auto rounded-xl bg-muted p-1",
-            SCROLLBAR_HIDDEN,
-          )}
+          className="flex flex-wrap gap-1 rounded-xl bg-muted p-1"
           role="tablist"
           aria-label="Lọc theo trạng thái"
         >
