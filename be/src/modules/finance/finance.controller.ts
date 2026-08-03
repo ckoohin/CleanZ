@@ -25,6 +25,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { RevenueQueryDto } from './dto/revenue-query.dto';
+import { RevenuePayrollQueryDto } from './dto/revenue-payroll-query.dto';
 import { WalletTransactionListQueryDto } from '../wallet/dto/wallet-transaction-list-query.dto';
 import { ManualAdjustmentDto } from './dto/manual-adjustment.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -36,6 +37,7 @@ import type { JwtPayload } from '../auth/types/JwtPayLoad';
 
 @ApiTags('Admin – Finance')
 @ApiBearerAuth()
+// Finance Admin Controller
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Auth(UserRole.ADMIN)
 @Controller('admin/finance')
@@ -49,6 +51,18 @@ export class FinanceController {
   @ApiOkResponse()
   async getOverview() {
     return successResponse(await this.financeService.getFinancialOverview());
+  }
+
+  @Get('revenue-payroll')
+  @ApiOperation({ summary: 'Itemized revenue payroll breakdown table' })
+  async getRevenuePayroll(@Query() query: RevenuePayrollQueryDto) {
+    const result = await this.financeService.getRevenuePayroll(query);
+    return paginatedResponse(
+      result.items,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Get('revenue')

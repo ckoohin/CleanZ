@@ -560,6 +560,20 @@ export class TaskerController {
     return this.adminTaskerDetailService.getTaskerWalletSummary(id);
   }
 
+  @Get('admin/:id/wallet/cashflow-chart')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin xem biểu đồ biến động dòng tiền ví Tasker theo thời gian' })
+  getTaskerWalletCashflowChart(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: DateRangeQueryDto,
+  ) {
+    return this.adminTaskerDetailService.getTaskerWalletCashflowChart(
+      id,
+      dto.fromDate,
+      dto.toDate,
+    );
+  }
+
   @Get('admin/:id/reviews')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin xem đánh giá của Tasker' })

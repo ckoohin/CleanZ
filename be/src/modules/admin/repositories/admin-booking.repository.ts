@@ -2515,9 +2515,7 @@ export class AdminBookingRepository {
       .filter((row) => row.type === WalletTransactionType.PLATFORM_FEE)
       .reduce((sum, row) => sum + Number(row.amount), 0);
     const walletSettlementRows = rows.filter(
-      (row) =>
-        row.type === WalletTransactionType.TASKER_EARNING &&
-        row.referenceType === BOOKING_WALLET_SETTLE_REF,
+      (row) => row.type === WalletTransactionType.TASKER_EARNING,
     );
     const walletSettlementEarning =
       walletSettlementRows.length > 0

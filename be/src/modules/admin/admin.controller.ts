@@ -84,7 +84,10 @@ export class AdminController {
    * = 07:00 sáng giờ VN, nên dùng thẳng làm cận trên sẽ cắt mất gần trọn ngày cuối.
    */
   private range(query: DateRangeQueryDto): [Date, Date] {
-    return [vietnamStartOfDay(query.fromDate), vietnamEndOfDay(query.toDate)];
+    return [
+      query.fromDate ? vietnamStartOfDay(query.fromDate) : new Date(0),
+      query.toDate ? vietnamEndOfDay(query.toDate) : new Date(),
+    ];
   }
 
   @Get('dashboard/alerts')

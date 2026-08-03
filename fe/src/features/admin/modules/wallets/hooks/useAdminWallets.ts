@@ -8,11 +8,13 @@ import type {
   WalletListQuery,
   WalletTransactionQuery,
   RevenueSummaryQuery,
+  RevenuePayrollQuery,
 } from "../types/wallet.types";
 
 export const walletKeys = {
   all: ["admin-wallets"] as const,
   revenueSummary: (params?: RevenueSummaryQuery) => [...walletKeys.all, "revenue-summary", params] as const,
+  revenuePayroll: (params?: RevenuePayrollQuery) => [...walletKeys.all, "revenue-payroll", params] as const,
   list: (params?: WalletListQuery) =>
     [...walletKeys.all, "list", params] as const,
   detail: (id: string) => [...walletKeys.all, "detail", id] as const,
@@ -183,5 +185,13 @@ export function useAdminRevenueSummary(params?: RevenueSummaryQuery) {
   return useQuery({
     queryKey: walletKeys.revenueSummary(params),
     queryFn: () => walletAdminApi.revenueSummary(params),
+  });
+}
+
+export function useAdminRevenuePayroll(params?: RevenuePayrollQuery) {
+  return useQuery({
+    queryKey: walletKeys.revenuePayroll(params),
+    queryFn: () => walletAdminApi.revenuePayroll(params),
+    placeholderData: (previous) => previous,
   });
 }

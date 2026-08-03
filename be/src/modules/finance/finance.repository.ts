@@ -8,7 +8,7 @@ import { WalletTransactionListQueryDto } from '../wallet/dto/wallet-transaction-
 import { RevenueSummaryResponseDto } from './dto/revenue-summary-response.dto';
 import { WithdrawalListQueryDto } from './dto/with-drawal-list-query.dto';
 import { RevenueQueryDto } from './dto/revenue-query.dto';
-import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
+import { VN_NOW_SQL } from '../../common/helpers/vietnam-time.helper';
 
 @Injectable()
 export class WalletRepository extends Repository<WalletEntity> {
@@ -176,7 +176,13 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
   async getRevenueSummary(
     query: RevenueQueryDto,
   ): Promise<RevenueSummaryResponseDto[]> {
-    const { granularity = 'month', fromDate, toDate } = query;
+    const {
+      granularity = 'month',
+      fromDate,
+      toDate,
+      taskerId,
+      serviceId,
+    } = query;
 
     const truncMap: Record<string, string> = {
       day: 'day',
@@ -185,47 +191,225 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
     };
     const trunc = truncMap[granularity] ?? 'month';
 
-    // Mỗi lần chuyển tiền ghi 2 bút toán (một bên trừ, một bên cộng) với CÙNG loại.
-    // Vì amount luôn lưu số dương, cộng cả hai vế sẽ nhân đôi số liệu — nên phải
-    // lọc theo ví: doanh thu/hoa hồng lấy ở vế ví SYSTEM, thu nhập lấy ở vế ví TASKER.
-    //
-    // Hoa hồng = phí thu từ đơn tiền mặt (PLATFORM_FEE về SYSTEM)
-    //          + phần còn lại của đơn trả bằng ví (tiền khách nạp vào SYSTEM
-    //            trừ đi phần đã chi cho tasker và phần đã hoàn khách).
+    const fromTimestamp = fromDate ? new Date(fromDate).toISOString() : null;
+    const toTimestamp = toDate
+      ? new Date(
+          toDate.includes('T') ? toDate : `${toDate}T23:59:59.999Z`,
+        ).toISOString()
+      : null;
+
+    const params: (string | null)[] = [
+      trunc,
+      fromTimestamp,
+      toTimestamp,
+      taskerId ?? null,
+      serviceId ?? null,
+    ];
+
     const sql = `
+      WITH booking_details AS (
+        SELECT
+          DATE_TRUNC($1, b.updated_at) AS period,
+          b.id AS booking_id,
+          COALESCE(b.total_price, 0)::numeric AS gross,
+          COALESCE(
+            wt_tasker.amount,
+            (COALESCE(b.total_price, 0) - COALESCE(wt_fee.amount, 0))
+          )::numeric AS tasker_earning,
+          (
+            COALESCE(b.total_price, 0) - 
+            COALESCE(
+              wt_tasker.amount,
+              (COALESCE(b.total_price, 0) - COALESCE(wt_fee.amount, 0))
+            )
+          )::numeric AS platform_commission
+        FROM bookings b
+        LEFT JOIN (
+          SELECT booking_id, SUM(amount) AS amount
+          FROM wallet_transactions
+          WHERE type = 'TASKER_EARNING'
+            AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'TASKER')
+          GROUP BY booking_id
+        ) wt_tasker ON wt_tasker.booking_id = b.id
+        LEFT JOIN (
+          SELECT booking_id, SUM(amount) AS amount
+          FROM wallet_transactions
+          WHERE type = 'PLATFORM_FEE'
+            AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'SYSTEM')
+          GROUP BY booking_id
+        ) wt_fee ON wt_fee.booking_id = b.id
+        WHERE b.status = 'COMPLETED'
+          AND ($2::timestamp IS NULL OR b.updated_at >= $2::timestamp)
+          AND ($3::timestamp IS NULL OR b.updated_at <= $3::timestamp)
+          AND ($4::uuid IS NULL OR b.tasker_id = $4::uuid)
+          AND ($5::uuid IS NULL OR b.package_id = $5::uuid)
+      )
       SELECT
-        TO_CHAR(DATE_TRUNC($1, wt.created_at), 'YYYY-MM-DD') AS period,
-        COALESCE(SUM(
-          CASE
-            WHEN w.owner_type = 'SYSTEM' AND wt.type = 'PAYMENT' THEN wt.amount
-            WHEN w.owner_type = 'SYSTEM' AND wt.type = 'REFUND' THEN -wt.amount
-            ELSE 0
-          END
-        ), 0) AS "totalRevenue",
-        COALESCE(SUM(
-          CASE
-            WHEN w.owner_type = 'SYSTEM' AND wt.type IN ('PLATFORM_FEE', 'PAYMENT') THEN wt.amount
-            WHEN w.owner_type = 'SYSTEM' AND wt.type IN ('TASKER_EARNING', 'REFUND') THEN -wt.amount
-            ELSE 0
-          END
-        ), 0) AS "totalPlatformCommission",
-        COALESCE(SUM(
-          CASE WHEN w.owner_type = 'TASKER' AND wt.type = 'TASKER_EARNING' THEN wt.amount ELSE 0 END
-        ), 0) AS "totalTaskerEarnings",
-        COUNT(DISTINCT wt.booking_id) AS "totalTransactions"
-      FROM wallet_transactions wt
-      JOIN wallets w ON w.id = wt.wallet_id
-      WHERE wt.type IN ('PAYMENT', 'PLATFORM_FEE', 'TASKER_EARNING', 'REFUND')
-        ${fromDate ? `AND wt.created_at >= '${fromDate}'` : ''}
-        ${toDate ? `AND wt.created_at <= '${toDate} 23:59:59'` : ''}
-      GROUP BY DATE_TRUNC($1, wt.created_at)
-      ORDER BY DATE_TRUNC($1, wt.created_at) ASC
+        TO_CHAR(period, 'YYYY-MM-DD')         AS period,
+        COALESCE(SUM(gross), 0)               AS "totalRevenue",
+        COALESCE(SUM(platform_commission), 0) AS "totalPlatformCommission",
+        COALESCE(SUM(tasker_earning), 0)      AS "totalTaskerEarnings",
+        COUNT(DISTINCT booking_id)::int       AS "totalTransactions"
+      FROM booking_details
+      GROUP BY period
+      ORDER BY period ASC
     `;
 
-    const rows = await this.dataSource.query<RevenueSummaryResponseDto[]>(sql, [
-      trunc,
-    ]);
+    const rows = await this.dataSource.query<RevenueSummaryResponseDto[]>(
+      sql,
+      params,
+    );
     return rows;
+  }
+
+  async getRevenuePayroll(query: {
+    page?: number;
+    limit?: number;
+    fromDate?: string;
+    toDate?: string;
+    taskerId?: string;
+    serviceId?: string;
+    search?: string;
+  }) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const offset = (page - 1) * limit;
+
+    const fromTimestamp = query.fromDate
+      ? new Date(query.fromDate).toISOString()
+      : null;
+    const toTimestamp = query.toDate
+      ? new Date(
+          query.toDate.includes('T')
+            ? query.toDate
+            : `${query.toDate}T23:59:59.999Z`,
+        ).toISOString()
+      : null;
+    const searchPattern = query.search?.trim()
+      ? `%${query.search.trim()}%`
+      : null;
+
+    const params: (string | number | null)[] = [
+      fromTimestamp,
+      toTimestamp,
+      query.taskerId ?? null,
+      query.serviceId ?? null,
+      searchPattern,
+      limit,
+      offset,
+    ];
+
+    const dataSql = `
+      SELECT
+        b.id                                      AS "bookingId",
+        b.booking_code                            AS "bookingCode",
+        b.updated_at                              AS "completedAt",
+        cu.full_name                              AS "customerName",
+        tu.full_name                              AS "taskerName",
+        sp.name                                   AS "serviceName",
+        sp.icon_url                               AS "serviceIconUrl",
+        COALESCE(b.total_price, 0)::numeric       AS "totalPrice",
+        COALESCE(
+          wt_tasker.amount,
+          (COALESCE(b.total_price, 0) - COALESCE(wt_fee.amount, 0))
+        )::numeric AS "taskerEarning",
+        (
+          COALESCE(b.total_price, 0) - 
+          COALESCE(
+            wt_tasker.amount,
+            (COALESCE(b.total_price, 0) - COALESCE(wt_fee.amount, 0))
+          )
+        )::numeric AS "platformCommission"
+      FROM bookings b
+      JOIN customers c ON b.customer_id = c.id
+      JOIN users cu ON c.user_id = cu.id
+      LEFT JOIN taskers t ON b.tasker_id = t.id
+      LEFT JOIN users tu ON t.user_id = tu.id
+      LEFT JOIN service_packages sp ON b.package_id = sp.id
+      LEFT JOIN (
+        SELECT booking_id, SUM(amount) AS amount
+        FROM wallet_transactions
+        WHERE type = 'TASKER_EARNING'
+          AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'TASKER')
+        GROUP BY booking_id
+      ) wt_tasker ON wt_tasker.booking_id = b.id
+      LEFT JOIN (
+        SELECT booking_id, SUM(amount) AS amount
+        FROM wallet_transactions
+        WHERE type = 'PLATFORM_FEE'
+          AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'SYSTEM')
+        GROUP BY booking_id
+      ) wt_fee ON wt_fee.booking_id = b.id
+      WHERE b.status = 'COMPLETED'
+        AND ($1::timestamp IS NULL OR b.updated_at >= $1::timestamp)
+        AND ($2::timestamp IS NULL OR b.updated_at <= $2::timestamp)
+        AND ($3::uuid IS NULL OR b.tasker_id = $3::uuid)
+        AND ($4::uuid IS NULL OR b.package_id = $4::uuid)
+        AND ($5::text IS NULL OR b.booking_code ILIKE $5::text OR cu.full_name ILIKE $5::text OR tu.full_name ILIKE $5::text)
+      ORDER BY b.updated_at DESC
+      LIMIT $6 OFFSET $7
+    `;
+
+    const countSql = `
+      SELECT COUNT(DISTINCT b.id)::int AS total
+      FROM bookings b
+      JOIN customers c ON b.customer_id = c.id
+      JOIN users cu ON c.user_id = cu.id
+      LEFT JOIN taskers t ON b.tasker_id = t.id
+      LEFT JOIN users tu ON t.user_id = tu.id
+      WHERE b.status = 'COMPLETED'
+        AND ($1::timestamp IS NULL OR b.updated_at >= $1::timestamp)
+        AND ($2::timestamp IS NULL OR b.updated_at <= $2::timestamp)
+        AND ($3::uuid IS NULL OR b.tasker_id = $3::uuid)
+        AND ($4::uuid IS NULL OR b.package_id = $4::uuid)
+        AND ($5::text IS NULL OR b.booking_code ILIKE $5::text OR cu.full_name ILIKE $5::text OR tu.full_name ILIKE $5::text)
+    `;
+
+    const [rows, countRows] = await Promise.all([
+      this.dataSource.query<
+        Array<{
+          bookingId: string;
+          bookingCode: string;
+          completedAt: string;
+          customerName: string;
+          taskerName: string | null;
+          serviceName: string | null;
+          serviceIconUrl: string | null;
+          totalPrice: string;
+          taskerEarning: string;
+          platformCommission: string;
+        }>
+      >(dataSql, params),
+      this.dataSource.query<[{ total: number }]>(countSql, [
+        fromTimestamp,
+        toTimestamp,
+        query.taskerId ?? null,
+        query.serviceId ?? null,
+        searchPattern,
+      ]),
+    ]);
+
+    const total = countRows[0]?.total ?? 0;
+    const items = rows.map((r) => ({
+      bookingId: r.bookingId,
+      bookingCode: r.bookingCode,
+      completedAt: r.completedAt,
+      customerName: r.customerName,
+      taskerName: r.taskerName ?? 'Chưa gán',
+      serviceName: r.serviceName ?? 'N/A',
+      serviceIconUrl: r.serviceIconUrl ?? null,
+      totalPrice: parseFloat(r.totalPrice),
+      taskerEarning: parseFloat(r.taskerEarning),
+      platformCommission: parseFloat(r.platformCommission),
+    }));
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }
 

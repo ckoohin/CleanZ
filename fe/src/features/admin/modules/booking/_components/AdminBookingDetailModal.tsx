@@ -38,6 +38,7 @@ import {
 } from "@/features/admin/modules/booking/hooks/useAdminBooking";
 import { AssignTaskerDialog } from "@/features/admin/modules/booking/_components/AssignTaskerDialog";
 import { ChangeBookingStatusDialog } from "@/features/admin/modules/booking/_components/ChangeBookingStatusDialog";
+import { useRouter } from "next/navigation";
 import {
   AdminBookingDetail,
   AdminBookingTimelineEntry,
@@ -147,7 +148,13 @@ function PriceRow({
   );
 }
 
-function TimelineRow({ entry }: { entry: AdminBookingTimelineEntry }) {
+function TimelineRow({
+  entry,
+  onNavigate,
+}: {
+  entry: AdminBookingTimelineEntry;
+  onNavigate?: (url: string) => void;
+}) {
   const meta = STATUS_MAP[entry.newStatus] ?? {
     label: entry.newStatus,
     tone: "neutral" as BadgeTone,
@@ -194,10 +201,12 @@ function TimelineRow({ entry }: { entry: AdminBookingTimelineEntry }) {
                   type="button"
                   onClick={() => {
                     const path = entry.changedBy!.role === "CUSTOMER" ? "customers" : "taskers";
-                    window.open(`/admin/${path}/${entry.changedBy!.id}`, "_blank");
+                    if (onNavigate) {
+                      onNavigate(`/admin/${path}/${entry.changedBy!.id}`);
+                    }
                   }}
                   className="hover:text-blue-600 hover:underline cursor-pointer"
-                  title="Mở hồ sơ"
+                  title="Xem hồ sơ"
                 >
                   {entry.changedBy.fullName}
                 </button>
@@ -218,6 +227,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
   booking,
   onBookingUpdated,
 }) => {
+  const router = useRouter();
   const cancelMutation = useCancelAdminBooking();
   const reviewMutation = useReviewBookingCheckin();
   const noShowReviewMutation = useReviewBookingNoShow();
@@ -644,15 +654,15 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                 {payment && payment.commissionRate !== null && (
                   <div className="mt-2 grid grid-cols-2 gap-x-4 border-t border-[var(--c-line)] pt-2 text-[10px]">
                     <div className="flex justify-between gap-2">
-                      <span className="text-[var(--c-muted)]">Phí giá gốc</span>
+                      <span className="text-[var(--c-muted)]" title="Phí nền tảng tính trên phần giá gốc dịch vụ">HH / Giá gốc</span>
                       <span className="font-semibold text-red-500">
                         {fmtPrice(payment.basePlatformFee)}
                       </span>
                     </div>
                     {payment.surchargeAmount > 0 && (
                       <div className="flex justify-between gap-2">
-                        <span className="text-[var(--c-muted)]">
-                          Phí phụ thu
+                        <span className="text-[var(--c-muted)]" title={`Phí nền tảng tính trên phần phụ thu (${fmtPrice(payment.surchargeAmount)})`}>
+                          HH / Phụ thu
                         </span>
                         <span className="font-semibold text-red-500">
                           {fmtPrice(payment.surchargePlatformFee)}
@@ -750,11 +760,12 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                       type="button"
                       onClick={() => {
                         if (booking.tasker?.id) {
-                          window.open(`/admin/taskers/${booking.tasker.id}`, "_blank");
+                          onOpenChange(false);
+                          router.push(`/admin/taskers/${booking.tasker.id}`);
                         }
                       }}
                       className="inline-flex items-center gap-1 font-semibold text-sm text-[var(--c-ink)] hover:text-blue-600 hover:underline cursor-pointer group"
-                      title="Mở chi tiết nhân viên trong tab mới"
+                      title="Xem chi tiết nhân viên"
                     >
                       {booking.tasker.fullName}
                       <ExternalLink className="w-3 h-3 text-[var(--c-primary-soft)] group-hover:text-blue-600" />
@@ -1275,7 +1286,14 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                 </h3>
                 <div className="pl-1">
                   {operation.timeline.map((entry) => (
-                    <TimelineRow key={entry.id} entry={entry} />
+                    <TimelineRow
+                      key={entry.id}
+                      entry={entry}
+                      onNavigate={(url) => {
+                        onOpenChange(false);
+                        router.push(url);
+                      }}
+                    />
                   ))}
                 </div>
               </div>

@@ -52,17 +52,17 @@ export function resolveBookingPaymentBreakdown(
       ? null
       : Math.max(Math.round(input.ledger.walletSettlementEarning), 0);
 
-  const isHybridWalletCash =
-    input.paymentMethod === PaymentMethod.WALLET &&
-    surchargeAmount > 0 &&
-    explicitTaskerPlatformFee > 0 &&
+  const isSystemSettled =
+    input.paymentMethod !== PaymentMethod.CASH &&
     walletSettlementEarning !== null;
 
+  const isHybridWalletCash =
+    isSystemSettled &&
+    surchargeAmount > 0 &&
+    explicitTaskerPlatformFee > 0;
+
   let platformFee: number;
-  if (
-    input.paymentMethod === PaymentMethod.WALLET &&
-    walletSettlementEarning !== null
-  ) {
+  if (isSystemSettled) {
     const walletSettledSubtotal = Math.max(
       subtotal - (isHybridWalletCash ? surchargeAmount : 0),
       0,

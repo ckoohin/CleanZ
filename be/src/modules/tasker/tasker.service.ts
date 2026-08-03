@@ -18,11 +18,14 @@ import {
   TaskerEquipmentReviewAction,
 } from './dto/tasker-equipment.dto';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
+import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { BanType } from 'src/common/enums/ban-type.enum';
 import { TASKER_PRESENCE_STATUS } from 'src/common/enums/tasker-presence-status.enum';
+import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
+import { resolveBookingPaymentBreakdown } from 'src/modules/admin/helpers/booking-payment-breakdown.helper';
 import { MailService } from 'src/modules/mail/mail.service';
 import { AppealTokenService } from 'src/modules/appeal/appeal-token.service';
 import {
@@ -31,6 +34,7 @@ import {
 } from 'src/modules/upload/upload.service';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
+import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
 import { AdminBanTaskerDto } from './dto/admin-ban-tasker.dto';
 import { AdminReviewTaskerDto } from './dto/admin-review-tasker.dto';
@@ -796,76 +800,42 @@ export class TaskerService {
    */
   async getTaskerEarningsSummary(
     id: string,
-    fromDate: string,
-    toDate: string,
+    fromDate?: string,
+    toDate?: string,
   ): Promise<{
     taskerEarnings: number;
     platformCommission: number;
     completedBookings: number;
   }> {
     return asyncHandleOperation(async () => {
-      const tasker = await this.taskerRepository.findOne({ where: { id } });
-      if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
-
-      const toDateEnd = `${toDate} 23:59:59.999`;
-      const walletTxRepo = this.dataSource.getRepository(
-        WalletTransactionEntity,
+      const details = await this.getTaskerEarningsDetails(id, fromDate, toDate);
+      const completedBookings = details.length;
+      const platformCommission = details.reduce(
+        (sum, item) => sum + item.platformCommission,
+        0,
+      );
+      const taskerEarnings = details.reduce(
+        (sum, item) => sum + item.taskerEarning,
+        0,
       );
 
-      const earningsRow = await walletTxRepo
-        .createQueryBuilder('wt')
-        .innerJoin('wt.wallet', 'w')
-        .select('COALESCE(SUM(wt.amount), 0)', 'total')
-        .addSelect('COUNT(DISTINCT wt.booking_id)', 'bookings')
-        .where('w.owner_type = :ownerType', {
-          ownerType: WalletOwnerType.TASKER,
-        })
-        .andWhere('w.tasker_id = :taskerId', { taskerId: id })
-        .andWhere('wt.type = :type', {
-          type: WalletTransactionType.TASKER_EARNING,
-        })
-        .andWhere('wt.created_at BETWEEN :from AND :to', {
-          from: fromDate,
-          to: toDateEnd,
-        })
-        .getRawOne<{ total: string; bookings: string }>();
-
-      const commissionRow = await walletTxRepo
-        .createQueryBuilder('wt')
-        .innerJoin('wt.wallet', 'w')
-        .innerJoin('wt.booking', 'b')
-        .select('COALESCE(SUM(wt.amount), 0)', 'total')
-        .where('w.owner_type = :ownerType', {
-          ownerType: WalletOwnerType.SYSTEM,
-        })
-        .andWhere('b.tasker_id = :taskerId', { taskerId: id })
-        .andWhere('wt.type = :type', {
-          type: WalletTransactionType.PLATFORM_FEE,
-        })
-        .andWhere('wt.created_at BETWEEN :from AND :to', {
-          from: fromDate,
-          to: toDateEnd,
-        })
-        .getRawOne<{ total: string }>();
-
       return {
-        taskerEarnings: Number(earningsRow?.total ?? 0),
-        platformCommission: Number(commissionRow?.total ?? 0),
-        completedBookings: Number(earningsRow?.bookings ?? 0),
+        taskerEarnings,
+        platformCommission,
+        completedBookings,
       };
     }, 'Không thể lấy dữ liệu thu nhập tasker');
   }
 
   /**
-   * Danh sách "phiếu lương" theo từng đơn trong kỳ — mỗi dòng ghép khoản
-   * tasker nhận (ví TASKER) với khoản chiết khấu nền tảng (ví SYSTEM) cùng
-   * booking_id, vì 2 khoản này nằm ở 2 ví khác nhau nên phải truy 2 lượt rồi
-   * ghép ở tầng ứng dụng thay vì JOIN trực tiếp (JOIN sẽ nhân đôi dòng).
+   * Danh sách "phiếu lương" theo từng đơn trong kỳ.
+   * Tính toán trực tiếp theo tổng giá đơn hàng (totalPrice), phí nền tảng (20%)
+   * và thu nhập thực nhận của Tasker (80%) để đảm bảo đồng bộ 100% với chi tiết đơn.
    */
   async getTaskerEarningsDetails(
     id: string,
-    fromDate: string,
-    toDate: string,
+    fromDate?: string,
+    toDate?: string,
   ): Promise<
     Array<{
       bookingId: string;
@@ -880,70 +850,127 @@ export class TaskerService {
       const tasker = await this.taskerRepository.findOne({ where: { id } });
       if (!tasker) throw new NotFoundException('Không tìm thấy tasker');
 
-      const toDateEnd = `${toDate} 23:59:59.999`;
-      const walletTxRepo = this.dataSource.getRepository(
-        WalletTransactionEntity,
-      );
-
-      const earnings = await walletTxRepo
-        .createQueryBuilder('wt')
-        .innerJoin('wt.wallet', 'w')
-        .innerJoin('wt.booking', 'b')
+      const bookingRepo = this.dataSource.getRepository(BookingEntity);
+      const query = bookingRepo
+        .createQueryBuilder('b')
         .select('b.id', 'bookingId')
         .addSelect('b.bookingCode', 'bookingCode')
         .addSelect('b.completedAt', 'completedAt')
-        .addSelect('wt.amount', 'taskerEarning')
-        .addSelect('wt.createdAt', 'createdAt')
-        .where('w.owner_type = :ownerType', {
-          ownerType: WalletOwnerType.TASKER,
-        })
-        .andWhere('w.tasker_id = :taskerId', { taskerId: id })
-        .andWhere('wt.type = :type', {
-          type: WalletTransactionType.TASKER_EARNING,
-        })
-        .andWhere('wt.created_at BETWEEN :from AND :to', {
+        .addSelect('b.createdAt', 'createdAt')
+        .addSelect('CAST(b.total_price AS numeric)', 'totalPrice')
+        .addSelect('CAST(b.discount_amount AS numeric)', 'discountAmount')
+        .addSelect('CAST(b.waiting_fee AS numeric)', 'waitingFee')
+        .addSelect('b.paymentMethod', 'paymentMethod')
+        .where('b.tasker_id = :taskerId', { taskerId: id })
+        .andWhere('b.status = :status', { status: BookingStatus.COMPLETED });
+
+      if (fromDate && toDate) {
+        const toDateEnd = `${toDate.substring(0, 10)} 23:59:59.999`;
+        query.andWhere('b.completed_at BETWEEN :from AND :to', {
           from: fromDate,
           to: toDateEnd,
-        })
-        .orderBy('wt.created_at', 'DESC')
+        });
+      }
+
+      const bookings = await query
+        .orderBy('b.completed_at', 'DESC')
         .getRawMany<{
           bookingId: string;
           bookingCode: string;
           completedAt: Date | null;
-          taskerEarning: string;
           createdAt: Date;
+          totalPrice: string;
+          discountAmount: string;
+          waitingFee: string;
+          paymentMethod: string;
         }>();
 
-      if (earnings.length === 0) return [];
+      if (bookings.length === 0) return [];
 
-      const bookingIds = earnings.map((e) => e.bookingId);
-      const fees = await walletTxRepo
-        .createQueryBuilder('wt')
-        .innerJoin('wt.wallet', 'w')
-        .innerJoin('wt.booking', 'b')
-        .select('b.id', 'bookingId')
-        .addSelect('wt.amount', 'platformCommission')
-        .where('w.owner_type = :ownerType', {
-          ownerType: WalletOwnerType.SYSTEM,
-        })
-        .andWhere('wt.type = :type', {
-          type: WalletTransactionType.PLATFORM_FEE,
-        })
-        .andWhere('b.id IN (:...bookingIds)', { bookingIds })
-        .getRawMany<{ bookingId: string; platformCommission: string }>();
-
-      const feeByBooking = new Map(
-        fees.map((f) => [f.bookingId, Number(f.platformCommission)]),
+      const bookingIds = bookings.map((b) => b.bookingId);
+      const walletTxRepo = this.dataSource.getRepository(
+        WalletTransactionEntity,
       );
 
-      return earnings.map((e) => ({
-        bookingId: e.bookingId,
-        bookingCode: e.bookingCode,
-        completedAt: e.completedAt,
-        taskerEarning: Number(e.taskerEarning),
-        platformCommission: feeByBooking.get(e.bookingId) ?? 0,
-        createdAt: e.createdAt,
-      }));
+      const txRows = await walletTxRepo
+        .createQueryBuilder('wt')
+        .innerJoin('wt.wallet', 'w')
+        .select('wt.booking_id', 'bookingId')
+        .addSelect('wt.type', 'type')
+        .addSelect('wt.reference_type', 'referenceType')
+        .addSelect('wt.amount', 'amount')
+        .addSelect('w.owner_type', 'ownerType')
+        .where('wt.booking_id IN (:...bookingIds)', { bookingIds })
+        .andWhere('w.owner_type = :ownerType', {
+          ownerType: WalletOwnerType.TASKER,
+        })
+        .getRawMany<{
+          bookingId: string;
+          type: WalletTransactionType;
+          referenceType: string | null;
+          amount: string;
+          ownerType: WalletOwnerType;
+        }>();
+
+      const txByBooking = new Map<string, typeof txRows>();
+      for (const row of txRows) {
+        if (!txByBooking.has(row.bookingId)) {
+          txByBooking.set(row.bookingId, []);
+        }
+        txByBooking.get(row.bookingId)!.push(row);
+      }
+
+      return bookings.map((b) => {
+        const totalPrice = Number(b.totalPrice ?? 0);
+        const discountAmount = Number(b.discountAmount ?? 0);
+        const subtotal = totalPrice + discountAmount;
+        const waitingFee = Number(b.waitingFee ?? 0);
+        const surchargeAmount = Math.min(
+          Math.max(Math.round(waitingFee), 0),
+          subtotal,
+        );
+
+        const bookingTxs = txByBooking.get(b.bookingId) || [];
+        const explicitTaskerPlatformFee = bookingTxs
+          .filter((row) => row.type === WalletTransactionType.PLATFORM_FEE)
+          .reduce((sum, row) => sum + Number(row.amount), 0);
+
+        const walletSettlementRows = bookingTxs.filter(
+          (row) => row.type === WalletTransactionType.TASKER_EARNING,
+        );
+        const walletSettlementEarning =
+          walletSettlementRows.length > 0
+            ? walletSettlementRows.reduce(
+                (sum, row) => sum + Number(row.amount),
+                0,
+              )
+            : null;
+
+        const breakdown = resolveBookingPaymentBreakdown({
+          subtotal,
+          surchargeAmount,
+          paymentMethod: b.paymentMethod as PaymentMethod,
+          ledger: {
+            explicitTaskerPlatformFee,
+            walletSettlementEarning,
+            hasSettlementEntries: bookingTxs.length > 0,
+          },
+        });
+
+        const platformCommission =
+          breakdown?.platformFee ?? Math.round(totalPrice * 0.2);
+        const taskerEarning =
+          breakdown?.taskerIncome ?? totalPrice - platformCommission;
+
+        return {
+          bookingId: b.bookingId,
+          bookingCode: b.bookingCode,
+          completedAt: b.completedAt,
+          taskerEarning,
+          platformCommission,
+          createdAt: b.createdAt,
+        };
+      });
     }, 'Không thể lấy danh sách phiếu lương tasker');
   }
 

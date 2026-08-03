@@ -335,18 +335,19 @@ export function TransactionDetailDrawer({
                           onClick={() => {
                             const tasker = detail?.booking?.tasker;
                             if (tasker) {
+                              onOpenChange(false);
                               if (tasker.id) {
-                                window.open(`/admin/taskers/${tasker.id}`, "_blank");
+                                router.push(`/admin/taskers/${tasker.id}`);
                               } else {
                                 const q = tasker.phone || tasker.fullName || "";
                                 if (q) {
-                                  window.open(`/admin/taskers?search=${encodeURIComponent(q)}`, "_blank");
+                                  router.push(`/admin/taskers?search=${encodeURIComponent(q)}`);
                                 }
                               }
                             }
                           }}
                           className="inline-flex items-center gap-1 font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer text-xs group"
-                          title="Mở chi tiết thợ trong tab mới"
+                          title="Xem chi tiết thợ"
                         >
                           {detail.booking.tasker.fullName} {detail.booking.tasker.phone ? `(${detail.booking.tasker.phone})` : ""}
                           <ExternalLink className="size-3 text-slate-400 group-hover:text-blue-600" />

@@ -630,12 +630,12 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
               />
             )}
           </TabsTrigger>
-          <TabsTrigger
+          {/* <TabsTrigger
             value="schedule"
             className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
           >
             <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Lịch & Khu vực
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger
             value="finance"
             className="flex-none h-11 px-4 gap-2 text-sm font-semibold rounded-xl border border-(--c-line) bg-(--c-card) text-(--c-muted) transition-colors hover:bg-(--c-card-2) hover:text-(--c-ink) data-[state=active]:bg-(--c-primary) data-[state=active]:text-white data-[state=active]:border-(--c-primary) data-[state=active]:shadow-sm data-[state=active]:font-bold"
@@ -745,65 +745,65 @@ export const Tasker360View: React.FC<Tasker360ViewProps> = ({
                   )}
                 </div>
 
-                <div className="mt-5 pt-5 border-t border-[var(--c-line)]">
-                  <p className="text-xs font-semibold text-[var(--c-muted)] mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                <div className="mt-5 pt-5 border-t border-(--c-line)">
+                  <p className="text-xs font-semibold text-(--c-muted) mb-3 flex items-center gap-1.5 uppercase tracking-wider">
                     <CreditCard className="w-4 h-4" /> Thông tin thanh toán (Ngân hàng)
                   </p>
                   {detail.bank?.name || detail.bank?.accountNumber ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 bg-[var(--c-card-2)] p-4 rounded-xl border border-[var(--c-line)]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 bg-(--c-card-2) p-4 rounded-xl border border-(--c-line)">
                       <div className="space-y-1">
-                        <p className="text-xs text-[var(--c-muted)]">Ngân hàng</p>
-                        <p className="text-sm font-semibold text-[var(--c-ink)]">{detail.bank.name || "—"}</p>
+                        <p className="text-xs text-(--c-muted)">Ngân hàng</p>
+                        <p className="text-sm font-semibold text-(--c-ink)">{detail.bank.name || "—"}</p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs text-[var(--c-muted)]">Số tài khoản</p>
-                        <p className="text-sm font-semibold font-mono text-[var(--c-primary-strong)]">{detail.bank.accountNumber || "—"}</p>
+                        <p className="text-xs text-(--c-muted)">Số tài khoản</p>
+                        <p className="text-sm font-semibold font-mono text-(--c-primary-strong)">{detail.bank.accountNumber || "—"}</p>
                       </div>
                       <div className="space-y-1 sm:col-span-2">
-                        <p className="text-xs text-[var(--c-muted)]">Chủ tài khoản</p>
-                        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--c-ink)]">{detail.bank.accountName || "—"}</p>
+                        <p className="text-xs text-(--c-muted)">Chủ tài khoản</p>
+                        <p className="text-sm font-semibold uppercase tracking-wide text-(--c-ink)">{detail.bank.accountName || "—"}</p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-[var(--c-muted)] italic bg-[var(--c-card-2)] p-3 rounded-lg text-center border border-[var(--c-line)] border-dashed">
+                    <p className="text-sm text-(--c-muted) italic bg-(--c-card-2) p-3 rounded-lg text-center border border-(--c-line) border-dashed">
                       Tasker chưa cập nhật thông tin thanh toán.
                     </p>
                   )}
                 </div>
-                <div className="mt-5 pt-5 border-t border-[var(--c-line)]">
-                  <p className="text-xs font-semibold text-[var(--c-muted)] mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+                <div className="mt-5 pt-5 border-t border-(--c-line)">
+                  <p className="text-xs font-semibold text-(--c-muted) mb-3 flex items-center gap-1.5 uppercase tracking-wider">
                     <ShieldCheck className="w-4 h-4" /> Tiến độ hồ sơ (KYC)
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[var(--c-card-2)] p-4 rounded-xl border border-[var(--c-line)]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-(--c-card-2) p-4 rounded-xl border border-(--c-line)">
                     <div className="flex items-center gap-2">
-                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCitizenCardImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCitizenCardImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-(--c-line-strong) text-(--c-muted)")}>
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
-                      <span className={cn("text-sm font-semibold", detail.hasCitizenCardImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>CCCD / CMND (2 mặt)</span>
+                      <span className={cn("text-sm font-semibold", detail.hasCitizenCardImage ? "text-(--c-ink)" : "text-(--c-muted) line-through opacity-70")}>CCCD / CMND (2 mặt)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasIdWithSelfieImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasIdWithSelfieImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-(--c-line-strong) text-(--c-muted)")}>
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
-                      <span className={cn("text-sm font-semibold", detail.hasIdWithSelfieImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Ảnh chân dung</span>
+                      <span className={cn("text-sm font-semibold", detail.hasIdWithSelfieImage ? "text-(--c-ink)" : "text-(--c-muted) line-through opacity-70")}>Ảnh chân dung</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCriminalRecordImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCriminalRecordImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-(--c-line-strong) text-(--c-muted)")}>
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
-                      <span className={cn("text-sm font-semibold", detail.hasCriminalRecordImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Lý lịch tư pháp</span>
+                      <span className={cn("text-sm font-semibold", detail.hasCriminalRecordImage ? "text-(--c-ink)" : "text-(--c-muted) line-through opacity-70")}>Lý lịch tư pháp</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasHealthCertificateImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasHealthCertificateImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-(--c-line-strong) text-(--c-muted)")}>
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
-                      <span className={cn("text-sm font-semibold", detail.hasHealthCertificateImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Giấy khám sức khỏe</span>
+                      <span className={cn("text-sm font-semibold", detail.hasHealthCertificateImage ? "text-(--c-ink)" : "text-(--c-muted) line-through opacity-70")}>Giấy khám sức khỏe</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCertificateImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-[var(--c-line-strong)] text-[var(--c-muted)]")}>
+                      <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0", detail.hasCertificateImage ? "bg-[#0E9F6E]/20 text-[#0E9F6E]" : "bg-(--c-line-strong) text-(--c-muted)")}>
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
-                      <span className={cn("text-sm font-semibold", detail.hasCertificateImage ? "text-[var(--c-ink)]" : "text-[var(--c-muted)] line-through opacity-70")}>Chứng chỉ nghề</span>
+                      <span className={cn("text-sm font-semibold", detail.hasCertificateImage ? "text-(--c-ink)" : "text-(--c-muted) line-through opacity-70")}>Chứng chỉ nghề</span>
                     </div>
                   </div>
                 </div>
