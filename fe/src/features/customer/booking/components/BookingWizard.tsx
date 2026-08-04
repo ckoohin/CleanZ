@@ -41,6 +41,8 @@ import type {
 } from "@/features/booking/types/booking.types";
 import { FavoriteTaskerPicker } from "@/features/booking/components/wizard/FavoriteTaskerPicker";
 import { ServiceTierSelector } from "@/features/booking/components/wizard/ServiceTierSelector";
+import { useProfile } from "@/features/auth/hooks/auth.hooks";
+import { EditProfileDialog } from "@/features/customer/profile/components/EditProfileDialog";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
 import type {
   PublicAddon,
@@ -2195,6 +2197,8 @@ export const BookingWizard = ({
 
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
+  const { data: profile } = useProfile();
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const {
     data: wallet,
     isLoading: isWalletLoading,
@@ -2322,6 +2326,13 @@ export const BookingWizard = ({
   };
 
   const handleNext = async () => {
+    const userPhone = profile?.phone || "";
+    if (!userPhone.trim()) {
+      setEditProfileOpen(true);
+      toast.warning("Vui lòng cập nhật số điện thoại trước khi tiếp tục đặt dịch vụ!");
+      return;
+    }
+
     if (step === 0 && addonSelectionInvalidAtMaxHours) {
       toast.warning(
         `Tổng thời lượng công việc (${totalBookingWorkHours}h) vượt quá số giờ tối đa của gói (${selectedBookingPackage?.maxHours}h). Vui lòng bớt dịch vụ thêm hoặc chọn gói giờ ít hơn.`,
@@ -2709,6 +2720,15 @@ export const BookingWizard = ({
           </div>
         </div>
       )}
+
+      <EditProfileDialog
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        profile={profile}
+        onSuccess={() => {
+          void handleNext();
+        }}
+      />
     </div>
   );
 };
