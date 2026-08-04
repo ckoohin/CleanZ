@@ -23,15 +23,16 @@ import {
   Upload,
   X,
   FileCheck,
-  Building2,
   CreditCard,
   UserCircle,
 } from "lucide-react";
+import { BankSelect } from "@/components/ui/bank-select";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 const paymentSchema = z.object({
-  bankName: z.string().min(2, "Vui lòng nhập tên ngân hàng"),
+  bankBin: z.string().min(1, "Vui lòng chọn ngân hàng"),
+  bankName: z.string().min(2, "Vui lòng chọn ngân hàng"),
   bankAccountNumber: z.string().min(5, "Số tài khoản không hợp lệ"),
   bankAccountName: z.string().min(2, "Vui lòng nhập tên chủ tài khoản"),
 });
@@ -102,6 +103,7 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
   const form = useForm<PaymentValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
+      bankBin: initialValues?.bankBin || "",
       bankName: initialValues?.bankName || "",
       bankAccountNumber: initialValues?.bankAccountNumber || "",
       bankAccountName: initialValues?.bankAccountName || "",
@@ -339,18 +341,22 @@ export const StepLegalAndPayment: React.FC<StepLegalAndPaymentProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <FormField
                   control={form.control}
-                  name="bankName"
+                  name="bankBin"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm md:text-base flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-primary" /> Tên Ngân
+                        <CreditCard className="w-4 h-4 text-primary" /> Ngân
                         Hàng
                       </FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="VD: Vietcombank, Techcombank..."
-                          className="h-11 md:h-12 rounded-xl bg-background text-sm md:text-base"
-                          {...field}
+                        <BankSelect
+                          value={field.value}
+                          onChange={(bin, shortName) => {
+                            form.setValue("bankBin", bin, { shouldValidate: true });
+                            form.setValue("bankName", shortName, { shouldValidate: true });
+                          }}
+                          placeholder="Chọn ngân hàng..."
+                          triggerClassName="h-11 md:h-12"
                         />
                       </FormControl>
                       <FormMessage />

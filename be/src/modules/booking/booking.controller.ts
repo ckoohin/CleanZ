@@ -67,6 +67,9 @@ import {
   BookingExpirationService,
   ExpireOverdueBookingsResponse,
 } from './services/booking-expiration.service';
+import { BookingOnlinePaymentService } from './services/booking-online-payment.service';
+import { WalletTopupService } from '../wallet/wallet-topup.service';
+import { Public } from 'src/common/decorators/public.decorator';
 import {
   CUSTOMER_ACTIVE_BOOKING_SCHEMA,
   CUSTOMER_BOOKING_DETAIL_SCHEMA,
@@ -89,6 +92,8 @@ export class BookingController {
     private readonly taskerConfirmCustomerBookingService: TaskerConfirmCustomerBookingService,
     private readonly customerConfirmCompletionService: CustomerConfirmCompletionService,
     private readonly bookingOvertimeRequestService: BookingOvertimeRequestService,
+    private readonly bookingOnlinePaymentService: BookingOnlinePaymentService,
+    private readonly walletTopupService: WalletTopupService,
   ) {}
 
   @Get('customer/scheduling-policy')
@@ -846,5 +851,49 @@ export class BookingController {
       bookingId,
       dto,
     );
+  }
+
+  @Post('payment/webhook')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Online Payment')
+  @ApiOperation({
+    summary:
+      'PayOS unified webhook — xác nhận thanh toán booking ONLINE và nạp ví',
+    description:
+      'PayOS gọi endpoint này cho mọi giao dịch: booking online payment và wallet topup. ' +
+      'Mỗi handler tự nhận ra orderCode thuộc mình, handler còn lại bỏ qua. Idempotent.',
+  })
+  async handleOnlinePaymentWebhook(@Body() body: unknown) {
+    await Promise.all([
+      this.bookingOnlinePaymentService
+        .handleWebhook(body)
+        .catch(() => undefined),
+      this.walletTopupService.handleWebhook(body).catch(() => undefined),
+    ]);
+    return { success: true };
+  }
+
+  @Post(':id/verify-payment')
+  @Auth(UserRole.CUSTOMER)
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Booking – Online Payment')
+  @ApiOperation({
+    summary: 'Xác minh thanh toán ONLINE qua PayOS API (dùng khi test local)',
+    description:
+      'Gọi PayOS getPaymentInfo để kiểm tra trạng thái giao dịch. ' +
+      'Nếu PayOS trả PAID → booking được đánh dấu PAID và dispatch tasker, giống webhook. ' +
+      'Idempotent. Dùng khi webhook không đến được localhost.',
+  })
+  async verifyPayment(
+    @CurrentUser('id') userId: string,
+    @Param('id') bookingId: string,
+  ) {
+    const paid =
+      await this.bookingOnlinePaymentService.verifyPaymentByBookingId(
+        bookingId,
+        userId,
+      );
+    return { success: true, paid };
   }
 }

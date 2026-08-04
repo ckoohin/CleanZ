@@ -48,7 +48,7 @@ export const customerWalletApi = {
       .post<CustomerWithdrawal>(`${BASE}/withdrawals`, dto)
       .then((response) => response.data),
 
-  /* ─── Nạp tiền PayPal ───────────────────────────────────────────────────── */
+  /* ─── Nạp tiền PayOS ────────────────────────────────────────────────────── */
 
   getTopupConfig: (): Promise<TopupConfig> =>
     http

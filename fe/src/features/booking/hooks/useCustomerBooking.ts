@@ -70,8 +70,11 @@ export function useCreateBooking() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateBookingDto) => customerBookingApi.create(dto),
-    onSuccess: () => {
-      toast.success("Đặt lịch thành công! Đang tìm Tasker...");
+    onSuccess: (result) => {
+      // ONLINE: QR screen tự xử lý — không toast "Đang tìm Tasker" vì chưa dispatch.
+      if (result.payment?.method !== "ONLINE") {
+        toast.success("Đặt lịch thành công! Đang tìm Tasker...");
+      }
       void qc.invalidateQueries({ queryKey: QUERY_KEYS.myActive });
       // Đơn trả bằng ví bị trừ tiền ngay lúc tạo → refresh số dư.
       void qc.invalidateQueries({ queryKey: customerWalletKeys.all });

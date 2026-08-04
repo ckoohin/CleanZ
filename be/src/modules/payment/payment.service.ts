@@ -121,17 +121,58 @@ export class PaymentService {
     return paymentRepository.save(payment);
   }
 
+  /** Lưu mã giao dịch từ cổng thanh toán (vd: PayOS orderCode) vào bản ghi payment mới nhất. */
+  async setTransactionCode(
+    manager: EntityManager,
+    bookingId: string,
+    code: string,
+  ): Promise<void> {
+    const payment = await manager.getRepository(PaymentEntity).findOne({
+      where: { booking: { id: bookingId } },
+      order: { createdAt: 'DESC' },
+    });
+    if (!payment) return;
+    payment.transactionCode = code;
+    await manager.getRepository(PaymentEntity).save(payment);
+  }
+
+  /** Lưu orderCode + qrCode + checkoutUrl + bankInfo PayOS để detail endpoint trả về cho FE. */
+  async setTransactionCodeAndQr(
+    manager: EntityManager,
+    bookingId: string,
+    code: string,
+    qrCode: string,
+    checkoutUrl?: string,
+    bankInfo?: { bin: string; accountNumber: string; accountName: string },
+  ): Promise<void> {
+    const payment = await manager.getRepository(PaymentEntity).findOne({
+      where: { booking: { id: bookingId } },
+      order: { createdAt: 'DESC' },
+    });
+    if (!payment) return;
+    payment.transactionCode = code;
+    payment.qrCode = qrCode;
+    if (checkoutUrl) payment.checkoutUrl = checkoutUrl;
+    if (bankInfo) {
+      payment.bin = bankInfo.bin;
+      payment.accountNumber = bankInfo.accountNumber;
+      payment.accountName = bankInfo.accountName;
+    }
+    await manager.getRepository(PaymentEntity).save(payment);
+  }
+
   async markLatestPendingPaymentAsPaid(
     manager: EntityManager,
     bookingId: string,
     paidAt: Date,
   ): Promise<PaymentEntity | null> {
     const paymentRepository = manager.getRepository(PaymentEntity);
+    // Cho phép cả PENDING và FAILED → PAID (retry sau khi cancel)
     const payment = await paymentRepository.findOne({
-      where: {
-        booking: { id: bookingId },
-        status: PaymentStatus.PENDING,
-      },
+      where: [
+        { booking: { id: bookingId }, status: PaymentStatus.PENDING },
+        { booking: { id: bookingId }, status: PaymentStatus.FAILED },
+      ],
       order: { createdAt: 'DESC' },
     });
 

@@ -53,12 +53,6 @@ export const TopupDialog = ({
   const aboveMax = Boolean(config && isValidNumber && amountVnd > config.maxVnd);
   const canSubmit = isValidNumber && !belowMin && !aboveMax && !!config;
 
-  // PayPal sandbox thu bằng USD nên quy đổi theo tỷ giá admin cấu hình.
-  const amountUsd =
-    config && isValidNumber
-      ? Math.max(0.01, Math.round((amountVnd / config.fxRate) * 100) / 100)
-      : 0;
-
   const handleSubmit = () => {
     if (!canSubmit) return;
 
@@ -66,12 +60,12 @@ export const TopupDialog = ({
       { amountVnd, ...(bookingId && { bookingId }) },
       {
         onSuccess: (result) => {
-          if (!result.approveUrl) {
-            toast.error("PayPal không trả về link thanh toán, vui lòng thử lại");
+          if (!result.checkoutUrl) {
+            toast.error("PayOS không trả về link thanh toán, vui lòng thử lại");
             return;
           }
-          // Rời app sang PayPal; sau khi duyệt, PayPal đá về trang /topup/return.
-          window.location.href = result.approveUrl;
+          // Rời app sang PayOS; sau khi duyệt, PayOS đá về trang /topup/return.
+          window.location.href = result.checkoutUrl;
         },
       },
     );
@@ -95,7 +89,7 @@ export const TopupDialog = ({
           <DialogDescription>
             {bookingId
               ? "Số dư ví chưa đủ để thanh toán đơn này. Nạp thêm để tiếp tục."
-              : "Thanh toán qua PayPal, tiền vào ví ngay sau khi duyệt."}
+              : "Thanh toán qua PayOS, tiền vào ví ngay sau khi xác nhận."}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,7 +130,6 @@ export const TopupDialog = ({
             ) : config ? (
               <p className="text-xs text-muted-foreground">
                 Nạp từ {formatVnd(config.minVnd)} đến {formatVnd(config.maxVnd)}.
-                Tỷ giá {formatVnd(config.fxRate)} / 1 USD.
               </p>
             ) : null}
 
@@ -155,9 +148,9 @@ export const TopupDialog = ({
           {canSubmit && (
             <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">PayPal sẽ thu</span>
-                <span className="font-mono font-bold">
-                  ${amountUsd.toFixed(2)}
+                <span className="text-muted-foreground">Số tiền nạp</span>
+                <span className="font-bold text-green-600">
+                  {formatVnd(amountVnd)}
                 </span>
               </div>
               <div className="mt-1 flex items-center justify-between">
@@ -185,7 +178,7 @@ export const TopupDialog = ({
             {createTopup.isPending && (
               <Loader2 className="w-4 h-4 animate-spin" />
             )}
-            Thanh toán qua PayPal
+            Thanh toán qua PayOS
           </Button>
         </DialogFooter>
       </DialogContent>

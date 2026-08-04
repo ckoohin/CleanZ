@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { BankSelect } from "@/components/ui/bank-select";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -723,6 +724,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
     phone: "",
     currentAddress: "",
     cccdNumber: "",
+    bankBin: "",
     bankName: "",
     bankAccount: "",
     bankHolder: "",
@@ -805,6 +807,9 @@ export const TaskerRegistrationWizard: React.FC = () => {
           ? ""
           : prev.currentAddress || profile?.addressCurrent || "",
         cccdNumber: prev.cccdNumber || profile?.document?.idNumber || "",
+        bankBin: flagged.bankInfo
+          ? ""
+          : prev.bankBin || profile?.bankBin || "",
         bankName: flagged.bankInfo
           ? ""
           : prev.bankName || profile?.bankName || "",
@@ -896,7 +901,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
       if (!hasSlot(selfie)) e.selfie = "Thiếu ảnh selfie cầm CCCD";
     }
     if (s === 2) {
-      if (!form.bankName.trim()) e.bankName = "Vui lòng nhập tên ngân hàng";
+      if (!form.bankBin.trim()) e.bankName = "Vui lòng chọn ngân hàng";
       if (!form.bankAccount.trim())
         e.bankAccount = "Vui lòng nhập số tài khoản";
       if (!form.bankHolder.trim())
@@ -940,6 +945,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
       fd.append("docType", "CITIZEN_ID");
       fd.append("docIdNumber", form.cccdNumber.trim());
 
+      if (form.bankBin) fd.append("bankBin", form.bankBin.trim());
       if (form.bankName) fd.append("bankName", form.bankName.trim());
       if (form.bankAccount)
         fd.append("bankAccountNumber", form.bankAccount.trim());
@@ -1559,11 +1565,13 @@ export const TaskerRegistrationWizard: React.FC = () => {
                     error={errors.bankName}
                     flag={reviewMap.bankInfo}
                   >
-                    <TextInput
-                      placeholder="Vietcombank, Techcombank…"
-                      value={form.bankName}
-                      error={!!errors.bankName}
-                      onChange={(e) => set("bankName", e.target.value)}
+                    <BankSelect
+                      value={form.bankBin}
+                      onChange={(bin, shortName) => {
+                        setForm((p) => ({ ...p, bankBin: bin, bankName: shortName }));
+                        clearErr("bankName");
+                      }}
+                      placeholder="Chọn ngân hàng…"
                     />
                   </Field>
                   <Field

@@ -53,6 +53,9 @@ export class WithdrawalRequestEntity {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'bank_name' })
   bankName!: string | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'bank_bin' })
+  bankBin!: string | null;
+
   @Column({ type: 'text', nullable: true })
   note!: string | null;
 
@@ -72,6 +75,14 @@ export class WithdrawalRequestEntity {
 
   @Column({ type: 'timestamp', nullable: true, name: 'processed_at' })
   processedAt!: Date | null;
+
+  @Column({
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+    name: 'payos_reference_id',
+  })
+  payosReferenceId!: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

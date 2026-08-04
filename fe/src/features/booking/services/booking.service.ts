@@ -87,6 +87,14 @@ export const customerBookingApi = {
   findMyBookings: (): Promise<CustomerBookingListResponse> =>
     http.get(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data.data ?? r.data),
 
+  /** 03D2. Xác minh thanh toán ONLINE qua PayOS API (local testing) */
+  verifyPayment: (id: string): Promise<{ success: boolean; paid: boolean }> =>
+    http
+      .post(API_ENDPOINTS.BOOKING.VERIFY_PAYMENT(id), undefined, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
+      .then((r) => r.data),
+
   /** 03F. Xác nhận đơn do tasker tạo hộ */
   confirmTaskerBooking: (
     id: string,

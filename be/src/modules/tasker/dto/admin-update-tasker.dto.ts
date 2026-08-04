@@ -66,4 +66,11 @@ export class AdminUpdateTaskerDto {
   @MaxLength(150)
   @Transform(trim)
   bankAccountName?: string;
+
+  @ApiPropertyOptional({ example: '970436', description: 'Mã BIN ngân hàng' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Transform(trim)
+  bankBin?: string;
 }

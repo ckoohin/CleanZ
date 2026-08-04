@@ -5,7 +5,7 @@ export default function WalletRoute() {
   return (
     <div className="space-y-4">
       <WalletDashboard />
-      <div className="mx-auto w-full max-w-2xl px-4 sm:px-0">
+      <div id="withdrawal-section" className="mx-auto w-full max-w-2xl px-4 sm:px-0 scroll-mt-6">
         <WithdrawalSection />
       </div>
     </div>

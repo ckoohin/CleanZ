@@ -56,8 +56,8 @@ export function useCreateCustomerWithdrawal() {
   });
 }
 
-/* ─── Nạp tiền PayPal ───────────────────────────────────────────────────────
- * Luồng: createTopup → điều hướng sang approveUrl (PayPal) → PayPal đá về
+/* ─── Nạp tiền PayOS ─────────────────────────────────────────────────────────
+ * Luồng: createTopup → điều hướng sang checkoutUrl (PayOS) → PayOS đá về
  * /customer/wallet/topup/return?topupId=... → trang đó gọi captureTopup để cộng ví.
  * Capture là idempotent nên F5 hay bấm lại không nhân đôi tiền.
  * -------------------------------------------------------------------------- */

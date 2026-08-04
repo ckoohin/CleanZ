@@ -1,35 +1,36 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
   ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
+import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
+import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
+import { PayoutService } from 'src/modules/wallet/payout.service';
+import { WalletService } from 'src/modules/wallet/wallet.service';
 import { DataSource } from 'typeorm';
+import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
+import { PaginatedData } from '../../../common/helpers/response.interface';
+import { User } from '../../users/entities/user.entity';
+
+import { WalletTransactionEntity } from '../../wallet/entity/wallet-transaction.entity';
+import { WalletEntity } from '../../wallet/entity/wallet.entity';
+import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
+import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
+
+import { RevenueQueryDto } from '../dto/revenue-query.dto';
+import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
+import { ReviewWithdrawalDto } from '../dto/review-with-drawal.dto';
+
+import { TransactionFlowSummaryQueryDto } from '../dto/transaction-flow-summary-query.dto';
+import { WithdrawalListQueryDto } from '../dto/with-drawal-list-query.dto';
+import { WithdrawalRequestEntity } from '../entity/withdrawal-request.entity';
 import {
   WalletRepository,
   WalletTransactionRepository,
   WithdrawalRequestRepository,
 } from '../finance.repository';
-import { WithdrawalRequestEntity } from '../entity/withdrawal-request.entity';
-import { WalletTransactionEntity } from '../../wallet/entity/wallet-transaction.entity';
-import { WalletEntity } from '../../wallet/entity/wallet.entity';
-import { PaginatedData } from '../../../common/helpers/response.interface';
-import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
-import { WithdrawalListQueryDto } from '../dto/with-drawal-list-query.dto';
-import { ReviewWithdrawalDto } from '../dto/review-with-drawal.dto';
-import { WithdrawalStatus } from 'src/common/enums/with-drawal-status.enum';
-import { RevenueQueryDto } from '../dto/revenue-query.dto';
-import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
-import { RevenuePayrollQueryDto } from '../dto/revenue-payroll-query.dto';
-import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-transaction-list-query.dto';
-import { WalletService } from 'src/modules/wallet/wallet.service';
-import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
-import { User } from '../../users/entities/user.entity';
-import { TransactionFlowSummaryQueryDto } from '../dto/transaction-flow-summary-query.dto';
-import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
-import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
-import { WalletTopupOrderEntity } from 'src/modules/wallet/entity/wallet-topup-order.entity';
-import { CustomerWithdrawalRequestEntity } from 'src/modules/wallet/entity/customer-withdrawal-request.entity';
 
 export interface CustomerSpendingItem {
   customerId: string;
@@ -44,12 +45,15 @@ export interface CustomerSpendingItem {
 
 @Injectable()
 export class FinanceService {
+  private readonly logger = new Logger(FinanceService.name);
+
   constructor(
     private readonly walletRepo: WalletRepository,
     private readonly transactionRepo: WalletTransactionRepository,
     private readonly withdrawalRepo: WithdrawalRequestRepository,
     private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
+    private readonly payoutService: PayoutService,
   ) {}
 
   async findAllWithdrawals(
@@ -70,16 +74,25 @@ export class FinanceService {
   /**
    * Admin duyệt yêu cầu rút tiền của Tasker.
    *
-   * Khóa row yêu cầu (FOR UPDATE) rồi mới kiểm tra trạng thái — trước đây đọc ngoài
-   * transaction nên hai admin bấm duyệt cùng lúc đều thấy PENDING và ví bị trừ HAI lần.
-   * Việc trừ ví giao cho `walletService.debitWallet` (khóa ví + tính lại số dư) thay vì
-   * ghi đè `balance` bằng giá trị đọc từ trước — cách cũ có thể xóa trắng khoản thu nhập
-   * vừa được cộng vào ví ở một transaction khác (lost update).
+   * Flow 3 pha khi APPROVED:
+   *   1. DB transaction: khóa row (FOR UPDATE), trừ ví, đánh status APPROVED.
+   *   2. Gọi PayOS Payout API ngoài transaction (tránh giữ lock trong khi chờ network).
+   *   3. Nếu thành công → PROCESSED. Nếu thất bại → hoàn ví, reset PENDING, ném lỗi 502.
+   *
+   * Tách bước 2 ra ngoài DB transaction vì giữ pessimistic_write trong khi gọi HTTP
+   * ngoài mạng (vài giây) sẽ block các transaction khác trên cùng ví.
    */
   async reviewWithdrawal(
     id: string,
     dto: ReviewWithdrawalDto,
   ): Promise<WithdrawalRequestEntity> {
+    let withdrawalSnapshot: WithdrawalRequestEntity | null = null;
+
+    this.logger.log(
+      `reviewWithdrawal bắt đầu: withdrawalId=${id}, status=${dto.status}`,
+    );
+
+    // Phase 1: DB transaction — lock, debit wallet, mark APPROVED
     await this.dataSource.transaction(async (manager) => {
       const withdrawalRepository = manager.getRepository(
         WithdrawalRequestEntity,
@@ -115,6 +128,10 @@ export class FinanceService {
           throw new NotFoundException('Không tìm thấy ví');
         }
 
+        this.logger.log(
+          `Phase 1 - debitWallet: withdrawalId=${id}, walletId=${wallet.id}, amount=${withdrawal.amount}`,
+        );
+
         await this.walletService.debitWallet(manager, {
           wallet,
           amount: Number(withdrawal.amount),
@@ -123,24 +140,106 @@ export class FinanceService {
           referenceType: 'WITHDRAWAL_REQUEST',
           description: `Rút tiền về ${withdrawal.bankName ?? 'tài khoản'} - ${withdrawal.bankAccount ?? ''}`,
         });
+
+        this.logger.log(
+          `Phase 1 - debitWallet thành công: withdrawalId=${id}, WalletTransaction WITHDRAW đã tạo`,
+        );
+
+        withdrawalSnapshot = withdrawal;
       }
 
       await withdrawalRepository.update(id, {
         status: dto.status,
-        // note gốc của tasker giữ nguyên, chỉ lưu adminNote và proof riêng
         ...(dto.note !== undefined ? { note: dto.note } : {}),
         ...(dto.adminNote !== undefined ? { adminNote: dto.adminNote } : {}),
         ...(dto.proofImageUrl !== undefined
           ? { proofImageUrl: dto.proofImageUrl }
           : {}),
         reviewedAt: new Date(),
-        ...(dto.status === WithdrawalStatus.APPROVED
-          ? { processedAt: new Date() }
-          : {}),
       });
+
+      this.logger.log(
+        `Phase 1 hoàn tất: withdrawalId=${id}, status → ${dto.status}`,
+      );
     });
 
+    // Phase 2 & 3: PayOS payout + finalize status (only for APPROVED)
+    if (dto.status === WithdrawalStatus.APPROVED && withdrawalSnapshot) {
+      const snap = withdrawalSnapshot as WithdrawalRequestEntity;
+
+      if (!snap.bankBin || !snap.bankAccount) {
+        this.logger.warn(
+          `Thiếu bankBin/bankAccount: withdrawalId=${id}, taskerId=${snap.taskerId} — hoàn tiền và reset PENDING`,
+        );
+        await this.reverseWithdrawalDebit(snap);
+        await this.withdrawalRepo.update(id, {
+          status: WithdrawalStatus.PENDING,
+        });
+        throw new BadRequestException(
+          'WITHDRAWAL_MISSING_BANK_BIN: Tasker chưa cập nhật mã BIN ngân hàng',
+        );
+      }
+
+      try {
+        this.logger.log(
+          `Phase 2 - gọi PayOS payout: withdrawalId=${id}, amount=${snap.amount}, toAccount=${snap.bankAccount}, bankBin=${snap.bankBin}`,
+        );
+
+        const payosReferenceId = await this.payoutService.createSinglePayout({
+          amount: Number(snap.amount),
+          description: `Rut tien - ${snap.bankAccount}`.slice(0, 25),
+          toBin: snap.bankBin,
+          toAccountNumber: snap.bankAccount,
+          category: ['salary'],
+        });
+
+        this.logger.log(
+          `Phase 3 - lưu PROCESSED: withdrawalId=${id}, payosReferenceId=${payosReferenceId}`,
+        );
+
+        await this.withdrawalRepo.update(id, {
+          status: WithdrawalStatus.PROCESSED,
+          processedAt: new Date(),
+          payosReferenceId,
+        });
+
+        this.logger.log(
+          `reviewWithdrawal hoàn tất: withdrawalId=${id}, payosReferenceId=${payosReferenceId}`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `Phase 2 thất bại: withdrawalId=${id}, error=${(err as Error).message} — hoàn tiền, reset PENDING`,
+        );
+        // Payout thất bại → hoàn tiền về ví, reset về PENDING để admin retry
+        await this.reverseWithdrawalDebit(snap);
+        await this.withdrawalRepo.update(id, {
+          status: WithdrawalStatus.PENDING,
+        });
+        throw err;
+      }
+    }
+
     return this.findOneWithdrawal(id);
+  }
+
+  private async reverseWithdrawalDebit(
+    withdrawal: WithdrawalRequestEntity,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const wallet = await manager.getRepository(WalletEntity).findOne({
+        where: { id: withdrawal.walletId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!wallet) return;
+      await this.walletService.creditWallet(manager, {
+        wallet,
+        amount: Number(withdrawal.amount),
+        type: WalletTransactionType.ADJUSTMENT,
+        referenceId: withdrawal.id,
+        referenceType: 'WITHDRAWAL_REVERSAL',
+        description: `Hoàn tiền do payout PayOS thất bại - yêu cầu ${withdrawal.id}`,
+      });
+    });
   }
 
   async getRevenueSummary(

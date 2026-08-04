@@ -44,12 +44,21 @@ export type AllConfigType = {
 
   GOONG_MAPS_API_KEY?: string;
 
-  // PayPal (nạp ví customer). Tỷ giá & min/max nạp lưu DB `system_configs`
-  // (admin chỉnh runtime), không phải env — xem TopupConfigService.
+  // PayPal — legacy, không còn dùng cho topup mới.
   PAYPAL_MODE?: 'sandbox' | 'live';
   PAYPAL_ENV?: 'sandbox' | 'live';
   PAYPAL_API_BASE?: string;
   PAYPAL_CLIENT_ID?: string;
   PAYPAL_SECRET?: string;
   PAYPAL_CLIENT_SECRET?: string;
+
+  // PayOS (nạp ví customer). Min/max nạp lưu DB `system_configs`.
+  PAYOS_CLIENT_ID?: string;
+  PAYOS_API_KEY?: string;
+  PAYOS_CHECKSUM_KEY?: string;
+
+  // PayOS Payout (rút tiền tasker).
+  PAYOS_PAYOUT_CLIENT_ID?: string;
+  PAYOS_PAYOUT_API_KEY?: string;
+  PAYOS_PAYOUT_CHECKSUM_KEY?: string;
 };

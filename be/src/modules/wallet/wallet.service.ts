@@ -808,10 +808,11 @@ export class WalletService {
 
         const bankName = tasker.bankName?.trim();
         const bankAccount = tasker.bankAccountNumber?.trim();
+        const bankBin = tasker.bankBin?.trim();
 
-        if (!bankName || !bankAccount) {
+        if (!bankName || !bankAccount || !bankBin) {
           throw new BadRequestException(
-            'Vui lòng cập nhật đầy đủ ngân hàng và số tài khoản trước khi rút tiền',
+            'Vui lòng cập nhật đầy đủ ngân hàng, số tài khoản và mã BIN trước khi rút tiền',
           );
         }
 
@@ -823,6 +824,7 @@ export class WalletService {
           status: WithdrawalStatus.PENDING,
           bankName,
           bankAccount,
+          bankBin,
           note: dto.note?.trim() || null,
           reviewedAt: null,
           processedAt: null,

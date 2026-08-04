@@ -47,17 +47,6 @@ export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
     max: 100,
   },
   {
-    key: SYSTEM_CONFIG_KEYS.TOPUP_VND_PER_USD,
-    group: 'TOPUP',
-    label: 'Tỷ giá quy đổi (VND / 1 USD)',
-    description:
-      'PayPal thu bằng USD nên số tiền nạp (VND) được quy đổi theo tỷ giá này.',
-    unit: 'VND',
-    defaultValue: 25_000,
-    min: 1_000,
-    max: 200_000,
-  },
-  {
     key: SYSTEM_CONFIG_KEYS.TOPUP_MIN_VND,
     group: 'TOPUP',
     label: 'Số tiền nạp tối thiểu',

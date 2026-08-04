@@ -473,7 +473,8 @@ export class TaskerService {
         if (
           dto.bankName !== undefined ||
           dto.bankAccountNumber !== undefined ||
-          dto.bankAccountName !== undefined
+          dto.bankAccountName !== undefined ||
+          dto.bankBin !== undefined
         ) {
           if (dto.bankName !== undefined) tasker.bankName = dto.bankName;
           if (dto.bankAccountNumber !== undefined) {
@@ -482,6 +483,7 @@ export class TaskerService {
           if (dto.bankAccountName !== undefined) {
             tasker.bankAccountName = dto.bankAccountName;
           }
+          if (dto.bankBin !== undefined) tasker.bankBin = dto.bankBin;
           resolvedItems.add('bankInfo');
         }
 
@@ -1003,6 +1005,7 @@ export class TaskerService {
           t.bankAccountNumber = dto.bankAccountNumber;
         if (dto.bankAccountName !== undefined)
           t.bankAccountName = dto.bankAccountName;
+        if (dto.bankBin !== undefined) t.bankBin = dto.bankBin;
         t.updatedBy = adminId ?? t.updatedBy ?? null;
         await taskerRepo.save(t);
         return t;
@@ -1824,6 +1827,7 @@ export class TaskerService {
       fullName,
       phone,
       avatarUrl,
+      bankBin: tasker.bankBin ?? null,
       bankName: tasker.bankName ?? null,
       bankAccountNumber: tasker.bankAccountNumber ?? null,
       bankAccountName: tasker.bankAccountName ?? null,
@@ -1851,6 +1855,7 @@ export class TaskerService {
         name: tasker.bankName ?? null,
         accountNumber: tasker.bankAccountNumber ?? null,
         accountName: tasker.bankAccountName ?? null,
+        bin: tasker.bankBin ?? null,
       },
       user: {
         id: tasker.user?.id ?? null,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FavoriteTaskerButton } from "./FavoriteTaskerButton";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Clock,
@@ -39,6 +39,8 @@ import {
   useUpdateBookingSchedule,
   useCustomerSchedulingPolicy,
 } from "@/features/booking/hooks/useCustomerBooking";
+import { customerBookingApi } from "@/features/booking/services/booking.service";
+import { OnlinePaymentPanel } from "./OnlinePaymentPanel";
 import { TaskerTrackingMap } from "./TaskerTrackingMap";
 import { toast } from "@/lib/toast";
 import { useCustomerAddresses } from "@/features/customer/profile/hooks/useCustomerAddresses";
@@ -925,6 +927,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   bookingId,
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const socket = useTrackingSocket();
   const { data: booking, isLoading, refetch } = useBookingDetail(bookingId);
@@ -983,6 +986,42 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   );
   const taskerReviewAvg =
     taskerReviews.data?.avgRating ?? booking?.tasker?.ratingAvg ?? 0;
+
+  // Xử lý return URL từ PayOS gateway (?payment=success | cancel)
+  useEffect(() => {
+    const paymentParam = searchParams.get("payment");
+    if (!paymentParam) return;
+
+    // Xoá param khỏi URL ngay lập tức để tránh xử lý lại khi refresh
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, "", cleanUrl);
+
+    if (paymentParam === "cancel") {
+      toast.warning("Bạn đã hủy thanh toán. Đơn hàng vẫn đang chờ thanh toán.");
+      return;
+    }
+
+    if (paymentParam === "success") {
+      // Gọi verify-payment để xác nhận với PayOS API (dùng cho local testing)
+      // Trong production, webhook đã xử lý trước khi user redirect về.
+      customerBookingApi
+        .verifyPayment(bookingId)
+        .then(({ paid }) => {
+          if (paid) {
+            toast.success("Thanh toán thành công! Đang tìm Tasker...");
+          } else {
+            toast.info("Đang xác nhận thanh toán, vui lòng chờ...");
+          }
+          void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+          void queryClient.invalidateQueries({ queryKey: ["booking", "my-active"] });
+        })
+        .catch(() => {
+          toast.info("Đang xác nhận thanh toán, vui lòng chờ...");
+          void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+        });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Tự động bật bản đồ Full Screen khi trạng thái chuyển sang TASKER_ON_THE_WAY
   useEffect(() => {
@@ -1273,24 +1312,32 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               </p>
             </div>
           )}
-        {/* Banner Đặt lịch thành công */}
-        {booking.status === "POSTED" && (
-          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm shrink-0">
-                🎉
-              </span>
-              <h3 className="font-extrabold text-sm text-foreground">
-                Đặt lịch thành công!
-              </h3>
+        {/* Banner thanh toán ONLINE — PENDING hoặc FAILED */}
+        {booking.status === "POSTED" &&
+          booking.payment.method === "ONLINE" &&
+          (booking.payment.status === "PENDING" || booking.payment.status === "FAILED") && (
+            <OnlinePaymentPanel
+              bookingId={booking.id}
+              payment={booking.payment}
+              totalPrice={booking.price.totalPrice}
+              transferContent={`CleanZ ${booking.bookingCode}`}
+              bookingStatus={booking.status}
+            />
+          )}
+        {/* Banner Đặt lịch thành công — chỉ hiện khi KHÔNG phải ONLINE chưa/thất bại thanh toán */}
+        {booking.status === "POSTED" &&
+          !(booking.payment.method === "ONLINE" &&
+            (booking.payment.status === "PENDING" || booking.payment.status === "FAILED")) && (
+            <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm shrink-0">🎉</span>
+                <h3 className="font-extrabold text-sm text-foreground">Đặt lịch thành công!</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Yêu cầu đặt lịch của bạn đã được ghi nhận. Hệ thống đang tìm kiếm chuyên gia dọn dẹp phù hợp nhất cho bạn. Bạn có thể theo dõi tiến trình đơn hàng trực tiếp tại trang này.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Yêu cầu đặt lịch của bạn đã được ghi nhận. Hệ thống đang tìm kiếm
-              chuyên gia dọn dẹp phù hợp nhất cho bạn. Bạn có thể theo dõi tiến
-              trình đơn hàng trực tiếp tại trang này.
-            </p>
-          </div>
-        )}
+          )}
         {/* Realtime Tracking Map — ưu tiên full map trên mobile giống Grab */}
         {booking.status === "TASKER_ON_THE_WAY" && (
           <ErrorBoundary
@@ -1602,7 +1649,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               ? "Tiền mặt"
               : booking.payment.method === "WALLET"
                 ? "Ví CleanZ"
-                : booking.payment.method}
+                : "Online (QR)"}
             {" · "}
             {booking.payment.status === "PENDING"
               ? "Chưa thanh toán"

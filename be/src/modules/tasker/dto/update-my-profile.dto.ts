@@ -106,4 +106,16 @@ export class UpdateMyProfileDto {
     typeof value === 'string' ? value.trim() : value,
   )
   bankAccountName?: string;
+
+  @ApiPropertyOptional({
+    example: '970436',
+    description: 'Mã BIN ngân hàng (lấy từ danh sách GET /wallet/banks)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  bankBin?: string;
 }

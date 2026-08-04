@@ -512,6 +512,10 @@ export class TaskerBookingService {
         .where('booking.status = :status', { status: BookingStatus.POSTED })
         .andWhere('tasker.id IS NULL')
         .andWhere(`(${isInvitedSql} OR ${isPublicSql})`)
+        .andWhere(
+          // Ẩn đơn ONLINE chưa thanh toán — chỉ dispatch sau webhook PAID.
+          `NOT (booking.paymentMethod = 'ONLINE' AND booking.paymentStatus = 'PENDING')`,
+        )
         .setParameters({
           invitedUserId: userId,
           bookingReferenceType: NotificationRefType.BOOKING,
@@ -582,6 +586,9 @@ export class TaskerBookingService {
         .andWhere('tasker.id IS NULL')
         .andWhere('addressRef.latitude IS NOT NULL')
         .andWhere('addressRef.longitude IS NOT NULL')
+        .andWhere(
+          `NOT (booking.paymentMethod = 'ONLINE' AND booking.paymentStatus = 'PENDING')`,
+        )
         .getOne();
 
       if (!booking) {
@@ -2036,7 +2043,7 @@ export class TaskerBookingService {
       !Number.isFinite(currentLatitude) ||
       !Number.isFinite(currentLongitude)
     ) {
-      throw new NotFoundException('Không tìm thấy vị trí tasker');
+      return null;
     }
 
     if (

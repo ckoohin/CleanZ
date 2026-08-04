@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BankSelect } from "@/components/ui/bank-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,7 @@ const schema = z.object({
     .or(z.literal("")),
   skills: z.string().max(300, "Tối đa 300 ký tự").optional().or(z.literal("")),
   addressCurrent: z.string().max(200).optional().or(z.literal("")),
+  bankBin: z.string().max(20).optional().or(z.literal("")),
   bankName: z.string().max(100).optional().or(z.literal("")),
   bankAccountNumber: z.string().max(30).optional().or(z.literal("")),
   bankAccountName: z.string().max(100).optional().or(z.literal("")),
@@ -153,6 +155,8 @@ export default function TaskerProfilePage() {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isDirty, dirtyFields },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -162,11 +166,14 @@ export default function TaskerProfilePage() {
       experience: tasker?.experience ?? "",
       skills: tasker?.skills ?? "",
       addressCurrent: tasker?.addressCurrent ?? "",
+      bankBin: tasker?.bankBin ?? "",
       bankName: tasker?.bankName ?? "",
       bankAccountNumber: tasker?.bankAccountNumber ?? "",
       bankAccountName: tasker?.bankAccountName ?? "",
     },
   });
+
+  const bankBinValue = watch("bankBin");
 
   const onSubmit = async (data: FormValues) => {
     if (!tasker?.id) return;
@@ -411,12 +418,15 @@ export default function TaskerProfilePage() {
           <FieldFlag part={reviewMap.bankInfo} />
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="prof-bank-name">Tên ngân hàng</Label>
-              <Input
-                id="prof-bank-name"
-                {...register("bankName")}
-                placeholder="VD: Vietcombank, Techcombank..."
-                className="h-11 rounded-xl"
+              <Label>Ngân hàng</Label>
+              <BankSelect
+                value={bankBinValue ?? ""}
+                onChange={(bin, shortName) => {
+                  setValue("bankBin", bin, { shouldDirty: true });
+                  setValue("bankName", shortName, { shouldDirty: true });
+                }}
+                placeholder="Chọn ngân hàng..."
+                triggerClassName="h-11"
               />
             </div>
             <div className="space-y-1.5">

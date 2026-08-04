@@ -27,7 +27,10 @@ import {
   useBookingQuoteQuery,
   useCreateBooking,
   useCustomerSchedulingPolicy,
+  useBookingDetail,
 } from "@/features/booking/hooks/useCustomerBooking";
+import { QRCodeSVG } from "qrcode.react";
+import { OnlinePaymentPanel } from "@/features/booking/_components/OnlinePaymentPanel";
 import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { VoucherPickerSheet } from "@/features/customer/vouchers/VoucherPickerSheet";
 import type {
@@ -1845,6 +1848,7 @@ function StepPayment({
   const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
     { value: "CASH", label: "Tiền mặt", icon: "💵" },
     { value: "WALLET", label: "Ví CleanZ", icon: "💳" },
+    { value: "ONLINE", label: "Thanh toán online (QR)", icon: "📱" },
   ];
 
   return (
@@ -2063,7 +2067,11 @@ function StepConfirm({
         <div className="flex justify-between text-sm pt-1">
           <span className="text-muted-foreground">Phương thức</span>
           <span className="font-semibold">
-            {form.paymentMethod === "WALLET" ? "Ví CleanZ" : "Tiền mặt"}
+            {form.paymentMethod === "WALLET"
+              ? "Ví CleanZ"
+              : form.paymentMethod === "ONLINE"
+                ? "Thanh toán online (QR)"
+                : "Tiền mặt"}
           </span>
         </div>
       </div>
@@ -2129,6 +2137,12 @@ export const BookingWizard = ({
   });
   const [quote, setQuote] = useState<BookingQuoteResponse | null>(null);
   const [createdId, setCreatedId] = useState<string>("");
+  const [payosCheckoutUrl, setPayosCheckoutUrl] = useState<string | null>(null);
+  const [payosQrCode, setPayosQrCode] = useState<string | null>(null);
+  const [payosBin, setPayosBin] = useState<string | null>(null);
+  const [payosAccountNumber, setPayosAccountNumber] = useState<string | null>(null);
+  const [payosAccountName, setPayosAccountName] = useState<string | null>(null);
+  const [createdBookingCode, setCreatedBookingCode] = useState<string>("");
 
   const { data: publicServicesData, isLoading: isServicesLoading } =
     usePublicServices();
@@ -2271,6 +2285,11 @@ export const BookingWizard = ({
       };
     });
 
+  const { data: createdBookingData } = useBookingDetail(createdId, {
+    staleTime: 0,
+  });
+  const onlinePaid = createdBookingData?.payment?.status === "PAID";
+
   const canProceed = (): boolean => {
     if (step === 0)
       return (
@@ -2353,7 +2372,7 @@ export const BookingWizard = ({
           walletBalance < result.price.totalPrice
         ) {
           toast.error(
-            "Số dư Ví CleanZ không đủ. Vui lòng nạp thêm tiền hoặc chọn Tiền mặt.",
+            "Số dư Ví CleanZ không đủ. Vui lòng nạp thêm tiền hoặc chọn phương thức khác.",
           );
           return;
         }
@@ -2386,6 +2405,12 @@ export const BookingWizard = ({
       try {
         const result = await createMutation.mutateAsync(dto);
         if (result.id) setCreatedId(result.id as string);
+        if (result.bookingCode) setCreatedBookingCode(result.bookingCode as string);
+        if (result.payment?.payosCheckoutUrl) setPayosCheckoutUrl(result.payment.payosCheckoutUrl);
+        if (result.payment?.payosQrCode) setPayosQrCode(result.payment.payosQrCode);
+        if (result.payment?.payosBin) setPayosBin(result.payment.payosBin);
+        if (result.payment?.payosAccountNumber) setPayosAccountNumber(result.payment.payosAccountNumber);
+        if (result.payment?.payosAccountName) setPayosAccountName(result.payment.payosAccountName);
         setStep(5);
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -2588,9 +2613,43 @@ export const BookingWizard = ({
               />
             </motion.div>
           )}
-          {step === 5 && (
+          {step === 5 && form.paymentMethod === "ONLINE" && !onlinePaid && (
             <motion.div
-              key="s5"
+              key="s5-payment"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="mt-4 space-y-4"
+            >
+              {createdId && (
+                <OnlinePaymentPanel
+                  bookingId={createdId}
+                  payment={{
+                    method: "ONLINE",
+                    status: "PENDING",
+                    payosCheckoutUrl,
+                    payosQrCode,
+                    payosBin,
+                    payosAccountNumber,
+                    payosAccountName,
+                  }}
+                  totalPrice={quote?.price.totalPrice ?? 0}
+                  transferContent={`CleanZ ${createdBookingCode}`}
+                  bookingStatus={createdBookingData?.status}
+                />
+              )}
+              {createdId && (
+                <button
+                  onClick={() => router.push(`/customer/booking/${createdId}`)}
+                  className="w-full bg-muted text-foreground font-bold py-3.5 rounded-2xl"
+                >
+                  Xem chi tiết đơn hàng
+                </button>
+              )}
+            </motion.div>
+          )}
+          {step === 5 && (form.paymentMethod !== "ONLINE" || onlinePaid) && (
+            <motion.div
+              key="s5-success"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className="text-center bg-card p-10 rounded-3xl border border-border/50 mt-8 shadow-lg"
@@ -2599,11 +2658,12 @@ export const BookingWizard = ({
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               </div>
               <h2 className="text-2xl font-black text-foreground mb-2">
-                Đặt lịch thành công!
+                {onlinePaid ? "Thanh toán thành công!" : "Đặt lịch thành công!"}
               </h2>
               <p className="text-sm text-muted-foreground mb-8">
-                Hệ thống đang tìm Tasker phù hợp trong khu vực của bạn. Bạn sẽ
-                được thông báo khi có Tasker nhận đơn.
+                {onlinePaid
+                  ? "Đơn hàng đã được xác nhận. Hệ thống đang tìm Tasker phù hợp trong khu vực của bạn."
+                  : "Hệ thống đang tìm Tasker phù hợp trong khu vực của bạn. Bạn sẽ được thông báo khi có Tasker nhận đơn."}
               </p>
               <div className="space-y-3">
                 {createdId && (

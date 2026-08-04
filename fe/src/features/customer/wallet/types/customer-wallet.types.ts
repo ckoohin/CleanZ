@@ -58,6 +58,7 @@ export interface CustomerWithdrawal {
   status: WithdrawalStatus;
   bankAccount: string | null;
   bankName: string | null;
+  bankBin: string | null;
   note: string | null;
   adminNote: string | null;
   reviewedAt: string | null;
@@ -69,10 +70,11 @@ export interface CreateCustomerWithdrawalInput {
   amount: number;
   bankAccount: string;
   bankName: string;
+  bankBin?: string;
   note?: string;
 }
 
-/* ─── Nạp tiền qua PayPal ─────────────────────────────────────────────────── */
+/* ─── Nạp tiền qua PayOS ──────────────────────────────────────────────────── */
 
 export type TopupStatus =
   | "CREATED"
@@ -81,12 +83,10 @@ export type TopupStatus =
   | "CANCELLED"
   | "EXPIRED";
 
-/** Hạn mức + tỷ giá do admin cấu hình (system_configs). */
+/** Hạn mức do admin cấu hình (system_configs). */
 export interface TopupConfig {
   minVnd: number;
   maxVnd: number;
-  /** VND cho 1 USD — PayPal thu bằng USD. */
-  fxRate: number;
 }
 
 export interface CreateTopupInput {
@@ -97,11 +97,10 @@ export interface CreateTopupInput {
 
 export interface CreateTopupResult {
   topupId: string;
-  paypalOrderId: string;
+  payosOrderCode: number;
   amountVnd: number;
-  amountUsd: number;
-  /** Link PayPal để khách duyệt thanh toán. */
-  approveUrl: string | null;
+  /** Link PayOS để khách thanh toán. */
+  checkoutUrl: string | null;
 }
 
 export interface CaptureTopupResult {
@@ -117,9 +116,9 @@ export interface TopupOrder {
   provider: string;
   status: TopupStatus;
   amountVnd: number;
-  amountUsd: number;
-  fxRate: number;
-  paypalOrderId: string | null;
+  amountUsd: number | null;
+  fxRate: number | null;
+  payosOrderCode: number | null;
   bookingId: string | null;
   failReason: string | null;
   createdAt: string;

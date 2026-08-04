@@ -16,7 +16,10 @@ import { NotificationService } from 'src/modules/notification/notification.servi
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
 import { BookingEntity } from '../entity/booking.entity';
+import { PaymentMethod } from 'src/common/enums/payment-method.enum';
+import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
+import { BookingOnlinePaymentService } from './booking-online-payment.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
@@ -42,6 +45,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     private readonly notificationService: NotificationService,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
+    private readonly bookingOnlinePaymentService: BookingOnlinePaymentService,
     configService: ConfigService,
   ) {
     this.intervalMs = Number(
@@ -95,6 +99,22 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
           this.bookingLifecycleScheduler.deactivateBooking(booking.id),
         ),
       );
+
+      // Hủy PayOS link sau commit cho ONLINE+PENDING bookings — tránh customer trả tiền vào link đã hết hạn.
+      for (const booking of bookings) {
+        if (
+          booking.paymentMethod === PaymentMethod.ONLINE &&
+          booking.paymentStatus === PaymentStatus.PENDING
+        ) {
+          void this.bookingOnlinePaymentService
+            .cancelPendingPayosLink(booking.id)
+            .catch((err: unknown) =>
+              this.logger.error(
+                `Không thể hủy PayOS link cho booking hết hạn ${booking.id}: ${err}`,
+              ),
+            );
+        }
+      }
 
       // Notify customers sau khi transaction commit.
       // Đơn tạo hộ cho khách không có tài khoản thì customer là null → bỏ qua.
@@ -227,11 +247,13 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
             booking.id,
           );
           await bookingRepository.save(booking);
-          await this.bookingWalletPaymentService.refundEscrow(
-            manager,
-            booking,
-            'quá hạn khách xác nhận',
-          );
+          if (booking.paymentMethod === PaymentMethod.ONLINE && booking.paymentStatus === PaymentStatus.PAID) {
+            if (booking.customer) {
+              await this.bookingOnlinePaymentService.refundToWallet(manager, booking, booking.customer);
+            }
+          } else {
+            await this.bookingWalletPaymentService.refundEscrow(manager, booking, 'quá hạn khách xác nhận');
+          }
 
           const statusLog = logRepository.create({
             booking,
@@ -342,11 +364,31 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
         booking.id,
       );
       await bookingRepository.save(booking);
-      await this.bookingWalletPaymentService.refundEscrow(
-        manager,
-        booking,
-        'đơn hết hạn không có tasker nhận',
-      );
+
+      // Hoàn tiền tuỳ theo phương thức thanh toán.
+      if (booking.paymentMethod === PaymentMethod.WALLET) {
+        await this.bookingWalletPaymentService.refundEscrow(
+          manager,
+          booking,
+          'đơn hết hạn không có tasker nhận',
+        );
+      } else if (
+        booking.paymentMethod === PaymentMethod.ONLINE &&
+        booking.paymentStatus === PaymentStatus.PAID
+      ) {
+        // Hoàn vào ví CleanZ — cùng luồng với cancelByCustomer.
+        if (booking.customer) {
+          await this.bookingOnlinePaymentService.refundToWallet(
+            manager,
+            booking,
+            booking.customer,
+          );
+        } else {
+          this.logger.warn(
+            `Booking ONLINE ${booking.bookingCode} hết hạn nhưng không có customer để hoàn tiền`,
+          );
+        }
+      }
 
       const statusLog = logRepository.create({
         booking,

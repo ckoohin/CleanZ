@@ -12,7 +12,9 @@ import { CustomerWithdrawalService } from './customer-withdrawal.service';
 import { CustomerWithdrawalController } from './customer-withdrawal.controller';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTopupService } from './wallet-topup.service';
-import { PaypalService } from './paypal.service';
+import { PayosService } from './payos.service';
+import { PayoutService } from './payout.service';
+import { BankListService } from './bank-list.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { TaskerDebtEntity } from './entity/tasker-debt.entity';
 import { TaskerDebtService } from './tasker-debt.service';
@@ -37,13 +39,19 @@ import { TaskerDebtService } from './tasker-debt.service';
     TaskerDebtService,
     CustomerWithdrawalService,
     WalletTopupService,
-    PaypalService,
+    PayosService,
+    PayoutService,
+    BankListService,
   ],
   exports: [
     TypeOrmModule,
     WalletService,
     TaskerBalanceService,
     TaskerDebtService,
+    PayosService,
+    WalletTopupService,
+    PayoutService,
+    BankListService,
   ],
 })
 export class WalletModule {}
