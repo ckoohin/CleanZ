@@ -13,6 +13,9 @@ import { DataSource } from 'typeorm';
 import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
 import { PaginatedData } from '../../../common/helpers/response.interface';
 import { User } from '../../users/entities/user.entity';
+import { CustomerEntity } from '../../customer/entity/customer.entity';
+import { WalletTopupOrderEntity } from '../../wallet/entity/wallet-topup-order.entity';
+import { CustomerWithdrawalRequestEntity } from '../../wallet/entity/customer-withdrawal-request.entity';
 
 import { WalletTransactionEntity } from '../../wallet/entity/wallet-transaction.entity';
 import { WalletEntity } from '../../wallet/entity/wallet.entity';
@@ -20,6 +23,7 @@ import { CustomerSpendingQueryDto } from '../dto/customer-spending-query.dto';
 import { ManualAdjustmentDto } from '../dto/manual-adjustment.dto';
 
 import { RevenueQueryDto } from '../dto/revenue-query.dto';
+import { RevenuePayrollQueryDto } from '../dto/revenue-payroll-query.dto';
 import { RevenueSummaryResponseDto } from '../dto/revenue-summary-response.dto';
 import { ReviewWithdrawalDto } from '../dto/review-with-drawal.dto';
 
