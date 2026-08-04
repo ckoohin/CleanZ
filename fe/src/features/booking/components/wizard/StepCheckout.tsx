@@ -10,8 +10,10 @@ import { TopupDialog } from "@/features/customer/wallet/components/TopupDialog";
 import { useRouter } from "next/navigation";
 import { PublicService } from "@/features/public/hooks/usePublicData";
 import { toast } from "@/lib/toast";
-import { useUpdateProfile } from "@/features/auth/hooks/auth.hooks";
+import { useProfile, useUpdateProfile } from "@/features/auth/hooks/auth.hooks";
+import { EditProfileDialog } from "@/features/customer/profile/components/EditProfileDialog";
 import { ServiceTierSelector } from "./ServiceTierSelector";
+import { Phone } from "lucide-react";
 
 interface StepCheckoutProps {
   formData: BookingFormState;
@@ -100,7 +102,17 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
     );
   };
 
+  const { data: profile } = useProfile();
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+
   const handleCheckout = () => {
+    const userPhone = profile?.phone || "";
+    if (!userPhone.trim()) {
+      setEditProfileOpen(true);
+      toast.warning("Vui lòng cập nhật số điện thoại trước khi đặt booking!");
+      return;
+    }
+
     createMutation.mutate({
       packageId: formData.serviceId || undefined,
       subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
@@ -307,31 +319,13 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
 
                   if (isPhoneErr) {
                     return (
-                      <div className="w-full space-y-2 mt-2 max-w-[280px]">
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Nhập số điện thoại mới..."
-                            value={inputPhone}
-                            onChange={(e) => {
-                              setInputPhone(e.target.value);
-                              if (phoneError) setPhoneError("");
-                            }}
-                            className="h-10 bg-background rounded-xl border-border/50 text-xs font-semibold focus-visible:ring-primary/20"
-                          />
-                          <Button
-                            onClick={handleUpdatePhone}
-                            disabled={updateProfileMutation.isPending}
-                            className="h-10 px-4 rounded-xl bg-primary text-primary-foreground hover:opacity-90 font-bold text-xs shrink-0 flex items-center gap-1"
-                          >
-                            {updateProfileMutation.isPending ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              "Lưu"
-                            )}
-                          </Button>
-                        </div>
-                        {phoneError && <p className="text-[10px] font-bold text-destructive text-left pl-1">{phoneError}</p>}
-                      </div>
+                      <Button
+                        onClick={() => setEditProfileOpen(true)}
+                        className="mt-2 h-10 px-5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all shadow-md shadow-primary/20"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Cập nhật số điện thoại ngay</span>
+                      </Button>
                     );
                   }
                   if (isAddressErr) {
@@ -436,6 +430,27 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
         open={topupOpen}
         onClose={() => setTopupOpen(false)}
         defaultAmountVnd={suggestedTopup}
+      />
+
+      <EditProfileDialog
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        profile={profile}
+        onSuccess={() => {
+          quoteMutation.mutate({
+            packageId: formData.serviceId || undefined,
+            subServiceIds: formData.subServiceIds && formData.subServiceIds.length > 0
+              ? formData.subServiceIds
+              : undefined,
+            addressId: formData.addressId || undefined,
+            address: formData.address,
+            provinceCode: formData.provinceCode,
+            scheduledDate: formData.scheduledDate,
+            scheduledTime: formData.scheduledTime,
+            voucherCode: formData.voucherCode || undefined,
+            serviceTier: formData.serviceTier,
+          });
+        }}
       />
     </div>
   );

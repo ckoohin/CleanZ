@@ -467,7 +467,7 @@ export default function ServiceDetailPage() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="relative aspect-[4/3] md:aspect-[21/9] bg-muted overflow-hidden">
+        <div className="relative aspect-4/3 md:aspect-21/9 bg-muted overflow-hidden">
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.img
               key={activeImg}
@@ -496,7 +496,7 @@ export default function ServiceDetailPage() {
           </AnimatePresence>
 
           {/* Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
         </div>
 
         {/* Back button */}
@@ -807,7 +807,7 @@ export default function ServiceDetailPage() {
                         {/* Overall score + distribution */}
                         <div className="flex gap-4 p-4 bg-muted/30 rounded-2xl">
                           {/* Big score */}
-                          <div className="flex flex-col items-center justify-center shrink-0 min-w-[72px]">
+                          <div className="flex flex-col items-center justify-center shrink-0 min-w-18">
                             <p className="text-4xl font-black text-primary leading-none">{avgRating.toFixed(1)}</p>
                             <StarRow rating={avgRating} />
                             <p className="text-[11px] text-muted-foreground mt-1">{totalReviews} đánh giá</p>
@@ -951,7 +951,7 @@ export default function ServiceDetailPage() {
         "fixed left-0 right-0 z-40 lg:hidden bg-card/95 backdrop-blur-xl border-t border-border/40 transition-all duration-300 ease-in-out",
         showNav ? "bottom-20 pb-3 px-4 pl-4 shadow-sm border-b border-border/25" : "bottom-0 pb-5 px-4 pl-14 shadow-2xl"
       )}>
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
+        <div className="max-w-2xl mx-auto flex items-center gap-3 pt-3">
           <div className="flex-1">
             <p className="text-[10px] text-muted-foreground">Giá khởi điểm</p>
             <p className="text-xl font-black text-primary">{fmtPrice(basePrice)}</p>
