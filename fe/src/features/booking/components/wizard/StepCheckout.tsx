@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { BookingFormState } from "@/features/booking/types/booking.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CreditCard, Banknote, ShieldCheck, CheckCircle2, Ticket, Loader2, Wallet, AlertCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, Banknote, ShieldCheck, CheckCircle2, Ticket, Loader2, Wallet, AlertCircle, Phone, User } from "lucide-react";
 import { useBookingQuote, useCreateBooking } from "@/features/booking/hooks/useCustomerBooking";
 import { useCustomerWallet } from "@/features/customer/wallet/hooks/useCustomerWallet";
 import { TopupDialog } from "@/features/customer/wallet/components/TopupDialog";
@@ -13,7 +14,6 @@ import { toast } from "@/lib/toast";
 import { useProfile, useUpdateProfile } from "@/features/auth/hooks/auth.hooks";
 import { EditProfileDialog } from "@/features/customer/profile/components/EditProfileDialog";
 import { ServiceTierSelector } from "./ServiceTierSelector";
-import { Phone } from "lucide-react";
 
 interface StepCheckoutProps {
   formData: BookingFormState;
@@ -175,7 +175,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
               <div className="space-y-2.5 text-sm font-semibold text-foreground/80">
                 <div className="flex justify-between items-center gap-3">
                   <span className="text-muted-foreground font-medium shrink-0">Dịch vụ:</span>
-                  <span className="text-right truncate max-w-[220px]">{serviceDetail?.name || "Dịch vụ vệ sinh CleanZ"}</span>
+                  <span className="text-right truncate max-w-55">{serviceDetail?.name || "Dịch vụ vệ sinh CleanZ"}</span>
                 </div>
                 <div className="flex justify-between items-center gap-3">
                   <span className="text-muted-foreground font-medium shrink-0">Thời gian:</span>
@@ -183,7 +183,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                 </div>
                 <div className="flex justify-between items-start gap-3">
                   <span className="text-muted-foreground font-medium shrink-0 mt-0.5">Địa chỉ:</span>
-                  <span className="text-right text-foreground/90 font-bold leading-snug truncate-2-lines max-w-[220px]">{formData.address}</span>
+                  <span className="text-right text-foreground/90 font-bold leading-snug truncate-2-lines max-w-55">{formData.address}</span>
                 </div>
               </div>
             </div>
@@ -205,47 +205,98 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
               }
             />
 
-            {/* SĐT người liên hệ tại chỗ */}
-            <div className="p-4 bg-muted/20 border border-border/50 rounded-2xl space-y-3">
-              <label className="text-sm font-bold text-foreground/80 flex items-center gap-2">
-                <Phone className="w-4.5 h-4.5 text-primary" />
-                Số điện thoại liên hệ cho đơn này
-              </label>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!formData.contactPhone}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        updateForm({ contactPhone: undefined });
-                      } else {
-                        updateForm({ contactPhone: profile?.phone || "" });
-                      }
-                    }}
-                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                  />
-                  <span>
-                    Dùng SĐT tài khoản cá nhân ({profile?.phone || "Chưa thiết lập"})
-                  </span>
-                </label>
-
-                {typeof formData.contactPhone === "string" && (
-                  <div className="pt-1 space-y-1.5">
-                    <Input
-                      type="text"
-                      placeholder="Nhập SĐT người nhận tại chỗ (VD: 0912345678)"
-                      value={formData.contactPhone}
-                      onChange={(e) => updateForm({ contactPhone: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-sm font-medium"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      💡 Dành cho trường hợp bạn đặt dọn dẹp hộ người thân, ông bà hoặc khách thuê nhà. Tasker sẽ gọi SĐT này khi tới làm việc.
-                    </p>
+            {/* SĐT người liên hệ tại chỗ - Premium Synchronized Design */}
+            <div className="bg-card/80 backdrop-blur-md rounded-3xl border border-border/60 p-4 sm:p-5 space-y-3.5 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                    <Phone className="w-4 h-4" />
                   </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-sm text-foreground tracking-tight truncate">SĐT người liên hệ</h3>
+                    <p className="text-[11px] text-muted-foreground truncate">Tasker sẽ gọi SĐT này khi tới làm việc</p>
+                  </div>
+                </div>
+                {formData.contactPhone ? (
+                  <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-full border border-amber-200/60 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                    <Phone className="w-3 h-3" /> SĐT khác
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200/60 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                    <ShieldCheck className="w-3 h-3" /> SĐT cá nhân
+                  </span>
                 )}
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {/* Option 1: Profile Phone */}
+                <button
+                  type="button"
+                  onClick={() => updateForm({ contactPhone: undefined })}
+                  className={`p-3.5 rounded-2xl border-2 text-left transition-all duration-200 flex items-center justify-between ${
+                    !formData.contactPhone
+                      ? "border-primary bg-primary/5 shadow-xs"
+                      : "border-border/60 bg-background hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-foreground">SĐT tài khoản cá nhân</p>
+                    <p className="text-xs font-semibold text-primary">{profile?.phone || "Chưa thiết lập"}</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    !formData.contactPhone ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+                  }`}>
+                    {!formData.contactPhone && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </div>
+                </button>
+
+                {/* Option 2: Custom Contact Phone */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!formData.contactPhone) {
+                      updateForm({ contactPhone: profile?.phone || "" });
+                    }
+                  }}
+                  className={`p-3.5 rounded-2xl border-2 text-left transition-all duration-200 flex items-center justify-between ${
+                    formData.contactPhone !== undefined
+                      ? "border-primary bg-primary/5 shadow-xs"
+                      : "border-border/60 bg-background hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-foreground">Dùng SĐT liên hệ khác</p>
+                    <p className="text-xs text-muted-foreground">Sử dụng SĐT khác cho đơn này</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    formData.contactPhone !== undefined ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+                  }`}>
+                    {formData.contactPhone !== undefined && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </div>
+                </button>
+              </div>
+
+              {typeof formData.contactPhone === "string" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-2 pt-1"
+                >
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Nhập SĐT liên hệ tại chỗ (VD: 0912345678)"
+                      value={formData.contactPhone}
+                      onChange={(e) => updateForm({ contactPhone: e.target.value })}
+                      className="h-12 pl-10 rounded-2xl border-primary/40 bg-background text-sm font-semibold focus-visible:ring-primary shadow-xs"
+                    />
+                    <Phone className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed flex items-center gap-1 pl-1">
+                    <span>💡</span> Tasker sẽ gọi SĐT này khi tới làm việc tại địa chỉ.
+                  </p>
+                </motion.div>
+              )}
             </div>
 
             {/* Chọn phương thức thanh toán */}
@@ -349,7 +400,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
               <div className="flex-1 flex flex-col items-center justify-center p-6 bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-3xl text-center shadow-sm">
                 <AlertCircle className="w-9 h-9 text-destructive mb-3" />
                 <h4 className="font-extrabold text-sm text-foreground mb-1">Không thể lấy báo giá</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed max-w-[260px] mb-4">
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-65 mb-4">
                   {(() => {
                     const quoteError = quoteMutation.error as { response?: { data?: { message?: string } } } | null;
                     return quoteError?.response?.data?.message || "Không thể lấy báo giá từ hệ thống. Vui lòng thử lại.";
@@ -446,7 +497,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
               <Button 
                 onClick={handleCheckout}
                 disabled={isSubmitDisabled}
-                className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-amber-500 hover:opacity-95 text-primary-foreground font-black shadow-lg shadow-primary/20 text-base active:scale-98 transition-all disabled:opacity-40"
+                className="w-full h-14 rounded-2xl bg-linear-to-r from-primary to-amber-500 hover:opacity-95 text-primary-foreground font-black shadow-lg shadow-primary/20 text-base active:scale-98 transition-all disabled:opacity-40"
               >
                 {isCreating ? (
                   <div className="flex items-center gap-2">

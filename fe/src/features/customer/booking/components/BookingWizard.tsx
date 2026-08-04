@@ -18,7 +18,11 @@ import {
   Package,
   Sparkles,
   PawPrint,
+  Phone,
+  User,
+  ShieldCheck,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { GoongMap } from "@/components/maps/GoongMap";
 import { GoongAutocomplete } from "@/components/maps/GoongAutocomplete";
 import { GOONG_API_KEY } from "@/lib/maps/goong-config";
@@ -2047,44 +2051,98 @@ function StepConfirm({
         )}
       </div>
 
-      {/* SĐT liên hệ tại chỗ */}
-      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3">
-        <h3 className="font-bold text-sm">Số điện thoại liên hệ cho đơn này</h3>
-
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!form.contactPhone}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  onChange({ contactPhone: undefined });
-                } else {
-                  onChange({ contactPhone: profilePhone || "" });
-                }
-              }}
-              className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-            />
-            <span>
-              Dùng SĐT tài khoản cá nhân ({profilePhone || "Chưa thiết lập"})
-            </span>
-          </label>
-
-          {typeof form.contactPhone === "string" && (
-            <div className="pt-1 space-y-1.5">
-              <input
-                type="text"
-                placeholder="Nhập SĐT người nhận tại chỗ (VD: 0912345678)"
-                value={form.contactPhone}
-                onChange={(e) => onChange({ contactPhone: e.target.value })}
-                className="w-full h-11 px-3 rounded-xl border border-border bg-background text-sm font-medium focus:border-primary focus:outline-none"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                💡 Dành cho trường hợp bạn đặt dọn dẹp hộ người thân, ông bà hoặc khách thuê nhà. Tasker sẽ gọi SĐT này khi tới làm việc.
-              </p>
+      {/* SĐT liên hệ tại chỗ - Premium Synchronized Design */}
+      <div className="bg-card/80 backdrop-blur-md rounded-3xl border border-border/60 p-4 sm:p-5 space-y-3.5 shadow-sm hover:shadow-md transition-all duration-300">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+              <Phone className="w-4 h-4" />
             </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-sm text-foreground tracking-tight truncate">SĐT người liên hệ</h3>
+              <p className="text-[11px] text-muted-foreground truncate">Tasker sẽ gọi SĐT này khi tới làm việc</p>
+            </div>
+          </div>
+          {form.contactPhone ? (
+            <span className="text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-full border border-amber-200/60 flex items-center gap-1 shrink-0 whitespace-nowrap">
+              <Phone className="w-3 h-3" /> SĐT khác
+            </span>
+          ) : (
+            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200/60 flex items-center gap-1 shrink-0 whitespace-nowrap">
+              <ShieldCheck className="w-3 h-3" /> SĐT cá nhân
+            </span>
           )}
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          {/* Option 1: Profile Phone */}
+          <button
+            type="button"
+            onClick={() => onChange({ contactPhone: undefined })}
+            className={`p-3.5 rounded-2xl border-2 text-left transition-all duration-200 flex items-center justify-between ${
+              !form.contactPhone
+                ? "border-primary bg-primary/5 shadow-xs"
+                : "border-border/60 bg-background hover:bg-muted/40"
+            }`}
+          >
+            <div className="space-y-0.5">
+              <p className="text-xs font-bold text-foreground">SĐT tài khoản cá nhân</p>
+              <p className="text-xs font-semibold text-primary">{profilePhone || "Chưa thiết lập"}</p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+              !form.contactPhone ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+            }`}>
+              {!form.contactPhone && <CheckCircle2 className="w-3.5 h-3.5" />}
+            </div>
+          </button>
+
+          {/* Option 2: Custom Contact Phone */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!form.contactPhone) {
+                onChange({ contactPhone: profilePhone || "" });
+              }
+            }}
+            className={`p-3.5 rounded-2xl border-2 text-left transition-all duration-200 flex items-center justify-between ${
+              form.contactPhone !== undefined
+                ? "border-primary bg-primary/5 shadow-xs"
+                : "border-border/60 bg-background hover:bg-muted/40"
+            }`}
+          >
+            <div className="space-y-0.5">
+              <p className="text-xs font-bold text-foreground">Dùng SĐT liên hệ khác</p>
+              <p className="text-xs text-muted-foreground">Sử dụng SĐT khác cho đơn này</p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+              form.contactPhone !== undefined ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
+            }`}>
+              {form.contactPhone !== undefined && <CheckCircle2 className="w-3.5 h-3.5" />}
+            </div>
+          </button>
+        </div>
+
+        {typeof form.contactPhone === "string" && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-2 pt-1"
+          >
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Nhập SĐT liên hệ tại chỗ (VD: 0912345678)"
+                value={form.contactPhone}
+                onChange={(e) => onChange({ contactPhone: e.target.value })}
+                className="h-12 pl-10 rounded-2xl border-primary/40 bg-background text-sm font-semibold focus-visible:ring-primary shadow-xs"
+              />
+              <Phone className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed flex items-center gap-1 pl-1">
+              <span>💡</span> Tasker sẽ gọi SĐT này khi tới làm việc tại địa chỉ.
+            </p>
+          </motion.div>
+        )}
       </div>
 
       {/* Price breakdown */}
