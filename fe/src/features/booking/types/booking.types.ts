@@ -300,6 +300,7 @@ export interface BookingFormState {
   hasPet?: boolean;
   serviceTier?: BookingServiceTier;
   preferredTaskerId?: string;
+  contactPhone?: string;
 }
 
 // ─── Customer Responses ───────────────────────────────────────────────────────

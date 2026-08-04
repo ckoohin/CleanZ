@@ -128,6 +128,7 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
       voucherCode: formData.voucherCode || undefined,
       serviceTier: formData.serviceTier,
       preferredTaskerId: formData.preferredTaskerId,
+      contactPhone: formData.contactPhone?.trim() || undefined,
     }, {
       onSuccess: (data) => {
         toast.success("Đặt lịch thành công!");
@@ -203,6 +204,49 @@ export const StepCheckout: React.FC<StepCheckoutProps> = ({ formData, updateForm
                 quoteData?.schedule?.durationHours ?? formData.durationHours
               }
             />
+
+            {/* SĐT người liên hệ tại chỗ */}
+            <div className="p-4 bg-muted/20 border border-border/50 rounded-2xl space-y-3">
+              <label className="text-sm font-bold text-foreground/80 flex items-center gap-2">
+                <Phone className="w-4.5 h-4.5 text-primary" />
+                Số điện thoại liên hệ cho đơn này
+              </label>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!formData.contactPhone}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        updateForm({ contactPhone: undefined });
+                      } else {
+                        updateForm({ contactPhone: profile?.phone || "" });
+                      }
+                    }}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span>
+                    Dùng SĐT tài khoản cá nhân ({profile?.phone || "Chưa thiết lập"})
+                  </span>
+                </label>
+
+                {typeof formData.contactPhone === "string" && (
+                  <div className="pt-1 space-y-1.5">
+                    <Input
+                      type="text"
+                      placeholder="Nhập SĐT người nhận tại chỗ (VD: 0912345678)"
+                      value={formData.contactPhone}
+                      onChange={(e) => updateForm({ contactPhone: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-sm font-medium"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      💡 Dành cho trường hợp bạn đặt dọn dẹp hộ người thân, ông bà hoặc khách thuê nhà. Tasker sẽ gọi SĐT này khi tới làm việc.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Chọn phương thức thanh toán */}
             <div className="space-y-3">
