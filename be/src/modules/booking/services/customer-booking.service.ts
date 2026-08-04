@@ -330,15 +330,24 @@ export class CustomerBookingService {
           isRecurring: false,
           recurringRule: null,
         });
-        if (
-          context.addressRef &&
-          typeof dto.hasPet === 'boolean' &&
-          context.addressRef.hasPet !== dto.hasPet
-        ) {
-          context.addressRef.hasPet = dto.hasPet;
-          await manager
-            .getRepository(CustomerAddressEntity)
-            .save(context.addressRef);
+        if (context.addressRef) {
+          let addressModified = false;
+          if (
+            typeof dto.hasPet === 'boolean' &&
+            context.addressRef.hasPet !== dto.hasPet
+          ) {
+            context.addressRef.hasPet = dto.hasPet;
+            addressModified = true;
+          }
+          if (dto.contactPhone?.trim()) {
+            context.addressRef.contactPhone = dto.contactPhone.trim();
+            addressModified = true;
+          }
+          if (addressModified) {
+            await manager
+              .getRepository(CustomerAddressEntity)
+              .save(context.addressRef);
+          }
         }
         const savedBooking = await bookingRepository.save(booking);
         await this.voucherService.reserveForBooking(manager, {

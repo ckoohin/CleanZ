@@ -241,6 +241,8 @@ export interface CreateBookingDto {
   serviceTier?: BookingServiceTier;
   /** Thợ yêu thích muốn ưu tiên — chỉ hợp lệ với đơn PREMIUM. */
   preferredTaskerId?: string;
+  /** Số điện thoại người liên hệ tại chỗ (dùng khi đặt hộ người thân / bạn bè). */
+  contactPhone?: string;
 }
 
 export interface QuoteBookingDto {

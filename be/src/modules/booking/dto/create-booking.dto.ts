@@ -200,4 +200,13 @@ export class CreateBookingDto {
   @IsOptional()
   @IsUUID()
   preferredTaskerId?: string;
+
+  @ApiPropertyOptional({
+    example: '0987654321',
+    description:
+      'Số điện thoại người liên hệ tại chỗ (dùng khi đặt hộ người thân / bạn bè).',
+  })
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
 }

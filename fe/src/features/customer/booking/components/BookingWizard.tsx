@@ -111,6 +111,7 @@ interface WizardState {
   // Thanh toán
   paymentMethod: PaymentMethod;
   voucherCode: string;
+  contactPhone?: string;
 }
 
 const INIT_STATE: WizardState = {
@@ -132,6 +133,7 @@ const INIT_STATE: WizardState = {
   preferredTaskerId: undefined,
   paymentMethod: "CASH",
   voucherCode: "",
+  contactPhone: undefined,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1953,12 +1955,16 @@ function StepConfirm({
   isQuoting,
   walletBalance,
   isWalletInsufficient,
+  profilePhone,
+  onChange,
 }: {
   form: WizardState;
   quote: BookingQuoteResponse | null;
   isQuoting: boolean;
   walletBalance: number;
   isWalletInsufficient: boolean;
+  profilePhone?: string;
+  onChange: (patch: Partial<WizardState>) => void;
 }) {
   if (isQuoting) {
     return (
@@ -2025,9 +2031,60 @@ function StepConfirm({
             {quote.address.fullAddress}
           </span>
         </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">SĐT liên hệ</span>
+          <span className="font-semibold text-right">
+            {form.contactPhone || profilePhone || "Chưa có"}
+            {form.contactPhone && (
+              <span className="ml-1 text-[11px] text-amber-600 font-bold">
+                (SĐT riêng)
+              </span>
+            )}
+          </span>
+        </div>
         {quote.address.hasPet && (
           <p className="text-xs text-amber-600">🐾 Có tính phí thú cưng</p>
         )}
+      </div>
+
+      {/* SĐT liên hệ tại chỗ */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3">
+        <h3 className="font-bold text-sm">Số điện thoại liên hệ cho đơn này</h3>
+
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!form.contactPhone}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onChange({ contactPhone: undefined });
+                } else {
+                  onChange({ contactPhone: profilePhone || "" });
+                }
+              }}
+              className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+            />
+            <span>
+              Dùng SĐT tài khoản cá nhân ({profilePhone || "Chưa thiết lập"})
+            </span>
+          </label>
+
+          {typeof form.contactPhone === "string" && (
+            <div className="pt-1 space-y-1.5">
+              <input
+                type="text"
+                placeholder="Nhập SĐT người nhận tại chỗ (VD: 0912345678)"
+                value={form.contactPhone}
+                onChange={(e) => onChange({ contactPhone: e.target.value })}
+                className="w-full h-11 px-3 rounded-xl border border-border bg-background text-sm font-medium focus:border-primary focus:outline-none"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                💡 Dành cho trường hợp bạn đặt dọn dẹp hộ người thân, ông bà hoặc khách thuê nhà. Tasker sẽ gọi SĐT này khi tới làm việc.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Price breakdown */}
@@ -2412,6 +2469,7 @@ export const BookingWizard = ({
         quoteId: quote?.quoteId,
         serviceTier: form.serviceTier,
         preferredTaskerId: form.preferredTaskerId,
+        contactPhone: form.contactPhone?.trim() || undefined,
       };
       try {
         const result = await createMutation.mutateAsync(dto);
@@ -2621,6 +2679,8 @@ export const BookingWizard = ({
                 isQuoting={quoteQuery.isPending}
                 walletBalance={walletBalance}
                 isWalletInsufficient={isWalletInsufficient}
+                profilePhone={profile?.phone || undefined}
+                onChange={update}
               />
             </motion.div>
           )}
