@@ -31,6 +31,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
 import { ReviewModule } from './modules/review/review.module';
 import { AppealModule } from './modules/appeal/appeal.module';
 import { BlogModule } from './modules/blog/blog.module';
+import { EarningsReportModule } from './modules/earnings-report/earnings-report.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { BlogModule } from './modules/blog/blog.module';
     ReviewModule,
     AppealModule,
     BlogModule,
+    EarningsReportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -181,4 +181,43 @@ export class MailService {
       },
     });
   }
+
+  /**
+   * Gửi bảng kê thu nhập kèm file PDF đính kèm.
+   *
+   * Handlebars đang bật `strict: true` (mail.module.ts) nên MỌI biến template
+   * dùng đều phải có mặt trong `context` — thiếu một key là ném lỗi lúc render,
+   * không phải render rỗng.
+   */
+  async sendTaskerEarningsReportEmail(
+    email: string,
+    fullName: string,
+    context: {
+      rangeLabel: string;
+      periodLabel: string;
+      netIncome: string;
+      grossRevenue: string;
+      platformFee: string;
+      completedBookings: number;
+      generatedAt: string;
+    },
+    attachment: { filename: string; content: Buffer },
+  ): Promise<void> {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: `Bảng kê thu nhập CleanZ — ${context.rangeLabel}`,
+      template: 'tasker-earnings-report',
+      context: {
+        fullName,
+        ...context,
+      },
+      attachments: [
+        {
+          filename: attachment.filename,
+          content: attachment.content,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  }
 }

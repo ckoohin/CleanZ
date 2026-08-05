@@ -38,6 +38,7 @@ import { QueueBoardService } from './queue-board.service';
       { name: 'analyticsQueue' },
       { name: 'mailQueue' },
       { name: 'taskerQueue' },
+      { name: 'earningsReportQueue' },
     ),
   ],
   providers: [QueueBoardService],

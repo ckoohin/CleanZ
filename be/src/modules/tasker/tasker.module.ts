@@ -18,6 +18,7 @@ import { TaskerScheduleEntity } from './entity/tasker-schedule.entity';
 import { TaskerCoverageEntity } from './entity/tasker-coverage.entity';
 
 import { AdminTaskerDetailService } from './admin-tasker-detail.service';
+import { TaskerEarningsQueryService } from './services/tasker-earnings-query.service';
 import { WalletEntity } from '../wallet/entity/wallet.entity';
 import { WalletTransactionEntity } from '../wallet/entity/wallet-transaction.entity';
 
@@ -40,6 +41,13 @@ import { WalletTransactionEntity } from '../wallet/entity/wallet-transaction.ent
     AppealTokenModule,
   ],
   controllers: [TaskerController],
-  providers: [TaskerService, TaskerProcessor, AdminTaskerDetailService],
+  providers: [
+    TaskerService,
+    TaskerProcessor,
+    AdminTaskerDetailService,
+    TaskerEarningsQueryService,
+  ],
+  // Bảng kê thu nhập (EarningsReportModule) dùng lại đúng phép tính này.
+  exports: [TaskerEarningsQueryService],
 })
 export class TaskerModule {}

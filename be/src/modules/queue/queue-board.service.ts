@@ -12,6 +12,7 @@ export class QueueBoardService implements OnModuleInit {
     @InjectQueue('notificationQueue') private notificationQueue: Queue,
     @InjectQueue('paymentQueue') private paymentQueue: Queue,
     @InjectQueue('analyticsQueue') private analyticsQueue: Queue,
+    @InjectQueue('earningsReportQueue') private earningsReportQueue: Queue,
   ) {}
 
   onModuleInit() {
@@ -24,6 +25,7 @@ export class QueueBoardService implements OnModuleInit {
         new BullMQAdapter(this.notificationQueue),
         new BullMQAdapter(this.paymentQueue),
         new BullMQAdapter(this.analyticsQueue),
+        new BullMQAdapter(this.earningsReportQueue),
       ],
       serverAdapter: serverAdapter,
     });

@@ -109,6 +109,7 @@ export const navGroups: NavGroup[] = [
           { title: "Giao dịch", href: A.FINANCES.BASE },
           { title: "Quản lý ví", href: A.FINANCES.WALLETS },
           { title: "Rút tiền", href: A.FINANCES.WITHDRAWALS },
+          { title: "Bảng kê thu nhập", href: A.FINANCES.EARNINGS_REPORTS },
           { title: "Đối soát bồi thường", href: A.FINANCES.RECONCILIATION },
         ],
       },

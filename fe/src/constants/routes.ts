@@ -132,6 +132,7 @@ export const ROUTES = {
       CUSTOMER_WITHDRAWALS: "/admin/customer-withdrawals",
       WALLETS: "/admin/wallets",
       RECONCILIATION: "/admin/reconciliation",
+      EARNINGS_REPORTS: "/admin/earnings-reports",
     },
     VOUCHERS: {
       BASE: "/admin/vouchers",
