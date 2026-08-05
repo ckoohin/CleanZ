@@ -102,19 +102,18 @@ export interface TaskerEarningsBreakdown {
 export interface TaskerTopupConfig {
   minVnd: number;
   maxVnd: number;
-  fxRate: number;
 }
 
 export interface CreateTaskerTopupPayload {
   amountVnd: number;
 }
 
+/** Khớp `CreateTopupResult` của backend (wallet-topup.service.ts). */
 export interface TaskerTopupResult {
   topupId: string;
-  paypalOrderId: string;
+  payosOrderCode: number;
   amountVnd: number;
-  amountUsd: number;
-  approveUrl: string | null;
+  checkoutUrl: string | null;
 }
 
 export interface TaskerTopupCaptureResult {

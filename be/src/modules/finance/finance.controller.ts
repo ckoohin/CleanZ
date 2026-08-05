@@ -141,7 +141,10 @@ export class FinanceController {
   }
 
   @Get('customers/:customerId/topups')
-  @ApiOperation({ summary: 'Get PayPal topup orders for a specific customer' })
+  @ApiOperation({
+    summary:
+      'Lịch sử đơn nạp ví của một khách hàng (PayOS, kèm đơn cũ PayPal/Adyen)',
+  })
   async getCustomerTopups(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query('page') page?: string,

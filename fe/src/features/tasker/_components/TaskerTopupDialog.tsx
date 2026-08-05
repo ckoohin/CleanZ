@@ -47,10 +47,6 @@ export function TaskerTopupDialog({
     config && isValidNumber && amountVnd > config.maxVnd,
   );
   const canSubmit = isValidNumber && !belowMin && !aboveMax && !!config;
-  const amountUsd =
-    config && isValidNumber
-      ? Math.max(0.01, Math.round((amountVnd / config.fxRate) * 100) / 100)
-      : 0;
 
   const close = () => {
     if (createTopup.isPending) return;
@@ -64,13 +60,11 @@ export function TaskerTopupDialog({
       { amountVnd },
       {
         onSuccess: (result) => {
-          if (!result.approveUrl) {
-            toast.error(
-              "PayPal không trả về link thanh toán, vui lòng thử lại",
-            );
+          if (!result.checkoutUrl) {
+            toast.error("PayOS không trả về link thanh toán, vui lòng thử lại");
             return;
           }
-          window.location.href = result.approveUrl;
+          window.location.href = result.checkoutUrl;
         },
       },
     );
@@ -85,7 +79,7 @@ export function TaskerTopupDialog({
             Nạp tiền vào ví Tasker
           </DialogTitle>
           <DialogDescription>
-            Thanh toán qua PayPal, số tiền được cộng vào ví sau khi giao dịch
+            Thanh toán qua PayOS, số tiền được cộng vào ví sau khi giao dịch
             hoàn tất.
           </DialogDescription>
         </DialogHeader>
@@ -144,9 +138,9 @@ export function TaskerTopupDialog({
           {canSubmit && (
             <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">PayPal sẽ thu</span>
+                <span className="text-muted-foreground">Số tiền chuyển</span>
                 <span className="font-mono font-bold">
-                  ${amountUsd.toFixed(2)}
+                  {formatVnd(amountVnd)}
                 </span>
               </div>
               <div className="mt-1 flex items-center justify-between">
@@ -174,7 +168,7 @@ export function TaskerTopupDialog({
             {createTopup.isPending && (
               <Loader2 className="size-4 animate-spin" />
             )}
-            Thanh toán qua PayPal
+            Thanh toán qua PayOS
           </Button>
         </DialogFooter>
       </DialogContent>

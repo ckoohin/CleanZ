@@ -202,42 +202,32 @@ export function TransactionDetailDrawer({
                 </div>
               </div>
 
-              {/* Card 3: PayPal Topup Order Info (If present) */}
-              {detail.paypalTopup && (
+              {/* Card 3: đơn nạp ví (nếu giao dịch này gắn với một đơn nạp). */}
+              {detail.topup && (
                 <div className="p-4 rounded-2xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
                       <Receipt className="size-3.5 text-blue-600" />
-                      Chi tiết Cổng Nạp PayPal
+                      Chi tiết cổng nạp {detail.topup.provider}
                     </h4>
-                    <Badge variant="outline" className="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 border-blue-300">
-                      {detail.paypalTopup.status || "COMPLETED"}
-                    </Badge>
+                    {detail.topup.status && (
+                      <Badge variant="outline" className="text-[10px] font-bold uppercase bg-blue-100 text-blue-800 border-blue-300">
+                        {detail.topup.status}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="space-y-1.5 text-xs divide-y divide-blue-100 dark:divide-blue-900/40">
-                    {detail.paypalTopup.paypalOrderId && (
+                    {detail.topup.payosOrderCode && (
                       <div className="flex justify-between py-1">
-                        <span className="text-slate-500 dark:text-zinc-400">PayPal Order ID:</span>
-                        <span className="font-mono font-bold text-blue-700 dark:text-blue-300">{detail.paypalTopup.paypalOrderId}</span>
+                        <span className="text-slate-500 dark:text-zinc-400">Mã đơn PayOS:</span>
+                        <span className="font-mono font-bold text-blue-700 dark:text-blue-300">{detail.topup.payosOrderCode}</span>
                       </div>
                     )}
-                    {detail.paypalTopup.captureId && (
+                    {detail.topup.paymentLinkId && (
                       <div className="flex justify-between py-1">
-                        <span className="text-slate-500 dark:text-zinc-400">Capture ID:</span>
-                        <span className="font-mono text-slate-700 dark:text-zinc-300">{detail.paypalTopup.captureId}</span>
-                      </div>
-                    )}
-                    {detail.paypalTopup.amountUsd && (
-                      <div className="flex justify-between py-1">
-                        <span className="text-slate-500 dark:text-zinc-400">Số tiền nạp USD:</span>
-                        <span className="font-bold text-emerald-600">${detail.paypalTopup.amountUsd.toFixed(2)} USD</span>
-                      </div>
-                    )}
-                    {detail.paypalTopup.fxRate && (
-                      <div className="flex justify-between py-1">
-                        <span className="text-slate-500 dark:text-zinc-400">Tỷ giá đối soát:</span>
-                        <span className="font-medium text-slate-700 dark:text-zinc-300">1 USD = {formatCurrency(detail.paypalTopup.fxRate)}</span>
+                        <span className="text-slate-500 dark:text-zinc-400">Payment link ID:</span>
+                        <span className="font-mono text-slate-700 dark:text-zinc-300">{detail.topup.paymentLinkId}</span>
                       </div>
                     )}
                   </div>

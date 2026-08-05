@@ -959,18 +959,28 @@ export class CustomerBookingService {
       .take(100)
       .getMany();
 
+    // Đếm số đơn THỰC SỰ đóng được, không phải số dòng select ra: khách có thể
+    // vừa trả tiền xong giữa lúc quét, khi đó update bị guard PENDING chặn lại.
+    let closed = 0;
     for (const draft of stale) {
-      await this.voidOnlineDraft(draft, 'Quá hạn thanh toán');
+      if (await this.voidOnlineDraft(draft, 'Quá hạn thanh toán')) {
+        closed += 1;
+      }
     }
-    return stale.length;
+    return closed;
   }
 
-  /** Đóng đơn nháp chưa thu tiền: huỷ link PayOS rồi đánh FAILED. */
+  /**
+   * Đóng đơn nháp chưa thu tiền: huỷ link PayOS rồi đánh FAILED.
+   *
+   * Trả về `true` nếu thật sự chuyển được trạng thái. Guard `paymentState = PENDING`
+   * khiến đơn vừa được thanh toán không bị đóng nhầm — và khi đó kết quả là `false`.
+   */
   private async voidOnlineDraft(
     draft: BookingQuoteEntity,
     reason: string,
     cancelLink = true,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (cancelLink && draft.payosOrderCode) {
       // Link đã thanh toán/đã huỷ thì PayOS trả lỗi — không chặn việc đóng nháp.
       await this.payosService
@@ -982,12 +992,13 @@ export class CustomerBookingService {
         );
     }
 
-    await this.dataSource
+    const result = await this.dataSource
       .getRepository(BookingQuoteEntity)
       .update(
         { id: draft.id, paymentState: PaymentStatus.PENDING },
         { paymentState: PaymentStatus.FAILED, failReason: reason },
       );
+    return (result.affected ?? 0) > 0;
   }
 
   /** Đã thu tiền nhưng không tạo được booking → trả tiền vào ví CleanZ của khách. */
@@ -1074,12 +1085,16 @@ export class CustomerBookingService {
       void this.notificationService
         .notify({
           userId,
-          type: NotificationType.BOOKING_CANCELLED,
+          // KHÔNG dùng BOOKING_CANCELLED / referenceType BOOKING: ở đây chưa từng
+          // có booking nào. Email sẽ mang tiêu đề "Đơn đặt lịch đã bị hủy" (sai),
+          // và FE deep-link `/customer/booking/<id>` với id của booking_quotes nên
+          // khách bấm vào là 404.
+          type: NotificationType.PAYMENT_FAILED,
           title: 'Đã hoàn tiền đơn đặt lịch',
           content:
             'Thanh toán của bạn đã được ghi nhận nhưng đơn không thể tạo. ' +
             `Số tiền ${amount.toLocaleString('vi-VN')}đ đã được hoàn vào Ví CleanZ.`,
-          referenceType: NotificationRefType.BOOKING,
+          referenceType: NotificationRefType.PAYMENT,
           referenceId: draft.id,
           dedupeKey: `draft:${draft.id}:refunded`,
         })
@@ -1401,7 +1416,11 @@ export class CustomerBookingService {
         .leftJoinAndSelect('bookingSubServices.subService', 'subService')
         .where('customerUser.id = :userId', { userId })
         .orderBy('booking.createdAt', 'DESC')
-        .limit(50)
+        // take() chứ KHÔNG phải limit(): có leftJoinAndSelect one-to-many
+        // (bookingSubServices) nên limit áp thẳng lên SQL thô — mỗi booking sinh N
+        // dòng, 50 dòng có thể chỉ ra 15-20 đơn và đơn cuối bị mất sub-service.
+        // take() sinh subquery lấy đúng 50 booking rồi mới join.
+        .take(50)
         .getMany();
 
       // Batch-load payments and vouchers to avoid N+1 queries
@@ -2148,7 +2167,11 @@ export class CustomerBookingService {
       serviceTier: context.serviceTier,
       payment: {
         method: paymentMethod,
-        status: PaymentStatus.PENDING,
+        // Lấy trạng thái thật của đơn, không cứng PENDING: đơn WALLET đã bị
+        // chargeEscrow đánh PAID ngay trong cùng transaction, và đơn ONLINE dựng
+        // từ đơn nháp cũng đã PAID — trả PENDING làm FE hiện "Chưa thanh toán"
+        // cho đơn vừa trừ tiền xong.
+        status: booking.paymentStatus ?? PaymentStatus.PENDING,
         payosCheckoutUrl,
         payosQrCode,
         payosBin: payosBankInfo?.bin ?? null,

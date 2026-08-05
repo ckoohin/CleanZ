@@ -62,6 +62,11 @@ export class WalletTopupOrderEntity {
   @JoinColumn({ name: 'wallet_id' })
   wallet!: WalletEntity;
 
+  /**
+   * Cổng thanh toán. Đơn mới luôn là 'PAYOS' — đây là cổng duy nhất còn dùng.
+   * Bản ghi cũ có thể mang 'PAYPAL'/'ADYEN'; giữ kiểu varchar để đọc lại được
+   * lịch sử, không dựng enum để khỏi ràng buộc thêm giá trị đã chết.
+   */
   @Column({ type: 'varchar', length: 20, default: 'PAYOS' })
   provider!: string;
 
@@ -83,16 +88,6 @@ export class WalletTopupOrderEntity {
   })
   paymentLinkId!: string | null;
 
-  /** Legacy — PayPal order ID (rows cũ). */
-  @Index('uq_topup_paypal_order_id', { unique: true })
-  @Column({
-    type: 'varchar',
-    length: 64,
-    nullable: true,
-    name: 'paypal_order_id',
-  })
-  paypalOrderId!: string | null;
-
   @Index('idx_topup_status')
   @Column({
     type: 'enum',
@@ -105,34 +100,6 @@ export class WalletTopupOrderEntity {
   /** Số tiền cộng vào ví (VND). */
   @Column({ type: 'numeric', precision: 12, scale: 2, name: 'amount_vnd' })
   amountVnd!: number;
-
-  /** Legacy — số tiền charge qua PayPal (USD). Null với đơn PayOS. */
-  @Column({
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    name: 'amount_usd',
-    nullable: true,
-  })
-  amountUsd!: number | null;
-
-  /** Legacy — tỉ giá VND/USD thời điểm tạo đơn. Null với đơn PayOS. */
-  @Column({
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    name: 'fx_rate',
-    nullable: true,
-  })
-  fxRate!: number | null;
-
-  @Column({
-    type: 'varchar',
-    length: 64,
-    nullable: true,
-    name: 'capture_id',
-  })
-  captureId!: string | null;
 
   /** Bút toán DEPOSIT đã ghi khi cộng ví — có giá trị ⇒ đã cộng, không cộng lần 2. */
   @Column({ type: 'uuid', nullable: true, name: 'wallet_tx_id' })

@@ -116,8 +116,6 @@ export interface TopupOrder {
   provider: string;
   status: TopupStatus;
   amountVnd: number;
-  amountUsd: number | null;
-  fxRate: number | null;
   payosOrderCode: number | null;
   bookingId: string | null;
   failReason: string | null;

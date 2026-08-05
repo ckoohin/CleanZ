@@ -51,14 +51,6 @@ export type AllConfigType = {
 
   GOONG_MAPS_API_KEY?: string;
 
-  // PayPal — legacy, không còn dùng cho topup mới.
-  PAYPAL_MODE?: 'sandbox' | 'live';
-  PAYPAL_ENV?: 'sandbox' | 'live';
-  PAYPAL_API_BASE?: string;
-  PAYPAL_CLIENT_ID?: string;
-  PAYPAL_SECRET?: string;
-  PAYPAL_CLIENT_SECRET?: string;
-
   // PayOS (nạp ví customer). Min/max nạp lưu DB `system_configs`.
   PAYOS_CLIENT_ID?: string;
   PAYOS_API_KEY?: string;

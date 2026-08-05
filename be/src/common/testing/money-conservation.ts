@@ -12,7 +12,7 @@ import { DataSource } from 'typeorm';
  * Nếu chỉ nhìn `balance` thì một thao tác giữ tiền (hold) trông y như tiền bốc hơi.
  *
  * Tổng này CHỈ đổi khi tiền thật sự đi qua biên hệ thống:
- *   • vào  — nạp ví qua PayPal
+ *   • vào  — nạp ví qua PayOS
  *   • ra   — rút tiền về ngân hàng
  * Mọi thứ khác (hoàn bồi thường, thu hoa hồng, giữ/giải phóng, thu hồi nợ) chỉ là chuyển
  * tiền giữa các ví ⇒ tổng phải KHÔNG đổi.
@@ -23,7 +23,7 @@ import { DataSource } from 'typeorm';
  */
 
 export interface MoneyBoundaryFlow {
-  /** Tiền từ ngoài VÀO hệ thống ví (nạp PayPal…). Mặc định 0. */
+  /** Tiền từ ngoài VÀO hệ thống ví (nạp PayOS…). Mặc định 0. */
   externalIn?: number;
   /** Tiền RỜI hệ thống ví ra ngoài (chi rút tiền…). Mặc định 0. */
   externalOut?: number;

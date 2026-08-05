@@ -122,7 +122,7 @@ const TIME_SLOTS = ["08:00", "09:00", "10:00", "13:00", "14:00", "15:00", "16:00
 
 const PAYMENT_METHODS = [
   { id: 'CASH' as const, name: 'Tiền mặt', icon: Wallet, desc: 'Trả sau khi hoàn thành ca làm' },
-  { id: 'WALLET' as const, name: 'Ví CleanZ', icon: Smartphone, desc: 'Trừ thẳng số dư ví, nạp bằng PayPal' },
+  { id: 'WALLET' as const, name: 'Ví CleanZ', icon: Smartphone, desc: 'Trừ thẳng số dư ví, nạp bằng PayOS' },
 ];
 
 interface ServiceBookingPageProps {

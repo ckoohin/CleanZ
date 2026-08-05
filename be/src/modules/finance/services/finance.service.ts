@@ -571,8 +571,12 @@ export class FinanceService {
     }
 
     if (params?.search && params.search.trim()) {
+      // Trước đây chỉ tìm theo hai cột PayPal cũ, nên mọi đơn nạp PayOS — tức là
+      // toàn bộ đơn mới — không bao giờ tìm ra. `payos_order_code` là bigint nên
+      // phải ép về text mới ILIKE được.
       qb.andWhere(
-        '(t.paypalOrderId ILIKE :search OR t.captureId ILIKE :search)',
+        `(CAST(t.payosOrderCode AS TEXT) ILIKE :search
+          OR t.paymentLinkId ILIKE :search)`,
         { search: `%${params.search.trim()}%` },
       );
     }
@@ -741,10 +745,8 @@ export class FinanceService {
         taskerId: string | null;
         taskerFullName: string | null;
         taskerPhone: string | null;
-        paypalOrderId: string | null;
-        paypalCaptureId: string | null;
-        paypalAmountUsd: string | null;
-        paypalFxRate: string | null;
+        topupPayosOrderCode: string | null;
+        topupPaymentLinkId: string | null;
         topupProvider: string | null;
         topupStatus: string | null;
       }>
@@ -787,10 +789,8 @@ export class FinanceService {
          b.tasker_id                AS "taskerId",
          tu.full_name               AS "taskerFullName",
          tu.phone                   AS "taskerPhone",
-         wto.paypal_order_id        AS "paypalOrderId",
-         wto.capture_id             AS "paypalCaptureId",
-         wto.amount_usd             AS "paypalAmountUsd",
-         wto.fx_rate                AS "paypalFxRate",
+         wto.payos_order_code       AS "topupPayosOrderCode",
+         wto.payment_link_id        AS "topupPaymentLinkId",
          wto.provider               AS "topupProvider",
          wto.status                 AS "topupStatus"
        FROM wallet_transactions wt
@@ -829,19 +829,19 @@ export class FinanceService {
         email: r.customerEmail,
         phone: r.customerPhone,
       },
-      paypalTopup:
-        r.paypalOrderId || r.paypalCaptureId || r.topupProvider
-          ? {
-              provider: r.topupProvider || 'PAYPAL',
-              paypalOrderId: r.paypalOrderId,
-              captureId: r.paypalCaptureId,
-              amountUsd: r.paypalAmountUsd
-                ? parseFloat(r.paypalAmountUsd)
-                : null,
-              fxRate: r.paypalFxRate ? parseFloat(r.paypalFxRate) : null,
-              status: r.topupStatus,
-            }
-          : null,
+      // Đơn nạp ví gắn với giao dịch này.
+      //
+      // Trước đây khối này tên `paypalTopup`, chỉ trả các cột PayPal và mặc định
+      // `provider = 'PAYPAL'` khi thiếu — nên đơn nạp PayOS (toàn bộ đơn mới) hiện
+      // ra không có mã tham chiếu nào và bị dán nhãn sai cổng.
+      topup: r.topupProvider
+        ? {
+            provider: r.topupProvider,
+            status: r.topupStatus,
+            payosOrderCode: r.topupPayosOrderCode,
+            paymentLinkId: r.topupPaymentLinkId,
+          }
+        : null,
       booking: r.bookingId
         ? {
             id: r.bookingId,

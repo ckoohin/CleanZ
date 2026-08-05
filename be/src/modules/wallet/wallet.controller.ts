@@ -146,7 +146,7 @@ export class WalletController {
   @Auth(UserRole.TASKER)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseGuards(ThrottlerGuard)
-  @ApiOperation({ summary: 'Tasker tạo đơn nạp tiền vào ví qua PayPal' })
+  @ApiOperation({ summary: 'Tasker tạo đơn nạp tiền vào ví qua PayOS' })
   @ApiCreatedResponse({ description: 'Tạo đơn nạp tiền thành công' })
   async createTaskerTopup(
     @CurrentUser('id') userId: string,
@@ -158,17 +158,14 @@ export class WalletController {
       undefined,
       WalletOwnerType.TASKER,
     );
-    return successResponse(
-      result,
-      'Đã tạo đơn nạp tiền, chờ thanh toán PayPal',
-    );
+    return successResponse(result, 'Đã tạo đơn nạp tiền, chờ thanh toán PayOS');
   }
 
   @Post('tasker/me/topups/:id/capture')
   @Auth(UserRole.TASKER)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(ThrottlerGuard)
-  @ApiOperation({ summary: 'Tasker xác nhận thanh toán PayPal và cộng ví' })
+  @ApiOperation({ summary: 'Tasker xác nhận thanh toán PayOS và cộng ví' })
   async captureTaskerTopup(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,

@@ -116,8 +116,6 @@ export class WalletTopupService {
           provider: 'PAYOS',
           status: TopupStatus.CREATED,
           amountVnd,
-          amountUsd: null,
-          fxRate: null,
           payosOrderCode: orderCode,
           bookingId: bookingId ?? null,
         }),

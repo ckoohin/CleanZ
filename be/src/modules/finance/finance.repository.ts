@@ -109,7 +109,7 @@ export class WalletTransactionRepository extends Repository<WalletTransactionEnt
    *
    * Mỗi lần chuyển tiền ghi 2 bút toán CÙNG loại (một bên trừ, một bên cộng) nên
    * từng chỉ số chỉ đếm ở một vế để không nhân đôi: thanh toán/hoàn tiền lấy vế
-   * ví khách, nạp/rút lấy vế ví cá nhân (nạp PayPal và rút tiền chỉ ghi 1 bút toán).
+   * ví khách, nạp/rút lấy vế ví cá nhân (nạp PayOS và rút tiền chỉ ghi 1 bút toán).
    */
   async getFlowSummary(
     fromDate?: string,

@@ -12,7 +12,9 @@ const EMAIL_SUBJECTS: Partial<Record<NotificationType, string>> = {
   [NotificationType.BOOKING_COMPLETED]: 'Đơn dịch vụ đã hoàn thành',
   [NotificationType.BOOKING_CANCELLED]: 'Đơn đặt lịch đã bị hủy',
   [NotificationType.PAYMENT_SUCCESS]: 'Thanh toán thành công',
-  [NotificationType.PAYMENT_FAILED]: 'Thanh toán thất bại',
+  // Phủ cả trường hợp đã thu tiền nhưng không tạo được đơn và đã hoàn lại —
+  // "thất bại" dễ khiến khách tưởng mất tiền.
+  [NotificationType.PAYMENT_FAILED]: 'Thanh toán không hoàn tất',
   [NotificationType.INCIDENT_UPDATE]: 'Cập nhật sự cố',
   [NotificationType.SUPPORT_REPLY]: 'Phản hồi từ bộ phận hỗ trợ',
 };

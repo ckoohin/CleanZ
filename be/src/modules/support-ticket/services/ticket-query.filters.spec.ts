@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { SupportTicketStatus } from 'src/common/enums/support-ticket-status.enum';
 import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { TicketPriority } from 'src/common/enums/ticket-priority.enum';

@@ -1602,7 +1602,9 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               ? "Chưa thanh toán"
               : booking.payment.status === "REFUNDED"
                 ? "Đã hoàn tiền"
-                : "Đã thanh toán"}
+                : booking.payment.status === "FAILED"
+                  ? "Thanh toán thất bại"
+                  : "Đã thanh toán"}
           </p>
         </div>
 

@@ -348,7 +348,7 @@ export default function AdminSettingsPage() {
 
                 <SystemConfigGroupCard
                   group="TOPUP"
-                  description="Tỷ giá quy đổi PayPal và hạn mức mỗi đơn nạp của khách hàng."
+                  description="Hạn mức mỗi đơn nạp ví của khách hàng."
                   icon={
                     <Wallet className="w-5 h-5 text-[var(--c-primary-strong)]" />
                   }

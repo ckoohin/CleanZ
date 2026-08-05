@@ -181,11 +181,10 @@ export interface CustomerTopupOrder {
   walletId: string;
   walletTxId?: string | null;
   provider: string;
-  paypalOrderId?: string | null;
+  payosOrderCode?: string | number | null;
+  paymentLinkId?: string | null;
   status: "CREATED" | "COMPLETED" | "FAILED" | "CANCELLED" | "EXPIRED";
   amountVnd: number | string;
-  amountUsd: number | string;
-  fxRate: number | string;
   createdAt: string;
 }
 
@@ -280,13 +279,13 @@ export interface WalletTransactionDetail {
     email?: string | null;
     phone?: string | null;
   } | null;
-  paypalTopup?: {
+  /** Đơn nạp ví gắn với giao dịch. */
+  topup?: {
+    /** 'PAYOS' với mọi đơn mới; bản ghi cũ có thể là 'PAYPAL'/'ADYEN'. */
     provider: string;
-    paypalOrderId?: string | null;
-    captureId?: string | null;
-    amountUsd?: number | null;
-    fxRate?: number | null;
     status?: string | null;
+    payosOrderCode?: string | null;
+    paymentLinkId?: string | null;
   } | null;
   booking?: {
     id: string;

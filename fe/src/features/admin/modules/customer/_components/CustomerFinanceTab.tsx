@@ -81,7 +81,7 @@ interface Props {
 const TRANSACTION_TYPES: Record<string, { label: string; color: string }> = {
   PAYMENT: { label: "Thanh toán đơn", color: "bg-blue-500/10 text-blue-600 border-blue-200" },
   REFUND: { label: "Hoàn tiền", color: "bg-emerald-500/10 text-emerald-600 border-emerald-200" },
-  DEPOSIT: { label: "Nạp tiền PayPal", color: "bg-purple-500/10 text-purple-600 border-purple-200" },
+  DEPOSIT: { label: "Nạp tiền vào ví", color: "bg-purple-500/10 text-purple-600 border-purple-200" },
   ADJUSTMENT: { label: "Điều chỉnh Admin", color: "bg-amber-500/10 text-amber-600 border-amber-200" },
   DEPOSIT_HOLD: { label: "Giữ tiền cọc", color: "bg-orange-500/10 text-orange-600 border-orange-200" },
 };
@@ -411,7 +411,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
         <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs font-semibold text-[var(--c-muted)]">
             <span className="flex items-center gap-1.5">
-              <WalletCards className="size-4 text-blue-600" /> Tổng nạp PayPal
+              <WalletCards className="size-4 text-blue-600" /> Tổng nạp ví
             </span>
             <span className="text-[10px] text-[var(--c-muted)] font-bold">
               {overview?.topupCount ?? 0} lượt nạp
@@ -475,7 +475,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
           }`}
         >
           <WalletCards className="size-3.5 inline mr-1.5" />
-          Lịch sử nạp PayPal ({overview?.topupCount ?? 0})
+          Lịch sử nạp ví ({overview?.topupCount ?? 0})
         </button>
 
         <button
@@ -579,7 +579,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Tất cả loại</SelectItem>
-                  <SelectItem value="DEPOSIT">Nạp tiền PayPal</SelectItem>
+                  <SelectItem value="DEPOSIT">Nạp tiền vào ví</SelectItem>
                   <SelectItem value="PAYMENT">Thanh toán đơn</SelectItem>
                   <SelectItem value="REFUND">Hoàn tiền đơn</SelectItem>
                   <SelectItem value="ADJUSTMENT">Điều chỉnh Admin</SelectItem>
@@ -802,10 +802,10 @@ export function CustomerFinanceTab({ customerId }: Props) {
           <div className="pb-3 border-b border-[var(--c-line)]">
             <h3 className="text-base font-bold text-[var(--c-ink)] flex items-center gap-2">
               <WalletCards className="size-4 text-purple-600" />
-              Lịch sử các lệnh Nạp tiền qua Cổng PayPal
+              Lịch sử các lệnh Nạp tiền vào ví
             </h3>
             <p className="text-xs text-[var(--c-muted)] mt-0.5">
-              Danh sách chi tiết các mã đơn PayPal Order, số tiền USD charge & số tiền VND quy đổi cộng vào ví.
+              Đơn nạp qua PayOS, kèm các đơn cũ qua PayPal/Adyen.
             </p>
           </div>
 
@@ -814,7 +814,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[var(--c-muted)]" />
               <Input
-                placeholder="Tìm PayPal Order ID, Capture ID..."
+                placeholder="Tìm mã đơn PayOS, payment link ID..."
                 value={topupSearch}
                 onChange={(e) => {
                   setTopupSearch(e.target.value);
@@ -953,7 +953,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
           ) : !topupData?.items || topupData.items.length === 0 ? (
             <div className="py-12 text-center border border-dashed border-[var(--c-line)] rounded-xl">
               <WalletCards className="size-8 text-[var(--c-muted)] mx-auto mb-2 opacity-50" />
-              <p className="text-sm font-semibold text-[var(--c-ink)]">Chưa có lệnh nạp PayPal nào</p>
+              <p className="text-sm font-semibold text-[var(--c-ink)]">Chưa có lệnh nạp ví nào</p>
               <p className="text-xs text-[var(--c-muted)]">Không tìm thấy dữ liệu phù hợp với bộ lọc.</p>
             </div>
           ) : (
@@ -962,10 +962,9 @@ export function CustomerFinanceTab({ customerId }: Props) {
                 <thead>
                   <tr className="border-b border-[var(--c-line)] text-[var(--c-muted)] font-semibold uppercase text-[10px] tracking-wider">
                     <th className="py-2.5 px-3">Thời gian</th>
-                    <th className="py-2.5 px-3">PayPal Order ID</th>
-                    <th className="py-2.5 px-3 text-right">Số tiền USD</th>
-                    <th className="py-2.5 px-3 text-right">Quy đổi VND</th>
-                    <th className="py-2.5 px-3 text-right">Tỷ giá</th>
+                    <th className="py-2.5 px-3">Cổng</th>
+                    <th className="py-2.5 px-3">Mã đơn</th>
+                    <th className="py-2.5 px-3 text-right">Số tiền vào ví</th>
                     <th className="py-2.5 px-3 text-center">Trạng thái</th>
                     <th className="py-2.5 px-3 text-center">Thao tác</th>
                   </tr>
@@ -976,17 +975,16 @@ export function CustomerFinanceTab({ customerId }: Props) {
                       <td className="py-3 px-3 text-[var(--c-muted)] whitespace-nowrap">
                         {new Date(tp.createdAt).toLocaleString("vi-VN")}
                       </td>
-                      <td className="py-3 px-3 font-mono font-bold text-[var(--c-primary-strong)]">
-                        {tp.paypalOrderId || tp.id.slice(0, 8)}
+                      <td className="py-3 px-3">
+                        <Badge variant="outline" className="text-[10px] font-bold">
+                          {tp.provider}
+                        </Badge>
                       </td>
-                      <td className="py-3 px-3 text-right font-bold text-blue-600">
-                        ${Number(tp.amountUsd).toFixed(2)}
+                      <td className="py-3 px-3 font-mono font-bold text-[var(--c-primary-strong)]">
+                        {tp.payosOrderCode ?? tp.id.slice(0, 8)}
                       </td>
                       <td className="py-3 px-3 text-right font-bold text-emerald-600">
                         +{formatCurrency(tp.amountVnd)}
-                      </td>
-                      <td className="py-3 px-3 text-right text-[var(--c-muted)]">
-                        {formatCurrency(tp.fxRate)} / USD
                       </td>
                       <td className="py-3 px-3 text-center">
                         <Badge

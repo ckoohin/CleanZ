@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { RefreshCw, UserX, X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 import {
   BaseTableList,
@@ -407,30 +408,6 @@ export function AdminBookingPage() {
       ),
     },
     {
-      key: "noShowReview",
-      title: "No-show",
-      render: (row) => {
-        if (row.noShow?.reviewStatus === "PENDING_REVIEW") {
-          return (
-            <StatusBadge tone="warning">
-              <UserX className="mr-1 size-3" /> No-show chờ duyệt
-            </StatusBadge>
-          );
-        }
-        if (row.noShow?.reviewStatus === "CONFIRMED") {
-          return <StatusBadge tone="danger">No-show vi phạm</StatusBadge>;
-        }
-        if (row.noShow?.reviewStatus === "EXCUSED") {
-          return (
-            <StatusBadge tone="success">No-show miễn trách nhiệm</StatusBadge>
-          );
-        }
-        return (
-          <span className="text-xs text-[var(--c-muted)]">Không phát sinh</span>
-        );
-      },
-    },
-    {
       key: "status",
       title: "Trạng thái",
       render: (row) => (
@@ -563,22 +540,17 @@ export function AdminBookingPage() {
 
         {/* Row 2: Ngày + Customer + Tasker */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="h-9 px-2 rounded-md border border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--c-primary)]"
-            />
-            <span className="text-[var(--c-muted)] text-xs">→</span>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              min={fromDate || undefined}
-              className="h-9 px-2 rounded-md border border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--c-primary)]"
-            />
-          </div>
+          <DateRangePicker
+            startDate={fromDate}
+            endDate={toDate}
+            onRangeChange={(start, end) => {
+              setFromDate(start);
+              setToDate(end);
+            }}
+            placeholder="Lọc theo khoảng ngày..."
+            allowPastDates={true}
+            className="cz-admin border-[var(--c-line-strong)] bg-[var(--c-card)] text-[var(--c-ink)] h-9"
+          />
 
           <LookupCombobox
             placeholder="Tìm khách hàng..."

@@ -2406,8 +2406,10 @@ export const BookingWizard = ({
       };
     });
 
-  /** ONLINE: chỉ coi là xong khi đơn nháp đã đổi được thành booking thật. */
-  const onlinePaid = form.paymentMethod !== "ONLINE" || Boolean(createdId);
+
+  const canLeavePaymentStep =
+    form.paymentMethod !== "ONLINE" || Boolean(createdId);
+  const hasPaidOnline = form.paymentMethod === "ONLINE" && Boolean(createdId);
 
   const canProceed = (): boolean => {
     if (step === 0)
@@ -2739,7 +2741,7 @@ export const BookingWizard = ({
               />
             </motion.div>
           )}
-          {step === 5 && form.paymentMethod === "ONLINE" && !onlinePaid && (
+          {step === 5 && form.paymentMethod === "ONLINE" && !canLeavePaymentStep && (
             <motion.div
               key="s5-payment"
               initial={{ scale: 0.9, opacity: 0 }}
@@ -2766,7 +2768,7 @@ export const BookingWizard = ({
               )}
             </motion.div>
           )}
-          {step === 5 && (form.paymentMethod !== "ONLINE" || onlinePaid) && (
+          {step === 5 && canLeavePaymentStep && (
             <motion.div
               key="s5-success"
               initial={{ scale: 0.9, opacity: 0 }}
@@ -2777,10 +2779,10 @@ export const BookingWizard = ({
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               </div>
               <h2 className="text-2xl font-black text-foreground mb-2">
-                {onlinePaid ? "Thanh toán thành công!" : "Đặt lịch thành công!"}
+                {hasPaidOnline ? "Thanh toán thành công!" : "Đặt lịch thành công!"}
               </h2>
               <p className="text-sm text-muted-foreground mb-8">
-                {onlinePaid
+                {hasPaidOnline
                   ? "Đơn hàng đã được xác nhận. Hệ thống đang tìm Tasker phù hợp trong khu vực của bạn."
                   : "Hệ thống đang tìm Tasker phù hợp trong khu vực của bạn. Bạn sẽ được thông báo khi có Tasker nhận đơn."}
               </p>

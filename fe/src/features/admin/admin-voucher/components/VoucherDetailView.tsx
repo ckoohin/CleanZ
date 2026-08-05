@@ -12,15 +12,22 @@ import {
   Hash,
   Clock3,
   ReceiptText,
-  UserRound,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import {
+  BaseTableList,
+  type Column,
+} from "@/components/ui/base/base_table_list";
+import { StatusBadge, type BadgeTone } from "@/components/admin";
+import {
   useAdminVoucherDetail,
   useAdminVoucherStats,
 } from "../hooks/useAdminVoucherDetail";
-import type { VoucherUsageStatus } from "../types/voucher.type";
+import type {
+  VoucherUsageDetail,
+  VoucherUsageStatus,
+} from "../types/voucher.type";
 
 type Props = {
   id: string;
@@ -43,16 +50,121 @@ const STATUS_LABEL: Record<VoucherUsageStatus, string> = {
   RELEASED: "Đã giải phóng",
 };
 
-const STATUS_CLASS: Record<VoucherUsageStatus, string> = {
-  ISSUED: "border-blue-200 bg-blue-50 text-blue-700",
-  RESERVED: "border-amber-200 bg-amber-50 text-amber-700",
-  USED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  RELEASED: "border-slate-200 bg-slate-50 text-slate-600",
+const STATUS_TONE: Record<VoucherUsageStatus, BadgeTone> = {
+  ISSUED: "info",
+  RESERVED: "warning",
+  USED: "success",
+  RELEASED: "neutral",
 };
 
 export function VoucherDetailView({ id }: Props) {
   const { data, isLoading, isError, error } = useAdminVoucherDetail(id);
   const { data: stats, isLoading: isStatsLoading } = useAdminVoucherStats(id);
+  const [usageKeyword, setUsageKeyword] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [limit, setLimit] = React.useState(10);
+
+  const filteredUsages = React.useMemo(() => {
+    const list = stats?.usages ?? [];
+    if (!usageKeyword.trim()) return list;
+    const q = usageKeyword.toLowerCase().trim();
+    return list.filter(
+      (u) =>
+        (u.customerName && u.customerName.toLowerCase().includes(q)) ||
+        (u.customerPhone && u.customerPhone.includes(q)) ||
+        (u.customerEmail && u.customerEmail.toLowerCase().includes(q)) ||
+        (u.bookingCode && u.bookingCode.toLowerCase().includes(q)),
+    );
+  }, [stats?.usages, usageKeyword]);
+
+  // Reset về trang 1 khi lọc theo từ khóa
+  React.useEffect(() => {
+    setPage(1);
+  }, [usageKeyword]);
+
+  const pagedUsages = React.useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredUsages.slice(start, start + limit);
+  }, [filteredUsages, page, limit]);
+
+  const usageColumns = React.useMemo<Column<VoucherUsageDetail>[]>(
+    () => [
+      {
+        key: "customerName",
+        title: "Khách hàng",
+        render: (usage) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-[var(--c-ink)]">
+              {usage.customerName ?? "Khách hàng"}
+            </span>
+            <span className="text-xs text-[var(--c-muted)]">
+              {usage.customerPhone || usage.customerEmail || usage.customerId}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "status",
+        title: "Trạng thái",
+        render: (usage) => (
+          <StatusBadge tone={STATUS_TONE[usage.status] ?? "neutral"}>
+            {STATUS_LABEL[usage.status] ?? usage.status}
+          </StatusBadge>
+        ),
+      },
+      {
+        key: "bookingCode",
+        title: "Đơn hàng",
+        render: (usage) =>
+          usage.bookingCode ? (
+            <div className="flex flex-col">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--c-primary-strong)]">
+                #{usage.bookingCode}
+              </span>
+              {usage.bookingStatus && (
+                <span className="text-xs text-[var(--c-muted)]">
+                  {usage.bookingStatus}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-[var(--c-muted)]">Chưa gắn đơn</span>
+          ),
+      },
+      {
+        key: "discountAmount",
+        title: "Giảm giá",
+        className: "text-right",
+        render: (usage) => (
+          <span className="font-bold text-[var(--c-primary-strong)]">
+            {formatCurrency(usage.discountAmount)}
+          </span>
+        ),
+      },
+      {
+        key: "totalPrice",
+        title: "Tổng đơn",
+        className: "text-right",
+        render: (usage) => (
+          <span className="font-semibold text-[var(--c-ink)]">
+            {formatCurrency(usage.totalPrice)}
+          </span>
+        ),
+      },
+      {
+        key: "issuedAt",
+        title: "Thời điểm",
+        render: (usage) => (
+          <div className="flex flex-col text-xs text-[var(--c-muted)]">
+            <span>Phát: {formatDate(usage.issuedAt)}</span>
+            {usage.reservedAt && <span>Giữ: {formatDate(usage.reservedAt)}</span>}
+            {usage.usedAt && <span>Dùng: {formatDate(usage.usedAt)}</span>}
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
 
   if (!id) {
     return (
@@ -387,81 +499,35 @@ export function VoucherDetailView({ id }: Props) {
             </div>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-2xl border">
-            <div className="border-b bg-muted/30 px-4 py-3">
-              <p className="text-sm font-bold">Chi tiết lượt sử dụng</p>
-              <p className="text-xs text-muted-foreground">
+          <div className="mt-6 space-y-3">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-base font-bold text-[var(--c-ink)]">
+                Chi tiết lượt sử dụng
+              </h3>
+              <p className="text-xs text-[var(--c-muted)]">
                 Theo từng khách hàng, đơn hàng và trạng thái voucher.
               </p>
             </div>
 
-            {!stats?.usages?.length ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
-                <UserRound className="mb-2 h-8 w-8 opacity-50" />
-                <p className="text-sm font-semibold">Chưa có lượt phát hành/sử dụng</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="bg-muted/20 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-bold">Khách hàng</th>
-                      <th className="px-4 py-3 font-bold">Trạng thái</th>
-                      <th className="px-4 py-3 font-bold">Đơn hàng</th>
-                      <th className="px-4 py-3 font-bold text-right">Giảm giá</th>
-                      <th className="px-4 py-3 font-bold text-right">Tổng đơn</th>
-                      <th className="px-4 py-3 font-bold">Thời điểm</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {stats.usages.map((usage) => (
-                      <tr key={usage.id} className="hover:bg-muted/10">
-                        <td className="px-4 py-3">
-                          <p className="font-bold">
-                            {usage.customerName ?? "Khách hàng"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {usage.customerPhone || usage.customerEmail || usage.customerId}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${STATUS_CLASS[usage.status]}`}
-                          >
-                            {STATUS_LABEL[usage.status]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {usage.bookingCode ? (
-                            <>
-                              <p className="font-semibold">#{usage.bookingCode}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {usage.bookingStatus ?? "—"}
-                              </p>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">Chưa gắn đơn</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-primary">
-                          {formatCurrency(usage.discountAmount)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold">
-                          {formatCurrency(usage.totalPrice)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          <p>Phát: {formatDate(usage.issuedAt)}</p>
-                          {usage.reservedAt && (
-                            <p>Giữ: {formatDate(usage.reservedAt)}</p>
-                          )}
-                          {usage.usedAt && <p>Dùng: {formatDate(usage.usedAt)}</p>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <BaseTableList
+              columns={usageColumns}
+              data={pagedUsages}
+              rowKey="id"
+              isLoading={isStatsLoading}
+              keyword={usageKeyword}
+              onKeywordChange={setUsageKeyword}
+              placeholderSearch="Tìm theo khách hàng, SĐT, mã đơn..."
+              totalItems={filteredUsages.length}
+              page={page}
+              limit={limit}
+              onPageChange={setPage}
+              onLimitChange={(nextLimit) => {
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+              emptyTitle="Chưa có lượt phát hành/sử dụng"
+              emptyDescription="Thông tin lượt phát hành và sử dụng voucher sẽ hiển thị tại đây."
+            />
           </div>
         </div>
 

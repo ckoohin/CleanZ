@@ -15,7 +15,7 @@ const formatVnd = (value: number) =>
   }).format(value);
 
 /**
- * PayPal đá khách về đây sau khi duyệt thanh toán. Trang này gọi capture để cộng ví.
+ * PayOS đá khách về đây sau khi thanh toán. Trang này gọi capture để cộng ví.
  * Capture idempotent ở backend (khóa row + walletTxId), nên F5 không cộng tiền 2 lần.
  */
 function TopupReturnContent() {
