@@ -52,6 +52,11 @@ import {
   type Tone,
 } from "@/features/support-tickets/shared/ticket.labels";
 import { TICKET_STATUS, TICKET_PRIORITY } from "@/features/support-tickets/shared/ticket.enums";
+import { DateRangePicker } from "@/features/admin/components/DateRangePicker";
+import { TicketExportMenu } from "./TicketExportMenu";
+import { rangeLabel, rangeOf } from "@/features/admin/lib/date-ranges";
+import type { DateRange } from "@/features/admin/types/dashboard.types";
+import type { AdminTicketExportQuery } from "@/features/support-tickets/shared/ticket.types";
 
 /** Map the shared ticket Tone → cz semantic StatusBadge tone. */
 const TONE_TO_CZ: Record<Tone, BadgeTone> = {
@@ -166,9 +171,11 @@ export const SupportTicketTable: React.FC = () => {
   const page = Math.max(1, Number(sp.get("page") ?? 1));
   const limit = Math.max(1, Number(sp.get("limit") ?? 10));
 
-  const apiParams: AdminTicketQueryParams = {
-    page,
-    limit,
+  // Tách bộ lọc khỏi phân trang: `export/list` dùng DTO đã bỏ `page`/`limit`,
+  // mà ValidationPipe bật `forbidNonWhitelisted` nên chỉ cần lọt một khoá thừa
+  // là cả nút xuất file trả 422. Không đưa hai khoá đó vào object export ngay
+  // từ đầu thì không còn chỗ nào để sai.
+  const filterParams: AdminTicketExportQuery = {
     ...(sel("status") !== "ALL" && { status: sel("status") as TicketStatus }),
     ...(sel("category") !== "ALL" && { category: sel("category") as TicketCategory }),
     ...(sel("priority") !== "ALL" && { priority: sel("priority") as TicketPriority }),
@@ -178,7 +185,30 @@ export const SupportTicketTable: React.FC = () => {
     ...(get("booking") && { bookingId: get("booking") }),
     ...(get("q") && { keyword: get("q") }),
     ...(get("sort") && { sort: get("sort") as AdminTicketQueryParams["sort"] }),
+    ...(get("from") && { fromDate: get("from") }),
+    ...(get("to") && { toDate: get("to") }),
   };
+
+  // Một nguồn sự thật cho cả trang: bảng, dải chỉ số phía trên và hai file xuất
+  // ra đều đọc từ `filterParams`, không nơi nào dựng lại từ URL lần thứ hai.
+  const apiParams: AdminTicketQueryParams = { page, limit, ...filterParams };
+
+  // Ngày trống = "toàn bộ thời gian". Picker luôn cần một cặp ngày để hiển thị,
+  // nên khi chưa lọc thì mượn kỳ 30 ngày làm gợi ý — chưa áp vào truy vấn.
+  const dateRange: DateRange = {
+    fromDate: get("from") || rangeOf("last30").fromDate,
+    toDate: get("to") || rangeOf("last30").toDate,
+  };
+  const dateFilterActive = !!get("from") || !!get("to");
+
+  // Số bộ lọc KHÁC kỳ ngày đang áp — hiện ngay trong menu xuất file để người
+  // bấm biết phạm vi mà không phải rà lại toàn bộ toolbar.
+  const otherFilterCount = Object.keys(filterParams).filter(
+    (k) => k !== "fromDate" && k !== "toDate" && k !== "sort",
+  ).length;
+  const filterHint = otherFilterCount
+    ? `${otherFilterCount} bộ lọc đang áp`
+    : "Không lọc thêm";
 
   const { data: response, isLoading } = useTicketList(apiParams);
   useAdminTicketUnreadRealtime(); // tin mới của user → badge hàng đợi cập nhật
@@ -309,7 +339,7 @@ export const SupportTicketTable: React.FC = () => {
 
   return (
     <>
-      <TicketStatsPanel />
+      <TicketStatsPanel range={{ fromDate: filterParams.fromDate, toDate: filterParams.toDate }} />
 
       {/* ── Toolbar ── */}
       <div className="mb-4 space-y-3">
@@ -334,7 +364,20 @@ export const SupportTicketTable: React.FC = () => {
               </button>
             )}
           </div>
-          <div className="flex gap-2 sm:ml-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            {/* Kỳ ngày DUY NHẤT của cả trang: lọc hàng đợi, chi phối dải chỉ số
+                phía trên, và là phạm vi của cả hai file xuất ra. */}
+            <DateRangePicker
+              value={dateRange}
+              onChange={(r) => setParams({ from: r.fromDate, to: r.toDate })}
+              inactiveLabel={dateFilterActive ? undefined : "Tất cả thời gian"}
+              onClear={() => setParams({ from: undefined, to: undefined })}
+            />
+            <TicketExportMenu
+              filters={filterParams}
+              rangeLabel={dateFilterActive ? rangeLabel(dateRange) : "Toàn bộ thời gian"}
+              filterHint={filterHint}
+            />
             {/* Lối tắt hay dùng nhất: hàng đợi của chính mình. */}
             <AdminButton
               variant={mineActive ? "primary" : "secondary"}

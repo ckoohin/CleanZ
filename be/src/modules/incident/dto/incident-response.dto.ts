@@ -102,7 +102,15 @@ export interface AdminDecisionResponseView {
 
 export interface IncidentAdminView extends IncidentSummary {
   description: string;
-  customer: { id: string; fullName?: string | null };
+  customer: {
+    id: string;
+    fullName?: string | null;
+    /**
+     * Mốc khoá quyền báo cáo (null = không bị khoá). Admin cần biết trước khi
+     * bấm gỡ khoá, nếu không nút đó là thao tác mù — không rõ có tác dụng gì.
+     */
+    reportingLockedUntil: string | null;
+  };
   tasker: {
     id: string;
     fullName?: string | null;
@@ -380,6 +388,8 @@ export function toAdminView(
     customer: {
       id: incident.customer?.id,
       fullName: incident.customer?.user?.fullName ?? null,
+      reportingLockedUntil:
+        incident.customer?.reportingLockedUntil?.toISOString() ?? null,
     },
     tasker: {
       id: incident.tasker?.id,

@@ -40,6 +40,23 @@ export function vietnamEndOfDay(date: string): Date {
   );
 }
 
+/**
+ * Cận trên KHÔNG bao gồm: 00:00:00.000 giờ VN của NGÀY KẾ TIẾP.
+ *
+ * Dùng với `< to` thay cho cặp `vietnamEndOfDay` + `<=`. Lý do: cột `timestamp`
+ * của Postgres có độ chính xác MICRO giây, còn `Date` của JS chỉ tới mili giây —
+ * nên mốc `23:59:59.999` vẫn để lọt mọi bản ghi rơi vào phần nghìn giây cuối
+ * ngày (vd `23:59:59.9995`). Đổi toán tử `<=` thành `<` không cứu được, phải
+ * đổi chính cách dựng cận trên thành khoảng nửa mở `[from, to)`.
+ */
+export function vietnamEndOfDayExclusive(date: string): Date {
+  // Cộng thẳng 24 giờ thay vì `setDate(+1)`: `setDate` cộng theo LỊCH của múi
+  // giờ tiến trình, nên nếu tiến trình chạy ở múi có DST thì bước nhảy có thể
+  // là 23 hoặc 25 giờ và mốc trả về sẽ lệch. Giờ VN không có DST, một ngày
+  // luôn đúng 24 giờ — cộng theo mốc tuyệt đối thì đúng ở mọi môi trường.
+  return new Date(vietnamStartOfDay(date).getTime() + 24 * 60 * 60 * 1000);
+}
+
 export function formatVietnamDate(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: VIETNAM_TIMEZONE,

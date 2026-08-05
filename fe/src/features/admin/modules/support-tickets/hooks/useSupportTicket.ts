@@ -44,7 +44,10 @@ export function useUpdateTicketConfig() {
 }
 
 // ─── Thống kê vận hành ────────────────────────────────────────────────────────
-export function useTicketStats(params?: { from?: string; to?: string }) {
+export function useTicketStats(params?: {
+  fromDate?: string;
+  toDate?: string;
+}) {
   return useQuery({
     queryKey: ["admin-support-tickets", "stats", params],
     queryFn: () => supportTicketAdminApi.getStats(params),

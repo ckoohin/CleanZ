@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { EVIDENCE_MAX_BYTES, EVIDENCE_MIME } from "../incident.enums";
 import type { Evidence } from "../incident.types";
 
 interface EvidenceUploaderProps {
@@ -31,19 +32,33 @@ export function EvidenceUploader({
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     const remaining = max - value.length;
-    const picked = Array.from(files).slice(0, remaining);
+    const all = Array.from(files);
+    const picked = all.slice(0, remaining);
+    if (all.length > picked.length) {
+      toast.error(`Chỉ tải được tối đa ${max} ảnh — đã bỏ bớt ảnh thừa.`);
+    }
+
     setUploading(true);
+    // Khai NGOÀI try và ghi nhận trong finally: một ảnh lỗi giữa chừng không
+    // được làm mất những ảnh đã tải lên thành công trước đó.
+    const uploaded: Evidence[] = [];
     try {
-      const uploaded: Evidence[] = [];
       for (const file of picked) {
-        if (!file.type.startsWith("image/")) {
-          toast.error("Chỉ chấp nhận ảnh");
+        if (!EVIDENCE_MIME.includes(file.type)) {
+          toast.error(`"${file.name}": chỉ nhận ảnh JPEG hoặc PNG.`);
+          continue;
+        }
+        if (file.size > EVIDENCE_MAX_BYTES) {
+          toast.error(`"${file.name}" vượt quá 5MB — hãy chụp lại hoặc giảm dung lượng.`);
           continue;
         }
         uploaded.push(await upload(file));
       }
-      if (uploaded.length) onChange([...value, ...uploaded]);
+    } catch {
+      // Hàm upload do actor truyền vào đã hiện lỗi; bắt ở đây để lời hứa không
+      // văng ra ngoài và để phần đã tải lên vẫn được giữ.
     } finally {
+      if (uploaded.length) onChange([...value, ...uploaded]);
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
     }
@@ -84,10 +99,10 @@ export function EvidenceUploader({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/jpg,image/webp"
+        accept={EVIDENCE_MIME.join(",")}
         multiple
         className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
+        onChange={(e) => void handleFiles(e.target.files)}
       />
     </div>
   );

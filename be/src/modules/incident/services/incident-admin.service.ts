@@ -27,6 +27,10 @@ import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { SupportTicketEntity } from 'src/modules/support-ticket/entity/support-ticket.entity';
 import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { QueryAdminIncidentDto } from '../dto/query-admin-incident.dto';
+import {
+  applyAdminIncidentFilters,
+  applyAdminIncidentSort,
+} from './incident-query.filters';
 import { AcceptIncidentDto } from '../dto/accept-incident.dto';
 import { CreateFromTicketDto } from '../dto/create-from-ticket.dto';
 import {
@@ -550,25 +554,8 @@ export class IncidentAdminService {
         .skip((page - 1) * limit)
         .take(limit);
 
-      if (query.status)
-        qb.andWhere('i.status = :status', { status: query.status });
-      if (query.severity)
-        qb.andWhere('i.severity = :sev', { sev: query.severity });
-      if (query.taskerId)
-        qb.andWhere('i.tasker_id = :tid', { tid: query.taskerId });
-      if (query.customerId)
-        qb.andWhere('i.customer_id = :cid', { cid: query.customerId });
-      if (query.overdue === 'true')
-        qb.andWhere('i.decision_due_at IS NOT NULL')
-          // `now()` của DB, không phải đồng hồ app: chính DB sinh ra `decision_due_at`, nên
-          // so bằng đồng hồ khác là hàng đợi lệch đúng bằng độ lệch giữa hai máy.
-          .andWhere('i.decision_due_at < now()')
-          .andWhere('i.status != :closed', { closed: IncidentStatus.CLOSED });
-
-      if (query.sort === 'severity') qb.orderBy('i.severity', 'ASC');
-      else if (query.sort === 'decisionDueAt')
-        qb.orderBy('i.decisionDueAt', 'ASC');
-      else qb.orderBy('i.reportedAt', 'DESC');
+      applyAdminIncidentFilters(qb, query);
+      applyAdminIncidentSort(qb, query.sort);
 
       const [rows, total] = await qb.getManyAndCount();
       return {

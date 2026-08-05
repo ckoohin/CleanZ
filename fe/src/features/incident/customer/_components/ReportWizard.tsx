@@ -11,9 +11,11 @@ import { ROUTES } from "@/constants/routes";
 import { EvidenceUploader } from "@/features/incident/shared/_components/EvidenceUploader";
 import { formatVnd } from "@/features/incident/shared/incident.labels";
 import { CLAIM_MAX } from "@/features/incident/shared/incident.enums";
+import { isIntegerAmount } from "@/features/incident/shared/incident.machine";
 import type { Evidence } from "@/features/incident/shared/incident.types";
 import {
   useCreateIncident,
+  useReportConfig,
   useUploadEvidence,
 } from "../hooks/useCustomerIncident";
 
@@ -29,6 +31,10 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
   const router = useRouter();
   const uploadEvidence = useUploadEvidence();
   const createIncident = useCreateIncident();
+  // Trần thật do admin cấu hình; `CLAIM_MAX` chỉ là giá trị dự phòng trong lúc
+  // chưa tải xong hoặc khi gọi lỗi — backend vẫn là chốt chặn cuối.
+  const { data: reportConfig } = useReportConfig();
+  const claimMax = reportConfig?.claimMax ?? CLAIM_MAX;
 
   const [bookingId, setBookingId] = useState(initialBookingId ?? "");
   const [title, setTitle] = useState("");
@@ -45,18 +51,26 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
 
   const totalClaimed = items.reduce((s, it) => s + (Number(it.claimedAmount) || 0), 0);
 
+  const amountValid = (it: ItemDraft) => {
+    const amount = Number(it.claimedAmount);
+    return isIntegerAmount(amount) && amount > 0 && amount <= claimMax;
+  };
+
   const itemValid = (it: ItemDraft) =>
-    it.description.trim() &&
-    Number(it.claimedAmount) > 0 &&
-    Number(it.claimedAmount) <= CLAIM_MAX &&
-    it.evidences.length >= 1;
+    it.description.trim() && amountValid(it) && it.evidences.length >= 1;
+
+  // Trần áp cho TỔNG, không phải từng hạng mục (backend: `totalClaimed > claimMax`).
+  // Thiếu điều kiện này thì ba hạng mục dưới trần vẫn lọt qua form rồi bị từ
+  // chối — sau khi khách đã tải xong toàn bộ ảnh.
+  const overClaimMax = totalClaimed > claimMax;
 
   const isValid =
     bookingId.trim() &&
     title.trim() &&
     description.trim() &&
     items.length >= 1 &&
-    items.every(itemValid);
+    items.every(itemValid) &&
+    !overClaimMax;
 
   const handleSubmit = () => {
     setAttempted(true);
@@ -147,8 +161,18 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
             <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Hạng mục thiệt hại *
             </Label>
-            <span className="text-xs text-muted-foreground">Tổng: {formatVnd(totalClaimed)}</span>
+            <span
+              className={`text-xs ${overClaimMax ? "font-semibold text-red-500" : "text-muted-foreground"}`}
+            >
+              Tổng: {formatVnd(totalClaimed)}
+            </span>
           </div>
+          {overClaimMax && (
+            <p className="text-xs text-red-500">
+              Tổng số tiền yêu cầu vượt trần {formatVnd(claimMax)}. Hãy giảm bớt
+              hoặc tách thành báo cáo khác.
+            </p>
+          )}
 
           {items.map((it, idx) => (
             <div key={idx} className="space-y-2 rounded-xl border border-border/50 p-3">
@@ -171,12 +195,13 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
               <Input
                 type="number"
                 min={1}
-                max={CLAIM_MAX}
+                max={claimMax}
                 value={it.claimedAmount}
                 onChange={(e) => setItem(idx, { claimedAmount: e.target.value })}
                 placeholder="Số tiền yêu cầu (VND)"
                 className="rounded-lg text-sm"
-                aria-invalid={attempted && !(Number(it.claimedAmount) > 0 && Number(it.claimedAmount) <= CLAIM_MAX)}
+                step={1}
+                aria-invalid={attempted && !amountValid(it)}
               />
               <div>
                 <p className="mb-1 text-[11px] text-muted-foreground">Ảnh bằng chứng (≥1) *</p>
@@ -187,7 +212,9 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
                 />
               </div>
               {attempted && !itemValid(it) && (
-                <p className="text-xs text-red-500">Cần mô tả, số tiền hợp lệ (≤ {formatVnd(CLAIM_MAX)}) và ≥1 ảnh.</p>
+                <p className="text-xs text-red-500">
+                  Cần mô tả, số tiền nguyên không lẻ (≤ {formatVnd(claimMax)}) và ≥1 ảnh.
+                </p>
               )}
             </div>
           ))}

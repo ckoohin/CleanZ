@@ -38,6 +38,16 @@ const MAX_SIZE = 5 * 1024 * 1024;
 export class IncidentController {
   constructor(private readonly incidentService: IncidentService) {}
 
+  @Get('report-config')
+  @ApiOperation({
+    summary: 'Tham số cấu hình cho form báo cáo sự cố (trần số tiền yêu cầu)',
+    description:
+      'Chỉ các giá trị khách cần để form chặn trước. Cấu hình vận hành đầy đủ nằm ở /admin/incidents/config.',
+  })
+  getReportConfig() {
+    return this.incidentService.getReportConfig();
+  }
+
   @Post('evidences')
   @ApiOperation({ summary: 'Upload bằng chứng (ảnh) — dùng trước khi tạo' })
   @ApiConsumes('multipart/form-data')

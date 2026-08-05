@@ -22,7 +22,23 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
   // Cửa sổ phản biện do BE tính (`canRespondToDecision`) — không so hạn ở render, vì đọc
   // đồng hồ trong lúc render là hàm không thuần và cho kết quả đổi theo mỗi lần re-render.
   const open = incident.canRespondToDecision;
-  const expired = incident.status === "AWAITING_RESPONSE" && !open;
+  // Đóng vì HẾT HẠN khác đóng vì CHƯA MỞ. Gộp hai thứ vào một câu là nói ngược
+  // sự thật với người sắp bị trừ tiền: họ đọc "chưa mở" trong khi hạn đã trôi qua.
+  const expired = !open && incident.status === "AWAITING_RESPONSE";
+
+  if (expired) {
+    return (
+      <div className="space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700">
+        <p className="flex items-center gap-1.5 font-semibold">
+          <AlertTriangle className="size-3.5" /> Đã quá hạn phản hồi quyết định
+        </p>
+        <p>
+          Hạn chót là {fmt(incident.taskerResponseDeadline)}. CleanZ có thể chốt
+          quyết định mà không có phản biện của bạn.
+        </p>
+      </div>
+    );
+  }
 
   if (!open) {
     return (
@@ -45,12 +61,6 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
           Hạn chót {fmt(incident.taskerResponseDeadline)}
         </span>
       </div>
-
-      {expired && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700">
-          <AlertTriangle className="mr-1 inline size-3.5" /> Đã quá hạn phản hồi.
-        </p>
-      )}
 
       <div className="grid grid-cols-2 gap-2">
         <Button
@@ -91,7 +101,7 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
       <Button
         size="sm"
         className="w-full rounded-lg gap-1.5"
-        disabled={submit.isPending || invalid || expired}
+        disabled={submit.isPending || invalid}
         onClick={() =>
           submit.mutate(
             {

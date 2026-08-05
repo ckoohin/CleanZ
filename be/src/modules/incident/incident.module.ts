@@ -33,6 +33,8 @@ import { IncidentEvidenceLifecycleService } from './services/incident-evidence-l
 import { IncidentDepositHoldService } from './services/incident-deposit-hold.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
 import { IncidentAlertService } from './services/incident-alert.service';
+import { IncidentReportService } from './services/incident-report.service';
+import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
 
 @Module({
   imports: [
@@ -52,6 +54,7 @@ import { IncidentAlertService } from './services/incident-alert.service';
     SystemConfigModule,
     NotificationModule,
     WalletModule,
+    AdminActivityModule,
   ],
   controllers: [
     IncidentController,
@@ -75,6 +78,7 @@ import { IncidentAlertService } from './services/incident-alert.service';
     IncidentDepositHoldService,
     IncidentReconciliationService,
     IncidentAlertService,
+    IncidentReportService,
   ],
   exports: [TypeOrmModule, IncidentAdminService],
 })

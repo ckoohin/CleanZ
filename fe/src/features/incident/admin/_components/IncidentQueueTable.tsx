@@ -32,6 +32,11 @@ import { LookupCombobox } from "./LookupCombobox";
 import { IncidentDetailDrawer } from "./IncidentDetailDrawer";
 import { FromTicketDialog } from "./FromTicketDialog";
 import { IncidentConfigForm } from "./IncidentConfigForm";
+import { IncidentExportMenu } from "./IncidentExportMenu";
+import { DateRangePicker } from "@/features/admin/components/DateRangePicker";
+import { rangeLabel, rangeOf } from "@/features/admin/lib/date-ranges";
+import type { DateRange } from "@/features/admin/types/dashboard.types";
+import type { AdminIncidentExportQuery } from "@/features/incident/shared/incident.types";
 import {
   IncidentStatusBadge,
   SeverityBadge,
@@ -94,16 +99,33 @@ export function IncidentQueueTable() {
   const page = Math.max(1, Number(sp.get("page") ?? 1));
   const limit = Math.max(1, Number(sp.get("limit") ?? 10));
 
-  const apiParams: AdminIncidentQuery = {
-    page,
-    limit,
+  // Tách bộ lọc khỏi phân trang: `export/list` dùng DTO đã bỏ `page`/`limit`,
+  // mà ValidationPipe bật `forbidNonWhitelisted` nên chỉ cần lọt một khoá thừa
+  // là nút xuất file trả 422.
+  const filterParams: AdminIncidentExportQuery = {
     ...(sel("status") !== "ALL" && { status: sel("status") as IncidentStatus }),
     ...(sel("severity") !== "ALL" && { severity: sel("severity") as Severity }),
     ...(sel("overdue") !== "ALL" && { overdue: sel("overdue") === "true" }),
     ...(get("customer") && { customerId: get("customer") }),
     ...(get("tasker") && { taskerId: get("tasker") }),
     ...(get("sort") && { sort: get("sort") as AdminIncidentQuery["sort"] }),
+    ...(get("from") && { fromDate: get("from") }),
+    ...(get("to") && { toDate: get("to") }),
   };
+
+  // Một nguồn sự thật cho cả trang: bảng và hai file xuất ra cùng đọc từ đây.
+  const apiParams: AdminIncidentQuery = { page, limit, ...filterParams };
+
+  // Kỳ ngày trống = toàn bộ thời gian; picker vẫn cần một cặp ngày để vẽ lịch
+  // nên mượn tạm kỳ 30 ngày — chưa áp vào truy vấn.
+  const dateFilterActive = !!get("from") || !!get("to");
+  const dateRange: DateRange = {
+    fromDate: get("from") || rangeOf("last30").fromDate,
+    toDate: get("to") || rangeOf("last30").toDate,
+  };
+  const otherFilterCount = Object.keys(filterParams).filter(
+    (k) => k !== "fromDate" && k !== "toDate" && k !== "sort",
+  ).length;
 
   const { data, isLoading } = useAdminIncidents(apiParams);
 
@@ -131,9 +153,7 @@ export function IncidentQueueTable() {
     {
       key: "status",
       title: "Trạng thái",
-      render: (r) => (
-        <IncidentStatusBadge status={r.status} />
-      ),
+      render: (r) => <IncidentStatusBadge status={r.status} />,
     },
     {
       key: "claimedAmount",
@@ -181,7 +201,27 @@ export function IncidentQueueTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {/* Kỳ ngày DUY NHẤT của trang: lọc hàng đợi theo ngày báo cáo và là
+            phạm vi của cả hai file xuất ra. */}
+        <DateRangePicker
+          value={dateRange}
+          onChange={(r) => setParams({ from: r.fromDate, to: r.toDate })}
+          inactiveLabel={dateFilterActive ? undefined : "Tất cả thời gian"}
+          onClear={() => setParams({ from: undefined, to: undefined })}
+          className="h-8 text-xs"
+        />
+        <IncidentExportMenu
+          filters={filterParams}
+          rangeLabel={
+            dateFilterActive ? rangeLabel(dateRange) : "Toàn bộ thời gian"
+          }
+          filterHint={
+            otherFilterCount
+              ? `${otherFilterCount} bộ lọc đang áp`
+              : "Không lọc thêm"
+          }
+        />
         <AdminButton
           size="sm"
           variant="secondary"
@@ -200,119 +240,116 @@ export function IncidentQueueTable() {
         </AdminButton>
       </div>
 
-      {/* Toolbar — 2 cụm filter đều nhau */}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={sel("status")}
-            onValueChange={(v) => setParams({ status: v })}
-          >
-            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
-              <ListFilter className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
-              <SelectValue placeholder="Trạng thái" />
-            </SelectTrigger>
-            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
-              <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-              {INCIDENT_STATUS.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-
-          <Select
-            value={sel("severity")}
-            onValueChange={(v) => setParams({ severity: v })}
-          >
-            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
-              <SelectValue placeholder="Mức độ" />
-            </SelectTrigger>
-            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
-              <SelectItem value="ALL">Tất cả mức độ</SelectItem>
-              {SEVERITY.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {SEVERITY_LABEL[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={sel("overdue")}
-            onValueChange={(v) => setParams({ overdue: v })}
-          >
-            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
-              <SelectValue placeholder="Quá hạn" />
-            </SelectTrigger>
-            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
-              <SelectItem value="ALL">Tất cả</SelectItem>
-              <SelectItem value="true">
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="size-3.5 text-[#E11D48]" /> Quá hạn
-                </div>
+      {/* Bộ lọc — 6 ô trên MỘT lưới duy nhất.
+          Trước đây chia 2 cụm, mỗi cụm lưới 2×2 = 8 chỗ cho 6 ô, nên luôn thừa
+          2 lỗ trống nằm giữa hàng (một cái còn là <div /> chèn tay). 6 chia hết
+          cho cả 3, 2 và 1 nên lưới này đầy kín ở MỌI breakpoint — không còn ô
+          nào lệch. Hàng trên là phân loại sự cố, hàng dưới là sắp xếp + tra cứu. */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Select
+          value={sel("status")}
+          onValueChange={(v) => setParams({ status: v })}
+        >
+          <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
+            <ListFilter className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
+            <SelectValue placeholder="Trạng thái" />
+          </SelectTrigger>
+          <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
+            <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+            {INCIDENT_STATUS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {STATUS_LABEL[s]}
               </SelectItem>
-              <SelectItem value="false">Trong hạn</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={get("sort") || "reportedAt"}
-            onValueChange={(v) => setParams({ sort: v })}
-          >
-            <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
-              <ArrowDownUp className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
-              <SelectValue placeholder="Sắp xếp" />
-            </SelectTrigger>
-            <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
-              {SORT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div />
-          <LookupCombobox
-            placeholder="Lọc khách hàng..."
-            items={customerLookup.data ?? []}
-            isLoading={customerLookup.isFetching}
-            onQueryChange={setCustomerQuery}
-            selectedKey={get("customer") || null}
-            selectedLabel={
-              customerLabel ?? (get("customer") ? "Đã chọn khách" : null)
-            }
-            onSelect={(it) => {
-              setCustomerLabel(it.label);
-              setParams({ customer: it.id });
-            }}
-            onClear={() => {
-              setCustomerLabel(null);
-              setParams({ customer: undefined });
-            }}
-          />
-          <LookupCombobox
-            placeholder="Lọc Tasker..."
-            items={taskerLookup.data ?? []}
-            isLoading={taskerLookup.isFetching}
-            onQueryChange={setTaskerQuery}
-            selectedKey={get("tasker") || null}
-            selectedLabel={
-              taskerLabel ?? (get("tasker") ? "Đã chọn Tasker" : null)
-            }
-            onSelect={(it) => {
-              setTaskerLabel(it.label);
-              setParams({ tasker: it.id });
-            }}
-            onClear={() => {
-              setTaskerLabel(null);
-              setParams({ tasker: undefined });
-            }}
-          />
-        </div>
+        <Select
+          value={sel("severity")}
+          onValueChange={(v) => setParams({ severity: v })}
+        >
+          <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
+            <SelectValue placeholder="Mức độ" />
+          </SelectTrigger>
+          <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
+            <SelectItem value="ALL">Tất cả mức độ</SelectItem>
+            {SEVERITY.map((s) => (
+              <SelectItem key={s} value={s}>
+                {SEVERITY_LABEL[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={sel("overdue")}
+          onValueChange={(v) => setParams({ overdue: v })}
+        >
+          <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
+            <SelectValue placeholder="Quá hạn" />
+          </SelectTrigger>
+          <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
+            <SelectItem value="ALL">Tất cả</SelectItem>
+            <SelectItem value="true">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5 text-[#E11D48]" /> Quá hạn
+              </div>
+            </SelectItem>
+            <SelectItem value="false">Trong hạn</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={get("sort") || "reportedAt"}
+          onValueChange={(v) => setParams({ sort: v })}
+        >
+          <SelectTrigger className="h-9 w-full rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-sm font-medium text-[var(--c-ink)] shadow-none">
+            <ArrowDownUp className="mr-1 size-3.5 shrink-0 text-[var(--c-muted)]" />
+            <SelectValue placeholder="Sắp xếp" />
+          </SelectTrigger>
+          <SelectContent className="cz-admin rounded-xl bg-[var(--c-card)] text-[var(--c-ink)]">
+            {SORT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <LookupCombobox
+          placeholder="Lọc khách hàng..."
+          items={customerLookup.data ?? []}
+          isLoading={customerLookup.isFetching}
+          onQueryChange={setCustomerQuery}
+          selectedLabel={
+            customerLabel ?? (get("customer") ? "Đã chọn khách" : null)
+          }
+          onSelect={(it) => {
+            setCustomerLabel(it.label);
+            setParams({ customer: it.id });
+          }}
+          onClear={() => {
+            setCustomerLabel(null);
+            setParams({ customer: undefined });
+          }}
+        />
+        <LookupCombobox
+          placeholder="Lọc Tasker..."
+          items={taskerLookup.data ?? []}
+          isLoading={taskerLookup.isFetching}
+          onQueryChange={setTaskerQuery}
+          selectedLabel={
+            taskerLabel ?? (get("tasker") ? "Đã chọn Tasker" : null)
+          }
+          onSelect={(it) => {
+            setTaskerLabel(it.label);
+            setParams({ tasker: it.id });
+          }}
+          onClear={() => {
+            setTaskerLabel(null);
+            setParams({ tasker: undefined });
+          }}
+        />
       </div>
 
       <BaseTableList

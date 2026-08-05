@@ -11,9 +11,14 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
+  Logger,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import {
@@ -45,17 +50,41 @@ import { WriteOffDebtDto } from './dto/write-off-debt.dto';
 import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
+import {
+  ExportIncidentListDto,
+  ExportIncidentReportDto,
+} from './dto/export-incident.dto';
+import { IncidentReportService } from './services/incident-report.service';
+import {
+  buildReportWorkbookBuffer,
+  excelFilename,
+} from 'src/common/helpers/excel-report.helper';
+import { AdminActivityService } from 'src/modules/admin/services/admin-activity.service';
+import { AdminActivityStatus } from 'src/modules/admin/entities/admin-activity-log.entity';
+import { sanitizeAuditValue } from 'src/modules/admin/utils/admin-activity-sanitizer';
+import type { AuthUser } from 'src/modules/auth/types/AuthRequest';
 
 const PROOF_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/jpg'];
 const PROOF_MAX_SIZE = 5 * 1024 * 1024;
+
+/**
+ * Số lần xuất Excel tối đa mỗi phút cho một admin. Dựng workbook là việc nặng
+ * và ĐỒNG BỘ (đo ở module phiếu hỗ trợ: ~1,1 giây CPU + ~210MB RSS cho 5.000
+ * dòng), trong quãng đó event loop đứng và mọi request khác phải chờ.
+ */
+const EXPORT_RATE_LIMIT = 5;
 
 @Controller('admin/incidents')
 @ApiTags('Admin Incidents')
 @ApiBearerAuth('access-token')
 @Auth(UserRole.ADMIN)
 export class IncidentAdminController {
+  private readonly logger = new Logger(IncidentAdminController.name);
+
   constructor(
     private readonly adminService: IncidentAdminService,
+    private readonly reportService: IncidentReportService,
+    private readonly activityService: AdminActivityService,
     private readonly decisionService: IncidentDecisionService,
     private readonly compensationExecutor: CompensationExecutorService,
     private readonly automation: IncidentAutomationService,
@@ -63,6 +92,114 @@ export class IncidentAdminController {
     private readonly reconciliation_: IncidentReconciliationService,
     private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
   ) {}
+
+  // ─── Xuất Excel ───────────────────────────────────────────────────────────
+  // Khai báo TRƯỚC `@Get(':id')`: Nest match route theo thứ tự khai báo.
+
+  /**
+   * Ghi nhật ký cho một lần xuất file.
+   *
+   * `AdminActivityInterceptor` chỉ tự ghi log các method GHI, mà xuất Excel là
+   * `GET` — nên phải ghi tay. Đây là hành động đưa dữ liệu bồi thường và thông
+   * tin cá nhân ra khỏi hệ thống, cần trả lời được "ai lấy, lấy gì, lúc nào".
+   */
+  private async auditExport(
+    admin: AuthUser,
+    action: string,
+    path: string,
+    handler: string,
+    filters: Record<string, unknown>,
+    durationMs: number,
+  ) {
+    const safeFilters = sanitizeAuditValue(filters) as Record<string, unknown>;
+    try {
+      await this.activityService.record({
+        actorUserId: admin.id,
+        actorEmail: admin.email,
+        action,
+        resource: 'sự cố',
+        method: 'GET',
+        path,
+        handler,
+        targetId: null,
+        changes: { filters: safeFilters },
+        status: AdminActivityStatus.SUCCESS,
+        statusCode: 200,
+        errorMessage: null,
+        durationMs,
+      });
+    } catch (error) {
+      // File đã gửi đi rồi mới ghi log — ném lỗi ở đây thì Nest cố trả response
+      // lần hai trên một request đã kết thúc, ồn ào mà không cứu được gì.
+      this.logger.error(
+        `Không ghi được nhật ký xuất file: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  private sendWorkbook(res: Response, buffer: Buffer, reportName: string) {
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${excelFilename(reportName)}"`,
+    );
+    res.send(buffer);
+  }
+
+  @Get('export/list')
+  @Throttle({ default: { limit: EXPORT_RATE_LIMIT, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({
+    summary: 'Xuất Excel: danh sách sự cố theo đúng bộ lọc hàng đợi',
+    description:
+      'Bỏ phân trang, trả toàn bộ tập khớp bộ lọc (tối đa 5.000 dòng). Không kèm bằng chứng, giải trình hay ghi chú nội bộ.',
+  })
+  async exportList(
+    @CurrentUser() admin: AuthUser,
+    @Query() query: ExportIncidentListDto,
+    @Res() res: Response,
+  ) {
+    const startedAt = Date.now();
+    const sheet = await this.reportService.buildIncidentListSheet(query);
+    const buffer = await buildReportWorkbookBuffer([sheet]);
+    this.sendWorkbook(res, buffer, 'danh-sach-su-co');
+    await this.auditExport(
+      admin,
+      'Xuất Excel danh sách sự cố',
+      '/api/v1/admin/incidents/export/list',
+      'IncidentAdminController.exportList',
+      { ...query, rowCount: sheet.rows.length },
+      Date.now() - startedAt,
+    );
+  }
+
+  @Get('export/report')
+  @Throttle({ default: { limit: EXPORT_RATE_LIMIT, ttl: 60_000 } })
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({
+    summary: 'Xuất Excel: báo cáo sự cố (thẩm định, trách nhiệm, dòng tiền)',
+  })
+  async exportReport(
+    @CurrentUser() admin: AuthUser,
+    @Query() query: ExportIncidentReportDto,
+    @Res() res: Response,
+  ) {
+    const startedAt = Date.now();
+    const sheets = await this.reportService.buildReportSheets(query);
+    const buffer = await buildReportWorkbookBuffer(sheets);
+    this.sendWorkbook(res, buffer, 'bao-cao-su-co');
+    await this.auditExport(
+      admin,
+      'Xuất Excel báo cáo sự cố',
+      '/api/v1/admin/incidents/export/report',
+      'IncidentAdminController.exportReport',
+      query as unknown as Record<string, unknown>,
+      Date.now() - startedAt,
+    );
+  }
 
   @Get()
   @ApiOperation({ summary: 'Hàng đợi sự cố (lọc/sắp xếp/phân trang)' })

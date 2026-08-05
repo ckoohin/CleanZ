@@ -20,6 +20,10 @@ import { TicketAttachmentEntity } from '../entity/ticket-attachment.entity';
 import { TicketSurveyEntity } from '../entity/ticket-survey.entity';
 import { UploadService } from 'src/modules/upload/upload.service';
 import { AdminQueryTicketDto } from '../dto/admin-query-ticket.dto';
+import {
+  applyAdminTicketFilters,
+  applyAdminTicketSort,
+} from './ticket-query.filters';
 import { ChangeStatusDto } from '../dto/change-status.dto';
 import { AssignTicketDto, BulkAssignTicketDto } from '../dto/assign-ticket.dto';
 import { ReclassifyTicketDto } from '../dto/reclassify-ticket.dto';
@@ -182,38 +186,8 @@ export class TicketAdminService {
         .skip((page - 1) * limit)
         .take(limit);
 
-      if (query.status)
-        qb.andWhere('t.status = :status', { status: query.status });
-      if (query.priority)
-        qb.andWhere('t.priority = :priority', { priority: query.priority });
-      if (query.category)
-        qb.andWhere('t.category = :category', { category: query.category });
-      if (query.reporterUserId)
-        qb.andWhere('t.reporter_user_id = :rid', { rid: query.reporterUserId });
-      if (query.assignedAdminId)
-        qb.andWhere('t.assigned_admin_id = :aid', {
-          aid: query.assignedAdminId,
-        });
-      if (query.bookingId)
-        qb.andWhere('t.booking_id = :bid', { bid: query.bookingId });
-      if (query.slaBreached !== undefined)
-        qb.andWhere('t.sla_breached = :sb', { sb: query.slaBreached });
-      if (query.keyword)
-        qb.andWhere('(t.ticket_code ILIKE :kw OR t.subject ILIKE :kw)', {
-          kw: `%${query.keyword}%`,
-        });
-
-      // Sắp xếp: priority (URGENT→LOW), dueAt (gần hạn trước), mặc định createdAt DESC
-      if (query.sort === 'priority') {
-        qb.orderBy(
-          `CASE t.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END`,
-          'ASC',
-        ).addOrderBy('t.createdAt', 'DESC');
-      } else if (query.sort === 'dueAt') {
-        qb.orderBy('t.resolutionDueAt', 'ASC', 'NULLS LAST');
-      } else {
-        qb.orderBy('t.createdAt', 'DESC');
-      }
+      applyAdminTicketFilters(qb, query);
+      applyAdminTicketSort(qb, query.sort);
 
       const [rows, total] = await qb.getManyAndCount();
       const unread = await this.ticketService.unreadCountMap(

@@ -14,6 +14,19 @@ export const incidentKeys = {
   detail: (id: string) => ["incidents", "detail", id] as const,
 };
 
+/**
+ * Trần số tiền yêu cầu. Admin sửa được lúc chạy, nên form không được dùng hằng
+ * biên dịch cứng — hạ trần thì khách nhập quá rồi bị từ chối, nâng trần thì
+ * form chặn oan.
+ */
+export function useReportConfig() {
+  return useQuery({
+    queryKey: ["incidents", "report-config"],
+    queryFn: () => customerIncidentApi.getReportConfig(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useMyIncidents(params?: MyIncidentQuery) {
   return useQuery({
     queryKey: incidentKeys.mine(params),
