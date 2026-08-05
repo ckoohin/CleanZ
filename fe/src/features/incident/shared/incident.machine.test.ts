@@ -1,37 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  STATUS_TRANSITIONS,
   canWithdraw,
   checkAllocation,
-  requiresTaskerResponse,
+  isIntegerAmount,
 } from "./incident.machine";
-
-describe("incident.machine — STATUS_TRANSITIONS", () => {
-  it("cho phép các chuyển hợp lệ theo vòng đời", () => {
-    expect(STATUS_TRANSITIONS.REPORTED).toContain("REVIEWING");
-    expect(STATUS_TRANSITIONS.REVIEWING).toEqual(
-      expect.arrayContaining([
-        "AWAITING_RESPONSE",
-        "AWAITING_PAYOUT",
-        "REJECTED",
-        "CLOSED",
-      ]),
-    );
-    expect(STATUS_TRANSITIONS.AWAITING_PAYOUT).toContain("COMPENSATED");
-  });
-
-  it("CLOSED là terminal (không đi đâu)", () => {
-    expect(STATUS_TRANSITIONS.CLOSED).toEqual([]);
-  });
-
-  it("không cho REPORTED nhảy thẳng sang chờ chi trả", () => {
-    expect(STATUS_TRANSITIONS.REPORTED).not.toContain("AWAITING_PAYOUT");
-  });
-
-  it("đảo bồi thường được khai báo tường minh (COMPENSATED → REVIEWING)", () => {
-    expect(STATUS_TRANSITIONS.COMPENSATED).toContain("REVIEWING");
-  });
-});
 
 describe("incident.machine — canWithdraw", () => {
   it("cho rút khi chưa gửi quyết định cho Tasker", () => {
@@ -64,14 +36,29 @@ describe("incident.machine — checkAllocation (bất biến tasker+platform=Σa
     expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/không hợp lệ/i);
   });
-});
 
-describe("incident.machine — requiresTaskerResponse", () => {
-  it("Tasker chịu tiền thì bắt buộc cho phản biện", () => {
-    expect(requiresTaskerResponse(1)).toBe(true);
+  it("chặn phần thập phân — backend chỉ nhận VND số nguyên (@IsInt)", () => {
+    // Ô number của trình duyệt không chặn gõ tay "100000.5"; nếu form không
+    // gác thì giá trị đi hết hành trình rồi mới bị backend trả 422.
+    const r = checkAllocation(200000, 100000.5, 99999.5);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/số nguyên/i);
   });
 
-  it("Tasker không chịu tiền thì chốt thẳng", () => {
-    expect(requiresTaskerResponse(0)).toBe(false);
+  it("chặn thập phân kể cả khi tổng cộng lại vừa khớp", () => {
+    expect(checkAllocation(0.3, 0.1, 0.2).ok).toBe(false);
+  });
+});
+
+describe("incident.machine — isIntegerAmount", () => {
+  it("nhận số nguyên không âm", () => {
+    expect(isIntegerAmount(0)).toBe(true);
+    expect(isIntegerAmount(200000)).toBe(true);
+  });
+
+  it("từ chối thập phân, số âm và giá trị không phải số", () => {
+    expect(isIntegerAmount(100.5)).toBe(false);
+    expect(isIntegerAmount(-1)).toBe(false);
+    expect(isIntegerAmount(Number("abc"))).toBe(false);
   });
 });

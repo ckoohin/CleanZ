@@ -188,7 +188,10 @@ export interface AdminDecisionResponse {
 // ─── Admin view (đầy đủ) ─────────────────────────────────────────────────────
 export interface IncidentAdminView extends IncidentSummary {
   description: string;
-  customer: PartyRef;
+  customer: PartyRef & {
+    /** Mốc khoá quyền báo cáo (null = không bị khoá). */
+    reportingLockedUntil: string | null;
+  };
   tasker: PartyRef & {
     /** Ký quỹ đã bỏ — nguồn thu hồi duy nhất từ Tasker là số dư ví. */
     walletBalance: number;
@@ -308,7 +311,22 @@ export interface AdminIncidentQuery {
   customerId?: string;
   overdue?: boolean;
   sort?: "severity" | "reportedAt" | "decisionDueAt";
+  /** Kỳ lọc theo NGÀY BÁO CÁO (`reportedAt`), dạng 'YYYY-MM-DD' — biên giờ VN ở BE. */
+  fromDate?: string;
+  toDate?: string;
 }
+
+/** Bộ lọc khi xuất danh sách: y hệt hàng đợi nhưng không có phân trang. */
+export type AdminIncidentExportQuery = Omit<
+  AdminIncidentQuery,
+  "page" | "limit"
+>;
+
+/** Kỳ lọc dùng chung cho hàng đợi và cả hai file xuất ra. */
+export type IncidentDateRangeQuery = Pick<
+  AdminIncidentQuery,
+  "fromDate" | "toDate"
+>;
 
 export interface IncidentConfig {
   reportWindowHours?: number;

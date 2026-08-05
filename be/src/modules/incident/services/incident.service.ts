@@ -69,6 +69,18 @@ export class IncidentService {
     private readonly depositHold: IncidentDepositHoldService,
   ) {}
 
+  /**
+   * Tham số cấu hình mà FORM BÁO CÁO của khách cần để chặn trước.
+   *
+   * Cố ý KHÔNG trả `getEffectiveConfig()` như phía admin: bộ đó chứa ma trận
+   * SLA, ngưỡng cảnh cáo gian lận, số dư tối thiểu ví hệ thống — chính sách vận
+   * hành nội bộ, không phải thứ khách được biết. Ở đây chỉ phơi đúng con số mà
+   * nếu thiếu thì khách tải xong hết ảnh mới bị từ chối.
+   */
+  async getReportConfig(): Promise<{ claimMax: number }> {
+    return { claimMax: await this.config.getClaimMaxAmount() };
+  }
+
   async uploadEvidence(
     userId: string,
     file: Express.Multer.File,

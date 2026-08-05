@@ -2,7 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { authApi } from "@/features/auth/services/auth.service";
 import { toast } from "@/lib/toast";
 import { getApiBaseUrl } from "@/lib/api/base-url";
-import { getApiErrorMessage } from "@/lib/api/error-message";
+import { getApiErrorMessage, unwrapBlobError } from "@/lib/api/error-message";
 
 const baseURL = getApiBaseUrl();
 
@@ -61,6 +61,7 @@ const handleApiErrorGlobal = (error: AxiosError<ApiErrorResponse>) => {
   toast.error(finalMessage);
 };
 
+
 http.interceptors.request.use(
   (config) => config,
   (error) => Promise.reject(error),
@@ -77,6 +78,10 @@ http.interceptors.response.use(
     // Một số request coi lỗi (vd 404 "chưa có hồ sơ") là trạng thái hợp lệ và tự
     // xử lý ở tầng UI — bỏ qua toast lỗi toàn cục cho các request này.
     const skipToast = originalRequest?.skipErrorToast === true;
+
+    // Phải chạy TRƯỚC mọi nhánh gọi handleApiErrorGlobal, và trước cả khi lỗi
+    // được reject ra ngoài — nơi gọi cũng cần đọc được message thật.
+    await unwrapBlobError(error);
 
     if (error.code === "ERR_NETWORK" || !error.response) {
       if (!skipToast) handleApiErrorGlobal(error);

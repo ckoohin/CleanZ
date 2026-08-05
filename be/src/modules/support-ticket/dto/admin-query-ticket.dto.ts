@@ -1,6 +1,7 @@
 import { Type, Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsIn,
   IsInt,
@@ -66,6 +67,25 @@ export class AdminQueryTicketDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  /**
+   * Kỳ lọc theo NGÀY TẠO ticket, dạng 'YYYY-MM-DD' (biên tính theo giờ VN).
+   * Dùng chuỗi ngày chứ không phải Date vì cận trên phải là 23:59:59 của ngày
+   * đó — nhận Date thô sẽ cắt mất gần trọn ngày cuối kỳ.
+   */
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : (value as string),
+  )
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : (value as string),
+  )
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
 
   /** Sắp xếp hàng đợi. */
   @IsOptional()

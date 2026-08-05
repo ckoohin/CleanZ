@@ -20,6 +20,8 @@ import type {
 } from "../types/support-ticket.types";
 import type {
   AdminMessagePage,
+  AdminTicketExportQuery,
+  TicketDateRangeQuery,
   TicketStats,
 } from "@/features/support-tickets/shared/ticket.types";
 
@@ -38,8 +40,24 @@ export const supportTicketAdminApi = {
     http.get<PaginatedTickets>(EP.BASE, { params }).then((r) => r.data),
 
   // ── Thống kê vận hành (SLA / thời gian xử lý / CSAT) ─────────────────────
-  getStats: (params?: { from?: string; to?: string }): Promise<TicketStats> =>
+  getStats: (params?: {
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<TicketStats> =>
     http.get<TicketStats>(EP.STATS, { params }).then((r) => r.data),
+
+  // ── Xuất Excel ───────────────────────────────────────────────────────────
+  // `responseType: 'blob'` là bắt buộc: bỏ đi thì axios cố parse .xlsx thành
+  // chuỗi và file tải về hỏng, không mở được.
+  exportList: (params?: AdminTicketExportQuery): Promise<Blob> =>
+    http
+      .get<Blob>(EP.EXPORT_LIST, { params, responseType: "blob" })
+      .then((r) => r.data),
+
+  exportReport: (params: TicketDateRangeQuery): Promise<Blob> =>
+    http
+      .get<Blob>(EP.EXPORT_REPORT, { params, responseType: "blob" })
+      .then((r) => r.data),
 
   // ── Gán hàng loạt từ hàng đợi ────────────────────────────────────────────
   bulkAssign: (

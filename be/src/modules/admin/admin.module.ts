@@ -27,10 +27,10 @@ import { MailModule } from 'src/modules/mail/mail.module';
 import { VoucherModule } from 'src/modules/voucher/voucher.module';
 import { User } from 'src/modules/users/entities/user.entity';
 import { AdminActivityLogEntity } from './entities/admin-activity-log.entity';
-import { AdminActivityService } from './services/admin-activity.service';
 import { AdminActivityInterceptor } from './interceptors/admin-activity.interceptor';
 import { AdminActivitySnapshotService } from './services/admin-activity-snapshot.service';
 import { IncidentModule } from 'src/modules/incident/incident.module';
+import { AdminActivityModule } from './admin-activity.module';
 
 @Module({
   imports: [
@@ -58,6 +58,7 @@ import { IncidentModule } from 'src/modules/incident/incident.module';
     MailModule,
     VoucherModule,
     IncidentModule,
+    AdminActivityModule,
   ],
 
   controllers: [AdminController],
@@ -66,7 +67,6 @@ import { IncidentModule } from 'src/modules/incident/incident.module';
     AdminCustomerRepository,
     AdminBookingRepository,
     AdminDashboardReportService,
-    AdminActivityService,
     AdminActivitySnapshotService,
     {
       provide: APP_INTERCEPTOR,

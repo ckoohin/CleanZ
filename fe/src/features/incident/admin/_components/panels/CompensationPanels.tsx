@@ -30,6 +30,11 @@ import {
   formatVnd,
 } from "@/features/incident/shared/incident.labels";
 import type { PayoutPreview } from "@/features/incident/shared/incident.types";
+import { toast } from "@/lib/toast";
+import {
+  EVIDENCE_MAX_BYTES,
+  EVIDENCE_MIME,
+} from "@/features/incident/shared/incident.enums";
 
 /** Đọc mã lỗi có cấu trúc từ BE thay vì so khớp chuỗi tiếng Việt (message có thể đổi). */
 function errorCode(e: unknown): string | undefined {
@@ -191,11 +196,32 @@ export function ManualCompensatePanel({
   // sang bên thứ ba trên mỗi lần render. Hiển thị nội dung chuyển khoản để copy vào app ngân hàng.
   const transferMemo = `CLEANZ BOI THUONG ${code ?? ""}`.trim();
 
+  /**
+   * Khoản này rời khỏi hệ thống bằng chuyển khoản ngoài ví, nên nơi nhận phải
+   * được ghi vào sổ cùng lúc — ảnh minh chứng không tra cứu hay đối soát được.
+   */
+  const recipient =
+    bankCode.trim() && account.trim()
+      ? `Chuyển khoản ${bankCode.trim().toUpperCase()} · STK ${account.trim()} · ND ${transferMemo}`
+      : "";
+
   const pickProof = async (f: File | undefined) => {
     if (!f) return;
-    const ev = await upload.mutateAsync(f);
-    setProofId(ev.id);
-    setProofName(f.name);
+    if (!EVIDENCE_MIME.includes(f.type)) {
+      toast.error("Chỉ nhận ảnh JPEG hoặc PNG.");
+      return;
+    }
+    if (f.size > EVIDENCE_MAX_BYTES) {
+      toast.error("Ảnh vượt quá 5MB. Hãy chụp lại hoặc giảm dung lượng.");
+      return;
+    }
+    try {
+      const ev = await upload.mutateAsync(f);
+      setProofId(ev.id);
+      setProofName(f.name);
+    } catch {
+      // Hook upload đã hiện lỗi; bắt ở đây để lời hứa không văng ra ngoài.
+    }
   };
 
   return (
@@ -213,12 +239,16 @@ export function ManualCompensatePanel({
           value={bankCode}
           onChange={(e) => setBankCode(e.target.value)}
           placeholder="Ngân hàng của khách (VCB, TCB…)"
+          maxLength={50}
+          aria-label="Ngân hàng của khách"
           className="h-8 rounded-lg text-sm"
         />
         <Input
           value={account}
           onChange={(e) => setAccount(e.target.value)}
           placeholder="Số tài khoản khách"
+          maxLength={50}
+          aria-label="Số tài khoản khách"
           className="h-8 rounded-lg text-sm"
         />
       </div>
@@ -248,7 +278,13 @@ export function ManualCompensatePanel({
         type="file"
         accept="image/jpeg,image/png"
         className="hidden"
-        onChange={(e) => void pickProof(e.target.files?.[0])}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          // Xoá giá trị ngay để chọn LẠI đúng file đó vẫn kích hoạt onChange —
+          // sau một lần upload lỗi, đây là thao tác đầu tiên người dùng thử.
+          e.target.value = "";
+          void pickProof(file);
+        }}
       />
       <div className="flex items-center gap-2">
         <AdminButton
@@ -268,12 +304,22 @@ export function ManualCompensatePanel({
         size="sm"
         variant="primary"
         className="w-full rounded-lg gap-1.5"
-        disabled={busy || !proofId}
-        onClick={() => proofId && manual.mutate({ proofEvidenceId: proofId })}
+        disabled={busy || !proofId || !recipient}
+        onClick={() =>
+          proofId &&
+          recipient &&
+          manual.mutate({ proofEvidenceId: proofId, note: recipient })
+        }
       >
         <Banknote className="size-3.5" />
         {manual.isPending ? "Đang xử lý..." : "Xác nhận đã chuyển khoản thủ công"}
       </AdminButton>
+      {!recipient && (
+        <p className="text-[11px] text-[#D97706]">
+          Nhập ngân hàng và số tài khoản đã chuyển — thông tin này được ghi vào
+          sổ chi để đối soát sau.
+        </p>
+      )}
     </div>
   );
 }

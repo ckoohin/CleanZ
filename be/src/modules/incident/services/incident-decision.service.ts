@@ -631,6 +631,20 @@ export class IncidentDecisionService {
         message: 'Lý do quy trách nhiệm phải có ít nhất 10 ký tự',
       });
     }
+    // So sánh trực tiếp chỉ đúng khi cả ba là SỐ NGUYÊN — điều này do `@IsInt()`
+    // trên DTO bảo đảm, không phải do đoạn code này. Chốt lại tường minh: nếu
+    // ai đó nới DTO sang số thực, bất biến phân bổ sẽ hỏng âm thầm vì sai số
+    // dấu phẩy động, không phải vì logic sai.
+    if (
+      !Number.isInteger(decision.taskerBorneAmount) ||
+      !Number.isInteger(decision.platformBorneAmount) ||
+      !Number.isInteger(decision.totalApprovedAmount)
+    ) {
+      throw new UnprocessableEntityException({
+        code: 'INVALID_ALLOCATION_TOTAL',
+        message: 'Số tiền phân bổ phải là số nguyên VND',
+      });
+    }
     if (
       decision.taskerBorneAmount + decision.platformBorneAmount !==
       decision.totalApprovedAmount

@@ -15,10 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import {
   useCreateFromTicket,
+  useIncidentConfig,
   usePropertyDamageTicketLookup,
 } from "../hooks/useAdminIncident";
 import { LookupCombobox } from "./LookupCombobox";
 import { CLAIM_MAX } from "@/features/incident/shared/incident.enums";
+import { isIntegerAmount } from "@/features/incident/shared/incident.machine";
 import { formatVnd } from "@/features/incident/shared/incident.labels";
 
 interface ItemDraft {
@@ -41,10 +43,25 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
   const setItem = (i: number, patch: Partial<ItemDraft>) =>
     setItems((p) => p.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
+  // Trần thật do admin cấu hình; `CLAIM_MAX` chỉ là giá trị dự phòng khi chưa
+  // tải xong cấu hình — backend vẫn là chốt chặn cuối.
+  const { data: config } = useIncidentConfig();
+  const claimMax =
+    Number(config?.INCIDENT_CLAIM_MAX_AMOUNT) || CLAIM_MAX;
+
+  const amountValid = (it: ItemDraft) => {
+    const amount = Number(it.claimedAmount);
+    return isIntegerAmount(amount) && amount > 0 && amount <= claimMax;
+  };
   const itemsValid = items.every(
-    (it) => it.description.trim() && Number(it.claimedAmount) > 0 && Number(it.claimedAmount) <= CLAIM_MAX,
+    (it) => it.description.trim() && amountValid(it),
   );
-  const canSubmit = ticketId.trim() && title.trim() && description.trim() && itemsValid;
+  // Trần áp cho TỔNG, không phải từng hạng mục — giống hệt ràng buộc backend
+  // kiểm khi nâng cấp ticket thành sự cố.
+  const totalClaimed = items.reduce((s, it) => s + (Number(it.claimedAmount) || 0), 0);
+  const overClaimMax = totalClaimed > claimMax;
+  const canSubmit =
+    ticketId.trim() && title.trim() && description.trim() && itemsValid && !overClaimMax;
 
   const reset = () => {
     setTicketId("");
@@ -88,7 +105,6 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
               items={ticketLookup.data ?? []}
               isLoading={ticketLookup.isFetching}
               onQueryChange={setTicketQuery}
-              selectedKey={ticketId || null}
               selectedLabel={ticketLabel}
               onSelect={(it) => {
                 setTicketId(it.id);
@@ -122,9 +138,22 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
                   )}
                 </div>
                 <Input value={it.description} maxLength={255} onChange={(e) => setItem(i, { description: e.target.value })} placeholder="Mô tả thiệt hại" className="h-8 rounded-lg text-sm" />
-                <Input type="number" min={1} max={CLAIM_MAX} value={it.claimedAmount} onChange={(e) => setItem(i, { claimedAmount: e.target.value })} placeholder={`Số tiền (≤ ${formatVnd(CLAIM_MAX)})`} className="h-8 rounded-lg text-sm" />
+                <Input type="number" min={1} step={1} max={claimMax} value={it.claimedAmount} onChange={(e) => setItem(i, { claimedAmount: e.target.value })} placeholder={`Số tiền (≤ ${formatVnd(claimMax)})`} className="h-8 rounded-lg text-sm" />
               </div>
             ))}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[var(--c-muted)]">Tổng yêu cầu</span>
+              <span
+                className={overClaimMax ? "font-semibold text-[#E11D48]" : "text-[var(--c-ink)]"}
+              >
+                {formatVnd(totalClaimed)}
+              </span>
+            </div>
+            {overClaimMax && (
+              <p className="text-xs text-[#E11D48]">
+                Tổng vượt trần {formatVnd(claimMax)} — backend sẽ từ chối.
+              </p>
+            )}
             <AdminButton variant="secondary" size="sm" className="w-full rounded-lg gap-1.5" onClick={() => setItems((p) => [...p, emptyItem()])}>
               <Plus className="size-3.5" /> Thêm hạng mục
             </AdminButton>

@@ -13,6 +13,12 @@ import type {
 const EP = API_ENDPOINTS.INCIDENTS;
 
 export const customerIncidentApi = {
+  /** Trần số tiền yêu cầu do admin cấu hình — form phải chặn theo con số thật. */
+  getReportConfig: (): Promise<{ claimMax: number }> =>
+    http
+      .get<{ claimMax: number }>(EP.REPORT_CONFIG)
+      .then((r) => r.data),
+
   /** Upload 1 ảnh bằng chứng (trước khi tạo) → trả evidenceId để tham chiếu. */
   uploadEvidence: (file: File): Promise<Evidence> => {
     const fd = new FormData();

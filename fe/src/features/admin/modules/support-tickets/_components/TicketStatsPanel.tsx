@@ -8,6 +8,8 @@ import {
   ChevronUp,
   Star,
 } from "lucide-react";
+import { rangeLabel } from "@/features/admin/lib/date-ranges";
+import type { TicketDateRangeQuery } from "@/features/support-tickets/shared/ticket.types";
 import { useTicketStats } from "../hooks/useSupportTicket";
 
 /**
@@ -168,9 +170,33 @@ function CsatDistribution({
   );
 }
 
-export const TicketStatsPanel: React.FC = () => {
+interface TicketStatsPanelProps {
+  /** Kỳ lọc của CẢ TRANG. Rỗng = chưa lọc, backend tự lấy 30 ngày gần nhất. */
+  range: TicketDateRangeQuery;
+}
+
+/**
+ * Dải chỉ số vận hành.
+ *
+ * Không còn bộ chọn ngày riêng: trước đây panel giữ kỳ trong state cục bộ, nên
+ * trên cùng một màn hình có HAI chip ngày khác giá trị, khác ý nghĩa, và không
+ * ai đoán được cái nào chi phối cái gì — kể cả file Excel nào theo kỳ nào. Nay
+ * kỳ chỉ có một, nằm ở URL cùng bộ lọc hàng đợi.
+ *
+ * Khi chưa lọc ngày, backend mặc định 30 ngày gần nhất — panel nói thẳng điều
+ * đó trên nhãn thay vì để người đọc suy ra.
+ */
+export const TicketStatsPanel: React.FC<TicketStatsPanelProps> = ({ range }) => {
   const [open, setOpen] = React.useState(false);
-  const { data, isLoading } = useTicketStats();
+  const { data, isLoading } = useTicketStats(range);
+
+  const scopeLabel =
+    range.fromDate || range.toDate
+      ? rangeLabel({
+          fromDate: range.fromDate ?? range.toDate!,
+          toDate: range.toDate ?? range.fromDate!,
+        })
+      : "30 ngày gần nhất";
 
   return (
     <section className="mb-4 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-3">
@@ -183,7 +209,7 @@ export const TicketStatsPanel: React.FC = () => {
         <span className="text-sm font-bold text-[var(--c-ink)]">
           Chỉ số vận hành
           <span className="ml-2 text-xs font-normal text-[var(--c-muted)]">
-            30 ngày gần nhất
+            {scopeLabel}
           </span>
         </span>
         {open ? (

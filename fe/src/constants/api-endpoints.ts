@@ -117,6 +117,8 @@ export const API_ENDPOINTS = {
     CONFIG: "/admin/support-tickets/config",
     UNREAD_TOTAL: "/admin/support-tickets/unread-total",
     STATS: "/admin/support-tickets/stats",
+    EXPORT_LIST: "/admin/support-tickets/export/list",
+    EXPORT_REPORT: "/admin/support-tickets/export/report",
     BULK_ASSIGN: "/admin/support-tickets/bulk/assign",
     DETAIL: (id: string) => `/admin/support-tickets/${id}`,
     ASSIGN: (id: string) => `/admin/support-tickets/${id}/assign`,
@@ -160,6 +162,7 @@ export const API_ENDPOINTS = {
   INCIDENTS: {
     BASE: "/incidents",
     MINE: "/incidents/mine",
+    REPORT_CONFIG: "/incidents/report-config",
     DETAIL: (id: string) => `/incidents/${id}`,
     EVIDENCES: "/incidents/evidences", // upload trước khi tạo (không có :id)
     WITHDRAW: (id: string) => `/incidents/${id}/withdraw`,
@@ -178,6 +181,8 @@ export const API_ENDPOINTS = {
     BASE: "/admin/incidents",
     CONFIG: "/admin/incidents/config",
     RECONCILIATION: "/admin/incidents/reconciliation",
+    EXPORT_LIST: "/admin/incidents/export/list",
+    EXPORT_REPORT: "/admin/incidents/export/report",
     DETAIL: (id: string) => `/admin/incidents/${id}`,
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
     /** Soạn/sửa quyết định — gộp thẩm định hạng mục + duyệt tiền + phân bổ. */

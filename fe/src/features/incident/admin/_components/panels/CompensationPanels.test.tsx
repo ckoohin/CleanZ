@@ -1,18 +1,40 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { CompensatePanel, ReverseCompensationPanel } from "./CompensationPanels";
+import { render, screen, fireEvent } from "@testing-library/react";
+import {
+  CompensatePanel,
+  ManualCompensatePanel,
+  ReverseCompensationPanel,
+} from "./CompensationPanels";
 import type { PayoutPreview } from "@/features/incident/shared/incident.types";
+
+const { manualMutate, uploadMutateAsync, toastError } = vi.hoisted(() => ({
+  manualMutate: vi.fn(),
+  uploadMutateAsync: vi.fn().mockResolvedValue({ id: "ev-1" }),
+  toastError: vi.fn(),
+}));
 
 // Hook tanstack-query → mock để không cần QueryClient/http.
 vi.mock("../../hooks/useAdminIncident", () => {
   const hook = () => ({ mutate: vi.fn(), isPending: false, mutateAsync: vi.fn() });
   return {
     useCompensate: hook,
-    useCompensateManual: hook,
+    useCompensateManual: () => ({
+      mutate: manualMutate,
+      isPending: false,
+      mutateAsync: vi.fn(),
+    }),
     useReverseCompensation: hook,
-    useUploadTransferProof: hook,
+    useUploadTransferProof: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+      mutateAsync: uploadMutateAsync,
+    }),
   };
 });
+
+vi.mock("@/lib/toast", () => ({
+  toast: { error: toastError, success: vi.fn() },
+}));
 
 /** Tasker chịu 150k nhưng ví chỉ còn 100k → quỹ phải ứng 50k. */
 const preview: PayoutPreview = {
@@ -91,5 +113,107 @@ describe("ReverseCompensationPanel", () => {
     expect(
       screen.getByRole("button", { name: /Thu hồi bồi thường/i }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * Chi thủ công đưa tiền ra ngoài ví, nên nơi nhận phải vào sổ cùng lúc — ảnh
+ * minh chứng không tra cứu hay đối soát được.
+ */
+describe("ManualCompensatePanel — ghi nhận nơi nhận tiền", () => {
+  const fillRecipient = () => {
+    fireEvent.change(screen.getByLabelText("Ngân hàng của khách"), {
+      target: { value: "vcb" },
+    });
+    fireEvent.change(screen.getByLabelText("Số tài khoản khách"), {
+      target: { value: "0011223344" },
+    });
+  };
+
+  it("chặn xác nhận khi chưa nhập ngân hàng và số tài khoản", () => {
+    render(<ManualCompensatePanel id="i1" code="SC-1" amount={200000} />);
+    expect(
+      screen.getByRole("button", { name: /Xác nhận đã chuyển khoản/i }),
+    ).toBeDisabled();
+    expect(screen.getByText(/được ghi vào\s+sổ chi để đối soát/i)).toBeInTheDocument();
+  });
+
+  it("vẫn chặn khi đã nhập tài khoản nhưng chưa có ảnh minh chứng", () => {
+    render(<ManualCompensatePanel id="i1" code="SC-1" amount={200000} />);
+    fillRecipient();
+    expect(
+      screen.getByRole("button", { name: /Xác nhận đã chuyển khoản/i }),
+    ).toBeDisabled();
+  });
+
+  it("gửi kèm ngân hàng và số tài khoản vào ghi chú chi trả", async () => {
+    manualMutate.mockClear();
+    const { container } = render(
+      <ManualCompensatePanel id="i1" code="SC-1" amount={200000} />,
+    );
+    fillRecipient();
+
+    fireEvent.change(container.querySelector('input[type="file"]')!, {
+      target: {
+        files: [new File(["x"], "proof.png", { type: "image/png" })],
+      },
+    });
+    await screen.findByText(/proof\.png/);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Xác nhận đã chuyển khoản/i }),
+    );
+
+    expect(manualMutate).toHaveBeenCalledWith({
+      proofEvidenceId: "ev-1",
+      note: "Chuyển khoản VCB · STK 0011223344 · ND CLEANZ BOI THUONG SC-1",
+    });
+  });
+});
+
+describe("ManualCompensatePanel — chặn ảnh không hợp lệ ngay ở client", () => {
+  const pick = (file: File) => {
+    const { container } = render(
+      <ManualCompensatePanel id="i1" code="SC-1" amount={200000} />,
+    );
+    fireEvent.change(container.querySelector('input[type="file"]')!, {
+      target: { files: [file] },
+    });
+    return container;
+  };
+
+  it("từ chối file không phải JPEG/PNG mà không tốn một vòng lên server", () => {
+    uploadMutateAsync.mockClear();
+    toastError.mockClear();
+
+    pick(new File(["x"], "hop-dong.pdf", { type: "application/pdf" }));
+
+    expect(uploadMutateAsync).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(
+      expect.stringMatching(/JPEG hoặc PNG/i),
+    );
+  });
+
+  it("từ chối ảnh vượt 5MB — trần khớp với endpoint upload của BE", () => {
+    uploadMutateAsync.mockClear();
+    toastError.mockClear();
+    const big = new File(["x"], "to-qua.png", { type: "image/png" });
+    Object.defineProperty(big, "size", { value: 6 * 1024 * 1024 });
+
+    pick(big);
+
+    expect(uploadMutateAsync).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/5MB/i));
+  });
+
+  it("xoá giá trị input để chọn lại đúng file đó vẫn nhận", () => {
+    const container = pick(
+      new File(["x"], "proof.png", { type: "image/png" }),
+    );
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+
+    expect(input.value).toBe("");
   });
 });
