@@ -37,6 +37,34 @@ type ApiErrorLike = {
   };
 };
 
+/**
+ * Dịch ngược body lỗi dạng Blob về JSON, ngay trên chính đối tượng lỗi.
+ *
+ * Các request tải file dùng `responseType: 'blob'`, và axios áp kiểu đó cho CẢ
+ * response lỗi — nên khi backend trả 4xx/5xx kèm JSON, `error.response.data`
+ * vẫn là một `Blob`. `getApiErrorMessage` không đọc được Blob nên message thật
+ * của server bị nuốt, người dùng chỉ còn nhận câu chung theo mã HTTP.
+ *
+ * Gọi một lần ở interceptor để mọi luồng tải file (dashboard, báo cáo gói dịch
+ * vụ, phiếu hỗ trợ) cùng được, thay vì bắt từng nút tự xử lý.
+ */
+export async function unwrapBlobError(error: unknown): Promise<void> {
+  const response = (error as ApiErrorLike)?.response;
+  const data: unknown = response?.data;
+
+  // Kiểm tra `typeof Blob` trước: module này cũng được nạp khi Next render phía
+  // server, nơi `Blob` có thể không tồn tại.
+  if (typeof Blob === "undefined" || !(data instanceof Blob)) return;
+  if (!data.type.includes("json")) return;
+
+  try {
+    response!.data = JSON.parse(await data.text());
+  } catch {
+    // Không phải JSON hợp lệ thì để nguyên — getApiErrorMessage vẫn rơi về câu
+    // mặc định theo mã HTTP, đúng như hành vi trước đây.
+  }
+}
+
 function extractMessages(value: unknown, depth = 0): string[] {
   if (depth > 5 || value == null) return [];
   if (typeof value === "string") return [value];

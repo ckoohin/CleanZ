@@ -244,7 +244,19 @@ export interface AdminTicketQuery {
   bookingId?: string;
   keyword?: string;
   sort?: 'priority' | 'createdAt' | 'dueAt';
+  /** Kỳ lọc theo ngày TẠO ticket, dạng 'YYYY-MM-DD' (biên tính theo giờ VN ở BE). */
+  fromDate?: string;
+  toDate?: string;
 }
+
+/** Bộ lọc khi xuất danh sách: y hệt hàng đợi nhưng không có phân trang. */
+export type AdminTicketExportQuery = Omit<AdminTicketQuery, 'page' | 'limit'>;
+
+/** Kỳ lọc theo ngày — dùng chung cho hàng đợi, dải chỉ số và cả hai file xuất ra. */
+export type TicketDateRangeQuery = Pick<
+  AdminTicketQuery,
+  'fromDate' | 'toDate'
+>;
 
 export interface SlaEntry {
   responseMins: number;

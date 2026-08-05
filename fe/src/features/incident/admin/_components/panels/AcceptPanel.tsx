@@ -5,7 +5,10 @@ import { AdminButton } from "@/components/admin";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck } from "lucide-react";
 import { useAcceptIncident } from "../../hooks/useAdminIncident";
-import { SEVERITY_LABEL } from "@/features/incident/shared/incident.labels";
+import {
+  SEVERITY_LABEL,
+  STATUS_LABEL,
+} from "@/features/incident/shared/incident.labels";
 import type { Severity } from "@/features/incident/shared/incident.enums";
 
 
@@ -18,7 +21,7 @@ export function AcceptPanel({ id, severity }: { id: string; severity: Severity }
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Tiếp nhận thẩm định</p>
       <p className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5 text-[11px] leading-snug text-[var(--c-muted)]">
         Mức độ nghiêm trọng <b>do hệ thống tự xác định</b> (theo loại sự cố + tổng số tiền yêu cầu) và
-        không chỉnh tay được. Khi tiếp nhận, sự cố chuyển sang <b>Đang điều tra</b>, tạm giữ cọc Tasker và mời đối chất.
+        không chỉnh tay được. Khi tiếp nhận, sự cố chuyển sang <b>{STATUS_LABEL.REVIEWING}</b>, tạm giữ ví Tasker và mở hạn giải trình.
       </p>
       <div className="flex items-center gap-2 text-xs text-[var(--c-muted)]">
         <span>Mức độ nghiêm trọng:</span>

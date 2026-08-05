@@ -16,13 +16,17 @@ import {
   OUTCOME_LABEL,
   STATUS_LABEL,
 } from "@/features/incident/shared/incident.labels";
-import { checkAllocation } from "@/features/incident/shared/incident.machine";
+import {
+  checkAllocation,
+  isIntegerAmount,
+} from "@/features/incident/shared/incident.machine";
 import {
   FieldHint,
   CharCount,
   FieldLabel,
 } from "@/features/incident/shared/_components/FieldHint";
 import type {
+  DamageItem,
   DecisionOutcome,
   IncidentAdminView,
   ResponsibilityParty,
@@ -46,6 +50,48 @@ const MAX = {
   internalDecisionNote: 2000,
 } as const;
 const TEXT_MIN = 10;
+
+interface FormSnapshot {
+  outcome: DecisionOutcome;
+  items: { id: string; amount: number; status: string }[];
+  responsibilityParty: ResponsibilityParty | "";
+  taskerBorne: number;
+  platformBorne: number;
+  responsibilityReason: string;
+  allocationReason: string;
+  taskerDecisionReason: string;
+  customerDecisionSummary: string;
+  internalDecisionNote: string;
+}
+
+/**
+ * Giá trị quyết định đang lưu trên server, chuẩn hoá về cùng dạng với state của
+ * form để so sánh được. "Gửi Tasker" và "Chốt" tác động lên bản ĐÃ LƯU, nên khi
+ * form còn khác bản này thì hai nút đó sẽ xử lý con số khác con số đang hiển thị.
+ */
+function snapshotOf(incident: IncidentAdminView): FormSnapshot {
+  return {
+    outcome: incident.decision.outcome ?? "COMPENSATE",
+    items: incident.damageItems.map((it) => ({
+      id: it.id,
+      amount: Number(it.approvedAmount ?? it.claimedAmount) || 0,
+      status:
+        it.verificationStatus === "PENDING" ? "VERIFIED" : it.verificationStatus,
+    })),
+    responsibilityParty: incident.decision.responsibilityParty ?? "",
+    taskerBorne: Number(incident.taskerBorneAmount ?? 0) || 0,
+    platformBorne: Number(incident.platformBorneAmount ?? 0) || 0,
+    responsibilityReason: (incident.decision.responsibilityReason ?? "").trim(),
+    allocationReason: (incident.allocationReason ?? "").trim(),
+    taskerDecisionReason: (
+      incident.decision.taskerDecisionReason ?? ""
+    ).trim(),
+    customerDecisionSummary: (
+      incident.decision.customerDecisionSummary ?? ""
+    ).trim(),
+    internalDecisionNote: (incident.decision.internalDecisionNote ?? "").trim(),
+  };
+}
 
 /**
  * Soạn quyết định — MỘT form duy nhất.
@@ -124,6 +170,28 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
     platformBorneNum,
   );
   const expectedDecisionVersion = incident.decision.version;
+
+  const saved = useMemo(() => snapshotOf(incident), [incident]);
+  const current: FormSnapshot = {
+    outcome,
+    items: incident.damageItems.map((it) => ({
+      id: it.id,
+      amount: Number(approved[it.id]) || 0,
+      status: itemStatus[it.id],
+    })),
+    responsibilityParty,
+    taskerBorne: taskerBorneNum,
+    platformBorne: platformBorneNum,
+    responsibilityReason: responsibilityReason.trim(),
+    allocationReason: allocationReason.trim(),
+    taskerDecisionReason: taskerDecisionReason.trim(),
+    customerDecisionSummary: customerDecisionSummary.trim(),
+    internalDecisionNote: internalDecisionNote.trim(),
+  };
+  const dirty = JSON.stringify(saved) !== JSON.stringify(current);
+
+  /** Kết cục ĐÃ LƯU — BE chốt theo bản này, không theo nút đang chọn trên form. */
+  const savedOutcome = incident.decision.outcome;
   const busy =
     saveDecision.isPending || sendToTasker.isPending || finalize.isPending;
 
@@ -134,11 +202,16 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
     responsibilityReason.trim().length < TEXT_MIN;
   const hasAllocationReason = allocationReason.trim().length > 0;
   const taskerReasonMissing = taskerBorneNum > 0 && !taskerDecisionReason.trim();
-  const overClaimed = incident.damageItems.some(
-    (it) =>
-      itemStatus[it.id] === "VERIFIED" &&
-      (Number(approved[it.id]) || 0) > it.claimedAmount,
-  );
+  /**
+   * Cùng một vị từ cho cảnh báo dưới ô nhập và cho cổng chặn nút Lưu — tách
+   * đôi thì ô báo đỏ mà nút vẫn bấm được, và BE trả 422.
+   */
+  const itemAmountInvalid = (it: DamageItem) => {
+    if (itemStatus[it.id] !== "VERIFIED") return false;
+    const amount = Number(approved[it.id]);
+    return !isIntegerAmount(amount) || amount > it.claimedAmount;
+  };
+  const hasInvalidItem = incident.damageItems.some(itemAmountInvalid);
   const needEvidenceBlocking =
     isCompensate &&
     incident.damageItems.some(
@@ -177,7 +250,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
 
   const invalid = isCompensate
     ? sumApproved <= 0 ||
-      overClaimed ||
+      hasInvalidItem ||
       needEvidenceBlocking ||
       !responsibilityParty ||
       responsibilityReasonTooShort ||
@@ -303,10 +376,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
 
           {incident.damageItems.map((it) => {
             const status = itemStatus[it.id];
-            const a = Number(approved[it.id]);
-            const itemInvalid =
-              status === "VERIFIED" &&
-              (!Number.isInteger(a) || a < 0 || a > it.claimedAmount);
+            const itemInvalid = itemAmountInvalid(it);
             return (
               <div
                 key={it.id}
@@ -544,7 +614,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         <FieldHint hint="Không bắt buộc · chỉ nội bộ" />
       </div>
 
-      {outcome === "REJECT" && (
+      {savedOutcome === "REJECT" && (
         <label className="flex items-center gap-2 rounded-lg border border-[var(--c-line)] p-2.5 text-sm">
           <input
             type="checkbox"
@@ -565,21 +635,25 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         Lưu quyết định
       </AdminButton>
 
+      {dirty && (
+        <FieldHint error="Còn thay đổi chưa lưu. Bấm “Lưu quyết định” trước, vì gửi Tasker và chốt đều xử lý bản đã lưu chứ không phải nội dung đang hiển thị." />
+      )}
+
       {can("SEND_TO_TASKER", incident) && (
         <div className="space-y-2 rounded-lg border border-[#D97706]/40 bg-[#D97706]/5 p-3">
           <p className="text-xs font-bold uppercase text-[var(--c-muted)]">
             Gửi Tasker phản biện
           </p>
           <p className="text-[11px] leading-snug text-[var(--c-muted)]">
-            Quyết định bắt Tasker chịu <b>{formatVnd(taskerBorneNum)}</b>. Trước
-            khi trừ tiền của họ, Tasker phải được đọc quyết định và có cơ hội phản
-            biện. Chốt được khi Tasker trả lời hoặc hết hạn.
+            Quyết định bắt Tasker chịu <b>{formatVnd(saved.taskerBorne)}</b>.
+            Trước khi trừ tiền của họ, Tasker phải được đọc quyết định và có cơ
+            hội phản biện. Chốt được khi Tasker trả lời hoặc hết hạn.
           </p>
           <AdminButton
             size="sm"
             variant="primary"
             className="w-full rounded-lg gap-1.5"
-            disabled={busy}
+            disabled={busy || dirty}
             onClick={() => sendToTasker.mutate({ expectedDecisionVersion })}
           >
             <Send className="size-3.5" /> Gửi cho Tasker
@@ -591,11 +665,11 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         size="sm"
         variant="primary"
         className="w-full rounded-lg gap-1.5"
-        disabled={busy || !can("FINALIZE", incident)}
+        disabled={busy || dirty || !can("FINALIZE", incident)}
         onClick={() =>
           finalize.mutate({
             expectedDecisionVersion,
-            ...(outcome === "REJECT" ? { rejectAsFraud } : {}),
+            ...(savedOutcome === "REJECT" ? { rejectAsFraud } : {}),
           })
         }
       >

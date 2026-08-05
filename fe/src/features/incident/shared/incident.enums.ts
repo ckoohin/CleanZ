@@ -103,3 +103,13 @@ export type DamageItemStatus = (typeof DAMAGE_ITEM_STATUS)[number];
 export const CLAIM_MAX = 20_000_000;
 /** Trần tổng approved (POLICY_CAP) — cảnh báo/validate khi quyết định. */
 export const POLICY_CAP = 10_000_000;
+
+// ─── Ràng buộc ảnh tải lên ───────────────────────────────────────────────────
+/**
+ * Khớp `ALLOWED_MIME` + `MAX_SIZE` của cả ba controller incident ở BE
+ * (khách, Tasker, admin). Kiểm trước ở client để người dùng không phải chờ hết
+ * một vòng tải lên mới biết ảnh không hợp lệ — trên điện thoại, ảnh chụp vượt
+ * 5MB là chuyện thường.
+ */
+export const EVIDENCE_MIME = ["image/jpeg", "image/png", "image/jpg"];
+export const EVIDENCE_MAX_BYTES = 5 * 1024 * 1024;

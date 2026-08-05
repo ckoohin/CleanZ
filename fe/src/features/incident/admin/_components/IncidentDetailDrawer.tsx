@@ -277,7 +277,11 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                   </p>
                 )}
                 {(inc.status === "REJECTED" || inc.status === "CLOSED") && (
-                  <UnlockReporterButton id={inc.id} />
+                  <UnlockReporterButton
+                    id={inc.id}
+                    customerName={inc.customer.fullName}
+                    lockedUntil={inc.customer.reportingLockedUntil}
+                  />
                 )}
               </div>
             </TabsContent>

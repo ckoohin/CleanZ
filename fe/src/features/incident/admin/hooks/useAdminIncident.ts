@@ -41,31 +41,49 @@ export function useAdminIncidentDetail(id: string) {
   });
 }
 
-/** Helper tạo mutation hành động admin: invalidate detail+list, toast. */
-function useIncidentAction<TInput>(
-  id: string,
-  fn: (id: string, dto: TInput) => Promise<unknown>,
+/**
+ * Mutation hành động admin trên một sự cố: toast, làm mới cache, và xử lý xung
+ * đột phiên bản.
+ *
+ * MỌI hành động phải đi qua đây. Các endpoint nhận `expectedDecisionVersion`
+ * (thu hồi quyết định, đảo bồi thường) trả 409 khi bản trên server đã đổi — nếu
+ * chỉ toast mà không nạp lại thì admin vẫn cầm version cũ, bấm lại vẫn 409, và
+ * chỉ thoát được bằng cách tự tải lại trang.
+ */
+function useIncidentMutation<TInput>(
+  fn: (dto: TInput) => Promise<unknown>,
   successMsg: string,
 ) {
   const qc = useQueryClient();
+  const refresh = () =>
+    qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+
   return useMutation({
-    mutationFn: (dto: TInput) => fn(id, dto),
+    mutationFn: fn,
     onSuccess: () => {
       toast.success(successMsg);
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
+      refresh();
     },
     onError: (e: unknown) => {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-        qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
-        toast.error("Phiên bản quyết định đã thay đổi. Dữ liệu đã được tải lại.");
+        refresh();
+        toast.error(
+          "Phiên bản quyết định đã thay đổi. Dữ liệu đã được tải lại.",
+        );
         return;
       }
       toast.error(getErrorMessage(e));
     },
   });
+}
+
+function useIncidentAction<TInput>(
+  id: string,
+  fn: (id: string, dto: TInput) => Promise<unknown>,
+  successMsg: string,
+) {
+  return useIncidentMutation<TInput>((dto) => fn(id, dto), successMsg);
 }
 
 export const useAcceptIncident = (id: string) =>
@@ -77,18 +95,11 @@ export const useSendDecisionToTasker = (id: string) =>
 export const useFinalizeDecision = (id: string) =>
   useIncidentAction<FinalizeDecisionInput>(id, adminIncidentApi.finalizeDecision, "Đã chốt quyết định");
 
-export function useCompensate(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => adminIncidentApi.compensate(id),
-    onSuccess: () => {
-      toast.success("Đã chi trả bồi thường");
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+export const useCompensate = (id: string) =>
+  useIncidentMutation<void>(
+    () => adminIncidentApi.compensate(id),
+    "Đã chi trả bồi thường",
+  );
 
 export function useUploadTransferProof() {
   return useMutation({
@@ -97,72 +108,35 @@ export function useUploadTransferProof() {
   });
 }
 
-export function useCompensateManual(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: { proofEvidenceId: string; note?: string }) =>
-      adminIncidentApi.compensateManual(id, dto),
-    onSuccess: () => {
-      toast.success("Đã ghi nhận chi trả thủ công (chuyển khoản ngoài)");
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+export const useCompensateManual = (id: string) =>
+  useIncidentMutation<{ proofEvidenceId: string; note?: string }>(
+    (dto) => adminIncidentApi.compensateManual(id, dto),
+    "Đã ghi nhận chi trả thủ công (chuyển khoản ngoài)",
+  );
 
-export function useReverseCompensation(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: { expectedDecisionVersion: number; reason: string }) =>
-      adminIncidentApi.reverseCompensation(id, dto),
-    onSuccess: () => {
-      toast.success("Đã thu hồi bồi thường — sự cố mở lại để soạn quyết định mới");
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+export const useReverseCompensation = (id: string) =>
+  useIncidentMutation<{ expectedDecisionVersion: number; reason: string }>(
+    (dto) => adminIncidentApi.reverseCompensation(id, dto),
+    "Đã thu hồi bồi thường — sự cố mở lại để soạn quyết định mới",
+  );
 
-export function useWithdrawDecision(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: { expectedDecisionVersion: number; reason: string }) =>
-      adminIncidentApi.withdrawDecision(id, dto),
-    onSuccess: () => {
-      toast.success("Đã thu hồi quyết định — sự cố mở lại để soạn/chốt lại");
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+export const useWithdrawDecision = (id: string) =>
+  useIncidentMutation<{ expectedDecisionVersion: number; reason: string }>(
+    (dto) => adminIncidentApi.withdrawDecision(id, dto),
+    "Đã thu hồi quyết định — sự cố mở lại để soạn/chốt lại",
+  );
 
-export function useWriteOffDebt(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (reason: string) => adminIncidentApi.writeOffDebt(id, reason),
-    onSuccess: () => {
-      toast.success("Đã xoá nợ — nền tảng ghi nhận chịu mất khoản này");
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+export const useWriteOffDebt = (id: string) =>
+  useIncidentMutation<string>(
+    (reason) => adminIncidentApi.writeOffDebt(id, reason),
+    "Đã xoá nợ — nền tảng ghi nhận chịu mất khoản này",
+  );
 
-export function useUnlockReporter(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => adminIncidentApi.unlockReporter(id),
-    onSuccess: () => {
-      toast.success("Đã gỡ khoá quyền báo cáo");
-      qc.invalidateQueries({ queryKey: adminIncidentKeys.detail(id) });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+export const useUnlockReporter = (id: string) =>
+  useIncidentMutation<void>(
+    () => adminIncidentApi.unlockReporter(id),
+    "Đã gỡ khoá quyền báo cáo",
+  );
 
 export function useCreateFromTicket() {
   const qc = useQueryClient();

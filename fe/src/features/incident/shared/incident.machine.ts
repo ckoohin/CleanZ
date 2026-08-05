@@ -1,21 +1,13 @@
 /**
- * Incident — state machine MỘT trục (mirror backend `incident-state.service.ts`).
+ * Incident — các quy tắc FE được phép tự kiểm.
  *
- * FE chỉ chặn trước & giải thích; BE là chốt chặn cuối (409/422). Các hành động khả dụng
- * KHÔNG suy ra ở đây — chúng đến từ `decision.allowedActions` do BE tính, để hai bên
- * không thể lệch nhau.
+ * FE chỉ chặn trước & giải thích; BE là chốt chặn cuối (409/422). Bảng chuyển
+ * trạng thái và điều kiện "phải cho Tasker phản biện" KHÔNG nằm ở đây: hành
+ * động khả dụng đến từ `decision.allowedActions` và `decision.requiresTaskerResponse`
+ * do BE tính. Giữ một bản sao ở FE chỉ tạo nguồn sự thật thứ hai, âm thầm lệch
+ * đi khi BE đổi luật mà không ai phát hiện.
  */
 import type { IncidentStatus } from './incident.enums';
-
-export const STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  REPORTED: ['REVIEWING', 'CLOSED'],
-  REVIEWING: ['AWAITING_RESPONSE', 'AWAITING_PAYOUT', 'REJECTED', 'CLOSED'],
-  AWAITING_RESPONSE: ['REVIEWING', 'AWAITING_PAYOUT', 'REJECTED', 'CLOSED'],
-  AWAITING_PAYOUT: ['COMPENSATED', 'REVIEWING'],
-  COMPENSATED: ['CLOSED', 'REVIEWING'],
-  REJECTED: ['CLOSED'],
-  CLOSED: [],
-};
 
 /**
  * Khách tự rút báo cáo: chỉ khi quyết định CHƯA được gửi cho Tasker và chưa chốt.
@@ -31,7 +23,25 @@ export interface AllocationCheck {
   reason?: string;
 }
 
-/** taskerBorne + platformBorne PHẢI bằng Σ approved. */
+/**
+ * Tiền trong hệ thống là VND SỐ NGUYÊN: mọi trường tiền của backend đều khai
+ * `@IsInt()` (`create-incident`, `create-from-ticket`, `save-incident-decision`).
+ *
+ * Ô `<input type="number">` chỉ ràng buộc `step` cho nút tăng/giảm, người dùng
+ * vẫn gõ tay được phần thập phân — nên form phải tự gác, nếu không giá trị đi
+ * hết hành trình rồi mới bị backend trả 422.
+ */
+export function isIntegerAmount(value: number): boolean {
+  return Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * taskerBorne + platformBorne PHẢI bằng Σ approved.
+ *
+ * So sánh trực tiếp là ĐÚNG ở đây vì cả ba đều là số nguyên theo hợp đồng
+ * backend — không có sai số dấu phẩy động để phải né. Đổi lại, phải tự chặn
+ * phần thập phân trước, bằng không giá trị lọt qua form rồi mới ăn 422.
+ */
 export function checkAllocation(
   sumApproved: number,
   taskerBorne: number,
@@ -39,18 +49,15 @@ export function checkAllocation(
 ): AllocationCheck {
   if (taskerBorne < 0 || platformBorne < 0)
     return { ok: false, reason: 'Số tiền không hợp lệ' };
+  if (!isIntegerAmount(taskerBorne) || !isIntegerAmount(platformBorne))
+    return {
+      ok: false,
+      reason: 'Số tiền phải là số nguyên VND, không có phần thập phân',
+    };
   if (taskerBorne + platformBorne !== sumApproved)
     return {
       ok: false,
       reason: 'Tổng phân bổ (Tasker + Quỹ) phải bằng tổng được duyệt',
     };
   return { ok: true };
-}
-
-/**
- * Quy tắc due process DUY NHẤT (mirror `assertDueProcessSatisfied` ở BE):
- * bắt Tasker chịu tiền ⟹ phải cho họ phản biện trước khi chốt.
- */
-export function requiresTaskerResponse(taskerBorne: number): boolean {
-  return taskerBorne > 0;
 }

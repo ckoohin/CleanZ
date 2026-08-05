@@ -2,7 +2,9 @@ import http from "@/lib/api/http";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import type {
   AcceptInput,
+  AdminIncidentExportQuery,
   AdminIncidentQuery,
+  IncidentDateRangeQuery,
   FinalizeDecisionInput,
   FromTicketInput,
   IncidentAdminView,
@@ -21,6 +23,19 @@ export const adminIncidentApi = {
 
   findOne: (id: string): Promise<IncidentAdminView> =>
     http.get<IncidentAdminView>(EP.DETAIL(id)).then((r) => r.data),
+
+  // ── Xuất Excel ───────────────────────────────────────────────────────────
+  // `responseType: 'blob'` là bắt buộc: bỏ đi thì axios cố parse .xlsx thành
+  // chuỗi và file tải về hỏng, không mở được.
+  exportList: (params?: AdminIncidentExportQuery): Promise<Blob> =>
+    http
+      .get<Blob>(EP.EXPORT_LIST, { params, responseType: "blob" })
+      .then((r) => r.data),
+
+  exportReport: (params: IncidentDateRangeQuery): Promise<Blob> =>
+    http
+      .get<Blob>(EP.EXPORT_REPORT, { params, responseType: "blob" })
+      .then((r) => r.data),
 
   accept: (id: string, dto: AcceptInput): Promise<IncidentAdminView> =>
     http.patch<IncidentAdminView>(EP.ACCEPT(id), dto).then((r) => r.data),
