@@ -1,14 +1,50 @@
-# PostgreSQL do Supabase quản lý — KHÔNG còn service `postgres` trong compose.
-# Host/port/user/password/database lấy từ `be/.env` (xem README phần Supabase).
-# Redis vẫn chạy nội bộ vì Supabase không cung cấp Redis.
+
 services:
+  postgres:
+    image: postgis/postgis:16-3.5-alpine
+    restart: unless-stopped
+    env_file:
+      - ./be/.env
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+      PGTZ: Asia/Ho_Chi_Minh
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        : "$${DB_DATABASE:?DB_DATABASE is required in be/.env}"
+        : "$${DB_USERNAME:?DB_USERNAME is required in be/.env}"
+        : "$${DB_PASSWORD:?DB_PASSWORD is required in be/.env}"
+        export POSTGRES_DB="$${DB_DATABASE}"
+        export POSTGRES_USER="$${DB_USERNAME}"
+        export POSTGRES_PASSWORD="$${DB_PASSWORD}"
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - --
+    command: ["postgres", "-c", "timezone=Asia/Ho_Chi_Minh"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${DB_USERNAME}\" -d \"$${DB_DATABASE}\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   adminer:
     image: adminer:5.4.2
     restart: unless-stopped
     environment:
-      # Điền sẵn host Supabase vào form đăng nhập cho tiện; vẫn gõ tay được.
-      ADMINER_DEFAULT_SERVER: ${DB_HOST:-}
+      ADMINER_DEFAULT_SERVER: postgres
       TZ: Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8081:8080"
 
@@ -49,17 +85,15 @@ services:
       NODE_ENV: production
       PORT: "5000"
       TZ: Asia/Ho_Chi_Minh
-      # ─── PostgreSQL/PostGIS (Supabase) ────────────────────────────────────────
-      # DB_HOST/DB_PORT/DB_USERNAME/DB_PASSWORD/DB_DATABASE lấy từ `be/.env` —
-      # KHÔNG ghi đè ở đây nữa, vì DB không còn nằm trong mạng compose.
-      #
-      # Chọn cổng theo chế độ pooler của Supabase:
-      #   5432 (session)     — dùng cái này. Giữ session nên prepared statement
-      #                        của TypeORM và migration (DDL) chạy đúng.
-      #   6543 (transaction) — KHÔNG dùng cho backend này: pooler cắt session sau
-      #                        mỗi transaction, làm hỏng prepared statement và
-      #                        `migrationsRun` lúc khởi động.
-      DB_SSL: ${DB_SSL:-true}
+      # ─── PostgreSQL/PostGIS ───────────────────────────────────────────────────
+      # Tên service `postgres` được Docker DNS phân giải trong Compose network.
+      # Đổi sang DB ngoài (Supabase, RDS...): XOÁ hai dòng DB_HOST/DB_PORT dưới đây
+      # để giá trị trong be/.env có hiệu lực, và đặt DB_SSL=true.
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      # TLS tới DB. Postgres trong compose không bật TLS nên mặc định tắt; DB ngoài
+      # (Supabase) thì bắt buộc bật.
+      DB_SSL: ${DB_SSL:-false}
       # Chạy migration khi khởi động. Đặt "false" nếu deploy nhiều instance —
       # nhiều container cùng chạy migration trên một DB dùng chung sẽ đua nhau.
       DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
@@ -80,6 +114,8 @@ services:
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-https://api.cleanz.online/api/v1/auth/google/callback}
       FACEBOOK_CALLBACK_URL: ${FACEBOOK_CALLBACK_URL:-https://api.cleanz.online/api/v1/auth/facebook/callback}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     # TLS do proxy ngoài đảm nhiệm. Mặc định bind loopback (proxy chạy CÙNG server)
@@ -121,8 +157,9 @@ services:
         condition: service_healthy
 
 volumes:
+  # Dữ liệu PostgreSQL/PostGIS. Volume không thay thế backup ngoài VPS.
+  postgres-data:
   # Giữ AOF của Redis qua các lần restart/redeploy để không mất job đang chờ.
-  # Không còn volume Postgres: dữ liệu nằm ở Supabase, backup theo Supabase.
   redis-data:
 
 secrets:
