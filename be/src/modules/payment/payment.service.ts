@@ -27,6 +27,43 @@ export class PaymentService {
     return paymentRepository.save(payment);
   }
 
+  /**
+   * Payment đã thu tiền qua PayOS — dùng cho booking ONLINE, vốn chỉ được tạo sau
+   * khi cổng báo PAID nên không bao giờ đi qua trạng thái PENDING.
+   */
+  createPaidOnlinePayment(
+    manager: EntityManager,
+    booking: BookingEntity,
+    customer: CustomerEntity | null,
+    amount: number,
+    payos: {
+      transactionCode: string;
+      qrCode?: string | null;
+      checkoutUrl?: string | null;
+      bin?: string | null;
+      accountNumber?: string | null;
+      accountName?: string | null;
+    },
+  ): Promise<PaymentEntity> {
+    const paymentRepository = manager.getRepository(PaymentEntity);
+    const payment = paymentRepository.create({
+      booking,
+      customer: customer ?? null,
+      method: PaymentMethod.ONLINE,
+      status: PaymentStatus.PAID,
+      amount,
+      transactionCode: payos.transactionCode,
+      qrCode: payos.qrCode ?? null,
+      checkoutUrl: payos.checkoutUrl ?? null,
+      bin: payos.bin ?? null,
+      accountNumber: payos.accountNumber ?? null,
+      accountName: payos.accountName ?? null,
+      paidAt: new Date(),
+    });
+
+    return paymentRepository.save(payment);
+  }
+
   findLatestByBookingId(
     manager: EntityManager,
     bookingId: string,

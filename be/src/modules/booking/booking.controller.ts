@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -84,6 +85,8 @@ import {
 @Controller('booking')
 @ApiBearerAuth('access-token')
 export class BookingController {
+  private readonly logger = new Logger(BookingController.name);
+
   constructor(
     private readonly bookingExpirationService: BookingExpirationService,
     private readonly customerBookingService: CustomerBookingService,
@@ -859,41 +862,58 @@ export class BookingController {
   @ApiTags('Booking – Online Payment')
   @ApiOperation({
     summary:
-      'PayOS unified webhook — xác nhận thanh toán booking ONLINE và nạp ví',
+      'PayOS unified webhook — xác nhận thanh toán đơn nháp booking và nạp ví',
     description:
-      'PayOS gọi endpoint này cho mọi giao dịch: booking online payment và wallet topup. ' +
-      'Mỗi handler tự nhận ra orderCode thuộc mình, handler còn lại bỏ qua. Idempotent.',
+      'PayOS gọi endpoint này cho mọi giao dịch: thanh toán đơn đặt lịch và nạp ví. ' +
+      'Mỗi handler tự nhận ra orderCode thuộc mình, handler còn lại bỏ qua. Idempotent. ' +
+      'Với đơn đặt lịch, booking chỉ được tạo tại bước này — sau khi tiền đã vào.',
   })
   async handleOnlinePaymentWebhook(@Body() body: unknown) {
-    await Promise.all([
-      this.bookingOnlinePaymentService
-        .handleWebhook(body)
-        .catch(() => undefined),
-      this.walletTopupService.handleWebhook(body).catch(() => undefined),
+    // Luôn trả 200. PayOS retry khi gặp 5xx, mà phần lớn lỗi ở đây là vĩnh viễn
+    // (chữ ký sai, orderCode lạ, lệch số tiền) — retry chỉ lặp vô hạn chứ không
+    // sửa được gì. Lỗi tạm thời đã có lưới khác đỡ: job đối soát đơn nháp đã thu
+    // tiền và endpoint verify-payment mà FE gọi khi khách quay lại.
+    //
+    // allSettled thay cho Promise.all: hai handler độc lập nhau, một cái hỏng
+    // không được phép làm hỏng cái đã commit xong.
+    const results = await Promise.allSettled([
+      this.customerBookingService.handleOnlineDraftWebhook(body),
+      this.walletTopupService.handleWebhook(body),
     ]);
+
+    const labels = ['đơn nháp booking', 'nạp ví'];
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const reason: unknown = result.reason;
+        this.logger.error(
+          `Webhook PayOS lỗi ở nhánh ${labels[index]}: ${reason instanceof Error ? reason.message : String(reason)}`,
+          reason instanceof Error ? reason.stack : undefined,
+        );
+      }
+    });
+
     return { success: true };
   }
 
-  @Post(':id/verify-payment')
+  @Post('drafts/:draftId/verify-payment')
   @Auth(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.OK)
   @ApiTags('Booking – Online Payment')
   @ApiOperation({
-    summary: 'Xác minh thanh toán ONLINE qua PayOS API (dùng khi test local)',
+    summary: 'Xác minh thanh toán đơn nháp ONLINE qua PayOS API',
     description:
-      'Gọi PayOS getPaymentInfo để kiểm tra trạng thái giao dịch. ' +
-      'Nếu PayOS trả PAID → booking được đánh dấu PAID và dispatch tasker, giống webhook. ' +
-      'Idempotent. Dùng khi webhook không đến được localhost.',
+      'Gọi PayOS getPaymentInfo để kiểm tra giao dịch của đơn nháp. Nếu PayOS trả PAID ' +
+      '→ tạo booking thật và dispatch tasker, giống webhook. Idempotent. FE gọi khi khách ' +
+      'quay lại từ cổng và khi webhook không tới được localhost.',
   })
-  async verifyPayment(
+  async verifyDraftPayment(
     @CurrentUser('id') userId: string,
-    @Param('id') bookingId: string,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
   ) {
-    const paid =
-      await this.bookingOnlinePaymentService.verifyPaymentByBookingId(
-        bookingId,
-        userId,
-      );
-    return { success: true, paid };
+    const result = await this.customerBookingService.verifyOnlineDraftPayment(
+      userId,
+      draftId,
+    );
+    return { success: true, ...result };
   }
 }

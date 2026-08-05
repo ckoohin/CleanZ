@@ -135,11 +135,7 @@ export const ServiceTierSelector: React.FC<ServiceTierSelectorProps> = ({
             </span>
           ) : premiumFee && premiumFee > 0 ? (
             <>
-              Bật Premium: thêm{" "}
-              <span className="font-bold text-amber-600">
-                +{formatVND(premiumFee)}
-              </span>{" "}
-              so với hạng Tiêu chuẩn
+              Bật Premium để tăng chất lượng dịch vụ
             </>
           ) : (
             "Bật Premium để đặt Tasker có dụng cụ chuyên dụng đã được duyệt."

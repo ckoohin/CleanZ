@@ -50,6 +50,8 @@ export class PayosService {
     buyerName?: string;
     buyerEmail?: string;
     buyerPhone?: string;
+    /** Hạn thanh toán dạng unix seconds — quá hạn PayOS tự đóng link. */
+    expiredAt?: number;
   }): Promise<PayosPaymentLink> {
     try {
       const result = await this.payos.paymentRequests.create({
@@ -61,6 +63,7 @@ export class PayosService {
         ...(params.buyerName && { buyerName: params.buyerName }),
         ...(params.buyerEmail && { buyerEmail: params.buyerEmail }),
         ...(params.buyerPhone && { buyerPhone: params.buyerPhone }),
+        ...(params.expiredAt && { expiredAt: params.expiredAt }),
       });
 
       return {

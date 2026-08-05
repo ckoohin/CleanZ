@@ -185,9 +185,7 @@ export class AdminTaskerDetailService {
       });
     }
 
-    const transactions = await query
-      .orderBy('tx.createdAt', 'ASC')
-      .getMany();
+    const transactions = await query.orderBy('tx.createdAt', 'ASC').getMany();
 
     const creditTypes = new Set<string>([
       WalletTransactionType.TASKER_EARNING,

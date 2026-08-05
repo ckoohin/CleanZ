@@ -20,9 +20,13 @@ import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { BookingOnlinePaymentService } from './booking-online-payment.service';
+import { CustomerBookingService } from './customer-booking.service';
 import { VouchersService } from 'src/modules/voucher/services/vouchers.service';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
+
+/** Đơn nháp ONLINE hết hạn sau 5 phút — quét mỗi phút để đóng đúng hạn. */
+const ONLINE_DRAFT_SWEEP_INTERVAL_MS = 60_000;
 
 export interface ExpireOverdueBookingsResponse {
   expiredCount: number;
@@ -36,7 +40,10 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
   private readonly batchSize: number;
   private readonly alertThreshold: number;
   private interval?: NodeJS.Timeout;
+  private draftInterval?: NodeJS.Timeout;
   private isRunning = false;
+  /** Vòng quét đơn nháp gọi PayOS tuần tự nên có thể chạy lâu hơn interval. */
+  private isDraftSweepRunning = false;
   private consecutiveFailures = 0;
 
   constructor(
@@ -45,6 +52,7 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     private readonly notificationService: NotificationService,
     private readonly bookingWalletPaymentService: BookingWalletPaymentService,
     private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
+    private readonly customerBookingService: CustomerBookingService,
     private readonly bookingOnlinePaymentService: BookingOnlinePaymentService,
     configService: ConfigService,
   ) {
@@ -70,11 +78,54 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
     this.interval.unref?.();
 
     void this.expireOverduePostedBookingsSilently();
+
+    // Đơn nháp ONLINE chỉ sống 5 phút nên phải quét dày hơn vòng expire booking.
+    this.draftInterval = setInterval(() => {
+      void this.expireStaleOnlineDraftsSilently();
+    }, ONLINE_DRAFT_SWEEP_INTERVAL_MS);
+    this.draftInterval.unref?.();
+
+    void this.expireStaleOnlineDraftsSilently();
+  }
+
+  private async expireStaleOnlineDraftsSilently(): Promise<void> {
+    if (this.isDraftSweepRunning) {
+      return;
+    }
+    this.isDraftSweepRunning = true;
+    try {
+      const expired =
+        await this.customerBookingService.expireStaleOnlineDrafts();
+      if (expired > 0) {
+        this.logger.log(
+          `Đã đóng ${expired} đơn nháp ONLINE quá hạn thanh toán`,
+        );
+      }
+
+      // Đối soát tiền đã thu: đơn nháp PAID mà chưa thành booking là tiền của
+      // khách đang treo, phải dựng lại đơn hoặc hoàn tiền.
+      const recovered =
+        await this.customerBookingService.recoverStuckPaidDrafts();
+      if (recovered > 0) {
+        this.logger.warn(
+          `Đã xử lý ${recovered} đơn nháp đã thu tiền nhưng chưa thành booking`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(
+        `Không thể dọn đơn nháp ONLINE quá hạn: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      this.isDraftSweepRunning = false;
+    }
   }
 
   onModuleDestroy(): void {
     if (this.interval) {
       clearInterval(this.interval);
+    }
+    if (this.draftInterval) {
+      clearInterval(this.draftInterval);
     }
   }
 
@@ -99,22 +150,6 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
           this.bookingLifecycleScheduler.deactivateBooking(booking.id),
         ),
       );
-
-      // Hủy PayOS link sau commit cho ONLINE+PENDING bookings — tránh customer trả tiền vào link đã hết hạn.
-      for (const booking of bookings) {
-        if (
-          booking.paymentMethod === PaymentMethod.ONLINE &&
-          booking.paymentStatus === PaymentStatus.PENDING
-        ) {
-          void this.bookingOnlinePaymentService
-            .cancelPendingPayosLink(booking.id)
-            .catch((err: unknown) =>
-              this.logger.error(
-                `Không thể hủy PayOS link cho booking hết hạn ${booking.id}: ${err}`,
-              ),
-            );
-        }
-      }
 
       // Notify customers sau khi transaction commit.
       // Đơn tạo hộ cho khách không có tài khoản thì customer là null → bỏ qua.
@@ -247,12 +282,23 @@ export class BookingExpirationService implements OnModuleInit, OnModuleDestroy {
             booking.id,
           );
           await bookingRepository.save(booking);
-          if (booking.paymentMethod === PaymentMethod.ONLINE && booking.paymentStatus === PaymentStatus.PAID) {
+          if (
+            booking.paymentMethod === PaymentMethod.ONLINE &&
+            booking.paymentStatus === PaymentStatus.PAID
+          ) {
             if (booking.customer) {
-              await this.bookingOnlinePaymentService.refundToWallet(manager, booking, booking.customer);
+              await this.bookingOnlinePaymentService.refundToWallet(
+                manager,
+                booking,
+                booking.customer,
+              );
             }
           } else {
-            await this.bookingWalletPaymentService.refundEscrow(manager, booking, 'quá hạn khách xác nhận');
+            await this.bookingWalletPaymentService.refundEscrow(
+              manager,
+              booking,
+              'quá hạn khách xác nhận',
+            );
           }
 
           const statusLog = logRepository.create({

@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
+import { generateTopupPayosOrderCode } from 'src/common/constants/payos-order-code';
 import { TopupStatus } from 'src/common/enums/topup-status.enum';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { AppException } from 'src/common/exceptions/app.exception';
@@ -11,6 +12,7 @@ import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
 import { SYSTEM_CONFIG_KEYS } from 'src/modules/system-config/system-config.keys';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
+import { WalletEntity } from './entity/wallet.entity';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import type { Webhook } from '@payos/node';
@@ -38,6 +40,8 @@ export interface CaptureTopupResult {
 
 @Injectable()
 export class WalletTopupService {
+  private readonly logger = new Logger(WalletTopupService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
@@ -101,9 +105,7 @@ export class WalletTopupService {
             tasker!,
           );
 
-      // orderCode: timestamp ms mod 10^9 — max 9 chữ số, PayOS yêu cầu số nguyên dương.
-      // Dùng ms (không chia 1000) để tránh collision khi 2 request đến trong cùng 1 giây.
-      const orderCode = Date.now() % 1_000_000_000;
+      const orderCode = generateTopupPayosOrderCode();
 
       const topupRepo = this.dataSource.getRepository(WalletTopupOrderEntity);
       const topup = await topupRepo.save(
@@ -134,8 +136,8 @@ export class WalletTopupService {
           amount: amountVnd,
           orderCode,
           description: `Nap vi CleanZ`,
-          returnUrl: `${frontendUrl}/customer/wallet/topup/return?topupId=${topup.id}`,
-          cancelUrl: `${frontendUrl}/customer/wallet/topup/cancel?topupId=${topup.id}`,
+          returnUrl: `${frontendUrl}${returnBase}/return?topupId=${topup.id}`,
+          cancelUrl: `${frontendUrl}${returnBase}/cancel?topupId=${topup.id}`,
         });
 
         topup.paymentLinkId = link.paymentLinkId;
@@ -163,8 +165,12 @@ export class WalletTopupService {
     ownerType: WalletOwnerType = WalletOwnerType.CUSTOMER,
   ): Promise<CaptureTopupResult> {
     return asyncHandleOperation(async () => {
-      // Bước 1: đọc customer và topup ngoài transaction (không giữ lock khi gọi HTTP).
-      const customer = await this.findCustomer(userId);
+      // Bước 1: xác định chủ ví và đọc topup ngoài transaction (không giữ lock khi
+      // gọi HTTP). Tasker cũng nạp được ví qua đây nên không mặc định là customer.
+      const ownerId =
+        ownerType === WalletOwnerType.TASKER
+          ? (await this.findTasker(userId)).id
+          : (await this.findCustomer(userId)).id;
 
       const topupRepo = this.dataSource.getRepository(WalletTopupOrderEntity);
       const topupSnapshot = await topupRepo.findOne({ where: { id: topupId } });
@@ -172,15 +178,25 @@ export class WalletTopupService {
       if (!topupSnapshot) {
         throw new NotFoundException('Không tìm thấy đơn nạp tiền');
       }
-      if (topupSnapshot.customerId !== customer.id) {
+      const belongsToOwner =
+        ownerType === WalletOwnerType.TASKER
+          ? topupSnapshot.taskerId === ownerId
+          : topupSnapshot.customerId === ownerId;
+      if (!belongsToOwner) {
         throw new AppException('Bạn không có quyền với đơn nạp này', 403);
       }
-      if (topupSnapshot.status !== TopupStatus.CREATED || !topupSnapshot.payosOrderCode) {
+      if (
+        topupSnapshot.status !== TopupStatus.CREATED ||
+        !topupSnapshot.payosOrderCode
+      ) {
         // Nếu đã COMPLETED trả kết quả nhanh, không cần vào transaction.
-        if (topupSnapshot.status === TopupStatus.COMPLETED && topupSnapshot.walletTxId) {
-          const wallet = await this.walletService.getOrCreateCustomerWallet(
+        if (
+          topupSnapshot.status === TopupStatus.COMPLETED &&
+          topupSnapshot.walletTxId
+        ) {
+          const wallet = await this.getTopupWallet(
             this.dataSource.manager,
-            customer,
+            topupSnapshot.walletId,
           );
           return {
             topupId: topupSnapshot.id,
@@ -193,7 +209,9 @@ export class WalletTopupService {
       }
 
       // Bước 2: gọi PayOS ngoài transaction — tránh giữ DB lock trong lúc chờ HTTP.
-      const info = await this.payosService.getPaymentInfo(topupSnapshot.payosOrderCode);
+      const info = await this.payosService.getPaymentInfo(
+        topupSnapshot.payosOrderCode,
+      );
 
       if (info.status !== 'PAID') {
         // Không mark FAILED ở đây — PayOS có thể trả PENDING khi chưa hoàn tất,
@@ -217,7 +235,7 @@ export class WalletTopupService {
 
         // Idempotent: concurrent request đã cộng ví trước.
         const getOwnerWallet = () =>
-          this.walletService.getOrCreateCustomerWallet(manager, customer);
+          this.getTopupWallet(manager, topup.walletId);
 
         if (topup.status === TopupStatus.COMPLETED && topup.walletTxId) {
           const wallet = await getOwnerWallet();
@@ -229,10 +247,7 @@ export class WalletTopupService {
           };
         }
 
-        const wallet = await this.walletService.getOrCreateCustomerWallet(
-          manager,
-          customer,
-        );
+        const wallet = await getOwnerWallet();
         const amountVnd = toNumber(topup.amountVnd);
 
         await this.walletService.creditWallet(manager, {
@@ -295,17 +310,37 @@ export class WalletTopupService {
         return;
       }
 
-      if (!topup.customerId) return;
-      const customer = await manager
-        .getRepository(CustomerEntity)
-        .findOne({ where: { id: topup.customerId } });
-      if (!customer) return;
-
-      const wallet = await this.walletService.getOrCreateCustomerWallet(
-        manager,
-        customer,
-      );
       const amountVnd = toNumber(topup.amountVnd);
+
+      // Chỉ cộng đúng số tiền cổng báo đã nhận. Không đối chiếu thì khách trả
+      // 10.000đ cho đơn nạp 500.000đ vẫn được cộng đủ 500.000đ.
+      const paidAmount = toNumber(data.amount);
+      if (paidAmount !== amountVnd) {
+        topup.status = TopupStatus.FAILED;
+        topup.failReason = `Số tiền không khớp: chờ ${amountVnd}, nhận ${paidAmount}`;
+        await topupRepo.save(topup);
+        this.logger.error(
+          `Đơn nạp ${topup.id} lệch số tiền: chờ ${amountVnd}, PayOS báo ${paidAmount} — không cộng ví, cần đối soát`,
+        );
+        return;
+      }
+
+      // Nạp ví của Tasker cũng đi qua đây và có `customerId = null`. Lần theo
+      // customer sẽ bỏ qua im lặng: tiền đã thu, ví không được cộng, đơn nạp kẹt
+      // CREATED vĩnh viễn vì không có job nào dọn topup. `walletId` được ghi lúc
+      // tạo đơn nạp cho cả hai loại ví nên dùng thẳng nó.
+      const wallet = await manager
+        .getRepository(WalletEntity)
+        .findOne({ where: { id: topup.walletId } });
+      if (!wallet) {
+        topup.status = TopupStatus.FAILED;
+        topup.failReason = 'Không tìm thấy ví để cộng tiền';
+        await topupRepo.save(topup);
+        this.logger.error(
+          `Đơn nạp ${topup.id} không tìm thấy ví ${topup.walletId} — tiền đã thu, cần đối soát thủ công`,
+        );
+        return;
+      }
 
       await this.walletService.creditWallet(manager, {
         wallet,
@@ -360,6 +395,26 @@ export class WalletTopupService {
       limit: take,
       totalPages: Math.ceil(total / take),
     };
+  }
+
+  /**
+   * Ví của đơn nạp.
+   *
+   * Lấy theo `walletId` đã ghi lúc tạo đơn nên đúng cho cả ví customer lẫn ví
+   * tasker — trước đây mọi nhánh đều gọi `getOrCreateCustomerWallet`, nên tasker
+   * nạp tiền xong thì nhận 404 "Không tìm thấy hồ sơ khách hàng".
+   */
+  private async getTopupWallet(
+    manager: EntityManager,
+    walletId: string,
+  ): Promise<WalletEntity> {
+    const wallet = await manager
+      .getRepository(WalletEntity)
+      .findOne({ where: { id: walletId } });
+    if (!wallet) {
+      throw new NotFoundException('Không tìm thấy ví của đơn nạp tiền');
+    }
+    return wallet;
   }
 
   private async findCustomer(

@@ -59,7 +59,9 @@ export class WalletController {
 
   @Get('banks')
   @Auth(UserRole.TASKER, UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'Danh sách ngân hàng Việt Nam hỗ trợ chuyển khoản (VietQR)' })
+  @ApiOperation({
+    summary: 'Danh sách ngân hàng Việt Nam hỗ trợ chuyển khoản (VietQR)',
+  })
   async getBankList() {
     return successResponse(await this.bankListService.getBanks());
   }

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
   GoneException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -15,6 +16,7 @@ import { NotificationRefType } from 'src/common/enums/notification-ref-type.enum
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { generateOrderCode } from 'src/common/helpers/generate-code';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { generateBookingPayosOrderCode } from 'src/common/constants/payos-order-code';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { CustomerAddressEntity } from 'src/modules/customer/entity/customer-address.entity';
@@ -63,6 +65,12 @@ import { BookingWalletPaymentService } from './booking-wallet-payment.service';
 import { TaskerScheduleAvailabilityService } from './tasker-schedule-availability.service';
 import { BookingLifecycleSchedulerService } from './booking-lifecycle-scheduler.service';
 import { SystemConfigService } from 'src/modules/system-config/system-config.service';
+import { ConfigService } from '@nestjs/config';
+import type { Webhook } from '@payos/node';
+import { PayosService } from 'src/modules/wallet/payos.service';
+import { WalletService } from 'src/modules/wallet/wallet.service';
+import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
+import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { BookingOnlinePaymentService } from './booking-online-payment.service';
 
 interface BookingPricingContext {
@@ -108,6 +116,74 @@ const DEFAULT_PAYMENT_METHOD = PaymentMethod.CASH;
 // Thời hạn khóa giá theo quote — cùng độ dài với confirmationDeadline của luồng
 // tasker tạo đơn hộ khách (15 phút) để nhất quán trải nghiệm chờ xác nhận.
 const QUOTE_TTL_MS = 15 * 60 * 1000;
+/** Hạn quét QR của đơn nháp ONLINE — quá hạn thì huỷ link và bỏ đơn nháp. */
+const ONLINE_DRAFT_TTL_MS = 5 * 60 * 1000;
+const ONLINE_DRAFT_REFUND_REF = 'BOOKING_ONLINE_DRAFT_REFUND';
+/**
+ * Đơn nháp đã PAID nhưng chưa có booking quá lâu thì coi là kẹt và dựng lại.
+ * Phải dài hơn hẳn thời gian một lần materialize để không cướp việc của luồng
+ * đang chạy dở.
+ */
+const STUCK_PAID_DRAFT_GRACE_MS = 10 * 60 * 1000;
+
+/**
+ * Nội dung chuyển khoản của một đơn nháp.
+ *
+ * Đây là chuỗi PayOS ký vào QR, nên FE tuyệt đối không được tự dựng lại: chỉ cần
+ * lệch một ký tự là tiền khách chuyển sang không khớp giao dịch nào, cổng không
+ * báo PAID và đơn không bao giờ được tạo dù tiền đã đi.
+ */
+export function buildPayosDescription(orderCode: number): string {
+  return `CleanZ ${orderCode}`.slice(0, 25);
+}
+
+/** Postgres unique_violation — dùng để nhận ra luồng song song đã ghi trước. */
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: unknown }).code === '23505'
+  );
+}
+
+/** Sắp xếp khoá đệ quy và bỏ `undefined` để hai object cùng nội dung ra cùng chuỗi. */
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortDeep);
+  }
+  if (value !== null && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    return Object.keys(source)
+      .filter((key) => source[key] !== undefined)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = sortDeep(source[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+/**
+ * So hai yêu cầu đặt lịch có trùng khít nhau không.
+ *
+ * Booking thật được dựng lại từ `draft.payload`, nên chỉ được trả lại link cũ khi
+ * payload trùng khít yêu cầu mới. So mỗi `totalPrice` là không đủ: hai đơn khác
+ * ngày/địa chỉ/ghi chú vẫn có thể cùng giá, và khách sẽ trả tiền cho đơn này rồi
+ * nhận về đơn kia.
+ *
+ * Thứ tự phần tử trong mảng được coi là khác biệt — lệch về phía tạo thêm đơn nháp,
+ * không bao giờ về phía tạo nhầm đơn.
+ */
+export function isSameBookingRequest(
+  payload: unknown,
+  dto: CreateBookingDto,
+): boolean {
+  return (
+    JSON.stringify(sortDeep(payload)) ===
+    JSON.stringify(sortDeep({ ...dto, quoteId: undefined }))
+  );
+}
 
 @Injectable()
 export class CustomerBookingService {
@@ -127,6 +203,9 @@ export class CustomerBookingService {
     private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
     private readonly systemConfigService: SystemConfigService,
     private readonly bookingOnlinePaymentService: BookingOnlinePaymentService,
+    private readonly payosService: PayosService,
+    private readonly walletService: WalletService,
+    private readonly configService: ConfigService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -238,16 +317,50 @@ export class CustomerBookingService {
     }, 'Không thể báo giá booking');
   }
 
+  /**
+   * ONLINE (PayOS QR) không tạo booking ngay: khách phải trả tiền trước, đơn chỉ
+   * được ghi vào bảng `bookings` khi cổng báo PAID. CASH/WALLET giữ luồng cũ.
+   */
   async create(
     userId: string,
     dto: CreateBookingDto,
   ): Promise<CustomerBookingCreatedResponse> {
     assertValidCustomerDuration(dto.durationHours);
 
+    if (
+      (dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD) === PaymentMethod.ONLINE
+    ) {
+      return this.createOnlineDraft(userId, dto);
+    }
+
+    return this.createBookingRecord(userId, dto, {
+      paymentStatus: PaymentStatus.PENDING,
+    });
+  }
+
+  private async createBookingRecord(
+    userId: string,
+    dto: CreateBookingDto,
+    options: {
+      paymentStatus: PaymentStatus;
+      onlinePayment?: {
+        transactionCode: string;
+        qrCode?: string | null;
+        checkoutUrl?: string | null;
+        bin?: string | null;
+        accountNumber?: string | null;
+        accountName?: string | null;
+      };
+      /**
+       * Giá đã chốt của đơn nháp ONLINE. Áp thẳng thay vì đi qua
+       * `applyLockedQuotePrice` vì tiền đã thu — không được để giá tính lại làm
+       * lệch số khách đã trả.
+       */
+      lockedPriceQuote?: BookingQuoteEntity;
+    },
+  ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
       let createdBookingId: string | undefined;
-      let createdPaymentMethod: PaymentMethod =
-        DEFAULT_PAYMENT_METHOD as PaymentMethod;
       let addressLat: number | null = null;
       let addressLng: number | null = null;
       let scheduledStart: Date | undefined;
@@ -256,8 +369,6 @@ export class CustomerBookingService {
         serviceTier: BookingServiceTier;
         preferredTaskerId: string | null;
       } | null = null;
-      let createdBookingSnapshot: BookingEntity | undefined;
-      let createdContext: BookingPricingContext | undefined;
 
       const response = await this.dataSource.transaction(async (manager) => {
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -268,7 +379,9 @@ export class CustomerBookingService {
           dto,
         );
 
-        if (dto.quoteId) {
+        if (options.lockedPriceQuote) {
+          this.applyQuotePriceToContext(context, options.lockedPriceQuote);
+        } else if (dto.quoteId) {
           await this.applyLockedQuotePrice(manager, context, dto);
         }
 
@@ -325,7 +438,7 @@ export class CustomerBookingService {
           discountAmount: context.discountAmount,
           totalPrice: context.totalPrice,
           paymentMethod,
-          paymentStatus: PaymentStatus.PENDING,
+          paymentStatus: options.paymentStatus,
           voucherId: context.voucher?.id,
           isRecurring: false,
           recurringRule: null,
@@ -371,13 +484,23 @@ export class CustomerBookingService {
         await bookingSubServiceRepository.save(bookingSubServices);
         await saveBookingAddons(manager, savedBooking, context.addons);
 
-        await this.paymentService.createPendingPayment(
-          manager,
-          savedBooking,
-          context.customer,
-          paymentMethod,
-          context.totalPrice,
-        );
+        if (options.onlinePayment) {
+          await this.paymentService.createPaidOnlinePayment(
+            manager,
+            savedBooking,
+            context.customer,
+            context.totalPrice,
+            options.onlinePayment,
+          );
+        } else {
+          await this.paymentService.createPendingPayment(
+            manager,
+            savedBooking,
+            context.customer,
+            paymentMethod,
+            context.totalPrice,
+          );
+        }
 
         // Trả bằng ví → trừ tiền ngay, giữ ở ví SYSTEM tới khi đơn xong hoặc bị hủy.
         // Ví không đủ sẽ ném lỗi ở đây và cả transaction rollback → không tạo đơn treo.
@@ -400,9 +523,6 @@ export class CustomerBookingService {
 
         // Lấy tọa độ để dispatch sau khi transaction commit
         createdBookingId = savedBooking.id;
-        createdPaymentMethod = paymentMethod;
-        createdBookingSnapshot = savedBooking;
-        createdContext = context;
         const rawLat = context.addressRef?.latitude;
         const rawLng = context.addressRef?.longitude;
         addressLat = rawLat != null ? Number(rawLat) : null;
@@ -414,81 +534,649 @@ export class CustomerBookingService {
           preferredTaskerId,
         };
 
-        // payosCheckoutUrl được gán sau commit — placeholder null ở đây.
         return this.mapCreatedBookingResponse(
           savedBooking,
           context,
           paymentMethod,
-          null,
         );
       });
 
-      // Sau khi transaction commit thành công
-      if (createdBookingId && createdBookingSnapshot && createdContext) {
-        if (createdPaymentMethod === PaymentMethod.ONLINE) {
-          // ONLINE: tạo PayOS link, dispatch CHỈ khi webhook xác nhận PAID.
-          try {
-            const link =
-              await this.bookingOnlinePaymentService.createPaymentLink(
-                createdBookingSnapshot,
-                userId,
-              );
-            return this.mapCreatedBookingResponse(
-              createdBookingSnapshot,
-              createdContext,
-              createdPaymentMethod,
-              link.checkoutUrl,
-              link.qrCode,
-              {
-                bin: link.bin,
-                accountNumber: link.accountNumber,
-                accountName: link.accountName,
-              },
-            );
-          } catch (err) {
-            this.logger.error(
-              `Không thể tạo PayOS link cho booking=${createdBookingId}: ${err}`,
-            );
-            // Trả về response không có link — FE sẽ hiển thị lỗi.
-            return response;
-          }
-        } else {
-          // CASH / WALLET: dispatch ngay sau khi tạo đơn.
-          this.notificationGateway.emitToUser(userId, 'booking:searching', {
-            bookingId: createdBookingId,
-          });
+      // Sau khi transaction commit thành công — đơn ONLINE tới được đây nghĩa là
+      // PayOS đã báo PAID, nên mọi phương thức đều dispatch ngay.
+      if (createdBookingId) {
+        this.notificationGateway.emitToUser(userId, 'booking:searching', {
+          bookingId: createdBookingId,
+        });
 
-          if (
-            addressLat != null &&
-            addressLng != null &&
-            Number.isFinite(addressLat) &&
-            Number.isFinite(addressLng) &&
-            scheduledStart
-          ) {
-            void this.bookingDispatchService
-              .enqueueDispatch(
-                createdBookingId,
-                userId,
-                addressLat,
-                addressLng,
-                scheduledStart,
-                dispatchOptions ?? {},
-              )
-              .catch((err: unknown) =>
-                this.logger.error(
-                  `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err instanceof Error ? err.message : String(err)}`,
-                ),
-              );
-          } else {
-            this.logger.warn(
-              `Booking=${createdBookingId} thiếu tọa độ địa chỉ — bỏ qua dispatch tự động`,
+        if (
+          addressLat != null &&
+          addressLng != null &&
+          Number.isFinite(addressLat) &&
+          Number.isFinite(addressLng) &&
+          scheduledStart
+        ) {
+          void this.bookingDispatchService
+            .enqueueDispatch(
+              createdBookingId,
+              userId,
+              addressLat,
+              addressLng,
+              scheduledStart,
+              dispatchOptions ?? {},
+            )
+            .catch((err: unknown) =>
+              this.logger.error(
+                `Không thể enqueue dispatch cho booking=${createdBookingId}: ${err instanceof Error ? err.message : String(err)}`,
+              ),
             );
-          }
+        } else {
+          this.logger.warn(
+            `Booking=${createdBookingId} thiếu tọa độ địa chỉ — bỏ qua dispatch tự động`,
+          );
         }
       }
 
       return response;
     }, 'Không thể tạo booking');
+  }
+
+  // ── Luồng ONLINE: trả tiền trước, tạo booking sau ──────────────────────────
+
+  /**
+   * Validate toàn bộ đơn, chốt giá và mở link PayOS — KHÔNG ghi vào bảng bookings.
+   * Đơn nháp nằm ở booking_quotes với `paymentState = PENDING` cho tới khi cổng
+   * báo PAID, nên khách chưa trả tiền không chiếm quota đơn active, không giữ
+   * voucher và không lọt vào danh sách của tasker.
+   */
+  private async createOnlineDraft(
+    userId: string,
+    dto: CreateBookingDto,
+  ): Promise<CustomerBookingCreatedResponse> {
+    return asyncHandleOperation(async () => {
+      const context = await this.dataSource.transaction(async (manager) => {
+        // Siết thêm đúng thời hạn quét QR: giờ hẹn phải còn hợp lệ cả sau khi khách
+        // thanh toán xong, nếu không thì lần kiểm tra lúc dựng booking sẽ trượt và
+        // tiền đã thu phải hoàn lại.
+        const ctx = await this.buildBookingPricingContext(
+          manager,
+          userId,
+          dto,
+          undefined,
+          ONLINE_DRAFT_TTL_MS,
+        );
+        if (dto.quoteId) {
+          await this.applyLockedQuotePrice(manager, ctx, dto);
+        }
+        // Cùng ràng buộc như đơn thường: một khách chỉ có một đơn đang chạy.
+        await this.bookingPolicyService.assertCustomerCanCreateBooking(
+          manager,
+          ctx.customer.id,
+        );
+        return ctx;
+      });
+
+      const amount = Math.round(toNumber(context.totalPrice));
+      if (amount <= 0) {
+        throw new BadRequestException(
+          'Đơn này không phát sinh số tiền cần thanh toán, vui lòng chọn phương thức khác',
+        );
+      }
+
+      const quoteRepository = this.dataSource.getRepository(BookingQuoteEntity);
+
+      // Khách bấm lại nút thanh toán: chỉ trả lại đúng link cũ khi yêu cầu đặt lịch
+      // trùng khít, vì booking sẽ được dựng từ payload của đơn nháp cũ chứ không
+      // phải từ dto lần này.
+      const existing = await quoteRepository.findOne({
+        where: {
+          customerId: context.customer.id,
+          paymentState: PaymentStatus.PENDING,
+        },
+        order: { createdAt: 'DESC' },
+      });
+      if (existing && existing.expiresAt.getTime() > Date.now()) {
+        if (isSameBookingRequest(existing.payload, dto)) {
+          return this.mapDraftResponse(existing, context);
+        }
+        await this.voidOnlineDraft(existing, 'Khách đổi lựa chọn đặt lịch');
+      }
+
+      const expiresAt = new Date(Date.now() + ONLINE_DRAFT_TTL_MS);
+      const orderCode = generateBookingPayosOrderCode();
+
+      const draft = await quoteRepository.save(
+        quoteRepository.create({
+          customerId: context.customer.id,
+          userId,
+          requestHash: this.buildQuoteRequestHash(context.customer.id, dto),
+          packageId: context.package.id,
+          pricingTierId: context.pricingTierId ?? null,
+          durationHours: context.durationHours,
+          areaM2: context.areaM2 ?? null,
+          basePrice: context.basePrice,
+          addonPrice: context.addonPrice,
+          peakFee: context.peakFee,
+          peakBreakdown: context.peakBreakdown,
+          petFee: context.petFee,
+          waitingFee: context.waitingFee,
+          subtotal: context.subtotal,
+          discountAmount: context.discountAmount,
+          totalPrice: context.totalPrice,
+          voucherId: context.voucher?.id ?? null,
+          serviceTier: context.serviceTier,
+          premiumFee: context.premiumFee,
+          expiresAt,
+          // quoteId đã bị tiêu ở trên; giá của đơn nháp lấy từ chính bản ghi này.
+          payload: { ...dto, quoteId: undefined },
+          payosOrderCode: orderCode,
+          paymentState: PaymentStatus.PENDING,
+        }),
+      );
+
+      try {
+        const link = await this.payosService.createPaymentLink({
+          amount,
+          orderCode,
+          description: buildPayosDescription(orderCode),
+          returnUrl: `${this.frontendUrl()}/customer/booking/payment/return?draftId=${draft.id}&payment=success`,
+          cancelUrl: `${this.frontendUrl()}/customer/booking/payment/return?draftId=${draft.id}&payment=cancel`,
+          expiredAt: Math.floor(expiresAt.getTime() / 1000),
+        });
+
+        draft.paymentLinkId = link.paymentLinkId;
+        draft.qrCode = link.qrCode;
+        draft.checkoutUrl = link.checkoutUrl;
+        draft.bin = link.bin;
+        draft.accountNumber = link.accountNumber;
+        draft.accountName = link.accountName;
+        await quoteRepository.save(draft);
+      } catch (err) {
+        // Không mở được link thì đơn nháp vô dụng — đóng luôn để job dọn khỏi chờ.
+        draft.paymentState = PaymentStatus.FAILED;
+        draft.failReason =
+          err instanceof Error ? err.message : 'Không tạo được link PayOS';
+        await quoteRepository.save(draft);
+        throw err;
+      }
+
+      return this.mapDraftResponse(draft, context);
+    }, 'Không thể tạo yêu cầu thanh toán');
+  }
+
+  /**
+   * PayOS báo đã thu tiền → tạo booking thật từ đơn nháp.
+   *
+   * Trả về bookingId nếu tạo được. Nếu đơn không còn hợp lệ tại thời điểm này
+   * (khách vừa có đơn khác, lịch đã qua giờ, địa chỉ bị xoá...) thì hoàn tiền vào
+   * ví CleanZ thay vì tạo đơn sai.
+   */
+  async materializePaidOnlineDraft(draftId: string): Promise<string | null> {
+    const quoteRepository = this.dataSource.getRepository(BookingQuoteEntity);
+
+    // CAS: chỉ luồng đầu tiên chuyển được PENDING → PAID mới đi tiếp, nên webhook
+    // và verify-payment gọi song song cũng chỉ tạo đúng một booking.
+    const claimed = await quoteRepository
+      .createQueryBuilder()
+      .update(BookingQuoteEntity)
+      .set({ paymentState: PaymentStatus.PAID })
+      .where('id = :id', { id: draftId })
+      .andWhere('payment_state = :pending', { pending: PaymentStatus.PENDING })
+      .execute();
+
+    const draft = await quoteRepository.findOne({ where: { id: draftId } });
+    if (!draft) return null;
+
+    if (!claimed.affected) {
+      // Luồng khác đã xử lý xong: trả lại booking nó vừa tạo (idempotent).
+      if (draft.bookingId) return draft.bookingId;
+
+      // Khách chuyển tiền sát hạn: job dọn kịp đánh FAILED trước khi webhook về.
+      // Tiền đã vào nhưng đơn nháp đã đóng — phải trả lại, không giữ im lặng.
+      if (draft.paymentState === PaymentStatus.FAILED) {
+        this.logger.warn(
+          `Đơn nháp ${draft.id} đã đóng nhưng PayOS báo đã thu tiền — hoàn tiền cho khách`,
+        );
+        await this.refundOnlineDraft(
+          draft,
+          'Thanh toán về sau khi yêu cầu đã hết hạn',
+        );
+      }
+      return null;
+    }
+
+    return this.createBookingFromPaidDraft(draft);
+  }
+
+  /**
+   * Dựng booking thật từ đơn nháp đã thu tiền; không dựng được thì hoàn tiền.
+   *
+   * Tách riêng để job đối soát dùng lại được cho đơn nháp kẹt — xem
+   * {@link recoverStuckPaidDrafts}.
+   */
+  private async createBookingFromPaidDraft(
+    draft: BookingQuoteEntity,
+  ): Promise<string | null> {
+    if (!draft.payload || !draft.userId) {
+      await this.refundOnlineDraft(draft, 'Đơn nháp thiếu dữ liệu để tạo đơn');
+      return null;
+    }
+
+    try {
+      const created = await this.createBookingRecord(
+        draft.userId,
+        draft.payload,
+        {
+          paymentStatus: PaymentStatus.PAID,
+          lockedPriceQuote: draft,
+          onlinePayment: {
+            transactionCode: String(draft.payosOrderCode),
+            qrCode: draft.qrCode,
+            checkoutUrl: draft.checkoutUrl,
+            bin: draft.bin,
+            accountNumber: draft.accountNumber,
+            accountName: draft.accountName,
+          },
+        },
+      );
+
+      const bookingId = created.id as string;
+      draft.bookingId = bookingId;
+      draft.usedAt = new Date();
+      await this.dataSource.getRepository(BookingQuoteEntity).save(draft);
+
+      this.logger.log(
+        `Đơn nháp ${draft.id} đã thành booking ${bookingId} sau khi PayOS báo PAID`,
+      );
+      return bookingId;
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+
+      // Chỉ hoàn tiền khi đơn thật sự KHÔNG hợp lệ (hết voucher, quá giờ đặt, địa
+      // chỉ bị xoá...). Lỗi hạ tầng — deadlock, timeout, mất kết nối DB — là tạm
+      // thời; hoàn tiền lúc đó biến một sự cố 50ms thành huỷ đơn vĩnh viễn.
+      // asyncHandleOperation gói mọi lỗi không phải HttpException thành 500, nên
+      // ranh giới nằm đúng ở mã trạng thái.
+      const isBusinessRule =
+        err instanceof HttpException && err.getStatus() < 500;
+
+      if (!isBusinessRule) {
+        this.logger.error(
+          `Lỗi hạ tầng khi dựng booking từ đơn nháp ${draft.id} (đã thu tiền): ${reason} — ` +
+            'giữ nguyên đơn nháp để job đối soát thử lại, KHÔNG hoàn tiền',
+        );
+        throw err;
+      }
+
+      this.logger.error(
+        `Không tạo được booking từ đơn nháp ${draft.id} dù đã thu tiền: ${reason}`,
+      );
+      await this.refundOnlineDraft(draft, reason);
+      return null;
+    }
+  }
+
+  /**
+   * Đơn nháp đã thu tiền nhưng chưa thành booking → tạo lại (hoặc hoàn tiền).
+   *
+   * Xảy ra khi tiến trình chết giữa lúc CAS `payment_state = PAID` và lúc ghi
+   * `booking_id`. Không luồng nào khác cứu được: CAS đòi trạng thái PENDING, còn
+   * verify-payment thấy state ≠ PENDING thì báo "chưa trả tiền". Tiền đã vào PayOS
+   * mà khách không có đơn, không được hoàn và không có cảnh báo nào.
+   *
+   * Chỉ quét đơn cũ hơn {@link STUCK_PAID_DRAFT_GRACE_MS} để không tranh chấp với
+   * luồng materialize đang chạy dở.
+   */
+  async recoverStuckPaidDrafts(): Promise<number> {
+    const cutoff = new Date(Date.now() - STUCK_PAID_DRAFT_GRACE_MS);
+    const stuck = await this.dataSource
+      .getRepository(BookingQuoteEntity)
+      .createQueryBuilder('quote')
+      .where('quote.payment_state = :paid', { paid: PaymentStatus.PAID })
+      .andWhere('quote.booking_id IS NULL')
+      .andWhere('quote.created_at <= :cutoff', { cutoff })
+      .take(50)
+      .getMany();
+
+    for (const draft of stuck) {
+      this.logger.warn(
+        `Đơn nháp ${draft.id} đã thu tiền nhưng chưa có booking — thử dựng lại`,
+      );
+      // Một đơn hỏng không được làm dừng cả lượt quét; lỗi hạ tầng sẽ được thử lại
+      // ở lượt sau.
+      try {
+        await this.createBookingFromPaidDraft(draft);
+      } catch (err) {
+        this.logger.error(
+          `Dựng lại đơn nháp ${draft.id} thất bại: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return stuck.length;
+  }
+
+  /** Webhook PayOS cho đơn nháp booking. Bỏ qua orderCode không thuộc luồng này. */
+  async handleOnlineDraftWebhook(body: unknown): Promise<void> {
+    const data = await this.payosService.verifyWebhook(body as Webhook);
+    if (!data.orderCode) return;
+
+    const draft = await this.dataSource
+      .getRepository(BookingQuoteEntity)
+      .findOne({ where: { payosOrderCode: Number(data.orderCode) } });
+    if (!draft) return;
+
+    if (data.code !== '00') {
+      // Một lần chuyển khoản hỏng KHÔNG phải là hết chuyện: khách còn hạn quét lại
+      // đúng mã QR đó. Đóng đơn nháp ngay tại đây sẽ khoá vĩnh viễn — verify-payment
+      // trả "chưa trả tiền" mãi và FE poll trong vô vọng, dù link vẫn còn sống.
+      // Hết hạn thì job dọn sẽ đóng, đó mới là nơi quyết định.
+      if (draft.expiresAt.getTime() > Date.now()) {
+        this.logger.warn(
+          `PayOS báo thất bại cho đơn nháp ${draft.id}: code=${data.code} — còn hạn, giữ nguyên để khách thử lại`,
+        );
+        return;
+      }
+
+      this.logger.warn(
+        `PayOS báo thất bại cho đơn nháp ${draft.id}: code=${data.code}`,
+      );
+      await this.voidOnlineDraft(draft, `PayOS trả code=${data.code}`, false);
+      return;
+    }
+
+    const expected = Math.round(toNumber(draft.totalPrice));
+    const received = Math.round(toNumber(data.amount));
+    if (received !== expected) {
+      // Lỗi vĩnh viễn — ném ra chỉ khiến PayOS retry mãi mà số tiền không tự đúng
+      // lên được. Tiền đã vào rồi nên không được im lặng: trả lại đúng số thực nhận
+      // vào ví và đóng đơn nháp.
+      this.logger.error(
+        `Sai số tiền webhook đơn nháp ${draft.id}: chờ ${expected}, nhận ${received} — hoàn lại số thực nhận`,
+      );
+      await this.refundOnlineDraft(
+        draft,
+        `Số tiền thanh toán không khớp (chờ ${expected.toLocaleString('vi-VN')}đ, nhận ${received.toLocaleString('vi-VN')}đ)`,
+        received,
+      );
+      return;
+    }
+
+    await this.materializePaidOnlineDraft(draft.id);
+  }
+
+  /**
+   * Hỏi thẳng PayOS xem đơn nháp đã được trả tiền chưa — FE gọi khi khách quay lại
+   * từ cổng, và dùng thay webhook khi chạy local.
+   */
+  async verifyOnlineDraftPayment(
+    userId: string,
+    draftId: string,
+  ): Promise<{ paid: boolean; bookingId: string | null }> {
+    return asyncHandleOperation(async () => {
+      const draft = await this.dataSource
+        .getRepository(BookingQuoteEntity)
+        .findOne({ where: { id: draftId } });
+
+      if (!draft || draft.userId !== userId) {
+        throw new NotFoundException('Không tìm thấy yêu cầu thanh toán');
+      }
+      if (draft.bookingId) {
+        return { paid: true, bookingId: draft.bookingId };
+      }
+      if (draft.paymentState !== PaymentStatus.PENDING) {
+        return { paid: false, bookingId: null };
+      }
+      if (!draft.payosOrderCode) {
+        return { paid: false, bookingId: null };
+      }
+
+      const info = await this.payosService.getPaymentInfo(
+        Number(draft.payosOrderCode),
+      );
+      if (
+        info.status !== 'PAID' ||
+        toNumber(info.amount) !== Math.round(toNumber(draft.totalPrice))
+      ) {
+        return { paid: false, bookingId: null };
+      }
+
+      const bookingId = await this.materializePaidOnlineDraft(draft.id);
+      return { paid: bookingId != null, bookingId };
+    }, 'Không thể xác minh thanh toán');
+  }
+
+  /**
+   * Đóng các đơn nháp quá hạn thanh toán và huỷ link PayOS tương ứng.
+   * Gọi định kỳ bởi BookingExpirationService.
+   */
+  async expireStaleOnlineDrafts(): Promise<number> {
+    const quoteRepository = this.dataSource.getRepository(BookingQuoteEntity);
+    const stale = await quoteRepository
+      .createQueryBuilder('quote')
+      .where('quote.payment_state = :pending', {
+        pending: PaymentStatus.PENDING,
+      })
+      .andWhere('quote.expires_at <= :now', { now: new Date() })
+      .take(100)
+      .getMany();
+
+    for (const draft of stale) {
+      await this.voidOnlineDraft(draft, 'Quá hạn thanh toán');
+    }
+    return stale.length;
+  }
+
+  /** Đóng đơn nháp chưa thu tiền: huỷ link PayOS rồi đánh FAILED. */
+  private async voidOnlineDraft(
+    draft: BookingQuoteEntity,
+    reason: string,
+    cancelLink = true,
+  ): Promise<void> {
+    if (cancelLink && draft.payosOrderCode) {
+      // Link đã thanh toán/đã huỷ thì PayOS trả lỗi — không chặn việc đóng nháp.
+      await this.payosService
+        .cancelPaymentLink(Number(draft.payosOrderCode))
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Không huỷ được link PayOS của đơn nháp ${draft.id}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+    }
+
+    await this.dataSource
+      .getRepository(BookingQuoteEntity)
+      .update(
+        { id: draft.id, paymentState: PaymentStatus.PENDING },
+        { paymentState: PaymentStatus.FAILED, failReason: reason },
+      );
+  }
+
+  /** Đã thu tiền nhưng không tạo được booking → trả tiền vào ví CleanZ của khách. */
+  private async refundOnlineDraft(
+    draft: BookingQuoteEntity,
+    reason: string,
+    receivedAmount?: number,
+  ): Promise<void> {
+    // Mặc định hoàn đúng giá đơn. Khi cổng báo số tiền khác (khách chuyển thiếu/thừa)
+    // thì phải hoàn đúng số thực nhận, không hoàn theo giá đơn.
+    const amount = receivedAmount ?? Math.round(toNumber(draft.totalPrice));
+
+    type RefundOutcome = 'CREDITED' | 'ALREADY_REFUNDED' | 'NO_CUSTOMER';
+
+    const runRefund = (): Promise<RefundOutcome> =>
+      this.dataSource.transaction<RefundOutcome>(async (manager) => {
+        const customer = await manager
+          .getRepository(CustomerEntity)
+          .findOne({ where: { id: draft.customerId } });
+        if (!customer) return 'NO_CUSTOMER';
+
+        // Chặn sớm cho trường hợp thường gặp; chặn thật nằm ở index
+        // UQ_wallet_tx_online_draft_refund vì SELECT-rồi-INSERT không đủ khi
+        // webhook và verify-payment chạy song song.
+        const existing = await manager
+          .getRepository(WalletTransactionEntity)
+          .findOne({
+            where: {
+              referenceId: draft.id,
+              referenceType: ONLINE_DRAFT_REFUND_REF,
+            },
+          });
+        if (existing) return 'ALREADY_REFUNDED';
+
+        const wallet = await this.walletService.getOrCreateCustomerWallet(
+          manager,
+          customer,
+        );
+        await this.walletService.creditWallet(manager, {
+          wallet,
+          amount,
+          type: WalletTransactionType.REFUND,
+          referenceId: draft.id,
+          referenceType: ONLINE_DRAFT_REFUND_REF,
+          description: `Hoàn tiền do không tạo được đơn sau thanh toán (${amount.toLocaleString('vi-VN')}đ)`,
+        });
+        return 'CREDITED';
+      });
+
+    let outcome: RefundOutcome;
+    try {
+      outcome = await runRefund();
+    } catch (err) {
+      // 23505 = unique_violation: luồng song song vừa hoàn tiền xong. Đó chính là
+      // kết quả mong muốn, không phải lỗi.
+      if (isUniqueViolation(err)) {
+        outcome = 'ALREADY_REFUNDED';
+      } else {
+        throw err;
+      }
+    }
+
+    // Không cộng được đồng nào thì tuyệt đối không ghi REFUNDED và không báo khách
+    // "đã hoàn tiền": giữ nguyên payment_state = PAID để job đối soát còn nhìn thấy
+    // khoản tiền đã thu mà chưa trả này.
+    if (outcome === 'NO_CUSTOMER') {
+      this.logger.error(
+        `Không tìm thấy customer ${draft.customerId} để hoàn tiền đơn nháp ${draft.id} ` +
+          `(${amount.toLocaleString('vi-VN')}đ) — cần đối soát thủ công`,
+      );
+      await this.dataSource.getRepository(BookingQuoteEntity).update(draft.id, {
+        failReason: `${reason} | HOÀN TIỀN THẤT BẠI: không tìm thấy customer`,
+      });
+      return;
+    }
+
+    await this.dataSource.getRepository(BookingQuoteEntity).update(draft.id, {
+      paymentState: PaymentStatus.REFUNDED,
+      failReason: reason,
+    });
+
+    const userId = draft.userId;
+    if (userId) {
+      void this.notificationService
+        .notify({
+          userId,
+          type: NotificationType.BOOKING_CANCELLED,
+          title: 'Đã hoàn tiền đơn đặt lịch',
+          content:
+            'Thanh toán của bạn đã được ghi nhận nhưng đơn không thể tạo. ' +
+            `Số tiền ${amount.toLocaleString('vi-VN')}đ đã được hoàn vào Ví CleanZ.`,
+          referenceType: NotificationRefType.BOOKING,
+          referenceId: draft.id,
+          dedupeKey: `draft:${draft.id}:refunded`,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            `Không gửi được thông báo hoàn tiền đơn nháp ${draft.id}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+    }
+  }
+
+  private frontendUrl(): string {
+    return (
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3020'
+    );
+  }
+
+  private mapDraftResponse(
+    draft: BookingQuoteEntity,
+    context: BookingPricingContext,
+  ): CustomerBookingCreatedResponse {
+    return {
+      id: null,
+      draftId: draft.id,
+      bookingCode: null,
+      status: null,
+      service: {
+        id: context.package.id,
+        name: context.package.name,
+        description: context.package.policyDescription ?? null,
+      },
+      package: {
+        id: context.package.id,
+        name: context.package.name,
+        description: context.package.policyDescription ?? null,
+      },
+      subServices: context.subServices.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+      })),
+      addons: context.addons.map((addon) => ({
+        id: addon.id,
+        name: addon.name,
+        price: toNumber(addon.price),
+      })),
+      address: {
+        id: context.addressRef?.id ?? null,
+        label: context.addressRef?.label ?? null,
+        fullAddress: context.bookingAddress,
+        wardDetail: context.addressRef?.wardDetail ?? null,
+        latitude: context.addressRef?.latitude ?? null,
+        longitude: context.addressRef?.longitude ?? null,
+        hasPet: context.hasPet,
+      },
+      schedule: {
+        scheduledStartDate: context.scheduledStartDate,
+        scheduledStartTime: context.scheduledStartTime,
+        scheduledEndDate: context.scheduledEndDate,
+        scheduledEndTime: context.scheduledEndTime,
+        durationHours: context.durationHours,
+      },
+      price: {
+        basePrice: context.basePrice,
+        addonPrice: context.addonPrice,
+        peakFee: context.peakFee,
+        petFee: context.petFee,
+        waitingFee: context.waitingFee,
+        premiumFee: context.premiumFee,
+        discountAmount: context.discountAmount,
+        totalPrice: context.totalPrice,
+      },
+      serviceTier: context.serviceTier,
+      payment: {
+        method: PaymentMethod.ONLINE,
+        status: PaymentStatus.PENDING,
+        transactionCode: String(draft.payosOrderCode),
+        payosCheckoutUrl: draft.checkoutUrl ?? null,
+        payosQrCode: draft.qrCode ?? null,
+        payosBin: draft.bin ?? null,
+        payosAccountNumber: draft.accountNumber ?? null,
+        payosAccountName: draft.accountName ?? null,
+        // Nội dung CK để FE hiển thị — lấy từ đây chứ không tự ghép, xem
+        // buildPayosDescription.
+        payosDescription: draft.payosOrderCode
+          ? buildPayosDescription(Number(draft.payosOrderCode))
+          : null,
+        expiresAt: draft.expiresAt.toISOString(),
+      },
+      voucher: context.voucher
+        ? {
+            id: context.voucher.id,
+            code: context.voucher.code,
+            name: context.voucher.name,
+          }
+        : null,
+      note: draft.payload?.note ?? null,
+    };
   }
 
   async findMyBookingDetail(
@@ -867,8 +1555,6 @@ export class CustomerBookingService {
     dto: UpdateBookingScheduleAddressDto,
   ): Promise<CustomerBookingDetailResponse> {
     return asyncHandleOperation(async () => {
-      let savedBookingSnapshot: BookingEntity | undefined;
-
       await this.dataSource.transaction(async (manager) => {
         const booking = await manager
           .getRepository(BookingEntity)
@@ -971,23 +1657,7 @@ export class CustomerBookingService {
           refundAmount: 0,
         });
         await manager.getRepository(BookingStatusLogEntity).save(statusLog);
-
-        savedBookingSnapshot = savedBooking;
       });
-
-      // Sau commit: nếu đơn ONLINE+PENDING thì recreate PayOS link với giá mới.
-      if (
-        savedBookingSnapshot?.paymentMethod === PaymentMethod.ONLINE &&
-        savedBookingSnapshot.paymentStatus === PaymentStatus.PENDING
-      ) {
-        void this.bookingOnlinePaymentService
-          .recreatePayosLink(savedBookingSnapshot, userId)
-          .catch((err: unknown) =>
-            this.logger.error(
-              `Không thể recreate PayOS link cho booking=${bookingId}: ${err}`,
-            ),
-          );
-      }
 
       return this.findMyBookingDetail(userId, bookingId);
     }, 'Không thể cập nhật địa chỉ hoặc lịch booking');
@@ -1090,15 +1760,6 @@ export class CustomerBookingService {
       });
 
       await this.bookingLifecycleScheduler.deactivateBooking(bookingId);
-
-      // Sau commit: hủy PayOS link nếu đơn ONLINE chưa thanh toán (tránh customer chuyển khoản nhầm).
-      void this.bookingOnlinePaymentService
-        .cancelPendingPayosLink(bookingId)
-        .catch((err: unknown) =>
-          this.logger.error(
-            `Không thể hủy PayOS link cho booking=${bookingId}: ${err}`,
-          ),
-        );
 
       // Sau commit: nếu đơn đã có tasker → báo tasker rằng customer đã hủy.
       if (taskerUserId) {
@@ -1238,20 +1899,27 @@ export class CustomerBookingService {
       );
     }
 
-    context.basePrice = lockedQuote.basePrice;
-    context.addonPrice = lockedQuote.addonPrice;
-    context.peakFee = lockedQuote.peakFee;
-    context.peakBreakdown = lockedQuote.peakBreakdown ?? [];
-    context.petFee = lockedQuote.petFee;
-    context.waitingFee = lockedQuote.waitingFee;
-    context.subtotal = lockedQuote.subtotal;
-    context.discountAmount = lockedQuote.discountAmount;
-    context.totalPrice = lockedQuote.totalPrice;
-    context.serviceTier = lockedQuote.serviceTier;
-    context.premiumFee = toNumber(lockedQuote.premiumFee);
+    this.applyQuotePriceToContext(context, lockedQuote);
 
     lockedQuote.usedAt = new Date();
     await quoteRepository.save(lockedQuote);
+  }
+
+  private applyQuotePriceToContext(
+    context: BookingPricingContext,
+    quote: BookingQuoteEntity,
+  ): void {
+    context.basePrice = quote.basePrice;
+    context.addonPrice = quote.addonPrice;
+    context.peakFee = quote.peakFee;
+    context.peakBreakdown = quote.peakBreakdown ?? [];
+    context.petFee = quote.petFee;
+    context.waitingFee = quote.waitingFee;
+    context.subtotal = quote.subtotal;
+    context.discountAmount = quote.discountAmount;
+    context.totalPrice = quote.totalPrice;
+    context.serviceTier = quote.serviceTier;
+    context.premiumFee = toNumber(quote.premiumFee);
   }
 
   private async buildBookingPricingContext(
@@ -1259,11 +1927,21 @@ export class CustomerBookingService {
     userId: string,
     dto: BookingScheduleDraft,
     currentBookingId?: string,
+    /**
+     * Lề thời gian cộng thêm khi kiểm tra "đặt trước tối thiểu".
+     *
+     * Đơn nháp ONLINE bị kiểm tra hai lần: lúc tạo nháp và lúc dựng booking sau khi
+     * thu tiền. Không có lề này thì khách chọn giờ chỉ nhỉnh hơn hạn tối thiểu, mất
+     * mấy phút quét QR, rồi lần kiểm tra thứ hai trượt — tiền đã thu mà không tạo
+     * được đơn. Siết ngay ở lần đầu để lần thứ hai chắc chắn qua.
+     */
+    extraLeadMs = 0,
   ): Promise<BookingPricingContext> {
     const scheduleStart = this.bookingScheduleService.buildScheduleStart(dto);
     await this.assertCustomerScheduleAllowed(
       manager,
       scheduleStart.scheduledStart,
+      new Date(Date.now() + extraLeadMs),
     );
 
     const customerRepository = manager.getRepository(CustomerEntity);

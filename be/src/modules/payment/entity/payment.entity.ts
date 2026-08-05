@@ -72,11 +72,21 @@ export class PaymentEntity {
   bin?: string | null;
 
   /** Số tài khoản thụ hưởng PayOS. */
-  @Column({ name: 'account_number', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'account_number',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   accountNumber?: string | null;
 
   /** Tên chủ tài khoản thụ hưởng PayOS. */
-  @Column({ name: 'account_name', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'account_name',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   accountName?: string | null;
 
   @Column({ name: 'paid_at', type: 'timestamp', nullable: true })

@@ -60,11 +60,11 @@ function ExclusiveInvitationNotice({ publicAt }: { publicAt?: string | null }) {
   if (remainingMinutes === null || remainingMinutes <= 0) return null;
 
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
-      <Clock3 className="size-3.5 shrink-0" />
+    <div >
+      {/* <Clock3 className="size-3.5 shrink-0" />
       <span>
         Đơn mời riêng · còn khoảng {remainingMinutes} phút ưu tiên nhận
-      </span>
+      </span> */}
     </div>
   );
 }

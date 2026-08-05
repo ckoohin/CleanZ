@@ -25,7 +25,6 @@ import {
   Landmark,
   Loader2,
   Maximize2,
-  QrCode,
   UserRound,
   WalletCards,
   X,
@@ -58,49 +57,6 @@ const formatCurrency = (value: number | string | undefined) =>
 const formatDate = (value: string | null | undefined) =>
   value ? new Date(value).toLocaleString("vi-VN") : "—";
 
-const BANK_CODE_ALIASES: Record<string, string> = {
-  VIETCOMBANK: "VCB", VCB: "VCB",
-  TECHCOMBANK: "TCB", TCB: "TCB",
-  MB: "MB", MBBANK: "MB",
-  BIDV: "BIDV",
-  VIETINBANK: "ICB", ICB: "ICB",
-  AGRIBANK: "VBA",
-  ACB: "ACB",
-  SACOMBANK: "STB", STB: "STB",
-  VPBANK: "VPB", VPB: "VPB",
-  TPBANK: "TPB", TPB: "TPB",
-  VIB: "VIB", SHB: "SHB", OCB: "OCB", MSB: "MSB",
-  SEABANK: "SEAB",
-  EXIMBANK: "EIB", EIB: "EIB",
-  HDBANK: "HDB", HDB: "HDB",
-};
-
-const normalizeBankCode = (bankName: string) => {
-  const normalized = bankName
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase();
-  return BANK_CODE_ALIASES[normalized] ?? normalized;
-};
-
-const buildVietQrUrl = ({
-  bankName,
-  bankAccount,
-  amount,
-}: {
-  bankName: string;
-  bankAccount: string;
-  amount: number | string;
-}) => {
-  const bankCode = normalizeBankCode(bankName);
-  const account = bankAccount.replace(/\s/g, "");
-  const params = new URLSearchParams({
-    amount: String(Math.round(Number(amount))),
-    addInfo: ``,
-  });
-  return `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(account)}-compact2.png?${params.toString()}`;
-};
 
 export function WithdrawalReviewDialog({
   withdrawalId,
@@ -143,11 +99,15 @@ export function WithdrawalReviewDialog({
 
   const submit = () => {
     if (!mode) return;
+    // PayOS chi hộ cần đủ BIN + số tài khoản; thiếu BIN thì backend từ chối
+    // (`WITHDRAWAL_MISSING_BANK_BIN`) sau khi đã trừ ví rồi hoàn lại — chặn sớm ở đây.
     if (
       mode === "APPROVED" &&
-      (!withdrawal?.bankName || !withdrawal.bankAccount)
+      (!withdrawal?.bankAccount || !withdrawal.bankBin)
     ) {
-      toast.error("Yêu cầu chưa có đủ thông tin ngân hàng để chuyển khoản");
+      toast.error(
+        "Yêu cầu chưa có mã BIN hoặc số tài khoản ngân hàng nên không chi được",
+      );
       return;
     }
     if (mode === "REJECTED" && !note.trim()) {
@@ -327,39 +287,22 @@ export function WithdrawalReviewDialog({
 
                 {mode && (
                   <div className="space-y-4">
-                    {/* QR transfer */}
-                    {mode === "APPROVED" &&
-                      withdrawal.bankName &&
-                      withdrawal.bankAccount && (
-                        <TransferQr
-                          bankName={withdrawal.bankName}
-                          bankAccount={withdrawal.bankAccount}
-                          amount={withdrawal.amount}
-                          withdrawalId={withdrawal.id}
-                          onCopy={copy}
-                        />
-                      )}
-                    {mode === "APPROVED" &&
-                      (!withdrawal.bankName || !withdrawal.bankAccount) && (
-                        <div
-                          className="flex gap-2 rounded-xl border p-3 text-sm"
-                          style={{
-                            borderColor: "rgba(217,119,6,0.3)",
-                            background: "rgba(217,119,6,0.14)",
-                            color: "#D97706",
-                          }}
-                        >
-                          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                          Yêu cầu chưa có đủ ngân hàng hoặc số tài khoản nên
-                          không thể tạo QR chuyển khoản.
-                        </div>
-                      )}
+                    {/* Đích đến của lệnh chi — chỉ để đối chiếu, KHÔNG chuyển tay */}
+                    {mode === "APPROVED" && (
+                      <PayoutTarget
+                        bankName={withdrawal.bankName}
+                        bankAccount={withdrawal.bankAccount}
+                        bankBin={withdrawal.bankBin}
+                        amount={withdrawal.amount}
+                        onCopy={copy}
+                      />
+                    )}
 
                     {/* Proof image upload (chỉ khi APPROVED) */}
                     {mode === "APPROVED" && (
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-muted-foreground">
-                          Ảnh minh chứng chuyển tiền{" "}
+                          Ảnh minh chứng (nếu xử lý ngoài hệ thống){" "}
                           <span className="font-normal">(Không bắt buộc)</span>
                         </p>
 
@@ -442,7 +385,7 @@ export function WithdrawalReviewDialog({
                         placeholder={
                           mode === "REJECTED"
                             ? "Nhập lý do để Tasker biết cần điều chỉnh gì..."
-                            : "Ghi chú nội bộ sau khi đã chuyển khoản..."
+                            : "Ghi chú nội bộ về lệnh chi này..."
                         }
                         className="rounded-xl border-(--c-line-strong) bg-(--c-card-2) focus:border-(--c-primary)/50"
                       />
@@ -530,66 +473,76 @@ export function WithdrawalReviewDialog({
   );
 }
 
-function TransferQr({
+/**
+ * Đích đến của lệnh chi, hiển thị để admin ĐỐI CHIẾU trước khi duyệt.
+ *
+ * Trước đây chỗ này là mã QR VietQR kèm chữ "Quét QR để chuyển khoản" — nhưng
+ * backend `finance.service.ts` khi duyệt đã tự gọi PayOS Payout để chi tiền.
+ * Admin chuyển tay theo QR rồi bấm Duyệt là tiền ra HAI LẦN. Bỏ QR, nói rõ hệ
+ * thống tự chi, đúng như luồng rút tiền của Khách hàng.
+ */
+function PayoutTarget({
   bankName,
   bankAccount,
+  bankBin,
   amount,
-  withdrawalId,
   onCopy,
 }: {
-  bankName: string;
-  bankAccount: string;
+  bankName: string | null;
+  bankAccount: string | null;
+  bankBin: string | null;
   amount: number | string;
-  withdrawalId: string;
   onCopy: (value: string) => Promise<void>;
 }) {
-  const transferContent = `CleanZ rut tien ${withdrawalId.slice(0, 8)}`;
-  const qrUrl = buildVietQrUrl({ bankName, bankAccount, amount });
-
   return (
-    <div className="rounded-2xl border border-(--c-primary)/20 bg-(--c-primary-soft) p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <div className="rounded-lg bg-(--c-primary-soft) p-2 text-(--c-primary-strong)">
-          <QrCode className="size-4" />
-        </div>
-        <p className="text-sm font-bold">Quét QR để chuyển khoản</p>
-      </div>
-
-      <div className="grid items-center gap-4 sm:grid-cols-[210px_1fr]">
-        <div className="mx-auto overflow-hidden rounded-2xl border bg-white p-2 shadow-sm">
-          <Image
-            src={qrUrl}
-            width={194}
-            height={194}
-            unoptimized
-            alt={`QR chuyển khoản ${bankName} ${bankAccount}`}
-            className="size-48.5 object-contain"
-          />
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-(--c-primary)/20 bg-(--c-primary-soft) p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="rounded-lg bg-(--c-primary-soft) p-2 text-(--c-primary-strong)">
+            <Banknote className="size-4" />
+          </div>
+          <div>
+            <p className="text-sm font-bold">Hệ thống tự chuyển tiền qua PayOS</p>
+            <p className="text-[11px] text-(--c-muted)">
+              Bấm Duyệt là lệnh chi được gửi tự động. KHÔNG chuyển khoản thủ công.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-3 text-sm">
-          <TransferItem label="Ngân hàng" value={bankName} />
+          <TransferItem label="Ngân hàng" value={bankName ?? "—"} />
           <TransferItem
             label="Số tài khoản"
-            value={bankAccount}
-            onCopy={() => onCopy(bankAccount)}
+            value={bankAccount ?? "—"}
+            onCopy={bankAccount ? () => onCopy(bankAccount) : undefined}
           />
           <TransferItem
             label="Số tiền"
             value={formatCurrency(amount)}
             onCopy={() => onCopy(String(Math.round(Number(amount))))}
           />
-          <TransferItem
-            label="Nội dung"
-            value={transferContent}
-            onCopy={() => onCopy(transferContent)}
-          />
         </div>
+
+        <p className="mt-3 text-center text-[11px] text-(--c-muted)">
+          Đối chiếu kỹ số tài khoản trước khi duyệt — lệnh chi đã gửi thì không thu hồi được.
+        </p>
       </div>
 
-      <p className="mt-3 text-center text-[11px] text-(--c-muted)">
-        Kiểm tra đúng tên người nhận trên ứng dụng ngân hàng trước khi chuyển.
-      </p>
+      {/* BIN mới là thứ PayOS bắt buộc; thiếu là backend từ chối duyệt. */}
+      {!bankBin && (
+        <div
+          className="flex gap-2 rounded-xl border p-3 text-sm"
+          style={{
+            borderColor: "rgba(217,119,6,0.3)",
+            background: "rgba(217,119,6,0.14)",
+            color: "#D97706",
+          }}
+        >
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          Yêu cầu chưa có mã BIN ngân hàng nên không chi được. Tasker cần cập
+          nhật lại thông tin ngân hàng trước khi duyệt.
+        </div>
+      )}
     </div>
   );
 }

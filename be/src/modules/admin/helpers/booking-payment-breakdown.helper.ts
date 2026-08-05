@@ -57,9 +57,7 @@ export function resolveBookingPaymentBreakdown(
     walletSettlementEarning !== null;
 
   const isHybridWalletCash =
-    isSystemSettled &&
-    surchargeAmount > 0 &&
-    explicitTaskerPlatformFee > 0;
+    isSystemSettled && surchargeAmount > 0 && explicitTaskerPlatformFee > 0;
 
   let platformFee: number;
   if (isSystemSettled) {

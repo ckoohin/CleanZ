@@ -14,6 +14,7 @@ import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTopupService } from './wallet-topup.service';
 import { PayosService } from './payos.service';
 import { PayoutService } from './payout.service';
+import { PayoutReconciliationService } from './payout-reconciliation.service';
 import { BankListService } from './bank-list.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { TaskerDebtEntity } from './entity/tasker-debt.entity';
@@ -41,6 +42,7 @@ import { TaskerDebtService } from './tasker-debt.service';
     WalletTopupService,
     PayosService,
     PayoutService,
+    PayoutReconciliationService,
     BankListService,
   ],
   exports: [

@@ -96,6 +96,16 @@ export class FinanceService {
       `reviewWithdrawal bắt đầu: withdrawalId=${id}, status=${dto.status}`,
     );
 
+    // Phase 0: quỹ chi hộ có đủ không? Kiểm tra TRƯỚC khi trừ ví để không rơi
+    // vào vòng trừ-rồi-hoàn và để admin thấy đúng nguyên nhân "hết quỹ".
+    if (dto.status === WithdrawalStatus.APPROVED) {
+      const pending = await this.withdrawalRepo.findOne({ where: { id } });
+      if (!pending) {
+        throw new NotFoundException('Không tìm thấy yêu cầu rút tiền');
+      }
+      await this.payoutService.assertSufficientBalance(Number(pending.amount));
+    }
+
     // Phase 1: DB transaction — lock, debit wallet, mark APPROVED
     await this.dataSource.transaction(async (manager) => {
       const withdrawalRepository = manager.getRepository(

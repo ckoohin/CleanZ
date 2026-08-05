@@ -10,7 +10,7 @@ export class AddOnlinePaymentMethod1783740000000 implements MigrationInterface {
     );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // Postgres không hỗ trợ xóa giá trị khỏi enum.
     // Để rollback: chuyển các row ONLINE về CASH rồi recreate enum nếu cần.
   }

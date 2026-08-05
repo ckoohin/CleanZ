@@ -47,7 +47,7 @@ export class BookingOnlinePaymentService {
    */
   async createPaymentLink(
     booking: BookingEntity,
-    customerUserId: string,
+    _customerUserId: string,
   ): Promise<OnlinePaymentLink> {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3020';
@@ -372,7 +372,9 @@ export class BookingOnlinePaymentService {
           scheduledStart,
         )
         .catch((err: unknown) =>
-          this.logger.error(`Dispatch sau verify booking=${bookingId}: ${err}`),
+          this.logger.error(
+            `Dispatch sau verify booking=${bookingId}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
         );
     }
   }

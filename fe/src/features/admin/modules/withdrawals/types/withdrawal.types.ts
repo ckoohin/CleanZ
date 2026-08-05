@@ -19,6 +19,11 @@ export interface WithdrawalRequest {
   status: WithdrawalStatus;
   bankAccount: string | null;
   bankName: string | null;
+  /**
+   * Mã BIN ngân hàng. Đây là trường PayOS bắt buộc để chi hộ — thiếu thì backend
+   * từ chối duyệt với `WITHDRAWAL_MISSING_BANK_BIN` (finance.service.ts).
+   */
+  bankBin: string | null;
   note: string | null;
   adminNote: string | null;
   proofImageUrl: string | null;

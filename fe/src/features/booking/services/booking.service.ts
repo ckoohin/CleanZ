@@ -6,6 +6,7 @@ import type {
   CreateBookingDto,
   CreateBookingForCustomerDto,
   CustomerActiveBookingResponse,
+  CustomerBookingCreated,
   CustomerBookingDetail,
   CustomerBookingListResponse,
   CustomerSchedulingPolicy,
@@ -51,7 +52,7 @@ export const customerBookingApi = {
       .then((r) => r.data.data ?? r.data),
 
   /** 02. Tạo booking */
-  create: (dto: CreateBookingDto): Promise<CustomerBookingDetail> =>
+  create: (dto: CreateBookingDto): Promise<CustomerBookingCreated> =>
     http
       .post(API_ENDPOINTS.BOOKING.CREATE, dto, {
         skipErrorToast: true,
@@ -87,10 +88,15 @@ export const customerBookingApi = {
   findMyBookings: (): Promise<CustomerBookingListResponse> =>
     http.get(API_ENDPOINTS.BOOKING.MY_LIST).then((r) => r.data.data ?? r.data),
 
-  /** 03D2. Xác minh thanh toán ONLINE qua PayOS API (local testing) */
-  verifyPayment: (id: string): Promise<{ success: boolean; paid: boolean }> =>
+  /**
+   * 03D2. Hỏi PayOS xem đơn nháp đã được thanh toán chưa.
+   * Khi đã thu tiền, BE tạo booking thật và trả về `bookingId`.
+   */
+  verifyDraftPayment: (
+    draftId: string,
+  ): Promise<{ success: boolean; paid: boolean; bookingId: string | null }> =>
     http
-      .post(API_ENDPOINTS.BOOKING.VERIFY_PAYMENT(id), undefined, {
+      .post(API_ENDPOINTS.BOOKING.VERIFY_DRAFT_PAYMENT(draftId), undefined, {
         skipErrorToast: true,
       } as Parameters<typeof http.post>[2])
       .then((r) => r.data),

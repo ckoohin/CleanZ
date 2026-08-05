@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -169,6 +168,16 @@ export class CustomerWithdrawalService {
     // APPROVED path — 3 phases
     let snapshot: CustomerWithdrawalRequestEntity;
 
+    // Phase 0: quỹ chi hộ có đủ không? Kiểm tra TRƯỚC khi trừ ví để không rơi
+    // vào vòng trừ-rồi-hoàn và để admin thấy đúng nguyên nhân "hết quỹ".
+    const pendingRequest = await this.repo.findOne({ where: { id } });
+    if (!pendingRequest) {
+      throw new NotFoundException('Không tìm thấy yêu cầu rút');
+    }
+    await this.payoutService.assertSufficientBalance(
+      toNumber(pendingRequest.amount),
+    );
+
     // Phase 1: debit wallet, mark APPROVED
     this.logger.log(`Phase 1 bắt đầu: customerWithdrawalId=${id}`);
     await this.dataSource.transaction(async (manager) => {
@@ -265,7 +274,7 @@ export class CustomerWithdrawalService {
           `Hoàn ví thất bại — cần xử lý thủ công: customerWithdrawalId=${id}, err=${(rollbackErr as Error).message}`,
         );
       }
-      throw new InternalServerErrorException((err as Error).message);
+      throw err;
     }
 
     // Phase 3: mark PROCESSED

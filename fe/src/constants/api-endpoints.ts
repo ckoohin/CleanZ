@@ -110,7 +110,8 @@ export const API_ENDPOINTS = {
     TASKER_NO_SHOW_EXPLANATION: (id: string) =>
       `/booking/tasker/${id}/no-show-explanation`,
     TASKER_CANCEL: (id: string) => `/booking/tasker/${id}/cancel`,
-    VERIFY_PAYMENT: (id: string) => `/booking/${id}/verify-payment`,
+    VERIFY_DRAFT_PAYMENT: (draftId: string) =>
+      `/booking/drafts/${draftId}/verify-payment`,
   },
   ADMIN_SUPPORT_TICKETS: {
     BASE: "/admin/support-tickets",

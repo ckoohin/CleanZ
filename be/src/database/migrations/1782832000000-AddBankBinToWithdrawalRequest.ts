@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddBankBinToWithdrawalRequest1782832000000
-  implements MigrationInterface
-{
+export class AddBankBinToWithdrawalRequest1782832000000 implements MigrationInterface {
   name = 'AddBankBinToWithdrawalRequest1782832000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

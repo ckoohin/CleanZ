@@ -38,6 +38,7 @@ function makeService(uploadService: {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   ) as unknown as BatchService;
 }
 

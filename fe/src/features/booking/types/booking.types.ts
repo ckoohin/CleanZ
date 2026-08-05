@@ -147,6 +147,15 @@ export interface BookingPayment {
   payosAccountNumber?: string | null;
   /** Tên chủ tài khoản thụ hưởng. */
   payosAccountName?: string | null;
+  /**
+   * Nội dung chuyển khoản đúng như PayOS đã ký vào QR.
+   *
+   * Luôn hiển thị giá trị này, không tự ghép chuỗi ở FE: lệch một ký tự là tiền
+   * khách chuyển không khớp giao dịch nào và đơn không bao giờ được tạo.
+   */
+  payosDescription?: string | null;
+  /** Chỉ có với đơn nháp ONLINE: hạn quét QR (ISO). Quá hạn thì đơn không được tạo. */
+  expiresAt?: string | null;
 }
 
 export interface BookingTasker {
@@ -314,6 +323,21 @@ export interface BookingQuoteResponse {
   price: BookingPrice;
   serviceTier?: BookingServiceTier;
   voucher?: { id: string; code: string; name: string } | null;
+}
+
+/**
+ * Kết quả POST /booking.
+ *
+ * ONLINE trả về đơn nháp: `id`/`bookingCode`/`status` là null và `draftId` có giá
+ * trị — booking chỉ được tạo sau khi PayOS xác nhận đã thu tiền. CASH/WALLET trả
+ * booking thật ngay như trước.
+ */
+export interface CustomerBookingCreated
+  extends Omit<CustomerBookingDetail, "id" | "bookingCode" | "status"> {
+  id: string | null;
+  bookingCode: string | null;
+  status: BookingStatus | null;
+  draftId: string | null;
 }
 
 export interface CustomerBookingDetail {

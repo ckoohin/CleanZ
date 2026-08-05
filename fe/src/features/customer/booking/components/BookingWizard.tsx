@@ -31,7 +31,6 @@ import {
   useBookingQuoteQuery,
   useCreateBooking,
   useCustomerSchedulingPolicy,
-  useBookingDetail,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { QRCodeSVG } from "qrcode.react";
 import { OnlinePaymentPanel } from "@/features/booking/_components/OnlinePaymentPanel";
@@ -45,9 +44,8 @@ import type {
 } from "@/features/booking/types/booking.types";
 import { FavoriteTaskerPicker } from "@/features/booking/components/wizard/FavoriteTaskerPicker";
 import { ServiceTierSelector } from "@/features/booking/components/wizard/ServiceTierSelector";
-import { useProfile } from "@/features/auth/hooks/auth.hooks";
-import { EditProfileDialog } from "@/features/customer/profile/components/EditProfileDialog";
 import { usePublicServices } from "@/features/services/hooks/usePublicServices";
+import { useProfile } from "@/features/auth/hooks/auth.hooks";
 import type {
   PublicAddon,
   PublicDuration,
@@ -2259,7 +2257,12 @@ export const BookingWizard = ({
   const [payosBin, setPayosBin] = useState<string | null>(null);
   const [payosAccountNumber, setPayosAccountNumber] = useState<string | null>(null);
   const [payosAccountName, setPayosAccountName] = useState<string | null>(null);
+  /** Nội dung CK do BE trả về — không tự ghép, xem BookingPayment.payosDescription. */
+  const [payosDescription, setPayosDescription] = useState<string | null>(null);
   const [createdBookingCode, setCreatedBookingCode] = useState<string>("");
+  /** Đơn nháp ONLINE đang chờ tiền — booking chưa tồn tại cho tới khi PayOS báo PAID. */
+  const [draftId, setDraftId] = useState<string>("");
+  const [draftExpiresAt, setDraftExpiresAt] = useState<string | null>(null);
 
   const { data: publicServicesData, isLoading: isServicesLoading } =
     usePublicServices();
@@ -2313,7 +2316,6 @@ export const BookingWizard = ({
   const quoteQuery = useBookingQuote();
   const createMutation = useCreateBooking();
   const { data: profile } = useProfile();
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const {
     data: wallet,
     isLoading: isWalletLoading,
@@ -2404,10 +2406,8 @@ export const BookingWizard = ({
       };
     });
 
-  const { data: createdBookingData } = useBookingDetail(createdId, {
-    staleTime: 0,
-  });
-  const onlinePaid = createdBookingData?.payment?.status === "PAID";
+  /** ONLINE: chỉ coi là xong khi đơn nháp đã đổi được thành booking thật. */
+  const onlinePaid = form.paymentMethod !== "ONLINE" || Boolean(createdId);
 
   const canProceed = (): boolean => {
     if (step === 0)
@@ -2441,13 +2441,6 @@ export const BookingWizard = ({
   };
 
   const handleNext = async () => {
-    const userPhone = profile?.phone || "";
-    if (!userPhone.trim()) {
-      setEditProfileOpen(true);
-      toast.warning("Vui lòng cập nhật số điện thoại trước khi tiếp tục đặt dịch vụ!");
-      return;
-    }
-
     if (step === 0 && addonSelectionInvalidAtMaxHours) {
       toast.warning(
         `Tổng thời lượng công việc (${totalBookingWorkHours}h) vượt quá số giờ tối đa của gói (${selectedBookingPackage?.maxHours}h). Vui lòng bớt dịch vụ thêm hoặc chọn gói giờ ít hơn.`,
@@ -2532,12 +2525,16 @@ export const BookingWizard = ({
       try {
         const result = await createMutation.mutateAsync(dto);
         if (result.id) setCreatedId(result.id as string);
+        if (result.draftId) setDraftId(result.draftId as string);
+        if (result.payment?.expiresAt)
+          setDraftExpiresAt(result.payment.expiresAt);
         if (result.bookingCode) setCreatedBookingCode(result.bookingCode as string);
         if (result.payment?.payosCheckoutUrl) setPayosCheckoutUrl(result.payment.payosCheckoutUrl);
         if (result.payment?.payosQrCode) setPayosQrCode(result.payment.payosQrCode);
         if (result.payment?.payosBin) setPayosBin(result.payment.payosBin);
         if (result.payment?.payosAccountNumber) setPayosAccountNumber(result.payment.payosAccountNumber);
         if (result.payment?.payosAccountName) setPayosAccountName(result.payment.payosAccountName);
+        if (result.payment?.payosDescription) setPayosDescription(result.payment.payosDescription);
         setStep(5);
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -2749,9 +2746,9 @@ export const BookingWizard = ({
               animate={{ scale: 1, opacity: 1 }}
               className="mt-4 space-y-4"
             >
-              {createdId && (
+              {draftId && (
                 <OnlinePaymentPanel
-                  bookingId={createdId}
+                  draftId={draftId}
                   payment={{
                     method: "ONLINE",
                     status: "PENDING",
@@ -2760,19 +2757,12 @@ export const BookingWizard = ({
                     payosBin,
                     payosAccountNumber,
                     payosAccountName,
+                    payosDescription,
                   }}
                   totalPrice={quote?.price.totalPrice ?? 0}
-                  transferContent={`CleanZ ${createdBookingCode}`}
-                  bookingStatus={createdBookingData?.status}
+                  expiresAt={draftExpiresAt}
+                  onPaid={(bookingId) => setCreatedId(bookingId)}
                 />
-              )}
-              {createdId && (
-                <button
-                  onClick={() => router.push(`/customer/booking/${createdId}`)}
-                  className="w-full bg-muted text-foreground font-bold py-3.5 rounded-2xl"
-                >
-                  Xem chi tiết đơn hàng
-                </button>
               )}
             </motion.div>
           )}
@@ -2838,15 +2828,6 @@ export const BookingWizard = ({
           </div>
         </div>
       )}
-
-      <EditProfileDialog
-        open={editProfileOpen}
-        onOpenChange={setEditProfileOpen}
-        profile={profile}
-        onSuccess={() => {
-          void handleNext();
-        }}
-      />
     </div>
   );
 };

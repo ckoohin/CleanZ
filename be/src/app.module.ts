@@ -17,7 +17,6 @@ import { BookingModule } from './modules/booking/booking.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { IncidentModule } from './modules/incident/incident.module';
 import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
-import { WithdrawalModule } from './modules/withdrawal/withdrawal.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
@@ -57,7 +56,6 @@ import { EarningsReportModule } from './modules/earnings-report/earnings-report.
     WalletModule,
     IncidentModule,
     SupportTicketModule,
-    WithdrawalModule,
     AdminModule,
     PolicyModule,
     TrackingModule,

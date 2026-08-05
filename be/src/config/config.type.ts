@@ -4,6 +4,13 @@ export type AllConfigType = {
   DB_USERNAME: string;
   DB_PASSWORD?: string;
   DB_DATABASE: string;
+  /** Bật TLS khi kết nối Postgres — bắt buộc với Supabase và mọi DB quản lý. */
+  DB_SSL?: string;
+  /**
+   * Chứng chỉ CA (dạng PEM) để xác thực server. Bỏ trống thì vẫn mã hoá nhưng
+   * KHÔNG xác thực danh tính server (`rejectUnauthorized: false`).
+   */
+  DB_SSL_CA?: string;
 
   NODE_ENV: 'development' | 'production';
 

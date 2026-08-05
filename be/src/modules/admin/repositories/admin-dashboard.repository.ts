@@ -10,10 +10,6 @@ import {
   SupportTicketEntity,
   SupportTicketStatus,
 } from 'src/modules/support-ticket/entity/support-ticket.entity';
-import {
-  WithdrawalEntity,
-  WithdrawalStatus,
-} from 'src/modules/withdrawal/entity/withdrawal.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { TaskerStatus } from 'src/common/enums/tasker-status.enum';
 import { DocumentStatus } from 'src/common/enums/document-status.enum';
@@ -26,6 +22,23 @@ import { PricingService } from 'src/modules/pricing/services/pricing.service';
 import { BookingCheckinReviewStatus } from 'src/common/enums/booking-checkin-review-status.enum';
 import { overdueCompletionSql } from 'src/modules/booking/helpers/booking-lifecycle.helper';
 import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
+
+/**
+ * Đơn rút đang chờ duyệt nằm ở HAI bảng (Tasker và Customer). Phải ép
+ * `status::text` khi UNION vì hai bảng dùng hai enum type khác nhau —
+ * UNION trực tiếp sẽ lỗi "could not convert type".
+ */
+const PENDING_WITHDRAWALS_FROM = `
+  FROM (
+    SELECT amount, status::text AS status FROM tasker_withdrawal_requests
+    UNION ALL
+    SELECT amount, status::text AS status FROM customer_withdrawal_requests
+  ) AS w
+  WHERE w.status = 'PENDING'
+`;
+
+const PENDING_WITHDRAWAL_COUNT_SQL = `SELECT COUNT(*)::text AS total ${PENDING_WITHDRAWALS_FROM}`;
+const PENDING_WITHDRAWAL_AMOUNT_SQL = `SELECT COALESCE(SUM(amount), 0)::text AS total ${PENDING_WITHDRAWALS_FROM}`;
 
 @Injectable()
 export class AdminDashboardRepository {
@@ -109,22 +122,18 @@ export class AdminDashboardRepository {
         .getCount()
         .catch(() => 0),
 
-      // Yêu cầu rút tiền chờ duyệt
+      // Yêu cầu rút tiền chờ duyệt — gộp cả Tasker và Customer.
+      // Trước đây đếm trên bảng `withdrawals` (bản cũ, luôn rỗng) nên KPI này
+      // luôn bằng 0 dù thực tế có đơn đang chờ.
       this.dataSource
-        .getRepository(WithdrawalEntity)
-        .createQueryBuilder('w')
-        .where('w.status = :status', { status: WithdrawalStatus.PENDING })
-        .getCount()
+        .query<Array<{ total: string }>>(PENDING_WITHDRAWAL_COUNT_SQL)
+        .then((rows) => Number(rows[0]?.total ?? 0))
         .catch(() => 0),
 
-      // Tổng tiền rút đang chờ
+      // Tổng tiền rút đang chờ — cùng nguồn với số đếm ở trên.
       this.dataSource
-        .getRepository(WithdrawalEntity)
-        .createQueryBuilder('w')
-        .select('COALESCE(SUM(w.amount), 0)', 'total')
-        .where('w.status = :status', { status: WithdrawalStatus.PENDING })
-        .getRawOne()
-        .then((r) => Number(r?.total ?? 0))
+        .query<Array<{ total: string }>>(PENDING_WITHDRAWAL_AMOUNT_SQL)
+        .then((rows) => Number(rows[0]?.total ?? 0))
         .catch(() => 0),
 
       // Check-in ngoài vùng / GPS không đủ tin cậy đang chờ Admin hậu kiểm.

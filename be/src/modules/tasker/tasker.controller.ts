@@ -562,7 +562,9 @@ export class TaskerController {
 
   @Get('admin/:id/wallet/cashflow-chart')
   @AdminOnly()
-  @ApiOperation({ summary: 'Admin xem biểu đồ biến động dòng tiền ví Tasker theo thời gian' })
+  @ApiOperation({
+    summary: 'Admin xem biểu đồ biến động dòng tiền ví Tasker theo thời gian',
+  })
   getTaskerWalletCashflowChart(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() dto: DateRangeQueryDto,

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { DataSource } from 'typeorm';
+import { resolveDatabaseSsl } from '../config/database-ssl';
 
 const envPath = resolve(process.cwd(), '.env');
 
@@ -51,6 +52,9 @@ export default new DataSource({
   username: getRequiredEnv('DB_USERNAME'),
   password: process.env.DB_PASSWORD,
   database: getRequiredEnv('DB_DATABASE'),
+  // Cùng quy tắc TLS với runtime — nếu không, `migration:run` sẽ bị Supabase
+  // từ chối trong khi app lại kết nối được (hoặc ngược lại).
+  ssl: resolveDatabaseSsl(process.env),
   entities: ['src/**/*.entity.ts'],
   migrations: ['src/database/migrations/*.ts'],
   migrationsTableName: 'migrations',

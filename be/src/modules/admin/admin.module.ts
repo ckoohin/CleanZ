@@ -12,7 +12,6 @@ import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
 import { IncidentEntity } from 'src/modules/incident/entity/incident.entity';
 import { SupportTicketEntity } from 'src/modules/support-ticket/entity/support-ticket.entity';
-import { WithdrawalEntity } from 'src/modules/withdrawal/entity/withdrawal.entity';
 import { ReviewEntity } from 'src/modules/review/entity/review.entity';
 import { TaskerLevelEntity } from 'src/modules/tasker/entity/tasker-level.entity';
 import { VoucherEntity } from 'src/modules/voucher/entity/voucher.entity';
@@ -40,7 +39,6 @@ import { IncidentModule } from 'src/modules/incident/incident.module';
       TaskerEntity,
       IncidentEntity,
       SupportTicketEntity,
-      WithdrawalEntity,
       ReviewEntity,
       TaskerLevelEntity,
       VoucherEntity,
