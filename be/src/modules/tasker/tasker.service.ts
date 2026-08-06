@@ -319,6 +319,10 @@ export class TaskerService {
             dto.bankAccountName,
             tasker?.bankAccountName,
           ),
+          // Không lưu bankBin ở đây thì hồ sơ nộp xong vẫn thiếu mã BIN, và tasker
+          // chỉ phát hiện ra lúc rút tiền — admin duyệt sẽ thất bại với
+          // WITHDRAWAL_MISSING_BANK_BIN (finance.service.ts).
+          bankBin: this.resolveOptionalText(dto.bankBin, tasker?.bankBin),
         });
 
         return taskerRepository.save(tasker);

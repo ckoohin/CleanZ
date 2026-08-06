@@ -146,4 +146,22 @@ export class SubmitTaskerProfileDto {
     typeof value === 'string' ? value.trim() : value,
   )
   bankAccountName?: string;
+
+  /**
+   * Mã BIN là trường PayOS BẮT BUỘC để chi hộ — thiếu nó thì lệnh rút tiền bị từ
+   * chối với `WITHDRAWAL_MISSING_BANK_BIN`. Wizard đăng ký đã bắt tasker chọn ngân
+   * hàng từ `GET /wallet/banks` và gửi lên, nên phải khai ở đây: `forbidNonWhitelisted`
+   * sẽ trả 422 cho mọi field không khai báo.
+   */
+  @ApiPropertyOptional({
+    example: '970436',
+    description: 'Mã BIN ngân hàng (lấy từ danh sách GET /wallet/banks)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  bankBin?: string;
 }

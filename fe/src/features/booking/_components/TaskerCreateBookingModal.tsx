@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -308,7 +309,6 @@ export function TaskerCreateBookingModal({
   onClose: () => void;
 }) {
   const [phone, setPhone] = useState("");
-  const [phoneFocused, setPhoneFocused] = useState(false);
   const [customer, setCustomer] = useState<CustomerLookupResult | null>(null);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [addressText, setAddressText] = useState("");
@@ -356,7 +356,6 @@ export function TaskerCreateBookingModal({
 
   const reset = () => {
     setPhone("");
-    setPhoneFocused(false);
     setCustomer(null);
     setAddressId(null);
     setAddressText("");
@@ -386,7 +385,6 @@ export function TaskerCreateBookingModal({
     if (!phone.trim()) return;
     lookup.mutate(phone.trim(), {
       onSuccess: (data) => {
-        setPhoneFocused(false);
         setIsWalkin(false);
         setWalkinName("");
         setCustomer(data);
@@ -402,7 +400,6 @@ export function TaskerCreateBookingModal({
         const status = (err as { response?: { status?: number } })?.response
           ?.status;
         if (status === 404) {
-          setPhoneFocused(false);
           setCustomer(null);
           setIsWalkin(true);
           setAddressId(null);
@@ -506,11 +503,16 @@ export function TaskerCreateBookingModal({
     !!selectedAddressLabel &&
     (startNow || (!!scheduledDate && !!scheduledTime));
 
-  const sheetClassName = customer || isWalkin
-    ? "inset-x-0 bottom-0 max-h-[88dvh] rounded-t-3xl md:max-h-[92vh]"
-    : phoneFocused
-      ? "inset-x-3 bottom-auto top-[28dvh] max-h-[58dvh] rounded-3xl md:inset-x-0 md:bottom-0 md:top-auto md:max-h-[92vh] md:rounded-b-none md:rounded-t-3xl"
-      : "inset-x-3 bottom-auto top-[40dvh] max-h-[48dvh] rounded-3xl md:inset-x-0 md:bottom-0 md:top-auto md:max-h-[92vh] md:rounded-b-none md:rounded-t-3xl";
+  /**
+   * Sheet luôn bám đáy, không đổi vị trí theo bước.
+   *
+   * Trước đây khi chưa chọn khách, sheet được đẩy về `top-[40dvh] bottom-auto` cho
+   * gọn — nhưng nó khiến modal treo lơ lửng giữa màn hình, và lúc chọn xong khách
+   * thì `top` phải chuyển từ `40dvh` sang `auto`: CSS không nội suy được sang `auto`
+   * nên modal nhảy giật một nhịp thay vì trượt.
+   */
+  const sheetClassName =
+    "inset-x-0 bottom-0 max-h-[88dvh] rounded-t-3xl md:max-h-[92vh]";
 
   const handleSubmit = () => {
     if (!canSubmit || (!customer && !isWalkin)) return;
@@ -544,7 +546,23 @@ export function TaskerCreateBookingModal({
     );
   };
 
-  return (
+  /**
+   * Phải render qua portal ra thẳng `document.body`.
+   *
+   * Layout tasker bọc mọi trang trong `motion.div` có `x: 12` và
+   * `willChange: "opacity, transform"` — cả transform lẫn will-change đều tạo
+   * containing block mới, nên `position: fixed` bên trong bị neo theo div đó thay
+   * vì viewport: sheet lệch khỏi đáy màn hình và backdrop không phủ hết.
+   *
+   * Layout đã xử lý đúng chuyện này cho Sidebar và ActiveJobWidget bằng cách đặt
+   * chúng NGOÀI motion.div; modal thì không làm được vậy vì nó thuộc cây con của
+   * trang, nên dùng portal.
+   */
+  // `document` không tồn tại phía server; modal chỉ mở sau tương tác nên nhánh này
+  // không gây lệch hydration.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -562,7 +580,7 @@ export function TaskerCreateBookingModal({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className={`fixed z-[80] overflow-y-auto bg-background shadow-2xl transition-[top,bottom,border-radius,max-height] duration-200 ${sheetClassName}`}
+            className={`fixed z-[80] overflow-y-auto bg-background shadow-2xl ${sheetClassName}`}
           >
             {/* Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-background px-5 py-4">
@@ -602,10 +620,6 @@ export function TaskerCreateBookingModal({
                         setVoucherCode("");
                         setIsWalkin(false);
                         setWalkinName("");
-                      }}
-                      onFocus={() => setPhoneFocused(true)}
-                      onBlur={() => {
-                        window.setTimeout(() => setPhoneFocused(false), 120);
                       }}
                       onKeyDown={(e) => e.key === "Enter" && handleLookup()}
                       placeholder="Số điện thoại khách"
@@ -1099,6 +1113,7 @@ export function TaskerCreateBookingModal({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

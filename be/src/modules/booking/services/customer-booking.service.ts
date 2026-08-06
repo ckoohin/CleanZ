@@ -421,6 +421,12 @@ export class CustomerBookingService {
           address: context.bookingAddress,
           addressRef: context.addressRef,
           note: dto.note,
+          // Mốc gộp ngày+giờ hẹn. Dashboard admin (KPI và biểu đồ doanh thu) lọc
+          // theo cột này; bỏ trống thì đơn của khách biến mất khỏi mọi báo cáo
+          // theo thời gian mà không có lỗi nào — cột nullable nên DB không chặn.
+          // Luồng tasker tạo hộ và admin tạo đơn đều đã ghi, chỉ luồng này sót.
+          scheduledStart: context.scheduledStart,
+          scheduledEnd: context.scheduledEnd,
           scheduledStartDate: context.scheduledStartDate,
           scheduledStartTime: context.scheduledStartTime,
           scheduledEndDate: context.scheduledEndDate,

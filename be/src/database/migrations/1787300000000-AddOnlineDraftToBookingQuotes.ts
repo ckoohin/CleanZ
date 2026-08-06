@@ -36,10 +36,24 @@ export class AddOnlineDraftToBookingQuotes1787300000000 implements MigrationInte
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "IDX_booking_quotes_draft_sweep" ON "booking_quotes" ("payment_state", "expires_at") WHERE "payment_state" IS NOT NULL`,
     );
+    // Postgres không có `ADD CONSTRAINT IF NOT EXISTS`. Mọi câu khác trong migration
+    // này đều idempotent, riêng ràng buộc dưới đây thì không — nên nếu schema đã được
+    // áp bằng đường khác (synchronize, chạy tay, một lượt migration hỏng giữa chừng)
+    // thì lần chạy sau chết ở đúng đây với lỗi 42710 và cả migration không bao giờ
+    // ghi được vào bảng `migrations`. Bọc bằng DO block để chạy lại vẫn an toàn.
     await queryRunner.query(`
-      ALTER TABLE "booking_quotes"
-      ADD CONSTRAINT "FK_2e5232be9e63f6debd20be5e2c0"
-      FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'FK_2e5232be9e63f6debd20be5e2c0'
+            AND conrelid = 'booking_quotes'::regclass
+        ) THEN
+          ALTER TABLE "booking_quotes"
+            ADD CONSTRAINT "FK_2e5232be9e63f6debd20be5e2c0"
+            FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL;
+        END IF;
+      END $$;
     `);
   }
 

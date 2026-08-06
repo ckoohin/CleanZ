@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,13 +24,17 @@ function TopupReturnContent() {
   const topupId = searchParams.get("topupId");
 
   const capture = useCaptureTopup();
-  const captured = useRef(false);
+  const { mutate } = capture;
 
+  // Không chặn bằng cờ useRef: StrictMode chạy effect hai lượt, cờ sống sót qua cả
+  // hai nên `mutate` chỉ được gọi từ observer của lượt đầu — cái đã bị huỷ đăng ký.
+  // Observer đang render không biết mutation nào đang chạy → `isIdle` giữ nguyên và
+  // màn "Đang xác nhận thanh toán" treo vĩnh viễn dù backend đã cộng tiền.
+  // `mutate` có tham chiếu ổn định nên effect chỉ chạy lại khi `topupId` đổi.
   useEffect(() => {
-    if (!topupId || captured.current) return;
-    captured.current = true;
-    capture.mutate(topupId);
-  }, [topupId, capture]);
+    if (!topupId) return;
+    mutate(topupId);
+  }, [topupId, mutate]);
 
   if (!topupId) {
     return (
