@@ -227,6 +227,11 @@ export class BookingPolicyService {
         'Chỉ tasker đang hoạt động mới có thể nhận booking',
       );
     }
+    if (!tasker.quizPassedAt) {
+      throw new ForbiddenException(
+        'Bạn cần hoàn thành bài kiểm tra đầu vào trước khi nhận đơn',
+      );
+    }
   }
 
   assertTaskerCanCreateBookingForCustomer(tasker: TaskerEntity): void {

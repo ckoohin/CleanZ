@@ -30,6 +30,7 @@ import { AdminActivityInterceptor } from './interceptors/admin-activity.intercep
 import { AdminActivitySnapshotService } from './services/admin-activity-snapshot.service';
 import { IncidentModule } from 'src/modules/incident/incident.module';
 import { AdminActivityModule } from './admin-activity.module';
+import { QuizModule } from 'src/modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { AdminActivityModule } from './admin-activity.module';
     VoucherModule,
     IncidentModule,
     AdminActivityModule,
+    QuizModule,
   ],
 
   controllers: [AdminController],

@@ -31,6 +31,7 @@ import { ReviewModule } from './modules/review/review.module';
 import { AppealModule } from './modules/appeal/appeal.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { EarningsReportModule } from './modules/earnings-report/earnings-report.module';
+import { QuizModule } from './modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { EarningsReportModule } from './modules/earnings-report/earnings-report.
     AppealModule,
     BlogModule,
     EarningsReportModule,
+    QuizModule,
   ],
   controllers: [AppController],
   providers: [AppService],

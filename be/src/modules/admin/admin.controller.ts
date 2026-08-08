@@ -53,6 +53,15 @@ import { AdminCheckinOverrideDto } from './dto/admin-checkin-override.dto';
 import { ReviewBookingNoShowDto } from './dto/review-booking-no-show.dto';
 import { TaskerBookingService } from 'src/modules/booking/services/tasker-booking.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AdminQuizService } from 'src/modules/quiz/admin-quiz.service';
+import { CreateQuestionDto } from 'src/modules/quiz/dto/create-question.dto';
+import { UpdateQuestionDto } from 'src/modules/quiz/dto/update-question.dto';
+import { QuestionsQueryDto } from 'src/modules/quiz/dto/questions-query.dto';
+import { CreateQuizDto } from 'src/modules/quiz/dto/create-quiz.dto';
+import { UpdateQuizDto } from 'src/modules/quiz/dto/update-quiz.dto';
+import { AssignQuestionsDto } from 'src/modules/quiz/dto/assign-questions.dto';
+import { ReorderQuestionsDto } from 'src/modules/quiz/dto/reorder-questions.dto';
+import { QuizAttemptsQueryDto } from 'src/modules/quiz/dto/quiz-attempts-query.dto';
 
 @AdminOnly()
 @Controller('admin')
@@ -67,6 +76,7 @@ export class AdminController {
     private readonly dashboardReport: AdminDashboardReportService,
     private readonly activityService: AdminActivityService,
     private readonly taskerBookingService: TaskerBookingService,
+    private readonly adminQuizService: AdminQuizService,
   ) {}
 
   @Get('activities')
@@ -444,5 +454,141 @@ export class AdminController {
     @CurrentUser('id') adminId: string,
   ) {
     return this.customerRepo.resendTempPassword(id, adminId);
+  }
+
+  // ─── Question Bank ──────────────────────────────────────────────────────────
+
+  @Get('questions')
+  @ApiOperation({ summary: 'Admin xem danh sách câu hỏi' })
+  listQuestions(@Query() query: QuestionsQueryDto) {
+    return this.adminQuizService.listQuestions(query);
+  }
+
+  @Post('questions')
+  @ApiOperation({ summary: 'Admin tạo câu hỏi mới' })
+  createQuestion(@Body() dto: CreateQuestionDto) {
+    return this.adminQuizService.createQuestion(dto);
+  }
+
+  @Get('questions/:id')
+  @ApiOperation({ summary: 'Admin xem chi tiết câu hỏi' })
+  getQuestion(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.getQuestion(id);
+  }
+
+  @Patch('questions/:id')
+  @ApiOperation({ summary: 'Admin cập nhật câu hỏi' })
+  updateQuestion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateQuestionDto,
+  ) {
+    return this.adminQuizService.updateQuestion(id, dto);
+  }
+
+  @Patch('questions/:id/toggle')
+  @ApiOperation({ summary: 'Admin bật/tắt câu hỏi' })
+  toggleQuestion(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.toggleQuestion(id);
+  }
+
+  @Delete('questions/:id')
+  @ApiOperation({ summary: 'Admin xóa câu hỏi (chỉ khi chưa gán vào bài thi)' })
+  deleteQuestion(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.deleteQuestion(id);
+  }
+
+  // ─── Quiz Config ────────────────────────────────────────────────────────────
+
+  @Get('quiz')
+  @ApiOperation({ summary: 'Admin xem danh sách bài kiểm tra' })
+  listQuizzes() {
+    return this.adminQuizService.listQuizzes();
+  }
+
+  @Post('quiz')
+  @ApiOperation({ summary: 'Admin tạo bài kiểm tra mới' })
+  createQuiz(@Body() dto: CreateQuizDto) {
+    return this.adminQuizService.createQuiz(dto);
+  }
+
+  @Get('quiz/:id')
+  @ApiOperation({ summary: 'Admin xem chi tiết bài kiểm tra' })
+  getQuiz(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.getQuiz(id);
+  }
+
+  @Patch('quiz/:id')
+  @ApiOperation({ summary: 'Admin cập nhật bài kiểm tra' })
+  updateQuiz(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateQuizDto,
+  ) {
+    return this.adminQuizService.updateQuiz(id, dto);
+  }
+
+  @Patch('quiz/:id/activate')
+  @ApiOperation({ summary: 'Admin kích hoạt bài kiểm tra (tự động tắt bài khác)' })
+  activateQuiz(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.activateQuiz(id);
+  }
+
+  @Get('quiz/:id/questions')
+  @ApiOperation({ summary: 'Admin xem danh sách câu hỏi trong bài kiểm tra' })
+  listQuizQuestions(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.listQuizQuestions(id);
+  }
+
+  @Post('quiz/:id/questions')
+  @ApiOperation({ summary: 'Admin thêm câu hỏi vào bài kiểm tra' })
+  assignQuestions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignQuestionsDto,
+  ) {
+    return this.adminQuizService.assignQuestions(id, dto);
+  }
+
+  @Delete('quiz/:id/questions/:questionId')
+  @ApiOperation({ summary: 'Admin gỡ câu hỏi khỏi bài kiểm tra' })
+  removeQuizQuestion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('questionId', ParseUUIDPipe) questionId: string,
+  ) {
+    return this.adminQuizService.removeQuizQuestion(id, questionId);
+  }
+
+  @Patch('quiz/:id/questions/reorder')
+  @ApiOperation({ summary: 'Admin sắp xếp lại thứ tự câu hỏi' })
+  reorderQuestions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReorderQuestionsDto,
+  ) {
+    return this.adminQuizService.reorderQuestions(id, dto);
+  }
+
+  @Get('quiz/:id/attempts')
+  @ApiOperation({ summary: 'Admin xem danh sách lượt thi của bài kiểm tra' })
+  listQuizAttempts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: QuizAttemptsQueryDto,
+  ) {
+    return this.adminQuizService.listAttempts(id, query);
+  }
+
+  @Get('quiz/:id/stats')
+  @ApiOperation({ summary: 'Admin xem thống kê bài kiểm tra' })
+  getQuizStats(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.getStats(id);
+  }
+
+  @Get('quiz-attempts')
+  @ApiOperation({ summary: 'Admin xem tất cả lượt thi (không lọc theo bài)' })
+  listAllAttempts(@Query() query: QuizAttemptsQueryDto) {
+    return this.adminQuizService.listAttempts(undefined, query);
+  }
+
+  @Get('quiz-attempts/:id')
+  @ApiOperation({ summary: 'Admin xem chi tiết một lượt thi' })
+  getAttemptDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminQuizService.getAttemptDetail(id);
   }
 }
