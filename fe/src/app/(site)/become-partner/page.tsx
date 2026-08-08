@@ -149,9 +149,7 @@ export default function BecomePartnerLandingPage() {
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="h-14 px-8 rounded-xl text-lg font-bold border-2" asChild>
-                  <Link href="/become-partner/register">Tải ứng dụng Partner</Link>
-                </Button>
+                
               </div>
             </motion.div>
 

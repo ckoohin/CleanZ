@@ -24,7 +24,6 @@ import { Briefcase, Phone, MapPin, Home } from "lucide-react";
 
 const personalInfoSchema = z.object({
   bio: z.string().min(20, "Giới thiệu bản thân tối thiểu 20 ký tự"),
-  experience: z.string().min(1, "Vui lòng mô tả kinh nghiệm của bạn"),
   phone: z
     .string()
     .regex(/^(0|\+84)[3|5|7|8|9][0-9]{8}$/, "Số điện thoại không hợp lệ"),
@@ -52,7 +51,6 @@ export const StepPersonalInfo: React.FC<StepPersonalInfoProps> = ({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
       bio: initialValues?.bio || "",
-      experience: initialValues?.experience || "",
       phone: initialValues?.phone || "",
       skills: initialValues?.skills || "",
       addressResident: initialValues?.addressResident || "",
@@ -159,27 +157,6 @@ export const StepPersonalInfo: React.FC<StepPersonalInfoProps> = ({
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="experience"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm md:text-base flex items-center gap-2">
-                    Kinh nghiệm làm việc{" "}
-                    <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Mô tả ngắn gọn kinh nghiệm dọn dẹp của bạn (ví dụ: 3 năm làm việc tại công ty dọn dẹp...)"
-                      className="min-h-[100px] rounded-xl md:rounded-2xl bg-background/50 p-4"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}

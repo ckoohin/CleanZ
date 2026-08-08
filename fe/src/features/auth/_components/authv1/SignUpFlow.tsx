@@ -62,19 +62,17 @@ export function SignUpFlow() {
   };
 
   const renderAuthForm = (isMobile = false) => (
-      <div className={cn("w-full max-w-md space-y-6 mx-auto", isMobile ? "px-0" : "")}>
+      <div className={cn("w-full max-w-md space-y-4 mx-auto", isMobile ? "px-0" : "")}>
           {/* Heading */}
           <motion.div
-            className="text-center lg:text-left mb-4"
+            className="text-center lg:text-left mb-2"
             custom={0} variants={isMobile ? undefined : fadeUp} initial={isMobile ? "show" : "hidden"} animate="show"
           >
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
               Đăng ký tài khoản
             </h1>
-            <p className="text-muted-foreground text-sm sm:text-base mt-3 leading-relaxed">
-              Trở thành thành viên của{" "}
-              <span className="font-semibold text-primary">CleanZ</span>{" "}
-              ngay hôm nay và khám phá trải nghiệm dịch vụ đỉnh cao.
+            <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+              Tạo tài khoản <span className="font-semibold text-primary">CleanZ</span> để bắt đầu sử dụng dịch vụ.
             </p>
           </motion.div>
 
@@ -88,11 +86,11 @@ export function SignUpFlow() {
           {/* Tasker Register Link */}
           <motion.div
             custom={2} variants={isMobile ? undefined : fadeUp} initial={isMobile ? "show" : "hidden"} animate="show"
-            className="pt-2"
+            className="pt-1"
           >
             <Link
               href="/register-tasker"
-              className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 group"
+              className="flex items-center justify-center gap-2.5 w-full py-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 group"
             >
               <Briefcase className="w-4 h-4 group-hover:scale-110 transition-transform" aria-hidden="true" />
               <span className="text-sm font-bold">Muốn trở thành Đối tác CleanZ? Đăng ký tại đây</span>
@@ -100,7 +98,7 @@ export function SignUpFlow() {
           </motion.div>
           
           {/* Đã có tài khoản */}
-          <motion.p className="text-center text-sm text-muted-foreground pt-4" custom={3} variants={isMobile ? undefined : fadeUp} initial={isMobile ? "show" : "hidden"} animate="show">
+          <motion.p className="text-center text-sm text-muted-foreground pt-2" custom={3} variants={isMobile ? undefined : fadeUp} initial={isMobile ? "show" : "hidden"} animate="show">
               Đã có tài khoản?{' '}
               <Link href="/login" className="text-primary font-bold hover:underline underline-offset-4 cursor-pointer">Đăng nhập ngay</Link>
           </motion.p>
@@ -116,7 +114,7 @@ export function SignUpFlow() {
 
       {/* CỘT PHẢI - FORM PC */}
       <div className="hidden lg:block lg:flex-1 h-full overflow-y-auto bg-background">
-          <div className="min-h-full flex flex-col justify-center p-8 xl:p-12">
+              <div className="min-h-full flex flex-col justify-center p-6 xl:p-8">
               {renderAuthForm(false)}
           </div>
       </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle, ArrowRight, Sparkles, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -54,9 +54,9 @@ export const StepSuccess: React.FC<StepSuccessProps> = ({
             <p className="text-xs text-muted-foreground mt-1">24h - 48h</p>
           </div>
           <div className="p-6 rounded-[2rem] bg-background/50 border border-border/50">
-            <CheckCircle className="w-8 h-8 text-primary mx-auto mb-3" />
-            <p className="text-sm font-bold">Phỏng vấn online</p>
-            <p className="text-xs text-muted-foreground mt-1">Qua điện thoại</p>
+            <Mail className="w-8 h-8 text-primary mx-auto mb-3" />
+            <p className="text-sm font-bold">Thông báo kết quả</p>
+            <p className="text-xs text-muted-foreground mt-1">Qua email</p>
           </div>
           <div className="p-6 rounded-[2rem] bg-background/50 border border-border/50">
             <ArrowRight className="w-8 h-8 text-primary mx-auto mb-3" />

@@ -50,7 +50,13 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<{ message: string }> {
     return asyncHandleOperation(async () => {
-      const user = await this.usersService.create(dto);
+      const isTaskerApplication = dto.role === UserRole.TASKER;
+      // Public registration never grants privileged roles. A person registering
+      // through the Tasker portal remains an applicant until admin approves KYC.
+      const user = await this.usersService.create({
+        ...dto,
+        role: UserRole.CUSTOMER,
+      });
       if (user.role === UserRole.CUSTOMER) {
         await this.customerService.createProfileIfNotExists(
           this.dataSource.manager,
@@ -62,6 +68,7 @@ export class AuthService {
         {
           sub: user.id,
           email: user.email,
+          ...(isTaskerApplication ? { intent: 'tasker' } : {}),
         },
         {
           secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
@@ -75,18 +82,22 @@ export class AuthService {
       const frontendUrl =
         this.configService.get<string>('FRONTEND_URL') ||
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
-      const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
+      const verificationUrl = new URL('/verify-email', frontendUrl);
+      verificationUrl.searchParams.set('token', hash);
+      if (isTaskerApplication) {
+        verificationUrl.searchParams.set('intent', 'tasker');
+      }
 
       if (this.isAuthDebugLogEnabled()) {
         this.logger.warn(
-          `[AUTH_DEBUG_LOG] Link xác thực email (${user.email}): ${verificationUrl}`,
+          `[AUTH_DEBUG_LOG] Link xác thực email (${user.email}): ${verificationUrl.toString()}`,
         );
       }
 
       await this.mailService.sendVerificationEmail(
         user.email,
         user.fullName,
-        verificationUrl,
+        verificationUrl.toString(),
       );
 
       return {
@@ -121,6 +132,7 @@ export class AuthService {
         ignoreExpiration: true,
       });
       const email: string = payload.email;
+      const intent = (payload as JwtPayload & { intent?: string }).intent;
       const user = await this.usersService.findByEmail(email);
       if (!user) {
         throw new BadRequestException('Email không tồn tại');
@@ -133,6 +145,8 @@ export class AuthService {
       const hash = this.jwtService.sign(
         {
           sub: user.id,
+          email: user.email,
+          ...(intent === 'tasker' ? { intent } : {}),
         },
         {
           secret: this.configService.get<string>('JWT_VERIFY_EMAIL_SECRET'),
@@ -146,18 +160,22 @@ export class AuthService {
       const frontendUrl =
         this.configService.get<string>('FRONTEND_URL') ||
         `http://localhost:${this.configService.get<number>('PORT') || 5000}`;
-      const verificationUrl = `${frontendUrl}/verify-email?token=${hash}`;
+      const verificationUrl = new URL('/verify-email', frontendUrl);
+      verificationUrl.searchParams.set('token', hash);
+      if (intent === 'tasker') {
+        verificationUrl.searchParams.set('intent', 'tasker');
+      }
 
       if (this.isAuthDebugLogEnabled()) {
         this.logger.warn(
-          `[AUTH_DEBUG_LOG] Link xác thực email gửi lại (${user.email}): ${verificationUrl}`,
+          `[AUTH_DEBUG_LOG] Link xác thực email gửi lại (${user.email}): ${verificationUrl.toString()}`,
         );
       }
 
       await this.mailService.sendVerificationEmail(
         user.email,
         user.fullName,
-        verificationUrl,
+        verificationUrl.toString(),
       );
 
       return {

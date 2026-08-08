@@ -37,7 +37,6 @@ interface StepReviewProps {
   personalInfo: {
     phone?: string;
     bio?: string;
-    experience?: string;
     skills?: string;
     addressResident?: string;
     addressCurrent?: string;
@@ -209,14 +208,6 @@ export const StepReview: React.FC<StepReviewProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-200/50 dark:border-white/5">
-                  <p className="text-[10px] md:text-xs text-muted-foreground mb-1 font-bold">
-                    Kinh nghiệm dọn dẹp
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">
-                    {personalInfo.experience || "Chưa nhập"}
-                  </p>
-                </div>
               </div>
             </div>
           </div>
@@ -278,7 +269,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
 
                 {/* Đếm Selfie */}
                 <div className="flex items-center justify-between p-2 rounded-xl bg-background/50 border border-slate-200/50 dark:border-white/5">
-                  <span className="font-medium">2. Ảnh Selfie cầm CCCD:</span>
+                  <span className="font-medium">2. Ảnh Selfie:</span>
                   <span className="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-[10px] md:text-xs">
                     {countFiles("idWithSelfie", files.idWithSelfie)} / 1 ảnh
                   </span>

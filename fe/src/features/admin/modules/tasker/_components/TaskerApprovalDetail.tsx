@@ -73,7 +73,7 @@ interface DocGroup {
 
 const DOC_GROUPS: DocGroup[] = [
   { id: "citizenCard", label: "CCCD / CMND (2 mặt)", icon: IdCard, required: true, hint: "Rõ nét, đủ 2 mặt" },
-  { id: "idWithSelfie", label: "Ảnh selfie cầm CCCD", icon: ScanFace, required: false, hint: "Nhìn thẳng, rõ mặt" },
+  { id: "idWithSelfie", label: "Ảnh selfie", icon: ScanFace, required: false, hint: "Nhìn thẳng, rõ mặt" },
   { id: "criminalRecord", label: "Lý lịch tư pháp", icon: Scale, required: false },
   { id: "healthCertificate", label: "Giấy khám sức khoẻ", icon: HeartPulse, required: false },
   { id: "certificate", label: "Chứng chỉ nghề nghiệp", icon: Award, required: false },
@@ -353,10 +353,10 @@ export const TaskerApprovalDetail: React.FC<Props> = ({ taskerId }) => {
       required: true,
     },
     {
-      id: "experience",
+      id: "skills",
       icon: Briefcase,
-      label: "Kinh nghiệm & kỹ năng",
-      value: [tasker.experience, tasker.skills].filter(Boolean).join(" • ") || undefined,
+      label: "Kỹ năng",
+      value: tasker.skills || undefined,
       required: true,
     },
   ];

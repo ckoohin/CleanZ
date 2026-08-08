@@ -299,7 +299,7 @@ export const StepIdentityVerification: React.FC<
                 </div>
                 <div>
                   <h4 className="font-bold text-sm md:text-base flex items-center gap-1.5">
-                    2. Ảnh Selfie cầm CCCD{" "}
+                    2. Ảnh Selfie{" "}
                     <span className="text-destructive">*</span>
                   </h4>
                   <p className="text-xs text-muted-foreground mt-0.5 pr-2">

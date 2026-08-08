@@ -109,7 +109,9 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
-  const login = useLogin("/tasker");
+  // Applicants remain CUSTOMER until KYC approval. Approved profiles are
+  // redirected from onboarding to the Tasker dashboard after token refresh.
+  const login = useLogin("/become-partner/signup");
 
   // Register form
   const desktopRegisterForm = useForm<RegisterValues>({
@@ -121,7 +123,7 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
   const apiBaseUrl = getApiBaseUrl();
 
   const handleLogin = (values: LoginValues) => {
-    login.mutate({ email: values.email, password: values.password, role: "TASKER" });
+    login.mutate({ email: values.email, password: values.password });
   };
 
   const handleRegister = async (values: RegisterValues) => {
@@ -132,6 +134,8 @@ export function TaskerAuthPage({ forceTab }: TaskerAuthPageProps = {}) {
         email: values.email,
         phone: values.phone,
         password: values.password,
+        // Backend treats this as onboarding intent only and still creates a
+        // CUSTOMER account until the KYC application is approved.
         role: "TASKER",
       });
       toast.success("Tạo tài khoản thành công! Vui lòng kiểm tra email để xác thực.");

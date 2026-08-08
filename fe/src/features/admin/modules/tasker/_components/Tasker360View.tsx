@@ -122,7 +122,7 @@ const DOC_GROUPS: DocGroup[] = [
   },
   {
     id: "idWithSelfie",
-    label: "Ảnh selfie cầm CCCD",
+    label: "Ảnh selfie",
     icon: ScanFace,
     required: false,
     hint: "Nhìn thẳng, rõ mặt",

@@ -50,7 +50,11 @@ export class AuthGoogleController {
     if (state === 'admin' && user.role !== UserRole.ADMIN) {
       return res.redirect(`${baseUrl}/login-admin?error=UnauthorizedRole`);
     }
-    if (state === 'tasker' && user.role !== UserRole.TASKER) {
+    if (
+      state === 'tasker' &&
+      user.role !== UserRole.TASKER &&
+      user.role !== UserRole.CUSTOMER
+    ) {
       return res.redirect(`${baseUrl}/login-tasker?error=UnauthorizedRole`);
     }
     if (state === 'customer' && user.role !== UserRole.CUSTOMER) {
@@ -62,7 +66,13 @@ export class AuthGoogleController {
 
     // Redirect to respective dashboard
     if (state === 'admin') return res.redirect(`${baseUrl}/admin`);
-    if (state === 'tasker') return res.redirect(`${baseUrl}/tasker`);
+    if (state === 'tasker') {
+      return res.redirect(
+        user.role === UserRole.TASKER
+          ? `${baseUrl}/tasker`
+          : `${baseUrl}/become-partner/signup`,
+      );
+    }
     if (state === 'customer') return res.redirect(`${baseUrl}/customer`);
 
     // Fallback: nếu không có state thì redirect theo role user (dành cho tk cũ)

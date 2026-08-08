@@ -225,7 +225,7 @@ export class TaskerController {
   }
 
   @Patch('profile/documents')
-  @Auth(UserRole.TASKER)
+  @Auth(UserRole.CUSTOMER, UserRole.TASKER)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -263,16 +263,18 @@ export class TaskerController {
   updateMyDocuments(
     @CurrentUser() user: AuthUser,
     @UploadedFiles()
-    files: {
-      avatar?: Express.Multer.File[];
-      docFront?: Express.Multer.File[];
-      docBack?: Express.Multer.File[];
-      criminalRecord?: Express.Multer.File[];
-      healthCertificate?: Express.Multer.File[];
-      certificate?: Express.Multer.File[];
-    },
+    files:
+      | {
+          avatar?: Express.Multer.File[];
+          docFront?: Express.Multer.File[];
+          docBack?: Express.Multer.File[];
+          criminalRecord?: Express.Multer.File[];
+          healthCertificate?: Express.Multer.File[];
+          certificate?: Express.Multer.File[];
+        }
+      | undefined,
   ) {
-    return this.taskerService.updateMyDocuments(user.id, files);
+    return this.taskerService.updateMyDocuments(user.id, files ?? {});
   }
 
   @Patch('me/presence')

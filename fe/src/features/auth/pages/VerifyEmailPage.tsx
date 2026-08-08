@@ -6,10 +6,8 @@ import { motion } from "motion/react";
 import { CheckCircle2, XCircle, Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import http from "@/lib/api/http";
 import { useResendVerificationEmail, useVerifyEmail } from "@/features/auth/hooks/auth.hooks";
 import { toast } from "@/lib/toast";
-import { AxiosError } from "axios";
 import Footer from "@/features/auth/_components/Footer";
 
 type Status = "loading" | "success" | "error" | "expired";
@@ -18,6 +16,10 @@ export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
+  const loginHref =
+    searchParams.get("intent") === "tasker"
+      ? "/login-tasker?verified=true"
+      : "/login?verified=true";
   const [status, setStatus] = useState<Status>("loading");
   const [countdown, setCountdown] = useState(5);
 
@@ -29,21 +31,21 @@ export default function VerifyEmailPage() {
 
     const verify = async () => {
       try {
-        const res = await verifyEmail({ token })
+        await verifyEmail({ token })
         setStatus("success")
       } catch {
         setStatus("expired")
       }
     };
     verify();
-  }, [token]);
+  }, [token, verifyEmail]);
 
   useEffect(() => {
     if (status !== "success") return;
     const interval = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
-          router.push("/login-tasker?verified=true");
+          router.push(loginHref);
           toast.success("Email đã xác thực! Vui lòng đăng nhập để tiếp tục.", { duration: 2000 })
           return 0;
         }
@@ -51,7 +53,7 @@ export default function VerifyEmailPage() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [status, router]);
+  }, [status, router, loginHref]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -80,7 +82,9 @@ export default function VerifyEmailPage() {
             </div>
 
             {status === "loading" && <LoadingState />}
-            {status === "success" && <SuccessState countdown={countdown} />}
+            {status === "success" && (
+              <SuccessState countdown={countdown} loginHref={loginHref} />
+            )}
             {status === "error" && <ErrorState />}
             {status === "expired" && <ExpiredState />}
           </div>
@@ -122,7 +126,13 @@ function LoadingState() {
   );
 }
 
-function SuccessState({ countdown }: { countdown: number }) {
+function SuccessState({
+  countdown,
+  loginHref,
+}: {
+  countdown: number;
+  loginHref: string;
+}) {
   return (
     <div className="flex flex-col items-center text-center py-4">
       <motion.div
@@ -162,7 +172,7 @@ function SuccessState({ countdown }: { countdown: number }) {
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold rounded-xl gap-2"
           asChild
         >
-          <Link href="/login-tasker?verified=true">
+          <Link href={loginHref}>
             Đăng nhập ngay
             <ArrowRight className="w-4 h-4" />
           </Link>
