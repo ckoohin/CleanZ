@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   AlertTriangle,
   ScrollText,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskerProfile } from "@/features/tasker/hooks/tasker.hooks";
@@ -34,6 +35,7 @@ const ALL_NAV_ITEMS = [
   { href: "/tasker/earnings",      label: "Thu nhập",   icon: WalletCards },
   { href: "/tasker/notifications", label: "Thông báo",  icon: Bell },
   { href: "/tasker/profile",       label: "Tài khoản", icon: User },
+  { href: "/tasker/quiz",          label: "Kiểm tra",  icon: BookOpen },
   { href: "/tasker/support-tickets", label: "Hỗ trợ",  icon: LifeBuoy },
   { href: "/tasker/policies",        label: "Chính sách", icon: ScrollText },
 ];
