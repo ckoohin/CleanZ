@@ -18,7 +18,7 @@ export interface MissingItem {
 export const MISSING_ITEM_OPTIONS: MissingItem[] = [
   // Giấy tờ
   { id: "citizenCard", label: "Ảnh CCCD (2 mặt)", category: "Giấy tờ", description: "Cần rõ nét, không bị mờ" },
-  { id: "idWithSelfie", label: "Ảnh selfie cầm CCCD", category: "Giấy tờ", description: "Nhìn thẳng, rõ mặt" },
+  { id: "idWithSelfie", label: "Ảnh selfie", category: "Giấy tờ", description: "Nhìn thẳng, rõ mặt" },
   { id: "criminalRecord", label: "Lý lịch tư pháp", category: "Giấy tờ", description: "Còn hiệu lực trong 6 tháng" },
   { id: "healthCertificate", label: "Giấy khám sức khoẻ", category: "Giấy tờ", description: "Còn hiệu lực trong 12 tháng" },
   { id: "certificate", label: "Chứng chỉ nghề nghiệp", category: "Giấy tờ", description: "Liên quan đến dịch vụ đăng ký" },
@@ -28,7 +28,6 @@ export const MISSING_ITEM_OPTIONS: MissingItem[] = [
   // Thanh toán
   { id: "bankInfo", label: "Thông tin ngân hàng", category: "Thanh toán", description: "Tên ngân hàng, số tài khoản, chủ tài khoản" },
   // Nghề nghiệp
-  { id: "experience", label: "Kinh nghiệm & kỹ năng", category: "Nghề nghiệp" },
   { id: "skills", label: "Kỹ năng cụ thể", category: "Nghề nghiệp" },
   { id: "bio", label: "Giới thiệu bản thân", category: "Nghề nghiệp" },
 ];

@@ -13,22 +13,21 @@ import {
   Upload,
   X,
   Camera,
-  Plus,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   Phone,
   MapPin,
   CreditCard,
   Building2,
-  Briefcase,
   Image as ImageIcon,
   PartyPopper,
   Loader2,
   AlertTriangle,
+  RefreshCw,
+  LogOut,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
-import { useAuth } from "@/features/auth/hooks/auth.hooks";
+import { useAuth, useLogout } from "@/features/auth/hooks/auth.hooks";
 import { authApi } from "@/features/auth/services/auth.service";
 import { queryKeys } from "@/features/auth/queries/auth.query";
 import { TaskerStatus } from "../types/tasker.type";
@@ -86,9 +85,8 @@ const STEPS = [
 const FOCUS_TARGETS: Record<string, { step: number; elementId: string }> = {
   phone: { step: 0, elementId: "kyc-field-phone" },
   address: { step: 0, elementId: "kyc-field-address" },
-  experience: { step: 0, elementId: "kyc-field-experience" },
-  skills: { step: 0, elementId: "kyc-field-experience" },
-  bio: { step: 0, elementId: "kyc-field-experience" },
+  skills: { step: 0, elementId: "kyc-field-skills" },
+  bio: { step: 0, elementId: "kyc-field-bio" },
   citizenCard: { step: 1, elementId: "kyc-field-citizenCard" },
   idWithSelfie: { step: 1, elementId: "kyc-field-idWithSelfie" },
   bankInfo: { step: 2, elementId: "kyc-field-bankInfo" },
@@ -101,39 +99,6 @@ const FOCUS_TARGETS: Record<string, { step: number; elementId: string }> = {
 type Slot = File | string | null;
 const hasSlot = (s: Slot) =>
   s instanceof File || (typeof s === "string" && s.length > 0);
-
-/**
- * Parse chuỗi kinh nghiệm đã lưu ("<vị trí> @ <nơi làm> (n năm); ...") ngược về
- * mảng để đổ lại form khi nộp lại hồ sơ — đảo ngược cách build ở handleSubmit.
- */
-function parseExperiences(
-  raw?: string | null,
-): { company: string; role: string; years: string }[] {
-  if (!raw) return [];
-  return raw
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((part) => {
-      let years = "";
-      let body = part;
-      const ym = body.match(/\((\d+)\s*năm\)\s*$/);
-      if (ym) {
-        years = ym[1];
-        body = body.slice(0, ym.index).trim();
-      }
-      let role = body;
-      let company = "";
-      const at = body.indexOf(" @ ");
-      if (at >= 0) {
-        role = body.slice(0, at).trim();
-        company = body.slice(at + 3).trim();
-      }
-      if (role === "—") role = "";
-      if (company === "—") company = "";
-      return { company, role, years };
-    });
-}
 
 type IconType = React.ComponentType<{
   size?: number;
@@ -378,6 +343,8 @@ function UploadBox({
             )}
             <button
               type="button"
+              aria-label={`Xóa ${label}`}
+              title={`Xóa ${label}`}
               onClick={(e) => {
                 e.preventDefault();
                 onChange(null);
@@ -391,7 +358,7 @@ function UploadBox({
                 borderRadius: 7,
                 background: "rgba(15,20,25,0.85)",
                 border: `1px solid ${C.border}`,
-                color: C.text,
+                color: "#FFFFFF",
                 cursor: "pointer",
                 display: "grid",
                 placeItems: "center",
@@ -697,9 +664,15 @@ function ReviewGroup({
 /* ------------------------------------------------------------------ */
 export const TaskerRegistrationWizard: React.FC = () => {
   const router = useRouter();
-  const { data: user } = useAuth();
-  const { data: profile, isLoading: isProfileLoading } = useTaskerProfile();
+  const { data: user, isLoading: isAuthLoading } = useAuth();
+  const {
+    data: profile,
+    isLoading: isProfileLoading,
+    isFetching: isProfileFetching,
+    refetch: refetchProfile,
+  } = useTaskerProfile({ enabled: Boolean(user) });
   const submitMutation = useSubmitTaskerProfile();
+  const logoutMutation = useLogout();
   const queryClient = useQueryClient();
   // Tránh chạy lại luồng refresh-token + điều hướng khi đã được duyệt nhiều lần.
   const approvedHandledRef = useRef(false);
@@ -739,16 +712,18 @@ export const TaskerRegistrationWizard: React.FC = () => {
     clearErr(key);
   };
 
-  const [experiences, setExperiences] = useState([
-    { company: "", role: "", years: "" },
-  ]);
-
   const [cccdFront, setCccdFront] = useState<Slot>(null);
   const [cccdBack, setCccdBack] = useState<Slot>(null);
   const [selfie, setSelfie] = useState<Slot>(null);
   const [docHealth, setDocHealth] = useState<Slot>(null);
   const [docJudicial, setDocJudicial] = useState<Slot>(null);
   const [docCert, setDocCert] = useState<Slot>(null);
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.replace("/register-tasker");
+    }
+  }, [isAuthLoading, user, router]);
 
   const needsResubmit =
     profile?.approvalStatus === TaskerStatus.NEED_INFO ||
@@ -821,12 +796,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
           : prev.bankHolder || profile?.bankAccountName || "",
       }));
 
-      // Kinh nghiệm: nạp lại từ chuỗi đã lưu, trừ khi bị gắn cờ cần cập nhật.
-      if (!(flagged.experience || flagged.skills || flagged.bio)) {
-        const parsedExp = parseExperiences(profile?.experience);
-        if (parsedExp.length) setExperiences(parsedExp);
-      }
-
       // Ảnh/giấy tờ: giữ ảnh cũ; phần bị gắn cờ thì để trống để buộc nộp lại.
       if (!flagged.citizenCard) {
         if (doc?.frontUrl) setCccdFront(doc.frontUrl);
@@ -898,7 +867,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
         e.cccdNumber = "Số CCCD phải gồm đúng 12 chữ số";
       if (!hasSlot(cccdFront)) e.cccdFront = "Thiếu ảnh CCCD mặt trước";
       if (!hasSlot(cccdBack)) e.cccdBack = "Thiếu ảnh CCCD mặt sau";
-      if (!hasSlot(selfie)) e.selfie = "Thiếu ảnh selfie cầm CCCD";
+      if (!hasSlot(selfie)) e.selfie = "Thiếu ảnh selfie";
     }
     if (s === 2) {
       if (!form.bankBin.trim()) e.bankName = "Vui lòng chọn ngân hàng";
@@ -931,14 +900,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
       const fd = new FormData();
       fd.append("phone", form.phone.trim());
 
-      const expText = experiences
-        .filter((e) => e.company || e.role || e.years)
-        .map(
-          (e) =>
-            `${e.role || "—"} @ ${e.company || "—"}${e.years ? ` (${e.years} năm)` : ""}`,
-        )
-        .join("; ");
-      if (expText) fd.append("experience", expText);
       if (form.currentAddress)
         fd.append("workingAddress", form.currentAddress.trim());
 
@@ -1003,7 +964,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
       </div>
     );
   }
-  if (isProfileLoading) {
+  if (isAuthLoading || !user || isProfileLoading) {
     return (
       <div
         style={{
@@ -1035,7 +996,16 @@ export const TaskerRegistrationWizard: React.FC = () => {
     >
       <div style={{ maxWidth: 820, margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
+        <div
+          style={{
+            marginBottom: 28,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          <div>
           <div
             style={{
               display: "flex",
@@ -1086,6 +1056,36 @@ export const TaskerRegistrationWizard: React.FC = () => {
               ? "Cập nhật đúng phần được yêu cầu rồi gửi lại — các thông tin khác đã được điền sẵn từ hồ sơ trước."
               : "Hoàn tất 4 bước để bắt đầu nhận việc. Hồ sơ sẽ được duyệt trong 24–48 giờ."}
           </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              flexShrink: 0,
+              marginTop: 2,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              background: C.panel,
+              color: C.textMute,
+              padding: "9px 12px",
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: logoutMutation.isPending ? "wait" : "pointer",
+              opacity: logoutMutation.isPending ? 0.6 : 1,
+            }}
+            aria-label="Đăng xuất tài khoản hiện tại"
+          >
+            {logoutMutation.isPending ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <LogOut size={15} />
+            )}
+            <span>Đăng xuất</span>
+          </button>
         </div>
 
         {/* Banner yêu cầu của admin */}
@@ -1292,139 +1292,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 />
               </Field>
 
-              {/* Kinh nghiệm */}
-              <div
-                id="kyc-field-experience"
-                style={{
-                  marginTop: 8,
-                  paddingTop: 22,
-                  borderTop: `1px solid ${C.borderSoft}`,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 16,
-                  }}
-                >
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 9 }}
-                  >
-                    <Briefcase size={16} style={{ color: C.accent }} />
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>
-                      Kinh nghiệm làm việc
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExperiences((p) => [
-                        ...p,
-                        { company: "", role: "", years: "" },
-                      ])
-                    }
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      background: C.accentSoft,
-                      border: `1px solid ${C.accentDim}`,
-                      color: C.accent,
-                      borderRadius: 8,
-                      padding: "7px 12px",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Plus size={14} /> Thêm
-                  </button>
-                </div>
-
-                {reviewMap.experience && (
-                  <div style={{ marginBottom: 12 }}>
-                    <FlagNote flag={reviewMap.experience} />
-                  </div>
-                )}
-
-                {experiences.map((exp, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: C.panelAlt,
-                      border: `1px solid ${C.borderSoft}`,
-                      borderRadius: 11,
-                      padding: 16,
-                      marginBottom: 12,
-                      position: "relative",
-                    }}
-                  >
-                    {experiences.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExperiences((p) => p.filter((_, i) => i !== idx))
-                        }
-                        style={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          background: "transparent",
-                          border: "none",
-                          color: C.textFaint,
-                          cursor: "pointer",
-                          padding: 4,
-                        }}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: autoCols(150),
-                        gap: 12,
-                      }}
-                    >
-                      {(
-                        [
-                          ["Nơi làm việc", "company", "Công ty / hộ gia đình"],
-                          ["Vị trí / công việc", "role", "Giúp việc, dọn dẹp…"],
-                          ["Số năm", "years", "2"],
-                        ] as const
-                      ).map(([lbl, key, ph]) => (
-                        <div key={key}>
-                          <span
-                            style={{
-                              fontSize: 11.5,
-                              color: C.textMute,
-                              fontWeight: 600,
-                              display: "block",
-                              marginBottom: 6,
-                            }}
-                          >
-                            {lbl}
-                          </span>
-                          <TextInput
-                            placeholder={ph}
-                            value={exp[key]}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setExperiences((p) =>
-                                p.map((x, i) =>
-                                  i === idx ? { ...x, [key]: v } : x,
-                                ),
-                              );
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
@@ -1483,7 +1350,7 @@ export const TaskerRegistrationWizard: React.FC = () => {
 
               <div id="kyc-field-idWithSelfie" style={{ marginTop: 20 }}>
                 <UploadBox
-                  label="Ảnh selfie cầm CCCD"
+                  label="Ảnh selfie"
                   value={selfie}
                   onChange={onSlot("selfie", setSelfie)}
                   aspect="4/2"
@@ -1670,16 +1537,6 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   ["Họ và tên", form.fullName],
                   ["Số điện thoại", form.phone],
                   ["Chỗ ở hiện tại", form.currentAddress],
-                  [
-                    "Kinh nghiệm",
-                    experiences
-                      .filter((e) => e.company || e.role)
-                      .map(
-                        (e) =>
-                          `${e.role || "—"} @ ${e.company || "—"} (${e.years || "?"} năm)`,
-                      )
-                      .join("; ") || "Chưa nhập",
-                  ],
                 ]}
               />
 
@@ -1764,12 +1621,52 @@ export const TaskerRegistrationWizard: React.FC = () => {
                 }}
               >
                 Hồ sơ của bạn đang chờ duyệt. Đội ngũ CleanZ sẽ xem xét trong
-                24–48 giờ và gửi kết quả qua số điện thoại{" "}
+                24–48 giờ và gửi kết quả qua email{" "}
                 <span style={{ color: C.text, fontWeight: 600 }}>
-                  {profile?.phone || form.phone || "đã đăng ký"}
+                  {user?.email || "đã đăng ký"}
                 </span>
                 .
               </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: 8,
+                  maxWidth: 520,
+                  margin: "24px auto 0",
+                  textAlign: "left",
+                }}
+                aria-label="Tiến trình xét duyệt hồ sơ"
+              >
+                {[
+                  ["1", "Đã nộp", true],
+                  ["2", "Đang xét duyệt", true],
+                  ["3", "Kết quả", false],
+                ].map(([number, label, active]) => (
+                  <div
+                    key={String(number)}
+                    style={{
+                      borderTop: `3px solid ${active ? C.accent : C.border}`,
+                      paddingTop: 9,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: C.textFaint }}>
+                      Bước {number}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 3,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: active ? C.text : C.textFaint,
+                      }}
+                    >
+                      {label}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div
                 style={{
@@ -1817,6 +1714,48 @@ export const TaskerRegistrationWizard: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              <p
+                style={{
+                  margin: "18px 0 0",
+                  fontSize: 12,
+                  color: C.textFaint,
+                }}
+              >
+                Cập nhật gần nhất:{" "}
+                {profile?.updatedAt
+                  ? new Intl.DateTimeFormat("vi-VN", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    }).format(new Date(profile.updatedAt))
+                  : "Vừa xong"}
+              </p>
+              <button
+                type="button"
+                onClick={() => void refetchProfile()}
+                disabled={isProfileFetching}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  marginTop: 14,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10,
+                  background: "transparent",
+                  color: C.text,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: isProfileFetching ? "wait" : "pointer",
+                  opacity: isProfileFetching ? 0.65 : 1,
+                }}
+              >
+                <RefreshCw
+                  size={15}
+                  className={isProfileFetching ? "animate-spin" : undefined}
+                />
+                Kiểm tra trạng thái
+              </button>
             </div>
           )}
 

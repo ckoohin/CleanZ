@@ -80,9 +80,6 @@ export const PartnerSignupWizard: React.FC = () => {
       const updated = { ...prev };
       if (!updated.phone && profile.phone) updated.phone = profile.phone;
       if (!updated.bio && profile.bio) updated.bio = profile.bio;
-      if (!updated.experience && profile.experience) {
-        updated.experience = profile.experience;
-      }
       if (!updated.skills && profile.skills) {
         updated.skills = profile.skills;
       }
@@ -174,7 +171,7 @@ export const PartnerSignupWizard: React.FC = () => {
       (finalData.idWithSelfie && finalData.idWithSelfie.length >= 1) ||
       profile?.hasIdWithSelfieImage;
     if (!hasSelfie) {
-      toast.error("Vui lòng tải lên ảnh selfie cầm CCCD (avatar)");
+      toast.error("Vui lòng tải lên ảnh selfie(avatar)");
       return;
     }
     const hasCriminalRecord =
@@ -193,8 +190,6 @@ export const PartnerSignupWizard: React.FC = () => {
       // ── Thông tin văn bản ────────────────────────────────────────
       payload.append("phone", finalData.phone ?? "");
       if (finalData.bio) payload.append("bio", finalData.bio);
-      if (finalData.experience)
-        payload.append("experience", finalData.experience);
       if (finalData.skills) payload.append("skills", finalData.skills);
       if (finalData.addressCurrent)
         payload.append("workingAddress", finalData.addressCurrent);
@@ -301,8 +296,6 @@ export const PartnerSignupWizard: React.FC = () => {
                 <StepPersonalInfo
                   initialValues={{
                     bio: formData.bio || profile?.bio || "",
-                    experience:
-                      formData.experience || profile?.experience || "",
                     phone: formData.phone || profile?.phone || "",
                     skills: formData.skills || profile?.skills || "",
                     addressResident:
