@@ -50,7 +50,7 @@ function errorCode(e: unknown): string | undefined {
  *
  * Số hiển thị lấy từ `payoutPreview` do BE tính bằng ĐÚNG công thức lúc ghi sổ, không suy
  * từ taskerBorne/platformBorne: phần Tasker thực trừ bị giới hạn bởi số dư ví, phần thiếu
- * quỹ phải ứng — nếu hiển thị theo phân bổ thì admin sẽ hiểu sai khoản quỹ thực chi.
+ * quỹ phải ứng — nếu hiển thị theo tỷ lệ đã chia thì admin sẽ hiểu sai khoản quỹ thực chi.
  */
 export function CompensatePanel({
   id,
@@ -80,9 +80,9 @@ export function CompensatePanel({
         <>
           {preview && (
             <div className="space-y-1 rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5 text-[11px]">
-              <p className="font-bold uppercase text-[var(--c-muted)]">Dòng tiền sẽ ghi sổ</p>
+              <p className="font-bold uppercase text-[var(--c-muted)]">Tiền sẽ đi như sau</p>
               <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Hoàn vào ví Khách</span>
+                <span className="text-[var(--c-muted)]">Hoàn vào ví khách</span>
                 <b>{formatVnd(preview.customerRefund)}</b>
               </div>
               <div className="flex justify-between">
@@ -93,12 +93,12 @@ export function CompensatePanel({
               </div>
               {preview.uncoveredFromTasker > 0 && (
                 <div className="flex justify-between text-[#B45309]">
-                  <span>Tasker không đủ → ghi nợ</span>
+                  <span>Tasker không đủ tiền → ghi thành nợ</span>
                   <b>{formatVnd(preview.uncoveredFromTasker)}</b>
                 </div>
               )}
               <div className="flex justify-between border-t border-[var(--c-line)] pt-1">
-                <span className="text-[var(--c-muted)]">Quỹ nền tảng thực chi</span>
+                <span className="text-[var(--c-muted)]">Quỹ nền tảng chi bù</span>
                 <b>{formatVnd(preview.platformPayout)}</b>
               </div>
             </div>
@@ -124,12 +124,12 @@ export function CompensatePanel({
                       {(preview?.uncoveredFromTasker ?? 0) > 0 && (
                         <li>
                           Tasker còn thiếu <b>{formatVnd(preview?.uncoveredFromTasker)}</b> — ghi thành{" "}
-                          <b>nợ</b>, trừ dần từ thu nhập và tạm khóa rút tiền tới khi trả hết.
+                          <b>nợ</b>, trừ dần vào thu nhập và tạm khoá rút tiền tới khi trả hết.
                         </li>
                       )}
                     </ul>
                     <p className="text-[11px]">
-                      Có thể hoàn tác trong <b>72 giờ</b> nếu khách chưa tiêu khoản hoàn.
+                      Có thể hoàn tác trong <b>72 giờ</b>, miễn là khách chưa tiêu khoản tiền đã hoàn.
                     </p>
                   </div>
                 </AlertDialogDescription>
@@ -230,8 +230,8 @@ export function ManualCompensatePanel({
         <QrCode className="size-3.5" /> Chuyển khoản thủ công cho khách
       </p>
       <p className="text-[11px] leading-snug text-[var(--c-muted)]">
-        Quỹ nền tảng không đủ để chi tự động. Chuyển khoản <b>{formatVnd(amount)}</b> cho khách
-        bằng app ngân hàng, sau đó tải ảnh chuyển khoản làm minh chứng và xác nhận. Phần Tasker
+        Quỹ nền tảng không đủ để chi tự động. Hãy chuyển khoản <b>{formatVnd(amount)}</b> cho khách
+        bằng app ngân hàng, sau đó tải ảnh chuyển khoản lên làm bằng chứng và bấm xác nhận. Phần Tasker
         chịu vẫn được trừ tự động.
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -325,7 +325,7 @@ export function ManualCompensatePanel({
 }
 
 /**
- * Xoá nợ không thu hồi được — lối ra cho hồ sơ mắc kẹt vì auto-close cố tình bỏ qua sự cố
+ * Xoá nợ không đòi được — lối ra cho hồ sơ mắc kẹt vì auto-close cố tình bỏ qua sự cố
  * còn nợ. Không chuyển tiền: quỹ đã chi từ lúc bồi thường, đây là ghi nhận nền tảng chịu mất.
  */
 export function WriteOffDebtPanel({
@@ -362,17 +362,17 @@ export function WriteOffDebtPanel({
   return (
     <section className="space-y-2 rounded-lg border border-[#D97706]/40 bg-[#D97706]/5 p-3">
       <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">
-        Nợ chưa thu hồi: {formatVnd(outstanding)}
+        Nợ chưa đòi được: {formatVnd(outstanding)}
       </p>
       {!canWriteOff ? (
         <p className="text-[11px] leading-snug text-[var(--c-muted)]">
           Hệ thống vẫn đang tự động trừ dần khoản này mỗi khi Tasker có thu nhập, và Tasker
-          bị tạm khoá rút tiền. Chỉ được xoá nợ sau khi đã cho cơ chế thu hồi đủ thời gian chạy.
+          bị tạm khoá rút tiền. Chỉ nên xoá nợ sau khi đã để cơ chế thu hồi chạy đủ lâu.
         </p>
       ) : (
         <>
           <p className="text-[11px] leading-snug text-[var(--c-muted)]">
-            Đã quá thời hạn thu hồi mà không đòi được. Xoá nợ = <b>nền tảng chịu mất</b> khoản
+            Đã quá thời hạn mà không đòi được. Xoá nợ nghĩa là <b>nền tảng chịu mất</b> khoản
             này: Tasker được rút tiền trở lại và hồ sơ đủ điều kiện đóng. Không hoàn tác được.
           </p>
           <Textarea
@@ -515,7 +515,7 @@ export function ReverseCompensationPanel({
   if (blocked) {
     return (
       <section className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Thu hồi bồi thường</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Hoàn tác chi trả</p>
         <div className="space-y-1 rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-3">
           {blockedReasons.map((code) => (
             <p key={code} className="text-[11px] leading-snug text-[var(--c-muted)]">
@@ -530,31 +530,31 @@ export function ReverseCompensationPanel({
 
   return (
     <section className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Thu hồi bồi thường (sửa sai)</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">Hoàn tác chi trả (sửa sai)</p>
       <p className="text-[11px] leading-snug text-[var(--c-muted)]">
-        Đảo toàn bộ giao dịch đã chi (đòi lại ví Khách, trả ví Tasker, hoàn quỹ) và mở lại sự cố để soạn quyết định mới.
-        Chỉ được trong <b>72 giờ</b> kể từ lúc chi, khi <b>chưa thu hồi nợ</b> và ví Khách còn đủ để đòi lại.
+        Đảo ngược toàn bộ giao dịch đã chi (đòi lại từ ví khách, trả lại ví Tasker, hoàn tiền về quỹ) và mở lại sự cố để soạn quyết định mới.
+        Chỉ làm được trong <b>72 giờ</b> kể từ lúc chi, khi <b>chưa bắt đầu thu nợ</b> và ví khách còn đủ tiền để đòi lại.
       </p>
       <Textarea
         value={reason}
         maxLength={2000}
         onChange={(e) => setReason(e.target.value)}
         rows={2}
-        placeholder="Lý do thu hồi (≥ 10 ký tự)"
+        placeholder="Vì sao phải hoàn tác? (tối thiểu 10 ký tự)"
         className="resize-none rounded-lg text-sm"
       />
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
           <AdminButton variant="danger" size="sm" className="w-full rounded-lg gap-1.5" disabled={reverse.isPending || tooShort}>
-            <Undo2 className="size-3.5" /> Thu hồi bồi thường
+            <Undo2 className="size-3.5" /> Hoàn tác chi trả
           </AdminButton>
         </AlertDialogTrigger>
         <AlertDialogContent className="cz-admin rounded-2xl bg-[var(--c-card)] text-[var(--c-ink)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[var(--c-ink)]">Xác nhận thu hồi bồi thường?</AlertDialogTitle>
+            <AlertDialogTitle className="text-[var(--c-ink)]">Xác nhận hoàn tác chi trả?</AlertDialogTitle>
             <AlertDialogDescription className="text-[var(--c-muted)]">
-              Thao tác này <b className="text-[#DC2626]">đảo toàn bộ giao dịch tiền</b> và mở lại sự cố ở phiên bản quyết định mới.
-              Không thực hiện được nếu Khách đã tiêu khoản hoàn hoặc đã bắt đầu thu hồi nợ.
+              Thao tác này <b className="text-[#DC2626]">đảo ngược toàn bộ giao dịch tiền</b> và mở lại sự cố ở phiên bản quyết định mới.
+              Không làm được nếu khách đã tiêu khoản tiền hoàn, hoặc đã bắt đầu thu nợ.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -568,7 +568,7 @@ export function ReverseCompensationPanel({
               }
               disabled={reverse.isPending}
             >
-              {reverse.isPending ? "Đang xử lý..." : "Xác nhận thu hồi"}
+              {reverse.isPending ? "Đang xử lý..." : "Xác nhận hoàn tác"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

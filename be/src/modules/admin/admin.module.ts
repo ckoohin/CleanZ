@@ -33,6 +33,7 @@ import { AdminActivityModule } from './admin-activity.module';
 import { AdminAbsenceReportRepository } from './repositories/admin-absence-report.repository';
 import { BookingAbsenceReportEntity } from 'src/modules/booking/entity/booking-absence-report.entity';
 import { SystemConfigModule } from 'src/modules/system-config/system-config.module';
+import { AuditWorkerModule } from './audit-worker.module';
 
 @Module({
   imports: [
@@ -62,6 +63,8 @@ import { SystemConfigModule } from 'src/modules/system-config/system-config.modu
     IncidentModule,
     AdminActivityModule,
     SystemConfigModule,
+    // AdminController dùng AuditRetentionService cho endpoint đo lường.
+    AuditWorkerModule,
   ],
 
   controllers: [AdminController],

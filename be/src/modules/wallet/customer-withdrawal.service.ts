@@ -15,6 +15,9 @@ import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { CustomerEntity } from '../customer/entity/customer.entity';
 import { BankListService } from './bank-list.service';
+import { AuditRecorder } from '../admin/audit/audit-recorder.service';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 import {
   CreateCustomerWithdrawalDto,
   ReviewCustomerWithdrawalDto,
@@ -35,6 +38,7 @@ export class CustomerWithdrawalService {
     private readonly bankListService: BankListService,
     @InjectRepository(CustomerWithdrawalRequestEntity)
     private readonly repo: Repository<CustomerWithdrawalRequestEntity>,
+    private readonly auditRecorder: AuditRecorder,
   ) {}
 
   async createRequest(
@@ -161,6 +165,20 @@ export class CustomerWithdrawalService {
             reviewedAt: new Date(),
           },
         );
+        // Từ chối không chuyển tiền, nhưng là quyết định chặn tiền của khách —
+        // đáng ghi ngang lệnh duyệt, và ghi cùng transaction cho nhất quán.
+        await this.auditRecorder.enqueueInTransaction(manager, {
+          actionCode: AuditActionCode.CUSTOMER_WITHDRAWAL_REVIEW,
+          severity: AuditSeverity.CRITICAL,
+          targetType: 'CUSTOMER_WITHDRAWAL_REQUEST',
+          targetId: id,
+          reason: dto.adminNote ?? null,
+          businessData: {
+            withdrawalId: id,
+            decision: WithdrawalStatus.REJECTED,
+            amount: request.amount,
+          },
+        });
         return (await reqRepo.findOne({ where: { id } }))!;
       });
     }
@@ -217,6 +235,21 @@ export class CustomerWithdrawalService {
           reviewedAt: new Date(),
         },
       );
+
+      await this.auditRecorder.enqueueInTransaction(manager, {
+        actionCode: AuditActionCode.CUSTOMER_WITHDRAWAL_REVIEW,
+        severity: AuditSeverity.CRITICAL,
+        targetType: 'CUSTOMER_WITHDRAWAL_REQUEST',
+        targetId: id,
+        reason: dto.adminNote ?? null,
+        businessData: {
+          withdrawalId: id,
+          decision: WithdrawalStatus.APPROVED,
+          amount: request.amount,
+          bankName: request.bankName,
+          hasTransferProof: Boolean(dto.proofImageUrl),
+        },
+      });
 
       snapshot = request;
       this.logger.log(

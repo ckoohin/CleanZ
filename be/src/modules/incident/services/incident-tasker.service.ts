@@ -150,9 +150,6 @@ export class IncidentTaskerService {
     return asyncHandleOperation(
       () =>
         this.dataSource.transaction(async (manager) => {
-          // Khoá hồ sơ và kiểm điều kiện TRONG transaction. `canSubmit` chỉ dùng để dựng
-          // giao diện; chốt chặn thật phải đọc trạng thái mới nhất, nếu không Tasker gửi
-          // giải trình đúng lúc Admin chốt sẽ ghi vào một hồ sơ đã khép lại.
           const incident = await this.lockOwnedIncident(
             manager,
             incidentId,
@@ -166,7 +163,6 @@ export class IncidentTaskerService {
               'Chỉ giải trình khi sự cố đang được thẩm định',
             );
           }
-          // Hạn nộp do DB sinh ra ⟹ so bằng đồng hồ DB, không phải đồng hồ app.
           const dbNow = await this.getDatabaseNow(manager);
           if (
             incident.statementDueAt &&
@@ -207,8 +203,6 @@ export class IncidentTaskerService {
               .execute();
           }
 
-          // Cùng transaction với phần gắn bằng chứng: trước đây hai bước ghi rời nhau, lỗi
-          // ở bước sau để lại ảnh đã gắn vào hồ sơ mà không có giải trình nào đi kèm.
           const statementRepo = manager.getRepository(IncidentStatementEntity);
           const statement = await statementRepo.save(
             statementRepo.create({
@@ -351,14 +345,6 @@ export class IncidentTaskerService {
     }, 'Lỗi khi gửi phản hồi quyết định');
   }
 
-  /**
-   * Gợi ý cho GIAO DIỆN: Tasker có còn được gửi giải trình không.
-   *
-   * Chỉ dùng để bật/tắt nút — cố tình so bằng đồng hồ app để không tốn thêm một round-trip
-   * chỉ để tô một nút. Chốt chặn thật nằm trong `submitStatement`, đọc trạng thái dưới khoá
-   * và so hạn bằng đồng hồ DB; lệch vài giây giữa hai nơi chỉ khiến nút hiện sai chốc lát,
-   * không cho phép ghi thứ gì đáng lẽ bị chặn.
-   */
   private canSubmit(incident: IncidentEntity): boolean {
     if (
       incident.status !== IncidentStatus.REVIEWING &&
@@ -370,7 +356,6 @@ export class IncidentTaskerService {
     return Date.now() <= incident.statementDueAt.getTime();
   }
 
-  /** Khoá hồ sơ và xác nhận nó thuộc về Tasker này — dùng cho mọi lệnh ghi phía Tasker. */
   private async lockOwnedIncident(
     manager: EntityManager,
     incidentId: string,
@@ -456,8 +441,6 @@ export class IncidentTaskerService {
       .leftJoinAndSelect('e.uploadedBy', 'uploadedBy')
       .leftJoinAndSelect('e.incident', 'incident')
       .leftJoinAndSelect('e.decisionResponse', 'decisionResponse')
-      // Chỉ khóa bảng evidence (FOR UPDATE OF e) — tránh lỗi FOR UPDATE trên nhánh
-      // nullable của outer join (uploadedBy/incident/decisionResponse).
       .setLock('pessimistic_write', undefined, ['e'])
       .where('e.id IN (:...ids)', { ids: evidenceIds })
       .getMany();
@@ -493,22 +476,18 @@ export class IncidentTaskerService {
     decisionVersion: number,
     taskerUserId: string,
   ): Promise<IncidentDecisionResponseEntity | null> {
-    return (
-      manager
-        .getRepository(IncidentDecisionResponseEntity)
-        .createQueryBuilder('response')
-        .leftJoinAndSelect('response.incident', 'incident')
-        .leftJoinAndSelect('response.tasker', 'tasker')
-        // Chỉ khóa bảng response (FOR UPDATE OF response) — tránh lỗi FOR UPDATE
-        // trên nhánh nullable của outer join (incident/tasker).
-        .setLock('pessimistic_write', undefined, ['response'])
-        .where('incident.id = :incidentId', { incidentId })
-        .andWhere('response.decisionVersion = :decisionVersion', {
-          decisionVersion,
-        })
-        .andWhere('tasker.id = :taskerUserId', { taskerUserId })
-        .getOne()
-    );
+    return manager
+      .getRepository(IncidentDecisionResponseEntity)
+      .createQueryBuilder('response')
+      .leftJoinAndSelect('response.incident', 'incident')
+      .leftJoinAndSelect('response.tasker', 'tasker')
+      .setLock('pessimistic_write', undefined, ['response'])
+      .where('incident.id = :incidentId', { incidentId })
+      .andWhere('response.decisionVersion = :decisionVersion', {
+        decisionVersion,
+      })
+      .andWhere('tasker.id = :taskerUserId', { taskerUserId })
+      .getOne();
   }
 
   private async getActiveResponseEvidenceIds(

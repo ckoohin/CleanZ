@@ -19,22 +19,22 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
   const [content, setContent] = useState("");
   const [evidences, setEvidences] = useState<Evidence[]>([]);
 
-  // Cửa sổ phản biện do BE tính (`canRespondToDecision`) — không so hạn ở render, vì đọc
+  // Thời hạn phản hồi do BE tính (`canRespondToDecision`) — không so hạn ở render, vì đọc
   // đồng hồ trong lúc render là hàm không thuần và cho kết quả đổi theo mỗi lần re-render.
   const open = incident.canRespondToDecision;
   // Đóng vì HẾT HẠN khác đóng vì CHƯA MỞ. Gộp hai thứ vào một câu là nói ngược
-  // sự thật với người sắp bị trừ tiền: họ đọc "chưa mở" trong khi hạn đã trôi qua.
+  // sự thật với người sắp bị trừ tiền: họ đọc "chưa tới lúc" trong khi hạn đã trôi qua.
   const expired = !open && incident.status === "AWAITING_RESPONSE";
 
   if (expired) {
     return (
       <div className="space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700">
         <p className="flex items-center gap-1.5 font-semibold">
-          <AlertTriangle className="size-3.5" /> Đã quá hạn phản hồi quyết định
+          <AlertTriangle className="size-3.5" /> Đã quá hạn nêu ý kiến
         </p>
         <p>
           Hạn chót là {fmt(incident.taskerResponseDeadline)}. CleanZ có thể chốt
-          quyết định mà không có phản biện của bạn.
+          kết luận mà không có ý kiến của bạn.
         </p>
       </div>
     );
@@ -43,7 +43,7 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
   if (!open) {
     return (
       <p className="flex items-center justify-center gap-1.5 rounded-xl border border-border/40 bg-muted/40 p-3 text-xs text-muted-foreground">
-        <Lock className="size-3.5" /> Chưa mở cửa sổ phản hồi quyết định.
+        <Lock className="size-3.5" /> Chưa tới lúc bạn nêu ý kiến về kết luận này.
       </p>
     );
   }
@@ -55,7 +55,7 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
     <div className="space-y-3 rounded-xl border border-border/40 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Phản hồi quyết định v{incident.decisionVersion}
+          Ý kiến của bạn về kết luận v{incident.decisionVersion}
         </p>
         <span className="text-xs text-muted-foreground">
           Hạn chót {fmt(incident.taskerResponseDeadline)}
@@ -87,7 +87,7 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={3}
-        placeholder={responseType === "DISAGREE" ? "Giải thích lý do không đồng ý…" : "Ghi chú (không bắt buộc)…"}
+        placeholder={responseType === "DISAGREE" ? "Nói rõ vì sao bạn không đồng ý…" : "Ghi chú thêm (không bắt buộc)…"}
         className="resize-none rounded-lg text-sm"
       />
 
@@ -119,7 +119,7 @@ export function DecisionResponseComposer({ incident }: { incident: IncidentTaske
           )
         }
       >
-        <Send className="size-3.5" /> {submit.isPending ? "Đang gửi…" : "Gửi phản hồi"}
+        <Send className="size-3.5" /> {submit.isPending ? "Đang gửi…" : "Gửi ý kiến"}
       </Button>
     </div>
   );

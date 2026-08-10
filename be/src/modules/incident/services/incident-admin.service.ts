@@ -53,6 +53,9 @@ import { IncidentDepositHoldService } from './incident-deposit-hold.service';
 import { IncidentNotifier } from './incident-notifier.service';
 import { IncidentAlertService } from './incident-alert.service';
 import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
+import { AuditRecorder } from 'src/modules/admin/audit/audit-recorder.service';
+import { AuditActionCode } from 'src/modules/admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 import {
   TaskerDebtSource,
   debtOutstanding,
@@ -97,6 +100,7 @@ export class IncidentAdminService {
     private readonly notifier: IncidentNotifier,
     private readonly taskerDebt: TaskerDebtService,
     private readonly alert: IncidentAlertService,
+    private readonly auditRecorder: AuditRecorder,
   ) {}
 
   async createFromTicket(
@@ -656,6 +660,23 @@ export class IncidentAdminService {
           adminUserId,
           `Xoá nợ ${out.writtenOff} VND — lý do: ${reason.trim()}`,
         );
+
+        // Nền tảng chấp nhận mất khoản này. Nhật ký phải commit cùng việc xoá nợ:
+        // đây là quyết định không đảo ngược được và không bên nào ở ngoài đối chứng.
+        await this.auditRecorder.enqueueInTransaction(manager, {
+          actionCode: AuditActionCode.INCIDENT_DEBT_WRITE_OFF,
+          severity: AuditSeverity.CRITICAL,
+          targetType: 'INCIDENT',
+          targetId: incidentId,
+          reason,
+          businessData: {
+            incidentId,
+            writtenOffAmount: out.writtenOff,
+            sourceCode: out.sourceCode ?? null,
+            minAgeDays,
+          },
+        });
+
         return out;
       });
 

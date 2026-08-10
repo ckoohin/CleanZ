@@ -41,6 +41,14 @@ export class TaskerPenaltyEntity {
   @Column({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null;
 
+  /**
+   * Thao tác admin nào sinh ra bản ghi này. NULL = không phát sinh từ admin
+   * (người dùng tự thao tác, hoặc cron/worker chạy nền). Được đóng dấu tự động
+   * bởi `AuditCorrelationSubscriber`.
+   */
+  @Column({ name: 'audit_correlation_id', type: 'uuid', nullable: true })
+  auditCorrelationId?: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

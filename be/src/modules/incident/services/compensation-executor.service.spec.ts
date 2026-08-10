@@ -16,6 +16,7 @@ describe('CompensationExecutorService — helper dòng tiền', () => {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   ) as unknown as {
     assertCompensationPreconditions: (incident: IncidentEntity) => void;
     assertCompensationInvariant: (incident: IncidentEntity) => void;
@@ -146,6 +147,7 @@ describe('CompensationExecutorService — helper dòng tiền', () => {
         {} as never,
         {} as never,
         {} as never,
+        {} as never,
       ) as unknown as {
         settleCompensation: (
           manager: unknown,
@@ -256,6 +258,7 @@ describe('CompensationExecutorService — helper dòng tiền', () => {
         {} as never,
         {} as never,
         walletService as never,
+        {} as never,
         {} as never,
         {} as never,
         {} as never,

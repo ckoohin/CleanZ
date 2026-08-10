@@ -32,7 +32,7 @@ import { IncidentNotificationOutboxWorkerService } from './services/incident-not
 import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
 import { IncidentDepositHoldService } from './services/incident-deposit-hold.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
-import { IncidentAlertService } from './services/incident-alert.service';
+import { AlertModule } from '../alert/alert.module';
 import { IncidentReportService } from './services/incident-report.service';
 import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
 
@@ -55,6 +55,7 @@ import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
     NotificationModule,
     WalletModule,
     AdminActivityModule,
+    AlertModule,
   ],
   controllers: [
     IncidentController,
@@ -77,7 +78,8 @@ import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
     IncidentEvidenceLifecycleService,
     IncidentDepositHoldService,
     IncidentReconciliationService,
-    IncidentAlertService,
+    // `IncidentAlertService` giờ do `AlertModule` cung cấp — giữ đúng một instance
+    // để bộ throttle theo key không bị tách đôi.
     IncidentReportService,
   ],
   exports: [TypeOrmModule, IncidentAdminService],

@@ -10,6 +10,9 @@ import { WalletTransactionListQueryDto } from 'src/modules/wallet/dto/wallet-tra
 import { PayoutService } from 'src/modules/wallet/payout.service';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { DataSource } from 'typeorm';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
+import { AuditRecorder } from 'src/modules/admin/audit/audit-recorder.service';
+import { AuditActionCode } from 'src/modules/admin/audit/audit-action-codes';
 import { WalletTransactionType } from '../../../common/enums/wallet-transaction-type.enum';
 import { PaginatedData } from '../../../common/helpers/response.interface';
 import { User } from '../../users/entities/user.entity';
@@ -58,6 +61,7 @@ export class FinanceService {
     private readonly dataSource: DataSource,
     private readonly walletService: WalletService,
     private readonly payoutService: PayoutService,
+    private readonly auditRecorder: AuditRecorder,
   ) {}
 
   async findAllWithdrawals(
@@ -170,6 +174,24 @@ export class FinanceService {
           ? { proofImageUrl: dto.proofImageUrl }
           : {}),
         reviewedAt: new Date(),
+      });
+
+      // Cùng transaction với lệnh trừ ví ở trên. Chi trả thật ra ngân hàng nằm ở
+      // Phase 2 (PayOS) — nhưng quyết định DUYỆT mới là hành vi của admin, và nó
+      // xảy ra ngay tại đây; Phase 2 chỉ là hệ quả tự động.
+      await this.auditRecorder.enqueueInTransaction(manager, {
+        actionCode: AuditActionCode.TASKER_WITHDRAWAL_REVIEW,
+        severity: AuditSeverity.CRITICAL,
+        targetType: 'WITHDRAWAL_REQUEST',
+        targetId: id,
+        reason: dto.note ?? null,
+        businessData: {
+          withdrawalId: id,
+          decision: dto.status,
+          amount: withdrawal.amount,
+          bankName: withdrawal.bankName,
+          hasTransferProof: Boolean(dto.proofImageUrl),
+        },
       });
 
       this.logger.log(
@@ -418,21 +440,40 @@ export class FinanceService {
       wallet.balance = newBalance;
       await queryRunner.manager.save(WalletEntity, wallet);
 
-      const actorLabel = `${admin.fullName} (${admin.email})`;
-      const description = `${dto.description} | Điều chỉnh bởi Admin: ${actorLabel}`;
-
       const tx = queryRunner.manager.create(WalletTransactionEntity, {
         wallet,
         type: dto.type,
         amount: dto.amount,
         balanceBefore,
         balanceAfter: newBalance,
-        referenceId: admin.id,
+        // `referenceId` trỏ tới ĐỐI TƯỢNG NGHIỆP VỤ của bút toán (booking, sự cố…).
+        // Trước đây chỗ này nhét id admin vào và ghép tên admin vào `description`,
+        // biến một cột quan hệ nghiệp vụ thành chỗ chứa danh tính người thao tác:
+        // không join được, không lọc được, và sai ngay khi admin đổi email. Danh
+        // tính người ra lệnh thuộc về nhật ký, nối lại qua `auditCorrelationId`.
         referenceType: 'ADMIN_ADJUSTMENT',
-        description,
+        description: dto.description,
       });
 
       const saved = await queryRunner.manager.save(WalletTransactionEntity, tx);
+
+      // Ghi nhật ký CÙNG transaction với bút toán: hoặc cả hai cùng có, hoặc cả
+      // hai cùng không. Không có trạng thái "tiền đã đổi mà không rõ ai ra lệnh".
+      await this.auditRecorder.enqueueInTransaction(queryRunner.manager, {
+        actionCode: AuditActionCode.WALLET_MANUAL_ADJUSTMENT,
+        severity: AuditSeverity.CRITICAL,
+        targetType: 'WALLET',
+        targetId: wallet.id,
+        reason: dto.description ?? null,
+        businessData: {
+          walletId: wallet.id,
+          amount: dto.amount,
+          balanceBefore,
+          balanceAfter: newBalance,
+          transactionId: saved.id,
+        },
+      });
+
       await queryRunner.commitTransaction();
       return saved;
     } catch (err) {
@@ -749,6 +790,9 @@ export class FinanceService {
         topupPaymentLinkId: string | null;
         topupProvider: string | null;
         topupStatus: string | null;
+        adjustedByName: string | null;
+        adjustedByEmail: string | null;
+        adjustmentReason: string | null;
       }>
     >(
       `SELECT
@@ -792,7 +836,10 @@ export class FinanceService {
          wto.payos_order_code       AS "topupPayosOrderCode",
          wto.payment_link_id        AS "topupPaymentLinkId",
          wto.provider               AS "topupProvider",
-         wto.status                 AS "topupStatus"
+         wto.status                 AS "topupStatus",
+         au.full_name               AS "adjustedByName",
+         aal.actor_email            AS "adjustedByEmail",
+         aal.reason                 AS "adjustmentReason"
        FROM wallet_transactions wt
        LEFT JOIN wallets w ON wt.wallet_id = w.id
        LEFT JOIN customers c ON w.customer_id = c.id
@@ -802,6 +849,14 @@ export class FinanceService {
        LEFT JOIN taskers t ON b.tasker_id = t.id
        LEFT JOIN users tu ON t.user_id = tu.id
        LEFT JOIN wallet_topup_orders wto ON (wto.wallet_tx_id = wt.id OR wto.id = wt.reference_id)
+       -- Người ra lệnh lấy từ nhật ký kiểm toán, không lấy từ chuỗi mô tả. Trước
+       -- đây tên admin được ghép vào \`description\` rồi giao diện bóc ra bằng
+       -- regex: hỏng ngay khi admin đổi tên, và không lọc hay thống kê được.
+       -- \`withDeleted\` không áp dụng ở SQL thô nên join thẳng \`users\` là đủ:
+       -- admin đã bị xoá mềm vẫn còn hàng, tên vẫn hiện đúng.
+       LEFT JOIN admin_activity_logs aal ON aal.correlation_id = wt.audit_correlation_id
+         AND aal.action_code = 'FINANCE.WALLET_MANUAL_ADJUSTMENT'
+       LEFT JOIN users au ON au.id = aal.actor_user_id
        WHERE wt.id = $1`,
       [transactionId],
     );
@@ -829,6 +884,18 @@ export class FinanceService {
         email: r.customerEmail,
         phone: r.customerPhone,
       },
+      /**
+       * Chỉ có giá trị với bút toán điều chỉnh thủ công. `null` ở các bút toán
+       * cũ (tạo trước khi có `audit_correlation_id`) là đúng — với chúng, danh
+       * tính admin vẫn nằm trong `description` theo định dạng cũ.
+       */
+      adjustedBy: r.adjustedByName
+        ? {
+            fullName: r.adjustedByName,
+            email: r.adjustedByEmail,
+            reason: r.adjustmentReason,
+          }
+        : null,
       // Đơn nạp ví gắn với giao dịch này.
       //
       // Trước đây khối này tên `paypalTopup`, chỉ trả các cột PayPal và mặc định

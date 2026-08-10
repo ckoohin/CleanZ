@@ -15,15 +15,55 @@ import {
 
 export type Tone = 'neutral' | 'info' | 'warning' | 'success' | 'muted' | 'danger';
 
-export const STATUS_LABEL: Record<IncidentStatus, string> = {
-  REPORTED: 'Chờ tiếp nhận',
-  REVIEWING: 'Đang thẩm định',
-  AWAITING_RESPONSE: 'Chờ Tasker phản biện',
-  AWAITING_PAYOUT: 'Chờ chi trả',
-  COMPENSATED: 'Đã bồi thường',
-  REJECTED: 'Đã bác bỏ',
-  CLOSED: 'Đã đóng',
+/**
+ * Ai đang đọc nhãn. Cùng một trạng thái nhưng ba người có ba mối bận tâm khác nhau:
+ * Admin cần biết việc của mình, Khách cần biết tiền của mình, Tasker cần biết mình
+ * phải làm gì. Dùng chung một chuỗi thì hai trong ba người luôn đọc ngôn ngữ nội bộ
+ * của người còn lại.
+ */
+export type IncidentAudience = 'admin' | 'customer' | 'tasker';
+
+export const STATUS_LABEL_BY_AUDIENCE: Record<
+  IncidentAudience,
+  Record<IncidentStatus, string>
+> = {
+  // Admin là người vận hành: nhãn nói rõ việc đang nằm ở bước nào của quy trình.
+  admin: {
+    REPORTED: 'Chờ tiếp nhận',
+    REVIEWING: 'Đang thẩm định',
+    AWAITING_RESPONSE: 'Chờ Tasker phản hồi',
+    AWAITING_PAYOUT: 'Chờ chi trả',
+    COMPENSATED: 'Đã bồi thường',
+    REJECTED: 'Đã bác bỏ',
+    CLOSED: 'Đã đóng',
+  },
+  // Khách chỉ quan tâm: báo cáo tới đâu rồi, bao giờ có tiền. Không nhắc "thẩm
+  // định", "phản hồi của Tasker" — đó là chuyện nội bộ, khách không hành động gì.
+  customer: {
+    REPORTED: 'Đã gửi, chờ tiếp nhận',
+    REVIEWING: 'CleanZ đang xem xét',
+    AWAITING_RESPONSE: 'Đang xác minh với Tasker',
+    AWAITING_PAYOUT: 'Chờ hoàn tiền cho bạn',
+    COMPENSATED: 'Đã hoàn tiền',
+    REJECTED: 'Không được chấp nhận',
+    CLOSED: 'Đã đóng',
+  },
+  // Tasker cần phân biệt "tới lượt tôi" với "đang chờ CleanZ" — đây là người có
+  // thể bị trừ tiền, nên nhãn phải nói thẳng khi nào họ phải hành động.
+  tasker: {
+    REPORTED: 'Chờ CleanZ tiếp nhận',
+    REVIEWING: 'CleanZ đang xem xét',
+    AWAITING_RESPONSE: 'Chờ bạn phản hồi',
+    AWAITING_PAYOUT: 'Chờ CleanZ chi trả',
+    COMPENSATED: 'Đã xử lý xong',
+    REJECTED: 'Báo cáo bị bác bỏ',
+    CLOSED: 'Đã đóng',
+  },
 };
+
+/** Mặc định = giọng Admin. Màn hình Khách/Tasker phải truyền audience tương ứng. */
+export const STATUS_LABEL = STATUS_LABEL_BY_AUDIENCE.admin;
+
 export const STATUS_TONE: Record<IncidentStatus, Tone> = {
   REPORTED: 'neutral',
   REVIEWING: 'info',
@@ -45,68 +85,69 @@ export const SEVERITY_TONE: Record<Severity, Tone> = {
   MINOR: 'muted',
 };
 
+/** Lý do đóng hồ sơ — chỉ hiện cho Khách, nên viết ở giọng nói với khách. */
 export const CLOSURE_LABEL: Record<ClosureReason, string> = {
-  COMPENSATED: 'Đã bồi thường',
-  REJECTED: 'Bị từ chối',
-  NO_COMPENSATION: 'Không bồi thường',
-  WITHDRAWN: 'Khách đã rút',
-  DUPLICATE: 'Trùng lặp',
+  COMPENSATED: 'Đã hoàn tiền',
+  REJECTED: 'Không được chấp nhận',
+  NO_COMPENSATION: 'Không có khoản hoàn tiền',
+  WITHDRAWN: 'Bạn đã rút báo cáo',
+  DUPLICATE: 'Trùng với báo cáo khác',
   INVALID_BOOKING: 'Đơn không hợp lệ',
-  EXPIRED: 'Hết hạn',
+  EXPIRED: 'Quá hạn xử lý',
 };
 
 export const COMP_SOURCE_LABEL: Record<CompensationSource, string> = {
   TASKER_DEPOSIT: 'Ví Tasker',
   PLATFORM_FUND: 'Quỹ nền tảng',
-  MIXED: 'Kết hợp',
+  MIXED: 'Cả hai nguồn',
 };
 
 export const VERIFICATION_STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Chờ thẩm định',
+  PENDING: 'Chờ xem xét',
   VERIFIED: 'Đã xác minh',
-  REJECTED: 'Từ chối',
+  REJECTED: 'Không chấp nhận',
   NEED_MORE_EVIDENCE: 'Cần thêm bằng chứng',
 };
 
 export const OUTCOME_LABEL: Record<DecisionOutcome, string> = {
   COMPENSATE: 'Bồi thường',
-  NO_COMPENSATION: 'Công nhận, không bồi thường',
-  REJECT: 'Bác bỏ (báo cáo sai)',
+  NO_COMPENSATION: 'Có sự cố nhưng không bồi thường',
+  REJECT: 'Bác bỏ (báo cáo sai sự thật)',
 };
 
 /** Nhãn nút cho hành động BE cho phép — FE không tự suy ra bước tiếp theo. */
 export const ACTION_LABEL: Record<DecisionAction, string> = {
-  ACCEPT: 'Tiếp nhận thẩm định',
+  ACCEPT: 'Tiếp nhận xử lý',
   SAVE_DECISION: 'Lưu quyết định',
-  SEND_TO_TASKER: 'Gửi Tasker phản biện',
+  SEND_TO_TASKER: 'Gửi Tasker phản hồi',
   FINALIZE: 'Chốt quyết định',
   WITHDRAW_DECISION: 'Thu hồi quyết định',
   COMPENSATE: 'Chi trả bồi thường',
-  REVERSE: 'Thu hồi bồi thường',
-  RESPOND: 'Gửi phản biện',
+  REVERSE: 'Hoàn tác chi trả',
+  RESPOND: 'Gửi phản hồi',
 };
 
 /** Giải thích vì sao chưa chốt/chi được — mirror `blockedReasons` từ BE. */
 export const BLOCKED_REASON_LABEL: Record<string, string> = {
   DECISION_REQUIRED: 'Chưa soạn quyết định nào cho sự cố này.',
   TASKER_RESPONSE_REQUIRED:
-    'Quyết định bắt Tasker chịu tiền — phải gửi Tasker phản biện trước khi chốt.',
+    'Quyết định bắt Tasker chịu tiền — phải gửi Tasker phản hồi trước khi chốt.',
   WAITING_FOR_TASKER_RESPONSE:
-    'Đang trong thời hạn Tasker phản biện. Chốt được khi Tasker trả lời hoặc hết hạn.',
+    'Đang trong thời hạn Tasker phản hồi. Chốt được khi Tasker trả lời hoặc hết hạn.',
   TASKER_RESPONSE_WINDOW_EXPIRED:
-    'Đã hết hạn phản biện, Tasker không trả lời — bạn có thể chốt quyết định.',
+    'Đã hết hạn phản hồi, Tasker không trả lời — bạn có thể chốt quyết định.',
   REVERSAL_WINDOW_EXPIRED:
-    'Đã quá 72 giờ kể từ lúc chi trả — không đảo tự động được nữa, phải xử lý thủ công.',
+    'Đã quá 72 giờ kể từ lúc chi trả — không hoàn tác tự động được nữa, phải xử lý thủ công.',
   REVERSAL_MANUAL_PAYOUT:
-    'Khoản này chi bằng chuyển khoản ngoài ví nên không có bút toán để đảo — phải thu hồi thủ công.',
+    'Khoản này chi bằng chuyển khoản ngoài ví nên không có giao dịch trong ví để hoàn tác — phải thu hồi thủ công.',
   REVERSAL_DEBT_RECOVERY_STARTED:
-    'Đã bắt đầu thu hồi nợ từ ví Tasker — đảo tự động sẽ làm lệch sổ, cần xử lý thủ công.',
+    'Đã bắt đầu thu hồi nợ từ ví Tasker — hoàn tác tự động sẽ làm lệch sổ, cần xử lý thủ công.',
 };
 
 export const RESPONSIBILITY_LABEL: Record<ResponsibilityParty, string> = {
   TASKER: 'Tasker chịu',
   PLATFORM: 'Nền tảng chịu',
-  SHARED: 'Chia sẻ',
+  SHARED: 'Chia trách nhiệm',
   UNDETERMINED: 'Chưa xác định (CleanZ chịu)',
 };
 
@@ -153,37 +194,37 @@ export interface ConfigFieldMeta {
 
 export const INCIDENT_CONFIG_META: Record<string, ConfigFieldMeta> = {
   INCIDENT_REPORT_WINDOW_HOURS: {
-    label: 'Cửa sổ báo cáo (thường)',
+    label: 'Thời hạn báo cáo (thường)',
     hint: 'Số giờ cho phép báo cáo sau khi đơn hoàn thành',
     unit: 'giờ',
     type: 'number',
   },
   INCIDENT_REPORT_WINDOW_SEVERE_HOURS: {
-    label: 'Cửa sổ báo cáo (nghiêm trọng)',
+    label: 'Thời hạn báo cáo (nghiêm trọng)',
     hint: 'Áp dụng cho sự cố mức nghiêm trọng',
     unit: 'giờ',
     type: 'number',
   },
   INCIDENT_SEVERE_CRITERIA: {
     label: 'Tiêu chí xác định nghiêm trọng',
-    hint: 'Cấu hình JSON (category + ngưỡng tiền) để hệ thống tự suy mức độ',
+    hint: 'Cấu hình JSON (loại sự cố + ngưỡng tiền) để hệ thống tự suy mức độ',
     type: 'json',
   },
   INCIDENT_CLAIM_MAX_AMOUNT: {
-    label: 'Trần tổng yêu cầu mỗi sự cố',
-    hint: 'Tổng số tiền tối đa khách được yêu cầu (cộng tất cả hạng mục)',
+    label: 'Số tiền khách được yêu cầu tối đa',
+    hint: 'Tổng số tiền tối đa khách được yêu cầu cho một sự cố (cộng tất cả khoản thiệt hại)',
     unit: 'VND',
     type: 'number',
   },
   INCIDENT_COMPENSATION_POLICY_CAP: {
-    label: 'Trần tổng bồi thường',
+    label: 'Mức bồi thường tối đa',
     hint: 'Tổng số tiền duyệt bồi thường tối đa cho một sự cố',
     unit: 'VND',
     type: 'number',
   },
   INCIDENT_RESPONSE_WINDOW_HOURS: {
-    label: 'Thời hạn Tasker phản biện',
-    hint: 'Khi quyết định bắt Tasker chịu tiền, Tasker có ngần này giờ để phản biện trước khi Admin được chốt',
+    label: 'Thời hạn Tasker phản hồi',
+    hint: 'Khi quyết định bắt Tasker chịu tiền, Tasker có ngần này giờ để phản hồi trước khi Admin được chốt',
     unit: 'giờ',
     type: 'number',
   },
@@ -200,19 +241,19 @@ export const INCIDENT_CONFIG_META: Record<string, ConfigFieldMeta> = {
     type: 'number',
   },
   INCIDENT_REPORTED_EXPIRY_DAYS: {
-    label: 'Hết hạn hồ sơ chờ tiếp nhận',
-    hint: "Tự đóng hồ sơ kẹt ở 'Đã báo cáo' quá số ngày này",
+    label: 'Tự đóng hồ sơ chưa ai tiếp nhận',
+    hint: "Tự đóng hồ sơ kẹt ở 'Chờ tiếp nhận' quá số ngày này",
     unit: 'ngày',
     type: 'number',
   },
   INCIDENT_SLA_MATRIX: {
-    label: 'Ma trận SLA theo mức độ',
-    hint: 'Cấu hình JSON: thời hạn tiếp nhận/giải trình/quyết định/thực thi theo mức độ',
+    label: 'Thời hạn xử lý theo mức độ',
+    hint: 'Cấu hình JSON: thời hạn tiếp nhận/giải trình/quyết định/chi trả theo mức độ',
     type: 'json',
   },
   INCIDENT_FALSE_REPORT_STRIKES: {
-    label: 'Ngưỡng khóa do khai gian',
-    hint: 'Số lần khai gian bị từ chối trước khi khóa quyền báo cáo',
+    label: 'Số lần báo cáo sai thì khoá',
+    hint: 'Số lần báo cáo sai sự thật bị từ chối trước khi khoá quyền báo cáo của khách',
     unit: 'lần',
     type: 'number',
   },

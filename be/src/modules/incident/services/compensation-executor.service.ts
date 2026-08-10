@@ -25,6 +25,9 @@ import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
 import { TaskerDebtSource } from 'src/modules/wallet/entity/tasker-debt.entity';
 import { REVERSAL_WINDOW_HOURS } from '../domain/incident-decision-domain.types';
 import { isExpectedDecisionVersion } from '../domain/incident-decision.helpers';
+import { AuditRecorder } from 'src/modules/admin/audit/audit-recorder.service';
+import { AuditActionCode } from 'src/modules/admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 
 const INCIDENT_COMPENSATION_REF = 'INCIDENT_COMPENSATION';
 
@@ -47,6 +50,7 @@ export class CompensationExecutorService {
     private readonly depositHold: IncidentDepositHoldService,
     private readonly alert: IncidentAlertService,
     private readonly taskerDebt: TaskerDebtService,
+    private readonly auditRecorder: AuditRecorder,
   ) {}
 
   /**
@@ -146,6 +150,22 @@ export class CompensationExecutorService {
           adminUserId,
           null,
         );
+
+        // Cùng transaction với các bút toán ví và khoản nợ Tasker vừa sinh ra ở
+        // trên: không có cửa sổ nào mà tiền đã chuyển còn nhật ký thì chưa có.
+        await this.auditRecorder.enqueueInTransaction(manager, {
+          actionCode: AuditActionCode.INCIDENT_COMPENSATE,
+          severity: AuditSeverity.CRITICAL,
+          targetType: 'INCIDENT',
+          targetId: incident.id,
+          businessData: {
+            incidentId: incident.id,
+            approvedAmount: incident.approvedCompensationAmount,
+            taskerBorneAmount: incident.taskerBorneAmount,
+            platformBorneAmount: incident.platformBorneAmount,
+            compensationSource: incident.compensationSource,
+          },
+        });
       });
 
       return this.adminService.findOne(incidentId);
@@ -258,6 +278,25 @@ export class CompensationExecutorService {
           adminUserId,
           null,
         );
+
+        // Chi trả thủ công là lệnh chuyển tiền thật y như `execute()`: trừ ví/cọc
+        // Tasker, chuyển vào ví SYSTEM, ghi nợ phần thiếu. Khác biệt duy nhất là
+        // khoản trả khách đi ra từ tài khoản ngân hàng công ty — nên chứng cứ
+        // DUY NHẤT cho việc đã trả là ảnh minh chứng cộng dòng nhật ký này.
+        await this.auditRecorder.enqueueInTransaction(manager, {
+          actionCode: AuditActionCode.INCIDENT_COMPENSATE_MANUAL,
+          severity: AuditSeverity.CRITICAL,
+          targetType: 'INCIDENT',
+          targetId: incident.id,
+          reason: note ?? null,
+          businessData: {
+            incidentId: incident.id,
+            approvedAmount: incident.approvedCompensationAmount,
+            recoveredToSystem: incident.recoverableFromDepositAmount,
+            uncoveredLiability: incident.uncoveredLiabilityAmount,
+            proofEvidenceId,
+          },
+        });
       });
       return this.adminService.findOne(incidentId);
     }, 'Lỗi khi chi trả thủ công');
@@ -490,6 +529,20 @@ export class CompensationExecutorService {
           adminUserId,
           `Đảo bồi thường — lý do: ${reason.trim()}`,
         );
+        await this.auditRecorder.enqueueInTransaction(manager, {
+          actionCode: AuditActionCode.INCIDENT_COMPENSATION_REVERSE,
+          severity: AuditSeverity.CRITICAL,
+          targetType: 'INCIDENT',
+          targetId: incident.id,
+          reason,
+          businessData: {
+            incidentId: incident.id,
+            incidentCode: code,
+            reversedAmount: approved,
+            newDecisionVersion: incident.decisionVersion,
+          },
+        });
+
         alertPayload = {
           key: `incident-reversal:${incident.id}:v${incident.decisionVersion}`,
           message:

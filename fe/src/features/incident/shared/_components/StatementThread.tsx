@@ -15,11 +15,11 @@ const ROLE_META: Record<
   ADMIN: { label: "Quản trị viên", icon: Shield, cls: "bg-[#10B981]/15 text-[#047857]" },
 };
 
-/** Danh sách giải trình/đối chất (dùng chung Tasker đọc+gửi, Admin đọc). Có nhãn người viết. */
+/** Danh sách ý kiến giải trình (dùng chung Tasker đọc+gửi, Admin đọc). Có nhãn người viết. */
 export function StatementThread({ statements }: { statements: Statement[] }) {
   if (statements.length === 0) {
     return (
-      <p className="py-6 text-center text-xs text-muted-foreground">Chưa có giải trình</p>
+      <p className="py-6 text-center text-xs text-muted-foreground">Chưa có ý kiến nào</p>
     );
   }
   return (

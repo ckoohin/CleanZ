@@ -22,7 +22,7 @@ export function TaskerIncidentList() {
         <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted" aria-label="Quay lại">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-base font-bold">Sự cố liên quan</h1>
+        <h1 className="text-base font-bold">Sự cố liên quan tới bạn</h1>
       </header>
 
       <div className="space-y-3 p-4">
@@ -33,7 +33,7 @@ export function TaskerIncidentList() {
         ) : items.length === 0 ? (
           <div className="py-16 text-center">
             <ShieldAlert className="mx-auto mb-2 size-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Không có sự cố nào liên quan đến bạn</p>
+            <p className="text-sm text-muted-foreground">Bạn không có sự cố nào</p>
           </div>
         ) : (
           items.map((it) => (
@@ -51,7 +51,7 @@ export function TaskerIncidentList() {
               <h3 className="line-clamp-1 text-sm font-semibold">{it.title}</h3>
               <div className="mt-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <IncidentStatusBadge status={it.status} />
+                  <IncidentStatusBadge status={it.status} audience="tasker" />
                   <span className="text-xs font-semibold text-foreground/70">{formatVnd(it.claimedAmount)}</span>
                 </div>
                 <ChevronRight className="size-4 text-muted-foreground" />
