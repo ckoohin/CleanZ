@@ -15,6 +15,7 @@ import { NotificationGateway } from 'src/modules/notification/notification.gatew
 import { PaymentService } from 'src/modules/payment/payment.service';
 import { BookingEntity } from '../entity/booking.entity';
 import { BookingDispatchService } from './booking-dispatch.service';
+import { CustomerDebtService } from 'src/modules/wallet/customer-debt.service';
 
 export const BOOKING_ONLINE_REFUND_REF = 'BOOKING_ONLINE_REFUND';
 
@@ -39,6 +40,7 @@ export class BookingOnlinePaymentService {
     private readonly bookingDispatchService: BookingDispatchService,
     private readonly notificationGateway: NotificationGateway,
     private readonly configService: ConfigService,
+    private readonly customerDebtService: CustomerDebtService,
   ) {}
 
   /**
@@ -184,6 +186,12 @@ export class BookingOnlinePaymentService {
       manager,
       booking.id,
       new Date(),
+    );
+    await this.customerDebtService.recoverForCustomer(
+      manager,
+      customer.id,
+      refundAmount,
+      { booking },
     );
 
     this.logger.log(

@@ -15,6 +15,7 @@ import {
   Megaphone,
   RefreshCcw,
   Sparkles,
+  UserRoundX,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,10 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   TASKER_ON_THE_WAY: "Tasker",
   BOOKING_COMPLETED: "Hoàn thành",
   BOOKING_CANCELLED: "Đã hủy",
+  BOOKING_ABSENCE_REPORTED: "Đang xác minh",
+  BOOKING_ABSENCE_APPROVED: "Khách vắng",
+  BOOKING_ABSENCE_REJECTED: "Đã hoàn tiền",
+  BOOKING_ABSENCE_EXPIRED: "Quá hạn duyệt",
   PAYMENT_SUCCESS: "Thanh toán",
   PAYMENT_FAILED: "Thanh toán",
   INCIDENT_UPDATE: "Sự cố",
@@ -66,6 +71,10 @@ const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   TASKER_ON_THE_WAY: BellDot,
   BOOKING_COMPLETED: BellDot,
   BOOKING_CANCELLED: BellDot,
+  BOOKING_ABSENCE_REPORTED: UserRoundX,
+  BOOKING_ABSENCE_APPROVED: UserRoundX,
+  BOOKING_ABSENCE_REJECTED: UserRoundX,
+  BOOKING_ABSENCE_EXPIRED: UserRoundX,
   PAYMENT_SUCCESS: CreditCard,
   PAYMENT_FAILED: CreditCard,
   INCIDENT_UPDATE: Sparkles,
@@ -331,9 +340,7 @@ export function CustomerNotificationsPage() {
                 key={notification.id}
                 notification={notification}
                 onOpen={handleOpen}
-                isOpening={
-                  openingId === notification.id && markRead.isPending
-                }
+                isOpening={openingId === notification.id && markRead.isPending}
               />
             ))
           ) : (

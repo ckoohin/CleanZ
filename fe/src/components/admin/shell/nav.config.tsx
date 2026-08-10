@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Activity,
-  ClipboardList,
   MapPinned,
   Sparkles,
   ScrollText,
@@ -51,11 +50,15 @@ export const navGroups: NavGroup[] = [
   {
     label: "Nghiệp vụ",
     items: [
-      { title: "Đơn hàng", href: A.BOOKINGS, icon: ClipboardList },
       {
-        title: "Đối soát check-in",
-        href: A.CHECKIN_REVIEWS,
+        title: "Quản lý check-in",
+        href: A.BOOKINGS,
         icon: MapPinned,
+        children: [
+          { title: "Đơn hàng", href: A.BOOKINGS },
+          { title: "Đối soát check-in", href: A.CHECKIN_REVIEWS },
+          { title: "Khách hàng vắng mặt", href: A.ABSENCE_REPORTS },
+        ],
       },
       {
         title: "Dịch vụ",
@@ -203,7 +206,11 @@ export function crumbsFor(pathname: string): string[] {
         pathname.startsWith(item.href + "/")
       ) {
         if (!bestMatch || item.href.length > bestMatch.len) {
-          bestMatch = { label: group.label, title: item.title, len: item.href.length };
+          bestMatch = {
+            label: group.label,
+            title: item.title,
+            len: item.href.length,
+          };
         }
       }
     }

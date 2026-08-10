@@ -77,3 +77,10 @@ export function useUpdateCustomerSchedulingPolicy() {
     "Đã cập nhật quy tắc đặt lịch",
   );
 }
+
+export function useUpdateCustomerAbsencePolicy() {
+  return useOperationalPolicyMutation(
+    systemConfigApi.updateCustomerAbsence,
+    "Đã cập nhật chính sách khách hàng vắng mặt",
+  );
+}

@@ -42,6 +42,7 @@ export const CATEGORY_LABEL: Record<TicketCategory, string> = {
   SCHEDULING: 'Lịch hẹn',
   PROPERTY_DAMAGE: 'Hư hỏng tài sản',
   PAYMENT_BILLING: 'Thanh toán',
+  CUSTOMER_ABSENCE_DISPUTE: 'Không liên lạc được với khách hàng',
   ACCOUNT_TECHNICAL: 'Tài khoản / Kỹ thuật',
   APPEAL: 'Kháng cáo khóa tài khoản',
   OTHER: 'Khác',
@@ -133,6 +134,7 @@ export const CATEGORY_OPTIONS: Option<TicketCategory>[] = TICKET_CATEGORY.map(
 export const TASKER_HIDDEN_CATEGORIES: TicketCategory[] = [
   'TASKER_BEHAVIOR',
   'SERVICE_QUALITY',
+  'CUSTOMER_ABSENCE_DISPUTE',
 ];
 
 export function categoryOptionsFor(

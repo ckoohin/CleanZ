@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
-import { useMyTicketInfiniteList, useCreateTicket, useMyBookings, useMyTicketUnreadRealtime } from "@/features/support-tickets/hooks/useMyTicket";
+import {
+  useMyTicketInfiniteList,
+  useCreateTicket,
+  useMyBookings,
+  useMyTicketUnreadRealtime,
+} from "@/features/support-tickets/hooks/useMyTicket";
 import { myTicketApi } from "@/features/support-tickets/services/my-ticket.service";
 import { toast } from "@/lib/toast";
 import type {
@@ -81,29 +86,32 @@ function CreateTicketSheet({
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<{
     category: TicketCategory | "";
+    subtype: string;
     subject: string;
     description: string;
     bookingId: string;
-  }>({ category: "", subject: "", description: "", bookingId: "" });
-
-  // Tự động điền dữ liệu từ URL query params khi Modal được mở
-  React.useEffect(() => {
-    if (open) {
-      const urlBookingId = searchParams.get("bookingId") ?? "";
-      const urlCategory = searchParams.get("category") ?? "";
-      const urlSubject = searchParams.get("subject") ?? "";
-      const urlDescription = searchParams.get("description") ?? "";
-
-      if (urlBookingId || urlCategory || urlSubject || urlDescription) {
-        setForm({
-          bookingId: urlBookingId,
-          category: (urlCategory as TicketCategory) || "",
-          subject: urlSubject,
-          description: urlDescription,
-        });
-      }
-    }
-  }, [open, searchParams]);
+  }>(() => {
+    const requestedCategory = searchParams.get(
+      "category",
+    ) as TicketCategory | null;
+    const category: TicketCategory | "" =
+      requestedCategory &&
+      categoryOptionsFor(viewerRole).some(
+        (option) => option.value === requestedCategory,
+      )
+        ? requestedCategory
+        : "";
+    return {
+      bookingId: category ? (searchParams.get("bookingId") ?? "") : "",
+      category,
+      subtype:
+        category === "CUSTOMER_ABSENCE_DISPUTE"
+          ? "ABSENCE_REPORT_DISPUTE"
+          : "",
+      subject: searchParams.get("subject") ?? "",
+      description: searchParams.get("description") ?? "",
+    };
+  });
 
   // Giữ blob URL cùng file để thu hồi được (gọi createObjectURL thẳng trong JSX
   // sẽ sinh blob mới mỗi lần re-render và không bao giờ giải phóng).
@@ -148,33 +156,35 @@ function CreateTicketSheet({
   const gridOptions = categoryOptions.filter((o) => o.value !== "OTHER");
   const otherOption = categoryOptions.find((o) => o.value === "OTHER");
 
-  // Đổi vai (hiếm, nhưng có thể xảy ra khi chuyển tài khoản) mà category đang
-  // chọn không còn hợp lệ → bỏ chọn để không gửi lên loại bị ẩn.
-  React.useEffect(() => {
-    if (form.category && !categoryOptions.some((o) => o.value === form.category)) {
-      setForm((p) => ({ ...p, category: "", bookingId: "" }));
-    }
-  }, [categoryOptions, form.category]);
-
   const pickCategory = (value: TicketCategory) =>
     setForm((p) => ({
       ...p,
       category: value,
+      subtype:
+        value === "CUSTOMER_ABSENCE_DISPUTE"
+          ? "ABSENCE_REPORT_DISPUTE"
+          : "",
       bookingId: NO_BOOKING_CATEGORIES.includes(value) ? "" : p.bookingId,
     }));
 
   // bookingId bắt buộc trừ category ∈ {ACCOUNT_TECHNICAL, OTHER} (spec §1.1)
   const requiresBooking =
-    !!form.category && !NO_BOOKING_CATEGORIES.includes(form.category as TicketCategory);
-  const bookingOk = !!form.category && (!requiresBooking || !!form.bookingId.trim());
+    !!form.category &&
+    !NO_BOOKING_CATEGORIES.includes(form.category as TicketCategory);
+  const bookingOk =
+    !!form.category && (!requiresBooking || !!form.bookingId.trim());
   const canSubmit =
-    form.category && form.subject.trim() && form.description.trim() && bookingOk;
+    form.category &&
+    form.subject.trim() &&
+    form.description.trim() &&
+    bookingOk;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     // 1) Tạo ticket → 2) upload ảnh vào ticket vừa tạo (BE chỉ có /:id/attachments)
     const created = await createTicket.mutateAsync({
       category: form.category as TicketCategory,
+      subtype: form.subtype.trim() || undefined,
       subject: form.subject.trim(),
       description: form.description.trim(),
       bookingId: form.bookingId.trim() || undefined,
@@ -198,7 +208,13 @@ function CreateTicketSheet({
     }
 
     onClose();
-    setForm({ category: "", subject: "", description: "", bookingId: "" });
+    setForm({
+      category: "",
+      subtype: "",
+      subject: "",
+      description: "",
+      bookingId: "",
+    });
     images.forEach((p) => URL.revokeObjectURL(p.url));
     setImages([]);
   };
@@ -257,7 +273,12 @@ function CreateTicketSheet({
               </div>
             </div>
 
-            <div className={cn("flex-1 overflow-y-auto px-5 pb-8 pt-5", SCROLLBAR_HIDDEN)}>
+            <div
+              className={cn(
+                "flex-1 overflow-y-auto px-5 pb-8 pt-5",
+                SCROLLBAR_HIDDEN,
+              )}
+            >
               <div className="space-y-5">
                 {/* Category */}
                 <div>
@@ -283,7 +304,9 @@ function CreateTicketSheet({
                           <Icon
                             className={cn(
                               "size-4 shrink-0",
-                              selected ? "text-primary" : "text-muted-foreground",
+                              selected
+                                ? "text-primary"
+                                : "text-muted-foreground",
                             )}
                           />
                           <span
@@ -367,7 +390,9 @@ function CreateTicketSheet({
                     maxLength={255}
                     placeholder="Mô tả ngắn vấn đề..."
                     value={form.subject}
-                    onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, subject: e.target.value }))
+                    }
                     className={fieldClass}
                   />
                 </div>
@@ -379,7 +404,9 @@ function CreateTicketSheet({
                     rows={4}
                     placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
                     value={form.description}
-                    onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, description: e.target.value }))
+                    }
                     className={cn(fieldClass, "resize-none")}
                   />
                 </div>
@@ -390,12 +417,16 @@ function CreateTicketSheet({
                     <label className={labelClass}>Đơn liên quan *</label>
                     <select
                       value={form.bookingId}
-                      onChange={(e) => setForm((p) => ({ ...p, bookingId: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, bookingId: e.target.value }))
+                      }
                       disabled={bookingsLoading}
                       className={cn(fieldClass, "disabled:opacity-60")}
                     >
                       <option value="">
-                        {bookingsLoading ? "Đang tải đơn..." : "-- Chọn đơn liên quan --"}
+                        {bookingsLoading
+                          ? "Đang tải đơn..."
+                          : "-- Chọn đơn liên quan --"}
                       </option>
                       {(bookings ?? []).map((b) => (
                         <option key={b.id} value={b.id}>
@@ -425,9 +456,16 @@ function CreateTicketSheet({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {images.map((p, idx) => (
-                      <div key={p.url} className="relative size-16 overflow-hidden rounded-xl border border-border/50">
+                      <div
+                        key={p.url}
+                        className="relative size-16 overflow-hidden rounded-xl border border-border/50"
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p.url} alt="đính kèm" className="size-full object-cover" />
+                        <img
+                          src={p.url}
+                          alt="đính kèm"
+                          className="size-full object-cover"
+                        />
                         <button
                           type="button"
                           aria-label="Xoá ảnh"
@@ -646,33 +684,24 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
   const [scope, setScope] = useState<ScopeTab>("ALL");
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(
+    () =>
+      Boolean(searchParams.get("bookingId")) ||
+      Boolean(searchParams.get("category")),
+  );
   useMyTicketUnreadRealtime(); // tin mới → badge ngoài ticket cập nhật tức thì
 
   const { data: me } = useAuth();
   const viewerRole: ViewerRole = me?.role === "TASKER" ? "TASKER" : "CUSTOMER";
 
-  // Tự động mở Modal tạo mới nếu phát hiện có tham số khiếu nại đơn từ URL
-  React.useEffect(() => {
-    const hasParams = searchParams.get("bookingId") || searchParams.get("category");
-    if (hasParams) {
-      setShowCreate(true);
-    }
-  }, [searchParams]);
-
   const statusFilter: TicketStatus | undefined =
     activeTab === "ALL" ? undefined : activeTab;
 
-  const {
-    data,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useMyTicketInfiniteList({
-    ...(statusFilter && { status: statusFilter }),
-    ...(scope !== "ALL" && { role: scope }),
-  });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useMyTicketInfiniteList({
+      ...(statusFilter && { status: statusFilter }),
+      ...(scope !== "ALL" && { role: scope }),
+    });
 
   // Gộp các trang đã tải; `total` lấy ở trang đầu để hiện "đã xem X/Y".
   const tickets = React.useMemo(
@@ -758,7 +787,10 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
 
         {/* Phạm vi: tôi gửi vs nhắm vào tôi (BE: ?role=reporter|counterparty) */}
         <div
-          className={cn("mb-2 flex gap-1.5 overflow-x-auto pb-0.5", SCROLLBAR_HIDDEN)}
+          className={cn(
+            "mb-2 flex gap-1.5 overflow-x-auto pb-0.5",
+            SCROLLBAR_HIDDEN,
+          )}
         >
           {scopeTabs.map((t) => (
             <button
@@ -813,9 +845,7 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
         {!isLoading && awaitingMeCount > 0 && (
           <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
             <AlertCircle className="size-4 shrink-0" />
-            <span>
-              {awaitingMeCount} yêu cầu đang chờ bạn phản hồi
-            </span>
+            <span>{awaitingMeCount} yêu cầu đang chờ bạn phản hồi</span>
           </div>
         )}
 
@@ -861,9 +891,12 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
               </>
             ) : (
               <>
-                <h3 className="mb-1 font-bold text-foreground">Chưa có yêu cầu nào</h3>
+                <h3 className="mb-1 font-bold text-foreground">
+                  Chưa có yêu cầu nào
+                </h3>
                 <p className="mb-6 max-w-xs text-sm text-muted-foreground">
-                  Nếu bạn gặp vấn đề, hãy tạo yêu cầu hỗ trợ — chúng tôi sẽ phản hồi sớm nhất!
+                  Nếu bạn gặp vấn đề, hãy tạo yêu cầu hỗ trợ — chúng tôi sẽ phản
+                  hồi sớm nhất!
                 </p>
                 <button
                   onClick={() => setShowCreate(true)}
@@ -924,11 +957,14 @@ export const MyTicketListPage: React.FC<MyTicketListPageProps> = ({
       </div>
 
       {/* Create Sheet */}
-      <CreateTicketSheet
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        viewerRole={viewerRole}
-      />
+      {showCreate && (
+        <CreateTicketSheet
+          key={viewerRole}
+          open
+          onClose={() => setShowCreate(false)}
+          viewerRole={viewerRole}
+        />
+      )}
     </div>
   );
 };

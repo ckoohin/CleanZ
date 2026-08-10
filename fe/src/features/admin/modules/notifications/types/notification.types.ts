@@ -6,6 +6,10 @@ export type NotificationType =
   | "TASKER_ON_THE_WAY"
   | "BOOKING_COMPLETED"
   | "BOOKING_CANCELLED"
+  | "BOOKING_ABSENCE_REPORTED"
+  | "BOOKING_ABSENCE_APPROVED"
+  | "BOOKING_ABSENCE_REJECTED"
+  | "BOOKING_ABSENCE_EXPIRED"
   | "PAYMENT_SUCCESS"
   | "PAYMENT_FAILED"
   | "INCIDENT_UPDATE"
@@ -14,10 +18,7 @@ export type NotificationType =
   | "PROMOTION";
 
 export type NotificationRefType =
-  | "BOOKING"
-  | "INCIDENT"
-  | "PAYMENT"
-  | "SUPPORT_TICKET";
+  "BOOKING" | "INCIDENT" | "PAYMENT" | "SUPPORT_TICKET";
 
 export type BroadcastSegment = "ALL" | "CUSTOMER" | "TASKER";
 

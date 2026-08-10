@@ -8,6 +8,7 @@ import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { PaymentService } from 'src/modules/payment/payment.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { WalletService } from 'src/modules/wallet/wallet.service';
+import { CustomerDebtService } from 'src/modules/wallet/customer-debt.service';
 import { BookingEntity } from '../entity/booking.entity';
 
 /**
@@ -35,6 +36,7 @@ export class BookingWalletPaymentService {
   constructor(
     private readonly walletService: WalletService,
     private readonly paymentService: PaymentService,
+    private readonly customerDebtService: CustomerDebtService,
   ) {}
 
   isWalletBooking(booking: BookingEntity): boolean {
@@ -355,6 +357,12 @@ export class BookingWalletPaymentService {
       manager,
       booking.id,
       new Date(),
+    );
+    await this.customerDebtService.recoverForCustomer(
+      manager,
+      customer.id,
+      amount,
+      { booking },
     );
 
     return amount;

@@ -11,6 +11,7 @@ import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { UpdateSystemConfigDto } from './dto/update-system-config.dto';
 import {
   UpdateCheckinOperationPolicyDto,
+  UpdateCustomerAbsencePolicyDto,
   UpdateCustomerSchedulingPolicyDto,
   UpdateTaskerCancellationPolicyDto,
 } from './dto/update-operational-policy.dto';
@@ -73,6 +74,21 @@ export class SystemConfigController {
       this.systemConfigService.updateCustomerSchedulingPolicy(manager, dto),
     );
     return successResponse(policy, 'Đã cập nhật quy tắc đặt lịch');
+  }
+
+  @Put('operations/customer-absence')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Admin cập nhật chính sách khách hàng vắng mặt' })
+  async updateCustomerAbsencePolicy(
+    @Body() dto: UpdateCustomerAbsencePolicyDto,
+  ) {
+    const policy = await this.dataSource.transaction((manager) =>
+      this.systemConfigService.updateCustomerAbsencePolicy(manager, dto),
+    );
+    return successResponse(
+      policy,
+      'Đã cập nhật chính sách khách hàng vắng mặt',
+    );
   }
 
   @Get()

@@ -90,6 +90,9 @@ export function useCaptureTopup() {
     mutationFn: (topupId: string) => customerWalletApi.captureTopup(topupId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: customerWalletKeys.all });
+      qc.invalidateQueries({
+        queryKey: ["booking", "customer-absence-restrictions"],
+      });
     },
   });
 }

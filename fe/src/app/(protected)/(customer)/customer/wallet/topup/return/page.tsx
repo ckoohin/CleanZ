@@ -76,9 +76,11 @@ function TopupReturnContent() {
     <StatusCard
       tone="success"
       title="Nạp tiền thành công"
-      description={`Đã cộng ${formatVnd(
-        Number(capture.data?.amountVnd ?? 0),
-      )} vào ví. Số dư hiện tại: ${formatVnd(Number(capture.data?.balance ?? 0))}.`}
+      description={
+        Number(capture.data?.debtRecovered ?? 0) > 0
+          ? `Đã nạp ${formatVnd(Number(capture.data?.amountVnd ?? 0))}; trong đó ${formatVnd(Number(capture.data?.debtRecovered ?? 0))} được tự động dùng để trả công nợ. Số dư khả dụng hiện tại: ${formatVnd(Number(capture.data?.balance ?? 0))}.`
+          : `Đã cộng ${formatVnd(Number(capture.data?.amountVnd ?? 0))} vào ví. Số dư hiện tại: ${formatVnd(Number(capture.data?.balance ?? 0))}.`
+      }
       onBack={() => router.push("/customer/wallet")}
     />
   );

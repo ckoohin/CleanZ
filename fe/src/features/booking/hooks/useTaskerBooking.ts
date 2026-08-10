@@ -8,6 +8,7 @@ import type {
   TaskerCheckinPayload,
   TaskerCompletedBookingRange,
 } from "../types/booking.types";
+import type { ReportBookingAbsencePayload } from "../types/absence-report.types";
 
 const TASKER_KEYS = {
   postedList: ["tasker-booking", "posted-list"],
@@ -24,6 +25,11 @@ const TASKER_KEYS = {
     "customer-vouchers",
     phone,
     packageId,
+  ],
+  absenceEligibility: (id: string) => [
+    "tasker-booking",
+    "absence-eligibility",
+    id,
   ],
 };
 
@@ -121,7 +127,9 @@ export function useAcceptBooking() {
       toast.success(`Đã nhận đơn ${data.bookingCode}! 🎉`);
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedList });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
-      void qc.invalidateQueries({ queryKey: TASKER_KEYS.postedDetail(data.id) });
+      void qc.invalidateQueries({
+        queryKey: TASKER_KEYS.postedDetail(data.id),
+      });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(data.id) });
     },
     onError: (err: unknown, bookingId) => {
@@ -230,6 +238,32 @@ export function useMarkCheckedIn(bookingId: string) {
       }
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+    },
+    onError: handleTaskerBookingError,
+  });
+}
+
+export function useAbsenceEligibility(bookingId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: TASKER_KEYS.absenceEligibility(bookingId),
+    queryFn: () => taskerBookingApi.getAbsenceEligibility(bookingId),
+    enabled: enabled && !!bookingId,
+    refetchInterval: enabled ? 5_000 : false,
+  });
+}
+
+export function useReportCustomerAbsence(bookingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ReportBookingAbsencePayload) =>
+      taskerBookingApi.reportCustomerAbsence(bookingId, payload),
+    onSuccess: () => {
+      toast.success("Đã gửi báo cáo. Đơn đã hủy và đang chờ CleanZ duyệt.");
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
+      void qc.invalidateQueries({ queryKey: TASKER_KEYS.active });
+      void qc.invalidateQueries({
+        queryKey: TASKER_KEYS.absenceEligibility(bookingId),
+      });
     },
     onError: handleTaskerBookingError,
   });

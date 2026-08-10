@@ -17,6 +17,14 @@ const EMAIL_SUBJECTS: Partial<Record<NotificationType, string>> = {
   [NotificationType.PAYMENT_FAILED]: 'Thanh toán không hoàn tất',
   [NotificationType.INCIDENT_UPDATE]: 'Cập nhật sự cố',
   [NotificationType.SUPPORT_REPLY]: 'Phản hồi từ bộ phận hỗ trợ',
+  [NotificationType.BOOKING_ABSENCE_REPORTED]:
+    'Báo cáo khách hàng vắng mặt đang chờ duyệt',
+  [NotificationType.BOOKING_ABSENCE_APPROVED]:
+    'Báo cáo khách hàng vắng mặt đã được duyệt',
+  [NotificationType.BOOKING_ABSENCE_REJECTED]:
+    'Báo cáo khách hàng vắng mặt đã bị từ chối',
+  [NotificationType.BOOKING_ABSENCE_EXPIRED]:
+    'Báo cáo khách hàng vắng mặt đã quá hạn duyệt',
 };
 
 @Injectable()

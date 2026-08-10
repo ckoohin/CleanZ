@@ -63,6 +63,8 @@ import { ConfirmCompletionDto } from './dto/confirm-completion.dto';
 import { RejectSurchargeDto } from './dto/reject-surcharge.dto';
 import { RespondOvertimeDto } from './dto/overtime-request.dto';
 import { SubmitNoShowExplanationDto } from './dto/submit-no-show-explanation.dto';
+import { ReportBookingAbsenceDto } from './dto/report-booking-absence.dto';
+import { BookingAbsenceService } from './services/booking-absence.service';
 import { BookingOvertimeRequestService } from './services/booking-overtime-request.service';
 import {
   BookingExpirationService,
@@ -97,6 +99,7 @@ export class BookingController {
     private readonly bookingOvertimeRequestService: BookingOvertimeRequestService,
     private readonly bookingOnlinePaymentService: BookingOnlinePaymentService,
     private readonly walletTopupService: WalletTopupService,
+    private readonly bookingAbsenceService: BookingAbsenceService,
   ) {}
 
   @Get('customer/scheduling-policy')
@@ -105,6 +108,16 @@ export class BookingController {
   @ApiOperation({ summary: 'Customer xem giới hạn đặt lịch đang hiệu lực' })
   getCustomerSchedulingPolicy() {
     return this.customerBookingService.getCustomerSchedulingPolicy();
+  }
+
+  @Get('customer/absence-restrictions')
+  @Auth(UserRole.CUSTOMER)
+  @ApiTags('Booking – Customer Flow')
+  @ApiOperation({
+    summary: 'Customer xem hạn chế đặt đơn do lịch sử khách vắng',
+  })
+  getCustomerAbsenceRestrictions(@CurrentUser('id') userId: string) {
+    return this.customerBookingService.getAbsenceRestrictions(userId);
   }
 
   @Post()
@@ -524,6 +537,30 @@ export class BookingController {
       query.fromAt,
       query.toAt,
     );
+  }
+
+  @Get('tasker/:id/absence-eligibility')
+  @Auth(UserRole.TASKER)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({ summary: 'Tasker kiểm tra quyền báo khách hàng vắng mặt' })
+  getAbsenceEligibility(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) bookingId: string,
+  ) {
+    return this.bookingAbsenceService.getEligibility(userId, bookingId);
+  }
+
+  @Post('tasker/:id/absence-report')
+  @Auth(UserRole.TASKER)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiTags('Booking – Tasker Flow')
+  @ApiOperation({ summary: 'Tasker báo khách hàng vắng mặt sau khi check-in' })
+  reportCustomerAbsence(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) bookingId: string,
+    @Body() dto: ReportBookingAbsenceDto,
+  ) {
+    return this.bookingAbsenceService.report(userId, bookingId, dto);
   }
 
   @Get('tasker/:id')

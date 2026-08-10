@@ -25,13 +25,15 @@ export function useUpdateCustomerProfile() {
 
       queryClient.setQueryData<Profile | undefined>(
         queryKeys.auth.profile(),
-        updateCachedUser,
+        (current) => updateCachedUser<Profile>(current),
       );
       queryClient.setQueryData<User | undefined>(
         queryKeys.auth.me(),
-        updateCachedUser,
+        (current) => updateCachedUser<User>(current),
       );
-      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.auth.profile(),
+      });
       toast.success("Đã cập nhật hồ sơ");
     },
   });

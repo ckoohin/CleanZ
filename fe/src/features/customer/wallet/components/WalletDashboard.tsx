@@ -18,6 +18,7 @@ import {
   Wallet,
   CalendarDays,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import {
   useCustomerWallet,
@@ -26,11 +27,11 @@ import {
 import { useAuth } from "@/features/auth/hooks/auth.hooks";
 import { useRef } from "react";
 import { TopupDialog } from "./TopupDialog";
+import { useCustomerAbsenceRestrictions } from "@/features/booking/hooks/useCustomerBooking";
 
 const LIMIT = 10;
 
 export const WalletDashboard = () => {
-
   const historyRef = useRef<HTMLDivElement>(null);
 
   const [page, setPage] = useState(1);
@@ -53,6 +54,7 @@ export const WalletDashboard = () => {
   } = useCustomerWallet();
   const { data: transactionsData, isLoading: isTxLoading } =
     useCustomerWalletTransactions(query);
+  const { data: absenceRestrictions } = useCustomerAbsenceRestrictions();
 
   const transactions = transactionsData?.items ?? [];
   const totalPages = transactionsData?.totalPages ?? 1;
@@ -243,6 +245,38 @@ export const WalletDashboard = () => {
       <div className="h-32"></div>
 
       {/* Quick Actions */}
+      {Boolean(absenceRestrictions?.outstandingDebt) && (
+        <div className="px-4 pb-6">
+          <div className="mx-auto max-w-2xl rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
+                <AlertTriangle className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-rose-950">
+                  Công nợ bồi hoàn còn lại
+                </p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-rose-800">
+                  {formatVND(absenceRestrictions?.outstandingDebt ?? 0)}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-rose-800">
+                  Tiền nạp vào ví sẽ tự động trả công nợ trước; phần còn lại mới
+                  trở thành số dư khả dụng.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTopupOpen(true)}
+              className="mt-4 w-full rounded-2xl bg-rose-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-rose-700/20"
+            >
+              Nạp tiền để thanh toán
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions */}
       <div className="px-4 mb-8">
         <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50 flex justify-around">
           <button
@@ -356,7 +390,9 @@ export const WalletDashboard = () => {
               <History className="w-6 h-6" />
             </div>
             <p className="text-sm font-semibold text-foreground/80 mb-1">
-              {hasFilter ? "Không có giao dịch trong khoảng này" : "Chưa có giao dịch nào"}
+              {hasFilter
+                ? "Không có giao dịch trong khoảng này"
+                : "Chưa có giao dịch nào"}
             </p>
             <p className="text-xs text-muted-foreground">
               {hasFilter

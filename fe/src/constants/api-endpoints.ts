@@ -67,6 +67,7 @@ export const API_ENDPOINTS = {
     // Customer APIs
     QUOTE: "/booking/quote",
     CUSTOMER_SCHEDULING_POLICY: "/booking/customer/scheduling-policy",
+    CUSTOMER_ABSENCE_RESTRICTIONS: "/booking/customer/absence-restrictions",
     CREATE: "/booking",
     MY_ACTIVE: "/booking/my-booking",
     MY_LIST: "/booking/my-bookings",
@@ -109,6 +110,10 @@ export const API_ENDPOINTS = {
       `/booking/tasker/${id}/confirm-surcharge-received`,
     TASKER_NO_SHOW_EXPLANATION: (id: string) =>
       `/booking/tasker/${id}/no-show-explanation`,
+    TASKER_ABSENCE_ELIGIBILITY: (id: string) =>
+      `/booking/tasker/${id}/absence-eligibility`,
+    TASKER_ABSENCE_REPORT: (id: string) =>
+      `/booking/tasker/${id}/absence-report`,
     TASKER_CANCEL: (id: string) => `/booking/tasker/${id}/cancel`,
     VERIFY_DRAFT_PAYMENT: (draftId: string) =>
       `/booking/drafts/${draftId}/verify-payment`,
@@ -138,6 +143,14 @@ export const API_ENDPOINTS = {
   },
   ADMIN_ACTIVITIES: {
     BASE: "/admin/activities",
+  },
+  ADMIN_ABSENCE_REPORTS: {
+    BASE: "/admin/absence-reports",
+    DETAIL: (id: string) => `/admin/absence-reports/${id}`,
+    REVIEW: (id: string) => `/admin/absence-reports/${id}/review`,
+    BULK_REVIEW: "/admin/absence-reports/bulk/review",
+    DEBT_WRITE_OFF: (id: string) =>
+      `/admin/absence-reports/debts/${id}/write-off`,
   },
   NOTIFICATIONS: {
     LIST: "/notifications",

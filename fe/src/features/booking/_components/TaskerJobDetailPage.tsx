@@ -50,6 +50,7 @@ import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatusStepper";
 import { TaskerCheckinProofSheet } from "./TaskerCheckinProofSheet";
 import { TaskerNoShowPanel } from "./TaskerNoShowPanel";
+import { TaskerAbsenceReportAction } from "./TaskerAbsenceReportAction";
 import { toast } from "@/lib/toast";
 import {
   extractCheckinErrorMessage,
@@ -650,6 +651,7 @@ function TaskerCancelDialog({
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
   PENDING: "Chưa thanh toán",
   PAID: "Đã thanh toán",
+  PARTIALLY_REFUNDED: "Đã hoàn một phần",
   REFUNDED: "Đã hoàn tiền",
   FAILED: "Thanh toán thất bại",
 };
@@ -1483,13 +1485,16 @@ function AssignedDetailView({
         />
       )}
       {data.status === "CHECKED_IN" && (
-        <ActionButton
-          label="Bắt đầu làm việc"
-          icon={PlayCircle}
-          onClick={() => markStart.mutate()}
-          isPending={markStart.isPending}
-          color="primary"
-        />
+        <div className="space-y-4">
+          <ActionButton
+            label="Bắt đầu làm việc"
+            icon={PlayCircle}
+            onClick={() => markStart.mutate()}
+            isPending={markStart.isPending}
+            color="primary"
+          />
+          <TaskerAbsenceReportAction bookingId={bookingId} />
+        </div>
       )}
       {data.status === "IN_PROGRESS" && (
         <TaskerOvertimeSection

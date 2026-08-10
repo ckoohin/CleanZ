@@ -9,6 +9,7 @@ import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { UploadService } from 'src/modules/upload/upload.service';
 import { SupportTicketStatus } from 'src/common/enums/support-ticket-status.enum';
 import { TicketCategory } from 'src/common/enums/ticket-category.enum';
@@ -115,6 +116,17 @@ export class TicketService {
           throw new NotFoundException('Không tìm thấy đơn dịch vụ');
         }
 
+        if (
+          dto.category === TicketCategory.CUSTOMER_ABSENCE_DISPUTE &&
+          (reporterUserId !== customerUserId ||
+            booking.status !== BookingStatus.CANCELLED ||
+            booking.cancelledBy !== CancelledBy.CUSTOMER_ABSENT)
+        ) {
+          throw new UnprocessableEntityException(
+            'Loại khiếu nại này chỉ dành cho khách của đơn đã hủy do báo vắng mặt',
+          );
+        }
+
         if (booking.status === BookingStatus.COMPLETED && booking.completedAt) {
           const windowDays = await this.config.getComplaintWindowDays();
           const deadline = new Date(
@@ -141,7 +153,10 @@ export class TicketService {
           subject: dto.subject,
           description: dto.description ?? null,
           category: dto.category,
-          subtype: dto.subtype ?? null,
+          subtype:
+            dto.category === TicketCategory.CUSTOMER_ABSENCE_DISPUTE
+              ? 'ABSENCE_REPORT_DISPUTE'
+              : (dto.subtype ?? null),
           priority,
           status: SupportTicketStatus.NEW,
           source,

@@ -24,6 +24,7 @@ export const getDatabaseConfig = (
     autoLoadEntities: true,
     migrations: [join(__dirname, '../database/migrations/*{.ts,.js}')],
     migrationsRun,
+    migrationsTransactionMode: 'each',
     synchronize: false,
 
     logging: false,

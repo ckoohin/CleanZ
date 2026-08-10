@@ -30,6 +30,9 @@ import { AdminActivityInterceptor } from './interceptors/admin-activity.intercep
 import { AdminActivitySnapshotService } from './services/admin-activity-snapshot.service';
 import { IncidentModule } from 'src/modules/incident/incident.module';
 import { AdminActivityModule } from './admin-activity.module';
+import { AdminAbsenceReportRepository } from './repositories/admin-absence-report.repository';
+import { BookingAbsenceReportEntity } from 'src/modules/booking/entity/booking-absence-report.entity';
+import { SystemConfigModule } from 'src/modules/system-config/system-config.module';
 
 @Module({
   imports: [
@@ -46,6 +49,7 @@ import { AdminActivityModule } from './admin-activity.module';
       BookingStatusLogEntity,
       AdminActivityLogEntity,
       User,
+      BookingAbsenceReportEntity,
     ]),
     UsersModule,
     PricingModule,
@@ -57,6 +61,7 @@ import { AdminActivityModule } from './admin-activity.module';
     VoucherModule,
     IncidentModule,
     AdminActivityModule,
+    SystemConfigModule,
   ],
 
   controllers: [AdminController],
@@ -66,6 +71,7 @@ import { AdminActivityModule } from './admin-activity.module';
     AdminBookingRepository,
     AdminDashboardReportService,
     AdminActivitySnapshotService,
+    AdminAbsenceReportRepository,
     {
       provide: APP_INTERCEPTOR,
       useClass: AdminActivityInterceptor,

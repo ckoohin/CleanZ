@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Save,
   Trash2,
+  UserRoundX,
 } from "lucide-react";
 import {
   Card,
@@ -36,11 +37,13 @@ import {
   useOperationalPolicies,
   useUpdateCheckinOperationPolicy,
   useUpdateCustomerSchedulingPolicy,
+  useUpdateCustomerAbsencePolicy,
   useUpdateTaskerCancellationPolicy,
 } from "../hooks/useSystemConfig";
 import type {
   CheckinOperationPolicy,
   CustomerSchedulingPolicy,
+  CustomerAbsencePolicy,
   TaskerCancellationPolicy,
   TaskerCancelPenaltyRule,
 } from "../types/system-config.types";
@@ -52,6 +55,17 @@ const DEFAULT_CANCEL_RULES: TaskerCancelPenaltyRule[] = [
 ];
 const DEFAULT_CHECKIN = { openBeforeMinutes: 30, autoApproveRadiusMeters: 50 };
 const DEFAULT_SCHEDULING = { minAdvanceMinutes: 60, maxAdvanceDays: 30 };
+const DEFAULT_CUSTOMER_ABSENCE = {
+  minWaitMinutes: 15,
+  reportWindowMinutes: 60,
+  compensationPercent: 50,
+  minCompensation: 30_000,
+  maxCompensation: 150_000,
+  guestCompensation: 50_000,
+  reviewSlaHours: 48,
+  debtWriteOffDays: 90,
+  debtExposureAlertVnd: 5_000_000,
+};
 
 function numberValue(value: string): number {
   return value === "" ? 0 : Number(value);
@@ -102,9 +116,7 @@ function TaskerCancellationCard({
         <CardTitle className="flex items-center gap-2 text-xl font-bold">
           <Percent className="size-5 text-red-500" /> Phí hủy Tasker
         </CardTitle>
-        <CardDescription>
-          Phí phạt tasker hủy đơn sát giờ.
-        </CardDescription>
+        <CardDescription>Phí phạt tasker hủy đơn sát giờ.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 p-0">
         <div className="space-y-2">
@@ -300,9 +312,7 @@ function CheckinPolicyCard({ policy }: { policy: CheckinOperationPolicy }) {
         <CardTitle className="flex items-center gap-2 text-xl font-bold">
           <MapPin className="size-5 text-blue-500" /> Check-in
         </CardTitle>
-        <CardDescription>
-          Quy định check-in
-        </CardDescription>
+        <CardDescription>Quy định check-in</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 p-0">
         <label className="block space-y-1.5 text-xs font-bold uppercase tracking-wider text-[var(--c-muted)]">
@@ -380,9 +390,7 @@ function CustomerSchedulingCard({
         <CardTitle className="flex items-center gap-2 text-xl font-bold">
           <CalendarClock className="size-5 text-emerald-500" /> Đặt lịch khách
         </CardTitle>
-        <CardDescription>
-          Cấu hình đặt lịch khách
-        </CardDescription>
+        <CardDescription>Cấu hình đặt lịch khách</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 p-0">
         <label className="block space-y-1.5 text-xs font-bold uppercase tracking-wider text-[var(--c-muted)]">
@@ -443,6 +451,166 @@ function CustomerSchedulingCard({
   );
 }
 
+function CustomerAbsencePolicyCard({
+  policy,
+}: {
+  policy: CustomerAbsencePolicy;
+}) {
+  const update = useUpdateCustomerAbsencePolicy();
+  const [values, setValues] = useState(() => ({
+    minWaitMinutes: policy.minWaitMinutes,
+    reportWindowMinutes: policy.reportWindowMinutes,
+    compensationPercent: policy.compensationPercent,
+    minCompensation: policy.minCompensation,
+    maxCompensation: policy.maxCompensation,
+    guestCompensation: policy.guestCompensation,
+    reviewSlaHours: policy.reviewSlaHours,
+    debtWriteOffDays: policy.debtWriteOffDays,
+    debtExposureAlertVnd: policy.debtExposureAlertVnd,
+  }));
+
+  const fields: Array<{
+    key: keyof typeof values;
+    label: string;
+    unit: string;
+    min: number;
+    max: number;
+  }> = [
+    {
+      key: "minWaitMinutes",
+      label: "Chờ tối thiểu",
+      unit: "phút",
+      min: 0,
+      max: 1440,
+    },
+    {
+      key: "reportWindowMinutes",
+      label: "Cửa sổ báo cáo",
+      unit: "phút",
+      min: 1,
+      max: 10080,
+    },
+    {
+      key: "reviewSlaHours",
+      label: "SLA Admin duyệt",
+      unit: "giờ",
+      min: 1,
+      max: 720,
+    },
+    {
+      key: "compensationPercent",
+      label: "Tỷ lệ bồi hoàn",
+      unit: "%",
+      min: 0,
+      max: 100,
+    },
+    {
+      key: "minCompensation",
+      label: "Bồi hoàn tối thiểu",
+      unit: "vnđ",
+      min: 0,
+      max: 100000000,
+    },
+    {
+      key: "maxCompensation",
+      label: "Bồi hoàn tối đa",
+      unit: "vnđ",
+      min: 0,
+      max: 100000000,
+    },
+    {
+      key: "guestCompensation",
+      label: "Khách vãng lai",
+      unit: "vnđ",
+      min: 0,
+      max: 100000000,
+    },
+    {
+      key: "debtWriteOffDays",
+      label: "Tự write-off nợ",
+      unit: "ngày",
+      min: 1,
+      max: 3650,
+    },
+    {
+      key: "debtExposureAlertVnd",
+      label: "Cảnh báo tổng dư nợ",
+      unit: "vnđ",
+      min: 0,
+      max: 1000000000000,
+    },
+  ];
+
+  return (
+    <Card className="col-span-full rounded-[2rem] border-[var(--c-line)] bg-[var(--c-card)] p-5 shadow-xl shadow-primary/5 sm:p-7">
+      <CardHeader className="p-0">
+        <CardTitle className="flex items-center gap-2 text-xl font-bold">
+          <UserRoundX className="size-5 text-amber-600" /> Khách hàng vắng mặt
+        </CardTitle>
+        <CardDescription className="max-w-3xl leading-relaxed">
+          Quy định thời điểm Tasker được báo, khoản bồi hoàn và giới hạn
+          exposure của nền tảng. Mỗi lần lưu tạo một version mới có hiệu lực
+          ngay.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 p-0">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {fields.map((field) => (
+            <label
+              key={field.key}
+              className="space-y-2 rounded-2xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-4"
+            >
+              <span className="flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-wider text-[var(--c-muted)]">
+                {field.label}
+                <span className="normal-case tracking-normal text-amber-700">
+                  {field.unit}
+                </span>
+              </span>
+              <Input
+                type="number"
+                min={field.min}
+                max={field.max}
+                value={values[field.key]}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    [field.key]: numberValue(event.target.value),
+                  }))
+                }
+                className="h-11 rounded-xl bg-[var(--c-card)]"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-col gap-3 border-t border-[var(--c-line)] pt-5 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={update.isPending}
+            onClick={() => setValues(DEFAULT_CUSTOMER_ABSENCE)}
+            className="rounded-xl sm:min-w-40"
+          >
+            <RotateCcw className="size-4" /> Mặc định
+          </Button>
+          <Button
+            type="button"
+            disabled={update.isPending}
+            onClick={() => update.mutate(values)}
+            className="rounded-xl sm:min-w-52"
+          >
+            {update.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            Lưu chính sách
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function OperationalPolicyCards() {
   const { data, isLoading, isError } = useOperationalPolicies();
 
@@ -477,6 +645,10 @@ export function OperationalPolicyCards() {
           policy={data.customerScheduling}
         />
       </div>
+      <CustomerAbsencePolicyCard
+        key={`customer-absence-${data.customerAbsence.version}`}
+        policy={data.customerAbsence}
+      />
     </>
   );
 }

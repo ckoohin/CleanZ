@@ -53,6 +53,13 @@ import { AdminCheckinOverrideDto } from './dto/admin-checkin-override.dto';
 import { ReviewBookingNoShowDto } from './dto/review-booking-no-show.dto';
 import { TaskerBookingService } from 'src/modules/booking/services/tasker-booking.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AdminAbsenceReportRepository } from './repositories/admin-absence-report.repository';
+import {
+  AbsenceReportQueryDto,
+  BulkReviewAbsenceReportsDto,
+  ReviewAbsenceReportDto,
+  WriteOffCustomerDebtDto,
+} from './dto/absence-report.dto';
 
 @AdminOnly()
 @Controller('admin')
@@ -67,6 +74,7 @@ export class AdminController {
     private readonly dashboardReport: AdminDashboardReportService,
     private readonly activityService: AdminActivityService,
     private readonly taskerBookingService: TaskerBookingService,
+    private readonly absenceReportRepo: AdminAbsenceReportRepository,
   ) {}
 
   @Get('activities')
@@ -75,6 +83,49 @@ export class AdminController {
   })
   getActivities(@Query() query: AdminActivityQueryDto) {
     return this.activityService.findAll(query);
+  }
+
+  @Get('absence-reports')
+  @ApiOperation({ summary: 'Hàng chờ báo cáo khách hàng vắng mặt' })
+  getAbsenceReports(@Query() query: AbsenceReportQueryDto) {
+    return this.absenceReportRepo.findAll(query);
+  }
+
+  @Patch('absence-reports/bulk/review')
+  @ApiOperation({
+    summary: 'Duyệt hàng loạt các báo cáo không có cờ bất thường',
+  })
+  bulkReviewAbsenceReports(
+    @CurrentUser('id') adminUserId: string,
+    @Body() dto: BulkReviewAbsenceReportsDto,
+  ) {
+    return this.absenceReportRepo.bulkApprove(adminUserId, dto);
+  }
+
+  @Post('absence-reports/debts/:id/write-off')
+  @ApiOperation({ summary: 'Admin ghi nhận xoá một khoản nợ khách hàng' })
+  writeOffCustomerAbsenceDebt(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) debtId: string,
+    @Body() dto: WriteOffCustomerDebtDto,
+  ) {
+    return this.absenceReportRepo.writeOffDebt(debtId, adminUserId, dto.reason);
+  }
+
+  @Get('absence-reports/:id')
+  @ApiOperation({ summary: 'Chi tiết báo cáo khách hàng vắng mặt' })
+  getAbsenceReport(@Param('id', ParseUUIDPipe) id: string) {
+    return this.absenceReportRepo.findById(id);
+  }
+
+  @Patch('absence-reports/:id/review')
+  @ApiOperation({ summary: 'Duyệt hoặc từ chối báo cáo khách hàng vắng mặt' })
+  reviewAbsenceReport(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewAbsenceReportDto,
+  ) {
+    return this.absenceReportRepo.review(id, adminUserId, dto);
   }
 
   // ─── Dashboard Endpoints ───

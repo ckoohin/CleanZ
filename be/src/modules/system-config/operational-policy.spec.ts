@@ -1,7 +1,10 @@
 import {
+  DEFAULT_CUSTOMER_ABSENCE_POLICY,
   DEFAULT_TASKER_CANCELLATION_POLICY,
+  calculateAbsenceCompensation,
   calculateTaskerCancelPenalty,
   normalizeCheckinOperationPolicy,
+  normalizeCustomerAbsencePolicy,
   normalizeCustomerSchedulingPolicy,
   normalizeTaskerCancelPenaltyRules,
   parseTaskerCancellationPolicy,
@@ -95,5 +98,43 @@ describe('operational policy', () => {
         maxAdvanceDays: 1,
       }),
     ).toThrow('nhỏ hơn giới hạn đặt xa');
+  });
+
+  it.each([
+    ['áp sàn', 40_000, 0, false, 30_000, 40_000],
+    ['tính theo phần trăm subtotal', 100_000, 20_000, false, 60_000, 120_000],
+    ['áp trần', 1_000_000, 0, false, 150_000, 1_000_000],
+    ['không vượt subtotal', 10_000, 0, false, 10_000, 10_000],
+    ['subtotal bằng 0', 0, 0, false, 0, 0],
+    ['khách vãng lai dùng mức cố định', 1_000_000, 0, true, 50_000, 1_000_000],
+  ])(
+    'tính bồi hoàn khách vắng: %s',
+    (_label, totalPrice, discountAmount, isGuest, amount, subtotal) => {
+      expect(
+        calculateAbsenceCompensation({
+          policy: DEFAULT_CUSTOMER_ABSENCE_POLICY,
+          totalPrice,
+          discountAmount,
+          isGuest,
+        }),
+      ).toEqual({ amount, subtotal });
+    },
+  );
+
+  it('validate các ràng buộc chéo của policy khách vắng', () => {
+    expect(() =>
+      normalizeCustomerAbsencePolicy({
+        ...DEFAULT_CUSTOMER_ABSENCE_POLICY,
+        reportWindowMinutes: 10,
+        minWaitMinutes: 15,
+      }),
+    ).toThrow('lớn hơn thời gian chờ');
+    expect(() =>
+      normalizeCustomerAbsencePolicy({
+        ...DEFAULT_CUSTOMER_ABSENCE_POLICY,
+        minCompensation: 200_000,
+        maxCompensation: 100_000,
+      }),
+    ).toThrow('tối thiểu không được lớn hơn');
   });
 });

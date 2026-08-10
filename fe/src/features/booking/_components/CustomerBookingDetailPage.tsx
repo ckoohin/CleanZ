@@ -59,7 +59,12 @@ import {
   useTaskerPublicReviews,
 } from "@/features/customer/history/hooks/useReview";
 import { CustomerNoShowPanel } from "./CustomerNoShowPanel";
+import { CustomerAbsencePanel } from "./CustomerAbsencePanel";
 import { DEFAULT_MIN_SCHEDULE_LEAD_MINUTES } from "@/features/customer/booking/utils/booking-schedule-time";
+import {
+  shouldShowCustomerLiveTracking,
+  shouldShowCustomerStatusHistory,
+} from "./customer-booking-detail.policy";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtCurrency(n: number) {
@@ -929,7 +934,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   const socket = useTrackingSocket();
   const { data: booking, isLoading, refetch } = useBookingDetail(bookingId);
   const { data: myReview, isLoading: isReviewLoading } = useMyReview(bookingId);
-  const trackingEnabled = booking?.status === "TASKER_ON_THE_WAY";
+  const trackingEnabled = shouldShowCustomerLiveTracking(booking?.status);
   const {
     tracking,
     isConnected: isTrackingConnected,
@@ -983,21 +988,6 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
   );
   const taskerReviewAvg =
     taskerReviews.data?.avgRating ?? booking?.tasker?.ratingAvg ?? 0;
-
-  // Tự động bật bản đồ Full Screen khi trạng thái chuyển sang TASKER_ON_THE_WAY
-  useEffect(() => {
-    if (booking?.status === "TASKER_ON_THE_WAY") {
-      const timer = setTimeout(() => {
-        setIsMapFullscreen(true);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-
-    const timer = setTimeout(() => {
-      setIsMapFullscreen(false);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [booking?.status]);
 
   // Lắng nghe socket realtime
   useEffect(() => {
@@ -1237,6 +1227,7 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           booking.noShow.reviewStatus !== "NONE" && (
             <CustomerNoShowPanel
               noShow={booking.noShow}
+              debtRecovered={booking.refundDebtRecovered}
               onRebook={() =>
                 router.push(
                   `/customer/booking?serviceId=${encodeURIComponent(booking.service.id)}`,
@@ -1249,6 +1240,17 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
               }
             />
           )}
+        {booking.status === "CANCELLED" && booking.absence && (
+          <CustomerAbsencePanel
+            report={booking.absence}
+            onOpenWallet={() => router.push("/customer/wallet")}
+            onDispute={() =>
+              router.push(
+                `/customer/support-tickets?bookingId=${booking.id}&category=CUSTOMER_ABSENCE_DISPUTE&subtype=ABSENCE_REPORT_DISPUTE&subject=${encodeURIComponent(`Khiếu nại báo cáo khách vắng đơn ${booking.bookingCode}`)}&description=${encodeURIComponent(`Tôi muốn khiếu nại kết quả báo cáo khách hàng vắng mặt của đơn ${booking.bookingCode}. Nội dung cần CleanZ kiểm tra lại: ...`)}`,
+              )
+            }
+          />
+        )}
         {/* Thông báo/yêu cầu thêm giờ trước khi checkout. */}
         {booking.status === "IN_PROGRESS" &&
           ["NOTIFIED", "PENDING"].includes(
@@ -1275,18 +1277,24 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           )}
         {/* Banner Đặt lịch thành công */}
         {booking.status === "POSTED" && (
-            <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm shrink-0">🎉</span>
-                <h3 className="font-extrabold text-sm text-foreground">Đặt lịch thành công!</h3>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Yêu cầu đặt lịch của bạn đã được ghi nhận. Hệ thống đang tìm kiếm chuyên gia dọn dẹp phù hợp nhất cho bạn. Bạn có thể theo dõi tiến trình đơn hàng trực tiếp tại trang này.
-              </p>
+          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-3xl p-5 shadow-sm space-y-2 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 font-extrabold text-sm shrink-0">
+                🎉
+              </span>
+              <h3 className="font-extrabold text-sm text-foreground">
+                Đặt lịch thành công!
+              </h3>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Yêu cầu đặt lịch của bạn đã được ghi nhận. Hệ thống đang tìm kiếm
+              chuyên gia dọn dẹp phù hợp nhất cho bạn. Bạn có thể theo dõi tiến
+              trình đơn hàng trực tiếp tại trang này.
+            </p>
+          </div>
+        )}
         {/* Realtime Tracking Map — ưu tiên full map trên mobile giống Grab */}
-        {booking.status === "TASKER_ON_THE_WAY" && (
+        {shouldShowCustomerLiveTracking(booking.status) && (
           <ErrorBoundary
             fallback={(reset) => (
               <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 shadow-sm">
@@ -1600,12 +1608,23 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
             {" · "}
             {booking.payment.status === "PENDING"
               ? "Chưa thanh toán"
-              : booking.payment.status === "REFUNDED"
-                ? "Đã hoàn tiền"
-                : booking.payment.status === "FAILED"
-                  ? "Thanh toán thất bại"
-                  : "Đã thanh toán"}
+              : booking.payment.status === "PARTIALLY_REFUNDED"
+                ? "Đã hoàn một phần"
+                : booking.payment.status === "REFUNDED"
+                  ? "Đã hoàn tiền"
+                  : booking.payment.status === "FAILED"
+                    ? "Thanh toán thất bại"
+                    : "Đã thanh toán"}
           </p>
+          {Boolean(booking.refundDebtRecovered) &&
+            !booking.absence &&
+            booking.noShow?.reviewStatus === "NONE" && (
+              <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                Trong khoản hoàn của đơn,{" "}
+                <strong>{fmtCurrency(booking.refundDebtRecovered ?? 0)}</strong>{" "}
+                đã được tự động dùng để trả công nợ khách vắng.
+              </p>
+            )}
         </div>
 
         {/* Note */}
@@ -1639,8 +1658,10 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
           </div>
         </div>
 
-        {/* Status timeline */}
-        <StatusTimeline logs={booking.statusLogs} />
+        {/* Lịch sử chỉ dành cho chi tiết các đơn đã kết thúc. */}
+        {shouldShowCustomerStatusHistory(booking.status) && (
+          <StatusTimeline logs={booking.statusLogs} />
+        )}
       </div>
 
       {/* Footer action — POSTED: Sửa lịch + Hủy | CONFIRMED: chỉ Hủy */}

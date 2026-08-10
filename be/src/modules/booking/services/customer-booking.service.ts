@@ -72,6 +72,14 @@ import { WalletService } from 'src/modules/wallet/wallet.service';
 import { WalletTransactionEntity } from 'src/modules/wallet/entity/wallet-transaction.entity';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { BookingOnlinePaymentService } from './booking-online-payment.service';
+import {
+  CUSTOMER_DEBT_RECOVERY_REF,
+  CustomerDebtService,
+} from 'src/modules/wallet/customer-debt.service';
+import { BookingAbsenceReportStatus } from 'src/common/enums/booking-absence-report-status.enum';
+import { BookingAbsenceReportEntity } from '../entity/booking-absence-report.entity';
+import { sumOutstandingCustomerDebt } from 'src/modules/wallet/entity/customer-debt.entity';
+import { toCustomerBookingAbsenceReportResponse } from './booking-absence.service';
 
 interface BookingPricingContext {
   customer: CustomerEntity;
@@ -206,6 +214,7 @@ export class CustomerBookingService {
     private readonly payosService: PayosService,
     private readonly walletService: WalletService,
     private readonly configService: ConfigService,
+    private readonly customerDebtService: CustomerDebtService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -221,6 +230,24 @@ export class CustomerBookingService {
       minAdvanceMinutes: policy.minAdvanceMinutes,
       maxAdvanceDays: policy.maxAdvanceDays,
     };
+  }
+
+  async getAbsenceRestrictions(userId: string): Promise<{
+    outstandingDebt: number;
+    hasApprovedAbsence: boolean;
+    allBookingsBlocked: boolean;
+    cashBlocked: boolean;
+  }> {
+    const customer = await this.dataSource
+      .getRepository(CustomerEntity)
+      .findOne({
+        where: { user: { id: userId } },
+      });
+    if (!customer) throw new NotFoundException('Không tìm thấy hồ sơ customer');
+    return this.getAbsenceRestrictionsForCustomer(
+      this.dataSource.manager,
+      customer.id,
+    );
   }
 
   async quote(
@@ -379,6 +406,13 @@ export class CustomerBookingService {
           dto,
         );
 
+        const paymentMethod = dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD;
+        await this.assertAbsenceBookingAllowed(
+          manager,
+          context.customer.id,
+          paymentMethod,
+        );
+
         if (options.lockedPriceQuote) {
           this.applyQuotePriceToContext(context, options.lockedPriceQuote);
         } else if (dto.quoteId) {
@@ -392,8 +426,6 @@ export class CustomerBookingService {
 
         const bookingCode =
           await this.generateUniqueBookingCode(bookingRepository);
-        const paymentMethod = dto.paymentMethod ?? DEFAULT_PAYMENT_METHOD;
-
         // Khách từng nhiều lần không trả phần phát sinh → buộc trả trước bằng ví.
         if (paymentMethod === PaymentMethod.CASH) {
           await this.bookingPolicyService.assertCanUseCashPayment(
@@ -613,6 +645,11 @@ export class CustomerBookingService {
         if (dto.quoteId) {
           await this.applyLockedQuotePrice(manager, ctx, dto);
         }
+        await this.assertAbsenceBookingAllowed(
+          manager,
+          ctx.customer.id,
+          PaymentMethod.ONLINE,
+        );
         // Cùng ràng buộc như đơn thường: một khách chỉ có một đơn đang chạy.
         await this.bookingPolicyService.assertCustomerCanCreateBooking(
           manager,
@@ -1051,6 +1088,11 @@ export class CustomerBookingService {
           referenceType: ONLINE_DRAFT_REFUND_REF,
           description: `Hoàn tiền do không tạo được đơn sau thanh toán (${amount.toLocaleString('vi-VN')}đ)`,
         });
+        await this.customerDebtService.recoverForCustomer(
+          manager,
+          customer.id,
+          amount,
+        );
         return 'CREDITED';
       });
 
@@ -1220,28 +1262,51 @@ export class CustomerBookingService {
         .andWhere('customerUser.id = :userId', { userId })
         .getOne();
 
-      if (!booking) {
+      if (!booking || !booking.customer) {
         throw new NotFoundException(
           'Booking không tồn tại hoặc không thuộc customer hiện tại',
         );
       }
 
-      const [payment, statusLogs, voucher] = await Promise.all([
-        this.paymentService.findLatestByBookingId(
-          this.dataSource.manager,
-          booking.id,
-        ),
-        this.dataSource.getRepository(BookingStatusLogEntity).find({
-          where: { booking: { id: booking.id } },
-          order: { createdAt: 'ASC' },
-        }),
-        booking.voucherId
-          ? this.voucherService.getById(
-              this.dataSource.manager,
-              booking.voucherId,
-            )
-          : Promise.resolve(null),
-      ]);
+      const [payment, statusLogs, voucher, absenceReport, refundDebtRecovery] =
+        await Promise.all([
+          this.paymentService.findLatestByBookingId(
+            this.dataSource.manager,
+            booking.id,
+          ),
+          this.dataSource.getRepository(BookingStatusLogEntity).find({
+            where: { booking: { id: booking.id } },
+            order: { createdAt: 'ASC' },
+          }),
+          booking.voucherId
+            ? this.voucherService.getById(
+                this.dataSource.manager,
+                booking.voucherId,
+              )
+            : Promise.resolve(null),
+          this.dataSource.getRepository(BookingAbsenceReportEntity).findOne({
+            where: { booking: { id: booking.id } },
+            order: { reportedAt: 'DESC' },
+          }),
+          this.dataSource
+            .getRepository(WalletTransactionEntity)
+            .createQueryBuilder('debtRecovery')
+            .innerJoin('debtRecovery.wallet', 'recoveryWallet')
+            .select('COALESCE(SUM(debtRecovery.amount), 0)', 'total')
+            .where('debtRecovery.booking_id = :bookingId', {
+              bookingId: booking.id,
+            })
+            .andWhere('debtRecovery.reference_type = :referenceType', {
+              referenceType: CUSTOMER_DEBT_RECOVERY_REF,
+            })
+            .andWhere('debtRecovery.type = :transactionType', {
+              transactionType: WalletTransactionType.PAYMENT,
+            })
+            .andWhere('recoveryWallet.customer_id = :customerId', {
+              customerId: booking.customer.id,
+            })
+            .getRawOne<{ total: string }>(),
+        ]);
 
       const servicePackage = booking.package as
         | ServicePackageEntity
@@ -1356,6 +1421,10 @@ export class CustomerBookingService {
           refundAmount: toNumber(booking.noShowRefundAmount),
           warningPoints: toNumber(booking.noShowWarningPoints),
         },
+        refundDebtRecovered: Math.max(0, toNumber(refundDebtRecovery?.total)),
+        absence: absenceReport
+          ? toCustomerBookingAbsenceReportResponse(absenceReport)
+          : null,
         overtimeRequest: {
           status: booking.overtimeRequestStatus,
           minutes: toNumber(booking.overtimeRequestMinutes),
@@ -1374,6 +1443,58 @@ export class CustomerBookingService {
         updatedAt: booking.updatedAt,
       };
     }, 'Không thể lấy chi tiết booking');
+  }
+
+  private async getAbsenceRestrictionsForCustomer(
+    manager: EntityManager,
+    customerId: string,
+  ): Promise<{
+    outstandingDebt: number;
+    hasApprovedAbsence: boolean;
+    allBookingsBlocked: boolean;
+    cashBlocked: boolean;
+  }> {
+    const [outstandingDebt, approvedCount] = await Promise.all([
+      sumOutstandingCustomerDebt(manager, customerId),
+      manager.getRepository(BookingAbsenceReportEntity).count({
+        where: {
+          customer: { id: customerId },
+          status: BookingAbsenceReportStatus.APPROVED,
+        },
+      }),
+    ]);
+    return {
+      outstandingDebt,
+      hasApprovedAbsence: approvedCount > 0,
+      allBookingsBlocked: outstandingDebt > 0,
+      cashBlocked: outstandingDebt > 0,
+    };
+  }
+
+  private async assertAbsenceBookingAllowed(
+    manager: EntityManager,
+    customerId: string,
+    _paymentMethod: PaymentMethod,
+  ): Promise<void> {
+    await manager
+      .getRepository(CustomerEntity)
+      .createQueryBuilder('customer')
+      .setLock('pessimistic_write', undefined, ['customer'])
+      .where('customer.id = :customerId', { customerId })
+      .getOneOrFail();
+    const restrictions = await this.getAbsenceRestrictionsForCustomer(
+      manager,
+      customerId,
+    );
+    if (restrictions.outstandingDebt > 0) {
+      throw new BadRequestException({
+        code: 'CUSTOMER_ABSENCE_DEBT_OUTSTANDING',
+        message:
+          `Bạn còn ${restrictions.outstandingDebt.toLocaleString('vi-VN')}đ nợ bồi hoàn khách vắng. ` +
+          'Vui lòng nạp Ví CleanZ để trả nợ trước khi đặt đơn mới.',
+        outstandingDebt: restrictions.outstandingDebt,
+      });
+    }
   }
 
   async findMyActiveBooking(

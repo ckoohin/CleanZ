@@ -13,6 +13,7 @@ import { getApiErrorMessage } from "@/lib/api/error-message";
 
 const QUERY_KEYS = {
   schedulingPolicy: ["booking", "customer-scheduling-policy"] as const,
+  absenceRestrictions: ["booking", "customer-absence-restrictions"] as const,
   myActive: ["booking", "my-active"],
   myList: ["booking", "my-list"],
   detail: (id: string) => ["booking", id],
@@ -29,6 +30,16 @@ export function useCustomerSchedulingPolicy() {
     queryKey: QUERY_KEYS.schedulingPolicy,
     queryFn: () => customerBookingApi.getSchedulingPolicy(),
     staleTime: 60_000,
+  });
+}
+
+export function useCustomerAbsenceRestrictions() {
+  return useQuery({
+    queryKey: QUERY_KEYS.absenceRestrictions,
+    queryFn: () => customerBookingApi.getAbsenceRestrictions(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 }
 

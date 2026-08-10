@@ -29,6 +29,7 @@ export const CATEGORY_LABEL_VI: Record<TicketCategory, string> = {
   [TicketCategory.SCHEDULING]: 'Lịch hẹn',
   [TicketCategory.PROPERTY_DAMAGE]: 'Hư hỏng tài sản',
   [TicketCategory.PAYMENT_BILLING]: 'Thanh toán',
+  [TicketCategory.CUSTOMER_ABSENCE_DISPUTE]: 'Khiếu nại khách hàng vắng mặt',
   [TicketCategory.ACCOUNT_TECHNICAL]: 'Tài khoản / Kỹ thuật',
   [TicketCategory.APPEAL]: 'Kháng cáo khóa tài khoản',
   [TicketCategory.OTHER]: 'Khác',

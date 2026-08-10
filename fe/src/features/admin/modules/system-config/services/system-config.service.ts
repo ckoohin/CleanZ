@@ -4,6 +4,7 @@ import type {
   UpdateSystemConfigPayload,
   OperationalPoliciesResponse,
   TaskerCancelPenaltyRule,
+  CustomerAbsencePolicy,
 } from "../types/system-config.types";
 
 const BASE = "/system-config";
@@ -18,32 +19,31 @@ export const systemConfigApi = {
   getOperationalPolicies: (): Promise<OperationalPoliciesResponse> =>
     http.get(`${BASE}/operations`).then((response) => response.data.data),
 
-  updateTaskerCancellation: (
-    payload: {
-      rules: TaskerCancelPenaltyRule[];
-    },
-  ) =>
+  updateTaskerCancellation: (payload: { rules: TaskerCancelPenaltyRule[] }) =>
     http
       .put(`${BASE}/operations/tasker-cancellation`, payload)
       .then((response) => response.data.data),
 
-  updateCheckin: (
-    payload: {
-      openBeforeMinutes: number;
-      autoApproveRadiusMeters: number;
-    },
-  ) =>
+  updateCheckin: (payload: {
+    openBeforeMinutes: number;
+    autoApproveRadiusMeters: number;
+  }) =>
     http
       .put(`${BASE}/operations/checkin`, payload)
       .then((response) => response.data.data),
 
-  updateCustomerScheduling: (
-    payload: {
-      minAdvanceMinutes: number;
-      maxAdvanceDays: number;
-    },
-  ) =>
+  updateCustomerScheduling: (payload: {
+    minAdvanceMinutes: number;
+    maxAdvanceDays: number;
+  }) =>
     http
       .put(`${BASE}/operations/customer-scheduling`, payload)
+      .then((response) => response.data.data),
+
+  updateCustomerAbsence: (
+    payload: Omit<CustomerAbsencePolicy, "version" | "effectiveFrom">,
+  ) =>
+    http
+      .put(`${BASE}/operations/customer-absence`, payload)
       .then((response) => response.data.data),
 };

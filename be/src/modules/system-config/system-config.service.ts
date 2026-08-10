@@ -11,6 +11,7 @@ import {
 } from './system-config.registry';
 import {
   CheckinOperationPolicy,
+  CustomerAbsencePolicy,
   CustomerSchedulingPolicy,
   OPERATIONAL_POLICY_KEYS,
   OperationalPolicies,
@@ -18,12 +19,15 @@ import {
   TaskerCancelPenaltyRule,
   TaskerCancellationPolicy,
   normalizeCheckinOperationPolicy,
+  normalizeCustomerAbsencePolicy,
   normalizeCustomerSchedulingPolicy,
   normalizeTaskerCancellationPolicy,
   parseCheckinOperationPolicy,
+  parseCustomerAbsencePolicy,
   parseCustomerSchedulingPolicy,
   parseTaskerCancellationPolicy,
 } from './operational-policy';
+import type { VersionedPolicy } from './operational-policy';
 
 export interface SystemConfigItem extends SystemConfigDefinition {
   value: number;
@@ -185,6 +189,10 @@ export class SystemConfigService {
         values.get(OPERATIONAL_POLICY_KEYS.CUSTOMER_SCHEDULING)?.configValue ??
           null,
       ),
+      customerAbsence: parseCustomerAbsencePolicy(
+        values.get(OPERATIONAL_POLICY_KEYS.CUSTOMER_ABSENCE)?.configValue ??
+          null,
+      ),
     };
   }
 
@@ -216,6 +224,17 @@ export class SystemConfigService {
       await this.findFreshValue(
         manager,
         OPERATIONAL_POLICY_KEYS.CUSTOMER_SCHEDULING,
+      ),
+    );
+  }
+
+  async getCustomerAbsencePolicy(
+    manager: EntityManager,
+  ): Promise<CustomerAbsencePolicy> {
+    return parseCustomerAbsencePolicy(
+      await this.findFreshValue(
+        manager,
+        OPERATIONAL_POLICY_KEYS.CUSTOMER_ABSENCE,
       ),
     );
   }
@@ -274,6 +293,22 @@ export class SystemConfigService {
     );
   }
 
+  async updateCustomerAbsencePolicy(
+    manager: EntityManager,
+    input: Omit<CustomerAbsencePolicy, keyof VersionedPolicy>,
+  ): Promise<CustomerAbsencePolicy> {
+    return this.updateOperationalPolicy(
+      manager,
+      OPERATIONAL_POLICY_KEYS.CUSTOMER_ABSENCE,
+      (current) =>
+        normalizeCustomerAbsencePolicy({
+          version: current.version + 1,
+          effectiveFrom: new Date().toISOString(),
+          ...input,
+        }),
+    );
+  }
+
   private async updateOperationalPolicy<T extends { version: number }>(
     manager: EntityManager,
     key: OperationalPolicyKey,
@@ -324,12 +359,16 @@ export class SystemConfigService {
   ):
     | TaskerCancellationPolicy
     | CheckinOperationPolicy
-    | CustomerSchedulingPolicy {
+    | CustomerSchedulingPolicy
+    | CustomerAbsencePolicy {
     if (key === OPERATIONAL_POLICY_KEYS.TASKER_CANCELLATION) {
       return parseTaskerCancellationPolicy(raw ?? null, updatedAt);
     }
     if (key === OPERATIONAL_POLICY_KEYS.CHECKIN) {
       return parseCheckinOperationPolicy(raw ?? null);
+    }
+    if (key === OPERATIONAL_POLICY_KEYS.CUSTOMER_ABSENCE) {
+      return parseCustomerAbsencePolicy(raw ?? null);
     }
     return parseCustomerSchedulingPolicy(raw ?? null);
   }
@@ -340,6 +379,9 @@ export class SystemConfigService {
     }
     if (key === OPERATIONAL_POLICY_KEYS.CHECKIN) {
       return 'Cửa sổ và bán kính tự duyệt check-in';
+    }
+    if (key === OPERATIONAL_POLICY_KEYS.CUSTOMER_ABSENCE) {
+      return 'Báo cáo và bồi hoàn khi khách hàng vắng mặt';
     }
     return 'Giới hạn đặt lịch trước của khách hàng';
   }

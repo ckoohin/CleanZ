@@ -3,6 +3,7 @@ import {
   CircleEllipsis,
   CreditCard,
   Gavel,
+  UserRoundX,
   Hammer,
   Sparkles,
   UserX,
@@ -24,6 +25,7 @@ export const CATEGORY_ICON: Record<TicketCategory, LucideIcon> = {
   SCHEDULING: CalendarClock,
   PROPERTY_DAMAGE: Hammer,
   PAYMENT_BILLING: CreditCard,
+  CUSTOMER_ABSENCE_DISPUTE: UserRoundX,
   ACCOUNT_TECHNICAL: Wrench,
   APPEAL: Gavel,
   OTHER: CircleEllipsis,
@@ -39,6 +41,7 @@ const CATEGORY_HINT: Partial<Record<TicketCategory, string>> = {
   SCHEDULING: 'Trễ giờ, đổi lịch, huỷ đơn',
   PROPERTY_DAMAGE: 'Làm hỏng, mất đồ trong nhà',
   PAYMENT_BILLING: 'Sai tiền, hoàn tiền, hoá đơn',
+  CUSTOMER_ABSENCE_DISPUTE: 'Yêu cầu kiểm tra lại báo cáo khách vắng',
   ACCOUNT_TECHNICAL: 'Đăng nhập, lỗi ứng dụng',
   APPEAL: 'Xin mở lại tài khoản bị khoá',
 };

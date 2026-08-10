@@ -31,6 +31,7 @@ import {
   useBookingQuoteQuery,
   useCreateBooking,
   useCustomerSchedulingPolicy,
+  useCustomerAbsenceRestrictions,
 } from "@/features/booking/hooks/useCustomerBooking";
 import { QRCodeSVG } from "qrcode.react";
 import { OnlinePaymentPanel } from "@/features/booking/_components/OnlinePaymentPanel";
@@ -1842,6 +1843,7 @@ function StepPayment({
   isWalletLoading,
   estimatedTotalPrice,
   isWalletShort,
+  cashBlocked,
 }: {
   form: WizardState;
   onChange: (s: Partial<WizardState>) => void;
@@ -1850,6 +1852,7 @@ function StepPayment({
   isWalletLoading: boolean;
   estimatedTotalPrice: number | null;
   isWalletShort: boolean;
+  cashBlocked: boolean;
 }) {
   const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
     { value: "CASH", label: "Tiền mặt", icon: "💵" },
@@ -1876,15 +1879,20 @@ function StepPayment({
         <div className="space-y-2">
           {METHODS.map((m) => {
             const selected = form.paymentMethod === m.value;
+            const disabled = m.value === "CASH" && cashBlocked;
             return (
               <button
+                type="button"
                 key={m.value}
-                onClick={() => onChange({ paymentMethod: m.value })}
+                onClick={() =>
+                  !disabled && onChange({ paymentMethod: m.value })
+                }
+                disabled={disabled}
                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                   selected
                     ? "border-primary bg-primary/5"
                     : "border-border/50 hover:border-primary/30"
-                }`}
+                } disabled:cursor-not-allowed disabled:border-border/40 disabled:bg-muted/40 disabled:opacity-70`}
               >
                 <span className="text-xl">{m.icon}</span>
                 <span className="flex flex-col items-start">
@@ -1898,6 +1906,12 @@ function StepPayment({
                       {isWalletLoading
                         ? "Đang tải số dư..."
                         : `Số dư: ${fmtCurrency(walletBalance)}`}
+                    </span>
+                  )}
+                  {disabled && (
+                    <span className="mt-1 text-left text-xs leading-5 text-amber-700">
+                      Bạn đang còn công nợ khách vắng. Vui lòng tất toán trước
+                      khi đặt đơn mới.
                     </span>
                   )}
                 </span>
@@ -1922,7 +1936,8 @@ function StepPayment({
                   <span className="font-bold">
                     {fmtCurrency(estimatedTotalPrice - walletBalance)}
                   </span>
-                  . Nạp thêm tiền hoặc chọn Tiền mặt để tiếp tục.
+                  . Nạp thêm tiền hoặc chọn{" "}
+                  {cashBlocked ? "thanh toán QR" : "Tiền mặt"} để tiếp tục.
                 </p>
               </div>
             </div>
@@ -2057,8 +2072,12 @@ function StepConfirm({
               <Phone className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-sm text-foreground tracking-tight truncate">SĐT người liên hệ</h3>
-              <p className="text-[11px] text-muted-foreground truncate">Tasker sẽ gọi SĐT này khi tới làm việc</p>
+              <h3 className="font-bold text-sm text-foreground tracking-tight truncate">
+                SĐT người liên hệ
+              </h3>
+              <p className="text-[11px] text-muted-foreground truncate">
+                Tasker sẽ gọi SĐT này khi tới làm việc
+              </p>
             </div>
           </div>
           {form.contactPhone ? (
@@ -2084,12 +2103,20 @@ function StepConfirm({
             }`}
           >
             <div className="space-y-0.5">
-              <p className="text-xs font-bold text-foreground">SĐT tài khoản cá nhân</p>
-              <p className="text-xs font-semibold text-primary">{profilePhone || "Chưa thiết lập"}</p>
+              <p className="text-xs font-bold text-foreground">
+                SĐT tài khoản cá nhân
+              </p>
+              <p className="text-xs font-semibold text-primary">
+                {profilePhone || "Chưa thiết lập"}
+              </p>
             </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              !form.contactPhone ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
-            }`}>
+            <div
+              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                !form.contactPhone
+                  ? "border-primary bg-primary text-white"
+                  : "border-muted-foreground/30"
+              }`}
+            >
               {!form.contactPhone && <CheckCircle2 className="w-3.5 h-3.5" />}
             </div>
           </button>
@@ -2109,13 +2136,23 @@ function StepConfirm({
             }`}
           >
             <div className="space-y-0.5">
-              <p className="text-xs font-bold text-foreground">Dùng SĐT liên hệ khác</p>
-              <p className="text-xs text-muted-foreground">Sử dụng SĐT khác cho đơn này</p>
+              <p className="text-xs font-bold text-foreground">
+                Dùng SĐT liên hệ khác
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Sử dụng SĐT khác cho đơn này
+              </p>
             </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              form.contactPhone !== undefined ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
-            }`}>
-              {form.contactPhone !== undefined && <CheckCircle2 className="w-3.5 h-3.5" />}
+            <div
+              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                form.contactPhone !== undefined
+                  ? "border-primary bg-primary text-white"
+                  : "border-muted-foreground/30"
+              }`}
+            >
+              {form.contactPhone !== undefined && (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              )}
             </div>
           </button>
         </div>
@@ -2137,7 +2174,8 @@ function StepConfirm({
               <Phone className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed flex items-center gap-1 pl-1">
-              <span>💡</span> Tasker sẽ gọi SĐT này khi tới làm việc tại địa chỉ.
+              <span>💡</span> Tasker sẽ gọi SĐT này khi tới làm việc tại địa
+              chỉ.
             </p>
           </motion.div>
         )}
@@ -2255,7 +2293,9 @@ export const BookingWizard = ({
   const [payosCheckoutUrl, setPayosCheckoutUrl] = useState<string | null>(null);
   const [payosQrCode, setPayosQrCode] = useState<string | null>(null);
   const [payosBin, setPayosBin] = useState<string | null>(null);
-  const [payosAccountNumber, setPayosAccountNumber] = useState<string | null>(null);
+  const [payosAccountNumber, setPayosAccountNumber] = useState<string | null>(
+    null,
+  );
   const [payosAccountName, setPayosAccountName] = useState<string | null>(null);
   /** Nội dung CK do BE trả về — không tự ghép, xem BookingPayment.payosDescription. */
   const [payosDescription, setPayosDescription] = useState<string | null>(null);
@@ -2267,6 +2307,8 @@ export const BookingWizard = ({
   const { data: publicServicesData, isLoading: isServicesLoading } =
     usePublicServices();
   const { data: customerSchedulingPolicy } = useCustomerSchedulingPolicy();
+  const { data: absenceRestrictions, isLoading: isAbsenceRestrictionsLoading } =
+    useCustomerAbsenceRestrictions();
   const minAdvanceMinutes =
     customerSchedulingPolicy?.minAdvanceMinutes ??
     DEFAULT_MIN_SCHEDULE_LEAD_MINUTES;
@@ -2406,12 +2448,12 @@ export const BookingWizard = ({
       };
     });
 
-
   const canLeavePaymentStep =
     form.paymentMethod !== "ONLINE" || Boolean(createdId);
   const hasPaidOnline = form.paymentMethod === "ONLINE" && Boolean(createdId);
 
   const canProceed = (): boolean => {
+    if (absenceRestrictions?.allBookingsBlocked) return false;
     if (step === 0)
       return (
         !!form.serviceId &&
@@ -2437,12 +2479,20 @@ export const BookingWizard = ({
         )
       );
     if (step === 3)
-      return !isWalletValidationPending && !isWalletShortAtPayment;
+      return (
+        !isWalletValidationPending &&
+        !isWalletShortAtPayment &&
+        !(absenceRestrictions?.cashBlocked && form.paymentMethod === "CASH")
+      );
     if (step === 4) return !!quote && !isWalletInsufficient;
     return true;
   };
 
   const handleNext = async () => {
+    if (absenceRestrictions?.allBookingsBlocked) {
+      toast.error("Vui lòng thanh toán hết công nợ trước khi đặt đơn mới.");
+      return;
+    }
     if (step === 0 && addonSelectionInvalidAtMaxHours) {
       toast.warning(
         `Tổng thời lượng công việc (${totalBookingWorkHours}h) vượt quá số giờ tối đa của gói (${selectedBookingPackage?.maxHours}h). Vui lòng bớt dịch vụ thêm hoặc chọn gói giờ ít hơn.`,
@@ -2464,6 +2514,16 @@ export const BookingWizard = ({
         `Thời gian đặt lịch phải cách hiện tại tối thiểu ${minAdvanceMinutes} phút.`,
       );
       return;
+    }
+
+    // Khi đi vào bước thanh toán, chuyển khỏi CASH ngay trong thao tác của người
+    // dùng. Backend vẫn là chốt chặn cuối cùng nếu trạng thái đổi giữa hai bước.
+    if (
+      step === 2 &&
+      absenceRestrictions?.cashBlocked &&
+      form.paymentMethod === "CASH"
+    ) {
+      setForm((current) => ({ ...current, paymentMethod: "WALLET" }));
     }
 
     // Step 3 (Thanh toán) → Gọi quote API → Step 4 (Xác nhận)
@@ -2530,13 +2590,19 @@ export const BookingWizard = ({
         if (result.draftId) setDraftId(result.draftId as string);
         if (result.payment?.expiresAt)
           setDraftExpiresAt(result.payment.expiresAt);
-        if (result.bookingCode) setCreatedBookingCode(result.bookingCode as string);
-        if (result.payment?.payosCheckoutUrl) setPayosCheckoutUrl(result.payment.payosCheckoutUrl);
-        if (result.payment?.payosQrCode) setPayosQrCode(result.payment.payosQrCode);
+        if (result.bookingCode)
+          setCreatedBookingCode(result.bookingCode as string);
+        if (result.payment?.payosCheckoutUrl)
+          setPayosCheckoutUrl(result.payment.payosCheckoutUrl);
+        if (result.payment?.payosQrCode)
+          setPayosQrCode(result.payment.payosQrCode);
         if (result.payment?.payosBin) setPayosBin(result.payment.payosBin);
-        if (result.payment?.payosAccountNumber) setPayosAccountNumber(result.payment.payosAccountNumber);
-        if (result.payment?.payosAccountName) setPayosAccountName(result.payment.payosAccountName);
-        if (result.payment?.payosDescription) setPayosDescription(result.payment.payosDescription);
+        if (result.payment?.payosAccountNumber)
+          setPayosAccountNumber(result.payment.payosAccountNumber);
+        if (result.payment?.payosAccountName)
+          setPayosAccountName(result.payment.payosAccountName);
+        if (result.payment?.payosDescription)
+          setPayosDescription(result.payment.payosDescription);
         setStep(5);
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -2622,6 +2688,62 @@ export const BookingWizard = ({
       <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-background">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
         <p className="text-sm text-muted-foreground">Đang xử lý dịch vụ...</p>
+      </div>
+    );
+  }
+
+  if (isAbsenceRestrictionsLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background p-6">
+        <Loader2 className="size-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          Đang kiểm tra điều kiện đặt lịch…
+        </p>
+      </div>
+    );
+  }
+
+  if (absenceRestrictions?.allBookingsBlocked) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-12 sm:py-20">
+        <div className="mx-auto max-w-xl space-y-6 rounded-[28px] border border-rose-200 bg-card p-6 shadow-sm sm:p-9">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
+            <ShieldCheck className="size-7" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-rose-600">
+              Cần xử lý trước khi đặt lịch
+            </p>
+            <h1 className="text-2xl font-black text-foreground">
+              Bạn đang có công nợ cần thanh toán
+            </h1>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Số tiền còn lại là{" "}
+              <strong className="text-rose-700">
+                {fmtCurrency(absenceRestrictions.outstandingDebt)}
+              </strong>
+              . Hệ thống sẽ tự trừ công nợ khi bạn nạp Ví CleanZ.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+            Sau khi thanh toán hết, bạn có thể đặt lại và chọn phương thức thanh
+            toán như bình thường, bao gồm cả tiền mặt.
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link
+              href="/customer/wallet"
+              className="rounded-2xl bg-primary px-5 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-primary/20"
+            >
+              Nạp ví & trả nợ
+            </Link>
+            <Link
+              href="/customer/history"
+              className="rounded-2xl border border-border px-5 py-3.5 text-center text-sm font-bold text-foreground"
+            >
+              Xem đơn liên quan
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -2720,6 +2842,7 @@ export const BookingWizard = ({
                 isWalletLoading={isWalletLoading}
                 estimatedTotalPrice={estimatedTotalPrice}
                 isWalletShort={isWalletShortAtPayment}
+                cashBlocked={absenceRestrictions?.cashBlocked ?? false}
               />
             </motion.div>
           )}
@@ -2741,33 +2864,35 @@ export const BookingWizard = ({
               />
             </motion.div>
           )}
-          {step === 5 && form.paymentMethod === "ONLINE" && !canLeavePaymentStep && (
-            <motion.div
-              key="s5-payment"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="mt-4 space-y-4"
-            >
-              {draftId && (
-                <OnlinePaymentPanel
-                  draftId={draftId}
-                  payment={{
-                    method: "ONLINE",
-                    status: "PENDING",
-                    payosCheckoutUrl,
-                    payosQrCode,
-                    payosBin,
-                    payosAccountNumber,
-                    payosAccountName,
-                    payosDescription,
-                  }}
-                  totalPrice={quote?.price.totalPrice ?? 0}
-                  expiresAt={draftExpiresAt}
-                  onPaid={(bookingId) => setCreatedId(bookingId)}
-                />
-              )}
-            </motion.div>
-          )}
+          {step === 5 &&
+            form.paymentMethod === "ONLINE" &&
+            !canLeavePaymentStep && (
+              <motion.div
+                key="s5-payment"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="mt-4 space-y-4"
+              >
+                {draftId && (
+                  <OnlinePaymentPanel
+                    draftId={draftId}
+                    payment={{
+                      method: "ONLINE",
+                      status: "PENDING",
+                      payosCheckoutUrl,
+                      payosQrCode,
+                      payosBin,
+                      payosAccountNumber,
+                      payosAccountName,
+                      payosDescription,
+                    }}
+                    totalPrice={quote?.price.totalPrice ?? 0}
+                    expiresAt={draftExpiresAt}
+                    onPaid={(bookingId) => setCreatedId(bookingId)}
+                  />
+                )}
+              </motion.div>
+            )}
           {step === 5 && canLeavePaymentStep && (
             <motion.div
               key="s5-success"
@@ -2779,7 +2904,9 @@ export const BookingWizard = ({
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               </div>
               <h2 className="text-2xl font-black text-foreground mb-2">
-                {hasPaidOnline ? "Thanh toán thành công!" : "Đặt lịch thành công!"}
+                {hasPaidOnline
+                  ? "Thanh toán thành công!"
+                  : "Đặt lịch thành công!"}
               </h2>
               <p className="text-sm text-muted-foreground mb-8">
                 {hasPaidOnline

@@ -27,6 +27,10 @@ const CHANNEL_MATRIX: Record<NotificationType, NotificationChannel[]> = {
   [NotificationType.BOOKING_OVERTIME_REJECTED]: ['IN_APP'],
   [NotificationType.BOOKING_SURCHARGE_AWAITING_RECEIPT]: ['IN_APP'],
   [NotificationType.BOOKING_SURCHARGE_DISPUTED]: ['IN_APP', 'EMAIL'],
+  [NotificationType.BOOKING_ABSENCE_REPORTED]: ['IN_APP', 'EMAIL'],
+  [NotificationType.BOOKING_ABSENCE_APPROVED]: ['IN_APP', 'EMAIL'],
+  [NotificationType.BOOKING_ABSENCE_REJECTED]: ['IN_APP', 'EMAIL'],
+  [NotificationType.BOOKING_ABSENCE_EXPIRED]: ['IN_APP', 'EMAIL'],
 };
 
 @Injectable()

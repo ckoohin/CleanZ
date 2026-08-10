@@ -50,7 +50,8 @@ export interface CustomerWalletTransactionQuery {
   toDate?: string;
 }
 
-export type WithdrawalStatus = "PENDING" | "APPROVED" | "REJECTED" | "PROCESSED";
+export type WithdrawalStatus =
+  "PENDING" | "APPROVED" | "REJECTED" | "PROCESSED";
 
 export interface CustomerWithdrawal {
   id: string;
@@ -77,11 +78,7 @@ export interface CreateCustomerWithdrawalInput {
 /* ─── Nạp tiền qua PayOS ──────────────────────────────────────────────────── */
 
 export type TopupStatus =
-  | "CREATED"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED"
-  | "EXPIRED";
+  "CREATED" | "COMPLETED" | "FAILED" | "CANCELLED" | "EXPIRED";
 
 /** Hạn mức do admin cấu hình (system_configs). */
 export interface TopupConfig {
@@ -109,6 +106,8 @@ export interface CaptureTopupResult {
   amountVnd: number;
   /** Số dư ví sau khi cộng tiền. */
   balance: number;
+  /** Số tiền trong lần nạp vừa được tự động dùng để trả công nợ khách vắng. */
+  debtRecovered: number;
 }
 
 export interface TopupOrder {

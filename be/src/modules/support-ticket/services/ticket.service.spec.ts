@@ -8,6 +8,7 @@ import { TicketService } from './ticket.service';
 import { TicketCategory } from 'src/common/enums/ticket-category.enum';
 import { TicketPriority } from 'src/common/enums/ticket-priority.enum';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
+import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 
 const CUST_USER = 'cust-user-1';
 const TASK_USER = 'task-user-1';
@@ -112,6 +113,50 @@ describe('TicketService.create (TC-U-CRT)', () => {
       description: 'd',
     } as any);
     expect(savedTicket.counterparty).toEqual({ id: CUST_USER });
+  });
+
+  it('chỉ customer của đơn CUSTOMER_ABSENT được tạo category khiếu nại khách vắng', async () => {
+    bookingRepo.findOne.mockResolvedValue(
+      makeBooking({
+        status: BookingStatus.CANCELLED,
+        cancelledBy: CancelledBy.CUSTOMER_ABSENT,
+      }),
+    );
+    await svc.create(CUST_USER, {
+      bookingId: 'bk1',
+      category: TicketCategory.CUSTOMER_ABSENCE_DISPUTE,
+      subtype: 'ABSENCE_REPORT_DISPUTE',
+      subject: 'Yêu cầu kiểm tra lại',
+      description: 'Tôi có mặt tại địa chỉ vào thời điểm đã hẹn.',
+    } as any);
+    expect(savedTicket.category).toBe(TicketCategory.CUSTOMER_ABSENCE_DISPUTE);
+    expect(savedTicket.subtype).toBe('ABSENCE_REPORT_DISPUTE');
+
+    await expect(
+      svc.create(TASK_USER, {
+        bookingId: 'bk1',
+        category: TicketCategory.CUSTOMER_ABSENCE_DISPUTE,
+        subject: 'Không đúng vai',
+        description: 'Tasker không được dùng category dành cho khách.',
+      } as any),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('không cho dùng category khách vắng với booking bị hủy vì lý do khác', async () => {
+    bookingRepo.findOne.mockResolvedValue(
+      makeBooking({
+        status: BookingStatus.CANCELLED,
+        cancelledBy: CancelledBy.CUSTOMER,
+      }),
+    );
+    await expect(
+      svc.create(CUST_USER, {
+        bookingId: 'bk1',
+        category: TicketCategory.CUSTOMER_ABSENCE_DISPUTE,
+        subject: 'Sai loại đơn',
+        description: 'Đơn này không có báo cáo khách vắng.',
+      } as any),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
   it('người lạ tạo ticket đơn không thuộc → 404 (IDOR)', async () => {

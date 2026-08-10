@@ -5,6 +5,7 @@ import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 import { PaymentStatus } from 'src/common/enums/payment-status.enum';
 import { WalletTransactionType } from 'src/common/enums/wallet-transaction-type.enum';
 import { PaymentService } from 'src/modules/payment/payment.service';
+import { CustomerDebtService } from 'src/modules/wallet/customer-debt.service';
 import { WalletService } from 'src/modules/wallet/wallet.service';
 import { BookingEntity } from '../entity/booking.entity';
 import {
@@ -58,6 +59,7 @@ describe('BookingWalletPaymentService', () => {
   let service: BookingWalletPaymentService;
   let wallet: jest.Mocked<Partial<WalletService>>;
   let payment: jest.Mocked<Partial<PaymentService>>;
+  let customerDebt: jest.Mocked<Partial<CustomerDebtService>>;
 
   beforeEach(async () => {
     existingRefs = [];
@@ -73,12 +75,16 @@ describe('BookingWalletPaymentService', () => {
       markLatestPaidPaymentAsRefunded: jest.fn().mockResolvedValue(null),
       updateLatestPaymentAmount: jest.fn().mockResolvedValue(null),
     };
+    customerDebt = {
+      recoverForCustomer: jest.fn().mockResolvedValue(0),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         BookingWalletPaymentService,
         { provide: WalletService, useValue: wallet },
         { provide: PaymentService, useValue: payment },
+        { provide: CustomerDebtService, useValue: customerDebt },
       ],
     }).compile();
 
@@ -321,6 +327,12 @@ describe('BookingWalletPaymentService', () => {
         }),
       );
       expect(booking.paymentStatus).toBe(PaymentStatus.REFUNDED);
+      expect(customerDebt.recoverForCustomer).toHaveBeenCalledWith(
+        manager,
+        'cus-1',
+        200_000,
+        { booking },
+      );
     });
 
     it('đã trả công tasker rồi thì không hoàn nữa — tiền không còn ở SYSTEM', async () => {

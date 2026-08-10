@@ -2,6 +2,7 @@ export const OPERATIONAL_POLICY_KEYS = {
   TASKER_CANCELLATION: 'TASKER_CANCEL_TIME_PENALTY_RULES',
   CHECKIN: 'CHECKIN_OPERATION_POLICY',
   CUSTOMER_SCHEDULING: 'CUSTOMER_SCHEDULING_POLICY',
+  CUSTOMER_ABSENCE: 'CUSTOMER_ABSENCE_POLICY',
 } as const;
 
 export type OperationalPolicyKey =
@@ -31,10 +32,23 @@ export interface CustomerSchedulingPolicy extends VersionedPolicy {
   maxAdvanceDays: number;
 }
 
+export interface CustomerAbsencePolicy extends VersionedPolicy {
+  minWaitMinutes: number;
+  reportWindowMinutes: number;
+  compensationPercent: number;
+  minCompensation: number;
+  maxCompensation: number;
+  guestCompensation: number;
+  reviewSlaHours: number;
+  debtWriteOffDays: number;
+  debtExposureAlertVnd: number;
+}
+
 export interface OperationalPolicies {
   taskerCancellation: TaskerCancellationPolicy;
   checkin: CheckinOperationPolicy;
   customerScheduling: CustomerSchedulingPolicy;
+  customerAbsence: CustomerAbsencePolicy;
 }
 
 export interface TaskerCancelPenaltyPreview {
@@ -68,6 +82,20 @@ export const DEFAULT_CUSTOMER_SCHEDULING_POLICY: CustomerSchedulingPolicy = {
   effectiveFrom: null,
   minAdvanceMinutes: 60,
   maxAdvanceDays: 30,
+};
+
+export const DEFAULT_CUSTOMER_ABSENCE_POLICY: CustomerAbsencePolicy = {
+  version: 1,
+  effectiveFrom: null,
+  minWaitMinutes: 15,
+  reportWindowMinutes: 60,
+  compensationPercent: 50,
+  minCompensation: 30_000,
+  maxCompensation: 150_000,
+  guestCompensation: 50_000,
+  reviewSlaHours: 48,
+  debtWriteOffDays: 90,
+  debtExposureAlertVnd: 5_000_000,
 };
 
 const TASKER_CANCEL_MAX_RULES = 8;
@@ -230,6 +258,111 @@ export function normalizeCustomerSchedulingPolicy(
   };
 }
 
+export function normalizeCustomerAbsencePolicy(
+  value: unknown,
+): CustomerAbsencePolicy {
+  if (!isRecord(value)) {
+    throw new Error('Chính sách khách hàng vắng mặt không hợp lệ');
+  }
+
+  const minWaitMinutes = Number(value.minWaitMinutes);
+  const reportWindowMinutes = Number(value.reportWindowMinutes);
+  const compensationPercent = Number(value.compensationPercent);
+  const minCompensation = Number(value.minCompensation);
+  const maxCompensation = Number(value.maxCompensation);
+  const guestCompensation = Number(value.guestCompensation);
+  const reviewSlaHours = Number(value.reviewSlaHours);
+  const debtWriteOffDays = Number(value.debtWriteOffDays);
+  const debtExposureAlertVnd = Number(value.debtExposureAlertVnd);
+
+  const assertIntegerBetween = (
+    input: number,
+    min: number,
+    max: number,
+    message: string,
+  ) => {
+    if (!Number.isSafeInteger(input) || input < min || input > max) {
+      throw new Error(message);
+    }
+  };
+
+  assertIntegerBetween(
+    minWaitMinutes,
+    0,
+    1_440,
+    'Thời gian chờ báo khách vắng phải từ 0 đến 1.440 phút',
+  );
+  assertIntegerBetween(
+    reportWindowMinutes,
+    1,
+    10_080,
+    'Cửa sổ báo khách vắng phải từ 1 đến 10.080 phút',
+  );
+  if (reportWindowMinutes < minWaitMinutes) {
+    throw new Error(
+      'Cửa sổ báo khách vắng phải lớn hơn thời gian chờ tối thiểu',
+    );
+  }
+  assertIntegerBetween(
+    compensationPercent,
+    0,
+    100,
+    'Tỷ lệ bồi hoàn phải từ 0 đến 100%',
+  );
+  assertIntegerBetween(
+    minCompensation,
+    0,
+    100_000_000,
+    'Mức bồi hoàn tối thiểu không hợp lệ',
+  );
+  assertIntegerBetween(
+    maxCompensation,
+    0,
+    100_000_000,
+    'Mức bồi hoàn tối đa không hợp lệ',
+  );
+  if (minCompensation > maxCompensation) {
+    throw new Error('Mức bồi hoàn tối thiểu không được lớn hơn mức tối đa');
+  }
+  assertIntegerBetween(
+    guestCompensation,
+    0,
+    100_000_000,
+    'Mức bồi hoàn cho khách vãng lai không hợp lệ',
+  );
+  assertIntegerBetween(
+    reviewSlaHours,
+    1,
+    720,
+    'SLA duyệt phải từ 1 đến 720 giờ',
+  );
+  assertIntegerBetween(
+    debtWriteOffDays,
+    1,
+    3_650,
+    'Thời hạn write-off phải từ 1 đến 3.650 ngày',
+  );
+  assertIntegerBetween(
+    debtExposureAlertVnd,
+    0,
+    1_000_000_000_000,
+    'Ngưỡng cảnh báo dư nợ không hợp lệ',
+  );
+
+  return {
+    ...normalizeVersionedPolicy(value),
+    minWaitMinutes,
+    reportWindowMinutes,
+    compensationPercent,
+    minCompensation,
+    maxCompensation,
+    guestCompensation,
+    reviewSlaHours,
+    debtWriteOffDays,
+    debtExposureAlertVnd,
+  };
+}
+
 function parseJson(raw: string | null): unknown {
   if (!raw) return null;
   try {
@@ -308,6 +441,45 @@ export function parseCustomerSchedulingPolicy(
   } catch {
     return fallback(DEFAULT_CUSTOMER_SCHEDULING_POLICY);
   }
+}
+
+export function parseCustomerAbsencePolicy(
+  raw: string | null,
+): CustomerAbsencePolicy {
+  try {
+    return normalizeCustomerAbsencePolicy(parseJson(raw));
+  } catch {
+    return fallback(DEFAULT_CUSTOMER_ABSENCE_POLICY);
+  }
+}
+
+export function calculateAbsenceCompensation(input: {
+  policy: CustomerAbsencePolicy;
+  totalPrice: number;
+  discountAmount: number;
+  isGuest: boolean;
+}): { amount: number; subtotal: number } {
+  const totalPrice = Number.isFinite(input.totalPrice)
+    ? Math.max(0, input.totalPrice)
+    : 0;
+  const discountAmount = Number.isFinite(input.discountAmount)
+    ? Math.max(0, input.discountAmount)
+    : 0;
+  const subtotal = Math.round(totalPrice + discountAmount);
+
+  if (input.isGuest) {
+    return {
+      amount: Math.max(0, Math.round(input.policy.guestCompensation)),
+      subtotal,
+    };
+  }
+
+  const raw = Math.round((subtotal * input.policy.compensationPercent) / 100);
+  const clamped = Math.max(
+    input.policy.minCompensation,
+    Math.min(raw, input.policy.maxCompensation),
+  );
+  return { amount: Math.min(Math.max(0, clamped), subtotal), subtotal };
 }
 
 export function calculateTaskerCancelPenalty(input: {

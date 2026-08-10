@@ -24,6 +24,12 @@ import type {
 } from "../types/booking.types";
 import type { AvailableVoucher } from "@/features/customer/vouchers/useCustomerVouchers";
 import type { BookingOvertimeRequestStatus } from "../types/booking.types";
+import type {
+  BookingAbsenceEligibility,
+  BookingAbsenceReport,
+  ReportBookingAbsencePayload,
+  CustomerAbsenceRestrictions,
+} from "../types/absence-report.types";
 
 /** Kết quả trả về của các API xin/duyệt thêm giờ. */
 export interface OvertimeRequestResult {
@@ -41,6 +47,11 @@ export const customerBookingApi = {
   getSchedulingPolicy: (): Promise<CustomerSchedulingPolicy> =>
     http
       .get(API_ENDPOINTS.BOOKING.CUSTOMER_SCHEDULING_POLICY)
+      .then((r) => r.data.data ?? r.data),
+
+  getAbsenceRestrictions: (): Promise<CustomerAbsenceRestrictions> =>
+    http
+      .get(API_ENDPOINTS.BOOKING.CUSTOMER_ABSENCE_RESTRICTIONS)
       .then((r) => r.data.data ?? r.data),
 
   /** 01. Xem báo giá trước khi tạo */
@@ -246,6 +257,25 @@ export const taskerBookingApi = {
       .patch(API_ENDPOINTS.BOOKING.TASKER_CHECKIN(id), payload, {
         skipErrorToast: true,
       } as Parameters<typeof http.patch>[2])
+      .then((r) => r.data.data ?? r.data),
+
+  /** Tasker hỏi backend thời điểm được phép báo khách vắng mặt. */
+  getAbsenceEligibility: (id: string): Promise<BookingAbsenceEligibility> =>
+    http
+      .get(API_ENDPOINTS.BOOKING.TASKER_ABSENCE_ELIGIBILITY(id), {
+        skipErrorToast: true,
+      } as Parameters<typeof http.get>[1])
+      .then((r) => r.data.data ?? r.data),
+
+  /** Gửi ảnh địa chỉ + lịch sử cuộc gọi rồi hủy đơn để chuyển Admin duyệt. */
+  reportCustomerAbsence: (
+    id: string,
+    payload: ReportBookingAbsencePayload,
+  ): Promise<BookingAbsenceReport> =>
+    http
+      .post(API_ENDPOINTS.BOOKING.TASKER_ABSENCE_REPORT(id), payload, {
+        skipErrorToast: true,
+      } as Parameters<typeof http.post>[2])
       .then((r) => r.data.data ?? r.data),
 
   /** 10. Bắt đầu làm việc */

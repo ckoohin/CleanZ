@@ -109,6 +109,16 @@ export class WalletTopupOrderEntity {
   @Column({ type: 'uuid', nullable: true, name: 'booking_id' })
   bookingId!: string | null;
 
+  /** Phần tiền nạp đã được tự động dùng để thanh toán công nợ khách vắng. */
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    name: 'debt_recovered_amount',
+    default: 0,
+  })
+  debtRecoveredAmount!: number;
+
   @Column({ type: 'text', nullable: true, name: 'fail_reason' })
   failReason!: string | null;
 

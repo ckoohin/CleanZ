@@ -16,6 +16,8 @@ interface Recorder {
   credits: number;
   /** Thông báo đã đẩy cho khách. */
   notifications: Array<Record<string, unknown>>;
+  /** Số lần thử thu hồi nợ sau khi tiền đã vào ví. */
+  debtRecoveries: number;
 }
 
 /**
@@ -28,7 +30,12 @@ function makeService(opts: {
   /** Lỗi mà `creditWallet` sẽ ném — dùng để mô phỏng lỗi từ driver Postgres. */
   creditThrows?: Error & { code?: string };
 }): { service: CustomerBookingService; rec: Recorder } {
-  const rec: Recorder = { quoteUpdates: [], credits: 0, notifications: [] };
+  const rec: Recorder = {
+    quoteUpdates: [],
+    credits: 0,
+    notifications: [],
+    debtRecoveries: 0,
+  };
 
   const manager = {
     getRepository: (entity: { name?: string }) => {
@@ -71,6 +78,12 @@ function makeService(opts: {
       return Promise.resolve(undefined);
     },
   };
+  const customerDebtService = {
+    recoverForCustomer: () => {
+      rec.debtRecoveries += 1;
+      return Promise.resolve(0);
+    },
+  };
 
   const blank = {} as never;
   const service = new CustomerBookingService(
@@ -92,6 +105,7 @@ function makeService(opts: {
     blank, // payosService
     walletService as never, // walletService
     blank, // configService
+    customerDebtService as never,
   );
 
   return { service, rec };
@@ -130,6 +144,7 @@ describe('refundOnlineDraft', () => {
       { paymentState: PaymentStatus.REFUNDED, failReason: 'lý do' },
     ]);
     expect(rec.notifications).toHaveLength(1);
+    expect(rec.debtRecoveries).toBe(1);
   });
 
   it('KHÔNG có customer thì không đánh REFUNDED và không báo "đã hoàn tiền"', async () => {
@@ -140,6 +155,7 @@ describe('refundOnlineDraft', () => {
     await refund(service);
 
     expect(rec.credits).toBe(0);
+    expect(rec.debtRecoveries).toBe(0);
     expect(rec.notifications).toHaveLength(0);
     expect(rec.quoteUpdates).toHaveLength(1);
     expect(rec.quoteUpdates[0]).not.toHaveProperty('paymentState');

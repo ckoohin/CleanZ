@@ -36,6 +36,10 @@ import { CustomerConfirmCompletionService } from './services/customer-confirm-co
 import { BookingOvertimeRequestService } from './services/booking-overtime-request.service';
 import { TaskerScheduleAvailabilityService } from './services/tasker-schedule-availability.service';
 import { BookingLifecycleSchedulerService } from './services/booking-lifecycle-scheduler.service';
+import { BookingAbsenceReportEntity } from './entity/booking-absence-report.entity';
+import { BookingAbsenceSettlementService } from './services/booking-absence-settlement.service';
+import { BookingAbsenceService } from './services/booking-absence.service';
+import { BookingAbsenceAutomationService } from './services/booking-absence-automation.service';
 
 @Module({
   imports: [
@@ -47,6 +51,7 @@ import { BookingLifecycleSchedulerService } from './services/booking-lifecycle-s
       BookingSubServiceEntity,
       BookingQuoteEntity,
       BookingAddonEntity,
+      BookingAbsenceReportEntity,
     ]),
     PaymentModule,
     PricingModule,
@@ -79,6 +84,9 @@ import { BookingLifecycleSchedulerService } from './services/booking-lifecycle-s
     TaskerScheduleAvailabilityService,
     BookingOnlinePaymentService,
     WalletTopupService,
+    BookingAbsenceSettlementService,
+    BookingAbsenceService,
+    BookingAbsenceAutomationService,
   ],
   exports: [
     BookingLocationPolicyService,
@@ -88,6 +96,8 @@ import { BookingLifecycleSchedulerService } from './services/booking-lifecycle-s
     BookingSettlementService,
     BookingLifecycleSchedulerService,
     TaskerBookingService,
+    BookingAbsenceSettlementService,
+    BookingAbsenceService,
   ],
 })
 export class BookingModule {}

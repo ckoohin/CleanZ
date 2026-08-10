@@ -59,3 +59,59 @@ export class UpdateCustomerSchedulingPolicyDto {
   @Max(365)
   maxAdvanceDays!: number;
 }
+
+export class UpdateCustomerAbsencePolicyDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1440)
+  minWaitMinutes!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10080)
+  reportWindowMinutes!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  compensationPercent!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000000)
+  minCompensation!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000000)
+  maxCompensation!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000000)
+  guestCompensation!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  reviewSlaHours!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  debtWriteOffDays!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1000000000000)
+  debtExposureAlertVnd!: number;
+}

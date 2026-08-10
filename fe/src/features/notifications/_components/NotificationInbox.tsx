@@ -11,6 +11,7 @@ import {
   LifeBuoy,
   ShieldAlert,
   Wallet,
+  UserRoundX,
 } from "lucide-react";
 import {
   useMarkAllNotificationsRead,
@@ -44,6 +45,10 @@ const ICON: Record<NotificationType, React.ElementType> = {
   TASKER_ON_THE_WAY: CalendarCheck,
   BOOKING_COMPLETED: CalendarCheck,
   BOOKING_CANCELLED: CalendarCheck,
+  BOOKING_ABSENCE_REPORTED: UserRoundX,
+  BOOKING_ABSENCE_APPROVED: UserRoundX,
+  BOOKING_ABSENCE_REJECTED: UserRoundX,
+  BOOKING_ABSENCE_EXPIRED: UserRoundX,
   PAYMENT_SUCCESS: Wallet,
   PAYMENT_FAILED: Wallet,
   INCIDENT_UPDATE: ShieldAlert,

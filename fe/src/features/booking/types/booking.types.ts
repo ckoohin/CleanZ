@@ -1,3 +1,5 @@
+import type { CustomerBookingAbsenceReport } from "./absence-report.types";
+
 // ─── Enums ────────────────────────────────────────────────────────────────────
 export type BookingStatus =
   | "POSTED"
@@ -14,7 +16,12 @@ export type BookingSource = "CUSTOMER_APP" | "TASKER_CREATED";
 
 /** CASH: tiền mặt. WALLET: trừ ví ngay lúc tạo đơn. ONLINE: quét QR PayOS sau khi tạo đơn. */
 export type PaymentMethod = "CASH" | "WALLET" | "ONLINE";
-export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED" | "FAILED";
+export type PaymentStatus =
+  | "PENDING"
+  | "PAID"
+  | "PARTIALLY_REFUNDED"
+  | "REFUNDED"
+  | "FAILED";
 
 // ─── Shared sub-types ─────────────────────────────────────────────────────────
 export interface BookingService {
@@ -55,7 +62,10 @@ export type BookingServiceTier = "STANDARD" | "PREMIUM";
 
 /** Trạng thái xác minh bộ dụng cụ chuyên dụng của tasker. */
 export type TaskerEquipmentStatus =
-  "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  | "NONE"
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED";
 
 export type PremiumEligibilityIssue = "EQUIPMENT_NOT_APPROVED";
 
@@ -83,7 +93,9 @@ export interface FavoriteTasker {
 }
 
 export type FavoriteTaskerAvailabilityStatus =
-  "AVAILABLE" | "TIGHT_SCHEDULE" | "BUSY";
+  | "AVAILABLE"
+  | "TIGHT_SCHEDULE"
+  | "BUSY";
 
 export interface FavoriteTaskerScheduleWindow {
   scheduledStartDate: string;
@@ -186,10 +198,18 @@ export type BookingSurchargeStatus =
 
 /** Trạng thái yêu cầu thêm giờ tasker gửi khách TRƯỚC khi làm thêm. */
 export type BookingOvertimeRequestStatus =
-  "NONE" | "NOTIFIED" | "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
+  | "NONE"
+  | "NOTIFIED"
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "EXPIRED";
 
 export type BookingNoShowReviewStatus =
-  "NONE" | "PENDING_REVIEW" | "CONFIRMED" | "EXCUSED";
+  | "NONE"
+  | "PENDING_REVIEW"
+  | "CONFIRMED"
+  | "EXCUSED";
 
 export interface BookingNoShow {
   reviewStatus: BookingNoShowReviewStatus;
@@ -332,8 +352,10 @@ export interface BookingQuoteResponse {
  * trị — booking chỉ được tạo sau khi PayOS xác nhận đã thu tiền. CASH/WALLET trả
  * booking thật ngay như trước.
  */
-export interface CustomerBookingCreated
-  extends Omit<CustomerBookingDetail, "id" | "bookingCode" | "status"> {
+export interface CustomerBookingCreated extends Omit<
+  CustomerBookingDetail,
+  "id" | "bookingCode" | "status"
+> {
   id: string | null;
   bookingCode: string | null;
   status: BookingStatus | null;
@@ -358,6 +380,9 @@ export interface CustomerBookingDetail {
   confirmationDeadline?: string | null;
   workTiming?: BookingWorkTiming;
   noShow?: BookingNoShow;
+  /** Phần tiền hoàn của booking đã tự động được dùng để thu công nợ khách vắng. */
+  refundDebtRecovered?: number;
+  absence?: CustomerBookingAbsenceReport | null;
   overtimeRequest?: BookingOvertimeRequest;
   createdAt: string;
   updatedAt: string;

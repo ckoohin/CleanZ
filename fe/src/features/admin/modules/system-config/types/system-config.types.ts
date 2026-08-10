@@ -46,8 +46,21 @@ export interface CustomerSchedulingPolicy extends VersionedOperationalPolicy {
   maxAdvanceDays: number;
 }
 
+export interface CustomerAbsencePolicy extends VersionedOperationalPolicy {
+  minWaitMinutes: number;
+  reportWindowMinutes: number;
+  compensationPercent: number;
+  minCompensation: number;
+  maxCompensation: number;
+  guestCompensation: number;
+  reviewSlaHours: number;
+  debtWriteOffDays: number;
+  debtExposureAlertVnd: number;
+}
+
 export interface OperationalPoliciesResponse {
   taskerCancellation: TaskerCancellationPolicy;
   checkin: CheckinOperationPolicy;
   customerScheduling: CustomerSchedulingPolicy;
+  customerAbsence: CustomerAbsencePolicy;
 }

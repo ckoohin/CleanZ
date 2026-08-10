@@ -53,6 +53,7 @@ import type {
   TaskerWithdrawalRequest,
 } from "@/features/tasker/types/tasker-wallet.types";
 import { toast } from "@/lib/toast";
+import { ROUTES } from "@/constants/routes";
 
 const TRANSACTION_LABELS: Record<string, string> = {
   DEPOSIT: "Nạp tiền",
@@ -907,9 +908,18 @@ function TransactionDetailDialog({
           </DialogTitle>
           <DialogDescription>
             {new Date(transaction.createdAt).toLocaleString("vi-VN")}
-            {transaction.booking?.bookingCode
-              ? ` · Đơn ${transaction.booking.bookingCode}`
-              : ""}
+            {transaction.booking?.bookingCode && (
+              <>
+                {" · Đơn "}
+                <Link
+                  href={ROUTES.TASKER.JOB_DETAIL(transaction.booking.id)}
+                  aria-label={`Xem chi tiết đơn ${transaction.booking.bookingCode}`}
+                  className="rounded-sm font-semibold text-primary underline underline-offset-4 transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  {transaction.booking.bookingCode}
+                </Link>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 

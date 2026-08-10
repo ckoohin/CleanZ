@@ -19,6 +19,8 @@ import { BankListService } from './bank-list.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { TaskerDebtEntity } from './entity/tasker-debt.entity';
 import { TaskerDebtService } from './tasker-debt.service';
+import { CustomerDebtEntity } from './entity/customer-debt.entity';
+import { CustomerDebtService } from './customer-debt.service';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { TaskerDebtService } from './tasker-debt.service';
       CustomerWithdrawalRequestEntity,
       WalletTopupOrderEntity,
       TaskerDebtEntity,
+      CustomerDebtEntity,
     ]),
     SystemConfigModule,
   ],
@@ -38,6 +41,7 @@ import { TaskerDebtService } from './tasker-debt.service';
     WalletService,
     TaskerBalanceService,
     TaskerDebtService,
+    CustomerDebtService,
     CustomerWithdrawalService,
     WalletTopupService,
     PayosService,
@@ -50,6 +54,7 @@ import { TaskerDebtService } from './tasker-debt.service';
     WalletService,
     TaskerBalanceService,
     TaskerDebtService,
+    CustomerDebtService,
     PayosService,
     WalletTopupService,
     PayoutService,

@@ -18,6 +18,7 @@ import { WalletTransactionEntity } from './entity/wallet-transaction.entity';
 import type { Webhook } from '@payos/node';
 import { PayosService } from './payos.service';
 import { WalletService } from './wallet.service';
+import { CustomerDebtService } from './customer-debt.service';
 
 export interface TopupConfig {
   minVnd: number;
@@ -36,6 +37,7 @@ export interface CaptureTopupResult {
   status: TopupStatus;
   amountVnd: number;
   balance: number;
+  debtRecovered: number;
 }
 
 @Injectable()
@@ -48,6 +50,7 @@ export class WalletTopupService {
     private readonly payosService: PayosService,
     private readonly systemConfig: SystemConfigService,
     private readonly configService: ConfigService,
+    private readonly customerDebtService: CustomerDebtService,
   ) {}
 
   /** Hạn mức đang hiệu lực, để FE hiển thị và validate trước khi gọi PayOS. */
@@ -201,6 +204,7 @@ export class WalletTopupService {
             status: topupSnapshot.status,
             amountVnd: toNumber(topupSnapshot.amountVnd),
             balance: toNumber(wallet.balance),
+            debtRecovered: toNumber(topupSnapshot.debtRecoveredAmount),
           };
         }
         throw new AppException('Đơn nạp không ở trạng thái có thể thanh toán');
@@ -242,6 +246,7 @@ export class WalletTopupService {
             status: topup.status,
             amountVnd: toNumber(topup.amountVnd),
             balance: toNumber(wallet.balance),
+            debtRecovered: toNumber(topup.debtRecoveredAmount),
           };
         }
 
@@ -257,6 +262,15 @@ export class WalletTopupService {
           description: `Nạp tiền qua PayOS (${amountVnd.toLocaleString('vi-VN')}đ)`,
         });
 
+        let debtRecovered = 0;
+        if (topup.customerId) {
+          debtRecovered = await this.customerDebtService.recoverForCustomer(
+            manager,
+            topup.customerId,
+            amountVnd,
+          );
+        }
+
         const lastTx = await manager
           .getRepository(WalletTransactionEntity)
           .findOne({
@@ -266,6 +280,7 @@ export class WalletTopupService {
 
         topup.status = TopupStatus.COMPLETED;
         topup.walletTxId = lastTx?.id ?? null;
+        topup.debtRecoveredAmount = debtRecovered;
         await lockedTopupRepo.save(topup);
 
         const freshWallet = await getOwnerWallet();
@@ -275,6 +290,7 @@ export class WalletTopupService {
           status: TopupStatus.COMPLETED,
           amountVnd,
           balance: toNumber(freshWallet.balance),
+          debtRecovered,
         };
       });
     }, 'Không thể hoàn tất nạp tiền');
@@ -349,6 +365,15 @@ export class WalletTopupService {
         description: `Nạp tiền qua PayOS webhook (${amountVnd.toLocaleString('vi-VN')}đ)`,
       });
 
+      let debtRecovered = 0;
+      if (topup.customerId) {
+        debtRecovered = await this.customerDebtService.recoverForCustomer(
+          manager,
+          topup.customerId,
+          amountVnd,
+        );
+      }
+
       const lastTx = await manager
         .getRepository(WalletTransactionEntity)
         .findOne({
@@ -358,6 +383,7 @@ export class WalletTopupService {
 
       topup.status = TopupStatus.COMPLETED;
       topup.walletTxId = lastTx?.id ?? null;
+      topup.debtRecoveredAmount = debtRecovered;
       await topupRepo.save(topup);
     });
   }
