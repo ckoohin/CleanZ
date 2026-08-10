@@ -8,7 +8,7 @@ function fmt(d: string | null | undefined) {
   return d ? new Date(d).toLocaleString("vi-VN") : "—";
 }
 
-/** Danh sách phản hồi quyết định của Tasker (đọc-only, giữ cả sau khi đã review). */
+/** Danh sách phản hồi quyết định của Tasker (chỉ đọc, giữ cả sau khi Admin đã xem). */
 export function DecisionResponseHistory({
   responses,
 }: {
@@ -17,7 +17,7 @@ export function DecisionResponseHistory({
   if (responses.length === 0) {
     return (
       <p className="py-6 text-center text-xs text-[var(--c-muted)]">
-        Chưa có phản hồi quyết định nào từ Tasker.
+        Tasker chưa phản hồi quyết định nào.
       </p>
     );
   }
@@ -30,7 +30,7 @@ export function DecisionResponseHistory({
         >
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-[var(--c-ink)]">
-              Quyết định v{r.decisionVersion} · Lần {r.responseRevision}
+              Quyết định v{r.decisionVersion} · Lần phản hồi {r.responseRevision}
               {r.submittedByName ? ` · ${r.submittedByName}` : ""}
             </span>
             <span className="text-[var(--c-muted)]">{fmt(r.submittedAt)}</span>
@@ -46,13 +46,13 @@ export function DecisionResponseHistory({
                 <img
                   key={ev.id}
                   src={ev.url}
-                  alt="bằng chứng phản hồi"
+                  alt="ảnh Tasker gửi kèm phản hồi"
                   className="size-12 rounded border border-[var(--c-line)] object-cover"
                 />
               ))}
             </div>
           )}
-          {/* Ghi chú review là dữ liệu lịch sử — luồng review riêng đã gỡ, Admin đọc
+          {/* Ghi chú là dữ liệu lịch sử — bước duyệt riêng đã gỡ, Admin đọc
               phản hồi rồi chốt luôn hoặc sửa quyết định. */}
           {r.adminReviewNote && (
             <div className="rounded-md bg-[var(--c-card)] p-2 text-xs">

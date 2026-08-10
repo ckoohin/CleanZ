@@ -60,7 +60,7 @@ import type {
 const SORT_OPTIONS = [
   { value: "reportedAt", label: "Mới nhất" },
   { value: "severity", label: "Nghiêm trọng" },
-  { value: "decisionDueAt", label: "Gần hạn QĐ" },
+  { value: "decisionDueAt", label: "Sắp tới hạn quyết định" },
 ] as const;
 
 export function IncidentQueueTable() {
@@ -153,11 +153,11 @@ export function IncidentQueueTable() {
     {
       key: "status",
       title: "Trạng thái",
-      render: (r) => <IncidentStatusBadge status={r.status} />,
+      render: (r) => <IncidentStatusBadge status={r.status} audience="admin" />,
     },
     {
       key: "claimedAmount",
-      title: "Yêu cầu",
+      title: "Khách yêu cầu",
       hideOnMobile: true,
       render: (r) => (
         <span className="text-xs font-semibold">
@@ -167,7 +167,7 @@ export function IncidentQueueTable() {
     },
     {
       key: "approvedAmount",
-      title: "Duyệt",
+      title: "Đã duyệt",
       hideOnMobile: true,
       render: (r) => (
         <span className="text-xs text-[#0E9F6E]">
@@ -177,7 +177,7 @@ export function IncidentQueueTable() {
     },
     {
       key: "reportedAt",
-      title: "Báo cáo",
+      title: "Ngày báo cáo",
       hideOnMobile: true,
       render: (r) => (
         <span className="text-xs text-[var(--c-muted)]">
@@ -363,7 +363,7 @@ export function IncidentQueueTable() {
         onLimitChange={(l) => setParams({ limit: String(l) })}
         isLoading={isLoading}
         emptyTitle="Chưa có sự cố nào"
-        emptyDescription="Không có sự cố nào phù hợp bộ lọc."
+        emptyDescription="Không có sự cố nào khớp bộ lọc đang chọn."
         rowActions={rowActions}
         inlineActionCount={1}
       />

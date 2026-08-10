@@ -62,7 +62,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
   const { data: inc, isLoading } = useAdminIncidentDetail(incidentId);
   const actions = inc?.decision.allowedActions ?? [];
   const canAccept = inc?.status === "REPORTED";
-  // Thẩm định hạng mục nay nằm trong form quyết định — không còn bước "Xác minh" riêng.
+  // Xem xét từng khoản nay nằm trong form quyết định — không còn bước "Xác minh" riêng.
   const showDecision =
     inc?.status === "REVIEWING" || inc?.status === "AWAITING_RESPONSE";
   const canCompensate = actions.includes("COMPENSATE" as never);
@@ -85,7 +85,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             {inc && (
               <span className="flex flex-wrap items-center gap-1.5 pl-2">
                 <SeverityBadge severity={inc.severity} />
-                <IncidentStatusBadge status={inc.status} />
+                <IncidentStatusBadge status={inc.status} audience="admin" />
               </span>
             )}
           </DialogTitle>
@@ -109,10 +109,10 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                   <FileText className="size-3.5" /> Tổng quan
                 </TabsTrigger>
                 <TabsTrigger value="assessment" className="flex-1 gap-1.5 text-xs">
-                  <ClipboardCheck className="size-3.5" /> Thẩm định &amp; xử lý
+                  <ClipboardCheck className="size-3.5" /> Xem xét &amp; xử lý
                 </TabsTrigger>
                 <TabsTrigger value="appendix" className="flex-1 gap-1.5 text-xs">
-                  <MessageSquare className="size-3.5" /> Phản hồi &amp; Giải trình
+                  <MessageSquare className="size-3.5" /> Ý kiến hai bên
                   {appendixCount > 0 && (
                     <span className="ml-0.5 rounded-full bg-[var(--c-primary)]/15 px-1.5 text-[10px] font-bold text-[var(--c-primary-strong)]">
                       {appendixCount}
@@ -129,10 +129,10 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                   <Item label="Khách hàng">{inc.customer.fullName ?? "—"}</Item>
                   <Item label="Tasker">{inc.tasker.fullName ?? "—"}</Item>
                   <Item label="Số dư ví (Tasker)">{formatVnd(inc.tasker.walletBalance)}</Item>
-                  <Item label="Cửa sổ báo cáo">{fmt(inc.reportWindowUntil)}</Item>
-                  <Item label="Hạn quyết định (SLA)">{fmt(inc.decisionDueAt)}</Item>
-                  <Item label="Hạn giải trình">{fmt(inc.statementDueAt)}</Item>
-                  <Item label="Hạn Tasker phản biện">{fmt(inc.decision.taskerResponseDeadline)}</Item>
+                  <Item label="Hạn khách được báo cáo">{fmt(inc.reportWindowUntil)}</Item>
+                  <Item label="Hạn ra quyết định">{fmt(inc.decisionDueAt)}</Item>
+                  <Item label="Hạn Tasker giải trình">{fmt(inc.statementDueAt)}</Item>
+                  <Item label="Hạn Tasker phản hồi quyết định">{fmt(inc.decision.taskerResponseDeadline)}</Item>
                 </div>
 
                 {/* Tình trạng tiền: phần ví đang tạm giữ chờ xử lý bồi thường */}
@@ -151,7 +151,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
 
                 {/* Damage items */}
                 <div className="space-y-2">
-                  <SectionTitle icon={FileText}>Hạng mục thiệt hại</SectionTitle>
+                  <SectionTitle icon={FileText}>Các khoản thiệt hại</SectionTitle>
                   <div className="grid gap-2 md:grid-cols-2">
                     {inc.damageItems.map((it) => (
                       <div key={it.id} className="rounded-lg border border-[var(--c-line)] p-2.5 text-sm">
@@ -190,15 +190,15 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 {(inc.taskerBorneAmount != null || inc.platformBorneAmount != null) && (
                   <div className="grid grid-cols-2 gap-3 rounded-xl border border-[var(--c-line)] p-3 text-sm md:grid-cols-4">
                     <Item label="Tasker chịu">{formatVnd(inc.taskerBorneAmount)}</Item>
-                    <Item label="Quỹ chịu">{formatVnd(inc.platformBorneAmount)}</Item>
+                    <Item label="Quỹ nền tảng chịu">{formatVnd(inc.platformBorneAmount)}</Item>
                     {inc.compensationSource && (
                       <Item label="Nguồn bồi thường">
                         <span className="flex items-center gap-1"><Wallet className="size-3.5" /> {COMP_SOURCE_LABEL[inc.compensationSource]}</span>
                       </Item>
                     )}
-                    {inc.allocationReason && <Item label="Lý do phân bổ">{inc.allocationReason}</Item>}
+                    {inc.allocationReason && <Item label="Lý do chia tỷ lệ">{inc.allocationReason}</Item>}
                     {inc.decision.recoverableFromDepositAmount != null && (
-                      <Item label="Đã trừ ví/cọc Tasker">{formatVnd(inc.decision.recoverableFromDepositAmount)}</Item>
+                      <Item label="Đã trừ từ ví Tasker">{formatVnd(inc.decision.recoverableFromDepositAmount)}</Item>
                     )}
                     {inc.decision.uncoveredLiabilityAmount != null && inc.decision.uncoveredLiabilityAmount > 0 && (
                       <>
@@ -217,7 +217,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
               </div>
             </TabsContent>
 
-            {/* Phụ lục 2: Thẩm định & xử lý */}
+            {/* Tab 2: Xem xét & xử lý */}
             <TabsContent value="assessment" className="min-h-0 flex-1 overflow-y-auto p-6">
               <div className="mx-auto w-full max-w-3xl space-y-5">
                 {canAccept && <AcceptPanel id={inc.id} severity={inc.severity} />}
@@ -254,8 +254,8 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 {actions.includes("WITHDRAW_DECISION") && (
                   <WithdrawDecisionPanel id={inc.id} decisionVersion={inc.decision.version} />
                 )}
-                {/* Nút đảo bám theo allowedActions: BE biết trước 72h/chi thủ công/đã thu nợ
-                    thì không đảo được, nên không bật nút rồi để Admin ăn 409 sau khi gõ lý do. */}
+                {/* Nút hoàn tác bám theo allowedActions: BE biết trước 72h/chi thủ công/đã thu nợ
+                    thì không hoàn tác được, nên không bật nút rồi để Admin ăn 409 sau khi gõ lý do. */}
                 {inc.status === "COMPENSATED" && (
                   <ReverseCompensationPanel
                     id={inc.id}
@@ -291,19 +291,19 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
               <div className="mx-auto w-full max-w-3xl space-y-6">
                 <section className="space-y-2">
                   <SectionTitle icon={ClipboardCheck}>
-                    Phản hồi quyết định của Tasker ({responses.length})
+                    Tasker phản hồi quyết định ({responses.length})
                   </SectionTitle>
                   <DecisionResponseHistory responses={responses} />
                 </section>
                 <section className="space-y-2">
                   <SectionTitle icon={MessageSquare}>
-                    Giải trình ({inc.statements.length})
+                    Ý kiến giải trình ({inc.statements.length})
                   </SectionTitle>
                   <StatementThread statements={inc.statements} />
                   {(inc.statementEvidences?.length ?? 0) > 0 && (
                     <div className="space-y-1.5 rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5">
                       <p className="text-xs font-semibold text-[var(--c-ink)]">
-                        Ảnh đính kèm giải trình ({inc.statementEvidences.length})
+                        Ảnh Tasker gửi kèm ({inc.statementEvidences.length})
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {inc.statementEvidences.map((ev) => (
@@ -311,7 +311,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                           <a key={ev.id} href={ev.url} target="_blank" rel="noreferrer">
                             <img
                               src={ev.url}
-                              alt="ảnh giải trình"
+                              alt="ảnh Tasker gửi kèm"
                               className="size-16 rounded border border-[var(--c-line)] object-cover transition hover:opacity-80"
                             />
                           </a>
@@ -324,7 +324,7 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="p-6 text-center text-sm text-[var(--c-muted)]">Không tìm thấy sự cố</div>
+          <div className="p-6 text-center text-sm text-[var(--c-muted)]">Không tìm thấy sự cố này</div>
         )}
       </DialogContent>
     </Dialog>

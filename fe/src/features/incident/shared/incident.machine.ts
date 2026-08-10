@@ -57,7 +57,7 @@ export function checkAllocation(
   if (taskerBorne + platformBorne !== sumApproved)
     return {
       ok: false,
-      reason: 'Tổng phân bổ (Tasker + Quỹ) phải bằng tổng được duyệt',
+      reason: 'Phần Tasker + phần quỹ nền tảng phải bằng tổng được duyệt',
     };
   return { ok: true };
 }

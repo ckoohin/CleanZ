@@ -46,6 +46,9 @@ import { UpdateTaskerLocationDto } from './dto/update-tasker-location.dto';
 import { TaskerService } from './tasker.service';
 
 import { AdminTaskerDetailService } from './admin-tasker-detail.service';
+import { AuditAction } from '../admin/audit/audit-action.decorator';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -332,6 +335,14 @@ export class TaskerController {
     return this.taskerService.listTaskers(dto);
   }
 
+  // Trả `document.idNumber`, ảnh căn cước/lý lịch tư pháp/giấy khám sức khỏe và
+  // số tài khoản ngân hàng. Ghi ID của Tasker bị xem, KHÔNG ghi nội dung xem được.
+  @AuditAction({
+    code: AuditActionCode.TASKER_KYC_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'TASKER',
+    extract: ({ params }) => ({ taskerId: params.id }),
+  })
   @Get('admin/:id')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin xem chi tiết một tasker' })
@@ -340,6 +351,11 @@ export class TaskerController {
     return this.taskerService.getTaskerDetail(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_UPDATE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'TASKER',
+  })
   @Patch('admin/:id')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin sửa thông tin cơ bản của tasker' })
@@ -352,6 +368,11 @@ export class TaskerController {
     return this.taskerService.updateTaskerByAdmin(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_WORK_STATUS_CHANGE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+  })
   @Patch('admin/:id/work-status')
   @AdminOnly()
   @ApiOperation({
@@ -366,6 +387,12 @@ export class TaskerController {
     return this.taskerService.updateTaskerWorkStatusByAdmin(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_APPROVE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    extract: ({ params }) => ({ taskerId: params.id }),
+  })
   @Patch('admin/:id/approve')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin duyệt tasker — chuyển sang ACTIVE' })
@@ -377,6 +404,16 @@ export class TaskerController {
     return this.taskerService.approveTasker(id, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_EQUIPMENT_REVIEW,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    reasonField: 'note',
+    extract: ({ params, body }) => ({
+      taskerId: params.id,
+      action: body.action ?? null,
+    }),
+  })
   @Patch('admin/:id/equipment/review')
   @AdminOnly()
   @ApiOperation({
@@ -393,6 +430,13 @@ export class TaskerController {
     return this.taskerService.reviewTaskerEquipment(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_REJECT,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    reasonField: 'notes',
+    extract: ({ params }) => ({ taskerId: params.id }),
+  })
   @Patch('admin/:id/reject')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin từ chối hồ sơ tasker' })
@@ -405,6 +449,12 @@ export class TaskerController {
     return this.taskerService.rejectTasker(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_REQUEST_INFO,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'TASKER',
+    reasonField: 'notes',
+  })
   @Patch('admin/:id/request-info')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin yêu cầu tasker bổ sung thông tin' })
@@ -417,6 +467,17 @@ export class TaskerController {
     return this.taskerService.requestMoreInfo(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_BAN,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    reasonField: 'reason',
+    extract: ({ params, body }) => ({
+      taskerId: params.id,
+      banType: body.type ?? null,
+      durationDays: body.durationDays ?? null,
+    }),
+  })
   @Post('admin/:id/ban')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin khóa tài khoản tasker' })
@@ -429,6 +490,12 @@ export class TaskerController {
     return this.taskerService.banTasker(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_UNBAN,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    extract: ({ params }) => ({ taskerId: params.id }),
+  })
   @Post('admin/:id/unban')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin mở khóa tài khoản tasker' })
@@ -440,6 +507,13 @@ export class TaskerController {
     return this.taskerService.unbanTasker(id, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_REINSTATE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    reasonField: 'reason',
+    extract: ({ params }) => ({ taskerId: params.id }),
+  })
   @Patch('admin/:id/reinstate')
   @AdminOnly()
   @ApiOperation({
@@ -454,6 +528,12 @@ export class TaskerController {
     return this.taskerService.reinstateTasker(id, adminId, dto.reason);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_DELETE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'TASKER',
+    extract: ({ params }) => ({ taskerId: params.id }),
+  })
   @Delete('admin/:id')
   @AdminOnly()
   @ApiOperation({
@@ -519,6 +599,11 @@ export class TaskerController {
     return this.adminTaskerDetailService.getTaskerServices(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TASKER_SERVICE_TOGGLE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'TASKER',
+  })
   @Patch('admin/:id/services/:serviceId/toggle')
   @AdminOnly()
   @ApiOperation({ summary: 'Admin bật/tắt dịch vụ cho Tasker' })

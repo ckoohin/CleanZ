@@ -121,7 +121,7 @@ describe("DecisionPanel — gating theo allowedActions (BE-driven)", () => {
     inc.decision.blockedReasons = ["WAITING_FOR_TASKER_RESPONSE"];
     render(<DecisionPanel incident={inc} />);
     expect(
-      screen.getByText(/Đang trong thời hạn Tasker phản biện/i),
+      screen.getByText(/Đang trong thời hạn Tasker phản hồi/i),
     ).toBeInTheDocument();
   });
 });

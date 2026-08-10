@@ -45,13 +45,13 @@ function WithdrawDialog({ id, open, onClose }: { id: string; open: boolean; onCl
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Rút báo cáo sự cố</DialogTitle>
+          <DialogTitle className="text-base font-bold">Rút lại báo cáo</DialogTitle>
         </DialogHeader>
         <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          placeholder="Lý do rút (tuỳ chọn)..."
+          placeholder="Vì sao bạn rút lại? (không bắt buộc)..."
           className="resize-none rounded-lg text-sm"
         />
         <DialogFooter className="gap-2">
@@ -63,7 +63,7 @@ function WithdrawDialog({ id, open, onClose }: { id: string; open: boolean; onCl
             disabled={withdraw.isPending}
             onClick={() => withdraw.mutate({ reason: reason || undefined }, { onSuccess: onClose })}
           >
-            {withdraw.isPending ? "Đang rút..." : "Xác nhận rút"}
+            {withdraw.isPending ? "Đang rút..." : "Xác nhận rút lại"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -71,7 +71,7 @@ function WithdrawDialog({ id, open, onClose }: { id: string; open: boolean; onCl
   );
 }
 
-/** P1.4 — Uploader bổ sung bằng chứng cho hạng mục Admin yêu cầu (NEED_MORE_EVIDENCE). */
+/** P1.4 — Uploader bổ sung bằng chứng cho khoản thiệt hại Admin yêu cầu (NEED_MORE_EVIDENCE). */
 function NeedEvidenceUploader({
   incidentId,
   itemId,
@@ -102,7 +102,7 @@ function NeedEvidenceUploader({
     <div className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2.5 dark:bg-amber-500/10">
       <p className="flex items-start gap-1.5 text-xs font-medium text-amber-700">
         <AlertTriangle className="mt-px size-3.5 shrink-0" />
-        CleanZ cần thêm bằng chứng cho hạng mục này để tiếp tục thẩm định.
+        CleanZ cần thêm ảnh cho khoản này để tiếp tục xem xét.
       </p>
       <input
         ref={fileRef}
@@ -155,7 +155,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
   if (!inc) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <p className="text-sm text-muted-foreground">Không tìm thấy sự cố</p>
+        <p className="text-sm text-muted-foreground">Không tìm thấy báo cáo này</p>
         <button onClick={() => router.back()} className="text-sm font-semibold text-primary">← Quay lại</button>
       </div>
     );
@@ -177,7 +177,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
 
       <div className="mx-auto max-w-lg space-y-5 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <IncidentStatusBadge status={inc.status} />
+          <IncidentStatusBadge status={inc.status} audience="customer" />
           <SeverityBadge severity={inc.severity} />
           {inc.closureReason && (
             <span className="text-xs text-muted-foreground">· {CLOSURE_LABEL[inc.closureReason]}</span>
@@ -191,7 +191,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
 
         {/* Damage items */}
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Hạng mục thiệt hại</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Các khoản thiệt hại</p>
           {inc.damageItems.map((it) => (
             <div key={it.id} className="rounded-xl border border-border/50 p-3">
               <div className="flex items-center justify-between gap-2">
@@ -208,9 +208,9 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
                 )}
               </div>
               <div className="mt-1 flex items-center gap-3 text-xs">
-                <span className="text-muted-foreground">Yêu cầu: <b className="text-foreground/80">{formatVnd(it.claimedAmount)}</b></span>
+                <span className="text-muted-foreground">Bạn yêu cầu: <b className="text-foreground/80">{formatVnd(it.claimedAmount)}</b></span>
                 {it.approvedAmount != null && (
-                  <span className="text-emerald-600">Duyệt: <b>{formatVnd(it.approvedAmount)}</b></span>
+                  <span className="text-emerald-600">CleanZ duyệt: <b>{formatVnd(it.approvedAmount)}</b></span>
                 )}
               </div>
               {it.evidences.length > 0 && (
@@ -232,19 +232,19 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         {/* Summary */}
         <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/40 p-3 text-sm">
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Tổng yêu cầu</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Tổng bạn yêu cầu</p>
             <p className="font-semibold">{formatVnd(inc.claimedAmount)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Được duyệt</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">CleanZ duyệt</p>
             <p className="font-semibold text-emerald-600">{formatVnd(inc.approvedAmount)}</p>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="size-3.5" /> Báo cáo: {fmt(inc.reportedAt)}
+            <Clock className="size-3.5" /> Ngày gửi: {fmt(inc.reportedAt)}
           </div>
           {inc.resolvedAt && (
             <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-              <CheckCircle2 className="size-3.5" /> Xử lý: {fmt(inc.resolvedAt)}
+              <CheckCircle2 className="size-3.5" /> Ngày xong: {fmt(inc.resolvedAt)}
             </div>
           )}
         </div>
@@ -254,10 +254,10 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         {inc.payoutChannel === "WALLET" && (
           <div className="space-y-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              <Wallet className="size-4" /> Đã hoàn {formatVnd(inc.approvedAmount)} vào ví CleanZ
+              <Wallet className="size-4" /> Đã hoàn {formatVnd(inc.approvedAmount)} vào ví CleanZ của bạn
             </p>
             <p className="text-xs text-muted-foreground">
-              Số tiền đã được cộng vào ví của bạn. Bạn có thể dùng để thanh toán đơn tiếp
+              Tiền đã vào ví của bạn. Bạn có thể dùng để thanh toán đơn tiếp
               theo hoặc rút về tài khoản ngân hàng.
             </p>
             <Button
@@ -275,7 +275,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
               <Landmark className="size-4" /> Đã chuyển khoản {formatVnd(inc.approvedAmount)}
             </p>
             <p className="text-xs text-muted-foreground">
-              CleanZ đã chuyển khoản số tiền này tới tài khoản ngân hàng bạn cung cấp
+              CleanZ đã chuyển số tiền này tới tài khoản ngân hàng bạn cung cấp
               (không cộng vào ví). Nếu sau 1–2 ngày làm việc chưa thấy tiền về, vui lòng
               liên hệ hỗ trợ.
             </p>
@@ -285,7 +285,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         {inc.decisionSummary && (
           <div className="rounded-2xl border border-border/40 bg-muted/30 p-3 text-sm">
             <p className="mb-1 text-xs font-bold text-muted-foreground">
-              Kết luận của CleanZ
+              CleanZ kết luận
             </p>
             {inc.decisionSummary}
           </div>
@@ -293,7 +293,7 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
 
         {withdrawable && (
           <Button variant="outline" className="w-full rounded-xl text-red-600 hover:bg-red-500/10" onClick={() => setShowWithdraw(true)}>
-            Rút báo cáo
+            Rút lại báo cáo
           </Button>
         )}
       </div>

@@ -24,8 +24,8 @@ interface Props {
 }
 
 /**
- * Gỡ khoá quyền báo cáo cho khách hàng của sự cố (khoá do cộng đủ cảnh cáo
- * gian lận). Khoá nằm ở CẤP KHÁCH HÀNG chứ không phải cấp sự cố, nên gỡ ở đây
+ * Gỡ khoá quyền báo cáo cho khách hàng của sự cố (khoá do bị đánh dấu báo cáo
+ * sai nhiều lần). Khoá nằm ở CẤP KHÁCH HÀNG chứ không phải cấp sự cố, nên gỡ ở đây
  * mở lại quyền báo cáo cho mọi đơn của họ — đủ nặng để phải xác nhận, và không
  * hiện ra khi khách vốn không bị khoá.
  */
@@ -57,11 +57,11 @@ export function UnlockReporterButton({ id, customerName, lockedUntil }: Props) {
             <div className="space-y-2 text-[var(--c-muted)]">
               <p>
                 Khách hàng{customerName ? ` ${customerName}` : ""} đang bị khoá
-                quyền báo cáo sự cố do cộng đủ cảnh cáo gian lận.
+                quyền báo cáo sự cố do bị đánh dấu báo cáo sai nhiều lần.
               </p>
               <p className="text-xs">
                 Gỡ khoá áp dụng cho <b>toàn bộ tài khoản của khách</b>, không
-                riêng sự cố này. Các cảnh cáo đã ghi nhận vẫn giữ nguyên, nên
+                riêng sự cố này. Các lần báo cáo sai đã ghi nhận vẫn giữ nguyên, nên
                 khách có thể bị khoá lại nếu tiếp tục báo cáo sai.
               </p>
             </div>

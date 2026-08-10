@@ -3,6 +3,7 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { AllConfigType } from '../config/config.type';
 import { resolveDatabaseSsl } from './database-ssl';
+import { AuditCorrelationSubscriber } from '../modules/admin/audit/audit-correlation.subscriber';
 
 export const getDatabaseConfig = (
   configService: ConfigService<AllConfigType>,
@@ -22,6 +23,8 @@ export const getDatabaseConfig = (
     }),
 
     autoLoadEntities: true,
+    // Đóng dấu `audit_correlation_id` lên các bản ghi hệ quả của thao tác admin.
+    subscribers: [AuditCorrelationSubscriber],
     migrations: [join(__dirname, '../database/migrations/*{.ts,.js}')],
     migrationsRun,
     synchronize: false,

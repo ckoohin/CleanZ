@@ -61,9 +61,9 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="cz-admin sm:max-w-lg overflow-hidden rounded-2xl p-0 bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Cấu hình Incident</DialogTitle>
+          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Cấu hình xử lý sự cố</DialogTitle>
           <DialogDescription className="text-xs text-[var(--c-muted)]">
-            Cửa sổ báo cáo, ngưỡng tiền, cooling, SLA, auto-close... (đổi runtime).
+            Thời hạn báo cáo, ngưỡng tiền, thời hạn xử lý, tự đóng hồ sơ... Đổi xong áp dụng ngay.
           </DialogDescription>
         </DialogHeader>
 

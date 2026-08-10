@@ -5,10 +5,12 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 import { AdminActivityStatus } from '../entities/admin-activity-log.entity';
 
 export class AdminActivityQueryDto {
@@ -28,6 +30,21 @@ export class AdminActivityQueryDto {
   @IsOptional()
   @IsEnum(AdminActivityStatus)
   status?: AdminActivityStatus;
+
+  @IsOptional()
+  @IsEnum(AuditSeverity)
+  severity?: AuditSeverity;
+
+  /** Lọc đúng một loại nghiệp vụ, ví dụ `FINANCE.WALLET_MANUAL_ADJUSTMENT`. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  actionCode?: string;
+
+  /** Gom mọi thay đổi dữ liệu sinh ra từ cùng một thao tác admin. */
+  @IsOptional()
+  @IsUUID()
+  correlationId?: string;
 
   @IsOptional()
   @IsString()

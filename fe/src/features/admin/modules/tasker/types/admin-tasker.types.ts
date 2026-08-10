@@ -21,7 +21,28 @@ export interface UpdateTaskerWorkStatusPayload {
   clearCancelSuspension?: boolean;
 }
 
-export interface AdminTasker extends TaskerProfile {
+/**
+ * Các trường có ở hồ sơ Tasker nhưng KHÔNG có trong dòng danh sách phía admin.
+ *
+ * Backend chỉ trả chúng ở endpoint chi tiết. Loại khỏi kiểu để TypeScript báo lỗi
+ * ngay tại chỗ dùng sai, thay vì để `undefined` lặng lẽ chảy vào giao diện — đó
+ * là cách `TaskerEditDialog` từng điền form ngân hàng bằng dữ liệu của danh sách
+ * mà không ai nhận ra nó đang phơi số tài khoản của cả trang.
+ */
+type TaskerDetailOnlyFields =
+  | "bankBin"
+  | "bankName"
+  | "bankAccountNumber"
+  | "bankAccountName"
+  | "document"
+  | "hasCitizenCardImage"
+  | "hasCertificateImage"
+  | "hasCriminalRecordImage"
+  | "hasHealthCertificateImage"
+  | "hasIdWithSelfieImage";
+
+export interface AdminTasker
+  extends Omit<TaskerProfile, TaskerDetailOnlyFields> {
   status: TaskerAccountStatus;
   presenceStatus?: string | null;
   workingAddress?: string | null;
@@ -72,7 +93,16 @@ export interface AdminTaskerStats {
   totalPoints: number;
 }
 
+/**
+ * Chi tiết một Tasker — nơi DUY NHẤT trả giấy tờ tuỳ thân và thông tin ngân hàng.
+ * Mỗi lần mở đều được ghi nhật ký kiểm toán (`READ.TASKER_KYC_VIEW`).
+ */
 export interface AdminTaskerDetail extends AdminTasker {
+  /** Dạng phẳng, backend vẫn trả song song với khối `bank` lồng nhau bên dưới. */
+  bankBin?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
   hasCitizenCardImage: boolean;
   hasCriminalRecordImage: boolean;
   hasHealthCertificateImage: boolean;

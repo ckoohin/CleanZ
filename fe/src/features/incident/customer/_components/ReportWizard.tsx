@@ -31,7 +31,7 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
   const router = useRouter();
   const uploadEvidence = useUploadEvidence();
   const createIncident = useCreateIncident();
-  // Trần thật do admin cấu hình; `CLAIM_MAX` chỉ là giá trị dự phòng trong lúc
+  // Mức tối đa thật do admin cấu hình; `CLAIM_MAX` chỉ là giá trị dự phòng trong lúc
   // chưa tải xong hoặc khi gọi lỗi — backend vẫn là chốt chặn cuối.
   const { data: reportConfig } = useReportConfig();
   const claimMax = reportConfig?.claimMax ?? CLAIM_MAX;
@@ -59,8 +59,8 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
   const itemValid = (it: ItemDraft) =>
     it.description.trim() && amountValid(it) && it.evidences.length >= 1;
 
-  // Trần áp cho TỔNG, không phải từng hạng mục (backend: `totalClaimed > claimMax`).
-  // Thiếu điều kiện này thì ba hạng mục dưới trần vẫn lọt qua form rồi bị từ
+  // Mức tối đa áp cho TỔNG, không phải từng khoản (backend: `totalClaimed > claimMax`).
+  // Thiếu điều kiện này thì ba khoản dưới mức tối đa vẫn lọt qua form rồi bị từ
   // chối — sau khi khách đã tải xong toàn bộ ảnh.
   const overClaimMax = totalClaimed > claimMax;
 
@@ -114,18 +114,18 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            Chỉ báo cáo cho đơn <b>đã hoàn thành</b> và trong thời hạn quy định. Hãy đính kèm ảnh hiện trạng cho mỗi hạng mục để được xử lý nhanh.
+            Chỉ báo cáo được cho đơn <b>đã hoàn thành</b> và còn trong thời hạn. Hãy chụp ảnh cho từng khoản thiệt hại để được xử lý nhanh hơn.
           </p>
         </div>
 
         {/* Đơn liên quan */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold">Mã đơn liên quan *</Label>
+          <Label className="text-xs font-semibold">Đơn dịch vụ xảy ra sự cố *</Label>
           <Input
             value={bookingId}
             onChange={(e) => setBookingId(e.target.value)}
             readOnly={!!initialBookingId}
-            placeholder="ID đơn đã hoàn thành..."
+            placeholder="Chọn đơn đã hoàn thành..."
             className={`rounded-lg text-sm ${initialBookingId ? "bg-muted text-muted-foreground" : ""}`}
             aria-invalid={attempted && !bookingId.trim()}
           />
@@ -144,12 +144,12 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold">Mô tả chung *</Label>
+          <Label className="text-xs font-semibold">Chuyện gì đã xảy ra? *</Label>
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="Mô tả tình huống sự cố..."
+            placeholder="Kể lại sự việc..."
             className="resize-none rounded-lg text-sm"
             aria-invalid={attempted && !description.trim()}
           />
@@ -159,7 +159,7 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Hạng mục thiệt hại *
+              Các khoản thiệt hại *
             </Label>
             <span
               className={`text-xs ${overClaimMax ? "font-semibold text-red-500" : "text-muted-foreground"}`}
@@ -169,17 +169,17 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
           </div>
           {overClaimMax && (
             <p className="text-xs text-red-500">
-              Tổng số tiền yêu cầu vượt trần {formatVnd(claimMax)}. Hãy giảm bớt
-              hoặc tách thành báo cáo khác.
+              Tổng số tiền yêu cầu vượt mức tối đa {formatVnd(claimMax)}. Hãy giảm bớt
+              hoặc tách ra thành báo cáo khác.
             </p>
           )}
 
           {items.map((it, idx) => (
             <div key={idx} className="space-y-2 rounded-xl border border-border/50 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted-foreground">Hạng mục {idx + 1}</span>
+                <span className="text-xs font-bold text-muted-foreground">Khoản {idx + 1}</span>
                 {items.length > 1 && (
-                  <button onClick={() => removeItem(idx)} className="text-muted-foreground hover:text-red-500" aria-label="Xoá hạng mục">
+                  <button onClick={() => removeItem(idx)} className="text-muted-foreground hover:text-red-500" aria-label="Xoá khoản này">
                     <Trash2 className="size-4" />
                   </button>
                 )}
@@ -188,7 +188,7 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
                 value={it.description}
                 maxLength={255}
                 onChange={(e) => setItem(idx, { description: e.target.value })}
-                placeholder="Mô tả thiệt hại (VD: vỡ bình hoa)"
+                placeholder="Hỏng gì? (VD: vỡ bình hoa)"
                 className="rounded-lg text-sm"
                 aria-invalid={attempted && !it.description.trim()}
               />
@@ -198,13 +198,13 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
                 max={claimMax}
                 value={it.claimedAmount}
                 onChange={(e) => setItem(idx, { claimedAmount: e.target.value })}
-                placeholder="Số tiền yêu cầu (VND)"
+                placeholder="Số tiền muốn được đền (VND)"
                 className="rounded-lg text-sm"
                 step={1}
                 aria-invalid={attempted && !amountValid(it)}
               />
               <div>
-                <p className="mb-1 text-[11px] text-muted-foreground">Ảnh bằng chứng (≥1) *</p>
+                <p className="mb-1 text-[11px] text-muted-foreground">Ảnh chụp thiệt hại (ít nhất 1) *</p>
                 <EvidenceUploader
                   upload={upload}
                   value={it.evidences}
@@ -213,14 +213,14 @@ export function ReportWizard({ bookingId: initialBookingId }: { bookingId?: stri
               </div>
               {attempted && !itemValid(it) && (
                 <p className="text-xs text-red-500">
-                  Cần mô tả, số tiền nguyên không lẻ (≤ {formatVnd(claimMax)}) và ≥1 ảnh.
+                  Cần mô tả, số tiền chẵn (tối đa {formatVnd(claimMax)}) và ít nhất 1 ảnh.
                 </p>
               )}
             </div>
           ))}
 
           <Button variant="outline" size="sm" className="w-full rounded-lg gap-1.5" onClick={addItem}>
-            <Plus className="size-3.5" /> Thêm hạng mục
+            <Plus className="size-3.5" /> Thêm khoản thiệt hại
           </Button>
         </div>
       </div>

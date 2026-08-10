@@ -132,3 +132,40 @@ Kết quả mong đợi là `running healthy`.
 - Không chạy `migration:generate` trong quy trình deploy.
 - Backup database trước khi chạy migration trên production.
 - Không đưa mật khẩu database hoặc toàn bộ nội dung `.env` vào log.
+
+## Nhật ký kiểm toán (audit) — 5 migration, không được gộp
+
+| Timestamp | Nội dung |
+|---|---|
+| `1787800000000` | Cột ngữ nghĩa cho `admin_activity_logs` (`action_code`, `severity`, `reason`, `correlation_id`…) |
+| `1787900000000` | `audit_correlation_id` trên 6 bảng hệ quả |
+| `1788000000000` | Bảng `audit_outbox` |
+| `1788100000000` | `audit_outbox.occurred_at` |
+| `1788200000000` | Trigger append-only + `actor_type` trên 3 bảng lịch sử |
+
+### `1788100000000` PHẢI giữ riêng, đừng gộp vào `1788000000000`
+
+Cột `occurred_at` xuất hiện ở **cả hai** file: trong `CREATE TABLE` của
+`1788000000000` (cho DB mới) và trong một `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+của `1788100000000` (cho DB đã chạy file trước).
+
+Trùng lặp này là **có chủ đích**. `1788000000000` đã được ghi vào bảng `migrations`
+ở môi trường dev trước khi cột được thêm, và **TypeORM bỏ qua trọn vẹn một
+migration đã chạy** — thêm bao nhiêu câu lệnh vào đó cũng không bao giờ được thực
+thi, kể cả câu lệnh idempotent. Gộp lại sẽ khiến mọi DB đã apply `1788000000000`
+vĩnh viễn thiếu cột, và lỗi chỉ lộ ra khi ứng dụng ghi outbox lần đầu.
+
+Bài học chung: *SQL idempotent* và *migration chạy lại được* là hai chuyện khác
+nhau — cái sau không tồn tại. Cần sửa một migration đã phát hành thì luôn phải
+thêm file mới.
+
+### Trigger `audit_log_guard`
+
+`1788200000000` gắn trigger chặn `UPDATE` trên `admin_activity_logs` và chặn
+`DELETE` với bản ghi chưa quá 12 tháng. Hệ quả cần biết:
+
+- Job dọn theo hạn (`AuditRetentionService`) vẫn xoá được phần đã quá hạn.
+- Muốn sửa/xoá thủ công để vá dữ liệu thì phải `ALTER TABLE ... DISABLE TRIGGER`
+  trước — ma sát này là cố ý.
+- Hạn 12 tháng được viết cứng trong hàm trigger. Đổi hạn lưu trữ phải sửa **cả**
+  hàm này lẫn `MIN_RETENTION_MONTHS` trong `audit-retention.service.ts`.

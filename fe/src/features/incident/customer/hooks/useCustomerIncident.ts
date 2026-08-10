@@ -69,7 +69,7 @@ export function useAttachItemEvidence(id: string) {
     mutationFn: ({ itemId, evidenceIds }: { itemId: string; evidenceIds: string[] }) =>
       customerIncidentApi.attachItemEvidence(id, itemId, evidenceIds),
     onSuccess: () => {
-      toast.success("Đã gửi bằng chứng bổ sung — chờ CleanZ thẩm định lại");
+      toast.success("Đã gửi thêm ảnh — chờ CleanZ xem xét lại");
       qc.invalidateQueries({ queryKey: incidentKeys.detail(id) });
     },
     onError: (e: unknown) => toast.error(getErrorMessage(e)),

@@ -61,6 +61,9 @@ import {
 } from 'src/common/helpers/excel-report.helper';
 import { AdminActivityService } from 'src/modules/admin/services/admin-activity.service';
 import { AdminActivityStatus } from 'src/modules/admin/entities/admin-activity-log.entity';
+import { AuditActionCode } from 'src/modules/admin/audit/audit-action-codes';
+import { AuditAction } from 'src/modules/admin/audit/audit-action.decorator';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 import { sanitizeAuditValue } from 'src/modules/admin/utils/admin-activity-sanitizer';
 import type { AuthUser } from 'src/modules/auth/types/AuthRequest';
 
@@ -117,11 +120,14 @@ export class IncidentAdminController {
         actorUserId: admin.id,
         actorEmail: admin.email,
         action,
+        actionCode: AuditActionCode.EXPORT_INCIDENTS,
+        severity: AuditSeverity.READ_SENSITIVE,
         resource: 'sự cố',
         method: 'GET',
         path,
         handler,
         targetId: null,
+        targetType: 'INCIDENT',
         changes: { filters: safeFilters },
         status: AdminActivityStatus.SUCCESS,
         statusCode: 200,
@@ -213,6 +219,11 @@ export class IncidentAdminController {
     return this.config.getEffectiveConfig();
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_CONFIG_UPDATE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'INCIDENT_CONFIG',
+  })
   @Put('config')
   @ApiOperation({ summary: 'Cập nhật cấu hình incident (đổi runtime)' })
   async updateConfig(@Body() body: Record<string, string | number>) {
@@ -228,6 +239,11 @@ export class IncidentAdminController {
     return this.reconciliation_.reconcile();
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_RUN_HOUSEKEEPING,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'INCIDENT',
+  })
   @Post('run-housekeeping')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Chạy housekeeping (EXPIRED + auto-close)' })
@@ -235,6 +251,16 @@ export class IncidentAdminController {
     return this.automation.runHousekeeping();
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_CREATE_FROM_TICKET,
+    severity: AuditSeverity.HIGH,
+    targetType: 'INCIDENT',
+    extract: ({ params, body, result }) => ({
+      ticketId: params.ticketId,
+      claimedAmount: body.claimedAmount ?? null,
+      incidentId: result?.id ?? null,
+    }),
+  })
   @Post('from-ticket/:ticketId')
   @ApiOperation({
     summary: 'Nâng cấp Support Ticket PROPERTY_DAMAGE → Incident',
@@ -253,6 +279,13 @@ export class IncidentAdminController {
     return this.adminService.findOne(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_ACCEPT,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'INCIDENT',
+    reasonField: 'note',
+    extract: ({ params }) => ({ incidentId: params.id }),
+  })
   @Patch(':id/accept')
   @ApiOperation({ summary: 'Tiếp nhận thẩm định (REPORTED → REVIEWING)' })
   accept(
@@ -263,6 +296,28 @@ export class IncidentAdminController {
     return this.adminService.accept(adminUserId, id, dto);
   }
 
+  /**
+   * Soạn quyết định: nơi chốt AI CHỊU BAO NHIÊU. Diff `IncidentEntity` bắt được
+   * các cột phân bổ, nhưng khai báo tường minh mới cho phép lọc nhanh những hồ sơ
+   * bị sửa phân bổ trách nhiệm nhiều lần — dấu hiệu đáng xem lại.
+   */
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_DECISION_DRAFT,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    reasonField: 'responsibilityReason',
+    // Tên field phải khớp `SaveIncidentDecisionDto`: `responsibilityParty` (không
+    // phải `responsibleParty`), và DTO này KHÔNG nhận `approvedCompensationAmount`
+    // — số tiền duyệt được suy ra từ các hạng mục, nên phải đọc ở kết quả trả về.
+    extract: ({ params, body, result }) => ({
+      incidentId: params.id,
+      responsibilityParty: body.responsibilityParty ?? null,
+      taskerBorneAmount: body.taskerBorneAmount ?? null,
+      platformBorneAmount: body.platformBorneAmount ?? null,
+      allocationReason: body.allocationReason ?? null,
+      approvedAmount: result?.approvedCompensationAmount ?? null,
+    }),
+  })
   @Put(':id/decision')
   @ApiOperation({
     summary:
@@ -276,6 +331,12 @@ export class IncidentAdminController {
     return this.decisionService.saveDecision(adminUserId, id, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_DECISION_SEND,
+    severity: AuditSeverity.HIGH,
+    targetType: 'INCIDENT',
+    extract: ({ params }) => ({ incidentId: params.id }),
+  })
   @Post(':id/decision/send')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -290,6 +351,16 @@ export class IncidentAdminController {
     return this.decisionService.sendToTasker(adminUserId, id, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_DECISION_FINALIZE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    extract: ({ params, result }) => ({
+      incidentId: params.id,
+      finalStatus: result?.status ?? null,
+      approvedAmount: result?.approvedCompensationAmount ?? null,
+    }),
+  })
   @Post(':id/decision/finalize')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Chốt quyết định (một Admin, không duyệt cấp 2)' })
@@ -301,6 +372,13 @@ export class IncidentAdminController {
     return this.decisionService.finalizeDecision(adminUserId, id, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_DECISION_WITHDRAW,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    reasonField: 'reason',
+    extract: ({ params }) => ({ incidentId: params.id }),
+  })
   @Post(':id/decision/withdraw')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -315,6 +393,21 @@ export class IncidentAdminController {
     return this.decisionService.withdrawDecision(adminUserId, id, dto);
   }
 
+  /**
+   * Chuyển tiền thật. Diff `IncidentEntity` KHÔNG nhìn thấy các bút toán ví và
+   * khoản nợ Tasker do lệnh này sinh ra — chúng nằm ở `wallet_transactions` và
+   * `tasker_debts`. `correlationId` là thứ nối chúng lại với dòng nhật ký này.
+   */
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_COMPENSATE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    extract: ({ params, result }) => ({
+      incidentId: params.id,
+      approvedAmount: result?.approvedCompensationAmount ?? null,
+      compensationSource: result?.compensationSource ?? null,
+    }),
+  })
   @Post(':id/compensate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Chi trả bồi thường (chuyển tiền thật qua ví)' })
@@ -325,6 +418,16 @@ export class IncidentAdminController {
     return this.compensationExecutor.execute(adminUserId, id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_COMPENSATION_REVERSE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    reasonField: 'reason',
+    extract: ({ params, body }) => ({
+      incidentId: params.id,
+      expectedDecisionVersion: body.expectedDecisionVersion ?? null,
+    }),
+  })
   @Post(':id/compensation/reverse')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -344,6 +447,17 @@ export class IncidentAdminController {
     );
   }
 
+  /**
+   * Nền tảng chấp nhận mất tiền. Không đảo ngược được và không bên nào ở ngoài
+   * phản đối được, nên đây là loại quyết định mà nhật ký là đối trọng duy nhất.
+   */
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_DEBT_WRITE_OFF,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    reasonField: 'reason',
+    extract: ({ params }) => ({ incidentId: params.id }),
+  })
   @Post(':id/debt/write-off')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -358,6 +472,14 @@ export class IncidentAdminController {
     return this.adminService.writeOffDebt(adminUserId, id, dto.reason);
   }
 
+  // Ảnh minh chứng chuyển khoản là bằng chứng DUY NHẤT cho một khoản chi trả
+  // thủ công — bản thân việc tải nó lên cần có vết.
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_TRANSFER_PROOF_UPLOAD,
+    severity: AuditSeverity.HIGH,
+    targetType: 'INCIDENT_EVIDENCE',
+    extract: ({ result }) => ({ evidenceId: result?.id ?? null }),
+  })
   @Post('evidences/transfer-proof')
   @ApiOperation({
     summary: 'P0.4 — Upload ảnh minh chứng chuyển khoản (chi trả thủ công)',
@@ -383,6 +505,17 @@ export class IncidentAdminController {
     });
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_COMPENSATE_MANUAL,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    reasonField: 'note',
+    extract: ({ params, body, result }) => ({
+      incidentId: params.id,
+      proofEvidenceId: body.proofEvidenceId ?? null,
+      approvedAmount: result?.approvedCompensationAmount ?? null,
+    }),
+  })
   @Post(':id/compensate/manual')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -402,6 +535,12 @@ export class IncidentAdminController {
     );
   }
 
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_UNLOCK_REPORTER,
+    severity: AuditSeverity.HIGH,
+    targetType: 'INCIDENT',
+    extract: ({ params }) => ({ incidentId: params.id }),
+  })
   @Patch(':id/unlock-reporter')
   @ApiOperation({ summary: 'Gỡ khóa quyền báo cáo cho Customer (khai gian)' })
   unlockReporter(@Param('id', ParseUUIDPipe) id: string) {

@@ -21,6 +21,9 @@ import { AdminReviewQueryDto } from './dto/admin-review-query.dto';
 import { SetAdminReplyDto } from './dto/set-admin-reply.dto';
 import { DecideReportDto } from './dto/decide-report.dto';
 import { ReviewReportStatus } from 'src/common/enums/review-report-status.enum';
+import { AuditAction } from '../admin/audit/audit-action.decorator';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 
 @ApiTags('Admin - Reviews')
 @Controller('admin/reviews')
@@ -66,6 +69,16 @@ export class ReviewAdminController {
     return this.reviewService.getAdminReports(page, limit, status);
   }
 
+  @AuditAction({
+    code: AuditActionCode.REVIEW_REPORT_RESOLVE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'REVIEW_REPORT',
+    reasonField: 'note',
+    extract: ({ params, body }) => ({
+      reportId: params.reportId,
+      decision: body.decision ?? null,
+    }),
+  })
   @Post('reports/:reportId/decide')
   @ApiOperation({ summary: 'Duyệt hoặc từ chối báo cáo' })
   decideReport(
@@ -76,12 +89,23 @@ export class ReviewAdminController {
     return this.reviewService.decideReport(reportId, adminUserId, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.REVIEW_MODERATE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'REVIEW',
+    extract: ({ params }) => ({ reviewId: params.id }),
+  })
   @Patch(':id/hide')
   @ApiOperation({ summary: 'Ẩn/hiện đánh giá' })
   toggleHide(@Param('id', ParseUUIDPipe) id: string) {
     return this.reviewService.toggleHide(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.REVIEW_MODERATE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'REVIEW',
+  })
   @Patch(':id/reply')
   @ApiOperation({ summary: 'Admin phản hồi đánh giá' })
   setAdminReply(

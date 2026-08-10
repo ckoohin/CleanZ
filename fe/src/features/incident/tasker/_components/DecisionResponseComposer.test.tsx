@@ -37,7 +37,7 @@ describe("DecisionResponseComposer — phân biệt CHƯA MỞ và ĐÃ HẾT H�
       />,
     );
 
-    expect(screen.getByText(/Đã quá hạn phản hồi/i)).toBeInTheDocument();
+    expect(screen.getByText(/Đã quá hạn nêu ý kiến/i)).toBeInTheDocument();
     expect(screen.queryByText(/Chưa mở cửa sổ/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Hạn chót là/i)).toBeInTheDocument();
   });
@@ -52,7 +52,7 @@ describe("DecisionResponseComposer — phân biệt CHƯA MỞ và ĐÃ HẾT H�
       />,
     );
 
-    expect(screen.getByText(/Chưa mở cửa sổ phản hồi/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chưa tới lúc bạn nêu ý kiến/i)).toBeInTheDocument();
     expect(screen.queryByText(/quá hạn/i)).not.toBeInTheDocument();
   });
 
@@ -60,7 +60,7 @@ describe("DecisionResponseComposer — phân biệt CHƯA MỞ và ĐÃ HẾT H�
     render(<DecisionResponseComposer incident={makeIncident()} />);
 
     expect(
-      screen.getByRole("button", { name: /Gửi phản hồi/i }),
+      screen.getByRole("button", { name: /Gửi ý kiến/i }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/quá hạn/i)).not.toBeInTheDocument();
   });
@@ -70,6 +70,6 @@ describe("DecisionResponseComposer — phân biệt CHƯA MỞ và ĐÃ HẾT H�
 
     fireEvent.click(screen.getByRole("button", { name: "Không đồng ý" }));
 
-    expect(screen.getByRole("button", { name: /Gửi phản hồi/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Gửi ý kiến/i })).toBeDisabled();
   });
 });

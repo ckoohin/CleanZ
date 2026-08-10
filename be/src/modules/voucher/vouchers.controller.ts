@@ -22,6 +22,9 @@ import { CreateVoucherDto } from './dto/create-voucher.dto';
 import { VoucherListQueryDto } from './dto/list-query-voucher.dto';
 import { UpdateVoucherDto } from './dto/update-voucher.dto';
 import { IssueVoucherToCustomersDto } from './dto/issue-voucher-to-customer.dto';
+import { AuditAction } from '../admin/audit/audit-action.decorator';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 
 @AdminOnly()
 @ApiTags('Admin – Vouchers')
@@ -29,6 +32,11 @@ import { IssueVoucherToCustomersDto } from './dto/issue-voucher-to-customer.dto'
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
+  @AuditAction({
+    code: AuditActionCode.VOUCHER_CREATE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'VOUCHER',
+  })
   @Post()
   @ApiOperation({ summary: 'Create a voucher' })
   @ApiCreatedResponse()
@@ -63,6 +71,11 @@ export class VouchersController {
     return successResponse(stats);
   }
 
+  @AuditAction({
+    code: AuditActionCode.VOUCHER_UPDATE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'VOUCHER',
+  })
   @Patch(':id')
   @ApiOperation({ summary: 'Update a voucher' })
   async update(
@@ -73,6 +86,23 @@ export class VouchersController {
     return successResponse(voucher, 'Voucher updated');
   }
 
+  /**
+   * Phát voucher là phát GIÁ TRỊ cho một danh sách khách cụ thể, và route không
+   * mang id khách nào — danh sách trong body là manh mối duy nhất về việc ai đã
+   * được nhận.
+   */
+  @AuditAction({
+    code: AuditActionCode.VOUCHER_ISSUE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'VOUCHER',
+    affectedIdsField: 'customerIds',
+    extract: ({ params, body }) => ({
+      voucherId: params.id,
+      recipientCount: Array.isArray(body.customerIds)
+        ? body.customerIds.length
+        : 0,
+    }),
+  })
   @Post(':id/issue')
   @ApiOperation({ summary: 'Issue voucher to a list of customers' })
   async issueToCustomers(
@@ -86,6 +116,12 @@ export class VouchersController {
     );
   }
 
+  @AuditAction({
+    code: AuditActionCode.VOUCHER_DELETE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'VOUCHER',
+    extract: ({ params }) => ({ voucherId: params.id }),
+  })
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a voucher' })

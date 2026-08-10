@@ -31,7 +31,7 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
   if (!inc) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <p className="text-sm text-muted-foreground">Không tìm thấy sự cố</p>
+        <p className="text-sm text-muted-foreground">Không tìm thấy sự cố này</p>
         <button onClick={() => router.back()} className="text-sm font-semibold text-primary">← Quay lại</button>
       </div>
     );
@@ -51,24 +51,24 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
 
       <div className="mx-auto max-w-lg space-y-5 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <IncidentStatusBadge status={inc.status} />
+          <IncidentStatusBadge status={inc.status} audience="tasker" />
           <SeverityBadge severity={inc.severity} />
           {inc.statementDueAt && (
             <span className="flex items-center gap-1 text-xs text-amber-600">
-              <Clock className="size-3.5" /> Hạn giải trình: {fmt(inc.statementDueAt)}
+              <Clock className="size-3.5" /> Hạn gửi ý kiến: {fmt(inc.statementDueAt)}
             </span>
           )}
         </div>
 
-        {/* Lý do khiếu nại */}
+        {/* Khách phản ánh chuyện gì */}
         <div className="rounded-2xl border border-border/40 bg-muted/30 p-3 text-sm">
-          <p className="mb-1 text-xs font-bold text-muted-foreground">Nội dung khiếu nại</p>
+          <p className="mb-1 text-xs font-bold text-muted-foreground">Khách phản ánh</p>
           {inc.description}
         </div>
 
         {/* Damage items (claimed/verified/approved) */}
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Hạng mục thiệt hại</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Các khoản khách yêu cầu đền</p>
           {inc.damageItems.map((it) => (
             <div key={it.id} className="rounded-xl border border-border/50 p-3 text-sm">
               <p className="font-medium">{it.description}</p>
@@ -80,46 +80,46 @@ export function TaskerIncidentDetail({ incidentId }: { incidentId: string }) {
           ))}
         </div>
 
-        {/* Cọc của chính tôi (cô lập tài chính) */}
+        {/* Tiền của chính Tasker này — không lộ số của người khác */}
         <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/40 p-3 text-sm">
           <div className="flex items-center gap-1.5">
             <Wallet className="size-4 text-muted-foreground" />
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Phần bạn chịu (ghi nhận)</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Phần bạn phải trả</p>
               <p className="font-semibold text-red-600">
                 {inc.myBorneAmount == null ? "—" : formatVnd(inc.myBorneAmount)}
               </p>
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Ví đang tạm giữ</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Ví đang bị giữ</p>
             <p className="font-semibold">
               {inc.myWalletHold == null ? "—" : formatVnd(inc.myWalletHold)}
             </p>
           </div>
           {inc.myWalletDeducted != null && (
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Đã trừ từ ví</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Đã trừ khỏi ví</p>
               <p className="font-semibold">{formatVnd(inc.myWalletDeducted)}</p>
             </div>
           )}
           {(inc.myOutstandingDebt ?? 0) > 0 && (
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Còn nợ nền tảng</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Còn nợ CleanZ</p>
               <p className="font-semibold text-amber-600">{formatVnd(inc.myOutstandingDebt)}</p>
             </div>
           )}
         </div>
         {(inc.myOutstandingDebt ?? 0) > 0 && (
           <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-snug text-amber-700 dark:text-amber-400">
-            Nền tảng đã ứng trả khách thay bạn <b>{formatVnd(inc.myOutstandingDebt)}</b>. Khoản này
-            sẽ được trừ dần từ thu nhập các đơn tiếp theo, và bạn tạm chưa rút được tiền cho tới khi trả hết.
+            CleanZ đã trả cho khách thay bạn <b>{formatVnd(inc.myOutstandingDebt)}</b>. Khoản này
+            sẽ được trừ dần vào thu nhập các đơn sau, và bạn tạm thời chưa rút tiền được cho tới khi trả xong.
           </p>
         )}
 
-        {/* Giải trình */}
+        {/* Nơi Tasker nói lại ý kiến của mình */}
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Giải trình / đối chất</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Ý kiến của bạn</p>
           <DecisionResponseComposer incident={inc} />
           <StatementThread statements={inc.statements} />
           <StatementComposer incidentId={incidentId} canSubmit={inc.canSubmitStatement} />

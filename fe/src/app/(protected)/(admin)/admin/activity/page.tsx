@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckCircle,
   Clock,
+  Download,
   Eye,
   ListFilter,
   UserCheck,
@@ -49,10 +50,14 @@ import {
   type BadgeTone,
 } from "@/components/admin";
 import { useAdminActivities } from "@/features/admin/modules/activity/hooks/useAdminActivities";
+import { adminActivityApi } from "@/features/admin/modules/activity/services/admin-activity.service";
+import { AuditStoragePanel } from "@/features/admin/modules/activity/_components/AuditStoragePanel";
+import { downloadBlob } from "@/features/admin/lib/download";
 import type {
   AdminActivityItem,
   AdminActivityQuery,
   AdminActivityStatus,
+  AuditSeverity,
 } from "@/features/admin/modules/activity/types/activity.types";
 import {
   getActivityChangeRows,
@@ -73,8 +78,27 @@ const STATUS_LABEL: Record<AdminActivityStatus, string> = {
   DANGER: "Thất bại",
 };
 
+/**
+ * Mức rủi ro của hành động, tách khỏi mức thành công. Lọc `CRITICAL` là cách
+ * nhanh nhất để soi lại mọi lần chuyển tiền, đổi quyền hay xoá nợ.
+ */
+const SEVERITY_TONE: Record<AuditSeverity, BadgeTone> = {
+  CRITICAL: "danger",
+  HIGH: "warning",
+  NORMAL: "neutral",
+  READ_SENSITIVE: "info",
+};
+
+const SEVERITY_LABEL: Record<AuditSeverity, string> = {
+  CRITICAL: "Trọng yếu",
+  HIGH: "Cao",
+  NORMAL: "Thường",
+  READ_SENSITIVE: "Đọc dữ liệu nhạy cảm",
+};
+
 type ActivityFilter = {
   status: "ALL" | AdminActivityStatus;
+  severity: "ALL" | AuditSeverity;
   keyword: string;
   page: number;
   limit: number;
@@ -94,6 +118,7 @@ function toIsoBoundary(date: Date, endOfDay: boolean): string {
 export default function AdminActivityPage() {
   const [filter, setFilter] = React.useState<ActivityFilter>({
     status: "ALL",
+    severity: "ALL",
     keyword: "",
     page: 1,
     limit: 10,
@@ -108,16 +133,51 @@ export default function AdminActivityPage() {
       page: filter.page,
       limit: filter.limit,
       status: filter.status === "ALL" ? undefined : filter.status,
+      severity: filter.severity === "ALL" ? undefined : filter.severity,
       keyword: deferredKeyword || undefined,
       from: dateRange?.from ? toIsoBoundary(dateRange.from, false) : undefined,
       to: dateRange?.from
         ? toIsoBoundary(dateRange.to ?? dateRange.from, true)
         : undefined,
     }),
-    [dateRange, deferredKeyword, filter.limit, filter.page, filter.status],
+    [
+      dateRange,
+      deferredKeyword,
+      filter.limit,
+      filter.page,
+      filter.severity,
+      filter.status,
+    ],
   );
 
   const { data: response, isLoading } = useAdminActivities(query);
+  const [isExporting, setIsExporting] = React.useState(false);
+
+  /**
+   * Xuất theo ĐÚNG bộ lọc đang hiển thị, bỏ phân trang — người điều tra mong file
+   * chứa trọn kết quả họ đang nhìn, không phải riêng trang hiện tại. Backend có
+   * trần cứng 20.000 dòng nên không thể kéo cả bảng.
+   */
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await adminActivityApi.exportCsv({
+        status: query.status,
+        severity: query.severity,
+        actionCode: query.actionCode,
+        correlationId: query.correlationId,
+        keyword: query.keyword,
+        from: query.from,
+        to: query.to,
+      });
+      downloadBlob(
+        blob,
+        `nhat-ky-admin-${new Date().toISOString().slice(0, 10)}.csv`,
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const data = response?.data ?? [];
   const selectedChanges = selectedActivity
     ? getActivityChangeRows(selectedActivity)
@@ -188,6 +248,16 @@ export default function AdminActivityPage() {
       },
     },
     {
+      key: "severity",
+      title: "Mức độ",
+      hideOnMobile: true,
+      render: (row) => (
+        <StatusBadge tone={SEVERITY_TONE[row.severity]}>
+          {SEVERITY_LABEL[row.severity]}
+        </StatusBadge>
+      ),
+    },
+    {
       key: "status",
       title: "Trạng thái",
       render: (row) => (
@@ -212,7 +282,19 @@ export default function AdminActivityPage() {
       <PageHeader
         title="Nhật ký hoạt động"
         description="Theo dõi mọi thao tác thay đổi và điều chỉnh do admin thực hiện trên hệ thống."
+        actions={
+          <AdminButton
+            variant="secondary"
+            onClick={handleExportCsv}
+            disabled={isExporting}
+          >
+            <Download className="size-4" />
+            {isExporting ? "Đang xuất..." : "Xuất CSV"}
+          </AdminButton>
+        }
       />
+
+      <AuditStoragePanel />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -299,6 +381,35 @@ export default function AdminActivityPage() {
               </AdminButton>
             )}
             <Select
+              value={filter.severity}
+              onValueChange={(severity) =>
+                setFilter((current) => ({
+                  ...current,
+                  severity: severity as ActivityFilter["severity"],
+                  page: 1,
+                }))
+              }
+            >
+              <SelectTrigger className="h-9 w-[190px] rounded-lg border-[var(--c-line-strong)] bg-[var(--c-card-2)] text-[13px] font-medium text-[var(--c-ink)]">
+                <SelectValue placeholder="Lọc mức độ" />
+              </SelectTrigger>
+              <SelectContent className="cz-admin rounded-xl">
+                <SelectItem value="ALL">
+                  <span className="flex items-center gap-2">
+                    <ListFilter className="size-4 text-[var(--c-muted)]" /> Tất
+                    cả mức độ
+                  </span>
+                </SelectItem>
+                {(
+                  Object.keys(SEVERITY_LABEL) as AuditSeverity[]
+                ).map((severity) => (
+                  <SelectItem key={severity} value={severity}>
+                    {SEVERITY_LABEL[severity]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={filter.status}
               onValueChange={(status) =>
                 setFilter((current) => ({
@@ -373,6 +484,19 @@ export default function AdminActivityPage() {
                   <p className="font-semibold text-[var(--c-primary-strong)]">
                     {getActivityDisplayAction(selectedActivity)}
                   </p>
+                  {/* Mã nghiệp vụ ổn định — thứ dùng để đối chiếu và báo cáo,
+                      khác với nhãn tiếng Việt phía trên vốn chỉ để đọc. */}
+                  <p className="mt-0.5 font-mono text-[11px] text-[var(--c-muted)]">
+                    {selectedActivity.actionCode}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--c-muted)]">Mức độ</p>
+                  <div className="mt-1">
+                    <StatusBadge tone={SEVERITY_TONE[selectedActivity.severity]}>
+                      {SEVERITY_LABEL[selectedActivity.severity]}
+                    </StatusBadge>
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-[var(--c-muted)]">Đối tượng</p>
@@ -391,6 +515,24 @@ export default function AdminActivityPage() {
                     </StatusBadge>
                   </div>
                 </div>
+                {selectedActivity.reason && (
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-[var(--c-muted)]">
+                      Lý do admin nhập
+                    </p>
+                    <p className="font-medium">{selectedActivity.reason}</p>
+                  </div>
+                )}
+                {selectedActivity.affectedCount != null && (
+                  <div>
+                    <p className="text-xs text-[var(--c-muted)]">
+                      Số bản ghi bị tác động
+                    </p>
+                    <p className="font-medium tabular-nums">
+                      {selectedActivity.affectedCount}
+                    </p>
+                  </div>
+                )}
                 {selectedActivity.errorMessage && (
                   <div className="sm:col-span-2">
                     <p className="text-xs text-[var(--c-muted)]">Lỗi</p>
@@ -400,6 +542,35 @@ export default function AdminActivityPage() {
                   </div>
                 )}
               </div>
+
+              {/* Số liệu nghiệp vụ có cấu trúc: số tiền, số dư trước/sau… Đây là
+                  thứ diff theo-field không diễn tả được với các thao tác như
+                  điều chỉnh ví hay xoá nợ. */}
+              {selectedActivity.businessData && (
+                <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-4">
+                  <p className="mb-2 text-xs font-medium text-[var(--c-muted)]">
+                    Số liệu nghiệp vụ
+                  </p>
+                  <dl className="grid gap-2 sm:grid-cols-2">
+                    {Object.entries(selectedActivity.businessData).map(
+                      ([key, value]) => (
+                        <div key={key} className="flex flex-col">
+                          <dt className="font-mono text-[11px] text-[var(--c-muted)]">
+                            {key}
+                          </dt>
+                          <dd className="break-all text-[13px] font-medium tabular-nums">
+                            {value === null || value === undefined
+                              ? "—"
+                              : typeof value === "object"
+                                ? JSON.stringify(value)
+                                : String(value)}
+                          </dd>
+                        </div>
+                      ),
+                    )}
+                  </dl>
+                </div>
+              )}
 
               <div>
                 <p className="mb-2 font-semibold">Nội dung thay đổi</p>

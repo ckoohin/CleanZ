@@ -49,6 +49,53 @@ import {
 
 export type TaskerProfileResponse = Record<string, unknown>;
 
+/**
+ * Hình dạng của MỘT DÒNG trong danh sách Tasker phía admin.
+ *
+ * Khai báo tường minh, khác hẳn `TaskerProfileResponse` (`Record<string, unknown>`
+ * — không ràng buộc gì). Chính sự không ràng buộc đó là lý do danh sách từng trả
+ * kèm số căn cước, ảnh lý lịch tư pháp và số tài khoản ngân hàng của cả trang:
+ * `mapProfile` được dùng chung cho cả trang chi tiết lẫn danh sách, và không có
+ * gì trong kiểu dữ liệu để ai đó nhận ra điều đó.
+ *
+ * Danh sách là màn hình vận hành hàng ngày, mở liên tục, hiển thị hàng chục người
+ * một lúc. Nó cần đủ để nhận diện và lọc, không cần hồ sơ tuỳ thân. Giấy tờ và
+ * thông tin ngân hàng chỉ có ở trang chi tiết — nơi đã được ghi nhật ký kiểm toán
+ * (`READ.TASKER_KYC_VIEW`).
+ */
+export interface TaskerSummaryResponse {
+  id: string;
+  userId: string | null;
+  status: TaskerStatus;
+  presenceStatus: unknown;
+  approvalStatus: string;
+  workingAddress: string | null;
+  bio: string | null;
+  experience: unknown;
+  skills: unknown;
+  fullName: string | null;
+  phone: string | null;
+  avatarUrl: string | null;
+  email: string | null;
+  isActive: boolean | null;
+  /** Trạng thái duyệt hồ sơ — đủ để lọc, không kèm nội dung giấy tờ. */
+  docStatus: DocumentStatus;
+  docReviewedAt: Date | null;
+  docReviewedBy: string | null;
+  docReviewedByName: string | null;
+  equipmentStatus: unknown;
+  adminNotes: string | null;
+  banReason: string | null;
+  banEndsAt: Date | null;
+  cancelSuspendedUntil: Date | null;
+  updatedBy: string | null;
+  updatedByName: string | null;
+  totalJobs: number;
+  avgRating: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface RedisLike {
   hset(key: string, values: Record<string, string>): Promise<number>;
   expire(key: string, seconds: number): Promise<number>;
@@ -721,7 +768,7 @@ export class TaskerService {
   // ─── Admin: tasker management ─────────────────────────────────────────────
 
   async listTaskers(dto: QueryTaskersDto): Promise<{
-    data: TaskerProfileResponse[];
+    data: TaskerSummaryResponse[];
     total: number;
     page: number;
     limit: number;
@@ -769,7 +816,7 @@ export class TaskerService {
         ]),
       );
       return {
-        data: taskers.map((t) => this.mapProfile(t, adminNames)),
+        data: taskers.map((t) => this.mapProfileSummary(t, adminNames)),
         total,
         page,
         limit,
@@ -1703,6 +1750,57 @@ export class TaskerService {
     }
 
     return phone;
+  }
+
+  /**
+   * Dòng danh sách — dựng theo ALLOWLIST, không phải bằng cách xoá bớt từ
+   * `mapProfile`.
+   *
+   * Khác biệt quan trọng: với allowlist, một trường nhạy cảm được thêm vào
+   * `mapProfile` sau này sẽ KHÔNG tự động chảy ra danh sách. Nếu lọc theo cách
+   * ngược lại (sao chép rồi `delete` vài khoá), mỗi lần ai đó bổ sung trường mới
+   * là một lần rò rỉ âm thầm — đúng cách mà số căn cước và ảnh giấy tờ đã lọt ra
+   * đây ngay từ đầu.
+   */
+  private mapProfileSummary(
+    tasker: TaskerEntity,
+    adminNames?: Map<string, string>,
+  ): TaskerSummaryResponse {
+    return {
+      id: tasker.id,
+      userId: tasker.user?.id ?? null,
+      status: tasker.status,
+      presenceStatus: tasker.presenceStatus,
+      approvalStatus: tasker.docStatus.toLowerCase(),
+      workingAddress: tasker.workingAddress ?? null,
+      bio: tasker.bio ?? null,
+      experience: tasker.experience ?? null,
+      skills: tasker.skills ?? null,
+      fullName: tasker.user?.fullName ?? null,
+      phone: tasker.user?.phone ?? null,
+      avatarUrl: tasker.user?.avatarUrl ?? null,
+      email: tasker.user?.email ?? null,
+      isActive: tasker.user?.isActive ?? null,
+      docStatus: tasker.docStatus,
+      docReviewedAt: tasker.docReviewedAt ?? null,
+      docReviewedBy: tasker.docReviewedBy ?? null,
+      docReviewedByName: tasker.docReviewedBy
+        ? (adminNames?.get(tasker.docReviewedBy) ?? null)
+        : null,
+      equipmentStatus: tasker.equipmentStatus,
+      adminNotes: tasker.docNote ?? null,
+      banReason: tasker.banReason ?? null,
+      banEndsAt: tasker.banEndsAt ?? null,
+      cancelSuspendedUntil: tasker.cancelSuspendedUntil ?? null,
+      updatedBy: tasker.updatedBy ?? null,
+      updatedByName: tasker.updatedBy
+        ? (adminNames?.get(tasker.updatedBy) ?? null)
+        : null,
+      totalJobs: tasker.totalCompletedJobs,
+      avgRating: Number(tasker.ratingAvg),
+      createdAt: tasker.createdAt,
+      updatedAt: tasker.updatedAt,
+    };
   }
 
   private mapProfile(

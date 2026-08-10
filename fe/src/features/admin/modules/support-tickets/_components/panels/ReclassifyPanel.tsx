@@ -62,7 +62,7 @@ export function ReclassifyPanel({ ticket }: { ticket: TicketAdminDetail }) {
         <Input
           value={subtype}
           onChange={(e) => setSubtype(e.target.value)}
-          placeholder="Subtype (tuỳ chọn)..."
+          placeholder="Nhãn phụ (tuỳ chọn)..."
           className="h-9 rounded-lg text-sm flex-1 bg-[var(--c-card-2)] border-[var(--c-line-strong)] text-[var(--c-ink)] focus:border-[var(--c-primary)]/50"
           aria-label="Subtype"
         />

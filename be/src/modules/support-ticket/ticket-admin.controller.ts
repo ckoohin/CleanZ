@@ -60,6 +60,9 @@ import {
 } from 'src/common/helpers/excel-report.helper';
 import { AdminActivityService } from 'src/modules/admin/services/admin-activity.service';
 import { AdminActivityStatus } from 'src/modules/admin/entities/admin-activity-log.entity';
+import { AuditActionCode } from 'src/modules/admin/audit/audit-action-codes';
+import { AuditAction } from 'src/modules/admin/audit/audit-action.decorator';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 import { sanitizeAuditValue } from 'src/modules/admin/utils/admin-activity-sanitizer';
 import type { AuthUser } from 'src/modules/auth/types/AuthRequest';
 import { ReclassifyTicketDto } from './dto/reclassify-ticket.dto';
@@ -98,6 +101,11 @@ export class TicketAdminController {
     return this.configService.getEffectiveConfig();
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_CONFIG_UPDATE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'SUPPORT_TICKET',
+  })
   @Put('config')
   @ApiOperation({ summary: 'Cập nhật cấu hình ticket (config dịch vụ)' })
   async updateConfig(@Body() dto: UpdateTicketConfigDto) {
@@ -105,6 +113,17 @@ export class TicketAdminController {
     return this.configService.getEffectiveConfig();
   }
 
+  // Tạo ticket ĐỨNG TÊN người khác — nên `reporterUserId` là dữ kiện phải ghi lại.
+  @AuditAction({
+    code: AuditActionCode.TICKET_CREATE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+    extract: ({ body, result }) => ({
+      reporterUserId: body.reporterUserId ?? null,
+      assignToSelf: body.assignToSelf === true,
+      ticketId: result?.id ?? null,
+    }),
+  })
   @Post()
   @ApiOperation({ summary: 'Tạo ticket hộ (hotline)' })
   create(
@@ -149,28 +168,24 @@ export class TicketAdminController {
     filters: Record<string, unknown>,
     durationMs: number,
   ) {
-    // Chạy qua đúng bộ lọc mà `AdminActivityInterceptor` dùng — ghi tay thì
-    // không được bỏ qua bước này. Riêng `keyword` phải tự cắt: nó là ô tìm kiếm
-    // tự do, admin hay dán thẳng số điện thoại hay email của khách vào, mà
-    // sanitizer chỉ nhận ra qua TÊN khoá nên sẽ cho lọt. Ghi dữ liệu cá nhân
-    // vào chính cái nhật ký lập ra để bảo vệ dữ liệu cá nhân thì thành vô nghĩa.
-    const keyword =
-      typeof filters.keyword === 'string' ? filters.keyword : undefined;
-    const safeFilters = sanitizeAuditValue({
-      ...filters,
-      keyword: keyword ? `[đã ẩn, ${keyword.length} ký tự]` : undefined,
-    }) as Record<string, unknown>;
+    // `keyword` được che ngay trong `sanitizeAuditValue` — trước đây chỗ này tự
+    // cắt tay, nhưng chỉ vá một điểm gọi thì các đường khác vẫn rò. Che tay lần
+    // nữa ở đây sẽ thành che hai lớp và cho ra độ dài của chính chuỗi đã che.
+    const safeFilters = sanitizeAuditValue(filters) as Record<string, unknown>;
 
     try {
       await this.activityService.record({
         actorUserId: admin.id,
         actorEmail: admin.email,
         action,
+        actionCode: AuditActionCode.EXPORT_SUPPORT_TICKETS,
+        severity: AuditSeverity.READ_SENSITIVE,
         resource: 'phiếu hỗ trợ',
         method: 'GET',
         path,
         handler,
         targetId: null,
+        targetType: 'SUPPORT_TICKET',
         changes: { filters: safeFilters },
         status: AdminActivityStatus.SUCCESS,
         statusCode: 200,
@@ -253,6 +268,22 @@ export class TicketAdminController {
     );
   }
 
+  /**
+   * Route không có `:id` nên `targetId` luôn null — không khai báo thì đây là
+   * thao tác chạm nhiều bản ghi nhất mà lại không truy được nó đã chạm vào cái gì.
+   */
+  @AuditAction({
+    code: AuditActionCode.TICKET_BULK_ASSIGN,
+    severity: AuditSeverity.HIGH,
+    targetType: 'SUPPORT_TICKET',
+    affectedIdsField: 'ticketIds',
+    extract: ({ body, result }) => ({
+      assignedAdminId: body.assignedAdminId ?? null,
+      requestedCount: Array.isArray(body.ticketIds) ? body.ticketIds.length : 0,
+      assigned: result?.assigned ?? null,
+      skipped: result?.skipped ?? null,
+    }),
+  })
   @Patch('bulk/assign')
   @ApiOperation({ summary: 'Gán hàng loạt ticket đang chọn ở hàng đợi' })
   bulkAssign(
@@ -274,6 +305,15 @@ export class TicketAdminController {
     return this.adminService.findOne(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_ASSIGN,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+    extract: ({ params, body }) => ({
+      ticketId: params.id,
+      assignedAdminId: body.assignedAdminId ?? null,
+    }),
+  })
   @Patch(':id/assign')
   @ApiOperation({ summary: 'Gán/đổi admin xử lý' })
   assign(
@@ -284,6 +324,17 @@ export class TicketAdminController {
     return this.adminService.assign(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_STATUS_CHANGE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+    reasonField: 'note',
+    extract: ({ params, body }) => ({
+      ticketId: params.id,
+      newStatus: body.status ?? null,
+      pendingReason: body.pendingReason ?? null,
+    }),
+  })
   @Patch(':id/status')
   @ApiOperation({ summary: 'Đổi trạng thái (state machine)' })
   changeStatus(
@@ -294,6 +345,11 @@ export class TicketAdminController {
     return this.adminService.changeStatus(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_ATTACHMENT_UPLOAD,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+  })
   @Post(':id/attachments')
   @ApiOperation({
     summary: 'Admin upload ảnh đính kèm (lấy attachmentId để gắn vào reply)',
@@ -332,6 +388,15 @@ export class TicketAdminController {
     return this.adminService.getMessagePage(id, aud, before);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_MESSAGE_SEND,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+    extract: ({ params, body }) => ({
+      ticketId: params.id,
+      targetAudience: body.targetAudience ?? null,
+    }),
+  })
   @Post(':id/messages')
   @ApiOperation({ summary: 'Gửi public reply / internal note (+tag)' })
   @Throttle({ default: { limit: 40, ttl: 60_000 } })
@@ -350,6 +415,11 @@ export class TicketAdminController {
     return this.adminService.listInternalNotes(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_INTERNAL_NOTE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+  })
   @Post(':id/internal-notes')
   @ApiOperation({ summary: 'Thêm ghi chú nội bộ (log) cho ticket' })
   addInternalNote(
@@ -372,6 +442,24 @@ export class TicketAdminController {
     return this.adminService.markThreadRead(id, dto, adminId);
   }
 
+  /**
+   * Kết luận xử lý có thể kèm hoàn tiền, cấp voucher hoặc đặt lại lịch dọn miễn
+   * phí — tức là có giá trị vật chất, dù không đi qua ví như nhóm FINANCE. Ghi
+   * `amount`/`voucherId` để đối soát được tổng giá trị đã phát ra qua đường này.
+   */
+  @AuditAction({
+    code: AuditActionCode.TICKET_RESOLUTION_ADD,
+    severity: AuditSeverity.HIGH,
+    targetType: 'SUPPORT_TICKET',
+    reasonField: 'note',
+    extract: ({ params, body }) => ({
+      ticketId: params.id,
+      resolutionType: body.type ?? null,
+      amount: body.amount ?? null,
+      voucherId: body.voucherId ?? null,
+      recleanBookingId: body.recleanBookingId ?? null,
+    }),
+  })
   @Post(':id/resolutions')
   @ApiOperation({ summary: 'Ghi nhận kết luận xử lý (tiền: record-only)' })
   addResolution(
@@ -382,6 +470,11 @@ export class TicketAdminController {
     return this.resolutionService.create(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.TICKET_CATEGORY_CHANGE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'SUPPORT_TICKET',
+  })
   @Patch(':id/category')
   @ApiOperation({ summary: 'Phân loại lại ticket (cho OTHER)' })
   reclassify(

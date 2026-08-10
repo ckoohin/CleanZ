@@ -63,7 +63,7 @@ export function IncidentExportMenu({
           <ExportExcelButton
             onExport={() => adminIncidentApi.exportReport(range)}
             filenamePrefix="bao-cao-su-co"
-            label="Báo cáo sự cố — thẩm định, trách nhiệm, dòng tiền"
+            label="Báo cáo sự cố — kết quả xem xét, trách nhiệm, dòng tiền"
             className="w-full justify-start text-left"
           />
         </div>

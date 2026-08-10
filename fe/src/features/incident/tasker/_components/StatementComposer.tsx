@@ -9,7 +9,7 @@ import type { Evidence } from "@/features/incident/shared/incident.types";
 import { useSubmitStatement, useTaskerUploadEvidence } from "../hooks/useTaskerIncident";
 
 /**
- * Soạn giải trình/đối chất. Chỉ bật khi `canSubmitStatement` (INVESTIGATING + còn hạn);
+ * Soạn ý kiến giải trình. Chỉ bật khi `canSubmitStatement` (INVESTIGATING + còn hạn);
  * quá hạn → khoá + ghi chú (BE vẫn chốt chặn 409).
  */
 export function StatementComposer({
@@ -27,7 +27,7 @@ export function StatementComposer({
   if (!canSubmit) {
     return (
       <p className="flex items-center justify-center gap-1.5 rounded-xl border border-border/40 bg-muted/40 p-3 text-xs text-muted-foreground">
-        <Lock className="size-3.5" /> Đã quá thời hạn hoặc không trong giai đoạn thẩm định — không thể gửi giải trình.
+        <Lock className="size-3.5" /> Đã hết hạn hoặc sự cố không còn ở bước xem xét — bạn không gửi thêm ý kiến được nữa.
       </p>
     );
   }
@@ -54,9 +54,9 @@ export function StatementComposer({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={3}
-        placeholder="Nhập giải trình của bạn..."
+        placeholder="Kể lại sự việc theo phía bạn..."
         className="resize-none rounded-lg text-sm"
-        aria-label="Nội dung giải trình"
+        aria-label="Ý kiến giải trình của bạn"
       />
       <EvidenceUploader
         upload={(f) => uploadEvidence.mutateAsync(f)}
@@ -70,7 +70,7 @@ export function StatementComposer({
         onClick={handleSend}
         disabled={!body.trim() || submit.isPending}
       >
-        <Send className="size-3.5" /> {submit.isPending ? "Đang gửi..." : "Gửi giải trình"}
+        <Send className="size-3.5" /> {submit.isPending ? "Đang gửi..." : "Gửi ý kiến"}
       </Button>
     </div>
   );

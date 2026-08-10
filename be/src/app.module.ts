@@ -18,6 +18,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { IncidentModule } from './modules/incident/incident.module';
 import { SupportTicketModule } from './modules/support-ticket/support-ticket.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AuditWorkerModule } from './modules/admin/audit-worker.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { QueueModule } from './modules/queue/queue.module';
@@ -57,6 +58,8 @@ import { EarningsReportModule } from './modules/earnings-report/earnings-report.
     IncidentModule,
     SupportTicketModule,
     AdminModule,
+    // Tiến trình nền của nhật ký kiểm toán — đăng ký một lần ở cấp ứng dụng.
+    AuditWorkerModule,
     PolicyModule,
     TrackingModule,
     QueueModule,

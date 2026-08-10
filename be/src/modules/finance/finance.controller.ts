@@ -34,6 +34,9 @@ import { ReviewWithdrawalDto } from './dto/review-with-drawal.dto';
 import { TransactionFlowSummaryQueryDto } from './dto/transaction-flow-summary-query.dto';
 import { CustomerSpendingQueryDto } from './dto/customer-spending-query.dto';
 import type { JwtPayload } from '../auth/types/JwtPayLoad';
+import { AuditAction } from '../admin/audit/audit-action.decorator';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from '../../common/enums/audit-severity.enum';
 
 @ApiTags('Admin – Finance')
 @ApiBearerAuth()
@@ -109,6 +112,12 @@ export class FinanceController {
     );
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_FINANCE_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.customerId }),
+  })
   @Get('customers/:customerId/wallet-overview')
   @ApiOperation({
     summary:
@@ -122,6 +131,12 @@ export class FinanceController {
     return successResponse(data);
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_FINANCE_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.customerId }),
+  })
   @Get('customers/:customerId/transactions')
   @ApiOperation({ summary: 'Get wallet transactions for a specific customer' })
   async getCustomerWalletTransactions(
@@ -140,6 +155,12 @@ export class FinanceController {
     );
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_FINANCE_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.customerId }),
+  })
   @Get('customers/:customerId/topups')
   @ApiOperation({
     summary:
@@ -170,6 +191,12 @@ export class FinanceController {
     );
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_FINANCE_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.customerId }),
+  })
   @Get('customers/:customerId/withdrawals')
   @ApiOperation({
     summary: 'Get customer withdrawal requests for a specific customer',
@@ -207,6 +234,26 @@ export class FinanceController {
     return successResponse(data);
   }
 
+  /**
+   * Đường duy nhất cho phép admin đổi số dư ví bằng tay, nên là thao tác đáng ghi
+   * nhất trong toàn hệ thống. Diff theo-row không mô tả được nó: bút toán là bản
+   * ghi MỚI (không có "trước"), còn thứ thực sự thay đổi — `wallets.balance` —
+   * lại nằm ở bảng khác. Vì thế phải rút tay `balanceBefore/After`.
+   */
+  @AuditAction({
+    code: AuditActionCode.WALLET_MANUAL_ADJUSTMENT,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'WALLET',
+    reasonField: 'description',
+    extract: ({ body, result }) => ({
+      walletId: body.walletId,
+      requestedAmount: body.amount,
+      transactionType: body.type,
+      transactionId: result?.id ?? null,
+      balanceBefore: result?.balanceBefore ?? null,
+      balanceAfter: result?.balanceAfter ?? null,
+    }),
+  })
   @Post('transactions/adjustment')
   @ApiOperation({
     summary:
@@ -223,6 +270,12 @@ export class FinanceController {
     return successResponse(data, 'Adjustment recorded');
   }
 
+  @AuditAction({
+    code: AuditActionCode.WALLET_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'WALLET',
+    extract: ({ params }) => ({ walletId: params.id }),
+  })
   @Get('wallets/:id')
   @ApiOperation({ summary: 'Get wallet details by ID' })
   async getWallet(@Param('id', ParseUUIDPipe) id: string) {
@@ -247,6 +300,24 @@ export class FinanceController {
     return successResponse(await this.financeService.findOneWithdrawal(id));
   }
 
+  /**
+   * Snapshot đã diff được `WithdrawalRequestEntity`, nhưng diff chỉ nói trạng thái
+   * đổi từ PENDING sang APPROVED. Số tiền và tài khoản nhận — hai dữ kiện đầu tiên
+   * người điều tra một khiếu nại "tiền không về" cần — thì phải rút ra riêng.
+   */
+  @AuditAction({
+    code: AuditActionCode.TASKER_WITHDRAWAL_REVIEW,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'WITHDRAWAL_REQUEST',
+    reasonField: 'note',
+    extract: ({ params, body, result }) => ({
+      withdrawalId: params.id,
+      decision: body.status,
+      amount: result?.amount ?? null,
+      bankName: result?.bankName ?? null,
+      hasTransferProof: Boolean(body.proofImageUrl),
+    }),
+  })
   @Patch('withdrawals/:id/review')
   @ApiOperation({ summary: 'Approve or reject a withdrawal request' })
   async reviewWithdrawal(
@@ -257,6 +328,14 @@ export class FinanceController {
     return successResponse(data, `Withdrawal ${dto.status.toLowerCase()}`);
   }
 
+  // Ghép chéo toàn bộ bảng liên quan: khách, booking, địa chỉ phục vụ, đơn nạp.
+  // Một bút toán mở ra gần như toàn bộ hồ sơ của một người.
+  @AuditAction({
+    code: AuditActionCode.WALLET_TRANSACTION_VIEW,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'WALLET_TRANSACTION',
+    extract: ({ params }) => ({ transactionId: params.id }),
+  })
   @Get('transactions/:id/detail')
   @ApiOperation({
     summary: 'Get full transaction detail joined across all related tables',
