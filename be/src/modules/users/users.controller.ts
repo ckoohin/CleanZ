@@ -33,6 +33,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { AuditAction } from '../admin/audit/audit-action.decorator';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from '../../common/enums/audit-severity.enum';
 
 @Controller('users')
 @Auth()
@@ -42,6 +45,17 @@ import {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @AuditAction({
+    code: AuditActionCode.USER_CREATE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'USER',
+    // `password` do sanitizer che; chỉ giữ lại role vì đó là phần quyết định
+    // tài khoản mới có làm được gì trong hệ thống hay không.
+    extract: ({ body, result }) => ({
+      userId: result?.id ?? null,
+      role: body.role ?? null,
+    }),
+  })
   @Post()
   @ApiOperation({ summary: 'Tạo người dùng mới (Admin)' })
   @ApiBody({ type: CreateUserDto })
@@ -91,6 +105,21 @@ export class UsersController {
     return this.usersService.findOneWithProfile(id);
   }
 
+  /**
+   * `role` đi chung đường với các field hồ sơ thường. Ghi riêng nó ra
+   * `business_data` để một truy vấn duy nhất trả lời được "đã có lần nâng quyền
+   * nào chưa" — thứ mà lục trong `changes` của mọi lần sửa hồ sơ sẽ không ra.
+   */
+  @AuditAction({
+    code: AuditActionCode.USER_UPDATE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'USER',
+    extract: ({ params, body }) => ({
+      userId: params.id,
+      roleRequested: body.role ?? null,
+      isRoleChange: body.role != null,
+    }),
+  })
   @Patch(':id')
   @ApiOperation({ summary: 'Cập nhật người dùng theo ID (Admin)' })
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })
@@ -104,6 +133,15 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.USER_STATUS_CHANGE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'USER',
+    extract: ({ params, body }) => ({
+      userId: params.id,
+      isActive: body.isActive ?? null,
+    }),
+  })
   @Patch(':id/status')
   @ApiOperation({ summary: 'Activate / Deactivate người dùng (Admin)' })
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })
@@ -123,6 +161,16 @@ export class UsersController {
     );
   }
 
+  /**
+   * Chiếm tài khoản người khác chỉ cần đúng thao tác này cộng quyền đọc hộp thư.
+   * Không có gì trong dữ liệu nghiệp vụ ghi lại việc đó — nhật ký là vết duy nhất.
+   */
+  @AuditAction({
+    code: AuditActionCode.USER_RESET_PASSWORD,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'USER',
+    extract: ({ params }) => ({ userId: params.id }),
+  })
   @Post(':id/reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Gửi email reset mật khẩu cho người dùng (Admin)' })
@@ -133,6 +181,12 @@ export class UsersController {
     return this.usersService.sendPasswordResetEmail(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.USER_DELETE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'USER',
+    extract: ({ params }) => ({ userId: params.id }),
+  })
   @Delete(':id')
   @ApiOperation({ summary: 'Soft delete người dùng theo ID (Admin)' })
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })
@@ -146,6 +200,12 @@ export class UsersController {
     return this.usersService.softRemove(id, currentUserId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.USER_RESTORE,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'USER',
+    extract: ({ params }) => ({ userId: params.id }),
+  })
   @Patch(':id/restore')
   @ApiOperation({ summary: 'Khôi phục người dùng đã bị soft-delete (Admin)' })
   @ApiParam({ name: 'id', example: 'b3de58e7-4ce2-4e5e-b5f5-c99f595f4e56' })

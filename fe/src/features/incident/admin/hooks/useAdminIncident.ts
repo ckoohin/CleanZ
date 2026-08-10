@@ -87,11 +87,11 @@ function useIncidentAction<TInput>(
 }
 
 export const useAcceptIncident = (id: string) =>
-  useIncidentAction<AcceptInput>(id, adminIncidentApi.accept, "Đã tiếp nhận thẩm định");
+  useIncidentAction<AcceptInput>(id, adminIncidentApi.accept, "Đã tiếp nhận xử lý");
 export const useSaveDecision = (id: string) =>
   useIncidentAction<SaveDecisionInput>(id, adminIncidentApi.saveDecision, "Đã lưu quyết định");
 export const useSendDecisionToTasker = (id: string) =>
-  useIncidentAction<SendToTaskerInput>(id, adminIncidentApi.sendDecisionToTasker, "Đã gửi quyết định cho Tasker phản biện");
+  useIncidentAction<SendToTaskerInput>(id, adminIncidentApi.sendDecisionToTasker, "Đã gửi quyết định cho Tasker phản hồi");
 export const useFinalizeDecision = (id: string) =>
   useIncidentAction<FinalizeDecisionInput>(id, adminIncidentApi.finalizeDecision, "Đã chốt quyết định");
 

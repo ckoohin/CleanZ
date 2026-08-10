@@ -17,6 +17,7 @@ import { PayoutService } from './payout.service';
 import { PayoutReconciliationService } from './payout-reconciliation.service';
 import { BankListService } from './bank-list.service';
 import { SystemConfigModule } from '../system-config/system-config.module';
+import { AdminActivityModule } from '../admin/admin-activity.module';
 import { TaskerDebtEntity } from './entity/tasker-debt.entity';
 import { TaskerDebtService } from './tasker-debt.service';
 
@@ -32,6 +33,7 @@ import { TaskerDebtService } from './tasker-debt.service';
       TaskerDebtEntity,
     ]),
     SystemConfigModule,
+    AdminActivityModule,
   ],
   controllers: [WalletController, CustomerWithdrawalController],
   providers: [

@@ -30,6 +30,7 @@ import { AdminActivityInterceptor } from './interceptors/admin-activity.intercep
 import { AdminActivitySnapshotService } from './services/admin-activity-snapshot.service';
 import { IncidentModule } from 'src/modules/incident/incident.module';
 import { AdminActivityModule } from './admin-activity.module';
+import { AuditWorkerModule } from './audit-worker.module';
 
 @Module({
   imports: [
@@ -57,6 +58,8 @@ import { AdminActivityModule } from './admin-activity.module';
     VoucherModule,
     IncidentModule,
     AdminActivityModule,
+    // AdminController dùng AuditRetentionService cho endpoint đo lường.
+    AuditWorkerModule,
   ],
 
   controllers: [AdminController],

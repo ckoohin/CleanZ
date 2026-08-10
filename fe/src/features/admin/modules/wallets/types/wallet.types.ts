@@ -279,6 +279,16 @@ export interface WalletTransactionDetail {
     email?: string | null;
     phone?: string | null;
   } | null;
+  /**
+   * Admin đã thực hiện bút toán điều chỉnh thủ công, lấy từ nhật ký kiểm toán.
+   * `null` với bút toán tạo trước khi có `audit_correlation_id` — với chúng, danh
+   * tính admin vẫn nằm trong `description` theo định dạng cũ.
+   */
+  adjustedBy?: {
+    fullName?: string | null;
+    email?: string | null;
+    reason?: string | null;
+  } | null;
   /** Đơn nạp ví gắn với giao dịch. */
   topup?: {
     /** 'PAYOS' với mọi đơn mới; bản ghi cũ có thể là 'PAYPAL'/'ADYEN'. */

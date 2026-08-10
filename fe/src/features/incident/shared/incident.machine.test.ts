@@ -28,7 +28,7 @@ describe("incident.machine — checkAllocation (bất biến tasker+platform=Σa
   it("báo lỗi khi tổng phân bổ lệch", () => {
     const r = checkAllocation(200000, 100000, 50000);
     expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/tổng phân bổ/i);
+    expect(r.reason).toMatch(/phần quỹ nền tảng/i);
   });
 
   it("báo lỗi khi có số âm", () => {

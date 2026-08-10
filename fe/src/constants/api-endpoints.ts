@@ -138,6 +138,8 @@ export const API_ENDPOINTS = {
   },
   ADMIN_ACTIVITIES: {
     BASE: "/admin/activities",
+    STORAGE_METRICS: "/admin/activities/storage-metrics",
+    EXPORT: "/admin/activities/export",
   },
   NOTIFICATIONS: {
     LIST: "/notifications",

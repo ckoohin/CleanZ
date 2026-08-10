@@ -96,7 +96,7 @@ function snapshotOf(incident: IncidentAdminView): FormSnapshot {
 /**
  * Soạn quyết định — MỘT form duy nhất.
  *
- * Gộp bước "Xác minh thiệt hại" cũ vào đây: mỗi hạng mục chỉ còn MỘT con số (số duyệt),
+ * Gộp bước "Xác minh thiệt hại" cũ vào đây: mỗi khoản chỉ còn MỘT con số (số duyệt),
  * kèm trạng thái. Không còn nút "Lưu nháp / Sửa & tạo phiên bản mới" tách rời, không còn
  * ô review phản hồi, không còn khối duyệt cấp 2.
  */
@@ -218,11 +218,11 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
       (it) => itemStatus[it.id] === "NEED_MORE_EVIDENCE",
     );
 
-  // Ràng buộc phân bổ theo bên chịu (backend: INVALID_ALLOCATION_FOR_RESPONSIBILITY).
+  // Ràng buộc chia tiền theo bên chịu trách nhiệm (backend: INVALID_ALLOCATION_FOR_RESPONSIBILITY).
   let allocationRuleError: string | undefined;
   if (isCompensate && responsibilityParty) {
     if (responsibilityParty === "PLATFORM" && taskerBorneNum > 0) {
-      allocationRuleError = "Nền tảng chịu: Tasker chịu phải bằng 0";
+      allocationRuleError = "Nền tảng chịu: phần Tasker phải bằng 0";
     } else if (
       responsibilityParty === "UNDETERMINED" &&
       (taskerBorneNum > 0 ||
@@ -230,21 +230,21 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         !hasAllocationReason)
     ) {
       allocationRuleError =
-        "Chưa xác định: Quỹ chịu toàn bộ (Tasker chịu = 0) và cần nhập lý do phân bổ";
+        "Chưa xác định: quỹ nền tảng chịu toàn bộ (phần Tasker = 0) và phải nhập lý do chia tỷ lệ";
     } else if (
       responsibilityParty === "SHARED" &&
       (taskerBorneNum === 0 || platformBorneNum === 0) &&
       !hasAllocationReason
     ) {
       allocationRuleError =
-        "Chia sẻ nhưng một bên chịu 0 thì cần nhập lý do phân bổ";
+        "Chia trách nhiệm nhưng một bên chịu 0 thì phải nhập lý do chia tỷ lệ";
     } else if (
       responsibilityParty === "TASKER" &&
       taskerBorneNum === 0 &&
       !hasAllocationReason
     ) {
       allocationRuleError =
-        "Tasker chịu nhưng phần Tasker = 0 thì cần nhập lý do phân bổ";
+        "Tasker chịu nhưng phần Tasker = 0 thì phải nhập lý do chia tỷ lệ";
     }
   }
 
@@ -299,7 +299,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
           )}
           {incident.decision.taskerResponseDeadline && (
             <span className="inline-flex items-center gap-1">
-              <Clock className="size-3" /> Hạn phản biện:{" "}
+              <Clock className="size-3" /> Hạn Tasker phản hồi:{" "}
               {fmt(incident.decision.taskerResponseDeadline)}
             </span>
           )}
@@ -341,11 +341,11 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
       {outcome === "NO_COMPENSATION" && (
         <div className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5 text-[11px] leading-snug text-[var(--c-muted)]">
           <p className="mb-1 font-bold text-[var(--c-ink)]">
-            Công nhận sự cố — không bồi thường
+            Công nhận có sự cố — nhưng không bồi thường
           </p>
           Sự cố có thật nhưng <b>không phát sinh bồi thường</b> (VD lỗi thuộc về
-          khách, ngoài phạm vi chính sách). Khác &quot;Bác bỏ&quot; (báo cáo sai):{" "}
-          <b>không cộng cảnh cáo gian lận</b> cho khách.
+          khách, hoặc ngoài phạm vi chính sách). Khác &quot;Bác bỏ&quot; (báo cáo sai sự thật):{" "}
+          <b>không tính là khách báo cáo sai</b>.
         </div>
       )}
 
@@ -353,22 +353,22 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         <div className="space-y-3">
           <div className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5 text-[11px] leading-snug text-[var(--c-muted)]">
             <p className="mb-1 font-bold text-[var(--c-ink)]">
-              Thẩm định &amp; duyệt tiền
+              Xem xét &amp; duyệt tiền
             </p>
             <ul className="list-disc space-y-0.5 pl-4">
               <li>
-                Mỗi hạng mục chỉ nhập <b>một số tiền duyệt</b>, không vượt số
+                Mỗi khoản chỉ nhập <b>một số tiền duyệt</b>, không vượt số
                 khách yêu cầu.
               </li>
               <li>
-                Tổng duyệt &gt; 0 và không vượt trần chính sách
+                Tổng duyệt &gt; 0 và không vượt mức bồi thường tối đa
                 {policyCap != null ? ` (${formatVnd(policyCap)})` : ""}.
               </li>
               <li>
-                Tasker chịu + Quỹ chịu <b>phải bằng tổng duyệt</b>.
+                Phần Tasker + phần quỹ nền tảng <b>phải bằng tổng duyệt</b>.
               </li>
               <li>
-                Nếu <b>Tasker chịu &gt; 0</b>, phải gửi Tasker phản biện trước khi
+                Nếu <b>phần Tasker &gt; 0</b>, phải gửi Tasker phản hồi trước khi
                 chốt.
               </li>
             </ul>
@@ -422,8 +422,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                     status === "VERIFIED"
                       ? `Số nguyên, 0 – ${formatVnd(it.claimedAmount)}`
                       : status === "REJECTED"
-                        ? "Hạng mục bị từ chối — không duyệt tiền."
-                        : "Sẽ nhắc khách bổ sung bằng chứng; chưa chốt được khi còn hạng mục này."
+                        ? "Khoản này bị từ chối — không duyệt tiền."
+                        : "Sẽ nhắc khách bổ sung ảnh; còn khoản này thì chưa chốt được."
                   }
                   error={
                     itemInvalid
@@ -437,7 +437,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
 
           <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
-              <FieldLabel required>Trách nhiệm</FieldLabel>
+              <FieldLabel required>Ai chịu trách nhiệm</FieldLabel>
               <select
                 value={responsibilityParty}
                 onChange={(e) =>
@@ -448,12 +448,12 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                 <option value="">Chọn…</option>
                 <option value="TASKER">Tasker chịu</option>
                 <option value="PLATFORM">Nền tảng chịu</option>
-                <option value="SHARED">Chia sẻ</option>
+                <option value="SHARED">Chia trách nhiệm</option>
                 <option value="UNDETERMINED">Chưa xác định (CleanZ chịu)</option>
               </select>
             </div>
             <div className="space-y-1">
-              <FieldLabel required>Tasker chịu</FieldLabel>
+              <FieldLabel required>Phần Tasker chịu</FieldLabel>
               <Input
                 type="number"
                 min={0}
@@ -464,7 +464,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
               />
             </div>
             <div className="space-y-1">
-              <FieldLabel required>Nền tảng chịu</FieldLabel>
+              <FieldLabel required>Phần nền tảng chịu</FieldLabel>
               <Input
                 type="number"
                 min={0}
@@ -478,13 +478,13 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
           <FieldHint
             hint={
               <>
-                Tasker chịu + Quỹ chịu phải bằng tổng duyệt{" "}
+                Phần Tasker + phần nền tảng phải bằng tổng duyệt{" "}
                 <b>{formatVnd(sumApproved)}</b>.
               </>
             }
             error={
               !responsibilityParty
-                ? "Chưa chọn bên chịu trách nhiệm"
+                ? "Chưa chọn ai chịu trách nhiệm"
                 : !allocation.ok
                   ? allocation.reason
                   : allocationRuleError
@@ -492,13 +492,13 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
           />
           {overCap && (
             <FieldHint
-              error={`Tổng duyệt vượt trần chính sách ${formatVnd(policyCap)}`}
+              error={`Tổng duyệt vượt mức bồi thường tối đa ${formatVnd(policyCap)}`}
             />
           )}
 
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <FieldLabel required>Lý do quy trách nhiệm</FieldLabel>
+              <FieldLabel required>Vì sao kết luận như vậy</FieldLabel>
               <CharCount
                 value={responsibilityReason}
                 max={MAX.responsibilityReason}
@@ -509,7 +509,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
               maxLength={MAX.responsibilityReason}
               onChange={(e) => setResponsibilityReason(e.target.value)}
               rows={2}
-              placeholder="Lý do quy trách nhiệm"
+              placeholder="Căn cứ để quy trách nhiệm cho bên này"
               className="resize-none rounded-lg text-sm"
             />
             <FieldHint
@@ -523,7 +523,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <FieldLabel>Lý do phân bổ</FieldLabel>
+              <FieldLabel>Lý do chia tỷ lệ</FieldLabel>
               <CharCount value={allocationReason} max={MAX.allocationReason} />
             </div>
             <Textarea
@@ -531,10 +531,10 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
               maxLength={MAX.allocationReason}
               onChange={(e) => setAllocationReason(e.target.value)}
               rows={2}
-              placeholder="Lý do phân bổ"
+              placeholder="Vì sao chia tiền theo tỷ lệ này"
               className="resize-none rounded-lg text-sm"
             />
-            <FieldHint hint="Bắt buộc khi phân bổ đặc biệt (Chưa xác định; Chia sẻ/Tasker mà một bên chịu 0)" />
+            <FieldHint hint="Bắt buộc khi chia tiền bất thường (Chưa xác định; Chia trách nhiệm/Tasker mà một bên chịu 0)" />
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
@@ -557,7 +557,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
             <FieldHint
               hint={
                 taskerBorneNum > 0
-                  ? "Bắt buộc khi Tasker chịu > 0 — nội dung này Tasker sẽ đọc khi phản biện"
+                  ? "Bắt buộc khi Tasker chịu > 0 — Tasker sẽ đọc nội dung này khi phản hồi"
                   : "Không bắt buộc"
               }
               error={
@@ -642,12 +642,12 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
       {can("SEND_TO_TASKER", incident) && (
         <div className="space-y-2 rounded-lg border border-[#D97706]/40 bg-[#D97706]/5 p-3">
           <p className="text-xs font-bold uppercase text-[var(--c-muted)]">
-            Gửi Tasker phản biện
+            Gửi Tasker phản hồi
           </p>
           <p className="text-[11px] leading-snug text-[var(--c-muted)]">
             Quyết định bắt Tasker chịu <b>{formatVnd(saved.taskerBorne)}</b>.
             Trước khi trừ tiền của họ, Tasker phải được đọc quyết định và có cơ
-            hội phản biện. Chốt được khi Tasker trả lời hoặc hết hạn.
+            hội nêu ý kiến. Chốt được khi Tasker trả lời hoặc hết hạn.
           </p>
           <AdminButton
             size="sm"
@@ -678,13 +678,13 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
 
       <div className="rounded-lg border border-[var(--c-line)] p-3 text-xs text-[var(--c-muted)]">
         <p className="mb-2 flex items-center gap-1 font-bold uppercase text-[var(--c-ink)]">
-          <History className="size-3.5" /> Thông tin kiểm toán
+          <History className="size-3.5" /> Thông tin lưu vết
         </p>
         <div className="grid grid-cols-2 gap-2">
           <span>Chính sách: {incident.decision.policyVersion ?? "-"}</span>
-          <span>Trần: {formatVnd(incident.decision.policyCapSnapshot)}</span>
+          <span>Mức tối đa: {formatVnd(incident.decision.policyCapSnapshot)}</span>
           <span>
-            Hạn phản biện: {incident.decision.responseWindowHoursSnapshot ?? "-"}{" "}
+            Hạn Tasker phản hồi: {incident.decision.responseWindowHoursSnapshot ?? "-"}{" "}
             giờ
           </span>
           <span>Đã chốt: {fmt(incident.decision.finalizedAt)}</span>

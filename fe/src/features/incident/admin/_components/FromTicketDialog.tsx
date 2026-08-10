@@ -29,7 +29,7 @@ interface ItemDraft {
 }
 const emptyItem = (): ItemDraft => ({ description: "", claimedAmount: "" });
 
-/** Nâng cấp Ticket PROPERTY_DAMAGE → Incident (kế thừa booking + bằng chứng từ ticket). */
+/** Chuyển Ticket PROPERTY_DAMAGE thành Incident (kế thừa booking + bằng chứng từ ticket). */
 export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const create = useCreateFromTicket();
   const [ticketId, setTicketId] = useState("");
@@ -43,7 +43,7 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
   const setItem = (i: number, patch: Partial<ItemDraft>) =>
     setItems((p) => p.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
-  // Trần thật do admin cấu hình; `CLAIM_MAX` chỉ là giá trị dự phòng khi chưa
+  // Mức tối đa thật do admin cấu hình; `CLAIM_MAX` chỉ là giá trị dự phòng khi chưa
   // tải xong cấu hình — backend vẫn là chốt chặn cuối.
   const { data: config } = useIncidentConfig();
   const claimMax =
@@ -56,8 +56,8 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
   const itemsValid = items.every(
     (it) => it.description.trim() && amountValid(it),
   );
-  // Trần áp cho TỔNG, không phải từng hạng mục — giống hệt ràng buộc backend
-  // kiểm khi nâng cấp ticket thành sự cố.
+  // Mức tối đa áp cho TỔNG, không phải từng khoản — giống hệt ràng buộc backend
+  // kiểm khi chuyển ticket thành sự cố.
   const totalClaimed = items.reduce((s, it) => s + (Number(it.claimedAmount) || 0), 0);
   const overClaimMax = totalClaimed > claimMax;
   const canSubmit =
@@ -126,11 +126,11 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase text-[var(--c-muted)]">Hạng mục thiệt hại *</Label>
+            <Label className="text-xs font-semibold uppercase text-[var(--c-muted)]">Các khoản thiệt hại *</Label>
             {items.map((it, i) => (
               <div key={i} className="space-y-2 rounded-lg border border-[var(--c-line)] p-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--c-muted)]">Hạng mục {i + 1}</span>
+                  <span className="text-xs font-bold text-[var(--c-muted)]">Khoản {i + 1}</span>
                   {items.length > 1 && (
                     <button onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))} aria-label="Xoá">
                       <Trash2 className="size-4 text-[var(--c-muted)] hover:text-[#E11D48]" />
@@ -142,7 +142,7 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
               </div>
             ))}
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[var(--c-muted)]">Tổng yêu cầu</span>
+              <span className="text-[var(--c-muted)]">Tổng khách yêu cầu</span>
               <span
                 className={overClaimMax ? "font-semibold text-[#E11D48]" : "text-[var(--c-ink)]"}
               >
@@ -151,11 +151,11 @@ export function FromTicketDialog({ open, onClose }: { open: boolean; onClose: ()
             </div>
             {overClaimMax && (
               <p className="text-xs text-[#E11D48]">
-                Tổng vượt trần {formatVnd(claimMax)} — backend sẽ từ chối.
+                Tổng vượt mức tối đa {formatVnd(claimMax)} — hệ thống sẽ từ chối.
               </p>
             )}
             <AdminButton variant="secondary" size="sm" className="w-full rounded-lg gap-1.5" onClick={() => setItems((p) => [...p, emptyItem()])}>
-              <Plus className="size-3.5" /> Thêm hạng mục
+              <Plus className="size-3.5" /> Thêm khoản thiệt hại
             </AdminButton>
           </div>
         </div>

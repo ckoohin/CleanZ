@@ -1,3 +1,4 @@
+import { AuditActorType } from 'src/common/enums/audit-actor-type.enum';
 import {
   Column,
   CreateDateColumn,
@@ -100,6 +101,28 @@ export class BookingStatusLogEntity {
   })
   @JoinColumn({ name: 'payment_id' })
   payment?: PaymentEntity | null;
+
+  /**
+   * Ai gây ra bản ghi này. Được đóng dấu tự động bởi `AuditCorrelationSubscriber`.
+   * NULL với bản ghi tạo trước khi có cột này — không backfill vì suy ngược sẽ
+   * là bịa dữ liệu.
+   */
+  @Column({
+    name: 'actor_type',
+    type: 'enum',
+    enum: AuditActorType,
+    enumName: 'audit_actor_type',
+    nullable: true,
+  })
+  actorType?: AuditActorType | null;
+
+  /**
+   * Thao tác admin nào sinh ra bản ghi này. NULL = không phát sinh từ admin
+   * (người dùng tự thao tác, hoặc cron/worker chạy nền). Được đóng dấu tự động
+   * bởi `AuditCorrelationSubscriber`.
+   */
+  @Column({ name: 'audit_correlation_id', type: 'uuid', nullable: true })
+  auditCorrelationId?: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

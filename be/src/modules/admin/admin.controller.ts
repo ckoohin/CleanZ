@@ -48,6 +48,10 @@ import { ChangeBookingStatusDto } from './dto/change-booking-status.dto';
 import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
 import { AdminActivityQueryDto } from './dto/admin-activity-query.dto';
 import { AdminActivityService } from './services/admin-activity.service';
+import { AuditAction } from './audit/audit-action.decorator';
+import { AuditActionCode } from './audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
+import { AuditRetentionService } from './audit/audit-retention.service';
 import { ReviewBookingCheckinDto } from './dto/review-booking-checkin.dto';
 import { AdminCheckinOverrideDto } from './dto/admin-checkin-override.dto';
 import { ReviewBookingNoShowDto } from './dto/review-booking-no-show.dto';
@@ -66,6 +70,7 @@ export class AdminController {
     private readonly usersService: UsersService,
     private readonly dashboardReport: AdminDashboardReportService,
     private readonly activityService: AdminActivityService,
+    private readonly retentionService: AuditRetentionService,
     private readonly taskerBookingService: TaskerBookingService,
   ) {}
 
@@ -75,6 +80,52 @@ export class AdminController {
   })
   getActivities(@Query() query: AdminActivityQueryDto) {
     return this.activityService.findAll(query);
+  }
+
+  /**
+   * Số liệu để quyết định khi nào cần đổi kiến trúc lưu trữ.
+   *
+   * Đo thay vì đoán: ngưỡng partition phụ thuộc lượng ghi thật, mà lượng đó chỉ
+   * biết được sau vài tuần chạy. Trả cả tồn đọng outbox vì đó là chỉ báo sớm —
+   * hàng đợi dâng lên nghĩa là worker không theo kịp, và nhật ký đang trễ.
+   */
+  @Get('activities/storage-metrics')
+  @ApiOperation({
+    summary: 'Mức tiêu thụ lưu trữ của nhật ký và tồn đọng hàng đợi',
+  })
+  getActivityStorageMetrics() {
+    return this.retentionService.getStorageMetrics();
+  }
+
+  /**
+   * Xuất CSV phục vụ điều tra. Là hành động đưa nhật ký RA KHỎI hệ thống nên tự
+   * nó cũng phải để lại vết — dùng chung khuôn `READ_SENSITIVE` với các bản xuất
+   * Excel khác.
+   */
+  @AuditAction({
+    code: AuditActionCode.EXPORT_ACTIVITY_LOG,
+    severity: AuditSeverity.READ_SENSITIVE,
+    targetType: 'ADMIN_ACTIVITY_LOG',
+    extract: ({ query }) => ({
+      severity: query.severity ?? null,
+      actionCode: query.actionCode ?? null,
+      correlationId: query.correlationId ?? null,
+      from: query.from ?? null,
+      to: query.to ?? null,
+    }),
+  })
+  @Get('activities/export')
+  @ApiOperation({ summary: 'Xuất nhật ký ra CSV để điều tra' })
+  async exportActivities(
+    @Query() query: AdminActivityQueryDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.activityService.exportCsv(query);
+    const filename = `nhat-ky-admin-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
   }
 
   // ─── Dashboard Endpoints ───
@@ -216,6 +267,11 @@ export class AdminController {
     return this.bookingRepo.getActiveTaskers();
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_CREATE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+  })
   @Post('bookings')
   @ApiOperation({
     summary: 'Admin tạo booking thủ công',
@@ -256,6 +312,16 @@ export class AdminController {
     return this.bookingRepo.getAvailableTaskers(id, query);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_ASSIGN_TASKER,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    reasonField: 'note',
+    extract: ({ params, body }) => ({
+      bookingId: params.id,
+      taskerId: body.taskerId ?? null,
+    }),
+  })
   @Patch('bookings/:id/tasker')
   @ApiOperation({
     summary: 'Admin gán hoặc thay Tasker thủ công (develop)',
@@ -268,6 +334,15 @@ export class AdminController {
     return this.bookingRepo.assignTasker(id, adminUserId, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_ASSIGN_TASKER,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    extract: ({ params, body }) => ({
+      bookingId: params.id,
+      taskerId: body.taskerId ?? null,
+    }),
+  })
   @Patch('bookings/:id/assign')
   @ApiOperation({
     summary: 'Admin gán Tasker thủ công (dev-v1)',
@@ -280,6 +355,16 @@ export class AdminController {
     return this.bookingRepo.assignTaskerToBooking(id, taskerId, adminUserId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_STATUS_CHANGE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    reasonField: 'reason',
+    extract: ({ params, body }) => ({
+      bookingId: params.id,
+      newStatus: body.status ?? null,
+    }),
+  })
   @Patch('bookings/:id/status')
   @ApiOperation({
     summary: 'Admin can thiệp trạng thái booking',
@@ -294,6 +379,18 @@ export class AdminController {
     return this.bookingRepo.changeBookingStatus(id, adminUserId, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_CHECKIN_REVIEW,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    reasonField: 'reason',
+    extract: ({ params, body }) => ({
+      bookingId: params.id,
+      decision: body.decision ?? null,
+      openIncident: body.openIncident === true,
+      claimedAmount: body.claimedAmount ?? null,
+    }),
+  })
   @Patch('bookings/:id/checkin-review')
   @ApiOperation({
     summary: 'Admin duyệt bằng chứng check-in bất thường',
@@ -308,6 +405,18 @@ export class AdminController {
     return this.bookingRepo.reviewCheckin(id, adminUserId, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_NO_SHOW_REVIEW,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    reasonField: 'reason',
+    extract: ({ params, body }) => ({
+      bookingId: params.id,
+      decision: body.decision ?? null,
+      openIncident: body.openIncident === true,
+      claimedAmount: body.claimedAmount ?? null,
+    }),
+  })
   @Patch('bookings/:id/no-show-review')
   @ApiOperation({
     summary: 'Admin kết luận booking tự hủy do Tasker không check-in',
@@ -322,6 +431,13 @@ export class AdminController {
     return this.bookingRepo.reviewNoShow(id, adminUserId, dto);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_CHECKIN_OVERRIDE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    reasonField: 'reason',
+    extract: ({ params }) => ({ bookingId: params.id }),
+  })
   @Patch('bookings/:id/checkin-override')
   @ApiOperation({
     summary: 'Admin xác nhận check-in thủ công có audit',
@@ -341,6 +457,12 @@ export class AdminController {
     return this.bookingRepo.getBookingDetail(id);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_CANCEL,
+    severity: AuditSeverity.HIGH,
+    targetType: 'BOOKING',
+    extract: ({ params }) => ({ bookingId: params.id }),
+  })
   @Patch('bookings/:id/cancel')
   async cancelBooking(
     @Param('id', ParseUUIDPipe) id: string,
@@ -349,6 +471,11 @@ export class AdminController {
     return this.bookingRepo.cancelBookingByAdmin(id, adminUserId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.BOOKING_EXPIRE_OVERDUE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'BOOKING',
+  })
   @Post('bookings/expire-overdue')
   expireOverdueBookings() {
     return this.bookingRepo.expireOverdueBookings();
@@ -360,6 +487,11 @@ export class AdminController {
     return this.customerRepo.getCustomers(query);
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_CREATE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'CUSTOMER',
+  })
   @Post('customers')
   createCustomer(
     @Body() dto: CreateCustomerDto,
@@ -390,6 +522,15 @@ export class AdminController {
     );
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_STATUS_CHANGE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'CUSTOMER',
+    extract: ({ params, body }) => ({
+      customerId: params.id,
+      isActive: body.isActive ?? null,
+    }),
+  })
   @Patch('customers/:id/status')
   async updateCustomerStatus(
     @Param('id', ParseUUIDPipe) id: string,
@@ -413,6 +554,11 @@ export class AdminController {
     };
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_UPDATE,
+    severity: AuditSeverity.NORMAL,
+    targetType: 'CUSTOMER',
+  })
   @Patch('customers/:id')
   updateCustomer(
     @Param('id', ParseUUIDPipe) id: string,
@@ -422,6 +568,12 @@ export class AdminController {
     return this.customerRepo.updateCustomer(id, dto, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_DELETE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.id }),
+  })
   @Delete('customers/:id')
   deleteCustomer(
     @Param('id', ParseUUIDPipe) id: string,
@@ -430,6 +582,12 @@ export class AdminController {
     return this.customerRepo.deleteCustomer(id, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_RESTORE,
+    severity: AuditSeverity.HIGH,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.id }),
+  })
   @Patch('customers/:id/restore')
   restoreCustomer(
     @Param('id', ParseUUIDPipe) id: string,
@@ -438,6 +596,12 @@ export class AdminController {
     return this.customerRepo.restoreCustomer(id, adminId);
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_RESEND_TEMP_PASSWORD,
+    severity: AuditSeverity.HIGH,
+    targetType: 'CUSTOMER',
+    extract: ({ params }) => ({ customerId: params.id }),
+  })
   @Post('customers/:id/resend-temp-password')
   resendCustomerTempPassword(
     @Param('id', ParseUUIDPipe) id: string,

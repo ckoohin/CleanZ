@@ -22,14 +22,14 @@ vi.mock("../hooks/useCustomerIncident", () => ({
 }));
 
 const amountInputs = () =>
-  screen.getAllByPlaceholderText(/Số tiền yêu cầu/i) as HTMLInputElement[];
+  screen.getAllByPlaceholderText(/Số tiền muốn được đền/i) as HTMLInputElement[];
 
 function setup() {
   render(<ReportWizard bookingId="bk-1" />);
   fireEvent.change(screen.getByPlaceholderText(/Hư hỏng tài sản sau ca dọn/i), {
     target: { value: "Vỡ kính" },
   });
-  fireEvent.change(screen.getByPlaceholderText(/Mô tả tình huống sự cố/i), {
+  fireEvent.change(screen.getByPlaceholderText(/Kể lại sự việc/i), {
     target: { value: "Tasker làm vỡ kính bàn" },
   });
 }
@@ -42,20 +42,20 @@ function setup() {
 describe("ReportWizard — trần số tiền áp cho TỔNG", () => {
   it("cảnh báo khi tổng vượt trần dù từng hạng mục đều dưới trần", () => {
     setup();
-    fireEvent.click(screen.getByRole("button", { name: /Thêm hạng mục/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Thêm khoản thiệt hại/i }));
 
     const perItem = String(CONFIGURED_CLAIM_MAX - 1);
     amountInputs().forEach((input) =>
       fireEvent.change(input, { target: { value: perItem } }),
     );
 
-    expect(screen.getByText(/Tổng số tiền yêu cầu vượt trần/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tổng số tiền yêu cầu vượt mức tối đa/i)).toBeInTheDocument();
   });
 
   it("không gửi lên server khi tổng vượt trần", () => {
     createMutate.mockClear();
     setup();
-    fireEvent.click(screen.getByRole("button", { name: /Thêm hạng mục/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Thêm khoản thiệt hại/i }));
 
     const perItem = String(CONFIGURED_CLAIM_MAX - 1);
     amountInputs().forEach((input) =>
@@ -71,7 +71,7 @@ describe("ReportWizard — trần số tiền áp cho TỔNG", () => {
     fireEvent.change(amountInputs()[0], { target: { value: "1000000" } });
 
     expect(
-      screen.queryByText(/Tổng số tiền yêu cầu vượt trần/i),
+      screen.queryByText(/Tổng số tiền yêu cầu vượt mức tối đa/i),
     ).not.toBeInTheDocument();
   });
 
@@ -82,7 +82,7 @@ describe("ReportWizard — trần số tiền áp cho TỔNG", () => {
     fireEvent.click(screen.getByRole("button", { name: /Gửi báo cáo/i }));
 
     expect(createMutate).not.toHaveBeenCalled();
-    expect(screen.getByText(/số tiền nguyên không lẻ/i)).toBeInTheDocument();
+    expect(screen.getByText(/số tiền chẵn/i)).toBeInTheDocument();
   });
 
   it("chặn theo trần ADMIN CẤU HÌNH, không theo hằng dự phòng của FE", () => {
@@ -93,7 +93,7 @@ describe("ReportWizard — trần số tiền áp cho TỔNG", () => {
     fireEvent.change(amountInputs()[0], { target: { value: "10000000" } });
     fireEvent.click(screen.getByRole("button", { name: /Gửi báo cáo/i }));
 
-    expect(screen.getByText(/vượt trần/i)).toBeInTheDocument();
+    expect(screen.getByText(/vượt mức tối đa/i)).toBeInTheDocument();
     expect(createMutate).not.toHaveBeenCalled();
   });
 });

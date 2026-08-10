@@ -13,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useUpdateTasker } from "../hooks/admin-tasker.hooks";
+import {
+  useAdminTaskerDetail,
+  useUpdateTasker,
+} from "../hooks/admin-tasker.hooks";
 import type {
   AdminTasker,
   AdminUpdateTaskerPayload,
@@ -44,6 +47,19 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
   onClose,
   tasker,
 }) => {
+  /**
+   * Thông tin ngân hàng lấy từ endpoint CHI TIẾT, không từ dòng danh sách.
+   *
+   * Danh sách Tasker không còn trả số tài khoản: nó là màn hình vận hành mở liên
+   * tục và hiển thị hàng chục người một lúc, không có lý do gì phơi thông tin
+   * ngân hàng của cả trang chỉ vì thỉnh thoảng có người bấm Sửa. Đổi lại, ô ngân
+   * hàng ở đây điền vào sau một nhịp — và dữ liệu cũng tươi hơn bản cache của
+   * danh sách.
+   */
+  const { data: detail, isLoading: isLoadingDetail } = useAdminTaskerDetail(
+    isOpen ? tasker.id : "",
+  );
+
   // Lazy-init từ props; parent remount dialog (qua `key`) mỗi lần mở nên state
   // luôn tươi mới mà không cần effect đồng bộ prop.
   const [form, setForm] = useState<FormState>(() => ({
@@ -52,10 +68,28 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
     workingAddress: tasker.workingAddress ?? "",
     bio: tasker.bio ?? "",
     skills: tasker.skills ?? "",
-    bankName: tasker.bankName ?? "",
-    bankAccountNumber: tasker.bankAccountNumber ?? "",
-    bankAccountName: tasker.bankAccountName ?? "",
+    bankName: "",
+    bankAccountNumber: "",
+    bankAccountName: "",
   }));
+
+  /**
+   * Chỉ nạp một lần, và chỉ vào các ô ngân hàng đang trống — nếu ghi đè vô điều
+   * kiện thì phần admin vừa gõ sẽ bị xoá khi request chi tiết trả về muộn.
+   */
+  const bankLoadedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!detail || bankLoadedRef.current) return;
+    bankLoadedRef.current = true;
+    setForm((prev) => ({
+      ...prev,
+      bankName: prev.bankName || (detail.bank?.name ?? ""),
+      bankAccountNumber:
+        prev.bankAccountNumber || (detail.bank?.accountNumber ?? ""),
+      bankAccountName:
+        prev.bankAccountName || (detail.bank?.accountName ?? ""),
+    }));
+  }, [detail]);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>(
     {}
   );
@@ -197,6 +231,7 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
                 <Label htmlFor="tasker-bankName" className="text-[var(--c-ink-soft)]">Ngân hàng</Label>
                 <Input
                   id="tasker-bankName"
+                  disabled={isLoadingDetail}
                   value={form.bankName}
                   onChange={(e) => setField("bankName", e.target.value)}
                   placeholder="Vietcombank"
@@ -208,6 +243,7 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
                 <Label htmlFor="tasker-bankAccountNumber" className="text-[var(--c-ink-soft)]">Số tài khoản</Label>
                 <Input
                   id="tasker-bankAccountNumber"
+                  disabled={isLoadingDetail}
                   value={form.bankAccountNumber}
                   onChange={(e) => setField("bankAccountNumber", e.target.value)}
                   placeholder="0123456789"
@@ -220,6 +256,7 @@ export const TaskerEditDialog: React.FC<TaskerEditDialogProps> = ({
               <Label htmlFor="tasker-bankAccountName" className="text-[var(--c-ink-soft)]">Chủ tài khoản</Label>
               <Input
                 id="tasker-bankAccountName"
+                  disabled={isLoadingDetail}
                 value={form.bankAccountName}
                 onChange={(e) => setField("bankAccountName", e.target.value)}
                 placeholder="NGUYEN VAN A"

@@ -11,6 +11,7 @@ import {
   WithdrawalRequestRepository,
 } from './finance.repository';
 import { WalletModule } from '../wallet/wallet.module';
+import { AdminActivityModule } from '../admin/admin-activity.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { WalletModule } from '../wallet/wallet.module';
       WithdrawalRequestEntity,
     ]),
     WalletModule,
+    AdminActivityModule,
   ],
   controllers: [FinanceController],
   providers: [

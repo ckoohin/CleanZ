@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { User } from 'src/modules/users/entities/user.entity';
+import { AuditOutboxEntity } from './entities/audit-outbox.entity';
 import { AdminActivityModule } from './admin-activity.module';
 import { AdminActivityLogEntity } from './entities/admin-activity-log.entity';
 import { AdminActivityService } from './services/admin-activity.service';
@@ -20,6 +22,25 @@ import { AdminActivitySnapshotService } from './services/admin-activity-snapshot
  */
 const repoMock = { create: jest.fn(), save: jest.fn(), find: jest.fn() };
 
+/**
+ * `AuditRecorder` cần `DataSource` để ghi outbox ngoài transaction. Trong ứng
+ * dụng thật nó đến từ `TypeOrmModule.forRoot` ở phạm vi global; `overrideProvider`
+ * không thay thế được một provider chưa từng khai báo, nên phải dựng module giả.
+ *
+ * KHÔNG có `ConfigService` ở đây — và đó chính là điều test này khẳng định. Hai
+ * worker nền (đọc cấu hình chu kỳ, giữ bộ đếm giờ) đã chuyển sang
+ * `AuditWorkerModule`; nếu ai đó đưa chúng trở lại module này thì test sẽ đỏ
+ * ngay, thay vì để năm module nghiệp vụ lặng lẽ gánh thêm hạ tầng nền.
+ */
+@Global()
+@Module({
+  providers: [
+    { provide: DataSource, useValue: { getRepository: () => repoMock } },
+  ],
+  exports: [DataSource],
+})
+class GlobalStubModule {}
+
 @Module({
   imports: [AdminActivityModule],
   providers: [
@@ -30,8 +51,12 @@ const repoMock = { create: jest.fn(), save: jest.fn(), find: jest.fn() };
 class InterceptorHostModule {}
 
 async function compile(rootModule: unknown) {
-  return Test.createTestingModule({ imports: [rootModule as never] })
+  return Test.createTestingModule({
+    imports: [GlobalStubModule, rootModule as never],
+  })
     .overrideProvider(getRepositoryToken(AdminActivityLogEntity))
+    .useValue(repoMock)
+    .overrideProvider(getRepositoryToken(AuditOutboxEntity))
     .useValue(repoMock)
     .overrideProvider(getRepositoryToken(User))
     .useValue(repoMock)

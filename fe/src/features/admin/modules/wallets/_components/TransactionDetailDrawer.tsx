@@ -24,8 +24,10 @@ import {
 import type {
   WalletOwnerType,
   WalletTransaction,
+  WalletTransactionDetail,
   WalletTransactionType,
 } from "../types/wallet.types";
+import { useAdminTransactionDetail } from "../hooks/useAdminWallets";
 
 interface Props {
   transaction: WalletTransaction | null;
@@ -68,6 +70,14 @@ const formatCurrency = (value: number | string | null | undefined) =>
   }).format(Number(value));
 
 export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
+  // Danh sách giao dịch không kèm thông tin người điều chỉnh (một LEFT JOIN sang
+  // nhật ký kiểm toán cho mỗi dòng của danh sách phân trang là không đáng), nên
+  // lấy từ endpoint chi tiết. Hook phải đứng TRƯỚC `return null` bên dưới —
+  // gọi hook sau một nhánh thoát sớm là vi phạm rules of hooks.
+  const { data: detail } = useAdminTransactionDetail(
+    open && transaction ? transaction.id : null,
+  );
+
   if (!transaction) return null;
 
   const balanceBefore = Number(transaction.balanceBefore);
@@ -75,7 +85,7 @@ export function TransactionDetailDrawer({ transaction, open, onClose }: Props) {
   const isCredit = balanceAfter >= balanceBefore;
   const AmountIcon = isCredit ? ArrowDownLeft : ArrowUpRight;
   const walletOwner = getWalletOwner(transaction);
-  const reference = getReferenceInfo(transaction);
+  const reference = getReferenceInfo(transaction, detail?.adjustedBy);
   const settlement = getTaskerSettlement(transaction);
   const booking = transaction.booking;
   const bookingCustomer = booking?.customer?.user?.fullName;
@@ -349,7 +359,10 @@ function getWalletOwner(transaction: WalletTransaction): {
   };
 }
 
-function getReferenceInfo(transaction: WalletTransaction): {
+function getReferenceInfo(
+  transaction: WalletTransaction,
+  adjustedBy?: WalletTransactionDetail["adjustedBy"],
+): {
   label: string;
   value: string;
 } {
@@ -368,12 +381,24 @@ function getReferenceInfo(transaction: WalletTransaction): {
         value: transaction.description || "Yêu cầu rút tiền",
       };
     case "ADMIN_ADJUSTMENT": {
-      const actor = transaction.description?.match(
+      // Ưu tiên dữ liệu có cấu trúc từ nhật ký kiểm toán. Regex bên dưới chỉ còn
+      // phục vụ bút toán CŨ: hồi đó backend ghép tên admin vào `description`, nên
+      // tên hiển thị là tên tại thời điểm ghi và không đổi theo hồ sơ thật.
+      if (adjustedBy?.fullName) {
+        return {
+          label: "Người điều chỉnh",
+          value: adjustedBy.email
+            ? `${adjustedBy.fullName} (${adjustedBy.email})`
+            : adjustedBy.fullName,
+        };
+      }
+
+      const legacyActor = transaction.description?.match(
         /Điều chỉnh bởi Admin:\s*(.+)$/,
       )?.[1];
       return {
         label: "Người điều chỉnh",
-        value: actor || "Admin hệ thống",
+        value: legacyActor || "Admin hệ thống",
       };
     }
     case "TASKER_TERMINATION":

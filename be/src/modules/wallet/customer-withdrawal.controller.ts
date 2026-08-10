@@ -18,6 +18,9 @@ import {
   CreateCustomerWithdrawalDto,
   ReviewCustomerWithdrawalDto,
 } from './dto/customer-withdrawal.dto';
+import { AuditAction } from '../admin/audit/audit-action.decorator';
+import { AuditActionCode } from '../admin/audit/audit-action-codes';
+import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
 
 @ApiTags('Customer Withdrawal')
 @Controller('wallet')
@@ -50,6 +53,17 @@ export class CustomerWithdrawalController {
     return this.service.listAll(status);
   }
 
+  @AuditAction({
+    code: AuditActionCode.CUSTOMER_WITHDRAWAL_REVIEW,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'CUSTOMER_WITHDRAWAL_REQUEST',
+    reasonField: 'note',
+    extract: ({ params, body, result }) => ({
+      withdrawalId: params.id,
+      decision: body.status,
+      amount: result?.amount ?? null,
+    }),
+  })
   @Patch('admin/customer-withdrawals/:id/review')
   @Auth(UserRole.ADMIN)
   @ApiOperation({ summary: 'Admin: duyệt/từ chối yêu cầu rút của Khách' })

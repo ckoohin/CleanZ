@@ -67,7 +67,7 @@ describe("CompensatePanel", () => {
     // Trừ ví Tasker = số dư khả dụng (100k), KHÔNG phải 150k theo phân bổ.
     expect(container.textContent).toContain("100.000đ");
     // Phần Tasker không đủ được nêu rõ là ghi nợ.
-    expect(container.textContent).toMatch(/ghi nợ/i);
+    expect(container.textContent).toMatch(/ghi thành nợ/i);
     expect(container.textContent).toContain("50.000đ");
   });
 
@@ -111,7 +111,7 @@ describe("ReverseCompensationPanel", () => {
   it("không bị chặn thì hiện nút đảo bình thường", () => {
     render(<ReverseCompensationPanel id="i1" decisionVersion={3} />);
     expect(
-      screen.getByRole("button", { name: /Thu hồi bồi thường/i }),
+      screen.getByRole("button", { name: /Hoàn tác chi trả/i }),
     ).toBeInTheDocument();
   });
 });
