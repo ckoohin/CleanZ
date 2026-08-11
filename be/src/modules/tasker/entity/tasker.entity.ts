@@ -227,6 +227,9 @@ export class TaskerEntity {
   @Column({ name: 'location_updated_at', type: 'timestamptz', nullable: true })
   locationUpdatedAt?: Date | null;
 
+  @Column({ name: 'quiz_passed_at', type: 'timestamp', nullable: true })
+  quizPassedAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

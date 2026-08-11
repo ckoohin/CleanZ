@@ -346,4 +346,31 @@ export const API_ENDPOINTS = {
     BASE: "/admin/coverage-areas",
     SEED: "/admin/coverage-areas/seed",
   },
+  ADMIN_QUESTIONS: {
+    BASE: "/admin/questions",
+    DETAIL: (id: string) => `/admin/questions/${id}`,
+    TOGGLE: (id: string) => `/admin/questions/${id}/toggle`,
+  },
+  ADMIN_QUIZ: {
+    BASE: "/admin/quiz",
+    DETAIL: (id: string) => `/admin/quiz/${id}`,
+    ACTIVATE: (id: string) => `/admin/quiz/${id}/activate`,
+    QUESTIONS: (id: string) => `/admin/quiz/${id}/questions`,
+    REMOVE_QUESTION: (id: string, questionId: string) =>
+      `/admin/quiz/${id}/questions/${questionId}`,
+    REORDER: (id: string) => `/admin/quiz/${id}/questions/reorder`,
+    ATTEMPTS: (id: string) => `/admin/quiz/${id}/attempts`,
+    STATS: (id: string) => `/admin/quiz/${id}/stats`,
+  },
+  ADMIN_QUIZ_ATTEMPTS: {
+    BASE: "/admin/quiz-attempts",
+    DETAIL: (id: string) => `/admin/quiz-attempts/${id}`,
+  },
+  QUIZ: {
+    ACTIVE: "/quiz/active",
+    MY_STATUS: "/quiz/my-status",
+    START: "/quiz/start",
+    SUBMIT: (id: string) => `/quiz/attempts/${id}/submit`,
+    ATTEMPT: (id: string) => `/quiz/attempts/${id}`,
+  },
 };

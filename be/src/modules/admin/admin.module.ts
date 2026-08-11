@@ -31,6 +31,7 @@ import { AdminActivitySnapshotService } from './services/admin-activity-snapshot
 import { IncidentModule } from 'src/modules/incident/incident.module';
 import { AdminActivityModule } from './admin-activity.module';
 import { AuditWorkerModule } from './audit-worker.module';
+import { QuizModule } from 'src/modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { AuditWorkerModule } from './audit-worker.module';
     AdminActivityModule,
     // AdminController dùng AuditRetentionService cho endpoint đo lường.
     AuditWorkerModule,
+    QuizModule,
   ],
 
   controllers: [AdminController],

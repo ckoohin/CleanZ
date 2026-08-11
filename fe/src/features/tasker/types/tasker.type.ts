@@ -71,6 +71,8 @@ export interface TaskerProfile {
     reviewedByName?: string | null;
     note?: string | null;
   };
+  // Quiz
+  quizPassedAt?: string | null;
   // Timestamps
   createdAt?: string;
   updatedAt?: string;

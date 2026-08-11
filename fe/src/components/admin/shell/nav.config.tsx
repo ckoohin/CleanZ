@@ -20,6 +20,7 @@ import {
   Bell,
   Settings,
   Star,
+  BookOpen,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 
@@ -136,6 +137,20 @@ export const navGroups: NavGroup[] = [
       { title: "Blog", href: A.BLOGS.BASE, icon: Newspaper },
       { title: "Đánh giá", href: A.REVIEWS, icon: Star },
       { title: "Thông báo", href: A.NOTIFICATIONS, icon: Bell },
+    ],
+  },
+  {
+    label: "Kiểm tra đầu vào",
+    items: [
+      {
+        title: "Bài kiểm tra",
+        href: A.QUIZ.BASE,
+        icon: BookOpen,
+        children: [
+          { title: "Quản lý bài thi", href: A.QUIZ.BASE },
+          { title: "Ngân hàng câu hỏi", href: A.QUIZ.QUESTIONS },
+        ],
+      },
     ],
   },
   {

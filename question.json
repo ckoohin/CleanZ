@@ -1,0 +1,348 @@
+[
+    {
+        "id": 1,
+        "question": "bTaskee có phải là công ty môi giới dịch vụ không ?",
+        "options": [
+            "Phải, bTaskee môi giới cho khách hàng và người giúp việc biết đến, làm việc với nhau và không chịu trách nhiệm hay hỗ trợ gì cho người giúp việc.",
+            "Không, bTaskee là dịch vụ cung ứng người giúp việc nhà theo giờ thông qua Ứng dụng trên điện thoại di động và hỗ trợ, bảo vệ quyền lợi cho người giúp việc trong suốt quá trình làm việc."
+        ],
+        "correct_answer": "Không, bTaskee là dịch vụ cung ứng người giúp việc nhà theo giờ thông qua Ứng dụng trên điện thoại di động và hỗ trợ, bảo vệ quyền lợi cho người giúp việc trong suốt quá trình làm việc."
+    },
+    {
+        "id": 2,
+        "question": "Câu slogan nào sau đây của bTaskee thể hiện ý nghĩa về sự giải phóng cho cộng tác viên của bTaskee khỏi nỗi lo về kinh tế, đồng thời có thời gian lo cho gia đình?",
+        "options": [
+            "“Lướt chạm cho nhiều tiền”",
+            "“Lướt chạm cho cuộc sống vui hơn”",
+            "“Lướt chạm cho cuộc sống thảnh thơi”",
+            "“Lướt chạm cho niềm vui”"
+        ],
+        "correct_answer": "“Lướt chạm cho cuộc sống thảnh thơi”"
+    },
+    {
+        "id": 3,
+        "question": "Con đường phát triển cao nhất mà chị có thể đạt được tại bTaskee là gì ?",
+        "options": [
+            "Trở thành trợ lý gia đình cao cấp",
+            "Trở thành Nhân viên chính thức",
+            "Trở thành Huấn luyện viên giúp việc nhà",
+            "Trở thành người làm có giá cao."
+        ],
+        "correct_answer": "Trở thành Nhân viên chính thức"
+    },
+    {
+        "id": 4,
+        "question": "Nguyên tắc dọn dẹp nào sau đây là ĐÚNG:",
+        "options": [
+            "Dọn dẹp từ dưới lên trên, làm tới đâu sạch sẽ gọn gàng đến đó.",
+            "Chỗ nào bẩn làm trước, sạch làm sau.",
+            "Dọn dẹp từ trên xuống dưới, làm tới đâu sạch sẽ gọn gàng đến đó."
+        ],
+        "correct_answer": "Dọn dẹp từ trên xuống dưới, làm tới đâu sạch sẽ gọn gàng đến đó."
+    },
+    {
+        "id": 5,
+        "question": "Nguyên tắc đầu tiên khi dọn dẹp nhà là gì?",
+        "options": [
+            "A. Từ trên xuống dưới từ trong ra ngoài làm đến đâu dọn sạch đến đó theo hình thức cuốn chiếu.",
+            "B. Từ trên xuống dưới, từ ngoài vào trong, nơi sạch trước nơi bẩn sau.",
+            "C. Ưu tiên làm nơi bẩn trước nơi sạch sau, miễn sao tất cả sạch sẽ gọn gàng.",
+            "D. Từ dưới lên trên, từ trong ra ngoài, nơi sạch trước nơi bẩn sau."
+        ],
+        "correct_answer": "A. Từ trên xuống dưới từ trong ra ngoài làm đến đâu dọn sạch đến đó theo hình thức cuốn chiếu."
+    },
+    {
+        "id": 6,
+        "question": "Quy tắc chung dọn dẹp nhà là gì?",
+        "options": [
+            "A. Từ trên xuống dưới, từ trong ra ngoài, ưu tiên nơi bẩn, nơi sạch nếu còn kịp thời gian sẽ dọn.",
+            "B. Ưu tiên làm nơi bẩn trước nơi sạch sau, miễn sao tất cả sạch sẽ gọn gàng.",
+            "C. Từ trên xuống dưới từ trong ra ngoài làm đến đâu dọn sạch đến đó theo hình thức cuốn chiếu.",
+            "D. Từ trên xuống dưới, từ ngoài vào trong, nơi sạch trước nơi bẩn sau."
+        ],
+        "correct_answer": "C. Từ trên xuống dưới từ trong ra ngoài làm đến đâu dọn sạch đến đó theo hình thức cuốn chiếu."
+    },
+    {
+        "id": 7,
+        "question": "Khi lau sàn nhà nguyên tắc lau nào sau đây là ĐÚNG:",
+        "options": [
+            "Lau nước sạch trước sau đó mới dùng nước lau sàn lau lại vì đây là nước để thơm sàn.",
+            "Lau nước lau sàn trước sau đó mới dùng nước sạch lau lại vì nước lau sàn là chất tẩy rửa dùng để tẩy các vết bẩn trên sàn."
+        ],
+        "correct_answer": "Lau nước lau sàn trước sau đó mới dùng nước sạch lau lại vì nước lau sàn là chất tẩy rửa dùng để tẩy các vết bẩn trên sàn."
+    },
+    {
+        "id": 8,
+        "question": "Nguyên tắc sử dụng khăn khi lau bàn ghế, các vật dụng là gì?",
+        "options": [
+            "Sử dụng khăn khô để lau.",
+            "Sử dụng khăn ẩm để lau",
+            "Sử dụng khăn ẩm vắt thật khô và gấp làm 4 để lau.",
+            "Sử dụng khăn ẩm vắt thật khô và gấp làm 4 để lau, sau đó dùng khăn khô lau lại 1 lần nữa."
+        ],
+        "correct_answer": "Sử dụng khăn ẩm vắt thật khô và gấp làm 4 để lau, sau đó dùng khăn khô lau lại 1 lần nữa."
+    },
+    {
+        "id": 9,
+        "question": "Cách lau cửa kính nào sau đây là đúng ?",
+        "options": [
+            "Dùng khăn đa năng và nước lau kính. Xịt nước lau kính lên bề mặt kính và sử dụng khăn đa năng gấp làm 4 lau theo hình zích dắc, sau đó lau phần viền kính và lau các cạnh của cửa kính, dùng khăn khô lau lại 1 lần nữa.",
+            "Dùng khăn đa năng, cây gạt kính và nước lau kính. Xịt nước lau kính lên bề mặt kính sau đó dùng cây gạt kính kéo theo đường dọc hoặc ngang, sau đó lau phần viền kính và lau các cạnh của cửa kính, dùng khăn khô lau lại 1 lần nữa.",
+            "Cả 2 cách trên đều đúng",
+            "Cả 2 cách trên đều sai."
+        ],
+        "correct_answer": "Cả 2 cách trên đều đúng"
+    },
+    {
+        "id": 10,
+        "question": "Quy trình dọn dẹp nhà vệ sinh nào dưới đây là đúng ?",
+        "options": [
+            "Lau kính -> Lau tường -> Lau lavabo -> Lau và chà bồn cầu -> Lau sàn -> sắp xếp đồ đạc gọn gàng.",
+            "Gom vật dụng để dọn ra ngoài -> Bỏ vim vào bồn cầu và đậy nắp lại -> Lau rửa tường -> Dùng nước lau kính để lau kính -> Dùng mút mềm và nước rửa chén để rửa lavabo và bồn cầu -> Đánh, rửa bên trong bồn cầu -> Dội nước cho sạch xà phòng -> Dùng nước chà sàn để chà sàn, chú ý chà rửa nắp cống -> Lau khô từ trên xuống dưới -> Sắp xếp vật dụng gọn gàng ngăn nắp -> Thay bọc rác -> Kiểm tra lại và tắt đèn.",
+            "Nếu toilet đã sạch rồi thì không cần dọn nữa chỉ cần lau sơ và chà sàn."
+        ],
+        "correct_answer": "Gom vật dụng để dọn ra ngoài -> Bỏ vim vào bồn cầu và đậy nắp lại -> Lau rửa tường -> Dùng nước lau kính để lau kính -> Dùng mút mềm và nước rửa chén để rửa lavabo và bồn cầu -> Đánh, rửa bên trong bồn cầu -> Dội nước cho sạch xà phòng -> Dùng nước chà sàn để chà sàn, chú ý chà rửa nắp cống -> Lau khô từ trên xuống dưới -> Sắp xếp vật dụng gọn gàng ngăn nắp -> Thay bọc rác -> Kiểm tra lại và tắt đèn."
+    },
+    {
+        "id": 11,
+        "question": "Thứ tự dọn dẹp toilet nào dưới đây là đúng?",
+        "options": [
+            "A. Tường -> Gương -> Lavobo -> Vòi sen, vòi nước -> Bồn tắm -> Bồn cầu -> Sàn nhà.",
+            "B. Tường -> Gương -> Lavobo -> Bồn tắm -> Bồn cầu -> Vòi sen, vòi nước -> Sàn nhà.",
+            "C. Gương -> Lavobo -> Tường -> Vòi sen, vòi nước -> Bồn tắm -> Bồn cầu -> Sàn nhà.",
+            "D. Lavabo -> Tường -> Gương -> Bồn tắm -> Bồn cầu -> Vòi sen, vòi nước -> Sàn nhà."
+        ],
+        "correct_answer": "A. Tường -> Gương -> Lavobo -> Vòi sen, vòi nước -> Bồn tắm -> Bồn cầu -> Sàn nhà."
+    },
+    {
+        "id": 12,
+        "question": "Nguyên tắc sử dụng hóa chất nào sau đây là SAI:",
+        "options": [
+            "Hỏi ý kiến khách trước khi sử dụng hóa chất để tẩy rửa (vì một số khách dị ứng hoặc không cho phép sử dụng hóa chất).",
+            "Không tự ý sử dụng hóa chất nếu không biết chức năng của nó.",
+            "Sau khi sử dụng cần phải rửa lại bằng nước sạch để đảm bảo sức khỏe cho gia đình khách.",
+            "Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn."
+        ],
+        "correct_answer": "Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn."
+    },
+    {
+        "id": 13,
+        "question": "Nguyên tắc sử dụng hóa chất nào sau đây là Sai? (Bản trắc nghiệm chữ)",
+        "options": [
+            "A. Sau khi sử dụng hóa chất, tất cả đồ đạc của khách hàng phải được rửa lại bằng nước sạch nhiều lần.",
+            "B. Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn.",
+            "C. Phải sử dụng hóa chất đúng chức năng, không sử dụng Vim bồn cầu để chà sàn hay chà toilet bằng nước chà sàn.",
+            "D. Hỏi ý kiến khách trước khi sử dụng hóa chất để tẩy rửa (vì một số khách dị ứng hoặc không cho phép sử dụng hóa chất)."
+        ],
+        "correct_answer": "B. Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn."
+    },
+    {
+        "id": 14,
+        "question": "Khi dọn dẹp phòng ngủ có cần thay ga giường cho khách hàng không?",
+        "options": [
+            "Cần, vì dọn dẹp phải thay mới hết cho sạch sẽ",
+            "Không cần, vì thường nhà khách hàng chỉ có 1 bộ ga.",
+            "Nên hỏi khách hàng xem có cần thay ga giường hay không và làm theo yêu cầu của khách."
+        ],
+        "correct_answer": "Nên hỏi khách hàng xem có cần thay ga giường hay không và làm theo yêu cầu của khách."
+    },
+    {
+        "id": 15,
+        "question": "Đối với sàn gỗ, cửa gỗ, bàn gỗ, tủ gỗ người giúp việc nên vệ sinh như thế nào?",
+        "options": [
+            "Lau bằng khăn khô để tránh hư gỗ.",
+            "Lau bằng khăn ẩm vắt thật khô.",
+            "Lau bằng khăn ướt."
+        ],
+        "correct_answer": "Lau bằng khăn ẩm vắt thật khô."
+    },
+    {
+        "id": 16,
+        "question": "Khi lau dọn khu vực kệ tủ, tivi tại phòng khách người giúp việc cần lưu ý những điều gì ?",
+        "options": [
+            "Lau dọn từ trên xuống dưới.",
+            "Dùng 2 khăn đa năng, 1 khăn ẩm vắt thật khô và 1 khăn khô",
+            "Xịt nước lau kính, nước lau đa năng vừa đủ lên khăn gấp làm 4 sau đó mới lau lên bề mặt kính, tivi.",
+            "Chú ý các góc kệ tủ, dây điện để tránh gây chập điện.",
+            "Tất cả các ý trên đều đúng."
+        ],
+        "correct_answer": "Tất cả các ý trên đều đúng."
+    },
+    {
+        "id": 17,
+        "question": "Trước khi vào nhà khách và bắt đầu làm việc người giúp việc nên đối thoại những gì?",
+        "options": [
+            "Chào khách giới thiệu tên -> xin phép vào làm việc.",
+            "Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm.",
+            "Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm -> hỏi về nhu cầu của khách hàng -> nhắc khách cất tài sản cẩn thận để thoải mái làm việc."
+        ],
+        "correct_answer": "Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm -> hỏi về nhu cầu của khách hàng -> nhắc khách cất tài sản cẩn thận để thoải mái làm việc."
+    },
+    {
+        "id": 18,
+        "question": "Khi dọn dẹp toilet nên dùng dụng cụ và chất tẩy rửa nào để rửa lavabol - vòi sen, vòi nước, bên ngoài bồn cầu, lau rửa tường nhà tắm ?",
+        "options": [
+            "Mút mềm và nước rửa chén",
+            "Mút mềm và xà bông bột hoặc nước lau sàn.",
+            "Cước inox và nước rửa chén"
+        ],
+        "correct_answer": "Mút mềm và nước rửa chén"
+    },
+    {
+        "id": 19,
+        "question": "Khi dọn dẹp nhà bếp thấy đồ ăn thừa của khách CÒN NHIỀU trên bàn, người giúp việc nên xử lý như thế nào ?",
+        "options": [
+            "Hỏi ý kiến khách hàng về cách xử lý (bỏ đi hay giữ lại)",
+            "Vì là đồ ăn thừa nên cứ bỏ đi thôi không cần hỏi lại phiền khách."
+        ],
+        "correct_answer": "Hỏi ý kiến khách hàng về cách xử lý (bỏ đi hay giữ lại)"
+    },
+    {
+        "id": 20,
+        "question": "Khi kết thúc ca làm, người giúp việc nên đối thoại như thế nào với khách",
+        "options": [
+            "Thông báo khách thanh toán và ra về",
+            "Nhờ khách kiểm tra và làm lại nếu khách chưa hài lòng -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhờ khách kiểm tra balo/túi -> Nhận thanh toán -> Chào, cám ơn và nhắn nhủ Nếu khách hài lòng về dịch vụ thì hãy đánh 5 sao để dễ dàng đặt việc với trợ lý yêu thích và lần tới.",
+            "Nhờ khách kiểm tra -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhận thanh toán -> Chào khách và ra về"
+        ],
+        "correct_answer": "Nhờ khách kiểm tra -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhận thanh toán -> Chào khách và ra về"
+    },
+    {
+        "id": 21,
+        "question": "Đồng phục chuẩn của cộng tác viên khi tới nhà khách hàng là gì?",
+        "options": [
+            "A. Mặc áo bTaskee, quần dài, không được mặc đầm váy, quần ngắn, rách, màu nổi và phải mang giày.",
+            "B. Luôn mặc đồng phục chỉnh chu, áo bTaskee, quần tối màu, không mặc đầm/váy/quần rách/sáng màu, quần áo luôn sạch sẽ, khử mùi cơ thể nếu có, đeo khẩu trang.",
+            "C. Mặc áo bTaskee và mang giày.",
+            "D. Không cần mặc đồng phục vì khách đặt qua ứng dụng đã biết mặt."
+        ],
+        "correct_answer": "A. Mặc áo bTaskee, quần dài, không được mặc đầm váy, quần ngắn, rách, màu nổi và phải mang giày."
+    },
+    {
+        "id": 22,
+        "question": "Thứ tự dọn dẹp phòng ngủ nào dưới đây là đúng?",
+        "options": [
+            "A. Bàn ghế -> Cửa kính -> Tủ kính -> Thành giường -> Thay vỏ chăn gối -> Sàn nhà.",
+            "B. Cửa kính -> Bàn ghế -> Tủ kính -> Thành giường -> Thay vỏ chăn gối -> Sàn nhà.",
+            "C. Tủ kính -> Cửa kính -> Thành giường -> Thay vỏ chăn gối -> Bàn ghế -> Sàn nhà.",
+            "D. Thành giường -> Thay vỏ chăn gối -> Cửa kính -> Tủ kính -> Bàn ghế -> Sàn nhà."
+        ],
+        "correct_answer": "B. Cửa kính -> Bàn ghế -> Tủ kính -> Thành giường -> Thay vỏ chăn gối -> Sàn nhà."
+    },
+    {
+        "id": 23,
+        "question": "Thứ tự dọn dẹp nhà bếp nào dưới đây là đúng?",
+        "options": [
+            "A. Tường -> Bếp nấu -> Tủ bếp -> Kệ bếp -> Vật dụng khác -> Bàn ghế -> Sàn nhà.",
+            "B. Tủ bếp -> Tường -> Bếp nấu -> Vật dụng khác -> Kệ bếp -> Bàn ghế -> Sàn nhà.",
+            "C. Tường -> Tủ bếp -> Bếp nấu -> Vật dụng khác -> Kệ bếp -> Bàn ghế -> Sàn nhà.",
+            "D. Tủ bếp -> Bếp nấu -> Tường -> Vật dụng khác -> Kệ bếp -> Bàn ghế -> Sàn nhà."
+        ],
+        "correct_answer": "C. Tường -> Tủ bếp -> Bếp nấu -> Vật dụng khác -> Kệ bếp -> Bàn ghế -> Sàn nhà."
+    },
+    {
+        "id": 24,
+        "question": "Khi nhà khách hàng có trẻ em và vật nuôi, thì nguyên tắc sử dụng hóa chất sau đây là ĐÚNG?",
+        "options": [
+            "A. Để hóa chất xa tầm tay trẻ em và vật nuôi trong nhà khách hàng.",
+            "B. Không quan tâm, vì công việc của mình không liên quan đến trẻ em và vật nuôi nhà khách hàng."
+        ],
+        "correct_answer": "A. Để hóa chất xa tầm tay trẻ em và vật nuôi trong nhà khách hàng."
+    },
+    {
+        "id": 25,
+        "question": "Câu nào sau đây là ĐÚNG?",
+        "options": [
+            "A. Phải mang găng tay và đeo khẩu trang xuyên suốt quá trình dọn dẹp.",
+            "B. Găng tay có thể bắt buộc mang, nhưng không nhất thiết phải đeo khẩu trang.",
+            "C. Nếu khách hàng không bắt buộc thì không cần phải mang găng tay và đeo khẩu trang."
+        ],
+        "correct_answer": "A. Phải mang găng tay và đeo khẩu trang xuyên suốt quá trình dọn dẹp."
+    },
+    {
+        "id": 26,
+        "question": "Nếu gặp khách hàng là người khó chịu, hay cáu gắt và xem thường mình, Cộng Tác Viên nên xử lý như thế nào?",
+        "options": [
+            "A. Khéo léo trao đổi với khách hàng để khách hiểu và vui vẻ tiếp tục làm việc, nếu khách vẫn không thay đổi thái độ thì liên hệ hotline công ty nhờ hỗ trợ.",
+            "B. Trao đổi thẳng thắn với khách hàng và đề nghị khách thay đổi thái độ với mình nếu không sẽ hủy việc và ra về.",
+            "C. Mặc kệ khách cứ làm công việc của mình, không quan tâm."
+        ],
+        "correct_answer": "A. Khéo léo trao đổi với khách hàng để khách hiểu và vui vẻ tiếp tục làm việc, nếu khách vẫn không thay đổi thái độ thì liên hệ hotline công ty nhờ hỗ trợ."
+    },
+    {
+        "id": 27,
+        "question": "Nếu phát hiện khách hàng làm rơi hay quên đồ có giá trị thì phải làm sao?",
+        "options": [
+            "A. Báo ngay với khách hàng.",
+            "B. Cất giữ và phải chụp hình lại nơi cất giữ.",
+            "C. Im lặng và lấy đồ của khách.",
+            "D. Tất cả đều đúng.",
+            "E. Đáp án A & B"
+        ],
+        "correct_answer": "E. Đáp án A & B"
+    },
+    {
+        "id": 28,
+        "question": "Chị có nên tọc mạch, phán xét hay xen vào vấn đề của gia đình khách hàng không?",
+        "options": [
+            "A. Không nên.",
+            "B. Nên.",
+            "C. Có khi nên hoặc có khi không nên.",
+            "D. Tất cả đều sai."
+        ],
+        "correct_answer": "A. Không nên."
+    },
+    {
+        "id": 29,
+        "question": "Thái độ nào thể hiện sự tôn trọng với khách hàng?",
+        "options": [
+            "A. Lắng nghe khách nhiều hơn.",
+            "B. Nghiêm túc với công việc.",
+            "C. Luôn vui vẻ có thái độ tốt với khách hàng và gia đình.",
+            "D. Tất cả đều đúng."
+        ],
+        "correct_answer": "D. Tất cả đều đúng."
+    },
+    {
+        "id": 30,
+        "question": "Khi làm việc tại nhà khách hàng cần giữ thái độ như thế nào để chứng tỏ mình là cộng tác viên chuyên nghiệp?",
+        "options": [
+            "A. Tôn trọng khách hàng, vui vẻ và cư xử hòa nhã với khách hàng.",
+            "B. Chỉ nên tập trung vào công việc, không trò chuyện với khách hàng.",
+            "C. Không nên quá tập trung làm việc mà phải thường xuyên trò chuyện tán gẫu với khách hàng để tạo sự thiện cảm.",
+            "D. Nét mặt tươi vui, thân thiện, lắng nghe những hướng dẫn của khách để tránh làm sai công việc khách yêu cầu, tập trung vào công việc không làm việc riêng."
+        ],
+        "correct_answer": "D. Nét mặt tươi vui, thân thiện, lắng nghe những hướng dẫn của khách để tránh làm sai công việc khách yêu cầu, tập trung vào công việc không làm việc riêng."
+    },
+    {
+        "id": 31,
+        "question": "Khi đã hoàn thành công việc, cộng tác viên nên làm gì tiếp theo?",
+        "options": [
+            "A. Tự đi kiểm tra chất lượng lại một lần xem mình có thiếu sót gì hay không và khắc phục nếu có.",
+            "B. Nhờ khách kiểm tra và làm lại nếu khách chưa hài lòng -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhờ khách kiểm tra balo/túi -> Nhận thanh toán -> Chào, cám ơn và nhắn nhủ nếu khách hài lòng về dịch vụ thì hãy đánh 5 sao để dễ dàng đặt việc với trợ lý yêu thích và lần tới. Nhờ khách kiểm tra -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhận thanh toán -> Chào khách và ra về.",
+            "C. Thông báo khách thanh toán và ra về",
+            "D. Đáp án A và B."
+        ],
+        "correct_answer": "D. Đáp án A và B."
+    },
+    {
+        "id": 32,
+        "question": "Khi đến nhà khách hàng, cộng tác viên nên đối thoại như thế nào?",
+        "options": [
+            "A. Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm.",
+            "B. Chào khách giới thiệu tên -> xin phép vào làm việc.",
+            "C. Chào hỏi giới thiệu tên -> báo cho khách biết mình làm ở nhà khách hàng -> hỏi cụ thể công việc để trao đổi tránh quá tải -> hỏi xin phép dụng cụ -> nhắc khách hàng cất đồ đạc tư trang."
+        ],
+        "correct_answer": "A. Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm."
+    },
+    {
+        "id": 33,
+        "question": "Trước khi lau dọn phòng ngủ, người giúp việc cần làm gì?",
+        "options": [
+            "A. Hỏi khách xem có cần thay ga giường, gối không? Sau đó lau bàn ghế, lau sàn rồi mới làm giường.",
+            "B. Hỏi khách xem có cần thay ga giường, gối không? Sau đó phủi bụi và làm giường trước rồi mới lau bụi bàn ghế, giường và quét, lau sàn.",
+            "C. Không cần hỏi khách, chỉ cần lau sàn và bàn ghế thôi, không cần làm giường."
+        ],
+        "correct_answer": "B. Hỏi khách xem có cần thay ga giường, gối không? Sau đó phủi bụi và làm giường trước rồi mới lau bụi bàn ghế, giường và quét, lau sàn."
+    }
+]

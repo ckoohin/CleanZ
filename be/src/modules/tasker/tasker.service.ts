@@ -1893,6 +1893,7 @@ export class TaskerService {
         totalWorkingHours: Number(tasker.totalWorkingHours),
         totalPoints: tasker.totalPoints,
       },
+      quizPassedAt: tasker.quizPassedAt ?? null,
       createdAt: tasker.createdAt,
       updatedAt: tasker.updatedAt,
     };

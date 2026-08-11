@@ -149,5 +149,9 @@ export const ROUTES = {
       PEAK_DAYS: "/admin/settings/peak-days",
       ROLES: "/admin/roles",
     },
+    QUIZ: {
+      BASE: "/admin/quiz",
+      QUESTIONS: "/admin/questions",
+    },
   },
 } as const;

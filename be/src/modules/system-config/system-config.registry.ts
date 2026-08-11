@@ -11,7 +11,8 @@ export type SystemConfigGroup =
   | 'WITHDRAWAL'
   | 'TASKER'
   | 'DISPATCH'
-  | 'PREMIUM';
+  | 'PREMIUM'
+  | 'QUIZ';
 
 export interface SystemConfigDefinition {
   key: string;
@@ -32,6 +33,7 @@ export const SYSTEM_CONFIG_GROUP_LABELS: Record<SystemConfigGroup, string> = {
   TASKER: 'Điều kiện nhận đơn của Tasker',
   DISPATCH: 'Ghép đơn cho Tasker',
   PREMIUM: 'Gói dịch vụ Cao cấp',
+  QUIZ: 'Bài kiểm tra đầu vào',
 };
 
 export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
@@ -152,6 +154,17 @@ export const SYSTEM_CONFIG_DEFINITIONS: SystemConfigDefinition[] = [
     defaultValue: 900,
     min: 15,
     max: 3600,
+  },
+  {
+    key: SYSTEM_CONFIG_KEYS.QUIZ_UNLIMITED_EXPIRE_HOURS,
+    group: 'QUIZ',
+    label: 'Thời gian tự nộp bài kiểm tra không giới hạn',
+    description:
+      'Các lượt thi không có giới hạn thời gian (timeLimitMinutes = -1) sẽ bị tự động nộp sau số giờ này. Scheduler chạy mỗi giờ.',
+    unit: 'giờ',
+    defaultValue: 24,
+    min: 1,
+    max: 168,
   },
 ];
 
