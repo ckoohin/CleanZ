@@ -48,6 +48,7 @@ export interface QuizAttempt {
 export interface ActiveQuizResponse {
   quiz: Quiz;
   myStatus: QuizMyStatus;
+  currentAttempt: QuizAttempt | null;
 }
 
 export interface StartAttemptResponse extends QuizAttempt {}

@@ -40,7 +40,8 @@ export class QuizService {
   async getActiveQuiz(userId: string) {
     const tasker = await this.findTaskerByUserId(userId);
     const quiz = await this.quizRepo.findOne({ where: { isActive: true } });
-    if (!quiz) throw new NotFoundException('Chưa có bài kiểm tra nào được kích hoạt');
+    if (!quiz)
+      throw new NotFoundException('Chưa có bài kiểm tra nào được kích hoạt');
 
     const quizQuestions = await this.quizQuestionRepo.find({
       where: { quizId: quiz.id },
@@ -58,7 +59,20 @@ export class QuizService {
 
     const myStatus = await this._statusByTaskerId(tasker.id, quiz);
 
-    return { quiz: { ...quiz, questions }, myStatus };
+    const currentAttempt = await this.attemptRepo.findOne({
+      where: {
+        taskerId: tasker.id,
+        quizId: quiz.id,
+        status: QuizAttemptStatus.IN_PROGRESS,
+      },
+      order: { startedAt: 'DESC' },
+    });
+
+    return {
+      quiz: { ...quiz, questions },
+      myStatus,
+      currentAttempt: currentAttempt ?? null,
+    };
   }
 
   async getMyStatus(userId: string) {
@@ -69,7 +83,13 @@ export class QuizService {
   private async _statusByTaskerId(taskerId: string, quiz?: QuizEntity) {
     const activeQuiz =
       quiz ?? (await this.quizRepo.findOne({ where: { isActive: true } }));
-    if (!activeQuiz) return { passed: false, attemptsUsed: 0, attemptsRemaining: null, lastScore: null };
+    if (!activeQuiz)
+      return {
+        passed: false,
+        attemptsUsed: 0,
+        attemptsRemaining: null,
+        lastScore: null,
+      };
 
     const attempts = await this.attemptRepo.find({
       where: { taskerId, quizId: activeQuiz.id },
@@ -80,7 +100,9 @@ export class QuizService {
     const attemptsUsed = attempts.length;
     const lastScore = attempts[0]?.score ?? null;
     const attemptsRemaining =
-      activeQuiz.maxAttempts === -1 ? null : Math.max(0, activeQuiz.maxAttempts - attemptsUsed);
+      activeQuiz.maxAttempts === -1
+        ? null
+        : Math.max(0, activeQuiz.maxAttempts - attemptsUsed);
 
     return { passed, attemptsUsed, attemptsRemaining, lastScore };
   }
@@ -93,7 +115,22 @@ export class QuizService {
     }
 
     const quiz = await this.quizRepo.findOne({ where: { isActive: true } });
-    if (!quiz) throw new NotFoundException('Chưa có bài kiểm tra nào được kích hoạt');
+    if (!quiz)
+      throw new NotFoundException('Chưa có bài kiểm tra nào được kích hoạt');
+
+    // Resume an existing in-progress attempt if it has not expired yet
+    const existing = await this.attemptRepo.findOne({
+      where: {
+        taskerId: tasker.id,
+        quizId: quiz.id,
+        status: QuizAttemptStatus.IN_PROGRESS,
+      },
+      order: { startedAt: 'DESC' },
+    });
+    if (existing) {
+      const notExpired = !existing.expiredAt || existing.expiredAt > new Date();
+      if (notExpired) return existing;
+    }
 
     const attemptsUsed = await this.attemptRepo.count({
       where: { taskerId: tasker.id, quizId: quiz.id },
@@ -152,13 +189,20 @@ export class QuizService {
       relations: ['question'],
     });
 
-    const questionMap = new Map(quizQuestions.map((qq) => [qq.question.id, qq.question]));
+    const questionMap = new Map(
+      quizQuestions.map((qq) => [qq.question.id, qq.question]),
+    );
 
     return this.dataSource.transaction(async (manager) => {
       const answerEntities = quizQuestions.map((qq) => {
-        const submitted = dto.answers.find((a) => a.questionId === qq.question.id);
-        const selectedAnswer = isExpired ? null : (submitted?.selectedAnswer ?? null);
-        const isCorrect = !isExpired && selectedAnswer === qq.question.correctAnswer;
+        const submitted = dto.answers.find(
+          (a) => a.questionId === qq.question.id,
+        );
+        const selectedAnswer = isExpired
+          ? null
+          : (submitted?.selectedAnswer ?? null);
+        const isCorrect =
+          !isExpired && selectedAnswer === qq.question.correctAnswer;
 
         return manager.create(QuizAttemptAnswerEntity, {
           attemptId,
@@ -187,11 +231,17 @@ export class QuizService {
       await manager.save(QuizAttemptEntity, attempt);
 
       if (status === QuizAttemptStatus.PASSED) {
-        await manager.update(TaskerEntity, { id: tasker.id }, { quizPassedAt: now });
+        await manager.update(
+          TaskerEntity,
+          { id: tasker.id },
+          { quizPassedAt: now },
+        );
       }
 
       const questionsWithResult = quizQuestions.map((qq) => {
-        const answer = answerEntities.find((a) => a.questionId === qq.question.id)!;
+        const answer = answerEntities.find(
+          (a) => a.questionId === qq.question.id,
+        )!;
         return {
           id: qq.question.id,
           orderIndex: qq.orderIndex,
@@ -203,7 +253,10 @@ export class QuizService {
         };
       });
 
-      return { attempt: { ...attempt, status, score, correctCount }, questions: questionsWithResult };
+      return {
+        attempt: { ...attempt, status, score, correctCount },
+        questions: questionsWithResult,
+      };
     });
   }
 
@@ -228,7 +281,9 @@ export class QuizService {
       where: { quizId: attempt.quizId },
       order: { orderIndex: 'ASC' },
     });
-    const orderMap = new Map(quizQuestions.map((qq) => [qq.questionId, qq.orderIndex]));
+    const orderMap = new Map(
+      quizQuestions.map((qq) => [qq.questionId, qq.orderIndex]),
+    );
 
     const questions = answers.map((a) => ({
       id: a.question.id,
@@ -243,5 +298,44 @@ export class QuizService {
     questions.sort((a, b) => a.orderIndex - b.orderIndex);
 
     return { attempt, questions };
+  }
+
+  /**
+   * Auto-submit IN_PROGRESS attempts that have passed their expiredAt deadline
+   * (timed quizzes), and also attempts for unlimited-time quizzes that have been
+   * open longer than `unlimitedExpireHours`.
+   * Returns the number of attempts force-closed.
+   */
+  async expireStaleAttempts(unlimitedExpireHours: number): Promise<number> {
+    const now = new Date();
+    const unlimitedCutoff = new Date(
+      now.getTime() - unlimitedExpireHours * 60 * 60 * 1000,
+    );
+
+    // Find all IN_PROGRESS attempts that should be force-closed
+    const stale = await this.attemptRepo
+      .createQueryBuilder('a')
+      .where('a.status = :status', { status: QuizAttemptStatus.IN_PROGRESS })
+      .andWhere(
+        // Timed attempt past its deadline OR unlimited attempt older than cutoff
+        '(a.expiredAt IS NOT NULL AND a.expiredAt <= :now) OR (a.expiredAt IS NULL AND a.startedAt <= :cutoff)',
+        { now, cutoff: unlimitedCutoff },
+      )
+      .getMany();
+
+    if (stale.length === 0) return 0;
+
+    // Mark each attempt EXPIRED (no answer review, score = 0)
+    await this.dataSource.transaction(async (manager) => {
+      for (const attempt of stale) {
+        attempt.status = QuizAttemptStatus.EXPIRED;
+        attempt.score = 0;
+        attempt.correctCount = 0;
+        attempt.submittedAt = now;
+        await manager.save(QuizAttemptEntity, attempt);
+      }
+    });
+
+    return stale.length;
   }
 }
