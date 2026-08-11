@@ -38,7 +38,6 @@ import {
   WalletTransactionRepository,
   WithdrawalRequestRepository,
 } from '../finance.repository';
-
 export interface CustomerSpendingItem {
   customerId: string;
   fullName: string;

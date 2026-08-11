@@ -466,4 +466,18 @@ export class WalletTopupService {
     }
     return tasker;
   }
+
+  /** Mark CREATED topup orders older than `afterMinutes` as EXPIRED. Returns affected count. */
+  async expireStaleTopups(afterMinutes: number): Promise<number> {
+    const cutoff = new Date(Date.now() - afterMinutes * 60 * 1000);
+    const result = await this.dataSource
+      .getRepository(WalletTopupOrderEntity)
+      .createQueryBuilder()
+      .update(WalletTopupOrderEntity)
+      .set({ status: TopupStatus.EXPIRED })
+      .where('status = :status', { status: TopupStatus.CREATED })
+      .andWhere('created_at < :cutoff', { cutoff })
+      .execute();
+    return result.affected ?? 0;
+  }
 }

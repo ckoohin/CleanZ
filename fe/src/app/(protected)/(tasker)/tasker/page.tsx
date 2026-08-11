@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
+  BookOpen,
   CalendarClock,
   CheckCircle2,
   ChevronRight,
@@ -222,6 +223,24 @@ export default function TaskerPage() {
           <HomeSkeleton />
         ) : tasker ? (
           <div className="space-y-5">
+            {!tasker.quizPassedAt && (
+              <Link href="/tasker/quiz">
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4 text-amber-800 dark:text-amber-300 hover:bg-amber-400/20 transition-colors cursor-pointer"
+                >
+                  <BookOpen className="mt-0.5 size-5 shrink-0 text-amber-500" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">Bạn chưa hoàn thành bài kiểm tra đầu vào</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-amber-700/80 dark:text-amber-400/80">
+                      Hoàn thành bài kiểm tra để được nhận đơn từ khách hàng. Nhấn vào đây để bắt đầu.
+                    </p>
+                  </div>
+                  <ChevronRight className="mt-0.5 size-4 shrink-0 text-amber-500" aria-hidden="true" />
+                </div>
+              </Link>
+            )}
+
             {isVerified && !isOnline && (
               <div
                 role="alert"
