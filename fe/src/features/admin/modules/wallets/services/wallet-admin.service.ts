@@ -5,7 +5,8 @@ import type {
   CustomerSpendingQuery,
   CustomerTopupOrder,
   CustomerWalletOverview,
-  CustomerWithdrawalRequest,
+  // [TẠM TẮT] Rút tiền phía Customer
+  // CustomerWithdrawalRequest,
   FinanceOverview,
   PaginatedCustomerSpending,
   PaginatedRevenuePayroll,
@@ -108,19 +109,21 @@ export const walletAdminApi = {
       .get(`${BASE}/customers/${customerId}/topups`, { params })
       .then((response) => response.data.data),
 
-  customerWithdrawals: (
-    customerId: string,
-    params?: { page?: number; limit?: number },
-  ): Promise<{
-    items: CustomerWithdrawalRequest[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }> =>
-    http
-      .get(`${BASE}/customers/${customerId}/withdrawals`, { params })
-      .then((response) => response.data.data),
+  // [TẠM TẮT] Rút tiền phía Customer — endpoint BE đã comment, xem ghi chú ở đầu
+  // be/src/modules/wallet/customer-withdrawal.controller.ts
+  // customerWithdrawals: (
+  //   customerId: string,
+  //   params?: { page?: number; limit?: number },
+  // ): Promise<{
+  //   items: CustomerWithdrawalRequest[];
+  //   total: number;
+  //   page: number;
+  //   limit: number;
+  //   totalPages: number;
+  // }> =>
+  //   http
+  //     .get(`${BASE}/customers/${customerId}/withdrawals`, { params })
+  //     .then((response) => response.data.data),
 
   customerServiceBreakdown: (
     customerId: string,

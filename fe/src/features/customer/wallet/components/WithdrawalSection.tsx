@@ -1,3 +1,15 @@
+/**
+ * [TẠM TẮT] Rút tiền phía Customer.
+ *
+ * Section này đã bị gỡ khỏi `app/(protected)/(customer)/customer/wallet/page.tsx`
+ * và các hook nó dùng (`useCustomerWithdrawals`, `useCreateCustomerWithdrawal`)
+ * cũng đã comment, nên toàn bộ nội dung được comment lại để build không gãy.
+ *
+ * Xem ghi chú gốc ở đầu be/src/modules/wallet/customer-withdrawal.controller.ts.
+ * Bật lại: bỏ comment file này + 2 hook + 2 hàm service + phần render trong page.
+ */
+
+/*
 "use client";
 
 import { useState } from "react";
@@ -151,3 +163,7 @@ export function WithdrawalSection() {
     </section>
   );
 }
+
+*/
+
+export {};

@@ -1,16 +1,10 @@
-import {
-  UnifiedWithdrawalManagement,
-  type WithdrawalOwnerType,
-} from "@/features/admin/modules/withdrawals/_components/UnifiedWithdrawalManagement";
+import { redirect } from "next/navigation";
+import { ROUTES } from "@/constants/routes";
 
-export default async function AdminWithdrawalsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ source?: string }>;
-}) {
-  const { source } = await searchParams;
-  const initialOwnerType: WithdrawalOwnerType =
-    source === "customer" ? "customer" : "tasker";
-
-  return <UnifiedWithdrawalManagement initialOwnerType={initialOwnerType} />;
+/**
+ * Màn "Yêu cầu rút tiền" đã gộp vào `/admin/finances` (tab "Rút tiền"). Giữ route
+ * này để link cũ và bookmark không chết.
+ */
+export default function AdminWithdrawalsPage() {
+  redirect(ROUTES.ADMIN.FINANCES.BASE);
 }

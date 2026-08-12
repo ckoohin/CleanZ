@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Activity,
+  ClipboardList,
   MapPinned,
   Sparkles,
   ScrollText,
@@ -51,12 +52,12 @@ export const navGroups: NavGroup[] = [
   {
     label: "Nghiệp vụ",
     items: [
+      { title: "Đơn hàng", href: A.BOOKINGS, icon: ClipboardList },
       {
         title: "Quản lý check-in",
-        href: A.BOOKINGS,
+        href: A.CHECKIN_REVIEWS,
         icon: MapPinned,
         children: [
-          { title: "Đơn hàng", href: A.BOOKINGS },
           { title: "Đối soát check-in", href: A.CHECKIN_REVIEWS },
           { title: "Khách hàng vắng mặt", href: A.ABSENCE_REPORTS },
         ],
@@ -110,9 +111,9 @@ export const navGroups: NavGroup[] = [
         icon: WalletCards,
         children: [
           { title: "Doanh thu & Hoa hồng", href: A.FINANCES.REVENUE },
-          { title: "Giao dịch", href: A.FINANCES.BASE },
-          { title: "Quản lý ví", href: A.FINANCES.WALLETS },
-          { title: "Rút tiền", href: A.FINANCES.WITHDRAWALS },
+          // "Quản lý ví" và "Rút tiền" đã gộp vào đây thành hai tab;
+          // /admin/wallets và /admin/withdrawals redirect về.
+          { title: "Giao dịch, Ví & Rút tiền", href: A.FINANCES.BASE },
           { title: "Bảng kê khai thu nhập", href: A.FINANCES.EARNINGS_REPORTS },
           { title: "Đối soát bồi thường", href: A.FINANCES.RECONCILIATION },
         ],

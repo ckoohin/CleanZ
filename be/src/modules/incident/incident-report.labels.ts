@@ -39,6 +39,7 @@ export const INC_TYPE_LABEL_VI: Record<IncidentType, string> = {
   [IncidentType.PROPERTY_DAMAGE]: 'Hư hỏng tài sản',
   [IncidentType.CHECKIN_VIOLATION]: 'Vi phạm check-in',
   [IncidentType.NO_SHOW]: 'Không đến làm',
+  [IncidentType.CUSTOMER_UNREACHABLE]: 'Không liên hệ được khách hàng',
 };
 
 export const INC_SOURCE_LABEL_VI: Record<IncidentSource, string> = {
@@ -46,6 +47,7 @@ export const INC_SOURCE_LABEL_VI: Record<IncidentSource, string> = {
   [IncidentSource.SUPPORT_TICKET]: 'Nâng cấp từ phiếu hỗ trợ',
   [IncidentSource.CHECKIN_REVIEW]: 'Admin duyệt check-in',
   [IncidentSource.NO_SHOW_REVIEW]: 'Admin duyệt vắng mặt',
+  [IncidentSource.TASKER_REPORT]: 'Tasker báo cáo',
 };
 
 export const INC_CLOSURE_LABEL_VI: Record<IncidentClosureReason, string> = {

@@ -1,3 +1,22 @@
+/**
+ * [TẠM TẮT] Rút tiền phía Customer.
+ *
+ * Toàn bộ 4 route (2 của khách, 2 của admin) được comment lại theo yêu cầu.
+ * Controller cũng đã bị gỡ khỏi `WalletModule.controllers`, nên kể cả khi bỏ
+ * comment ở đây, route vẫn chưa sống lại cho tới khi đăng ký lại trong module.
+ *
+ * KHÔNG đụng tới:
+ *   - `CustomerWithdrawalRequestEntity` và bảng `customer_withdrawal_requests`
+ *     (dữ liệu cũ giữ nguyên)
+ *   - `PayoutReconciliationService.sumPendingPayout()` và
+ *     `AdminDashboardRepository` — hai chỗ này vẫn phải cộng các đơn PENDING /
+ *     APPROVED còn tồn, nếu không nghĩa vụ chi tiền thật sẽ bị đếm thiếu.
+ *
+ * Cách bật lại: bỏ comment khối dưới + bỏ comment 2 dòng import và 2 mục
+ * `controllers` / `providers` trong `wallet.module.ts`.
+ */
+
+/*
 import {
   Body,
   Controller,
@@ -74,3 +93,6 @@ export class CustomerWithdrawalController {
     return this.service.review(id, dto);
   }
 }
+*/
+
+export {};

@@ -257,7 +257,7 @@ describe('Incident workflow & due process (integration)', () => {
   /** Đẩy hạn phản biện về quá khứ — mô phỏng Tasker im lặng tới hết hạn. */
   async function expireResponseWindow(incidentId: string): Promise<void> {
     await ds.query(
-      `UPDATE incidents SET tasker_response_deadline = now() - interval '1 hour'
+      `UPDATE incidents SET respondent_response_deadline = now() - interval '1 hour'
         WHERE id = $1`,
       [incidentId],
     );

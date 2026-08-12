@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -16,6 +17,7 @@ import { IncidentResponsibilityParty } from 'src/common/enums/incident-responsib
 import { IncidentDecisionOutcome } from 'src/common/enums/incident-decision-outcome.enum';
 import { IncidentSource } from 'src/common/enums/incident-source.enum';
 import { IncidentType } from 'src/common/enums/incident-type.enum';
+import { IncidentRespondentParty } from 'src/common/enums/incident-respondent-party.enum';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerEntity } from 'src/modules/tasker/entity/tasker.entity';
@@ -39,6 +41,19 @@ export type IncidentCompensationSource =
 // Partial index — khai báo ở migration, TypeORM không diễn tả được mệnh đề WHERE.
 @Index('idx_inc_status_decision_due', { synchronize: false })
 @Index('idx_incidents_type_source', { synchronize: false })
+@Index('idx_incidents_respondent_response_deadline', ['taskerResponseDeadline'])
+@Index('idx_incidents_customer_unreachable_queue', { synchronize: false })
+@Index('idx_incidents_customer_no_show_appeal', { synchronize: false })
+@Index('uq_checkin_reconciliation_active_per_booking', {
+  synchronize: false,
+})
+@Index('uq_inc_active_per_booking_generic', { synchronize: false })
+@Check(
+  'CHK_incident_customer_no_show_amounts_non_negative',
+  '("customer_borne_amount" IS NULL OR "customer_borne_amount" >= 0) AND ' +
+    '("platform_advance_amount" IS NULL OR "platform_advance_amount" >= 0) AND ' +
+    '("travel_distance_meters" IS NULL OR "travel_distance_meters" >= 0)',
+)
 export class IncidentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -105,30 +120,174 @@ export class IncidentEntity {
   decisionVersion!: number;
 
   /**
-   * Hạn Tasker phản biện quyết định dự kiến. Trạng thái cửa sổ được SUY RA, không lưu:
+   * Hạn bên bị yêu cầu phản hồi. Tên thuộc tính Tasker được giữ để không phá hợp đồng
+   * service/API hiện tại; cột DB đã được tổng quát hoá cho cả Tasker và Customer.
+   * Trạng thái cửa sổ được SUY RA, không lưu:
    *  - `status = AWAITING_RESPONSE` ∧ `now < deadline` → đang mở
    *  - `status = AWAITING_RESPONSE` ∧ `now >= deadline` → đã hết hạn (được chốt)
    */
   @Column({
-    name: 'tasker_response_deadline',
+    name: 'respondent_response_deadline',
     type: 'timestamp',
     nullable: true,
   })
   taskerResponseDeadline?: Date | null;
 
   /**
-   * Mốc `taskerBorneAmount` của bản quyết định đã gửi Tasker phản biện. Dùng để biết
+   * Mốc số tiền bên phản hồi phải chịu của bản quyết định đã gửi. Tên thuộc tính cũ
+   * được giữ để toàn bộ luồng quyết định Tasker tiếp tục hoạt động không đổi.
+   * Dùng để biết
    * admin có TĂNG phần Tasker chịu sau khi nghe phản hồi hay không (tăng → phải gửi lại).
    * Null = chưa từng gửi bản nào ở version hiện tại.
    */
   @Column({
-    name: 'sent_tasker_borne_amount',
+    name: 'sent_respondent_borne_amount',
     type: 'numeric',
     precision: 12,
     scale: 2,
     nullable: true,
   })
   sentTaskerBorneAmount?: number | null;
+
+  @Column({
+    name: 'respondent_party',
+    type: 'enum',
+    enum: IncidentRespondentParty,
+    enumName: 'incident_respondent_party',
+    default: IncidentRespondentParty.TASKER,
+    select: false,
+  })
+  respondentParty!: IncidentRespondentParty;
+
+  // Các cột dưới đây thuộc luồng CUSTOMER_UNREACHABLE cũ. Ánh xạ nhưng không select
+  // mặc định để bảo toàn dữ liệu/schema mà không làm thay đổi payload các API hiện tại.
+  @Column({
+    name: 'wait_started_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  waitStartedAt?: Date | null;
+
+  @Column({
+    name: 'final_submission_eligible_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  finalSubmissionEligibleAt?: Date | null;
+
+  @Column({
+    name: 'final_report_submitted_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  finalReportSubmittedAt?: Date | null;
+
+  @Column({
+    name: 'customer_responded_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  customerRespondedAt?: Date | null;
+
+  @Column({
+    name: 'verification_snapshot',
+    type: 'jsonb',
+    nullable: true,
+    select: false,
+  })
+  verificationSnapshot?: Record<string, unknown> | null;
+
+  @Column({
+    name: 'no_show_policy_snapshot',
+    type: 'jsonb',
+    nullable: true,
+    select: false,
+  })
+  noShowPolicySnapshot?: Record<string, unknown> | null;
+
+  @Column({
+    name: 'travel_distance_meters',
+    type: 'numeric',
+    precision: 12,
+    scale: 1,
+    nullable: true,
+    select: false,
+  })
+  travelDistanceMeters?: number | null;
+
+  @Column({
+    name: 'distance_method',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+    select: false,
+  })
+  distanceMethod?: string | null;
+
+  @Column({
+    name: 'customer_borne_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    select: false,
+  })
+  customerBorneAmount?: number | null;
+
+  @Column({
+    name: 'platform_advance_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    select: false,
+  })
+  platformAdvanceAmount?: number | null;
+
+  @Column({
+    name: 'tasker_compensated_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  taskerCompensatedAt?: Date | null;
+
+  @Column({
+    name: 'customer_appealed_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  customerAppealedAt?: Date | null;
+
+  @Column({
+    name: 'customer_appeal_resolved_at',
+    type: 'timestamp',
+    nullable: true,
+    select: false,
+  })
+  customerAppealResolvedAt?: Date | null;
+
+  @Column({
+    name: 'customer_appeal_resolution',
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+    select: false,
+  })
+  customerAppealResolution?: string | null;
+
+  @Column({
+    name: 'customer_appeal_resolution_note',
+    type: 'text',
+    nullable: true,
+    select: false,
+  })
+  customerAppealResolutionNote?: string | null;
 
   // P0.2 — số tiền ví Tasker đã tạm giữ (hold) khi accept; release khi chốt/bồi thường/đóng.
   @Column({

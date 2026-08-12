@@ -27,6 +27,16 @@ const STATUS_LABEL: Record<WithdrawalStatus, { label: string; cls: string }> = {
   REJECTED: { label: "Từ chối", cls: "bg-red-100 text-red-700" },
 };
 
+/**
+ * [TẠM TẮT — KHÔNG CÒN ĐƯỢC RENDER] Màn admin quản lý rút tiền của Khách.
+ *
+ * Cả hai chỗ từng render component này đã comment: tab "Khách hàng" trong
+ * `UnifiedWithdrawalManagement` và trang `/admin/customer-withdrawals` (giờ trả
+ * `notFound()`). Các endpoint mà `./service.ts` gọi cũng đã comment ở BE.
+ *
+ * File giữ nguyên (không comment từng dòng) để bật lại chỉ cần sửa 2 chỗ render.
+ * Xem ghi chú gốc ở đầu be/src/modules/wallet/customer-withdrawal.controller.ts.
+ */
 export function CustomerWithdrawalManagement({
   embedded = false,
 }: {

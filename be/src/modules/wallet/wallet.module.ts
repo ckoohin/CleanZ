@@ -8,8 +8,10 @@ import { WithdrawalRequestEntity } from '../finance/entity/withdrawal-request.en
 import { TaskerDepositTransactionEntity } from './entity/tasker-deposit-transaction.entity';
 import { TaskerBalanceService } from './tasker-balance.service';
 import { CustomerWithdrawalRequestEntity } from './entity/customer-withdrawal-request.entity';
-import { CustomerWithdrawalService } from './customer-withdrawal.service';
-import { CustomerWithdrawalController } from './customer-withdrawal.controller';
+// [TẠM TẮT] Rút tiền phía Customer — xem ghi chú ở đầu customer-withdrawal.controller.ts.
+// Entity vẫn giữ để dữ liệu cũ và các query đối soát đọc được.
+// import { CustomerWithdrawalService } from './customer-withdrawal.service';
+// import { CustomerWithdrawalController } from './customer-withdrawal.controller';
 import { WalletTopupOrderEntity } from './entity/wallet-topup-order.entity';
 import { WalletTopupService } from './wallet-topup.service';
 import { PayosService } from './payos.service';
@@ -38,13 +40,13 @@ import { CustomerDebtService } from './customer-debt.service';
     SystemConfigModule,
     AdminActivityModule,
   ],
-  controllers: [WalletController, CustomerWithdrawalController],
+  controllers: [WalletController /*, CustomerWithdrawalController */],
   providers: [
     WalletService,
     TaskerBalanceService,
     TaskerDebtService,
     CustomerDebtService,
-    CustomerWithdrawalService,
+    // CustomerWithdrawalService,
     WalletTopupService,
     PayosService,
     PayoutService,

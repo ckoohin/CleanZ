@@ -87,17 +87,19 @@ export function useCustomerTopups(
   });
 }
 
-export function useCustomerWithdrawals(
-  customerId: string,
-  params?: { page?: number; limit?: number },
-) {
-  return useQuery({
-    queryKey: walletKeys.customerWithdrawals(customerId, params),
-    queryFn: () => walletAdminApi.customerWithdrawals(customerId, params),
-    enabled: Boolean(customerId),
-    placeholderData: (previous) => previous,
-  });
-}
+// [TẠM TẮT] Rút tiền phía Customer — endpoint BE đã comment, xem ghi chú ở đầu
+// be/src/modules/wallet/customer-withdrawal.controller.ts
+// export function useCustomerWithdrawals(
+//   customerId: string,
+//   params?: { page?: number; limit?: number },
+// ) {
+//   return useQuery({
+//     queryKey: walletKeys.customerWithdrawals(customerId, params),
+//     queryFn: () => walletAdminApi.customerWithdrawals(customerId, params),
+//     enabled: Boolean(customerId),
+//     placeholderData: (previous) => previous,
+//   });
+// }
 
 export function useCustomerServiceBreakdown(
   customerId: string,

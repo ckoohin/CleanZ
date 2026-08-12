@@ -134,11 +134,12 @@ export const WalletDashboard = () => {
 
   const handleDepositClick = () => setTopupOpen(true);
 
-  const handleScrollToWithdrawal = () => {
-    document
-      .getElementById("withdrawal-section")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  // [TẠM TẮT] Rút tiền phía Customer — nút gọi hàm này đã comment bên dưới.
+  // const handleScrollToWithdrawal = () => {
+  //   document
+  //     .getElementById("withdrawal-section")
+  //     ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // };
 
   const handleScrollToHistory = () => {
     historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -291,6 +292,8 @@ export const WalletDashboard = () => {
             </span>
           </button>
 
+          {/* [TẠM TẮT] Rút tiền phía Customer — xem ghi chú ở đầu
+              be/src/modules/wallet/customer-withdrawal.controller.ts
           <button
             onClick={handleScrollToWithdrawal}
             className="flex flex-col items-center gap-2 group cursor-pointer"
@@ -302,6 +305,7 @@ export const WalletDashboard = () => {
               Rút tiền
             </span>
           </button>
+          */}
 
           <button
             onClick={handleScrollToHistory}

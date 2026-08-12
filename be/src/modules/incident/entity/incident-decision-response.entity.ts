@@ -11,19 +11,16 @@ import {
 } from 'typeorm';
 import { IncidentDecisionResponseReviewResult } from 'src/common/enums/incident-decision-response-review-result.enum';
 import { IncidentDecisionResponseType } from 'src/common/enums/incident-decision-response-type.enum';
+import { IncidentRespondentParty } from 'src/common/enums/incident-respondent-party.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { IncidentEntity } from './incident.entity';
 import { IncidentEvidenceEntity } from './incident-evidence.entity';
 
 @Entity('incident_decision_responses')
 @Index('idx_idr_incident_version', ['incident', 'decisionVersion'])
-@Index(
-  'uq_idr_incident_version_tasker',
-  ['incident', 'decisionVersion', 'tasker'],
-  {
-    unique: true,
-  },
-)
+@Index('uq_idr_incident_version', ['incident', 'decisionVersion'], {
+  unique: true,
+})
 export class IncidentDecisionResponseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -44,8 +41,21 @@ export class IncidentDecisionResponseEntity {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  @JoinColumn({ name: 'tasker_id' })
+  @JoinColumn({
+    name: 'respondent_user_id',
+    foreignKeyConstraintName: 'fk_idr_tasker',
+  })
   tasker!: UserEntity;
+
+  @Column({
+    name: 'respondent_party',
+    type: 'enum',
+    enum: IncidentRespondentParty,
+    enumName: 'incident_respondent_party',
+    default: IncidentRespondentParty.TASKER,
+    select: false,
+  })
+  respondentParty!: IncidentRespondentParty;
 
   @Column({
     name: 'response_type',

@@ -38,7 +38,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { formatVnd } from "@/lib/format";
 import { fmtDate } from "@/features/admin/lib/date-ranges";
 import { useAdminTasker } from "@/features/admin/modules/tasker/hooks/admin-tasker.hooks";
 import type { AdminTasker } from "@/features/admin/modules/tasker/types/admin-tasker.types";
@@ -56,6 +55,7 @@ import type {
   EarningsReportRun,
   EarningsReportRunStatus,
 } from "./service";
+import { formatEarningsReportVnd } from "./format";
 
 const PERIOD_TABS: { key: EarningsReportPeriodType | "ALL"; label: string }[] = [
   { key: "ALL", label: "Tất cả" },
@@ -699,7 +699,7 @@ function RunDetailSheet({
       key: "netIncome",
       title: "Thực nhận",
       className: "tabular-nums font-semibold",
-      render: (row) => formatVnd(row.netIncome),
+      render: (row) => formatEarningsReportVnd(row.netIncome),
     },
     {
       key: "lastError",

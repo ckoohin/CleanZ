@@ -66,7 +66,12 @@ const formatCurrency = (value: number | string | undefined) =>
     maximumFractionDigits: 0,
   }).format(Number(value ?? 0));
 
-export function WalletManagement() {
+/**
+ * `embedded` = đang nằm trong tab "Ví" của `FinanceWorkspace`, nơi PageHeader và
+ * khối chỉ số tổng quan đã được vẽ một lần ở cấp trang. Không truyền cờ này thì
+ * component tự dựng đủ cả hai (dùng cho trường hợp đứng riêng một trang).
+ */
+export function WalletManagement({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const [filter, setFilter] = useState<{
     keyword: string;
@@ -193,12 +198,15 @@ export function WalletManagement() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Quản lý ví"
-        description="Theo dõi số dư, tiền đang giữ và biến động ví trong toàn hệ thống."
-      />
-
-      <CustomerWalletOverviewCards />
+      {!embedded && (
+        <>
+          <PageHeader
+            title="Quản lý ví"
+            description="Theo dõi số dư, tiền đang giữ và biến động ví trong toàn hệ thống."
+          />
+          <CustomerWalletOverviewCards />
+        </>
+      )}
 
       <BaseTableList
         columns={columns}

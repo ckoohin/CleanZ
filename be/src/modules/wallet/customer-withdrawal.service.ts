@@ -27,6 +27,16 @@ import { WalletEntity } from './entity/wallet.entity';
 import { PayoutService } from './payout.service';
 import { WalletService } from './wallet.service';
 
+/**
+ * [TẠM TẮT — KHÔNG CÒN ĐƯỢC ĐĂNG KÝ] Rút tiền phía Customer.
+ *
+ * Service này đã bị gỡ khỏi `WalletModule.providers` và controller gọi nó cũng
+ * đã comment, nên KHÔNG có đường nào chạy tới đây. File giữ nguyên (không comment
+ * từng dòng) để bật lại chỉ cần sửa `wallet.module.ts` và
+ * `customer-withdrawal.controller.ts`.
+ *
+ * Đừng inject service này ở chỗ khác khi chưa bật lại cả 3 file.
+ */
 @Injectable()
 export class CustomerWithdrawalService {
   private readonly logger = new Logger(CustomerWithdrawalService.name);

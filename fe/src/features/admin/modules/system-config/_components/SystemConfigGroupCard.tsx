@@ -66,7 +66,7 @@ export function SystemConfigGroupCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pb-6">
         {isLoading ? (
           <div className="flex items-center gap-2 py-8 justify-center text-[var(--c-muted)]">
             <Loader2 className="w-4 h-4 animate-spin" />

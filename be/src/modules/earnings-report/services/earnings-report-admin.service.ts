@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
+import { roundVnd } from 'src/common/helpers/number.helper';
 import {
   parseLocalAnchor,
   previousPeriodStart,
@@ -103,11 +104,17 @@ export class EarningsReportAdminService {
       }
 
       const [deliveries, total] = await qb.getManyAndCount();
+      const items = deliveries.map((delivery) => ({
+        ...delivery,
+        grossRevenue: roundVnd(delivery.grossRevenue),
+        platformFee: roundVnd(delivery.platformFee),
+        netIncome: roundVnd(delivery.netIncome),
+      }));
 
       return {
         run,
         deliveries: {
-          items: deliveries,
+          items,
           total,
           page,
           limit,

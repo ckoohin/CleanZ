@@ -18,7 +18,8 @@ import { PaginatedData } from '../../../common/helpers/response.interface';
 import { User } from '../../users/entities/user.entity';
 import { CustomerEntity } from '../../customer/entity/customer.entity';
 import { WalletTopupOrderEntity } from '../../wallet/entity/wallet-topup-order.entity';
-import { CustomerWithdrawalRequestEntity } from '../../wallet/entity/customer-withdrawal-request.entity';
+// [TẠM TẮT] Rút tiền phía Customer — chỉ dùng bởi `getCustomerWithdrawals` đã comment.
+// import { CustomerWithdrawalRequestEntity } from '../../wallet/entity/customer-withdrawal-request.entity';
 
 import { WalletTransactionEntity } from '../../wallet/entity/wallet-transaction.entity';
 import { WalletEntity } from '../../wallet/entity/wallet.entity';
@@ -646,27 +647,29 @@ export class FinanceService {
     };
   }
 
-  async getCustomerWithdrawals(customerId: string, page = 1, limit = 10) {
-    const take = Math.min(100, Math.max(1, limit));
-    const skip = (Math.max(1, page) - 1) * take;
-
-    const [items, total] = await this.dataSource
-      .getRepository(CustomerWithdrawalRequestEntity)
-      .findAndCount({
-        where: { customerId },
-        order: { createdAt: 'DESC' },
-        take,
-        skip,
-      });
-
-    return {
-      items,
-      total,
-      page: Math.max(1, page),
-      limit: take,
-      totalPages: Math.ceil(total / take),
-    };
-  }
+  // [TẠM TẮT] Rút tiền phía Customer — xem ghi chú ở đầu
+  // `wallet/customer-withdrawal.controller.ts`.
+  // async getCustomerWithdrawals(customerId: string, page = 1, limit = 10) {
+  //   const take = Math.min(100, Math.max(1, limit));
+  //   const skip = (Math.max(1, page) - 1) * take;
+  //
+  //   const [items, total] = await this.dataSource
+  //     .getRepository(CustomerWithdrawalRequestEntity)
+  //     .findAndCount({
+  //       where: { customerId },
+  //       order: { createdAt: 'DESC' },
+  //       take,
+  //       skip,
+  //     });
+  //
+  //   return {
+  //     items,
+  //     total,
+  //     page: Math.max(1, page),
+  //     limit: take,
+  //     totalPages: Math.ceil(total / take),
+  //   };
+  // }
 
   async getCustomerServiceBreakdown(
     customerId: string,

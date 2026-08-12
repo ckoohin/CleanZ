@@ -191,33 +191,35 @@ export class FinanceController {
     );
   }
 
-  @AuditAction({
-    code: AuditActionCode.CUSTOMER_FINANCE_VIEW,
-    severity: AuditSeverity.READ_SENSITIVE,
-    targetType: 'CUSTOMER',
-    extract: ({ params }) => ({ customerId: params.customerId }),
-  })
-  @Get('customers/:customerId/withdrawals')
-  @ApiOperation({
-    summary: 'Get customer withdrawal requests for a specific customer',
-  })
-  async getCustomerWithdrawals(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const result = await this.financeService.getCustomerWithdrawals(
-      customerId,
-      page ? Number(page) : 1,
-      limit ? Number(limit) : 10,
-    );
-    return paginatedResponse(
-      result.items,
-      result.total,
-      result.page,
-      result.limit,
-    );
-  }
+  // [TẠM TẮT] Rút tiền phía Customer — route xem lịch sử rút của một khách.
+  // Xem ghi chú ở đầu `wallet/customer-withdrawal.controller.ts`.
+  // @AuditAction({
+  //   code: AuditActionCode.CUSTOMER_FINANCE_VIEW,
+  //   severity: AuditSeverity.READ_SENSITIVE,
+  //   targetType: 'CUSTOMER',
+  //   extract: ({ params }) => ({ customerId: params.customerId }),
+  // })
+  // @Get('customers/:customerId/withdrawals')
+  // @ApiOperation({
+  //   summary: 'Get customer withdrawal requests for a specific customer',
+  // })
+  // async getCustomerWithdrawals(
+  //   @Param('customerId', ParseUUIDPipe) customerId: string,
+  //   @Query('page') page?: string,
+  //   @Query('limit') limit?: string,
+  // ) {
+  //   const result = await this.financeService.getCustomerWithdrawals(
+  //     customerId,
+  //     page ? Number(page) : 1,
+  //     limit ? Number(limit) : 10,
+  //   );
+  //   return paginatedResponse(
+  //     result.items,
+  //     result.total,
+  //     result.page,
+  //     result.limit,
+  //   );
+  // }
 
   @Get('customers/:customerId/service-breakdown')
   @ApiOperation({ summary: 'Get spending breakdown by service for a customer' })

@@ -130,7 +130,9 @@ export const ROUTES = {
       BASE: "/admin/finances",
       REVENUE: "/admin/finances/revenue",
       WITHDRAWALS: "/admin/withdrawals",
-      CUSTOMER_WITHDRAWALS: "/admin/customer-withdrawals",
+      // [TẠM TẮT] Rút tiền phía Customer — xem ghi chú ở đầu
+      // be/src/modules/wallet/customer-withdrawal.controller.ts
+      // CUSTOMER_WITHDRAWALS: "/admin/customer-withdrawals",
       WALLETS: "/admin/wallets",
       RECONCILIATION: "/admin/reconciliation",
       EARNINGS_REPORTS: "/admin/earnings-reports",

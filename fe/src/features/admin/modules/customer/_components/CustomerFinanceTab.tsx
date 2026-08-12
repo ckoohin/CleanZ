@@ -5,7 +5,9 @@ import {
   useCustomerWalletOverview,
   useCustomerWalletTransactions,
   useCustomerTopups,
-  useCustomerWithdrawals,
+  // [TẠM TẮT] Rút tiền phía Customer — xem ghi chú ở đầu
+  // be/src/modules/wallet/customer-withdrawal.controller.ts
+  // useCustomerWithdrawals,
   useCustomerServiceBreakdown,
   useAdjustWallet,
 } from "@/features/admin/modules/wallets/hooks/useAdminWallets";
@@ -34,7 +36,8 @@ import {
   WalletCards,
   LockKeyhole,
   CreditCard,
-  RotateCcw,
+  // [TẠM TẮT] Rút tiền phía Customer: RotateCcw chỉ dùng ở các khối đã comment.
+  // RotateCcw,
   SlidersHorizontal,
   ArrowDownLeft,
   ArrowUpRight,
@@ -94,10 +97,11 @@ const formatCurrency = (value: number | string | undefined) =>
   }).format(Number(value ?? 0));
 
 export function CustomerFinanceTab({ customerId }: Props) {
-  const [subTab, setSubTab] = useState<"LEDGER" | "TOPUPS" | "WITHDRAWALS" | "SERVICES">("LEDGER");
+  // [TẠM TẮT] Rút tiền phía Customer: bỏ nhánh "WITHDRAWALS" khỏi union.
+  const [subTab, setSubTab] = useState<"LEDGER" | "TOPUPS" | "SERVICES">("LEDGER");
   const [page, setPage] = useState(1);
   const [topupPage, setTopupPage] = useState(1);
-  const [withdrawalPage, setWithdrawalPage] = useState(1);
+  // const [withdrawalPage, setWithdrawalPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerDirection, setLedgerDirection] = useState<string>("ALL");
@@ -230,8 +234,9 @@ export function CustomerFinanceTab({ customerId }: Props) {
     },
   );
 
-  const { data: withdrawalData, isLoading: isWithdrawalLoading } =
-    useCustomerWithdrawals(customerId, { page: withdrawalPage, limit: 10 });
+  // [TẠM TẮT] Rút tiền phía Customer
+  // const { data: withdrawalData, isLoading: isWithdrawalLoading } =
+  //   useCustomerWithdrawals(customerId, { page: withdrawalPage, limit: 10 });
 
   const { data: serviceBreakdown, isLoading: isBreakdownLoading } =
     useCustomerServiceBreakdown(customerId, breakdownParams);
@@ -364,7 +369,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
   return (
     <div className="space-y-6">
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Card 1: Balance */}
         <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs font-semibold text-[var(--c-muted)]">
@@ -428,7 +433,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
           </div>
         </div>
 
-        {/* Card 4: Total Refunded */}
+        {/* [TẠM TẮT] Rút tiền phía Customer — Card 4: Total Refunded
         <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs font-semibold text-[var(--c-muted)]">
             <span className="flex items-center gap-1.5">
@@ -448,6 +453,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
             )}
           </div>
         </div>
+        */}
       </div>
 
       {/* Sub-tabs Navigation */}
@@ -478,6 +484,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
           Lịch sử nạp ví ({overview?.topupCount ?? 0})
         </button>
 
+        {/* [TẠM TẮT] Rút tiền phía Customer
         <button
           type="button"
           onClick={() => setSubTab("WITHDRAWALS")}
@@ -490,6 +497,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
           <RotateCcw className="size-3.5 inline mr-1.5" />
           Lịch sử rút bồi thường ({overview?.withdrawalCount ?? 0})
         </button>
+        */}
 
         <button
           type="button"
@@ -1029,7 +1037,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
         </div>
       )}
 
-      {/* SubTab WITHDRAWALS View */}
+      {/* [TẠM TẮT] Rút tiền phía Customer — SubTab WITHDRAWALS View
       {subTab === "WITHDRAWALS" && (
         <div className="rounded-2xl border border-[var(--c-line)] bg-[var(--c-card)] p-5 space-y-4 shadow-xs">
           <div className="pb-3 border-b border-[var(--c-line)]">
@@ -1108,6 +1116,7 @@ export function CustomerFinanceTab({ customerId }: Props) {
           )}
         </div>
       )}
+      */}
 
       {/* ── Sub-tab: Phân tích Dịch vụ ───────────────────────────────────────── */}
       {subTab === "SERVICES" && (

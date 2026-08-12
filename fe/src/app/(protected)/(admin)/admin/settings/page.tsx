@@ -216,7 +216,7 @@ export default function AdminSettingsPage() {
                       Thiết lập tỉ lệ ăn chia và thuế giá trị gia tăng
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6 pb-6">
                     <FormField
                       control={form.control}
                       name="platformCommissionRate"
@@ -291,7 +291,7 @@ export default function AdminSettingsPage() {
                       Quy định dòng tiền trong hệ thống
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6 pb-6">
                     <FormField
                       control={form.control}
                       name="minDeposit"
@@ -397,7 +397,7 @@ export default function AdminSettingsPage() {
                       Cấu hình ưu tiên và chặn Tasker
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6 pb-6">
                     <FormField
                       control={form.control}
                       name="maxMatchingRadiusKm"
@@ -503,7 +503,7 @@ export default function AdminSettingsPage() {
                       Hiển thị cho khách hàng khi cần trợ giúp
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6 pb-6">
                     <FormField
                       control={form.control}
                       name="supportPhone"
@@ -558,7 +558,7 @@ export default function AdminSettingsPage() {
                       Tạm dừng mọi hoạt động của nền tảng
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6 pb-6">
                     <FormField
                       control={form.control}
                       name="maintenanceMode"

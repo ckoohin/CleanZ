@@ -193,36 +193,40 @@ export function WithdrawalManagement({
         />
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewCard
-          icon={WalletCards}
-          label="Tổng số dư ví"
-          value={formatCurrency(overview?.totalWalletBalance)}
-          loading={isOverviewLoading}
-          tone="primary"
-        />
-        <OverviewCard
-          icon={PiggyBank}
-          label="Số dư đang giữ"
-          value={formatCurrency(overview?.totalHoldBalance)}
-          loading={isOverviewLoading}
-          tone="blue"
-        />
-        <OverviewCard
-          icon={Clock3}
-          label="Yêu cầu chờ duyệt"
-          value={String(overview?.pendingWithdrawals ?? 0)}
-          loading={isOverviewLoading}
-          tone="amber"
-        />
-        <OverviewCard
-          icon={BanknoteArrowDown}
-          label="Tiền đang chờ rút"
-          value={formatCurrency(overview?.pendingWithdrawalAmount)}
-          loading={isOverviewLoading}
-          tone="emerald"
-        />
-      </div>
+      {/* Khi nhúng vào tab "Rút tiền" của FinanceWorkspace, bốn thẻ này trùng với
+          khối chỉ số đã vẽ ở cấp trang (cùng đọc `useFinanceOverview`). */}
+      {!embedded && (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewCard
+            icon={WalletCards}
+            label="Tổng số dư ví"
+            value={formatCurrency(overview?.totalWalletBalance)}
+            loading={isOverviewLoading}
+            tone="primary"
+          />
+          <OverviewCard
+            icon={PiggyBank}
+            label="Số dư đang giữ"
+            value={formatCurrency(overview?.totalHoldBalance)}
+            loading={isOverviewLoading}
+            tone="blue"
+          />
+          <OverviewCard
+            icon={Clock3}
+            label="Yêu cầu chờ duyệt"
+            value={String(overview?.pendingWithdrawals ?? 0)}
+            loading={isOverviewLoading}
+            tone="amber"
+          />
+          <OverviewCard
+            icon={BanknoteArrowDown}
+            label="Tiền đang chờ rút"
+            value={formatCurrency(overview?.pendingWithdrawalAmount)}
+            loading={isOverviewLoading}
+            tone="emerald"
+          />
+        </div>
+      )}
 
       <BaseTableList
         columns={columns}

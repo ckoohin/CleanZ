@@ -6,8 +6,9 @@ import type {
   CustomerWallet,
   CustomerWalletTransactionList,
   CustomerWalletTransactionQuery,
-  CustomerWithdrawal,
-  CreateCustomerWithdrawalInput,
+  // [TẠM TẮT] Rút tiền phía Customer
+  // CustomerWithdrawal,
+  // CreateCustomerWithdrawalInput,
   TopupConfig,
   TopupOrderList,
 } from "../types/customer-wallet.types";
@@ -36,17 +37,19 @@ export const customerWalletApi = {
       .get<CustomerWalletTransactionList>(`${BASE}/transactions`, { params })
       .then((response) => response.data),
 
-  listWithdrawals: (): Promise<CustomerWithdrawal[]> =>
-    http
-      .get<CustomerWithdrawal[]>(`${BASE}/withdrawals`)
-      .then((response) => response.data),
-
-  createWithdrawal: (
-    dto: CreateCustomerWithdrawalInput,
-  ): Promise<CustomerWithdrawal> =>
-    http
-      .post<CustomerWithdrawal>(`${BASE}/withdrawals`, dto)
-      .then((response) => response.data),
+  // [TẠM TẮT] Rút tiền phía Customer — route BE đã comment, xem ghi chú ở đầu
+  // be/src/modules/wallet/customer-withdrawal.controller.ts
+  // listWithdrawals: (): Promise<CustomerWithdrawal[]> =>
+  //   http
+  //     .get<CustomerWithdrawal[]>(`${BASE}/withdrawals`)
+  //     .then((response) => response.data),
+  //
+  // createWithdrawal: (
+  //   dto: CreateCustomerWithdrawalInput,
+  // ): Promise<CustomerWithdrawal> =>
+  //   http
+  //     .post<CustomerWithdrawal>(`${BASE}/withdrawals`, dto)
+  //     .then((response) => response.data),
 
   /* ─── Nạp tiền PayOS ────────────────────────────────────────────────────── */
 

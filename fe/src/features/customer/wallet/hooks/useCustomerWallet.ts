@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import { customerWalletApi } from "../services/customer-wallet.service";
 import type {
-  CreateCustomerWithdrawalInput,
+  // [TẠM TẮT] Rút tiền phía Customer
+  // CreateCustomerWithdrawalInput,
   CreateTopupInput,
   CustomerWalletTransactionQuery,
 } from "../types/customer-wallet.types";
@@ -35,26 +36,28 @@ export function useCustomerWalletTransactions(
   });
 }
 
-export function useCustomerWithdrawals() {
-  return useQuery({
-    queryKey: customerWalletKeys.withdrawals(),
-    queryFn: customerWalletApi.listWithdrawals,
-  });
-}
-
-export function useCreateCustomerWithdrawal() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: CreateCustomerWithdrawalInput) =>
-      customerWalletApi.createWithdrawal(dto),
-    onSuccess: () => {
-      toast.success("Đã gửi yêu cầu rút tiền, chờ CleanZ duyệt");
-      qc.invalidateQueries({ queryKey: customerWalletKeys.withdrawals() });
-      qc.invalidateQueries({ queryKey: customerWalletKeys.detail() });
-    },
-    onError: (e: unknown) => toast.error(getErrorMessage(e)),
-  });
-}
+// [TẠM TẮT] Rút tiền phía Customer — route BE đã comment, xem ghi chú ở đầu
+// be/src/modules/wallet/customer-withdrawal.controller.ts
+// export function useCustomerWithdrawals() {
+//   return useQuery({
+//     queryKey: customerWalletKeys.withdrawals(),
+//     queryFn: customerWalletApi.listWithdrawals,
+//   });
+// }
+//
+// export function useCreateCustomerWithdrawal() {
+//   const qc = useQueryClient();
+//   return useMutation({
+//     mutationFn: (dto: CreateCustomerWithdrawalInput) =>
+//       customerWalletApi.createWithdrawal(dto),
+//     onSuccess: () => {
+//       toast.success("Đã gửi yêu cầu rút tiền, chờ CleanZ duyệt");
+//       qc.invalidateQueries({ queryKey: customerWalletKeys.withdrawals() });
+//       qc.invalidateQueries({ queryKey: customerWalletKeys.detail() });
+//     },
+//     onError: (e: unknown) => toast.error(getErrorMessage(e)),
+//   });
+// }
 
 /* ─── Nạp tiền PayOS ─────────────────────────────────────────────────────────
  * Luồng: createTopup → điều hướng sang checkoutUrl (PayOS) → PayOS đá về
