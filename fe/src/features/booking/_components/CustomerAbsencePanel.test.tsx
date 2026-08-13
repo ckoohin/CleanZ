@@ -19,7 +19,7 @@ const baseReport: CustomerBookingAbsenceReport = {
 };
 
 describe("CustomerAbsencePanel", () => {
-  it("nêu rõ hoàn danh nghĩa, phần cấn nợ và số thực tăng trong ví", () => {
+  it("chỉ hiển thị thông báo kết quả, không hiển thị số tiền", () => {
     render(
       <CustomerAbsencePanel
         report={baseReport}
@@ -28,10 +28,12 @@ describe("CustomerAbsencePanel", () => {
       />,
     );
 
-    expect(screen.getByText("Hoàn tiền danh nghĩa")).toBeInTheDocument();
-    expect(screen.getByText("100.000đ")).toBeInTheDocument();
-    expect(screen.getByText("−30.000đ")).toBeInTheDocument();
-    expect(screen.getByText("70.000đ")).toBeInTheDocument();
+    expect(
+      screen.getByText("Báo cáo khách vắng đã được xác nhận"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Hoàn tiền danh nghĩa")).not.toBeInTheDocument();
+    expect(screen.queryByText("100.000đ")).not.toBeInTheDocument();
+    expect(screen.queryByText("70.000đ")).not.toBeInTheDocument();
   });
 
   it("giữ giao diện khách ở mức kết quả xử lý, không lộ bằng chứng nội bộ", () => {
@@ -48,7 +50,7 @@ describe("CustomerAbsencePanel", () => {
     expect(screen.queryByText(/tọa độ|gps/i)).not.toBeInTheDocument();
   });
 
-  it("mở đúng lối xử lý công nợ và khiếu nại", () => {
+  it("mở đúng lối xử lý công nợ và khiếu nại sau khi có kết quả", () => {
     const onOpenWallet = vi.fn();
     const onDispute = vi.fn();
     render(
@@ -59,10 +61,29 @@ describe("CustomerAbsencePanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Mở Ví CleanZ/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Xem Ví CleanZ/i }));
     fireEvent.click(screen.getByRole("button", { name: /Khiếu nại/i }));
 
     expect(onOpenWallet).toHaveBeenCalledOnce();
     expect(onDispute).toHaveBeenCalledOnce();
+  });
+
+  it("chỉ thông báo thời hạn trong lúc đang xác minh", () => {
+    render(
+      <CustomerAbsencePanel
+        report={{ ...baseReport, status: "PENDING_REVIEW" }}
+        onDispute={vi.fn()}
+        onOpenWallet={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("CleanZ đang xác minh báo cáo khách vắng"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Dự kiến có kết quả trước/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Khiếu nại/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tasker có thể nhận bồi hoàn/i)).not.toBeInTheDocument();
   });
 });

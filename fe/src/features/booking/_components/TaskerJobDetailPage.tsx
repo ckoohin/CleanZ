@@ -141,12 +141,14 @@ type LocationErrorKind =
 // ─── Action Button ─────────────────────────────────────────────────────────────
 function ActionButton({
   label,
+  loadingLabel,
   icon: Icon,
   onClick,
   isPending,
   color = "primary",
 }: {
   label: string;
+  loadingLabel?: string;
   icon: React.ElementType;
   onClick: () => void;
   isPending: boolean;
@@ -162,10 +164,14 @@ function ActionButton({
     <button
       onClick={onClick}
       disabled={isPending}
+      aria-busy={isPending}
       className={`w-full py-4 text-white font-bold text-sm rounded-2xl shadow-lg ${colorMap[color]} active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
     >
       {isPending ? (
-        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        <>
+          <div className="h-5 w-5 shrink-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+          {loadingLabel && <span>{loadingLabel}</span>}
+        </>
       ) : (
         <>
           <Icon className="w-4 h-4" />
@@ -1031,6 +1037,9 @@ function AssignedDetailView({
   // Check-in ngoài policy / mất GPS → mở sheet chụp ảnh minh chứng.
   const [showCheckinProof, setShowCheckinProof] = useState(false);
   const [checkinProofReason, setCheckinProofReason] = useState("");
+  const [checkinPhase, setCheckinPhase] = useState<
+    "idle" | "locating" | "validating"
+  >("idle");
   const checkinCoordsRef = useRef<TaskerCheckinPayload | null>(null);
   const {
     tracking,
@@ -1043,6 +1052,14 @@ function AssignedDetailView({
 
   const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.CONFIRMED;
   const canContact = data.canContactCustomer;
+  const isCheckinProcessing =
+    checkinPhase !== "idle" || markCheckedIn.isPending;
+  const checkinLoadingLabel =
+    checkinPhase === "locating"
+      ? "Đang lấy vị trí GPS…"
+      : checkinPhase === "validating"
+        ? "Đang kiểm tra vị trí…"
+        : undefined;
 
   const handleComplete = () => {
     markComplete.mutate(undefined, {
@@ -1064,6 +1081,7 @@ function AssignedDetailView({
       return;
     }
     checkinRequestLockRef.current = true;
+    setCheckinPhase("validating");
     markCheckedIn.mutate(payload, {
       onSuccess: () => {
         setShowCheckinProof(false);
@@ -1082,15 +1100,17 @@ function AssignedDetailView({
       },
       onSettled: () => {
         checkinRequestLockRef.current = false;
+        setCheckinPhase("idle");
       },
     });
   };
 
   const handleCheckin = () => {
-    if (checkinRequestLockRef.current || markCheckedIn.isPending) return;
+    if (checkinRequestLockRef.current || isCheckinProcessing) return;
     // Khóa ngay từ lúc trình duyệt bắt đầu lấy GPS; nếu chỉ khóa khi API chạy,
     // nhiều lần chạm trong 10 giây chờ GPS có thể tạo các request nối tiếp.
     checkinRequestLockRef.current = true;
+    setCheckinPhase("locating");
     // Lấy GPS trước mỗi lần check-in; từ chối quyền hoặc lỗi định vị thì gửi
     // request không có toạ độ để BE trả về yêu cầu ảnh minh chứng.
     void getCurrentCoords()
@@ -1255,7 +1275,7 @@ function AssignedDetailView({
               </div>
             )}
 
-            <div className="mb-4 rounded-2xl border border-border/50 bg-muted/20 p-4">
+            <div className="hidden mb-4 rounded-2xl border border-border/50 bg-muted/20 p-4">
               <p className="mb-4 text-[10px] font-black uppercase tracking-wider text-primary">
                 Tiến trình chuyến đi
               </p>
@@ -1271,9 +1291,10 @@ function AssignedDetailView({
 
             <ActionButton
               label="Check-in — Tôi đã đến nơi"
+              loadingLabel={checkinLoadingLabel}
               icon={MapPin}
               onClick={handleCheckin}
-              isPending={markCheckedIn.isPending}
+              isPending={isCheckinProcessing}
               color="amber"
             />
           </div>
@@ -1306,6 +1327,15 @@ function AssignedDetailView({
           {statusCfg.label}
         </span>
       </div>
+
+      {data.status === "COMPLETED" && (
+        <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+          <p className="mb-4 text-[10px] font-black uppercase tracking-wider text-primary">
+            Tiến trình chuyến đi
+          </p>
+          <BookingStatusStepper currentStatus={data.status} />
+        </div>
+      )}
 
       {/* Customer info (chỉ hiện khi canContactCustomer) */}
       {canContact && data.customer && (

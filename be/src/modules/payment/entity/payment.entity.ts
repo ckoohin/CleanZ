@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,7 @@ import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 
 @Entity('payments')
+@Index('uq_payments_paid_online_transaction_code', { synchronize: false })
 export class PaymentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

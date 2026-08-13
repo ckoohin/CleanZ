@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Clock3, Loader2, PhoneOff } from "lucide-react";
+import { ChevronDown, Clock3, Loader2, PhoneOff } from "lucide-react";
 import {
   useAbsenceEligibility,
   useReportCustomerAbsence,
@@ -31,6 +31,7 @@ export function TaskerAbsenceReportAction({
 }) {
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const submitLockRef = useRef(false);
   const eligibility = useAbsenceEligibility(bookingId, true);
   const report = useReportCustomerAbsence(bookingId);
@@ -52,6 +53,7 @@ export function TaskerAbsenceReportAction({
       data?.canReport ||
       (locallyAvailable && data?.reasonCode === "ABSENCE_REPORT_WAIT_REQUIRED"),
     );
+  const detailsId = `tasker-absence-details-${bookingId}`;
 
   const submit = (payload: ReportBookingAbsencePayload) => {
     if (submitLockRef.current || report.isPending) return;
@@ -65,43 +67,59 @@ export function TaskerAbsenceReportAction({
   };
 
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white text-amber-700 shadow-sm">
-          <PhoneOff className="size-5" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-1">
-          <h3 className="text-sm font-black text-amber-950">
-            Không thấy hoặc không liên hệ được khách?
-          </h3>
-          <p className="text-xs leading-5 text-amber-800">
+    <section className="border-t border-border/50 pt-2">
+      <button
+        type="button"
+        onClick={() => setDetailsOpen((current) => !current)}
+        aria-expanded={detailsOpen}
+        aria-controls={detailsId}
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-1 py-2 text-left text-xs font-semibold text-muted-foreground transition-colors hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <PhoneOff className="size-4 shrink-0 text-amber-600" />
+          <span>Khách không có mặt?</span>
+        </span>
+        <ChevronDown
+          className={`size-4 shrink-0 transition-transform ${
+            detailsOpen ? "rotate-180" : ""
+          }`}
+          aria-hidden="true"
+        />
+      </button>
+
+      {detailsOpen && (
+        <div
+          id={detailsId}
+          className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3"
+        >
+          <p className="text-xs leading-5 text-amber-900">
             Hãy gọi khách và chờ đủ thời gian tại địa chỉ trước khi gửi ảnh báo
             cáo.
           </p>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            disabled={!canOpen || eligibility.isLoading || report.isPending}
+            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-amber-200 disabled:bg-white/60 disabled:text-amber-500"
+          >
+            {eligibility.isLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : remaining ? (
+              <Clock3 className="size-4" />
+            ) : (
+              <PhoneOff className="size-4" />
+            )}
+            {eligibility.isLoading
+              ? "Đang kiểm tra điều kiện…"
+              : remaining
+                ? `Có thể báo sau ${remaining}`
+                : canOpen
+                  ? "Báo khách vắng mặt"
+                  : (data?.reason ?? "Chưa thể gửi báo cáo")}
+          </button>
         </div>
-      </div>
+      )}
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        disabled={!canOpen || eligibility.isLoading || report.isPending}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-white px-4 py-3.5 text-sm font-black text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-amber-200 disabled:bg-white/60 disabled:text-amber-500"
-      >
-        {eligibility.isLoading ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : remaining ? (
-          <Clock3 className="size-4" />
-        ) : (
-          <PhoneOff className="size-4" />
-        )}
-        {eligibility.isLoading
-          ? "Đang kiểm tra điều kiện…"
-          : remaining
-            ? `Có thể báo sau ${remaining}`
-            : canOpen
-              ? "Không liên hệ được khách"
-              : (data?.reason ?? "Chưa thể gửi báo cáo")}
-      </button>
       <AnimatePresence>
         {open && data && (
           <TaskerCustomerAbsenceSheet

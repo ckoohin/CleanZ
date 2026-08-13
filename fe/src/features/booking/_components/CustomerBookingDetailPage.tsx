@@ -1846,13 +1846,13 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                 </div>
               </div>
 
-              <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 flex items-start gap-3">
+              {/* <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                   CleanZ chỉ hiển thị hồ sơ và lịch sử đánh giá của Tasker. Số
                   điện thoại được ẩn để bảo vệ thông tin cá nhân.
                 </p>
-              </div>
+              </div> */}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">

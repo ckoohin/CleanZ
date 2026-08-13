@@ -384,6 +384,7 @@ export class CustomerBookingService {
        * lệch số khách đã trả.
        */
       lockedPriceQuote?: BookingQuoteEntity;
+      linkPaidDraftId?: string;
     },
   ): Promise<CustomerBookingCreatedResponse> {
     return asyncHandleOperation(async () => {
@@ -558,6 +559,14 @@ export class CustomerBookingService {
           refundAmount: 0,
         });
         await logRepository.save(statusLog);
+        if (options.linkPaidDraftId) {
+          await manager
+            .getRepository(BookingQuoteEntity)
+            .update(
+              { id: options.linkPaidDraftId },
+              { bookingId: savedBooking.id, usedAt: new Date() },
+            );
+        }
 
         // Lấy tọa độ để dispatch sau khi transaction commit
         createdBookingId = savedBooking.id;
@@ -803,6 +812,11 @@ export class CustomerBookingService {
       await this.refundOnlineDraft(draft, 'Đơn nháp thiếu dữ liệu để tạo đơn');
       return null;
     }
+    const alreadyCreated = await this.findBookingIdByPaidDraft(draft);
+    if (alreadyCreated) {
+      await this.relinkPaidDraft(draft, alreadyCreated);
+      return alreadyCreated;
+    }
 
     try {
       const created = await this.createBookingRecord(
@@ -811,6 +825,7 @@ export class CustomerBookingService {
         {
           paymentStatus: PaymentStatus.PAID,
           lockedPriceQuote: draft,
+          linkPaidDraftId: draft.id,
           onlinePayment: {
             transactionCode: String(draft.payosOrderCode),
             qrCode: draft.qrCode,
@@ -825,7 +840,6 @@ export class CustomerBookingService {
       const bookingId = created.id as string;
       draft.bookingId = bookingId;
       draft.usedAt = new Date();
-      await this.dataSource.getRepository(BookingQuoteEntity).save(draft);
 
       this.logger.log(
         `Đơn nháp ${draft.id} đã thành booking ${bookingId} sau khi PayOS báo PAID`,
@@ -833,6 +847,14 @@ export class CustomerBookingService {
       return bookingId;
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
+      const raced = await this.findBookingIdByPaidDraft(draft);
+      if (raced) {
+        await this.relinkPaidDraft(draft, raced);
+        this.logger.warn(
+          `Đơn nháp ${draft.id}: booking ${raced} đã được luồng khác tạo (${reason}) — gắn lại, KHÔNG hoàn tiền`,
+        );
+        return raced;
+      }
 
       // Chỉ hoàn tiền khi đơn thật sự KHÔNG hợp lệ (hết voucher, quá giờ đặt, địa
       // chỉ bị xoá...). Lỗi hạ tầng — deadlock, timeout, mất kết nối DB — là tạm
@@ -856,6 +878,39 @@ export class CustomerBookingService {
       await this.refundOnlineDraft(draft, reason);
       return null;
     }
+  }
+  private async findBookingIdByPaidDraft(
+    draft: BookingQuoteEntity,
+  ): Promise<string | null> {
+    if (draft.payosOrderCode == null) return null;
+    const payment = await this.dataSource.getRepository(PaymentEntity).findOne({
+      where: {
+        transactionCode: String(draft.payosOrderCode),
+        method: PaymentMethod.ONLINE,
+        status: PaymentStatus.PAID,
+      },
+      relations: ['booking'],
+      order: { createdAt: 'ASC' },
+    });
+    return payment?.booking?.id ?? null;
+  }
+
+  /** Gắn lại đơn nháp vào booking đã có; chạy lại nhiều lần vẫn ra một kết quả. */
+  private async relinkPaidDraft(
+    draft: BookingQuoteEntity,
+    bookingId: string,
+  ): Promise<void> {
+    if (draft.bookingId === bookingId) return;
+    await this.dataSource
+      .getRepository(BookingQuoteEntity)
+      .update(
+        { id: draft.id },
+        { bookingId, usedAt: draft.usedAt ?? new Date() },
+      );
+    draft.bookingId = bookingId;
+    this.logger.warn(
+      `Đơn nháp ${draft.id} đã có booking ${bookingId} từ trước — gắn lại thay vì tạo đơn mới`,
+    );
   }
 
   /**
