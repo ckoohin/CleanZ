@@ -742,7 +742,9 @@ export class AdminController {
   }
 
   @Patch('quiz/:id/activate')
-  @ApiOperation({ summary: 'Admin kích hoạt bài kiểm tra (tự động tắt bài khác)' })
+  @ApiOperation({
+    summary: 'Admin kích hoạt bài kiểm tra (tự động tắt bài khác)',
+  })
   activateQuiz(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminQuizService.activateQuiz(id);
   }

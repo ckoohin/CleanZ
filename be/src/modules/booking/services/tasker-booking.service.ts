@@ -30,6 +30,11 @@ import { TrackingGateway } from 'src/modules/tracking/tracking.gateway';
 import { CustomerEntity } from 'src/modules/customer/entity/customer.entity';
 import { TaskerBookingLocationDto } from '../dto/tasker-booking-location.dto';
 import { CheckinDto } from '../dto/checkin.dto';
+import {
+  CompleteWorkDto,
+  StartWorkDto,
+  WORK_PHOTOS_MIN_AFTER,
+} from '../dto/work-photo.dto';
 import { CancelBookingDto } from '../dto/cancel-booking.dto';
 import { CancelledBy } from 'src/common/enums/cancelled-by.enum';
 import { BookingStatusLogEntity } from '../entity/booking-status-log.entity';
@@ -64,6 +69,11 @@ import { TaskerEquipmentStatus } from 'src/common/enums/tasker-equipment-status.
 import { getTaskerPremiumEligibilityIssues } from '../helpers/premium-eligibility.helper';
 import type { PremiumEligibilityIssue } from '../helpers/premium-eligibility.helper';
 import { BookingSettlementService } from './booking-settlement.service';
+import {
+  BookingWorkPhotos,
+  BookingWorkPhotoService,
+} from './booking-work-photo.service';
+import { BookingWorkPhotoPhase } from 'src/common/enums/booking-work-photo-phase.enum';
 import {
   computeWorkTiming,
   overtimeFeeForMinutes,
@@ -304,6 +314,8 @@ export interface TaskerAssignedBookingDetailResponse {
     reviewReason: string | null;
     warningPoints: number;
   };
+  /** Ảnh hiện trường tasker đã nộp — đầu ca (tùy chọn) và cuối ca (bắt buộc). */
+  workPhotos: BookingWorkPhotos;
 }
 
 interface TaskerLocationInput {
@@ -396,6 +408,7 @@ export class TaskerBookingService {
     private readonly bookingCheckinService: BookingCheckinService,
     private readonly bookingSettlementService: BookingSettlementService,
     private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
+    private readonly bookingWorkPhotoService: BookingWorkPhotoService,
   ) {}
 
   private emitBookingNotification(
@@ -1262,9 +1275,11 @@ export class TaskerBookingService {
   async markInProgress(
     userId: string,
     bookingId: string,
+    dto: StartWorkDto = {},
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
       const startedAt = new Date();
+      const beforePhotos = dto.beforePhotos ?? [];
       const booking = await this.dataSource.transaction(async (manager) => {
         const tasker = await this.findTaskerProfile(userId);
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -1295,12 +1310,26 @@ export class TaskerBookingService {
         booking.status = BookingStatus.IN_PROGRESS;
         const savedBooking = await bookingRepository.save(booking);
 
+        // Ảnh đầu ca là tùy chọn — không có ảnh vẫn bắt đầu làm việc bình thường.
+        const savedPhotoCount =
+          beforePhotos.length > 0
+            ? await this.bookingWorkPhotoService.saveWorkPhotos(manager, {
+                booking: savedBooking,
+                phase: BookingWorkPhotoPhase.BEFORE,
+                userId,
+                photos: beforePhotos,
+              })
+            : 0;
+
         const statusLog = manager.getRepository(BookingStatusLogEntity).create({
           booking: savedBooking,
           oldStatus,
           newStatus: BookingStatus.IN_PROGRESS,
           changedByUser: { id: userId } as UserEntity,
-          note: 'Tasker bắt đầu làm việc',
+          note:
+            savedPhotoCount > 0
+              ? `Tasker bắt đầu làm việc — kèm ${savedPhotoCount} ảnh đầu ca`
+              : 'Tasker bắt đầu làm việc — không có ảnh đầu ca',
           cancellationFee: 0,
           refundAmount: 0,
         });
@@ -1390,8 +1419,10 @@ export class TaskerBookingService {
   async markCompleted(
     userId: string,
     bookingId: string,
+    dto: CompleteWorkDto,
   ): Promise<TaskerAssignedBookingDetailResponse> {
     return asyncHandleOperation(async () => {
+      const afterPhotos = dto?.afterPhotos ?? [];
       const outcome = await this.dataSource.transaction(async (manager) => {
         const tasker = await this.findTaskerProfile(userId);
         const bookingRepository = manager.getRepository(BookingEntity);
@@ -1432,6 +1463,22 @@ export class TaskerBookingService {
         ) {
           throw new BadRequestException(
             'Booking chưa thanh toán nên chưa thể hoàn thành',
+          );
+        }
+
+        // Ảnh cuối ca là điều kiện bắt buộc để hoàn thành và nhận tiền. Ghi ảnh
+        // trong CÙNG transaction với quyết toán: hoặc có ảnh và tiền đã chạy,
+        // hoặc rollback cả hai — không có trạng thái nửa vời.
+        const afterPhotoCount =
+          await this.bookingWorkPhotoService.saveWorkPhotos(manager, {
+            booking,
+            phase: BookingWorkPhotoPhase.AFTER,
+            userId,
+            photos: afterPhotos,
+          });
+        if (afterPhotoCount < WORK_PHOTOS_MIN_AFTER) {
+          throw new BadRequestException(
+            `Cần ít nhất ${WORK_PHOTOS_MIN_AFTER} ảnh cuối ca để hoàn thành công việc`,
           );
         }
 
@@ -1909,17 +1956,19 @@ export class TaskerBookingService {
     const canContactCustomer = CUSTOMER_CONTACT_VISIBLE_STATUSES.includes(
       booking.status,
     );
-    const [price, taskerCancelPenalty, checkinPolicy] = await Promise.all([
-      this.buildTaskerPriceBreakdown(booking),
-      this.bookingPolicyService.resolveTaskerCancelPenalty(
-        this.dataSource.manager,
-        booking,
-      ),
-      this.bookingCheckinService.getTaskerCheckinPolicy(
-        this.dataSource.manager,
-        booking,
-      ),
-    ]);
+    const [price, taskerCancelPenalty, checkinPolicy, workPhotos] =
+      await Promise.all([
+        this.buildTaskerPriceBreakdown(booking),
+        this.bookingPolicyService.resolveTaskerCancelPenalty(
+          this.dataSource.manager,
+          booking,
+        ),
+        this.bookingCheckinService.getTaskerCheckinPolicy(
+          this.dataSource.manager,
+          booking,
+        ),
+        this.bookingWorkPhotoService.findByBooking(this.dataSource, booking.id),
+      ]);
     const baseResponse = {
       id: booking.id,
       bookingCode: booking.bookingCode,
@@ -1984,6 +2033,7 @@ export class TaskerBookingService {
         reviewReason: booking.noShowReviewReason ?? null,
         warningPoints: toNumber(booking.noShowWarningPoints),
       },
+      workPhotos,
     };
 
     if (!canContactCustomer) {

@@ -30,6 +30,8 @@ export class AddWalletTxIdempotencyIndex1785500000000 implements MigrationInterf
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "uq_wallet_tx_payos_topup"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "uq_wallet_tx_booking_online_refund"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "uq_wallet_tx_booking_online_refund"`,
+    );
   }
 }

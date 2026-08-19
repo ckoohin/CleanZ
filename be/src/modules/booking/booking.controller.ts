@@ -38,6 +38,7 @@ import {
 import { CheckinDto } from './dto/checkin.dto';
 import { UpdateBookingScheduleAddressDto } from './dto/update-booking-schedule-address.dto';
 import { TaskerCompletedBookingQueryDto } from './dto/tasker-completed-booking-query.dto';
+import { CompleteWorkDto, StartWorkDto } from './dto/work-photo.dto';
 import {
   CustomerActiveBookingResponse,
   CustomerBookingCreatedResponse,
@@ -662,8 +663,9 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 7 — Bắt đầu làm việc',
     description:
-      'Chỉ booking ở CHECKED_IN mới được chuyển sang IN_PROGRESS. FE không cần tiếp tục tracking đường đi, chỉ hiển thị thời gian làm việc và thông tin booking.',
+      'Chỉ booking ở CHECKED_IN mới được chuyển sang IN_PROGRESS. FE không cần tiếp tục tracking đường đi, chỉ hiển thị thời gian làm việc và thông tin booking. Có thể kèm tối đa 10 ảnh đầu ca (tùy chọn) để làm bằng chứng hiện trạng trước khi làm.',
   })
+  @ApiBody({ type: StartWorkDto, required: false })
   @ApiParam({
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
@@ -679,8 +681,13 @@ export class BookingController {
   markTaskerInProgress(
     @CurrentUser('id') userId: string,
     @Param('id') bookingId: string,
+    @Body() startWorkDto: StartWorkDto,
   ): Promise<TaskerAssignedBookingDetailResponse> {
-    return this.taskerBookingService.markInProgress(userId, bookingId);
+    return this.taskerBookingService.markInProgress(
+      userId,
+      bookingId,
+      startWorkDto,
+    );
   }
 
   @Patch('tasker/:id/complete')
@@ -689,8 +696,9 @@ export class BookingController {
   @ApiOperation({
     summary: 'Tasker step 8 — Hoàn thành công việc',
     description:
-      'Chỉ booking ở IN_PROGRESS mới được chuyển sang COMPLETED. Với CASH, hệ thống đánh dấu PAID, không cộng ví Tasker và khấu trừ phí nền tảng từ ký quỹ. Với thanh toán online, booking phải PAID trước và Tasker nhận phần thu nhập ròng vào ví.',
+      'Chỉ booking ở IN_PROGRESS mới được chuyển sang COMPLETED. Bắt buộc kèm tối thiểu 1 ảnh cuối ca (tối đa 10) — thiếu ảnh thì không hoàn thành và không quyết toán. Với CASH, hệ thống đánh dấu PAID, không cộng ví Tasker và khấu trừ phí nền tảng từ ký quỹ. Với thanh toán online, booking phải PAID trước và Tasker nhận phần thu nhập ròng vào ví.',
   })
+  @ApiBody({ type: CompleteWorkDto })
   @ApiParam({
     name: 'id',
     example: '7b9a2fe1-5a25-4f01-8e5d-54f2625df69f',
@@ -707,8 +715,13 @@ export class BookingController {
   markTaskerCompleted(
     @CurrentUser('id') userId: string,
     @Param('id') bookingId: string,
+    @Body() completeWorkDto: CompleteWorkDto,
   ): Promise<TaskerAssignedBookingDetailResponse> {
-    return this.taskerBookingService.markCompleted(userId, bookingId);
+    return this.taskerBookingService.markCompleted(
+      userId,
+      bookingId,
+      completeWorkDto,
+    );
   }
 
   @Patch('tasker/:id/no-show-explanation')

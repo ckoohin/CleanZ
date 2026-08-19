@@ -380,6 +380,8 @@ export interface CustomerBookingDetail {
   confirmationDeadline?: string | null;
   workTiming?: BookingWorkTiming;
   noShow?: BookingNoShow;
+  /** Ảnh hiện trường tasker nộp — trước và sau khi làm. */
+  workPhotos?: BookingWorkPhotos;
   /** Phần tiền hoàn của booking đã tự động được dùng để thu công nợ khách vắng. */
   refundDebtRecovered?: number;
   absence?: CustomerBookingAbsenceReport | null;
@@ -505,6 +507,32 @@ export interface TaskerCheckinPayload {
   proofPhotoUrl?: string;
 }
 
+/** Ảnh hiện trường đã lưu trên hệ thống (đầu ca / cuối ca). */
+export interface BookingWorkPhoto {
+  id: string;
+  url: string;
+  uploadedAt: string;
+}
+
+export interface BookingWorkPhotos {
+  before: BookingWorkPhoto[];
+  after: BookingWorkPhoto[];
+}
+
+/** Ảnh gửi kèm khi bắt đầu / hoàn thành công việc. */
+export interface WorkPhotoPayloadItem {
+  url: string;
+  publicId?: string;
+}
+
+export interface TaskerStartWorkPayload {
+  beforePhotos?: WorkPhotoPayloadItem[];
+}
+
+export interface TaskerCompleteWorkPayload {
+  afterPhotos: WorkPhotoPayloadItem[];
+}
+
 export interface TaskerAssignedBookingDetail {
   id: string;
   bookingCode: string;
@@ -579,6 +607,7 @@ export interface TaskerAssignedBookingDetail {
   flags: { hasPet: boolean };
   workTiming?: BookingWorkTiming;
   noShow?: BookingNoShow;
+  workPhotos?: BookingWorkPhotos;
   overtimeRequest?: BookingOvertimeRequest;
   createdAt: string;
   updatedAt: string;

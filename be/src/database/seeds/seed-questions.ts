@@ -9,7 +9,10 @@ import { DataSource } from 'typeorm';
 import AppDataSource from '../data-source';
 import { QuestionEntity } from '../../modules/quiz/entities/question.entity';
 
-const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswer'>[] = [
+const QUESTIONS: Pick<
+  QuestionEntity,
+  'questionText' | 'options' | 'correctAnswer'
+>[] = [
   {
     questionText: 'bTaskee có phải là công ty môi giới dịch vụ không ?',
     options: [
@@ -31,7 +34,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
     correctAnswer: '“Lướt chạm cho cuộc sống thảnh thơi”',
   },
   {
-    questionText: 'Con đường phát triển cao nhất mà chị có thể đạt được tại bTaskee là gì ?',
+    questionText:
+      'Con đường phát triển cao nhất mà chị có thể đạt được tại bTaskee là gì ?',
     options: [
       'Trở thành trợ lý gia đình cao cấp',
       'Trở thành Nhân viên chính thức',
@@ -47,7 +51,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'Chỗ nào bẩn làm trước, sạch làm sau.',
       'Dọn dẹp từ trên xuống dưới, làm tới đâu sạch sẽ gọn gàng đến đó.',
     ],
-    correctAnswer: 'Dọn dẹp từ trên xuống dưới, làm tới đâu sạch sẽ gọn gàng đến đó.',
+    correctAnswer:
+      'Dọn dẹp từ trên xuống dưới, làm tới đâu sạch sẽ gọn gàng đến đó.',
   },
   {
     questionText: 'Nguyên tắc đầu tiên khi dọn dẹp nhà là gì?',
@@ -81,7 +86,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'Lau nước lau sàn trước sau đó mới dùng nước sạch lau lại vì nước lau sàn là chất tẩy rửa dùng để tẩy các vết bẩn trên sàn.',
   },
   {
-    questionText: 'Nguyên tắc sử dụng khăn khi lau bàn ghế, các vật dụng là gì?',
+    questionText:
+      'Nguyên tắc sử dụng khăn khi lau bàn ghế, các vật dụng là gì?',
     options: [
       'Sử dụng khăn khô để lau.',
       'Sử dụng khăn ẩm để lau',
@@ -134,7 +140,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn.',
   },
   {
-    questionText: 'Nguyên tắc sử dụng hóa chất nào sau đây là Sai? (Bản trắc nghiệm chữ)',
+    questionText:
+      'Nguyên tắc sử dụng hóa chất nào sau đây là Sai? (Bản trắc nghiệm chữ)',
     options: [
       'A. Sau khi sử dụng hóa chất, tất cả đồ đạc của khách hàng phải được rửa lại bằng nước sạch nhiều lần.',
       'B. Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn.',
@@ -145,7 +152,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'B. Sử dụng Vim và các hóa chất tẩy rửa mạnh để rửa vòi nước, vòi sen hoặc các đồ inox sẽ sạch hơn.',
   },
   {
-    questionText: 'Khi dọn dẹp phòng ngủ có cần thay ga giường cho khách hàng không?',
+    questionText:
+      'Khi dọn dẹp phòng ngủ có cần thay ga giường cho khách hàng không?',
     options: [
       'Cần, vì dọn dẹp phải thay mới hết cho sạch sẽ',
       'Không cần, vì thường nhà khách hàng chỉ có 1 bộ ga.',
@@ -155,7 +163,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'Nên hỏi khách hàng xem có cần thay ga giường hay không và làm theo yêu cầu của khách.',
   },
   {
-    questionText: 'Đối với sàn gỗ, cửa gỗ, bàn gỗ, tủ gỗ người giúp việc nên vệ sinh như thế nào?',
+    questionText:
+      'Đối với sàn gỗ, cửa gỗ, bàn gỗ, tủ gỗ người giúp việc nên vệ sinh như thế nào?',
     options: [
       'Lau bằng khăn khô để tránh hư gỗ.',
       'Lau bằng khăn ẩm vắt thật khô.',
@@ -206,7 +215,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
     correctAnswer: 'Hỏi ý kiến khách hàng về cách xử lý (bỏ đi hay giữ lại)',
   },
   {
-    questionText: 'Khi kết thúc ca làm, người giúp việc nên đối thoại như thế nào với khách',
+    questionText:
+      'Khi kết thúc ca làm, người giúp việc nên đối thoại như thế nào với khách',
     options: [
       'Thông báo khách thanh toán và ra về',
       'Nhờ khách kiểm tra và làm lại nếu khách chưa hài lòng -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhờ khách kiểm tra balo/túi -> Nhận thanh toán -> Chào, cám ơn và nhắn nhủ Nếu khách hài lòng về dịch vụ thì hãy đánh 5 sao để dễ dàng đặt việc với trợ lý yêu thích và lần tới.',
@@ -216,7 +226,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'Nhờ khách kiểm tra -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhận thanh toán -> Chào khách và ra về',
   },
   {
-    questionText: 'Đồng phục chuẩn của cộng tác viên khi tới nhà khách hàng là gì?',
+    questionText:
+      'Đồng phục chuẩn của cộng tác viên khi tới nhà khách hàng là gì?',
     options: [
       'A. Mặc áo bTaskee, quần dài, không được mặc đầm váy, quần ngắn, rách, màu nổi và phải mang giày.',
       'B. Luôn mặc đồng phục chỉnh chu, áo bTaskee, quần tối màu, không mặc đầm/váy/quần rách/sáng màu, quần áo luôn sạch sẽ, khử mùi cơ thể nếu có, đeo khẩu trang.',
@@ -255,7 +266,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'A. Để hóa chất xa tầm tay trẻ em và vật nuôi trong nhà khách hàng.',
       'B. Không quan tâm, vì công việc của mình không liên quan đến trẻ em và vật nuôi nhà khách hàng.',
     ],
-    correctAnswer: 'A. Để hóa chất xa tầm tay trẻ em và vật nuôi trong nhà khách hàng.',
+    correctAnswer:
+      'A. Để hóa chất xa tầm tay trẻ em và vật nuôi trong nhà khách hàng.',
   },
   {
     questionText: 'Câu nào sau đây là ĐÚNG?',
@@ -264,7 +276,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'B. Găng tay có thể bắt buộc mang, nhưng không nhất thiết phải đeo khẩu trang.',
       'C. Nếu khách hàng không bắt buộc thì không cần phải mang găng tay và đeo khẩu trang.',
     ],
-    correctAnswer: 'A. Phải mang găng tay và đeo khẩu trang xuyên suốt quá trình dọn dẹp.',
+    correctAnswer:
+      'A. Phải mang găng tay và đeo khẩu trang xuyên suốt quá trình dọn dẹp.',
   },
   {
     questionText:
@@ -278,7 +291,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'A. Khéo léo trao đổi với khách hàng để khách hiểu và vui vẻ tiếp tục làm việc, nếu khách vẫn không thay đổi thái độ thì liên hệ hotline công ty nhờ hỗ trợ.',
   },
   {
-    questionText: 'Nếu phát hiện khách hàng làm rơi hay quên đồ có giá trị thì phải làm sao?',
+    questionText:
+      'Nếu phát hiện khách hàng làm rơi hay quên đồ có giá trị thì phải làm sao?',
     options: [
       'A. Báo ngay với khách hàng.',
       'B. Cất giữ và phải chụp hình lại nơi cất giữ.',
@@ -322,7 +336,8 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
       'D. Nét mặt tươi vui, thân thiện, lắng nghe những hướng dẫn của khách để tránh làm sai công việc khách yêu cầu, tập trung vào công việc không làm việc riêng.',
   },
   {
-    questionText: 'Khi đã hoàn thành công việc, cộng tác viên nên làm gì tiếp theo?',
+    questionText:
+      'Khi đã hoàn thành công việc, cộng tác viên nên làm gì tiếp theo?',
     options: [
       'A. Tự đi kiểm tra chất lượng lại một lần xem mình có thiếu sót gì hay không và khắc phục nếu có.',
       'B. Nhờ khách kiểm tra và làm lại nếu khách chưa hài lòng -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhờ khách kiểm tra balo/túi -> Nhận thanh toán -> Chào, cám ơn và nhắn nhủ nếu khách hài lòng về dịch vụ thì hãy đánh 5 sao để dễ dàng đặt việc với trợ lý yêu thích và lần tới. Nhờ khách kiểm tra -> Cất đồ đạc đã sử dụng gọn gàng, ngăn nắp -> Nhận thanh toán -> Chào khách và ra về.',
@@ -332,13 +347,15 @@ const QUESTIONS: Pick<QuestionEntity, 'questionText' | 'options' | 'correctAnswe
     correctAnswer: 'D. Đáp án A và B.',
   },
   {
-    questionText: 'Khi đến nhà khách hàng, cộng tác viên nên đối thoại như thế nào?',
+    questionText:
+      'Khi đến nhà khách hàng, cộng tác viên nên đối thoại như thế nào?',
     options: [
       'A. Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm.',
       'B. Chào khách giới thiệu tên -> xin phép vào làm việc.',
       'C. Chào hỏi giới thiệu tên -> báo cho khách biết mình làm ở nhà khách hàng -> hỏi cụ thể công việc để trao đổi tránh quá tải -> hỏi xin phép dụng cụ -> nhắc khách hàng cất đồ đạc tư trang.',
     ],
-    correctAnswer: 'A. Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm.',
+    correctAnswer:
+      'A. Chào khách -> giới thiệu tên, đến từ bTaskee -> xin phép vào làm.',
   },
   {
     questionText: 'Trước khi lau dọn phòng ngủ, người giúp việc cần làm gì?',

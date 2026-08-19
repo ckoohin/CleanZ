@@ -21,13 +21,17 @@ export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
   @Get('active')
-  @ApiOperation({ summary: 'Lấy bài kiểm tra đang hoạt động (không có đáp án)' })
+  @ApiOperation({
+    summary: 'Lấy bài kiểm tra đang hoạt động (không có đáp án)',
+  })
   getActiveQuiz(@CurrentUser() user: AuthUser) {
     return this.quizService.getActiveQuiz(user.id);
   }
 
   @Get('my-status')
-  @ApiOperation({ summary: 'Trạng thái thi của tasker: đã pass, số lần đã thi, điểm gần nhất' })
+  @ApiOperation({
+    summary: 'Trạng thái thi của tasker: đã pass, số lần đã thi, điểm gần nhất',
+  })
   getMyStatus(@CurrentUser() user: AuthUser) {
     return this.quizService.getMyStatus(user.id);
   }

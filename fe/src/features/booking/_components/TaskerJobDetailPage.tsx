@@ -21,7 +21,9 @@ import {
   Loader2,
   ShieldAlert,
   XCircle,
+  X,
   Crown,
+  Camera,
 } from "lucide-react";
 import {
   usePostedBookingDetail,
@@ -51,6 +53,10 @@ import { BookingStatusStepper } from "@/features/tasker/_components/BookingStatu
 import { TaskerCheckinProofSheet } from "./TaskerCheckinProofSheet";
 import { TaskerNoShowPanel } from "./TaskerNoShowPanel";
 import { TaskerAbsenceReportAction } from "./TaskerAbsenceReportAction";
+import {
+  TaskerWorkPhotoPicker,
+  type WorkPhotoDraft,
+} from "./TaskerWorkPhotoPicker";
 import { toast } from "@/lib/toast";
 import {
   extractCheckinErrorMessage,
@@ -145,6 +151,7 @@ function ActionButton({
   icon: Icon,
   onClick,
   isPending,
+  disabled = false,
   color = "primary",
 }: {
   label: string;
@@ -152,6 +159,7 @@ function ActionButton({
   icon: React.ElementType;
   onClick: () => void;
   isPending: boolean;
+  disabled?: boolean;
   color?: "primary" | "emerald" | "amber";
 }) {
   const colorMap = {
@@ -163,7 +171,7 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      disabled={isPending}
+      disabled={isPending || disabled}
       aria-busy={isPending}
       className={`w-full py-4 text-white font-bold text-sm rounded-2xl shadow-lg ${colorMap[color]} active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
     >
@@ -826,11 +834,14 @@ function TaskerOvertimeSection({
   bookingId,
   onRequestComplete,
   isCompletePending,
+  canComplete,
 }: {
   data: TaskerAssignedBookingDetail;
   bookingId: string;
   onRequestComplete: () => void;
   isCompletePending: boolean;
+  /** false khi chưa có ảnh cuối ca — backend sẽ từ chối, nên chặn ngay tại nút. */
+  canComplete: boolean;
 }) {
   const requestOvertime = useRequestOvertime(bookingId);
   const confirmReceived = useConfirmSurchargeReceived(bookingId);
@@ -936,13 +947,17 @@ function TaskerOvertimeSection({
         </button>
       )}
 
-      <ActionButton
-        label="Hoàn thành công việc ✅"
-        icon={Flag}
-        onClick={onRequestComplete}
-        isPending={isCompletePending}
-        color="emerald"
-      />
+      <div className="space-y-2">
+        <ActionButton
+          label="Hoàn thành công việc ✅"
+          icon={Flag}
+          onClick={onRequestComplete}
+          isPending={isCompletePending}
+          disabled={!canComplete}
+          color="emerald"
+        />
+       
+      </div>
 
       {/* Sheet xác nhận gửi thông báo */}
       <AnimatePresence>
@@ -959,7 +974,7 @@ function TaskerOvertimeSection({
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
-              className="fixed inset-x-4 bottom-6 md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
+              className="fixed inset-x-4 bottom-6 md:max-w-md md:mx-auto z-60 bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
             >
               <div className="text-center space-y-1">
                 <h3 className="font-bold text-base">
@@ -1049,6 +1064,13 @@ function AssignedDetailView({
   } = useTaskerLocationTracking(bookingId, data.status === "TASKER_ON_THE_WAY");
 
   const [showConfirmComplete, setShowConfirmComplete] = useState(false);
+  const [beforePhotos, setBeforePhotos] = useState<WorkPhotoDraft[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<WorkPhotoDraft[]>([]);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [showSkipBeforePhotos, setShowSkipBeforePhotos] = useState(false);
+  const savedBeforeCount = data.workPhotos?.before?.length ?? 0;
+  const savedAfterCount = data.workPhotos?.after?.length ?? 0;
+  const hasAfterPhoto = savedAfterCount + afterPhotos.length > 0;
 
   const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.CONFIRMED;
   const canContact = data.canContactCustomer;
@@ -1062,12 +1084,43 @@ function AssignedDetailView({
         : undefined;
 
   const handleComplete = () => {
-    markComplete.mutate(undefined, {
-      onSuccess: () => {
-        setShowConfirmComplete(false);
-        router.push("/tasker/jobs");
+    markComplete.mutate(
+      { afterPhotos: afterPhotos.map(({ url, publicId }) => ({ url, publicId })) },
+      {
+        onSuccess: () => {
+          setShowConfirmComplete(false);
+          setAfterPhotos([]);
+          router.push("/tasker/jobs");
+        },
       },
-    });
+    );
+  };
+
+  const handleStart = (skipPhotoPrompt = false) => {
+    // Ảnh đầu ca là tùy chọn, nhưng nhắc một lần để tasker không quên chụp.
+    if (
+      !skipPhotoPrompt &&
+      beforePhotos.length === 0 &&
+      savedBeforeCount === 0
+    ) {
+      setShowSkipBeforePhotos(true);
+      return;
+    }
+    setShowSkipBeforePhotos(false);
+    markStart.mutate(
+      {
+        beforePhotos: beforePhotos.map(({ url, publicId }) => ({
+          url,
+          publicId,
+        })),
+      },
+      {
+        onSuccess: () => {
+          setBeforePhotos([]);
+          setShowSkipBeforePhotos(false);
+        },
+      },
+    );
   };
 
   const runCheckin = (
@@ -1516,23 +1569,46 @@ function AssignedDetailView({
       )}
       {data.status === "CHECKED_IN" && (
         <div className="space-y-4">
-          <ActionButton
-            label="Bắt đầu làm việc"
-            icon={PlayCircle}
-            onClick={() => markStart.mutate()}
-            isPending={markStart.isPending}
-            color="primary"
-          />
+          <div className="space-y-2">
+            <ActionButton
+              label="Bắt đầu làm việc"
+              icon={PlayCircle}
+              onClick={() => handleStart()}
+              isPending={markStart.isPending}
+              disabled={isPhotoUploading}
+              color="primary"
+            />
+            {isPhotoUploading && (
+              <p className="text-center text-[11px] font-semibold text-muted-foreground">
+                Đang tải ảnh lên, chờ một chút…
+              </p>
+            )}
+          </div>
           <TaskerAbsenceReportAction bookingId={bookingId} />
         </div>
       )}
       {data.status === "IN_PROGRESS" && (
-        <TaskerOvertimeSection
-          data={data}
-          bookingId={bookingId}
-          onRequestComplete={() => setShowConfirmComplete(true)}
-          isCompletePending={markComplete.isPending}
-        />
+        <div className="space-y-4">
+          {/* Đã checkout và đang chờ chốt phát sinh thì không cần nộp ảnh nữa. */}
+          {!data.workTiming?.surchargePending && (
+            <TaskerWorkPhotoPicker
+              title="Ảnh cuối ca"
+              description="Gửi hình ảnh để xác nhận công việc đã hoàn tất."
+              required
+              onChange={setAfterPhotos}
+              onUploadingChange={setIsPhotoUploading}
+              savedPhotos={data.workPhotos?.after ?? []}
+              disabled={markComplete.isPending}
+            />
+          )}
+          <TaskerOvertimeSection
+            data={data}
+            bookingId={bookingId}
+            onRequestComplete={() => setShowConfirmComplete(true)}
+            isCompletePending={markComplete.isPending}
+            canComplete={hasAfterPhoto && !isPhotoUploading}
+          />
+        </div>
       )}
       {data.status === "COMPLETED" && (
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
@@ -1579,6 +1655,89 @@ function AssignedDetailView({
           )}
         </>
       )}
+      <AnimatePresence>
+        {showSkipBeforePhotos && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => {
+                if (!isPhotoUploading && !markStart.isPending) {
+                  setShowSkipBeforePhotos(false);
+                }
+              }}
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="before-photo-sheet-title"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 24 }}
+              className="fixed inset-x-3 bottom-3 z-60 max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-border/50 bg-card p-4 shadow-2xl sm:inset-x-4 sm:bottom-4 sm:mx-auto sm:max-w-md sm:p-5"
+            >
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+                  <Camera className="size-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3
+                    id="before-photo-sheet-title"
+                    className="text-sm font-bold text-foreground"
+                  >
+                    Ảnh đầu ca
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSkipBeforePhotos(false)}
+                  disabled={isPhotoUploading || markStart.isPending}
+                  aria-label="Đóng bước ảnh đầu ca"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted disabled:opacity-50"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+
+              <TaskerWorkPhotoPicker
+                title="Chụp / chọn ảnh"
+                description="Chụp lại khu vực làm việc trước khi bắt đầu"
+                onChange={setBeforePhotos}
+                onUploadingChange={setIsPhotoUploading}
+                savedPhotos={data.workPhotos?.before ?? []}
+                disabled={markStart.isPending}
+              />
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => handleStart(true)}
+                  disabled={markStart.isPending || isPhotoUploading}
+                  className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-border bg-muted/20 px-3 py-3 text-xs font-bold text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
+                >
+                  Bỏ qua ảnh
+                </button>
+                <button
+                  onClick={() => handleStart()}
+                  disabled={
+                    markStart.isPending ||
+                    isPhotoUploading ||
+                    beforePhotos.length + savedBeforeCount === 0
+                  }
+                  className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-3 text-xs font-bold text-white shadow-md shadow-primary/20 transition-all active:scale-95 disabled:opacity-60"
+                >
+                  {markStart.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Camera className="size-4" aria-hidden="true" />
+                  )}
+                  Bắt đầu làm việc
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Complete Confirmation Modal */}
       <AnimatePresence>
@@ -1595,7 +1754,7 @@ function AssignedDetailView({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-x-4 top-[30%] md:max-w-md md:mx-auto z-[60] bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
+              className="fixed inset-x-4 top-[30%] md:max-w-md md:mx-auto z-60 bg-card border border-border/50 rounded-3xl p-6 shadow-2xl space-y-4"
             >
               <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
                 <CheckCircle2 className="w-6 h-6" />
@@ -1605,9 +1764,10 @@ function AssignedDetailView({
                   Hoàn thành công việc?
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Xác nhận rằng bạn đã hoàn tất toàn bộ các đầu việc dọn dẹp
-                  theo yêu cầu của khách hàng. Thu nhập ước tính sẽ được cộng
-                  trực tiếp vào tài khoản của bạn.
+                  Xác nhận rằng bạn đã hoàn tất toàn bộ các đầu việc dọn dẹp theo yêu cầu của khách hàng. Thu nhập ước tính sẽ được cộng trực tiếp vào tài khoản của bạn.
+                </p>
+                <p className="text-xs font-semibold text-emerald-700">
+                  Đính kèm {afterPhotos.length + savedAfterCount} ảnh cuối ca
                 </p>
               </div>
               <div className="flex gap-3 pt-2">

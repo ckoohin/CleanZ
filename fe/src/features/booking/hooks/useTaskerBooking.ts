@@ -6,6 +6,8 @@ import { getApiErrorMessage } from "@/lib/api/error-message";
 import type {
   CreateBookingForCustomerDto,
   TaskerCheckinPayload,
+  TaskerCompleteWorkPayload,
+  TaskerStartWorkPayload,
   TaskerCompletedBookingRange,
 } from "../types/booking.types";
 import type { ReportBookingAbsencePayload } from "../types/absence-report.types";
@@ -269,11 +271,12 @@ export function useReportCustomerAbsence(bookingId: string) {
   });
 }
 
-/** 10. Bắt đầu làm việc */
+/** 10. Bắt đầu làm việc (ảnh đầu ca là tùy chọn) */
 export function useMarkStart(bookingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => taskerBookingApi.markStart(bookingId),
+    mutationFn: (payload: TaskerStartWorkPayload = {}) =>
+      taskerBookingApi.markStart(bookingId, payload),
     onSuccess: () => {
       toast.success("Bắt đầu làm việc! 💪");
       void qc.invalidateQueries({ queryKey: TASKER_KEYS.assigned(bookingId) });
@@ -283,11 +286,12 @@ export function useMarkStart(bookingId: string) {
   });
 }
 
-/** 11. Hoàn thành */
+/** 11. Hoàn thành — backend chặn nếu không có ảnh cuối ca */
 export function useMarkComplete(bookingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => taskerBookingApi.markComplete(bookingId),
+    mutationFn: (payload: TaskerCompleteWorkPayload) =>
+      taskerBookingApi.markComplete(bookingId, payload),
     onSuccess: (data) => {
       if (data.workTiming?.surchargePending) {
         toast.success(

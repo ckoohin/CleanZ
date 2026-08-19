@@ -8,6 +8,9 @@ export type UploadImageResult = {
 
 type UploadImageOptions = {
   folder?: string;
+  /** % đã gửi lên server (0–100) — dùng cho progress bar khi upload ảnh lớn. */
+  onProgress?: (percent: number) => void;
+  signal?: AbortSignal;
 };
 
 const createImageFormData = (file: File, options?: UploadImageOptions) => {
@@ -23,6 +26,16 @@ export const uploadApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      signal: options?.signal,
+      onUploadProgress: options?.onProgress
+        ? (event) => {
+            // total thiếu khi trình duyệt không biết kích thước — giữ nguyên % cũ.
+            if (!event.total) return;
+            options.onProgress?.(
+              Math.min(100, Math.round((event.loaded * 100) / event.total)),
+            );
+          }
+        : undefined,
     });
 
     return data.data;

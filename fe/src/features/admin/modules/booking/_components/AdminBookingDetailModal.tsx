@@ -37,6 +37,7 @@ import {
   useReviewBookingCheckin,
   useReviewBookingNoShow,
 } from "@/features/admin/modules/booking/hooks/useAdminBooking";
+import { BookingWorkPhotoGallery } from "@/features/booking/_components/BookingWorkPhotoGallery";
 import { AssignTaskerDialog } from "@/features/admin/modules/booking/_components/AssignTaskerDialog";
 import { ChangeBookingStatusDialog } from "@/features/admin/modules/booking/_components/ChangeBookingStatusDialog";
 import { useRouter } from "next/navigation";
@@ -1100,6 +1101,22 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                       )}
                   </div>
                 )}
+
+                {activeTab === "work" &&
+                  (booking.workPhotos?.before?.length ||
+                    booking.workPhotos?.after?.length) && (
+                    <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-4">
+                      <h3 className="mb-3 flex items-center gap-2 border-b border-[var(--c-line)] pb-2 text-sm font-bold">
+                        <Camera className="size-4 text-[var(--c-primary-strong)]" />
+                        Ảnh hiện trường
+                      </h3>
+                      <BookingWorkPhotoGallery
+                        bare
+                        before={booking.workPhotos?.before}
+                        after={booking.workPhotos?.after}
+                      />
+                    </div>
+                  )}
 
                 {activeTab === "checkin" &&
                   (workTiming?.checkedInAt ||

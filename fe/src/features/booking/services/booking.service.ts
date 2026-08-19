@@ -15,6 +15,8 @@ import type {
   TaskerAcceptResponse,
   TaskerAssignedBookingDetail,
   TaskerCheckinPayload,
+  TaskerCompleteWorkPayload,
+  TaskerStartWorkPayload,
   TaskerCompletedBookingListResponse,
   TaskerCompletedBookingRange,
   TaskerCreatedBookingResponse,
@@ -278,16 +280,22 @@ export const taskerBookingApi = {
       } as Parameters<typeof http.post>[2])
       .then((r) => r.data.data ?? r.data),
 
-  /** 10. Bắt đầu làm việc */
-  markStart: (id: string): Promise<TaskerAssignedBookingDetail> =>
+  /** 10. Bắt đầu làm việc (kèm ảnh đầu ca — tùy chọn) */
+  markStart: (
+    id: string,
+    payload: TaskerStartWorkPayload = {},
+  ): Promise<TaskerAssignedBookingDetail> =>
     http
-      .patch(API_ENDPOINTS.BOOKING.TASKER_START(id))
+      .patch(API_ENDPOINTS.BOOKING.TASKER_START(id), payload)
       .then((r) => r.data.data ?? r.data),
 
-  /** 11. Hoàn thành */
-  markComplete: (id: string): Promise<TaskerAssignedBookingDetail> =>
+  /** 11. Hoàn thành (bắt buộc ít nhất 1 ảnh cuối ca) */
+  markComplete: (
+    id: string,
+    payload: TaskerCompleteWorkPayload,
+  ): Promise<TaskerAssignedBookingDetail> =>
     http
-      .patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id))
+      .patch(API_ENDPOINTS.BOOKING.TASKER_COMPLETE(id), payload)
       .then((r) => r.data.data ?? r.data),
 
   /** 11A. Báo khách công việc có thể phát sinh thêm giờ. */

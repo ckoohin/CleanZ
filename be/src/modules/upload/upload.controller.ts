@@ -31,6 +31,14 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; //5MB
 const BLOG_UPLOAD_FOLDER = 'CleanZ/blog';
+/** Ảnh đầu ca/cuối ca của tasker — gom riêng để dễ đối soát và dọn dẹp về sau. */
+const BOOKING_WORK_UPLOAD_FOLDER = 'CleanZ/booking-work';
+
+/** Chỉ cho phép ghi vào các thư mục đã biết; giá trị lạ rơi về folder mặc định. */
+const ALLOWED_UPLOAD_FOLDERS: string[] = [
+  BLOG_UPLOAD_FOLDER,
+  BOOKING_WORK_UPLOAD_FOLDER,
+];
 
 type UploadImageBody = {
   folder?: string;
@@ -55,7 +63,11 @@ export class UploadController {
       type: 'object',
       properties: {
         file: { type: 'string', format: 'binary' },
-        folder: { type: 'string', example: BLOG_UPLOAD_FOLDER },
+        folder: {
+          type: 'string',
+          enum: ALLOWED_UPLOAD_FOLDERS,
+          example: BLOG_UPLOAD_FOLDER,
+        },
       },
       required: ['file'],
     },
@@ -91,7 +103,9 @@ export class UploadController {
     }
 
     const folder =
-      body?.folder === BLOG_UPLOAD_FOLDER ? BLOG_UPLOAD_FOLDER : undefined;
+      body?.folder && ALLOWED_UPLOAD_FOLDERS.includes(body.folder)
+        ? body.folder
+        : undefined;
     const result = await this.uploadService.uploadImage(file, folder);
 
     return ResponseHelper.success(result, 'Image uploaded successfully');

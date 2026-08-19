@@ -1,6 +1,7 @@
 import { isSurchargePending } from 'src/common/enums/booking-surcharge-status.enum';
 import { BookingOvertimeRequestStatus } from 'src/common/enums/booking-overtime-request-status.enum';
 import { OVERTIME_REQUEST_WINDOW_MS } from './booking-checkin.service';
+import { BookingWorkPhotoService } from './booking-work-photo.service';
 import {
   BadRequestException,
   ConflictException,
@@ -215,6 +216,7 @@ export class CustomerBookingService {
     private readonly walletService: WalletService,
     private readonly configService: ConfigService,
     private readonly customerDebtService: CustomerDebtService,
+    private readonly bookingWorkPhotoService: BookingWorkPhotoService,
   ) {}
 
   private readonly logger = new Logger(CustomerBookingService.name);
@@ -1323,45 +1325,52 @@ export class CustomerBookingService {
         );
       }
 
-      const [payment, statusLogs, voucher, absenceReport, refundDebtRecovery] =
-        await Promise.all([
-          this.paymentService.findLatestByBookingId(
-            this.dataSource.manager,
-            booking.id,
-          ),
-          this.dataSource.getRepository(BookingStatusLogEntity).find({
-            where: { booking: { id: booking.id } },
-            order: { createdAt: 'ASC' },
-          }),
-          booking.voucherId
-            ? this.voucherService.getById(
-                this.dataSource.manager,
-                booking.voucherId,
-              )
-            : Promise.resolve(null),
-          this.dataSource.getRepository(BookingAbsenceReportEntity).findOne({
-            where: { booking: { id: booking.id } },
-            order: { reportedAt: 'DESC' },
-          }),
-          this.dataSource
-            .getRepository(WalletTransactionEntity)
-            .createQueryBuilder('debtRecovery')
-            .innerJoin('debtRecovery.wallet', 'recoveryWallet')
-            .select('COALESCE(SUM(debtRecovery.amount), 0)', 'total')
-            .where('debtRecovery.booking_id = :bookingId', {
-              bookingId: booking.id,
-            })
-            .andWhere('debtRecovery.reference_type = :referenceType', {
-              referenceType: CUSTOMER_DEBT_RECOVERY_REF,
-            })
-            .andWhere('debtRecovery.type = :transactionType', {
-              transactionType: WalletTransactionType.PAYMENT,
-            })
-            .andWhere('recoveryWallet.customer_id = :customerId', {
-              customerId: booking.customer.id,
-            })
-            .getRawOne<{ total: string }>(),
-        ]);
+      const [
+        payment,
+        statusLogs,
+        voucher,
+        absenceReport,
+        refundDebtRecovery,
+        workPhotos,
+      ] = await Promise.all([
+        this.paymentService.findLatestByBookingId(
+          this.dataSource.manager,
+          booking.id,
+        ),
+        this.dataSource.getRepository(BookingStatusLogEntity).find({
+          where: { booking: { id: booking.id } },
+          order: { createdAt: 'ASC' },
+        }),
+        booking.voucherId
+          ? this.voucherService.getById(
+              this.dataSource.manager,
+              booking.voucherId,
+            )
+          : Promise.resolve(null),
+        this.dataSource.getRepository(BookingAbsenceReportEntity).findOne({
+          where: { booking: { id: booking.id } },
+          order: { reportedAt: 'DESC' },
+        }),
+        this.dataSource
+          .getRepository(WalletTransactionEntity)
+          .createQueryBuilder('debtRecovery')
+          .innerJoin('debtRecovery.wallet', 'recoveryWallet')
+          .select('COALESCE(SUM(debtRecovery.amount), 0)', 'total')
+          .where('debtRecovery.booking_id = :bookingId', {
+            bookingId: booking.id,
+          })
+          .andWhere('debtRecovery.reference_type = :referenceType', {
+            referenceType: CUSTOMER_DEBT_RECOVERY_REF,
+          })
+          .andWhere('debtRecovery.type = :transactionType', {
+            transactionType: WalletTransactionType.PAYMENT,
+          })
+          .andWhere('recoveryWallet.customer_id = :customerId', {
+            customerId: booking.customer.id,
+          })
+          .getRawOne<{ total: string }>(),
+        this.bookingWorkPhotoService.findByBooking(this.dataSource, booking.id),
+      ]);
 
       const servicePackage = booking.package as
         | ServicePackageEntity
@@ -1461,6 +1470,8 @@ export class CustomerBookingService {
         checkedInAt: booking.checkedInAt ?? null,
         checkedOutAt: booking.checkedOutAt ?? null,
         completedAt: booking.completedAt ?? null,
+        // Ảnh hiện trường của tasker — khách xem trước khi xác nhận hoàn thành.
+        workPhotos,
         workTiming: {
           overtimeMinutes: toNumber(booking.overtimeMinutes),
           earlyMinutes: toNumber(booking.earlyMinutes),

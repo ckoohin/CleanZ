@@ -60,6 +60,7 @@ import {
 } from "@/features/customer/history/hooks/useReview";
 import { CustomerNoShowPanel } from "./CustomerNoShowPanel";
 import { CustomerAbsencePanel } from "./CustomerAbsencePanel";
+import { BookingWorkPhotoGallery } from "./BookingWorkPhotoGallery";
 import { DEFAULT_MIN_SCHEDULE_LEAD_MINUTES } from "@/features/customer/booking/utils/booking-schedule-time";
 import {
   shouldShowCustomerLiveTracking,
@@ -1251,6 +1252,11 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
             }
           />
         )}
+        {/* Ảnh hiện trường của nhân viên — xem trước khi xác nhận hoàn thành. */}
+        <BookingWorkPhotoGallery
+          before={booking.workPhotos?.before}
+          after={booking.workPhotos?.after}
+        />
         {/* Thông báo/yêu cầu thêm giờ trước khi checkout. */}
         {booking.status === "IN_PROGRESS" &&
           ["NOTIFIED", "PENDING"].includes(

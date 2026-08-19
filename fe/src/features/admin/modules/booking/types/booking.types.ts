@@ -192,6 +192,18 @@ export interface AdminBookingTimelineEntry {
   createdAt: string;
 }
 
+/** Ảnh hiện trường tasker nộp cho ca làm việc. */
+export interface AdminBookingWorkPhoto {
+  id: string;
+  url: string;
+  uploadedAt: string;
+}
+
+export interface AdminBookingWorkPhotos {
+  before: AdminBookingWorkPhoto[];
+  after: AdminBookingWorkPhoto[];
+}
+
 export interface AdminBookingDetail {
   id: string;
   bookingCode?: string;
@@ -256,6 +268,8 @@ export interface AdminBookingDetail {
     discountAmount: number;
     totalPrice: number;
   };
+
+  workPhotos?: AdminBookingWorkPhotos;
 
   operation?: {
     acceptedAt: string | null;

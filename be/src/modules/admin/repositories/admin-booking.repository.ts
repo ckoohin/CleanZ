@@ -80,6 +80,7 @@ import {
 } from '../helpers/booking-payment-breakdown.helper';
 import { BookingLifecycleSchedulerService } from 'src/modules/booking/services/booking-lifecycle-scheduler.service';
 import { BookingSettlementService } from 'src/modules/booking/services/booking-settlement.service';
+import { BookingWorkPhotoService } from 'src/modules/booking/services/booking-work-photo.service';
 import { overdueCompletionSql } from 'src/modules/booking/helpers/booking-lifecycle.helper';
 
 interface BookingStatusCountRow {
@@ -199,6 +200,7 @@ export class AdminBookingRepository {
     private readonly incidentAdminService: IncidentAdminService,
     private readonly bookingLifecycleScheduler: BookingLifecycleSchedulerService,
     private readonly bookingSettlementService: BookingSettlementService,
+    private readonly bookingWorkPhotoService: BookingWorkPhotoService,
   ) {}
 
   async createBooking(adminUserId: string, dto: CreateAdminBookingDto) {
@@ -1066,6 +1068,7 @@ export class AdminBookingRepository {
       settlementLedger,
       checkinIncident,
       noShowIncident,
+      workPhotos,
     ] = await Promise.all([
       this.dataSource.getRepository(PaymentEntity).findOne({
         where: { booking: { id: booking.id } },
@@ -1106,6 +1109,7 @@ export class AdminBookingRepository {
         })
         .orderBy('incident.reportedAt', 'DESC')
         .getOne(),
+      this.bookingWorkPhotoService.findByBooking(this.dataSource, booking.id),
     ]);
 
     const totalPrice = Number(booking.totalPrice);
@@ -1244,6 +1248,8 @@ export class AdminBookingRepository {
         discountAmount: Number(booking.discountAmount),
         totalPrice,
       },
+      // Ảnh hiện trường tasker nộp — bằng chứng đối soát khi có khiếu nại.
+      workPhotos,
       operation: {
         acceptedAt,
         checkedInAt: booking.checkedInAt ?? null,

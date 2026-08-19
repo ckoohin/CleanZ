@@ -37,9 +37,11 @@ import { BookingOvertimeRequestService } from './services/booking-overtime-reque
 import { TaskerScheduleAvailabilityService } from './services/tasker-schedule-availability.service';
 import { BookingLifecycleSchedulerService } from './services/booking-lifecycle-scheduler.service';
 import { BookingAbsenceReportEntity } from './entity/booking-absence-report.entity';
+import { BookingWorkPhotoEntity } from './entity/booking-work-photo.entity';
 import { BookingAbsenceSettlementService } from './services/booking-absence-settlement.service';
 import { BookingAbsenceService } from './services/booking-absence.service';
 import { BookingAbsenceAutomationService } from './services/booking-absence-automation.service';
+import { BookingWorkPhotoService } from './services/booking-work-photo.service';
 
 @Module({
   imports: [
@@ -52,6 +54,7 @@ import { BookingAbsenceAutomationService } from './services/booking-absence-auto
       BookingQuoteEntity,
       BookingAddonEntity,
       BookingAbsenceReportEntity,
+      BookingWorkPhotoEntity,
     ]),
     PaymentModule,
     PricingModule,
@@ -87,6 +90,7 @@ import { BookingAbsenceAutomationService } from './services/booking-absence-auto
     BookingAbsenceSettlementService,
     BookingAbsenceService,
     BookingAbsenceAutomationService,
+    BookingWorkPhotoService,
   ],
   exports: [
     BookingLocationPolicyService,
@@ -98,6 +102,7 @@ import { BookingAbsenceAutomationService } from './services/booking-absence-auto
     TaskerBookingService,
     BookingAbsenceSettlementService,
     BookingAbsenceService,
+    BookingWorkPhotoService,
   ],
 })
 export class BookingModule {}

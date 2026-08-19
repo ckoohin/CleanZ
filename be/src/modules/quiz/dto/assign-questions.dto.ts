@@ -1,4 +1,11 @@
-import { IsArray, IsInt, IsOptional, IsUUID, ArrayMinSize, Min } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  ArrayMinSize,
+  Min,
+} from 'class-validator';
 
 export class AssignQuestionsDto {
   @IsArray()
