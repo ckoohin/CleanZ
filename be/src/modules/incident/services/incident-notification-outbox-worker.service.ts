@@ -18,6 +18,7 @@ import {
 } from '../incident.constants';
 import { NotificationOutboxEntity } from '../entity/notification-outbox.entity';
 import { IncidentAlertService } from './incident-alert.service';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 export interface NotificationOutboxRunResult {
   processed: number;
@@ -197,11 +198,15 @@ export class IncidentNotificationOutboxWorkerService
 
   /**
    * `nextRetryAt` được GHI bằng đồng hồ DB (`calculateNextRetryAt(dbNow, …)`), nên phải
-   * ĐỌC cũng bằng `now()` của DB.
+   * ĐỌC cũng bằng đồng hồ DB.
    *
    * So bằng đồng hồ app tạo ra sai lệch CÓ HỆ THỐNG chứ không phải nhiễu ngẫu nhiên: app
    * chạy nhanh hơn DB thì mọi lần thử lại đều sớm hơn dự định đúng bằng độ lệch, chậm hơn
    * thì mọi lần đều muộn — và không có gì trong log hé lộ điều đó.
+   *
+   * Và phải là `VN_NOW_SQL`, không phải `now()` trần: `next_retry_at` là cột `timestamp
+   * without time zone` lưu giờ VN. Với session UTC qua pooler, `now()` cho mốc lùi 7 tiếng
+   * ⇒ mọi thông báo chờ thử lại nằm im thêm 7 tiếng mới được chọn.
    */
   private lockNextDueRow(
     manager: EntityManager,
@@ -216,11 +221,11 @@ export class IncidentNotificationOutboxWorkerService
         .setLock('pessimistic_write', undefined, ['outbox'])
         .setOnLocked('skip_locked')
         .where(
-          '(outbox.status = :pending AND (outbox.nextRetryAt IS NULL OR outbox.nextRetryAt <= now()))',
+          `(outbox.status = :pending AND (outbox.nextRetryAt IS NULL OR outbox.nextRetryAt <= ${VN_NOW_SQL}))`,
           { pending: NotificationOutboxStatus.PENDING },
         )
         .orWhere(
-          '(outbox.status = :failed AND outbox.retryCount < :maxRetries AND outbox.nextRetryAt IS NOT NULL AND outbox.nextRetryAt <= now())',
+          `(outbox.status = :failed AND outbox.retryCount < :maxRetries AND outbox.nextRetryAt IS NOT NULL AND outbox.nextRetryAt <= ${VN_NOW_SQL})`,
           {
             failed: NotificationOutboxStatus.FAILED,
             maxRetries: this.maxRetries,
@@ -391,7 +396,7 @@ export class IncidentNotificationOutboxWorkerService
   }
 
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = await manager.query('SELECT now() AS now');
+    const rows = await manager.query(`SELECT ${VN_NOW_SQL} AS now`);
     return new Date(rows[0].now);
   }
 }

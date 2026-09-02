@@ -25,6 +25,7 @@ import {
   INC_TYPE_LABEL_VI,
   incLabel,
 } from '../incident-report.labels';
+import { vietnamNow, VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 /**
  * Trần số dòng cho một lần xuất danh sách. Xem `EXPORT_MAX_ROWS` của module
@@ -44,7 +45,7 @@ const HOUR_FMT = '0.0';
  * khoản bồi thường.
  */
 const INCIDENT_MONEY_NOTE =
-  'Lưu ý: "Tiền duyệt chi" ĐÃ BAO GỒM "Tasker chịu" + "Nền tảng chịu" — đây là một khoản chia hai nguồn, không phải ba khoản riêng. "Chi ngoài ví" là phần chuyển khoản thủ công, nằm ngoài sổ ví.';
+  'Lưu ý: "Tiền duyệt chi" ĐÃ BAO GỒM "Tasker chịu" + "Nền tảng chịu" — đây là một khoản chia hai nguồn, không phải ba khoản riêng. "Chi ngoài ví" là phần chuyển khoản thủ công, nằm ngoài sổ ví (đã gồm cả khoản chuyển nhầm không đến tay khách).';
 
 interface GroupRow {
   k: string | null;
@@ -169,7 +170,7 @@ export class IncidentReportService {
       const total = await qb.getCount();
       const rowsRaw = await qb.limit(INCIDENT_EXPORT_MAX_ROWS).getMany();
       const truncated = total > INCIDENT_EXPORT_MAX_ROWS;
-      const now = Date.now();
+      const now = vietnamNow().getTime();
 
       const rows = rowsRaw.map((i) => ({
         incidentCode: i.incidentCode ?? '—',
@@ -208,7 +209,9 @@ export class IncidentReportService {
         platformBorne: IncidentReportService.money(i.platformBorneAmount),
         recovered: IncidentReportService.money(i.recoverableFromDepositAmount),
         uncovered: IncidentReportService.money(i.uncoveredLiabilityAmount),
-        externalPayout: IncidentReportService.money(i.externalPayoutAmount),
+        externalPayout:
+          IncidentReportService.money(i.externalPayoutAmount) +
+          IncidentReportService.money(i.externalPayoutLossAmount),
       }));
 
       const subtitle = truncated
@@ -433,7 +436,7 @@ export class IncidentReportService {
           label: 'Chi ngoài ví (chuyển khoản)',
           value: o.externalPayout,
           unit: 'đ',
-          note: 'Chi trả thủ công, không có bút toán ví tương ứng',
+          note: 'Chi trả thủ công (gồm cả khoản chuyển nhầm) — không có bút toán ví tương ứng',
         },
         {
           label: 'Nền tảng thực chịu',
@@ -676,9 +679,12 @@ export class IncidentReportService {
               COUNT(*) FILTER (WHERE finalized_at IS NOT NULL)::int AS finalized,
               COUNT(*) FILTER (WHERE status = 'COMPENSATED')::int AS compensated,
               COUNT(*) FILTER (WHERE status = 'REJECTED')::int AS rejected,
+              -- Giờ VN, không phải \`now()\` trần: cùng định nghĩa "quá hạn" với hàng đợi
+              -- admin và với cột "Quá hạn quyết định" của sheet danh sách. Ba chỗ này mà
+              -- dùng ba đồng hồ khác nhau thì cùng một file Excel tự mâu thuẫn.
               COUNT(*) FILTER (
                 WHERE decision_due_at IS NOT NULL
-                  AND decision_due_at < now()
+                  AND decision_due_at < ${VN_NOW_SQL}
                   AND status <> 'CLOSED'
               )::int AS overdue,
               AVG(EXTRACT(EPOCH FROM (finalized_at - reported_at)) / 60)
@@ -689,7 +695,10 @@ export class IncidentReportService {
               COALESCE(SUM(platform_borne_amount), 0) AS platform_borne,
               COALESCE(SUM(recoverable_from_deposit_amount), 0) AS recovered,
               COALESCE(SUM(uncovered_liability_amount), 0) AS uncovered,
-              COALESCE(SUM(external_payout_amount), 0) AS external_payout
+              -- Cộng cả phần chuyển nhầm không đến tay khách: cột này là TIỀN ĐÃ RỜI
+              -- ngân hàng công ty, bỏ nó ra thì "Nền tảng thực chịu" nhỏ hơn thực tế.
+              COALESCE(SUM(external_payout_amount), 0)
+                + COALESCE(SUM(external_payout_loss_amount), 0) AS external_payout
        FROM incidents
        WHERE reported_at >= $1 AND reported_at < $2`,
       [from, to],

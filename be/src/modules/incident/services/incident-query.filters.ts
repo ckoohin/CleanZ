@@ -2,6 +2,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import {
   vietnamStartOfDay,
   vietnamEndOfDayExclusive,
+  VN_NOW_SQL,
 } from 'src/common/helpers/vietnam-time.helper';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 import { IncidentEntity } from '../entity/incident.entity';
@@ -10,13 +11,18 @@ import { QueryAdminIncidentDto } from '../dto/query-admin-incident.dto';
 /**
  * Sự cố đang vi phạm hạn ra quyết định.
  *
- * Dùng `now()` của DB chứ không phải đồng hồ app: chính DB sinh ra
- * `decision_due_at`, nên so bằng đồng hồ khác là hàng đợi lệch đúng bằng độ
- * lệch giữa hai máy. Cả ba vế đều trả boolean (không trả NULL) nên `NOT (...)`
- * cho ra đúng phần bù.
+ * `VN_NOW_SQL` chứ KHÔNG phải `now()` trần. `decision_due_at` là cột
+ * `timestamp without time zone` lưu giờ VN, còn `now()` trả timestamptz và bị ép
+ * theo TimeZone của SESSION — mà session qua pooler là UTC. So hai thứ đó với
+ * nhau là hàng đợi lệch đúng 7 tiếng: hồ sơ đã quá hạn không hiện lên cho tới
+ * tận 7 giờ sau, im lặng, đúng ở màn hình mà việc trễ hạn phải nổi bật nhất.
+ *
+ * (Chú thích cũ ở đây nói `decision_due_at` do DB sinh ra nên phải so bằng đồng
+ * hồ DB — không đúng: mốc đó do `IncidentAdminService.accept()` tính ở tầng app.)
+ *
+ * Cả ba vế đều trả boolean (không trả NULL) nên `NOT (...)` cho ra đúng phần bù.
  */
-const OVERDUE_SQL =
-  '(i.decision_due_at IS NOT NULL AND i.decision_due_at < now() AND i.status <> :closed)';
+const OVERDUE_SQL = `(i.decision_due_at IS NOT NULL AND i.decision_due_at < ${VN_NOW_SQL} AND i.status <> :closed)`;
 
 /**
  * Áp bộ lọc hàng đợi sự cố lên một QueryBuilder có alias `i`.

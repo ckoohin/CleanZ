@@ -30,7 +30,10 @@ import {
   IncidentStatusBadge,
   SeverityBadge,
 } from "@/features/incident/shared/_components/badges";
-import { formatVnd, CLOSURE_LABEL } from "@/features/incident/shared/incident.labels";
+import {
+  formatVnd,
+  CLOSURE_LABEL,
+} from "@/features/incident/shared/incident.labels";
 import { canWithdraw } from "@/features/incident/shared/incident.machine";
 import { ROUTES } from "@/constants/routes";
 
@@ -38,14 +41,24 @@ function fmt(d: string | null | undefined) {
   return d ? new Date(d).toLocaleString("vi-VN") : "—";
 }
 
-function WithdrawDialog({ id, open, onClose }: { id: string; open: boolean; onClose: () => void }) {
+function WithdrawDialog({
+  id,
+  open,
+  onClose,
+}: {
+  id: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   const withdraw = useWithdrawIncident(id);
   const [reason, setReason] = useState("");
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Rút lại báo cáo</DialogTitle>
+          <DialogTitle className="text-base font-bold">
+            Rút lại báo cáo
+          </DialogTitle>
         </DialogHeader>
         <Textarea
           value={reason}
@@ -55,13 +68,25 @@ function WithdrawDialog({ id, open, onClose }: { id: string; open: boolean; onCl
           className="resize-none rounded-lg text-sm"
         />
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={onClose}>Huỷ</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={onClose}
+          >
+            Huỷ
+          </Button>
           <Button
             size="sm"
             variant="destructive"
             className="rounded-full"
             disabled={withdraw.isPending}
-            onClick={() => withdraw.mutate({ reason: reason || undefined }, { onSuccess: onClose })}
+            onClick={() =>
+              withdraw.mutate(
+                { reason: reason || undefined },
+                { onSuccess: onClose },
+              )
+            }
           >
             {withdraw.isPending ? "Đang rút..." : "Xác nhận rút lại"}
           </Button>
@@ -110,7 +135,9 @@ function NeedEvidenceUploader({
         accept="image/jpeg,image/png"
         multiple
         className="hidden"
-        onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 10))}
+        onChange={(e) =>
+          setFiles(Array.from(e.target.files ?? []).slice(0, 10))
+        }
       />
       <div className="mt-2 flex items-center gap-2">
         <Button
@@ -124,7 +151,9 @@ function NeedEvidenceUploader({
           <ImagePlus className="size-4" /> Chọn ảnh
         </Button>
         {files.length > 0 && (
-          <span className="text-xs text-muted-foreground">{files.length} ảnh đã chọn</span>
+          <span className="text-xs text-muted-foreground">
+            {files.length} ảnh đã chọn
+          </span>
         )}
         <Button
           type="button"
@@ -155,8 +184,15 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
   if (!inc) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <p className="text-sm text-muted-foreground">Không tìm thấy báo cáo này</p>
-        <button onClick={() => router.back()} className="text-sm font-semibold text-primary">← Quay lại</button>
+        <p className="text-sm text-muted-foreground">
+          Không tìm thấy báo cáo này
+        </p>
+        <button
+          onClick={() => router.back()}
+          className="text-sm font-semibold text-primary"
+        >
+          ← Quay lại
+        </button>
       </div>
     );
   }
@@ -166,11 +202,17 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/50 bg-card px-4 py-3 shadow-sm">
-        <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted" aria-label="Quay lại">
+        <button
+          onClick={() => router.back()}
+          className="rounded-full p-1.5 hover:bg-muted"
+          aria-label="Quay lại"
+        >
           <ArrowLeft className="size-5" />
         </button>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold text-primary">{inc.incidentCode ?? "SỰ CỐ"}</p>
+          <p className="text-[10px] font-bold text-primary">
+            {inc.incidentCode ?? "SỰ CỐ"}
+          </p>
           <h1 className="line-clamp-1 text-sm font-bold">{inc.title}</h1>
         </div>
       </header>
@@ -180,7 +222,9 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
           <IncidentStatusBadge status={inc.status} audience="customer" />
           <SeverityBadge severity={inc.severity} />
           {inc.closureReason && (
-            <span className="text-xs text-muted-foreground">· {CLOSURE_LABEL[inc.closureReason]}</span>
+            <span className="text-xs text-muted-foreground">
+              · {CLOSURE_LABEL[inc.closureReason]}
+            </span>
           )}
         </div>
 
@@ -191,7 +235,9 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
 
         {/* Damage items */}
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Các khoản thiệt hại</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Các khoản thiệt hại
+          </p>
           {inc.damageItems.map((it) => (
             <div key={it.id} className="rounded-xl border border-border/50 p-3">
               <div className="flex items-center justify-between gap-2">
@@ -208,22 +254,37 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
                 )}
               </div>
               <div className="mt-1 flex items-center gap-3 text-xs">
-                <span className="text-muted-foreground">Bạn yêu cầu: <b className="text-foreground/80">{formatVnd(it.claimedAmount)}</b></span>
+                <span className="text-muted-foreground">
+                  Bạn yêu cầu:{" "}
+                  <b className="text-foreground/80">
+                    {formatVnd(it.claimedAmount)}
+                  </b>
+                </span>
                 {it.approvedAmount != null && (
-                  <span className="text-emerald-600">CleanZ duyệt: <b>{formatVnd(it.approvedAmount)}</b></span>
+                  <span className="text-emerald-600">
+                    CleanZ duyệt: <b>{formatVnd(it.approvedAmount)}</b>
+                  </span>
                 )}
               </div>
               {it.evidences.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {it.evidences.map((ev) => (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img key={ev.id} src={ev.url} alt="bằng chứng" className="size-14 rounded-lg border border-border/50 object-cover" />
+                    <img
+                      key={ev.id}
+                      src={ev.url}
+                      alt="bằng chứng"
+                      className="size-14 rounded-lg border border-border/50 object-cover"
+                    />
                   ))}
                 </div>
               )}
               {inc.status === "REVIEWING" &&
                 it.verificationStatus === "NEED_MORE_EVIDENCE" && (
-                  <NeedEvidenceUploader incidentId={incidentId} itemId={it.id} />
+                  <NeedEvidenceUploader
+                    incidentId={incidentId}
+                    itemId={it.id}
+                  />
                 )}
             </div>
           ))}
@@ -232,19 +293,26 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         {/* Summary */}
         <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/40 p-3 text-sm">
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Tổng bạn yêu cầu</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">
+              Tổng bạn yêu cầu
+            </p>
             <p className="font-semibold">{formatVnd(inc.claimedAmount)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">CleanZ duyệt</p>
-            <p className="font-semibold text-emerald-600">{formatVnd(inc.approvedAmount)}</p>
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">
+              CleanZ duyệt
+            </p>
+            <p className="font-semibold text-emerald-600">
+              {formatVnd(inc.approvedAmount)}
+            </p>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="size-3.5" /> Ngày gửi: {fmt(inc.reportedAt)}
           </div>
           {inc.resolvedAt && (
             <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-              <CheckCircle2 className="size-3.5" /> Ngày xong: {fmt(inc.resolvedAt)}
+              <CheckCircle2 className="size-3.5" /> Ngày xong:{" "}
+              {fmt(inc.resolvedAt)}
             </div>
           )}
         </div>
@@ -254,7 +322,8 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         {inc.payoutChannel === "WALLET" && (
           <div className="space-y-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              <Wallet className="size-4" /> Đã hoàn {formatVnd(inc.approvedAmount)} vào ví CleanZ của bạn
+              <Wallet className="size-4" /> Đã hoàn{" "}
+              {formatVnd(inc.approvedAmount)} vào ví CleanZ của bạn
             </p>
             <p className="text-xs text-muted-foreground">
               Tiền đã vào ví của bạn. Bạn có thể dùng để thanh toán đơn tiếp
@@ -272,12 +341,13 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         {inc.payoutChannel === "BANK_TRANSFER" && (
           <div className="space-y-1 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              <Landmark className="size-4" /> Đã chuyển khoản {formatVnd(inc.approvedAmount)}
+              <Landmark className="size-4" /> Đã chuyển khoản{" "}
+              {formatVnd(inc.approvedAmount)}
             </p>
             <p className="text-xs text-muted-foreground">
               CleanZ đã chuyển số tiền này tới tài khoản ngân hàng bạn cung cấp
-              (không cộng vào ví). Nếu sau 1–2 ngày làm việc chưa thấy tiền về, vui lòng
-              liên hệ hỗ trợ.
+              (không cộng vào ví). Nếu sau 1–2 ngày làm việc chưa thấy tiền về,
+              vui lòng liên hệ hỗ trợ.
             </p>
           </div>
         )}
@@ -292,13 +362,21 @@ export function MyIncidentDetailPage({ incidentId }: { incidentId: string }) {
         )}
 
         {withdrawable && (
-          <Button variant="outline" className="w-full rounded-xl text-red-600 hover:bg-red-500/10" onClick={() => setShowWithdraw(true)}>
+          <Button
+            variant="outline"
+            className="w-full rounded-xl text-red-600 hover:bg-red-500/10"
+            onClick={() => setShowWithdraw(true)}
+          >
             Rút lại báo cáo
           </Button>
         )}
       </div>
 
-      <WithdrawDialog id={incidentId} open={showWithdraw} onClose={() => setShowWithdraw(false)} />
+      <WithdrawDialog
+        id={incidentId}
+        open={showWithdraw}
+        onClose={() => setShowWithdraw(false)}
+      />
     </div>
   );
 }

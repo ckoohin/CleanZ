@@ -46,6 +46,7 @@ import { FinalizeIncidentDecisionDto } from './dto/finalize-incident-decision.dt
 import { WithdrawDecisionDto } from './dto/withdraw-decision.dto';
 import { ReverseCompensationDto } from './dto/reverse-compensation.dto';
 import { ManualCompensateDto } from './dto/manual-compensate.dto';
+import { CorrectManualPayoutDto } from './dto/correct-manual-payout.dto';
 import { WriteOffDebtDto } from './dto/write-off-debt.dto';
 import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
@@ -246,7 +247,11 @@ export class IncidentAdminController {
   })
   @Post('run-housekeeping')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Chạy housekeeping (EXPIRED + auto-close)' })
+  @ApiOperation({
+    summary: 'Chạy housekeeping (EXPIRED + auto-close)',
+    description:
+      'Trả `skipped: true` khi một lượt quét khác đang chạy (lượt định kỳ, hoặc instance khác giữ khoá) — khi đó mọi số đếm là 0 vì chưa quét, không phải vì không có việc.',
+  })
   runHousekeeping() {
     return this.automation.runHousekeeping();
   }
@@ -277,6 +282,19 @@ export class IncidentAdminController {
   @ApiOperation({ summary: 'Chi tiết sự cố (admin view đầy đủ)' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.findOne(id);
+  }
+
+  /**
+   * Nhật ký vòng đời hồ sơ. Tách khỏi `GET :id` vì chi tiết sự cố được nạp lại sau mọi
+   * hành động, còn nhật ký chỉ cần khi admin mở ra xem.
+   *
+   * Không gắn `@AuditAction`: đây là dữ liệu vận hành nội bộ của chính hồ sơ (trạng thái,
+   * lý do thao tác), không phải thông tin cá nhân rời khỏi hệ thống như luồng xuất Excel.
+   */
+  @Get(':id/history')
+  @ApiOperation({ summary: 'Nhật ký thao tác trên sự cố (mới nhất trước)' })
+  getHistory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.getHistory(id);
   }
 
   @AuditAction({
@@ -533,6 +551,35 @@ export class IncidentAdminController {
       dto.proofEvidenceId,
       dto.note,
     );
+  }
+
+  // Sửa sổ chi ngoài là thao tác trên một khoản tiền đã rời ngân hàng công ty — cùng
+  // hạng nghiêm trọng với chính lệnh chi, và luôn phải có lý do.
+  @AuditAction({
+    code: AuditActionCode.INCIDENT_COMPENSATE_MANUAL_CORRECT,
+    severity: AuditSeverity.CRITICAL,
+    targetType: 'INCIDENT',
+    reasonField: 'reason',
+    extract: ({ params, body, result }) => ({
+      incidentId: params.id,
+      deliveredAmount: body.deliveredAmount ?? null,
+      lossAmount: body.lossAmount ?? null,
+      proofEvidenceId: body.proofEvidenceId ?? null,
+      approvedAmount: result?.approvedAmount ?? null,
+    }),
+  })
+  @Post(':id/compensate/manual/correct')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Điều chỉnh sổ chi ngoài của chi trả thủ công (chuyển nhầm số tiền / nhầm người)',
+  })
+  correctManualPayout(
+    @CurrentUser('id') adminUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CorrectManualPayoutDto,
+  ) {
+    return this.compensationExecutor.correctManualPayout(adminUserId, id, dto);
   }
 
   @AuditAction({

@@ -84,6 +84,7 @@ async function bootstrap() {
     .addTag('Policy', 'Policy management endpoints')
     .addBearerAuth(
       {
+      
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',

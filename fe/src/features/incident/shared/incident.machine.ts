@@ -7,14 +7,14 @@
  * do BE tính. Giữ một bản sao ở FE chỉ tạo nguồn sự thật thứ hai, âm thầm lệch
  * đi khi BE đổi luật mà không ai phát hiện.
  */
-import type { IncidentStatus } from './incident.enums';
+import type { IncidentStatus } from "./incident.enums";
 
 /**
  * Khách tự rút báo cáo: chỉ khi quyết định CHƯA được gửi cho Tasker và chưa chốt.
  * Một điều kiện duy nhất thay cho bộ ba status/decisionStatus/compensationStatus cũ.
  */
 export function canWithdraw(status: IncidentStatus): boolean {
-  return status === 'REPORTED' || status === 'REVIEWING';
+  return status === "REPORTED" || status === "REVIEWING";
 }
 
 // ─── Bất biến phân bổ tiền (dùng cho DecisionPanel) ──────────────────────────
@@ -48,16 +48,16 @@ export function checkAllocation(
   platformBorne: number,
 ): AllocationCheck {
   if (taskerBorne < 0 || platformBorne < 0)
-    return { ok: false, reason: 'Số tiền không hợp lệ' };
+    return { ok: false, reason: "Số tiền không hợp lệ" };
   if (!isIntegerAmount(taskerBorne) || !isIntegerAmount(platformBorne))
     return {
       ok: false,
-      reason: 'Số tiền phải là số nguyên VND, không có phần thập phân',
+      reason: "Số tiền phải là số nguyên VND, không có phần thập phân",
     };
   if (taskerBorne + platformBorne !== sumApproved)
     return {
       ok: false,
-      reason: 'Phần Tasker + phần quỹ nền tảng phải bằng tổng được duyệt',
+      reason: "Phần Tasker + phần quỹ nền tảng phải bằng tổng được duyệt",
     };
   return { ok: true };
 }

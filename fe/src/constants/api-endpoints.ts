@@ -200,6 +200,8 @@ export const API_ENDPOINTS = {
     EXPORT_LIST: "/admin/incidents/export/list",
     EXPORT_REPORT: "/admin/incidents/export/report",
     DETAIL: (id: string) => `/admin/incidents/${id}`,
+    /** Nhật ký thao tác trên hồ sơ — endpoint riêng, chỉ nạp khi admin mở xem. */
+    HISTORY: (id: string) => `/admin/incidents/${id}/history`,
     ACCEPT: (id: string) => `/admin/incidents/${id}/accept`,
     /** Soạn/sửa quyết định — gộp thẩm định hạng mục + duyệt tiền + phân bổ. */
     DECISION: (id: string) => `/admin/incidents/${id}/decision`,
@@ -212,6 +214,9 @@ export const API_ENDPOINTS = {
     COMPENSATE: (id: string) => `/admin/incidents/${id}/compensate`,
     COMPENSATE_MANUAL: (id: string) =>
       `/admin/incidents/${id}/compensate/manual`,
+    /** Sửa sổ chi ngoài khi chuyển nhầm số tiền / nhầm người. */
+    COMPENSATE_MANUAL_CORRECT: (id: string) =>
+      `/admin/incidents/${id}/compensate/manual/correct`,
     TRANSFER_PROOF: "/admin/incidents/evidences/transfer-proof",
     DEBT_WRITE_OFF: (id: string) => `/admin/incidents/${id}/debt/write-off`,
     COMPENSATION_REVERSE: (id: string) =>
@@ -220,6 +225,18 @@ export const API_ENDPOINTS = {
     FROM_TICKET: (ticketId: string) =>
       `/admin/incidents/from-ticket/${ticketId}`,
     HOUSEKEEPING: "/admin/incidents/run-housekeeping",
+  },
+  /** Sao kê ngân hàng — đối chiếu độc lập cho khoản bồi thường chi trả thủ công. */
+  ADMIN_BANK_STATEMENT: {
+    IMPORT: "/admin/bank-statement/import",
+    ENTRIES: "/admin/bank-statement/entries",
+    FOR_INCIDENT: (incidentId: string) =>
+      `/admin/bank-statement/incident/${incidentId}`,
+    SUGGESTIONS: (incidentId: string) =>
+      `/admin/bank-statement/suggestions/${incidentId}`,
+    MATCH: (id: string) => `/admin/bank-statement/entries/${id}/match`,
+    UNMATCH: (id: string) => `/admin/bank-statement/entries/${id}/unmatch`,
+    IGNORE: (id: string) => `/admin/bank-statement/entries/${id}/ignore`,
   },
   ADMIN_SERVICES: {
     BASE: "/admin/sub-services",

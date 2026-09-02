@@ -2,6 +2,17 @@
 
 import React, { useMemo, useState } from "react";
 import { AdminButton } from "@/components/admin";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, Clock, History, Send, ShieldCheck, X } from "lucide-react";
@@ -76,16 +87,16 @@ function snapshotOf(incident: IncidentAdminView): FormSnapshot {
       id: it.id,
       amount: Number(it.approvedAmount ?? it.claimedAmount) || 0,
       status:
-        it.verificationStatus === "PENDING" ? "VERIFIED" : it.verificationStatus,
+        it.verificationStatus === "PENDING"
+          ? "VERIFIED"
+          : it.verificationStatus,
     })),
     responsibilityParty: incident.decision.responsibilityParty ?? "",
     taskerBorne: Number(incident.taskerBorneAmount ?? 0) || 0,
     platformBorne: Number(incident.platformBorneAmount ?? 0) || 0,
     responsibilityReason: (incident.decision.responsibilityReason ?? "").trim(),
     allocationReason: (incident.allocationReason ?? "").trim(),
-    taskerDecisionReason: (
-      incident.decision.taskerDecisionReason ?? ""
-    ).trim(),
+    taskerDecisionReason: (incident.decision.taskerDecisionReason ?? "").trim(),
     customerDecisionSummary: (
       incident.decision.customerDecisionSummary ?? ""
     ).trim(),
@@ -120,7 +131,9 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
     Object.fromEntries(
       incident.damageItems.map((it) => [
         it.id,
-        it.verificationStatus === "PENDING" ? "VERIFIED" : it.verificationStatus,
+        it.verificationStatus === "PENDING"
+          ? "VERIFIED"
+          : it.verificationStatus,
       ]),
     ),
   );
@@ -149,6 +162,7 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
     incident.decision.internalDecisionNote ?? "",
   );
   const [rejectAsFraud, setRejectAsFraud] = useState(false);
+  const [confirmFinalize, setConfirmFinalize] = useState(false);
 
   const isCompensate = outcome === "COMPENSATE";
   const sumApproved = useMemo(
@@ -201,7 +215,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
   const responsibilityReasonTooShort =
     responsibilityReason.trim().length < TEXT_MIN;
   const hasAllocationReason = allocationReason.trim().length > 0;
-  const taskerReasonMissing = taskerBorneNum > 0 && !taskerDecisionReason.trim();
+  const taskerReasonMissing =
+    taskerBorneNum > 0 && !taskerDecisionReason.trim();
   /**
    * Cùng một vị từ cho cảnh báo dưới ô nhập và cho cổng chặn nút Lưu — tách
    * đôi thì ô báo đỏ mà nút vẫn bấm được, và BE trả 422.
@@ -209,7 +224,9 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
   const itemAmountInvalid = (it: DamageItem) => {
     if (itemStatus[it.id] !== "VERIFIED") return false;
     const amount = Number(approved[it.id]);
-    return !isIntegerAmount(amount) || amount > it.claimedAmount;
+    // Chấp nhận thì phải duyệt > 0 (backend: INVALID_APPROVED_AMOUNT). "Chấp nhận nhưng
+    // duyệt 0đ" là kết luận tự mâu thuẫn — không đền thì chọn "Từ chối".
+    return !isIntegerAmount(amount) || amount <= 0 || amount > it.claimedAmount;
   };
   const hasInvalidItem = incident.damageItems.some(itemAmountInvalid);
   const needEvidenceBlocking =
@@ -272,7 +289,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
               itemStatus[it.id] === "VERIFIED"
                 ? Number(approved[it.id]) || 0
                 : 0,
-            status: itemStatus[it.id] as "VERIFIED" | "REJECTED" | "NEED_MORE_EVIDENCE",
+            status: itemStatus[it.id] as
+              "VERIFIED" | "REJECTED" | "NEED_MORE_EVIDENCE",
           })),
           responsibilityParty: responsibilityParty || null,
           responsibilityReason: responsibilityReason.trim() || null,
@@ -344,8 +362,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
             Công nhận có sự cố — nhưng không bồi thường
           </p>
           Sự cố có thật nhưng <b>không phát sinh bồi thường</b> (VD lỗi thuộc về
-          khách, hoặc ngoài phạm vi chính sách). Khác &quot;Bác bỏ&quot; (báo cáo sai sự thật):{" "}
-          <b>không tính là khách báo cáo sai</b>.
+          khách, hoặc ngoài phạm vi chính sách). Khác &quot;Bác bỏ&quot; (báo
+          cáo sai sự thật): <b>không tính là khách báo cáo sai</b>.
         </div>
       )}
 
@@ -357,8 +375,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
             </p>
             <ul className="list-disc space-y-0.5 pl-4">
               <li>
-                Mỗi khoản chỉ nhập <b>một số tiền duyệt</b>, không vượt số
-                khách yêu cầu.
+                Mỗi khoản chỉ nhập <b>một số tiền duyệt</b>, không vượt số khách
+                yêu cầu.
               </li>
               <li>
                 Tổng duyệt &gt; 0 và không vượt mức bồi thường tối đa
@@ -368,8 +386,8 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                 Phần Tasker + phần quỹ nền tảng <b>phải bằng tổng duyệt</b>.
               </li>
               <li>
-                Nếu <b>phần Tasker &gt; 0</b>, phải gửi Tasker phản hồi trước khi
-                chốt.
+                Nếu <b>phần Tasker &gt; 0</b>, phải gửi Tasker phản hồi trước
+                khi chốt.
               </li>
             </ul>
           </div>
@@ -399,11 +417,13 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                   >
                     <option value="VERIFIED">Chấp nhận</option>
                     <option value="REJECTED">Từ chối</option>
-                    <option value="NEED_MORE_EVIDENCE">Cần thêm bằng chứng</option>
+                    <option value="NEED_MORE_EVIDENCE">
+                      Cần thêm bằng chứng
+                    </option>
                   </select>
                   <Input
                     type="number"
-                    min={0}
+                    min={1}
                     max={it.claimedAmount}
                     step={1}
                     disabled={status !== "VERIFIED"}
@@ -420,14 +440,14 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                 <FieldHint
                   hint={
                     status === "VERIFIED"
-                      ? `Số nguyên, 0 – ${formatVnd(it.claimedAmount)}`
+                      ? `Số nguyên, 1 – ${formatVnd(it.claimedAmount)}`
                       : status === "REJECTED"
                         ? "Khoản này bị từ chối — không duyệt tiền."
                         : "Sẽ nhắc khách bổ sung ảnh; còn khoản này thì chưa chốt được."
                   }
                   error={
                     itemInvalid
-                      ? `Phải là số nguyên từ 0 đến ${formatVnd(it.claimedAmount)}`
+                      ? `Phải là số nguyên từ 1 đến ${formatVnd(it.claimedAmount)} — không đền thì chọn "Từ chối"`
                       : undefined
                   }
                 />
@@ -449,7 +469,9 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
                 <option value="TASKER">Tasker chịu</option>
                 <option value="PLATFORM">Nền tảng chịu</option>
                 <option value="SHARED">Chia trách nhiệm</option>
-                <option value="UNDETERMINED">Chưa xác định (CleanZ chịu)</option>
+                <option value="UNDETERMINED">
+                  Chưa xác định (CleanZ chịu)
+                </option>
               </select>
             </div>
             <div className="space-y-1">
@@ -661,20 +683,98 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         </div>
       )}
 
-      <AdminButton
-        size="sm"
-        variant="primary"
-        className="w-full rounded-lg gap-1.5"
-        disabled={busy || dirty || !can("FINALIZE", incident)}
-        onClick={() =>
-          finalize.mutate({
-            expectedDecisionVersion,
-            ...(savedOutcome === "REJECT" ? { rejectAsFraud } : {}),
-          })
-        }
-      >
-        <ShieldCheck className="size-3.5" /> Chốt quyết định
-      </AdminButton>
+      {/*
+        Chốt quyết định là bước sinh NGHĨA VỤ TIỀN và là điểm không quay lại rẻ: sau đó
+        `saveDecision` bị khoá, muốn sửa phải thu hồi quyết định (hoặc tệ hơn, đảo bồi
+        thường nếu đã chi). Một cú bấm nhầm ở đây tốn nhiều thao tác hơn hẳn một hộp thoại.
+        Nội dung hộp thoại đọc từ bản ĐÃ LƯU (`saved`, `savedOutcome`), không phải state
+        form — vì chính bản đã lưu mới là thứ backend đem đi chốt.
+      */}
+      <AlertDialog open={confirmFinalize} onOpenChange={setConfirmFinalize}>
+        <AlertDialogTrigger asChild>
+          <AdminButton
+            size="sm"
+            variant="primary"
+            className="w-full rounded-lg gap-1.5"
+            disabled={busy || dirty || !can("FINALIZE", incident)}
+          >
+            <ShieldCheck className="size-3.5" /> Chốt quyết định
+          </AdminButton>
+        </AlertDialogTrigger>
+        <AlertDialogContent className="cz-admin rounded-2xl bg-[var(--c-card)] text-[var(--c-ink)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[var(--c-ink)]">
+              Chốt quyết định v{expectedDecisionVersion}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-[var(--c-muted)]">
+                <p>
+                  Kết luận:{" "}
+                  <b className="text-[var(--c-ink)]">
+                    {savedOutcome ? OUTCOME_LABEL[savedOutcome] : "—"}
+                  </b>
+                </p>
+                {savedOutcome === "COMPENSATE" ? (
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs">
+                    <li>
+                      Duyệt chi{" "}
+                      <b>
+                        {formatVnd(saved.taskerBorne + saved.platformBorne)}
+                      </b>{" "}
+                      cho khách — Tasker chịu{" "}
+                      <b>{formatVnd(saved.taskerBorne)}</b>, quỹ nền tảng chịu{" "}
+                      <b>{formatVnd(saved.platformBorne)}</b>.
+                    </li>
+                    <li>
+                      Hồ sơ chuyển sang <b>chờ chi trả</b>. Tiền chỉ thật sự
+                      chuyển ở bước chi trả sau đó.
+                    </li>
+                  </ul>
+                ) : savedOutcome === "REJECT" ? (
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs">
+                    <li>Hồ sơ bị bác bỏ, khách không được bồi thường.</li>
+                    {rejectAsFraud && (
+                      <li className="text-[#DC2626]">
+                        Khách bị cộng <b>một cảnh cáo gian lận</b> — đủ số lần
+                        sẽ bị khoá quyền báo cáo sự cố.
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs">
+                    <li>
+                      Công nhận có sự cố nhưng không phát sinh bồi thường.
+                    </li>
+                    <li>
+                      Hồ sơ được đóng, khách KHÔNG bị tính là báo cáo sai.
+                    </li>
+                  </ul>
+                )}
+                <p className="text-[11px]">
+                  Sau khi chốt, quyết định <b>không sửa trực tiếp được nữa</b> —
+                  muốn đổi phải thu hồi quyết định trước khi chi trả.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                finalize.mutate(
+                  {
+                    expectedDecisionVersion,
+                    ...(savedOutcome === "REJECT" ? { rejectAsFraud } : {}),
+                  },
+                  { onSettled: () => setConfirmFinalize(false) },
+                )
+              }
+            >
+              Chốt quyết định
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="rounded-lg border border-[var(--c-line)] p-3 text-xs text-[var(--c-muted)]">
         <p className="mb-2 flex items-center gap-1 font-bold uppercase text-[var(--c-ink)]">
@@ -682,10 +782,12 @@ export function DecisionPanel({ incident }: { incident: IncidentAdminView }) {
         </p>
         <div className="grid grid-cols-2 gap-2">
           <span>Chính sách: {incident.decision.policyVersion ?? "-"}</span>
-          <span>Mức tối đa: {formatVnd(incident.decision.policyCapSnapshot)}</span>
           <span>
-            Hạn Tasker phản hồi: {incident.decision.responseWindowHoursSnapshot ?? "-"}{" "}
-            giờ
+            Mức tối đa: {formatVnd(incident.decision.policyCapSnapshot)}
+          </span>
+          <span>
+            Hạn Tasker phản hồi:{" "}
+            {incident.decision.responseWindowHoursSnapshot ?? "-"} giờ
           </span>
           <span>Đã chốt: {fmt(incident.decision.finalizedAt)}</span>
         </div>

@@ -52,7 +52,9 @@ describe("DecisionResponseComposer — phân biệt CHƯA MỞ và ĐÃ HẾT H�
       />,
     );
 
-    expect(screen.getByText(/Chưa tới lúc bạn nêu ý kiến/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Chưa tới lúc bạn nêu ý kiến/i),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/quá hạn/i)).not.toBeInTheDocument();
   });
 
@@ -71,5 +73,59 @@ describe("DecisionResponseComposer — phân biệt CHƯA MỞ và ĐÃ HẾT H�
     fireEvent.click(screen.getByRole("button", { name: "Không đồng ý" }));
 
     expect(screen.getByRole("button", { name: /Gửi ý kiến/i })).toBeDisabled();
+  });
+});
+
+/**
+ * Endpoint là UPSERT: gửi lần hai ghi đè lần một. Form mặc định "Đồng ý", nên nếu không
+ * nạp sẵn bản đã gửi thì một Tasker đã phản đối, quay lại màn hình và bấm gửi (để thêm
+ * ảnh chẳng hạn) sẽ âm thầm lật ý kiến của chính mình thành đồng ý và xoá phần đã viết.
+ */
+describe("DecisionResponseComposer — nạp sẵn bản đã gửi", () => {
+  const existing = {
+    id: "resp-1",
+    incidentId: "inc-1",
+    decisionVersion: 2,
+    responseType: "DISAGREE" as const,
+    content:
+      "Vết xước đã có từ trước ca làm, ảnh check-in của tôi cho thấy điều đó",
+    responseRevision: 1,
+    submittedAt: "2026-07-04T09:00:00+07:00",
+    updatedAt: "2026-07-04T09:00:00+07:00",
+    reviewResult: null,
+    reviewedAt: null,
+    evidences: [],
+    canEdit: true,
+  };
+
+  it("giữ nguyên lựa chọn và nội dung đã gửi ở version hiện tại", () => {
+    render(
+      <DecisionResponseComposer
+        incident={makeIncident({ myDecisionResponses: [existing] })}
+      />,
+    );
+
+    expect(screen.getByDisplayValue(existing.content)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Gửi lại ý kiến đã sửa/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/thay thế/i)).toBeInTheDocument();
+  });
+
+  it("bỏ qua phản hồi của version cũ — đó là bản khác, không phải bản đang mở", () => {
+    render(
+      <DecisionResponseComposer
+        incident={makeIncident({
+          myDecisionResponses: [{ ...existing, decisionVersion: 1 }],
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByDisplayValue(existing.content),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Gửi ý kiến$/i }),
+    ).toBeInTheDocument();
   });
 });

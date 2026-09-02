@@ -30,7 +30,8 @@ export function DecisionResponseHistory({
         >
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-[var(--c-ink)]">
-              Quyết định v{r.decisionVersion} · Lần phản hồi {r.responseRevision}
+              Quyết định v{r.decisionVersion} · Lần phản hồi{" "}
+              {r.responseRevision}
               {r.submittedByName ? ` · ${r.submittedByName}` : ""}
             </span>
             <span className="text-[var(--c-muted)]">{fmt(r.submittedAt)}</span>
@@ -56,9 +57,13 @@ export function DecisionResponseHistory({
               phản hồi rồi chốt luôn hoặc sửa quyết định. */}
           {r.adminReviewNote && (
             <div className="rounded-md bg-[var(--c-card)] p-2 text-xs">
-              <span className="text-[var(--c-muted)]">Ghi chú Admin: {r.adminReviewNote}</span>
+              <span className="text-[var(--c-muted)]">
+                Ghi chú Admin: {r.adminReviewNote}
+              </span>
               {r.reviewedAt && (
-                <span className="ml-1 text-[var(--c-muted)]">({fmt(r.reviewedAt)})</span>
+                <span className="ml-1 text-[var(--c-muted)]">
+                  ({fmt(r.reviewedAt)})
+                </span>
               )}
             </div>
           )}

@@ -18,11 +18,16 @@ import type {
   SendToTaskerInput,
 } from "@/features/incident/shared/incident.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
+import {
+  conflictMessage,
+  isConflict,
+} from "@/features/incident/shared/incident.errors";
 
 export const adminIncidentKeys = {
   all: ["admin-incidents"] as const,
   list: (q?: AdminIncidentQuery) => ["admin-incidents", "list", q] as const,
   detail: (id: string) => ["admin-incidents", "detail", id] as const,
+  history: (id: string) => ["admin-incidents", "history", id] as const,
 };
 
 export function useAdminIncidents(params?: AdminIncidentQuery) {
@@ -30,6 +35,21 @@ export function useAdminIncidents(params?: AdminIncidentQuery) {
     queryKey: adminIncidentKeys.list(params),
     queryFn: () => adminIncidentApi.list(params),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Nhật ký thao tác trên hồ sơ. `enabled` do caller truyền vào để CHỈ gọi khi tab nhật ký
+ * thật sự được mở — nếu không, mỗi lần mở drawer là kéo thêm một danh sách chỉ dài lên.
+ *
+ * Không đặt `staleTime`: nhật ký đổi sau mỗi hành động, và `adminIncidentKeys.all` bị
+ * invalidate sau mọi mutation nên nó tự làm mới đúng lúc.
+ */
+export function useAdminIncidentHistory(id: string, enabled = true) {
+  return useQuery({
+    queryKey: adminIncidentKeys.history(id),
+    queryFn: () => adminIncidentApi.history(id),
+    enabled: !!id && enabled,
   });
 }
 
@@ -49,6 +69,9 @@ export function useAdminIncidentDetail(id: string) {
  * (thu hồi quyết định, đảo bồi thường) trả 409 khi bản trên server đã đổi — nếu
  * chỉ toast mà không nạp lại thì admin vẫn cầm version cũ, bấm lại vẫn 409, và
  * chỉ thoát được bằng cách tự tải lại trang.
+ *
+ * Mọi 409 KHÁC vẫn nạp lại cache (trạng thái hồ sơ trên server gần như chắc chắn đã khác
+ * với cái admin đang nhìn) nhưng hiện đúng thông điệp backend gửi kèm.
  */
 function useIncidentMutation<TInput>(
   fn: (dto: TInput) => Promise<unknown>,
@@ -65,12 +88,9 @@ function useIncidentMutation<TInput>(
       refresh();
     },
     onError: (e: unknown) => {
-      const status = (e as { response?: { status?: number } })?.response?.status;
-      if (status === 409) {
+      if (isConflict(e)) {
         refresh();
-        toast.error(
-          "Phiên bản quyết định đã thay đổi. Dữ liệu đã được tải lại.",
-        );
+        toast.error(conflictMessage(e));
         return;
       }
       toast.error(getErrorMessage(e));
@@ -87,13 +107,29 @@ function useIncidentAction<TInput>(
 }
 
 export const useAcceptIncident = (id: string) =>
-  useIncidentAction<AcceptInput>(id, adminIncidentApi.accept, "Đã tiếp nhận xử lý");
+  useIncidentAction<AcceptInput>(
+    id,
+    adminIncidentApi.accept,
+    "Đã tiếp nhận xử lý",
+  );
 export const useSaveDecision = (id: string) =>
-  useIncidentAction<SaveDecisionInput>(id, adminIncidentApi.saveDecision, "Đã lưu quyết định");
+  useIncidentAction<SaveDecisionInput>(
+    id,
+    adminIncidentApi.saveDecision,
+    "Đã lưu quyết định",
+  );
 export const useSendDecisionToTasker = (id: string) =>
-  useIncidentAction<SendToTaskerInput>(id, adminIncidentApi.sendDecisionToTasker, "Đã gửi quyết định cho Tasker phản hồi");
+  useIncidentAction<SendToTaskerInput>(
+    id,
+    adminIncidentApi.sendDecisionToTasker,
+    "Đã gửi quyết định cho Tasker phản hồi",
+  );
 export const useFinalizeDecision = (id: string) =>
-  useIncidentAction<FinalizeDecisionInput>(id, adminIncidentApi.finalizeDecision, "Đã chốt quyết định");
+  useIncidentAction<FinalizeDecisionInput>(
+    id,
+    adminIncidentApi.finalizeDecision,
+    "Đã chốt quyết định",
+  );
 
 export const useCompensate = (id: string) =>
   useIncidentMutation<void>(
@@ -112,6 +148,17 @@ export const useCompensateManual = (id: string) =>
   useIncidentMutation<{ proofEvidenceId: string; note?: string }>(
     (dto) => adminIncidentApi.compensateManual(id, dto),
     "Đã ghi nhận chi trả thủ công (chuyển khoản ngoài)",
+  );
+
+export const useCorrectManualPayout = (id: string) =>
+  useIncidentMutation<{
+    deliveredAmount: number;
+    lossAmount?: number;
+    proofEvidenceId?: string;
+    reason: string;
+  }>(
+    (dto) => adminIncidentApi.correctManualPayout(id, dto),
+    "Đã cập nhật sổ chi ngoài",
   );
 
 export const useReverseCompensation = (id: string) =>
@@ -141,8 +188,13 @@ export const useUnlockReporter = (id: string) =>
 export function useCreateFromTicket() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ ticketId, dto }: { ticketId: string; dto: FromTicketInput }) =>
-      adminIncidentApi.createFromTicket(ticketId, dto),
+    mutationFn: ({
+      ticketId,
+      dto,
+    }: {
+      ticketId: string;
+      dto: FromTicketInput;
+    }) => adminIncidentApi.createFromTicket(ticketId, dto),
     onSuccess: () => {
       toast.success("Đã tạo sự cố từ ticket");
       qc.invalidateQueries({ queryKey: adminIncidentKeys.all });
@@ -161,7 +213,8 @@ export function useIncidentConfig() {
 export function useUpdateIncidentConfig() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, string | number>) => adminIncidentApi.updateConfig(body),
+    mutationFn: (body: Record<string, string | number>) =>
+      adminIncidentApi.updateConfig(body),
     onSuccess: () => {
       toast.success("Đã cập nhật cấu hình");
       qc.invalidateQueries({ queryKey: ["admin-incidents", "config"] });

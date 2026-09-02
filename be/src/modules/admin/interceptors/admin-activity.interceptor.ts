@@ -53,6 +53,7 @@ const EXCLUDED_PATHS = [/^\/api\/v1\/auth(?:\/|$)/];
 const RESOURCE_LABELS: Record<string, string> = {
   appeals: 'kháng cáo',
   'absence-reports': 'báo cáo khách vắng mặt',
+  'bank-statement': 'sao kê ngân hàng',
   blog: 'bài viết',
   bookings: 'booking',
   categories: 'danh mục',

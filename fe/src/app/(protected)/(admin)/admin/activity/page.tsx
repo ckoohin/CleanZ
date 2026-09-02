@@ -60,6 +60,7 @@ import type {
   AuditSeverity,
 } from "@/features/admin/modules/activity/types/activity.types";
 import {
+  getActivityBusinessRows,
   getActivityChangeRows,
   getActivityDisplayAction,
   getActivitySummary,
@@ -400,13 +401,13 @@ export default function AdminActivityPage() {
                     cả mức độ
                   </span>
                 </SelectItem>
-                {(
-                  Object.keys(SEVERITY_LABEL) as AuditSeverity[]
-                ).map((severity) => (
-                  <SelectItem key={severity} value={severity}>
-                    {SEVERITY_LABEL[severity]}
-                  </SelectItem>
-                ))}
+                {(Object.keys(SEVERITY_LABEL) as AuditSeverity[]).map(
+                  (severity) => (
+                    <SelectItem key={severity} value={severity}>
+                      {SEVERITY_LABEL[severity]}
+                    </SelectItem>
+                  ),
+                )}
               </SelectContent>
             </Select>
             <Select
@@ -493,7 +494,9 @@ export default function AdminActivityPage() {
                 <div>
                   <p className="text-xs text-[var(--c-muted)]">Mức độ</p>
                   <div className="mt-1">
-                    <StatusBadge tone={SEVERITY_TONE[selectedActivity.severity]}>
+                    <StatusBadge
+                      tone={SEVERITY_TONE[selectedActivity.severity]}
+                    >
                       {SEVERITY_LABEL[selectedActivity.severity]}
                     </StatusBadge>
                   </div>
@@ -552,22 +555,16 @@ export default function AdminActivityPage() {
                     Số liệu nghiệp vụ
                   </p>
                   <dl className="grid gap-2 sm:grid-cols-2">
-                    {Object.entries(selectedActivity.businessData).map(
-                      ([key, value]) => (
-                        <div key={key} className="flex flex-col">
-                          <dt className="font-mono text-[11px] text-[var(--c-muted)]">
-                            {key}
-                          </dt>
-                          <dd className="break-all text-[13px] font-medium tabular-nums">
-                            {value === null || value === undefined
-                              ? "—"
-                              : typeof value === "object"
-                                ? JSON.stringify(value)
-                                : String(value)}
-                          </dd>
-                        </div>
-                      ),
-                    )}
+                    {getActivityBusinessRows(selectedActivity).map((row) => (
+                      <div key={row.key} className="flex flex-col">
+                        <dt className="text-[11px] text-[var(--c-muted)]">
+                          {row.label}
+                        </dt>
+                        <dd className="break-all text-[13px] font-medium tabular-nums">
+                          {row.value}
+                        </dd>
+                      </div>
+                    ))}
                   </dl>
                 </div>
               )}

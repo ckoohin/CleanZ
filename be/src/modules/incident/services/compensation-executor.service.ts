@@ -28,6 +28,7 @@ import { isExpectedDecisionVersion } from '../domain/incident-decision.helpers';
 import { AuditRecorder } from 'src/modules/admin/audit/audit-recorder.service';
 import { AuditActionCode } from 'src/modules/admin/audit/audit-action-codes';
 import { AuditSeverity } from 'src/common/enums/audit-severity.enum';
+import { VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 const INCIDENT_COMPENSATION_REF = 'INCIDENT_COMPENSATION';
 
@@ -189,31 +190,29 @@ export class CompensationExecutorService {
       await this.dataSource.transaction(async (manager) => {
         const incident = await this.lockIncident(manager, incidentId);
         if (incident.status === IncidentStatus.COMPENSATED) {
-          return; // idempotent
+          // Idempotent CHỈ khi đây đúng là lần bấm lại của chính lệnh đã chạy — nhận ra
+          // bằng việc ảnh minh chứng đã gắn vào chính sự cố này.
+          //
+          // Trả im lặng cho MỌI lời gọi (như trước) là nói dối hai lần: ảnh vừa upload
+          // không được gắn vào đâu cả rồi bị dọn rác, còn Admin thì thấy "thành công" và
+          // tin rằng khoản chuyển khoản thứ hai đã được ghi sổ — trong khi không có gì
+          // được ghi. Với hồ sơ đã chi qua ví, nó còn nuốt luôn một lệnh chi trùng.
+          const [attached] = await manager.query(
+            `SELECT incident_id FROM incident_evidences WHERE id=$1`,
+            [proofEvidenceId],
+          );
+          if (attached?.incident_id === incident.id) return;
+
+          throw new ConflictException({
+            code: 'INCIDENT_ALREADY_COMPENSATED',
+            message:
+              'Sự cố đã được chi trả — không ghi nhận thêm khoản chuyển khoản nào. Nếu số tiền đã chi sai, hãy dùng chức năng điều chỉnh sổ chi ngoài.',
+          });
         }
         this.assertCompensationPreconditions(incident);
         this.assertCompensationInvariant(incident);
 
-        // Proof bắt buộc: do admin upload, đúng purpose, chưa gắn, chưa xoá.
-        const proof = await manager.query(
-          `SELECT id FROM incident_evidences
-            WHERE id=$1 AND purpose='COMPENSATION_TRANSFER_PROOF'
-              AND incident_id IS NULL AND is_soft_deleted=false`,
-          [proofEvidenceId],
-        );
-        if (proof.length === 0) {
-          throw new UnprocessableEntityException({
-            code: 'TRANSFER_PROOF_REQUIRED',
-            message:
-              'Cần ảnh minh chứng chuyển khoản hợp lệ (đã upload, chưa gắn sự cố khác)',
-          });
-        }
-        await manager.query(
-          `UPDATE incident_evidences
-              SET incident_id=$2, decision_version=$3, visibility='ADMIN_ONLY'
-            WHERE id=$1`,
-          [proofEvidenceId, incident.id, incident.decisionVersion],
-        );
+        await this.attachTransferProof(manager, incident, proofEvidenceId);
 
         const repo = manager.getRepository(IncidentEntity);
         const dbNow = await this.getDatabaseNow(manager);
@@ -300,6 +299,205 @@ export class CompensationExecutorService {
       });
       return this.adminService.findOne(incidentId);
     }, 'Lỗi khi chi trả thủ công');
+  }
+
+  /**
+   * Gắn một ảnh minh chứng chuyển khoản (đang rời) vào sự cố.
+   *
+   * `FOR UPDATE` là bắt buộc, không phải cho chắc: hàng `incident_evidences` KHÔNG nằm
+   * trong phạm vi khoá của `lockIncident`, nên hai sự cố chi thủ công đồng thời với cùng
+   * một `proofEvidenceId` sẽ cùng đọc thấy `incident_id IS NULL`, cùng đi qua cửa, và hệ
+   * thống ghi nhận hai khoản tiền rời ngân hàng với đúng một ảnh minh chứng. Khoá hàng ở
+   * đây khiến giao dịch thứ hai phải chờ rồi đọc lại — và bị từ chối như phải thế.
+   */
+  private async attachTransferProof(
+    manager: EntityManager,
+    incident: IncidentEntity,
+    proofEvidenceId: string,
+  ): Promise<void> {
+    // Proof hợp lệ: do admin upload, đúng purpose, chưa gắn sự cố nào, chưa xoá.
+    const proof = await manager.query(
+      `SELECT id FROM incident_evidences
+        WHERE id=$1 AND purpose='COMPENSATION_TRANSFER_PROOF'
+          AND incident_id IS NULL AND is_soft_deleted=false
+        FOR UPDATE`,
+      [proofEvidenceId],
+    );
+    if (proof.length === 0) {
+      throw new UnprocessableEntityException({
+        code: 'TRANSFER_PROOF_REQUIRED',
+        message:
+          'Cần ảnh minh chứng chuyển khoản hợp lệ (đã upload, chưa gắn sự cố khác)',
+      });
+    }
+    await manager.query(
+      `UPDATE incident_evidences
+          SET incident_id=$2, decision_version=$3, visibility='ADMIN_ONLY'
+        WHERE id=$1`,
+      [proofEvidenceId, incident.id, incident.decisionVersion],
+    );
+  }
+
+  /**
+   * Sửa sai một khoản chi trả THỦ CÔNG đã ghi nhận — chuyển nhầm số tiền, hoặc nhầm người.
+   *
+   * Vì sao không dùng `reverse()`: khoản trả khách của luồng thủ công không có bút toán ví
+   * nào để đảo (tiền đi từ tài khoản ngân hàng công ty), nên `reverse()` chặn thẳng. Thiếu
+   * lối này thì `externalPayoutAmount` — bản ghi DUY NHẤT cho tiền đã rời ngân hàng — sai
+   * vĩnh viễn và mọi báo cáo chi của nền tảng sai theo.
+   *
+   * Nguyên tắc: GHI ĐÚNG SỰ THẬT, không giả vờ đã xong.
+   *  - `deliveredAmount` = khách thực nhận. Còn thiếu so với `approved` thì đối soát tiếp tục
+   *    kêu CRITICAL cho tới khi admin chuyển bù và sửa lại — đúng, vì khách CHƯA được trả đủ.
+   *  - `lossAmount` = tiền đã bay mà khách không nhận (nhầm người) → nền tảng chịu mất.
+   *  - KHÔNG đụng ví, KHÔNG đụng sổ nợ Tasker, KHÔNG đổi allocation đã duyệt: phần Tasker
+   *    chịu và nghĩa vụ với khách không thay đổi chỉ vì admin bấm nhầm số tài khoản.
+   */
+  async correctManualPayout(
+    adminUserId: string,
+    incidentId: string,
+    input: {
+      deliveredAmount: number;
+      lossAmount?: number;
+      proofEvidenceId?: string;
+      reason: string;
+    },
+  ): Promise<IncidentAdminView> {
+    return asyncHandleOperation(async () => {
+      await this.dataSource.transaction(async (manager) => {
+        const incident = await this.lockIncident(manager, incidentId);
+
+        // Chỉ hồ sơ đã chi bằng chuyển khoản ngoài mới có sổ chi ngoài để sửa. `CLOSED`
+        // cũng được: housekeeping có thể đã đóng hồ sơ trước khi ai đó phát hiện sai.
+        if (
+          incident.status !== IncidentStatus.COMPENSATED &&
+          incident.status !== IncidentStatus.CLOSED
+        ) {
+          throw new ConflictException({
+            code: 'MANUAL_PAYOUT_NOT_CORRECTABLE',
+            message: 'Chỉ điều chỉnh sổ chi ngoài của sự cố đã chi trả',
+          });
+        }
+        if (incident.externalPayoutAt == null) {
+          throw new ConflictException({
+            code: 'NOT_MANUAL_PAYOUT',
+            message:
+              'Sự cố này được chi qua ví, không có sổ chi ngoài để điều chỉnh — dùng chức năng hoàn tác chi trả',
+          });
+        }
+
+        const reason = input.reason?.trim() ?? '';
+        if (reason.length < 10) {
+          throw new UnprocessableEntityException({
+            code: 'CORRECTION_REASON_REQUIRED',
+            message: 'Lý do điều chỉnh phải có ít nhất 10 ký tự',
+          });
+        }
+
+        const approved = toNumber(incident.approvedCompensationAmount);
+        const delivered = Math.floor(input.deliveredAmount);
+        if (!Number.isFinite(delivered) || delivered < 0) {
+          throw new UnprocessableEntityException({
+            code: 'INVALID_CORRECTION_AMOUNT',
+            message: 'Số tiền khách thực nhận không hợp lệ',
+          });
+        }
+        // Trần là số đã duyệt: phần chuyển vượt KHÔNG phải khoản trả khách mà là thất
+        // thoát, phải khai vào `lossAmount`. Cho phép vượt ở đây thì đối soát mất luôn
+        // khả năng phát hiện chi thừa.
+        if (delivered > approved) {
+          throw new UnprocessableEntityException({
+            code: 'CORRECTION_EXCEEDS_APPROVED',
+            message: `Số khách thực nhận không được vượt số đã duyệt (${approved} VND) — phần chuyển thừa hãy khai vào mục thất thoát`,
+          });
+        }
+
+        const previousDelivered = toNumber(incident.externalPayoutAmount);
+        const previousLoss = toNumber(incident.externalPayoutLossAmount);
+        const loss =
+          input.lossAmount == null
+            ? previousLoss
+            : Math.floor(input.lossAmount);
+        if (!Number.isFinite(loss) || loss < 0) {
+          throw new UnprocessableEntityException({
+            code: 'INVALID_CORRECTION_AMOUNT',
+            message: 'Số tiền thất thoát không hợp lệ',
+          });
+        }
+        if (delivered === previousDelivered && loss === previousLoss) {
+          throw new UnprocessableEntityException({
+            code: 'CORRECTION_NO_CHANGE',
+            message: 'Số liệu điều chỉnh trùng với sổ hiện tại',
+          });
+        }
+
+        if (input.proofEvidenceId) {
+          await this.attachTransferProof(
+            manager,
+            incident,
+            input.proofEvidenceId,
+          );
+        }
+
+        const dbNow = await this.getDatabaseNow(manager);
+        incident.externalPayoutAmount = delivered;
+        incident.externalPayoutLossAmount = loss;
+        incident.externalPayoutCorrectedAt = dbNow;
+        incident.externalPayoutCorrectedByAdmin = { id: adminUserId } as never;
+        await manager.getRepository(IncidentEntity).save(incident);
+
+        // Không đổi trạng thái nên không ghi log STATUS: đây là sửa SỔ, không phải bước
+        // mới của quy trình. Lịch sử đầy đủ nằm ở chiều COMPENSATION.
+        await this.state.log(
+          manager,
+          incident.id,
+          IncidentLogDimension.COMPENSATION,
+          `external_payout=${previousDelivered}, loss=${previousLoss}`,
+          `external_payout=${delivered}, loss=${loss}`,
+          adminUserId,
+          `Điều chỉnh sổ chi ngoài: ${reason}${
+            input.proofEvidenceId ? ` (proof=${input.proofEvidenceId})` : ''
+          }${
+            delivered < approved
+              ? ` — CÒN THIẾU ${approved - delivered} VND phải chuyển bù cho khách`
+              : ''
+          }`,
+        );
+
+        await this.auditRecorder.enqueueInTransaction(manager, {
+          actionCode: AuditActionCode.INCIDENT_COMPENSATE_MANUAL_CORRECT,
+          severity: AuditSeverity.CRITICAL,
+          targetType: 'INCIDENT',
+          targetId: incident.id,
+          reason,
+          businessData: {
+            incidentId: incident.id,
+            approvedAmount: approved,
+            previousDelivered,
+            deliveredAmount: delivered,
+            previousLoss,
+            lossAmount: loss,
+            shortfall: approved - delivered,
+            proofEvidenceId: input.proofEvidenceId ?? null,
+          },
+        });
+      });
+
+      // Sổ chi ngoài vừa lệch khỏi số đã duyệt nghĩa là khách chưa được trả đủ — cảnh báo
+      // ra ngoài để việc chuyển bù không phụ thuộc vào trí nhớ của người vừa sửa.
+      const view = await this.adminService.findOne(incidentId);
+      const shortfall =
+        toNumber(view.approvedAmount) -
+        toNumber(view.externalPayout?.amount ?? 0);
+      if (shortfall > 0) {
+        await this.alert.send(
+          `incident:${incidentId}:manual-payout-shortfall`,
+          `Sự cố ${view.incidentCode ?? incidentId}: sổ chi ngoài còn thiếu ${shortfall} VND so với số đã duyệt — cần chuyển bù cho khách`,
+          'WARNING',
+        );
+      }
+      return view;
+    }, 'Lỗi khi điều chỉnh sổ chi ngoài');
   }
 
   /**
@@ -786,8 +984,16 @@ export class CompensationExecutorService {
     incident.uncoveredLiabilityAmount = taskerBorne - recoverable;
   }
 
+  /**
+   * `VN_NOW_SQL` chứ không phải `now()` trần — xem `IncidentDecisionService`.
+   *
+   * Ở đây độ lệch ăn thẳng vào tiền: mốc này được ghi vào `resolvedAt` / `externalPayoutAt`
+   * (cột `timestamp` giờ VN) và cửa sổ 72h cho phép đảo bồi thường được tính từ chính
+   * `resolvedAt` đó. Lệch 7 tiếng nghĩa là cửa sổ hoàn tác dài hoặc ngắn hơn 7 tiếng so
+   * với chính sách.
+   */
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = await manager.query('SELECT now() AS now');
+    const rows = await manager.query(`SELECT ${VN_NOW_SQL} AS now`);
     return new Date(rows[0].now);
   }
 }

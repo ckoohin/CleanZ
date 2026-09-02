@@ -4,6 +4,7 @@ import { IncidentDecisionResponseEntity } from '../entity/incident-decision-resp
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
 import { IncidentStatementEntity } from '../entity/incident-statement.entity';
+import { IncidentStatusLogEntity } from '../entity/incident-status-log.entity';
 import { toNumber } from 'src/common/helpers/number.helper';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
 
@@ -12,6 +13,7 @@ import {
   IncidentDecisionAction,
   IncidentDecisionActionView,
 } from '../domain/incident-decision-domain.types';
+import { vietnamNow } from 'src/common/helpers/vietnam-time.helper';
 
 export interface EvidenceView {
   id: string;
@@ -85,6 +87,48 @@ export interface StatementView {
   createdAt: Date;
 }
 
+/**
+ * Một dòng nhật ký vòng đời sự cố (`incident_status_logs`).
+ *
+ * Bảng này được ghi ở MỌI bước — tiếp nhận, lưu/gửi/chốt/thu hồi quyết định, chi trả, đảo
+ * bồi thường, xoá nợ, đóng nguội — nhưng trước đây không API nào đọc, nên nó tồn tại mà
+ * không ai đọc được. Với mô hình một Admin và không còn duyệt cấp hai, nhật ký hiển thị
+ * ngay trên hồ sơ chính là kiểm soát thay thế: "ai làm gì lúc nào" phải trả lời được mà
+ * không cần mở module kiểm toán.
+ */
+export interface IncidentHistoryEntryView {
+  id: string;
+  dimension: string;
+  oldValue: string | null;
+  newValue: string;
+  reason: string | null;
+  /** Người thao tác; null khi hệ thống tự chạy (housekeeping) hoặc tài khoản đã xoá. */
+  changedByName: string | null;
+  changedByRole: string | null;
+  /**
+   * ADMIN / USER / SYSTEM. Tách "hệ thống tự làm" khỏi "không rõ ai" — cả hai đều có
+   * `changedByName = null` nhưng là hai kết luận khác hẳn khi điều tra.
+   */
+  actorType: string | null;
+  createdAt: Date;
+}
+
+export function toIncidentHistoryEntryView(
+  log: IncidentStatusLogEntity,
+): IncidentHistoryEntryView {
+  return {
+    id: log.id,
+    dimension: log.dimension,
+    oldValue: log.oldValue ?? null,
+    newValue: log.newValue,
+    reason: log.reason ?? null,
+    changedByName: log.changedBy?.fullName ?? null,
+    changedByRole: log.changedBy?.role ?? null,
+    actorType: log.actorType ?? null,
+    createdAt: log.createdAt,
+  };
+}
+
 /** Phản hồi quyết định của Tasker theo góc nhìn Admin — kèm ghi chú review nội bộ. */
 export interface AdminDecisionResponseView {
   id: string;
@@ -137,7 +181,17 @@ export interface IncidentAdminView extends IncidentSummary {
   } | null;
   canWriteOffDebt: boolean;
   /** Sổ chi ngoài: khoản đã chuyển khoản ngân hàng cho khách (không qua ví). */
-  externalPayout: { amount: number; at: Date; note: string | null } | null;
+  externalPayout: {
+    /** Số khách THỰC NHẬN (đã trừ phần chuyển nhầm, nếu có điều chỉnh). */
+    amount: number;
+    at: Date;
+    note: string | null;
+    /** Tiền đã rời ngân hàng nhưng không đến khách — nền tảng chịu mất. */
+    lossAmount: number;
+    /** Còn thiếu so với số đã duyệt → phải chuyển bù cho khách. */
+    shortfallAmount: number;
+    correctedAt: Date | null;
+  } | null;
   taskerBorneAmount: number | null;
   platformBorneAmount: number | null;
   allocationReason: string | null;
@@ -375,11 +429,13 @@ export function toAdminView(
       taskerResponseDeadline: incident.taskerResponseDeadline ?? null,
       hasTaskerResponse,
       resolvedAt: incident.resolvedAt ?? null,
-      // Chi trả thủ công ghi sổ chi ngoài; không có bút toán ví nào để đảo.
-      paidExternally: toNumber(incident.externalPayoutAmount) > 0,
+      // Chi trả thủ công ghi sổ chi ngoài; không có bút toán ví nào để đảo. Bám vào
+      // MỐC THỜI GIAN chứ không phải số tiền: sau một lần điều chỉnh, số có thể về 0
+      // (chuyển nhầm người hoàn toàn) mà khoản chi vẫn là chi ngoài — vẫn không đảo được.
+      paidExternally: incident.externalPayoutAt != null,
       debtRecoveryStarted: (debt?.recovered ?? 0) > 0,
     },
-    new Date(),
+    vietnamNow(),
   );
 
   return {
@@ -421,6 +477,13 @@ export function toAdminView(
           amount: toNumber(incident.externalPayoutAmount),
           at: incident.externalPayoutAt,
           note: incident.externalPayoutNote ?? null,
+          lossAmount: toNumber(incident.externalPayoutLossAmount),
+          shortfallAmount: Math.max(
+            0,
+            toNumber(incident.approvedCompensationAmount) -
+              toNumber(incident.externalPayoutAmount),
+          ),
+          correctedAt: incident.externalPayoutCorrectedAt ?? null,
         }
       : null,
     canWriteOffDebt: debt?.canWriteOff ?? false,
@@ -501,6 +564,38 @@ export interface IncidentTaskerView extends IncidentSummary {
   myWalletDeducted: number | null;
   /** Còn NỢ nền tảng (quỹ đã ứng thay) = uncovered − đã thu hồi. */
   myOutstandingDebt: number | null;
+  /**
+   * NỘI DUNG quyết định mà Tasker được đọc TRƯỚC khi phản biện.
+   *
+   * `saveDecision` đã bắt buộc Admin nhập `taskerDecisionReason` khi `taskerBorne > 0`, và
+   * form Admin ghi rõ "Tasker sẽ đọc nội dung này khi phản hồi" — nhưng view này trước đây
+   * không trả nó ra, nên Tasker bị hỏi Đồng ý/Không đồng ý với một con số không kèm căn cứ.
+   * Quyền phản biện mà không được biết mình phản biện điều gì thì chỉ còn là hình thức.
+   *
+   * Cùng cổng `externalized` với `myBorneAmount`: chưa gửi thì bản nháp của Admin vẫn kín.
+   * `internalDecisionNote` CỐ Ý không có ở đây — đó là ghi chú nội bộ.
+   */
+  decision: {
+    version: number;
+    outcome: string | null;
+    /** Lý do Admin soạn riêng cho Tasker (bắt buộc khi Tasker phải chịu tiền). */
+    reasonForTasker: string | null;
+    responsibilityParty: string | null;
+    responsibilityReason: string | null;
+    /** Vì sao chia tiền theo tỷ lệ này — căn cứ để Tasker phản biện phần mình gánh. */
+    allocationReason: string | null;
+    /** Tổng CleanZ duyệt chi cho khách; phần Tasker gánh là `myBorneAmount`. */
+    approvedAmount: number | null;
+    finalizedAt: Date | null;
+  } | null;
+  /**
+   * Các bản phản hồi CHÍNH Tasker này đã gửi (mọi version, mọi revision).
+   *
+   * Thiếu nó thì gửi xong form trắng lại và Tasker không còn cách nào biết mình đã nói gì,
+   * trong khi backend vốn lưu đủ theo revision. Dùng `toDecisionResponseView` chứ không
+   * phải bản Admin: ghi chú review nội bộ không được lộ.
+   */
+  myDecisionResponses: IncidentDecisionResponseView[];
 }
 
 export function toTaskerView(
@@ -511,6 +606,11 @@ export function toTaskerView(
   canSubmitStatement: boolean,
   /** Nợ còn lại của chính Tasker trên sự cố này, đọc từ sổ nợ của ví. */
   outstandingDebt = 0,
+  /** Phản hồi của chính Tasker này, kèm ảnh còn active của từng bản. */
+  myDecisionResponses: {
+    response: IncidentDecisionResponseEntity;
+    evidences: IncidentEvidenceEntity[];
+  }[] = [],
 ): IncidentTaskerView {
   // Quyết định đã được gửi cho Tasker thì mới lộ số tiền.
   const externalized = [
@@ -521,6 +621,21 @@ export function toTaskerView(
     IncidentStatus.CLOSED,
   ].includes(incident.status);
   const settled = incident.status === IncidentStatus.COMPENSATED;
+  // Tính MỘT lần: cùng vị từ vừa quyết định có mở form phản hồi, vừa quyết định bản phản
+  // hồi cũ còn sửa được hay không. Tách đôi thì form mở mà bản cũ khoá (hoặc ngược lại).
+  const canRespond = getIncidentDecisionActionView(
+    {
+      status: incident.status,
+      decisionVersion: incident.decisionVersion,
+      taskerBorneAmount: toNumber(incident.taskerBorneAmount),
+      sentTaskerBorneAmount:
+        incident.sentTaskerBorneAmount != null
+          ? toNumber(incident.sentTaskerBorneAmount)
+          : null,
+      taskerResponseDeadline: incident.taskerResponseDeadline ?? null,
+    },
+    vietnamNow(),
+  ).allowedActions.includes('RESPOND');
 
   return {
     ...toIncidentSummary(incident),
@@ -537,19 +652,7 @@ export function toTaskerView(
     statementDueAt: incident.statementDueAt ?? null,
     taskerResponseDeadline: incident.taskerResponseDeadline ?? null,
     canSubmitStatement,
-    canRespondToDecision: getIncidentDecisionActionView(
-      {
-        status: incident.status,
-        decisionVersion: incident.decisionVersion,
-        taskerBorneAmount: toNumber(incident.taskerBorneAmount),
-        sentTaskerBorneAmount:
-          incident.sentTaskerBorneAmount != null
-            ? toNumber(incident.sentTaskerBorneAmount)
-            : null,
-        taskerResponseDeadline: incident.taskerResponseDeadline ?? null,
-      },
-      new Date(),
-    ).allowedActions.includes('RESPOND'),
+    canRespondToDecision: canRespond,
     myBorneAmount: externalized ? toNumber(incident.taskerBorneAmount) : null,
     myWalletHold:
       incident.taskerWalletHoldAmount != null
@@ -558,6 +661,39 @@ export function toTaskerView(
     myWalletDeducted: settled
       ? toNumber(incident.recoverableFromDepositAmount)
       : null,
-    myOutstandingDebt: settled ? outstandingDebt : null,
+    // Nợ vẫn còn sau khi hồ sơ đóng nguội (auto-close chỉ bỏ qua khi HẾT nợ, nhưng Admin
+    // đóng tay hoặc xoá nợ thì vẫn tới CLOSED). Khoá theo `settled` như cũ khiến màn hình
+    // hiện "—" trong khi ví Tasker vẫn đang bị chặn rút vì đúng khoản nợ đó.
+    myOutstandingDebt: outstandingDebt > 0 ? outstandingDebt : null,
+    // `externalized` KHÔNG đủ: `CLOSED` nằm trong danh sách đó, mà một hồ sơ khách tự rút
+    // cũng là CLOSED — chưa từng có quyết định nào. Thiếu vế `decisionOutcome` thì màn hình
+    // Tasker dựng một thẻ "CleanZ kết luận" rỗng với 0đ/0đ và không một dòng căn cứ, tức là
+    // khẳng định có kết luận trong khi không có.
+    decision:
+      externalized && incident.decisionOutcome != null
+        ? {
+            version: incident.decisionVersion,
+            outcome: incident.decisionOutcome ?? null,
+            reasonForTasker: incident.taskerDecisionReason ?? null,
+            responsibilityParty: incident.responsibilityParty ?? null,
+            responsibilityReason: incident.responsibilityReason ?? null,
+            allocationReason: incident.allocationReason ?? null,
+            approvedAmount:
+              incident.approvedCompensationAmount != null
+                ? toNumber(incident.approvedCompensationAmount)
+                : null,
+            finalizedAt: incident.finalizedAt ?? null,
+          }
+        : null,
+    myDecisionResponses: myDecisionResponses.map((r) =>
+      toDecisionResponseView(
+        r.response,
+        r.evidences,
+        // Sửa lại được chừng nào Admin chưa review VÀ cửa sổ của version đó còn mở.
+        !r.response.reviewedAt &&
+          r.response.decisionVersion === incident.decisionVersion &&
+          canRespond,
+      ),
+    ),
   };
 }

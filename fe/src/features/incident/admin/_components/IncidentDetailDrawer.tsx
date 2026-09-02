@@ -10,7 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, Clock, FileText, ClipboardCheck, MessageSquare } from "lucide-react";
+import {
+  Wallet,
+  Clock,
+  FileText,
+  ClipboardCheck,
+  MessageSquare,
+  History,
+} from "lucide-react";
 import { useAdminIncidentDetail } from "../hooks/useAdminIncident";
 import {
   IncidentStatusBadge,
@@ -26,25 +33,42 @@ import { AcceptPanel } from "./panels/AcceptPanel";
 import { DecisionPanel } from "./panels/DecisionPanel";
 import {
   CompensatePanel,
+  ManualPayoutLedgerPanel,
   ReverseCompensationPanel,
   WithdrawDecisionPanel,
   WriteOffDebtPanel,
 } from "./panels/CompensationPanels";
+import { BankReconcilePanel } from "./panels/BankReconcilePanel";
+import { IncidentHistoryPanel } from "./panels/IncidentHistoryPanel";
 import { DecisionResponseHistory } from "./panels/DecisionResponseHistory";
 import { UnlockReporterButton } from "./UnlockReporterButton";
 
 function fmt(d: string | null | undefined) {
   return d ? new Date(d).toLocaleString("vi-VN") : "—";
 }
-function Item({ label, children }: { label: string; children: React.ReactNode }) {
+function Item({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-muted)]">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-muted)]">
+        {label}
+      </p>
       <div className="text-sm text-[var(--c-ink-soft)]">{children}</div>
     </div>
   );
 }
-function SectionTitle({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function SectionTitle({
+  icon: Icon,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
   return (
     <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--c-muted)]">
       <Icon className="size-3.5 text-[var(--c-primary-strong)]" /> {children}
@@ -60,6 +84,12 @@ interface Props {
 
 export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
   const { data: inc, isLoading } = useAdminIncidentDetail(incidentId);
+  /**
+   * Nhật ký chỉ nạp khi tab của nó được mở. Đây là danh sách chỉ dài thêm theo thời gian
+   * và không cần cho bất kỳ hành động nào — nạp sẵn cùng drawer là bắt mọi lần mở hồ sơ
+   * phải trả giá cho một thứ hiếm khi được xem.
+   */
+  const [tab, setTab] = React.useState("overview");
   const actions = inc?.decision.allowedActions ?? [];
   const canAccept = inc?.status === "REPORTED";
   // Xem xét từng khoản nay nằm trong form quyết định — không còn bước "Xác minh" riêng.
@@ -75,13 +105,15 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        className="cz-admin flex h-[88vh] w-[80vw] max-w-none sm:max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0 bg-[var(--c-card)] text-[var(--c-ink)]"
-      >
+      <DialogContent className="cz-admin flex h-[88vh] w-[80vw] max-w-none sm:max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0 bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader className="space-y-2 border-b border-[var(--c-line)] px-6 py-4 text-left">
           <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--c-ink)]">
             <FileText className="size-4 text-[var(--c-primary-strong)]" />
-            {isLoading ? <Skeleton className="h-5 w-32" /> : inc?.incidentCode ?? "Chi tiết sự cố"}
+            {isLoading ? (
+              <Skeleton className="h-5 w-32" />
+            ) : (
+              (inc?.incidentCode ?? "Chi tiết sự cố")
+            )}
             {inc && (
               <span className="flex flex-wrap items-center gap-1.5 pl-2">
                 <SeverityBadge severity={inc.severity} />
@@ -101,17 +133,30 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             ))}
           </div>
         ) : inc ? (
-          <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col gap-0">
+          <Tabs
+            value={tab}
+            onValueChange={setTab}
+            className="flex min-h-0 flex-1 flex-col gap-0"
+          >
             {/* Menu ngang điều hướng các phụ lục trong form */}
             <div className="border-b border-[var(--c-line)] px-6 py-3">
               <TabsList className="w-full rounded-xl bg-[var(--c-card-2)]">
-                <TabsTrigger value="overview" className="flex-1 gap-1.5 text-xs">
+                <TabsTrigger
+                  value="overview"
+                  className="flex-1 gap-1.5 text-xs"
+                >
                   <FileText className="size-3.5" /> Tổng quan
                 </TabsTrigger>
-                <TabsTrigger value="assessment" className="flex-1 gap-1.5 text-xs">
+                <TabsTrigger
+                  value="assessment"
+                  className="flex-1 gap-1.5 text-xs"
+                >
                   <ClipboardCheck className="size-3.5" /> Xem xét &amp; xử lý
                 </TabsTrigger>
-                <TabsTrigger value="appendix" className="flex-1 gap-1.5 text-xs">
+                <TabsTrigger
+                  value="appendix"
+                  className="flex-1 gap-1.5 text-xs"
+                >
                   <MessageSquare className="size-3.5" /> Ý kiến hai bên
                   {appendixCount > 0 && (
                     <span className="ml-0.5 rounded-full bg-[var(--c-primary)]/15 px-1.5 text-[10px] font-bold text-[var(--c-primary-strong)]">
@@ -119,65 +164,109 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="history" className="flex-1 gap-1.5 text-xs">
+                  <History className="size-3.5" /> Nhật ký
+                </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Phụ lục 1: Tổng quan */}
-            <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto p-6">
+            <TabsContent
+              value="overview"
+              className="min-h-0 flex-1 overflow-y-auto p-6"
+            >
               <div className="mx-auto w-full max-w-5xl space-y-5">
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <Item label="Khách hàng">{inc.customer.fullName ?? "—"}</Item>
                   <Item label="Tasker">{inc.tasker.fullName ?? "—"}</Item>
-                  <Item label="Số dư ví (Tasker)">{formatVnd(inc.tasker.walletBalance)}</Item>
-                  <Item label="Hạn khách được báo cáo">{fmt(inc.reportWindowUntil)}</Item>
-                  <Item label="Hạn ra quyết định">{fmt(inc.decisionDueAt)}</Item>
-                  <Item label="Hạn Tasker giải trình">{fmt(inc.statementDueAt)}</Item>
-                  <Item label="Hạn Tasker phản hồi quyết định">{fmt(inc.decision.taskerResponseDeadline)}</Item>
+                  <Item label="Số dư ví (Tasker)">
+                    {formatVnd(inc.tasker.walletBalance)}
+                  </Item>
+                  {/* Hồ sơ do CleanZ tự mở (ticket / review check-in / no-show) không có
+                      hạn gửi báo cáo — việc gửi đã xảy ra qua đường khác. Nói thẳng thay
+                      vì để dấu gạch, vì "—" đọc như dữ liệu bị thiếu. */}
+                  <Item label="Hạn khách được báo cáo">
+                    {inc.reportWindowUntil
+                      ? fmt(inc.reportWindowUntil)
+                      : inc.source === "CUSTOMER_REPORT"
+                        ? "—"
+                        : "Không áp dụng (CleanZ mở hồ sơ)"}
+                  </Item>
+                  <Item label="Hạn ra quyết định">
+                    {fmt(inc.decisionDueAt)}
+                  </Item>
+                  <Item label="Hạn Tasker giải trình">
+                    {fmt(inc.statementDueAt)}
+                  </Item>
+                  <Item label="Hạn Tasker phản hồi quyết định">
+                    {fmt(inc.decision.taskerResponseDeadline)}
+                  </Item>
                 </div>
 
                 {/* Tình trạng tiền: phần ví đang tạm giữ chờ xử lý bồi thường */}
                 {(inc.taskerWalletHoldAmount ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-[#3B82F6]/15 px-2.5 py-1 text-xs font-semibold text-[#1D4ED8]">
-                      <Wallet className="size-3.5" /> Đang tạm giữ ví: {formatVnd(inc.taskerWalletHoldAmount)}
+                      <Wallet className="size-3.5" /> Đang tạm giữ ví:{" "}
+                      {formatVnd(inc.taskerWalletHoldAmount)}
                     </span>
                   </div>
                 )}
 
                 <div className="rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-3 text-sm">
-                  <p className="mb-1 text-xs font-bold text-[var(--c-muted)]">Mô tả</p>
+                  <p className="mb-1 text-xs font-bold text-[var(--c-muted)]">
+                    Mô tả
+                  </p>
                   <p className="whitespace-pre-wrap">{inc.description}</p>
                 </div>
 
                 {/* Damage items */}
                 <div className="space-y-2">
-                  <SectionTitle icon={FileText}>Các khoản thiệt hại</SectionTitle>
+                  <SectionTitle icon={FileText}>
+                    Các khoản thiệt hại
+                  </SectionTitle>
                   <div className="grid gap-2 md:grid-cols-2">
                     {inc.damageItems.map((it) => (
-                      <div key={it.id} className="rounded-lg border border-[var(--c-line)] p-2.5 text-sm">
+                      <div
+                        key={it.id}
+                        className="rounded-lg border border-[var(--c-line)] p-2.5 text-sm"
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-medium">{it.description}</p>
                           <span
-                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${it.verificationStatus === "VERIFIED"
+                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                              it.verificationStatus === "VERIFIED"
                                 ? "bg-[#10B981]/15 text-[#047857]"
                                 : it.verificationStatus === "REJECTED"
                                   ? "bg-[#DC2626]/15 text-[#B91C1C]"
                                   : "bg-[#F59E0B]/15 text-[#B45309]"
-                              }`}
+                            }`}
                           >
-                            {VERIFICATION_STATUS_LABEL[it.verificationStatus] ?? it.verificationStatus}
+                            {VERIFICATION_STATUS_LABEL[it.verificationStatus] ??
+                              it.verificationStatus}
                           </span>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-[var(--c-muted)]">
                           <span>Yêu cầu {formatVnd(it.claimedAmount)}</span>
-                          {it.verifiedAmount != null && <span>Xác minh {formatVnd(it.verifiedAmount)}</span>}
-                          {it.approvedAmount != null && <span className="text-[#0E9F6E]">Duyệt {formatVnd(it.approvedAmount)}</span>}
+                          {it.verifiedAmount != null && (
+                            <span>Xác minh {formatVnd(it.verifiedAmount)}</span>
+                          )}
+                          {it.approvedAmount != null && (
+                            <span className="text-[#0E9F6E]">
+                              Duyệt {formatVnd(it.approvedAmount)}
+                            </span>
+                          )}
                         </div>
                         {it.evidences.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {it.evidences.map((ev) => (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img key={ev.id} src={ev.url} alt="bằng chứng" className="size-14 rounded border border-[var(--c-line)] object-cover" />
+                              <img
+                                key={ev.id}
+                                src={ev.url}
+                                alt="bằng chứng"
+                                className="size-14 rounded border border-[var(--c-line)] object-cover"
+                              />
                             ))}
                           </div>
                         )}
@@ -187,40 +276,63 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 </div>
 
                 {/* Allocation + deposit */}
-                {(inc.taskerBorneAmount != null || inc.platformBorneAmount != null) && (
+                {(inc.taskerBorneAmount != null ||
+                  inc.platformBorneAmount != null) && (
                   <div className="grid grid-cols-2 gap-3 rounded-xl border border-[var(--c-line)] p-3 text-sm md:grid-cols-4">
-                    <Item label="Tasker chịu">{formatVnd(inc.taskerBorneAmount)}</Item>
-                    <Item label="Quỹ nền tảng chịu">{formatVnd(inc.platformBorneAmount)}</Item>
+                    <Item label="Tasker chịu">
+                      {formatVnd(inc.taskerBorneAmount)}
+                    </Item>
+                    <Item label="Quỹ nền tảng chịu">
+                      {formatVnd(inc.platformBorneAmount)}
+                    </Item>
                     {inc.compensationSource && (
                       <Item label="Nguồn bồi thường">
-                        <span className="flex items-center gap-1"><Wallet className="size-3.5" /> {COMP_SOURCE_LABEL[inc.compensationSource]}</span>
+                        <span className="flex items-center gap-1">
+                          <Wallet className="size-3.5" />{" "}
+                          {COMP_SOURCE_LABEL[inc.compensationSource]}
+                        </span>
                       </Item>
                     )}
-                    {inc.allocationReason && <Item label="Lý do chia tỷ lệ">{inc.allocationReason}</Item>}
+                    {inc.allocationReason && (
+                      <Item label="Lý do chia tỷ lệ">
+                        {inc.allocationReason}
+                      </Item>
+                    )}
                     {inc.decision.recoverableFromDepositAmount != null && (
-                      <Item label="Đã trừ từ ví Tasker">{formatVnd(inc.decision.recoverableFromDepositAmount)}</Item>
+                      <Item label="Đã trừ từ ví Tasker">
+                        {formatVnd(inc.decision.recoverableFromDepositAmount)}
+                      </Item>
                     )}
-                    {inc.decision.uncoveredLiabilityAmount != null && inc.decision.uncoveredLiabilityAmount > 0 && (
-                      <>
-                        <Item label="Nợ đã thu hồi">{formatVnd(inc.uncoveredRecoveredAmount)}</Item>
-                        <Item label="Nợ còn lại (Tasker)">
-                          <span className="font-semibold text-[#B45309]">
-                            {formatVnd(
-                              inc.decision.uncoveredLiabilityAmount - inc.uncoveredRecoveredAmount,
-                            )}
-                          </span>
-                        </Item>
-                      </>
-                    )}
+                    {inc.decision.uncoveredLiabilityAmount != null &&
+                      inc.decision.uncoveredLiabilityAmount > 0 && (
+                        <>
+                          <Item label="Nợ đã thu hồi">
+                            {formatVnd(inc.uncoveredRecoveredAmount)}
+                          </Item>
+                          <Item label="Nợ còn lại (Tasker)">
+                            <span className="font-semibold text-[#B45309]">
+                              {formatVnd(
+                                inc.decision.uncoveredLiabilityAmount -
+                                  inc.uncoveredRecoveredAmount,
+                              )}
+                            </span>
+                          </Item>
+                        </>
+                      )}
                   </div>
                 )}
               </div>
             </TabsContent>
 
             {/* Tab 2: Xem xét & xử lý */}
-            <TabsContent value="assessment" className="min-h-0 flex-1 overflow-y-auto p-6">
+            <TabsContent
+              value="assessment"
+              className="min-h-0 flex-1 overflow-y-auto p-6"
+            >
               <div className="mx-auto w-full max-w-3xl space-y-5">
-                {canAccept && <AcceptPanel id={inc.id} severity={inc.severity} />}
+                {canAccept && (
+                  <AcceptPanel id={inc.id} severity={inc.severity} />
+                )}
                 {showDecision && <DecisionPanel incident={inc} />}
                 {inc.status === "AWAITING_PAYOUT" && (
                   <CompensatePanel
@@ -239,20 +351,50 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 {(inc.transferProofEvidences?.length ?? 0) > 0 && (
                   <div className="space-y-1.5 rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-2.5">
                     <p className="text-xs font-bold uppercase text-[var(--c-muted)]">
-                      Minh chứng chuyển khoản thủ công ({inc.transferProofEvidences.length})
+                      Minh chứng chuyển khoản thủ công (
+                      {inc.transferProofEvidences.length})
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {inc.transferProofEvidences.map((ev) => (
-                        <a key={ev.id} href={ev.url} target="_blank" rel="noreferrer">
+                        <a
+                          key={ev.id}
+                          href={ev.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={ev.url} alt="minh chứng chuyển khoản" className="size-16 rounded border border-[var(--c-line)] object-cover transition hover:opacity-80" />
+                          <img
+                            src={ev.url}
+                            alt="minh chứng chuyển khoản"
+                            className="size-16 rounded border border-[var(--c-line)] object-cover transition hover:opacity-80"
+                          />
                         </a>
                       ))}
                     </div>
                   </div>
                 )}
+                {/* Khoản chi ngoài không đảo tự động được, nên đây là lối sửa sai DUY NHẤT
+                    cho nó — luôn hiện cùng sổ, không nấp sau một điều kiện nào. */}
+                {inc.externalPayout && (
+                  <ManualPayoutLedgerPanel
+                    id={inc.id}
+                    approved={inc.approvedAmount}
+                    ledger={inc.externalPayout}
+                  />
+                )}
+                {inc.externalPayout && (
+                  <BankReconcilePanel
+                    incidentId={inc.id}
+                    declaredOutflow={
+                      inc.externalPayout.amount + inc.externalPayout.lossAmount
+                    }
+                  />
+                )}
                 {actions.includes("WITHDRAW_DECISION") && (
-                  <WithdrawDecisionPanel id={inc.id} decisionVersion={inc.decision.version} />
+                  <WithdrawDecisionPanel
+                    id={inc.id}
+                    decisionVersion={inc.decision.version}
+                  />
                 )}
                 {/* Nút hoàn tác bám theo allowedActions: BE biết trước 72h/chi thủ công/đã thu nợ
                     thì không hoàn tác được, nên không bật nút rồi để Admin ăn 409 sau khi gõ lý do. */}
@@ -261,7 +403,9 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                     id={inc.id}
                     decisionVersion={inc.decision.version}
                     blockedReasons={
-                      actions.includes("REVERSE") ? [] : (inc.decision.blockedReasons ?? [])
+                      actions.includes("REVERSE")
+                        ? []
+                        : (inc.decision.blockedReasons ?? [])
                     }
                   />
                 )}
@@ -273,7 +417,8 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 />
                 {noAction && inc.status !== "COMPENSATED" && (
                   <p className="rounded-lg border border-[var(--c-line)] bg-[var(--c-card-2)] p-3 text-xs text-[var(--c-muted)]">
-                    <Clock className="mr-1 inline size-3.5" /> Không có hành động khả dụng ở trạng thái hiện tại.
+                    <Clock className="mr-1 inline size-3.5" /> Không có hành
+                    động khả dụng ở trạng thái hiện tại.
                   </p>
                 )}
                 {(inc.status === "REJECTED" || inc.status === "CLOSED") && (
@@ -287,7 +432,10 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
             </TabsContent>
 
             {/* Phụ lục 3: Phản hồi & Giải trình */}
-            <TabsContent value="appendix" className="min-h-0 flex-1 overflow-y-auto p-6">
+            <TabsContent
+              value="appendix"
+              className="min-h-0 flex-1 overflow-y-auto p-6"
+            >
               <div className="mx-auto w-full max-w-3xl space-y-6">
                 <section className="space-y-2">
                   <SectionTitle icon={ClipboardCheck}>
@@ -307,8 +455,12 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {inc.statementEvidences.map((ev) => (
-                           
-                          <a key={ev.id} href={ev.url} target="_blank" rel="noreferrer">
+                          <a
+                            key={ev.id}
+                            href={ev.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
                             <img
                               src={ev.url}
                               alt="ảnh Tasker gửi kèm"
@@ -322,9 +474,27 @@ export function IncidentDetailDrawer({ incidentId, isOpen, onClose }: Props) {
                 </section>
               </div>
             </TabsContent>
+
+            {/* Phụ lục 4: Nhật ký — ai làm gì lúc nào trên hồ sơ này */}
+            <TabsContent
+              value="history"
+              className="min-h-0 flex-1 overflow-y-auto p-6"
+            >
+              <div className="mx-auto w-full max-w-3xl space-y-3">
+                <SectionTitle icon={History}>
+                  Nhật ký thao tác trên hồ sơ
+                </SectionTitle>
+                <IncidentHistoryPanel
+                  incidentId={inc.id}
+                  enabled={tab === "history"}
+                />
+              </div>
+            </TabsContent>
           </Tabs>
         ) : (
-          <div className="p-6 text-center text-sm text-[var(--c-muted)]">Không tìm thấy sự cố này</div>
+          <div className="p-6 text-center text-sm text-[var(--c-muted)]">
+            Không tìm thấy sự cố này
+          </div>
         )}
       </DialogContent>
     </Dialog>

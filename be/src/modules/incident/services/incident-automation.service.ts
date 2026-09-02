@@ -25,7 +25,10 @@ import {
 } from 'src/modules/wallet/entity/tasker-debt.entity';
 import { IncidentReconciliationService } from './incident-reconciliation.service';
 import { IncidentAlertService } from './incident-alert.service';
-import { CompensationExecutorService } from './compensation-executor.service';
+import {
+  vietnamNow,
+  vietnamNowMinus,
+} from 'src/common/helpers/vietnam-time.helper';
 
 export interface HousekeepingResult {
   expiredCount: number;
@@ -37,7 +40,24 @@ export interface HousekeepingResult {
   reconCritical: number;
   /** Ảnh upload dở dang đã được dọn (bản ghi + file trên storage). */
   abandonedEvidencePurged: number;
+  /**
+   * Lượt này KHÔNG chạy vì một tiến trình khác đang giữ khoá (instance khác, hoặc lượt
+   * định kỳ đang dở). Mọi số ở trên là 0 vì chưa quét, không phải vì không có việc.
+   */
+  skipped: boolean;
 }
+
+/**
+ * Khoá chạy housekeeping ở phạm vi CỤM — `pg_try_advisory_lock(class, id)`.
+ *
+ * `isRunning` chỉ là biến trong RAM của một tiến trình: deploy 2 replica là 2 vòng quét
+ * chạy song song. Các sweep không sai tiền (thu hồi nợ khoá `FOR UPDATE`, notify dedupe
+ * theo key), nhưng chúng giẫm chân nhau, nhân đôi tải DB và làm log nói dối về số lượt
+ * thực sự có việc. Advisory lock gắn với SESSION nên tiến trình chết là khoá tự nhả —
+ * không có kịch bản kẹt vĩnh viễn cần dọn tay.
+ */
+const HOUSEKEEPING_LOCK_CLASS = 4711;
+const HOUSEKEEPING_LOCK_ID = 1;
 
 /** Sau ngần này giờ mà sự cố đã chốt vẫn chưa chi trả xong thì nhắc Admin. */
 const PAYOUT_OVERDUE_HOURS = 24;
@@ -60,7 +80,6 @@ export class IncidentAutomationService
     private readonly state: IncidentStateService,
     private readonly evidenceLifecycle: IncidentEvidenceLifecycleService,
     private readonly notifier: IncidentNotifier,
-    private readonly compensationExecutor: CompensationExecutorService,
     private readonly depositHold: IncidentDepositHoldService,
     private readonly debtRecovery: TaskerDebtService,
     private readonly reconciliation: IncidentReconciliationService,
@@ -115,10 +134,24 @@ export class IncidentAutomationService
         systemWalletLowWarned: 0,
         reconCritical: 0,
         abandonedEvidencePurged: 0,
+        skipped: true,
       };
       if (this.isRunning) return empty;
       this.isRunning = true;
+
+      // Khoá phải nằm trên MỘT connection giữ suốt lượt quét: advisory lock gắn với
+      // session, xin trên connection này rồi nhả trên connection khác của pool là nhả hụt.
+      const locker = this.dataSource.createQueryRunner();
+      let acquired = false;
       try {
+        await locker.connect();
+        const [lock] = (await locker.query(
+          'SELECT pg_try_advisory_lock($1, $2) AS ok',
+          [HOUSEKEEPING_LOCK_CLASS, HOUSEKEEPING_LOCK_ID],
+        )) as Array<{ ok: boolean }>;
+        acquired = lock?.ok === true;
+        if (!acquired) return empty;
+
         const expiredCount = await this.sweepReportedExpiry();
         const autoClosedCount = await this.sweepAutoClose();
         const slaOverdueWarned = await this.sweepSlaOverdue();
@@ -136,8 +169,22 @@ export class IncidentAutomationService
           systemWalletLowWarned,
           reconCritical,
           abandonedEvidencePurged,
+          skipped: false,
         };
       } finally {
+        // Nhả khoá trước khi trả connection về pool. Bỏ qua lỗi: nếu session đã chết thì
+        // Postgres nhả hộ rồi, còn ném ở đây sẽ nuốt mất kết quả (hoặc lỗi thật) của lượt quét.
+        if (acquired) {
+          try {
+            await locker.query('SELECT pg_advisory_unlock($1, $2)', [
+              HOUSEKEEPING_LOCK_CLASS,
+              HOUSEKEEPING_LOCK_ID,
+            ]);
+          } catch (e) {
+            this.logger.warn(`Không nhả được khoá housekeeping: ${String(e)}`);
+          }
+        }
+        await locker.release();
         this.isRunning = false;
       }
     }, 'Không thể chạy housekeeping sự cố');
@@ -150,7 +197,7 @@ export class IncidentAutomationService
    * "Đánh dấu" đã được thể hiện qua bộ lọc `overdue` ở admin queue (decisionDueAt < now).
    */
   private async sweepSlaOverdue(): Promise<number> {
-    const now = new Date();
+    const now = vietnamNow();
     const incidents = await this.dataSource.getRepository(IncidentEntity).find({
       where: [
         { status: IncidentStatus.REVIEWING, decisionDueAt: LessThan(now) },
@@ -194,7 +241,7 @@ export class IncidentAutomationService
    * nên vòng quét đó không bao giờ chạy. Sự cố kẹt ở `AWAITING_PAYOUT` mới là tín hiệu thật.
    */
   private async sweepPayoutOverdue(): Promise<number> {
-    const cutoff = new Date(Date.now() - PAYOUT_OVERDUE_HOURS * 3_600_000);
+    const cutoff = vietnamNowMinus(PAYOUT_OVERDUE_HOURS * 3_600_000);
     const incidents = await this.dataSource.getRepository(IncidentEntity).find({
       where: {
         status: IncidentStatus.AWAITING_PAYOUT,
@@ -217,16 +264,28 @@ export class IncidentAutomationService
     return warned;
   }
 
+  /**
+   * Đóng hồ sơ khách đã gửi mà quá hạn vẫn không ai tiếp nhận.
+   *
+   * PHẢI báo cho khách. Đây là hồ sơ do chính họ mở, họ đã kê khai thiệt hại và tải ảnh,
+   * rồi chờ — đóng im lặng nghĩa là họ tiếp tục chờ một kết quả sẽ không bao giờ tới. Mọi
+   * sweep khác đều gửi thông báo; riêng nhánh này thì không, và đúng nhánh này mới là nơi
+   * nền tảng có lỗi (không xử lý kịp) chứ không phải người dùng.
+   *
+   * Gửi SAU transaction: notifier chạy nền và không được phép làm rollback việc đóng hồ sơ.
+   */
   private async sweepReportedExpiry(): Promise<number> {
     const days = await this.config.getReportedExpiryDays();
     if (days <= 0) return 0;
-    const cutoff = new Date(Date.now() - days * 86_400_000);
-    return this.dataSource.transaction(async (manager) => {
+    const cutoff = vietnamNowMinus(days * 86_400_000);
+    const closed = await this.dataSource.transaction(async (manager) => {
       const incidents = await manager.getRepository(IncidentEntity).find({
         where: {
           status: IncidentStatus.REPORTED,
           reportedAt: LessThan(cutoff),
         },
+        // Cần `customer.user` để biết gửi thông báo cho ai.
+        relations: { customer: { user: true } },
         take: 100,
       });
       for (const inc of incidents) {
@@ -237,8 +296,20 @@ export class IncidentAutomationService
           'Tự đóng do quá hạn tiếp nhận (housekeeping)',
         );
       }
-      return incidents.length;
+      return incidents;
     });
+
+    for (const inc of closed) {
+      this.notifier.notify(
+        inc.customer?.user?.id,
+        inc.id,
+        'Báo cáo sự cố đã được đóng',
+        `Sự cố ${inc.incidentCode ?? ''} của bạn đã quá ${days} ngày mà chưa được xử lý nên hệ thống tự đóng hồ sơ. ` +
+          `Nếu vấn đề vẫn chưa được giải quyết, vui lòng liên hệ hỗ trợ để CleanZ mở lại.`,
+        'reported-expired',
+      );
+    }
+    return closed.length;
   }
 
   /**
@@ -248,7 +319,7 @@ export class IncidentAutomationService
    */
   private async sweepAutoClose(): Promise<number> {
     const hours = await this.config.getAutoCloseHours();
-    const cutoff = new Date(Date.now() - hours * 3_600_000);
+    const cutoff = vietnamNowMinus(hours * 3_600_000);
     return this.dataSource.transaction(async (manager) => {
       const incidents = await manager
         .getRepository(IncidentEntity)

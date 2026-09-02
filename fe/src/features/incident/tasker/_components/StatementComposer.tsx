@@ -6,7 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Lock, Send } from "lucide-react";
 import { EvidenceUploader } from "@/features/incident/shared/_components/EvidenceUploader";
 import type { Evidence } from "@/features/incident/shared/incident.types";
-import { useSubmitStatement, useTaskerUploadEvidence } from "../hooks/useTaskerIncident";
+import {
+  useSubmitStatement,
+  useTaskerUploadEvidence,
+} from "../hooks/useTaskerIncident";
 
 /**
  * Soạn ý kiến giải trình. Chỉ bật khi `canSubmitStatement` (INVESTIGATING + còn hạn);
@@ -27,7 +30,8 @@ export function StatementComposer({
   if (!canSubmit) {
     return (
       <p className="flex items-center justify-center gap-1.5 rounded-xl border border-border/40 bg-muted/40 p-3 text-xs text-muted-foreground">
-        <Lock className="size-3.5" /> Đã hết hạn hoặc sự cố không còn ở bước xem xét — bạn không gửi thêm ý kiến được nữa.
+        <Lock className="size-3.5" /> Đã hết hạn hoặc sự cố không còn ở bước xem
+        xét — bạn không gửi thêm ý kiến được nữa.
       </p>
     );
   }
@@ -37,7 +41,9 @@ export function StatementComposer({
     submit.mutate(
       {
         body: body.trim(),
-        ...(evidences.length ? { evidenceIds: evidences.map((e) => e.id) } : {}),
+        ...(evidences.length
+          ? { evidenceIds: evidences.map((e) => e.id) }
+          : {}),
       },
       {
         onSuccess: () => {
@@ -70,7 +76,8 @@ export function StatementComposer({
         onClick={handleSend}
         disabled={!body.trim() || submit.isPending}
       >
-        <Send className="size-3.5" /> {submit.isPending ? "Đang gửi..." : "Gửi ý kiến"}
+        <Send className="size-3.5" />{" "}
+        {submit.isPending ? "Đang gửi..." : "Gửi ý kiến"}
       </Button>
     </div>
   );

@@ -25,6 +25,7 @@ import { IncidentService } from './services/incident.service';
 import { CompensationExecutorService } from './services/compensation-executor.service';
 import { TaskerDebtService } from '../wallet/tasker-debt.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
+import { BankStatementService } from './services/bank-statement.service';
 import { IncidentAutomationService } from './services/incident-automation.service';
 import { WalletService } from '../wallet/wallet.service';
 import { SystemConfigService } from '../system-config/system-config.service';
@@ -69,6 +70,7 @@ describe('Money path integration (P1.5)', () => {
   let automation: IncidentAutomationService;
   let wallet: WalletService;
   let systemConfig: SystemConfigService;
+  let bankStatement: BankStatementService;
 
   // Fixture ids
   let admin1: string;
@@ -129,6 +131,7 @@ describe('Money path integration (P1.5)', () => {
     executor = app.get(CompensationExecutorService);
     debtRecovery = app.get(TaskerDebtService);
     reconciliation = app.get(IncidentReconciliationService);
+    bankStatement = app.get(BankStatementService);
     automation = app.get(IncidentAutomationService);
     wallet = app.get(WalletService);
     systemConfig = app.get(SystemConfigService);
@@ -977,5 +980,351 @@ describe('Money path integration (P1.5)', () => {
       inc,
     ]);
     expect(st.status).toBe('CLOSED');
+  });
+
+  it('13. Sửa sai chi trả thủ công: chuyển nhầm người → ghi thất thoát + còn thiếu khách, chuyển bù → sổ sạch', async () => {
+    await clearDebts();
+    await setTaskerWallet(0);
+    await setCustomerWallet(0);
+    await setSystemWallet(0); // quỹ cạn → buộc đi luồng thủ công
+
+    const inc = await mintIncident(1_000_000);
+    await adminSvc.accept(admin1, inc, {});
+    await driveAdverseToFinal(inc, 1_000_000);
+
+    const mkProof = async (): Promise<string> =>
+      (
+        await ds.query(
+          `INSERT INTO incident_evidences (file_url, file_type, purpose, visibility, uploaded_by_user_id)
+           VALUES ('https://proof.test/fix.png','IMAGE','COMPENSATION_TRANSFER_PROOF','ADMIN_ONLY',$1)
+           RETURNING id`,
+          [admin1],
+        )
+      )[0].id as string;
+
+    await executor.executeManual(admin1, inc, await mkProof(), 'chuyển VCB');
+
+    // ── Phát hiện đã chuyển nhầm người: khách chưa nhận đồng nào ──────────────
+    await expect(
+      executor.correctManualPayout(admin1, inc, {
+        deliveredAmount: 0,
+        lossAmount: 1_000_000,
+        reason: 'ngắn',
+      }),
+    ).rejects.toThrow(/10 ký tự/);
+    await expect(
+      executor.correctManualPayout(admin1, inc, {
+        deliveredAmount: 1_500_000,
+        reason: 'Khai vượt số đã duyệt để kiểm tra chốt chặn',
+      }),
+    ).rejects.toThrow(/vượt số đã duyệt/);
+
+    // Sửa sai KHÔNG được đụng tới bất kỳ đồng nào trong hệ thống.
+    const wronged = await expectMoneyConserved(ds, () =>
+      executor.correctManualPayout(admin1, inc, {
+        deliveredAmount: 0,
+        lossAmount: 1_000_000,
+        reason:
+          'Chuyển nhầm số tài khoản của khách khác, khách chưa nhận đồng nào',
+      }),
+    );
+    expect(wronged.externalPayout?.amount).toBe(0);
+    expect(wronged.externalPayout?.lossAmount).toBe(1_000_000);
+    expect(wronged.externalPayout?.shortfallAmount).toBe(1_000_000);
+
+    // Đối soát phải kêu: khách CHƯA được trả đủ, và có khoản tiền đã mất.
+    let recon = await reconciliation.reconcile();
+    const mine = () => recon.discrepancies.filter((d) => d.incidentId === inc);
+    expect(
+      mine().find((d) => d.kind === 'EXTERNAL_PAYOUT_MISMATCH')?.severity,
+    ).toBe('CRITICAL');
+    expect(mine().find((d) => d.kind === 'EXTERNAL_PAYOUT_LOSS')?.actual).toBe(
+      1_000_000,
+    );
+
+    // Sổ chi ngoài vẫn phải phản ánh TOÀN BỘ tiền đã rời ngân hàng (đã trả + đã mất).
+    const outlayBefore = recon.platformOutlay.external;
+
+    // ── Chuyển bù cho đúng khách rồi sửa lại sổ ────────────────────────────────
+    const fixProof = await mkProof();
+    const fixed = await executor.correctManualPayout(admin1, inc, {
+      deliveredAmount: 1_000_000,
+      proofEvidenceId: fixProof,
+      reason: 'Đã chuyển bù đủ cho đúng khách, đính kèm biên lai lần hai',
+    });
+    expect(fixed.externalPayout?.amount).toBe(1_000_000);
+    expect(fixed.externalPayout?.shortfallAmount).toBe(0);
+    expect(fixed.externalPayout?.lossAmount).toBe(1_000_000); // khoản mất không biến mất
+    expect(fixed.externalPayout?.correctedAt).not.toBeNull();
+
+    // Khai lại y hệt số đang có → chặn, để nhật ký không đầy những lần sửa rỗng.
+    await expect(
+      executor.correctManualPayout(admin1, inc, {
+        deliveredAmount: 1_000_000,
+        reason: 'Bấm nhầm lần nữa với đúng số liệu cũ',
+      }),
+    ).rejects.toThrow(/trùng với sổ hiện tại/);
+
+    recon = await reconciliation.reconcile();
+    expect(
+      mine().find((d) => d.kind === 'EXTERNAL_PAYOUT_MISMATCH'),
+    ).toBeUndefined();
+    expect(recon.platformOutlay.external).toBe(outlayBefore + 1_000_000);
+
+    // Có sổ chi ngoài thì vẫn không đảo tự động được, kể cả khi số tiền từng về 0.
+    await expect(
+      executor.reverse(
+        admin1,
+        inc,
+        'Thử đảo sau khi đã điều chỉnh sổ chi ngoài',
+        (await adminSvc.findOne(inc)).decision.version,
+      ),
+    ).rejects.toThrow(/thủ công/);
+  });
+
+  it('14. Một ảnh minh chứng không thể dùng cho hai sự cố (kể cả gọi đồng thời)', async () => {
+    await clearDebts();
+    await setTaskerWallet(0);
+    await setCustomerWallet(0);
+    await setSystemWallet(0);
+
+    const a = await mintIncident(300_000);
+    await adminSvc.accept(admin1, a, {});
+    await driveAdverseToFinal(a, 300_000);
+    const b = await mintIncident(400_000);
+    await adminSvc.accept(admin1, b, {});
+    await driveAdverseToFinal(b, 400_000);
+
+    const proofId = (
+      await ds.query(
+        `INSERT INTO incident_evidences (file_url, file_type, purpose, visibility, uploaded_by_user_id)
+         VALUES ('https://proof.test/shared.png','IMAGE','COMPENSATION_TRANSFER_PROOF','ADMIN_ONLY',$1)
+         RETURNING id`,
+        [admin1],
+      )
+    )[0].id as string;
+
+    // Chạy SONG SONG: nếu không khoá hàng minh chứng, cả hai cùng thấy nó còn rời và
+    // hệ thống ghi nhận hai khoản tiền rời ngân hàng với đúng một biên lai.
+    const results = await Promise.allSettled([
+      executor.executeManual(admin1, a, proofId, 'chuyển A'),
+      executor.executeManual(admin1, b, proofId, 'chuyển B'),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((r) => r.status === 'rejected');
+    expect(String((rejected as PromiseRejectedResult).reason)).toMatch(
+      /minh chứng/,
+    );
+
+    const [ledger] = await ds.query(
+      `SELECT count(*)::int AS n FROM incidents
+        WHERE id = ANY($1) AND external_payout_at IS NOT NULL`,
+      [[a, b]],
+    );
+    expect(ledger.n).toBe(1);
+  });
+
+  it('15. Bấm lại chi trả thủ công: đúng biên lai cũ → im lặng bỏ qua; biên lai mới → từ chối, không bỏ rơi ảnh', async () => {
+    await clearDebts();
+    await setTaskerWallet(0);
+    await setCustomerWallet(0);
+    await setSystemWallet(0);
+
+    const mkProof = async (tag: string): Promise<string> =>
+      (
+        await ds.query(
+          `INSERT INTO incident_evidences (file_url, file_type, purpose, visibility, uploaded_by_user_id)
+           VALUES ($2,'IMAGE','COMPENSATION_TRANSFER_PROOF','ADMIN_ONLY',$1)
+           RETURNING id`,
+          [admin1, `https://proof.test/${tag}.png`],
+        )
+      )[0].id as string;
+
+    const inc = await mintIncident(500_000);
+    await adminSvc.accept(admin1, inc, {});
+    await driveAdverseToFinal(inc, 500_000);
+
+    const proofId = await mkProof('retry-1');
+    await executor.executeManual(admin1, inc, proofId, 'chuyển lần 1');
+
+    // Bấm lại ĐÚNG lệnh cũ (cùng biên lai): idempotent, không nhân đôi sổ chi ngoài.
+    await expectMoneyConserved(ds, () =>
+      executor.executeManual(admin1, inc, proofId, 'chuyển lần 1'),
+    );
+    const [ledger] = await ds.query(
+      `SELECT external_payout_amount amt FROM incidents WHERE id=$1`,
+      [inc],
+    );
+    expect(Number(ledger.amt)).toBe(500_000);
+
+    // Lệnh chi THỨ HAI với biên lai khác: phải bị từ chối rõ ràng. Trả im lặng ở đây là
+    // để Admin tin rằng khoản chuyển khoản thứ hai đã vào sổ trong khi không có gì cả.
+    const secondProof = await mkProof('retry-2');
+    await expect(
+      executor.executeManual(admin1, inc, secondProof, 'chuyển lần 2'),
+    ).rejects.toThrow(/đã được chi trả/);
+
+    // Ảnh của lệnh bị từ chối KHÔNG được âm thầm gắn vào hồ sơ.
+    const [orphan] = await ds.query(
+      `SELECT incident_id FROM incident_evidences WHERE id=$1`,
+      [secondProof],
+    );
+    expect(orphan.incident_id).toBeNull();
+
+    // Và cũng không dùng được để chi trả cho một hồ sơ đã chi qua VÍ.
+    await setSystemWallet(2_000_000);
+    const digital = await mintIncident(400_000);
+    await adminSvc.accept(admin1, digital, {});
+    await driveAdverseToFinal(digital, 400_000);
+    await executor.execute(admin1, digital);
+    await expect(
+      executor.executeManual(admin1, digital, secondProof, 'chi thêm lần nữa'),
+    ).rejects.toThrow(/đã được chi trả/);
+  });
+
+  it('16. Đối chiếu sao kê: chưa khớp → cảnh báo sau ân hạn; khớp đủ → verified; khớp lệch → CRITICAL', async () => {
+    await clearDebts();
+    await setTaskerWallet(0);
+    await setCustomerWallet(0);
+    await setSystemWallet(0); // quỹ cạn → luồng thủ công
+
+    const inc = await mintIncident(1_200_000);
+    await adminSvc.accept(admin1, inc, {});
+    await driveAdverseToFinal(inc, 1_200_000);
+    const proofId = (
+      await ds.query(
+        `INSERT INTO incident_evidences (file_url, file_type, purpose, visibility, uploaded_by_user_id)
+         VALUES ('https://proof.test/bank.png','IMAGE','COMPENSATION_TRANSFER_PROOF','ADMIN_ONLY',$1)
+         RETURNING id`,
+        [admin1],
+      )
+    )[0].id as string;
+    await executor.executeManual(admin1, inc, proofId, 'chuyển VCB');
+    const code = (await adminSvc.findOne(inc)).incidentCode;
+
+    const mine = (
+      r: Awaited<ReturnType<IncidentReconciliationService['reconcile']>>,
+    ) => r.discrepancies.filter((d) => d.incidentId === inc);
+
+    // Ngày trong sao kê phải bám theo 'bây giờ': gợi ý chỉ quét ±30 ngày quanh mốc chi,
+    // hard-code một ngày cố định là test sẽ chết theo lịch.
+    const vnDate = (daysAgo: number): string => {
+      const d = new Date(Date.now() - daysAgo * 86_400_000);
+      const p2 = (n: number) => String(n).padStart(2, '0');
+      return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()}`;
+    };
+
+    // Vừa chi xong: chưa có sao kê là BÌNH THƯỜNG, không được kêu.
+    let recon = await reconciliation.reconcile();
+    expect(
+      mine(recon).find((d) => d.kind === 'EXTERNAL_PAYOUT_UNVERIFIED'),
+    ).toBeUndefined();
+    expect(recon.bankVerification.manualCount).toBeGreaterThan(0);
+
+    // Quá ân hạn mà vẫn trắng → cảnh báo: khoản này mới chỉ có lời khai của admin.
+    await ds.query(
+      `UPDATE incidents SET external_payout_at = now() - interval '5 days' WHERE id=$1`,
+      [inc],
+    );
+    recon = await reconciliation.reconcile();
+    expect(
+      mine(recon).find((d) => d.kind === 'EXTERNAL_PAYOUT_UNVERIFIED')
+        ?.severity,
+    ).toBe('WARNING');
+
+    // ── Nhập sao kê ────────────────────────────────────────────────────────────
+    const csv = [
+      'ma_gd;ngay_gd;chieu;so_tien;ten_doi_ung;noi_dung',
+      `FT-A;${vnDate(5)};ghi_no;1.200.000;Khach Hang;CLEANZ BOI THUONG ${code}`,
+      `FT-B;${vnDate(5)};ghi_co;5.000.000;Ai Do;Tien dich vu`,
+      `FT-C;${vnDate(4)};ghi_no;300.000;Nha Cung Cap;Mua van phong pham`,
+    ].join('\n');
+
+    const imported = await bankStatement.import(admin1, csv);
+    expect(imported).toMatchObject({ parsed: 3, inserted: 3, duplicated: 0 });
+    expect(imported.errors).toHaveLength(0);
+
+    // Nhập lại đúng file đó không được nhân đôi "tiền đã ra".
+    const again = await bankStatement.import(admin1, csv);
+    expect(again).toMatchObject({ parsed: 3, inserted: 0, duplicated: 3 });
+
+    // ── Gợi ý ──────────────────────────────────────────────────────────────────
+    const suggestions = await bankStatement.suggestForIncident(inc);
+    expect(suggestions[0].bankRef).toBe('FT-A'); // có mã sự cố + đúng số tiền
+    expect(suggestions[0].reasons.join(' ')).toMatch(/mã sự cố/);
+    // Dòng tiền VÀO và dòng chi không liên quan không được gợi ý.
+    expect(suggestions.map((s) => s.bankRef)).not.toContain('FT-B');
+    expect(suggestions.map((s) => s.bankRef)).not.toContain('FT-C');
+
+    const entryA = suggestions[0].id;
+    const [entryC] = await bankStatement.list({ keyword: 'FT-C' });
+
+    // Dòng tiền VÀO không phải bằng chứng cho một khoản chi.
+    const [entryB] = await bankStatement.list({ keyword: 'FT-B' });
+    await expect(bankStatement.match(admin1, entryB.id, inc)).rejects.toThrow(
+      /tiền RA/,
+    );
+
+    // ── Khớp đúng → verified, hết cảnh báo ────────────────────────────────────
+    await bankStatement.match(admin1, entryA, inc);
+    await bankStatement.match(admin1, entryA, inc); // idempotent
+
+    recon = await reconciliation.reconcile();
+    expect(
+      mine(recon).filter((d) => d.kind.startsWith('EXTERNAL_PAYOUT')),
+    ).toHaveLength(0);
+    expect(recon.bankVerification.verifiedCount).toBeGreaterThan(0);
+
+    // Dòng đã là bằng chứng thì không được gắn sang sự cố khác, cũng không "bỏ qua".
+    const other = await mintIncident(100_000);
+    await expect(bankStatement.match(admin1, entryA, other)).rejects.toThrow(
+      /đã gắn với sự cố/,
+    );
+    await expect(
+      bankStatement.ignore(
+        admin1,
+        entryA,
+        'Thử bỏ qua dòng đang làm bằng chứng',
+      ),
+    ).rejects.toThrow(/gỡ khớp trước/);
+
+    // ── Khớp lệch số → CRITICAL ───────────────────────────────────────────────
+    // Gắn thêm dòng chi 300k không thuộc khoản này: tổng sao kê 1.5tr ≠ 1.2tr đã khai.
+    await bankStatement.match(admin1, entryC.id, inc);
+    recon = await reconciliation.reconcile();
+    const mismatch = mine(recon).find(
+      (d) => d.kind === 'EXTERNAL_PAYOUT_BANK_MISMATCH',
+    );
+    expect(mismatch?.severity).toBe('CRITICAL');
+
+    // Gỡ khớp (có lý do) đưa sổ về đúng.
+    await expect(
+      bankStatement.unmatch(admin1, entryC.id, 'ngắn'),
+    ).rejects.toThrow(/10 ký tự/);
+    await bankStatement.unmatch(
+      admin1,
+      entryC.id,
+      'Gắn nhầm: đây là khoản mua văn phòng phẩm, không phải bồi thường',
+    );
+    recon = await reconciliation.reconcile();
+    expect(
+      mine(recon).find((d) => d.kind === 'EXTERNAL_PAYOUT_BANK_MISMATCH'),
+    ).toBeUndefined();
+
+    // Bỏ qua dòng không liên quan để hàng đợi chưa khớp không phình mãi.
+    await bankStatement.ignore(
+      admin1,
+      entryC.id,
+      'Khoản mua văn phòng phẩm, không liên quan bồi thường',
+    );
+    const unmatched = await bankStatement.list({
+      status: 'UNMATCHED' as never,
+    });
+    expect(unmatched.map((e) => e.bankRef)).not.toContain('FT-C');
+
+    // Sự cố chi qua VÍ không có sổ chi ngoài để đối chiếu.
+    await expect(bankStatement.suggestForIncident(other)).rejects.toThrow(
+      /không có khoản chi ngoài/,
+    );
   });
 });

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
 import { IncidentEntity } from '../entity/incident.entity';
+import { vietnamNow } from 'src/common/helpers/vietnam-time.helper';
 
 @Injectable()
 export class IncidentCodeService {
@@ -10,7 +11,7 @@ export class IncidentCodeService {
     private readonly incidentRepo: Repository<IncidentEntity>,
   ) {}
 
-  async next(now: Date = new Date()): Promise<string> {
+  async next(now: Date = vietnamNow()): Promise<string> {
     const y = now.getFullYear();
     const m = `${now.getMonth() + 1}`.padStart(2, '0');
     const d = `${now.getDate()}`.padStart(2, '0');

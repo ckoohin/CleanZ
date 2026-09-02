@@ -18,6 +18,7 @@ import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentDamageItemEntity } from '../entity/incident-damage-item.entity';
 import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
 import { IncidentStatementEntity } from '../entity/incident-statement.entity';
+import { IncidentStatusLogEntity } from '../entity/incident-status-log.entity';
 import { IncidentDecisionResponseEntity } from '../entity/incident-decision-response.entity';
 import { WalletEntity } from 'src/modules/wallet/entity/wallet.entity';
 import { WalletOwnerType } from 'src/common/enums/wallet-owner-type.enum';
@@ -38,6 +39,8 @@ import {
   IncidentDebtView,
   PaginatedAdminIncidents,
   toAdminView,
+  IncidentHistoryEntryView,
+  toIncidentHistoryEntryView,
   toIncidentSummary,
 } from '../dto/incident-response.dto';
 import { IncidentStateService } from './incident-state.service';
@@ -60,6 +63,7 @@ import {
   TaskerDebtSource,
   debtOutstanding,
 } from 'src/modules/wallet/entity/tasker-debt.entity';
+import { vietnamNow } from 'src/common/helpers/vietnam-time.helper';
 
 export interface CreateCheckinViolationIncidentInput {
   claimedAmount: number;
@@ -168,6 +172,18 @@ export class IncidentAdminService {
       }
       const severity = await this.config.computeSeverity(totalClaimed);
       const code = await this.code.next();
+      // `reportWindowUntil` CỐ Ý để null ở các nhánh này: đó là hạn KHÁCH được gửi báo
+      // cáo, mà hồ sơ này do CleanZ tự mở nên việc "gửi" đã xảy ra qua đường khác. Bịa một
+      // mốc cho đủ cột sẽ tạo ra dữ liệu không có thật trong báo cáo.
+      // SLA tiếp nhận áp cho MỌI nguồn hồ sơ, không riêng khách tự báo cáo.
+      // Thiếu `receivedDueAt`, hồ sơ do Admin mở nằm ngoài mọi phép đo tiến độ: cột hạn
+      // hiển thị "—" và nó không bao giờ bị tính là chậm — trong khi đó chính là nhóm
+      // hồ sơ nền tảng tự khởi xướng và phải chịu trách nhiệm về thời gian xử lý.
+      const openedAt = vietnamNow();
+      const receivedDueAt = new Date(
+        openedAt.getTime() +
+          (await this.config.getSla(severity)).receivedMins * 60_000,
+      );
 
       const incidentId = await this.dataSource
         .transaction(async (manager) => {
@@ -184,7 +200,8 @@ export class IncidentAdminService {
               severity,
               status: IncidentStatus.REPORTED,
               claimedAmount: totalClaimed,
-              reportedAt: new Date(),
+              reportedAt: openedAt,
+              receivedDueAt: receivedDueAt,
             }),
           );
           for (const it of dto.damageItems) {
@@ -251,6 +268,18 @@ export class IncidentAdminService {
 
       const severity = await this.config.computeSeverity(input.claimedAmount);
       const code = await this.code.next();
+      // `reportWindowUntil` CỐ Ý để null ở các nhánh này: đó là hạn KHÁCH được gửi báo
+      // cáo, mà hồ sơ này do CleanZ tự mở nên việc "gửi" đã xảy ra qua đường khác. Bịa một
+      // mốc cho đủ cột sẽ tạo ra dữ liệu không có thật trong báo cáo.
+      // SLA tiếp nhận áp cho MỌI nguồn hồ sơ, không riêng khách tự báo cáo.
+      // Thiếu `receivedDueAt`, hồ sơ do Admin mở nằm ngoài mọi phép đo tiến độ: cột hạn
+      // hiển thị "—" và nó không bao giờ bị tính là chậm — trong khi đó chính là nhóm
+      // hồ sơ nền tảng tự khởi xướng và phải chịu trách nhiệm về thời gian xử lý.
+      const openedAt = vietnamNow();
+      const receivedDueAt = new Date(
+        openedAt.getTime() +
+          (await this.config.getSla(severity)).receivedMins * 60_000,
+      );
       const incidentId = await this.dataSource
         .transaction(async (manager) => {
           const booking = await manager
@@ -319,7 +348,8 @@ export class IncidentAdminService {
               severity,
               status: IncidentStatus.REPORTED,
               claimedAmount: input.claimedAmount,
-              reportedAt: new Date(),
+              reportedAt: openedAt,
+              receivedDueAt: receivedDueAt,
             }),
           );
           const item = await manager
@@ -417,6 +447,18 @@ export class IncidentAdminService {
 
       const severity = await this.config.computeSeverity(input.claimedAmount);
       const code = await this.code.next();
+      // `reportWindowUntil` CỐ Ý để null ở các nhánh này: đó là hạn KHÁCH được gửi báo
+      // cáo, mà hồ sơ này do CleanZ tự mở nên việc "gửi" đã xảy ra qua đường khác. Bịa một
+      // mốc cho đủ cột sẽ tạo ra dữ liệu không có thật trong báo cáo.
+      // SLA tiếp nhận áp cho MỌI nguồn hồ sơ, không riêng khách tự báo cáo.
+      // Thiếu `receivedDueAt`, hồ sơ do Admin mở nằm ngoài mọi phép đo tiến độ: cột hạn
+      // hiển thị "—" và nó không bao giờ bị tính là chậm — trong khi đó chính là nhóm
+      // hồ sơ nền tảng tự khởi xướng và phải chịu trách nhiệm về thời gian xử lý.
+      const openedAt = vietnamNow();
+      const receivedDueAt = new Date(
+        openedAt.getTime() +
+          (await this.config.getSla(severity)).receivedMins * 60_000,
+      );
       const incidentId = await this.dataSource
         .transaction(async (manager) => {
           const booking = await manager
@@ -481,7 +523,8 @@ export class IncidentAdminService {
               severity,
               status: IncidentStatus.REPORTED,
               claimedAmount: input.claimedAmount,
-              reportedAt: new Date(),
+              reportedAt: openedAt,
+              receivedDueAt: receivedDueAt,
             }),
           );
           await manager.getRepository(IncidentDamageItemEntity).save(
@@ -592,14 +635,31 @@ export class IncidentAdminService {
           .getOne();
         if (!incident) throw new NotFoundException('Không tìm thấy sự cố');
 
-        this.state.assertStatusTransition(
-          incident.status,
-          IncidentStatus.REVIEWING,
-        );
+        // `assertStatusTransition` return sớm khi `from === to`, nên MỘT MÌNH nó không
+        // chặn được lệnh tiếp nhận lần hai — và lần hai thì đặt lại `decisionDueAt` /
+        // `statementDueAt` bằng mốc mới. Hậu quả không phải cosmetic: một hồ sơ đang quá
+        // hạn quyết định biến mất khỏi bộ lọc `overdue` của hàng đợi, khỏi `sweepSlaOverdue`
+        // và khỏi cột "quá hạn" của báo cáo — chỉ vì ai đó bấm lại nút Tiếp nhận. SLA đo
+        // thời gian xử lý thật, không được phép tự làm mới.
+        if (incident.status === IncidentStatus.REVIEWING) {
+          // Idempotent với cú bấm đúp / hai admin cùng thao tác: đã tiếp nhận rồi thì
+          // không có việc gì phải làm, và cũng không có gì bị đặt lại.
+          return;
+        }
+        if (incident.status !== IncidentStatus.REPORTED) {
+          throw new ConflictException({
+            code: 'INCIDENT_NOT_ACCEPTABLE',
+            message: `Chỉ tiếp nhận sự cố đang chờ xử lý — hồ sơ này đang ở trạng thái ${incident.status}`,
+          });
+        }
 
         const from = incident.status;
+        // Vẫn đi qua bảng chuyển trạng thái như mọi bước khác: hai guard ở trên là quy
+        // tắc RIÊNG của lệnh tiếp nhận, không thay thế bất biến chung của vòng đời.
+        this.state.assertStatusTransition(from, IncidentStatus.REVIEWING);
+
         const sla = await this.config.getSla(incident.severity);
-        const now = Date.now();
+        const now = vietnamNow().getTime();
 
         incident.status = IncidentStatus.REVIEWING;
         incident.statementDueAt = new Date(now + sla.statementMins * 60000);
@@ -703,7 +763,7 @@ export class IncidentAdminService {
     items: { id: string; description: string }[],
   ): void {
     if (!customerUserId || items.length === 0) return;
-    const day = new Date().toISOString().slice(0, 10);
+    const day = vietnamNow().toISOString().slice(0, 10);
     for (const it of items) {
       this.notifier.notify(
         customerUserId,
@@ -713,6 +773,38 @@ export class IncidentAdminService {
         `need-evidence-${it.id}-${day}`,
       );
     }
+  }
+
+  /**
+   * Nhật ký vòng đời của một sự cố — mới nhất trước.
+   *
+   * Endpoint RIÊNG chứ không nhồi vào `findOne`: chi tiết sự cố được gọi lại sau MỌI hành
+   * động của admin, còn nhật ký thì chỉ dài thêm và chỉ cần khi thật sự mở ra xem. Gộp
+   * chung là bắt mọi lần bấm nút phải kéo theo toàn bộ lịch sử.
+   *
+   * `take` là chốt chặn chứ không phải phân trang: một hồ sơ bị sửa đi sửa lại vẫn không
+   * được phép kéo hàng nghìn dòng vào một response.
+   */
+  async getHistory(
+    incidentId: string,
+    limit = 200,
+  ): Promise<IncidentHistoryEntryView[]> {
+    return asyncHandleOperation(async () => {
+      const exists = await this.incidentRepo.exists({
+        where: { id: incidentId },
+      });
+      if (!exists) throw new NotFoundException('Không tìm thấy sự cố');
+
+      const logs = await this.dataSource
+        .getRepository(IncidentStatusLogEntity)
+        .find({
+          where: { incident: { id: incidentId } },
+          relations: ['changedBy'],
+          order: { createdAt: 'DESC', id: 'DESC' },
+          take: Math.min(Math.max(1, limit), 500),
+        });
+      return logs.map(toIncidentHistoryEntryView);
+    }, 'Lỗi khi lấy nhật ký sự cố');
   }
 
   private async loadFull(incidentId: string): Promise<IncidentEntity> {
@@ -804,7 +896,8 @@ export class IncidentAdminService {
       outstanding,
       canWriteOff:
         outstanding > 0 &&
-        Date.now() - debt.createdAt.getTime() >= minAgeDays * 86_400_000,
+        vietnamNow().getTime() - debt.createdAt.getTime() >=
+          minAgeDays * 86_400_000,
       writeOff: debt.writtenOffAt
         ? {
             at: debt.writtenOffAt,

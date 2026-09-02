@@ -49,7 +49,9 @@ export function EvidenceUploader({
           continue;
         }
         if (file.size > EVIDENCE_MAX_BYTES) {
-          toast.error(`"${file.name}" vượt quá 5MB — hãy chụp lại hoặc giảm dung lượng.`);
+          toast.error(
+            `"${file.name}" vượt quá 5MB — hãy chụp lại hoặc giảm dung lượng.`,
+          );
           continue;
         }
         uploaded.push(await upload(file));
@@ -70,9 +72,16 @@ export function EvidenceUploader({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {value.map((ev) => (
-          <div key={ev.id} className="relative size-16 overflow-hidden rounded-lg border border-border/50">
+          <div
+            key={ev.id}
+            className="relative size-16 overflow-hidden rounded-lg border border-border/50"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={ev.url} alt="bằng chứng" className="size-full object-cover" />
+            <img
+              src={ev.url}
+              alt="bằng chứng"
+              className="size-full object-cover"
+            />
             <button
               type="button"
               aria-label="Xoá ảnh"
@@ -91,7 +100,11 @@ export function EvidenceUploader({
             onClick={() => inputRef.current?.click()}
             className="flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary disabled:opacity-50"
           >
-            {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+            {uploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ImagePlus className="size-4" />
+            )}
             <span className="text-[10px]">Ảnh</span>
           </button>
         )}

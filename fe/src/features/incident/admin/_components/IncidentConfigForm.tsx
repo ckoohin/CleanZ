@@ -14,18 +14,30 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useIncidentConfig, useUpdateIncidentConfig } from "../hooks/useAdminIncident";
+import {
+  useIncidentConfig,
+  useUpdateIncidentConfig,
+} from "../hooks/useAdminIncident";
 import { INCIDENT_CONFIG_META } from "@/features/incident/shared/incident.labels";
 import { SevereCriteriaEditor } from "./config/SevereCriteriaEditor";
 import { SlaMatrixEditor } from "./config/SlaMatrixEditor";
 
-const STRUCTURED_KEYS = new Set(["INCIDENT_SEVERE_CRITERIA", "INCIDENT_SLA_MATRIX"]);
+const STRUCTURED_KEYS = new Set([
+  "INCIDENT_SEVERE_CRITERIA",
+  "INCIDENT_SLA_MATRIX",
+]);
 
 /**
  * Cấu hình incident — editor key→value (BE trả Record<string,string|null>).
  * Chỉ gửi các key đã chỉnh sửa (FR-H2 — đổi runtime).
  */
-export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function IncidentConfigForm({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const { data, isLoading } = useIncidentConfig();
   const update = useUpdateIncidentConfig();
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -61,47 +73,67 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="cz-admin sm:max-w-lg overflow-hidden rounded-2xl p-0 bg-[var(--c-card)] text-[var(--c-ink)]">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">Cấu hình xử lý sự cố</DialogTitle>
+          <DialogTitle className="text-base font-bold text-[var(--c-ink)]">
+            Cấu hình xử lý sự cố
+          </DialogTitle>
           <DialogDescription className="text-xs text-[var(--c-muted)]">
-            Thời hạn báo cáo, ngưỡng tiền, thời hạn xử lý, tự đóng hồ sơ... Đổi xong áp dụng ngay.
+            Thời hạn báo cáo, ngưỡng tiền, thời hạn xử lý, tự đóng hồ sơ... Đổi
+            xong áp dụng ngay.
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[55vh] w-full overflow-y-auto">
           <div className="space-y-3 px-6 py-4">
             {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)
+              Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-full" />
+              ))
             ) : keys.length === 0 ? (
-              <p className="py-6 text-center text-xs text-[var(--c-muted)]">Chưa có cấu hình</p>
+              <p className="py-6 text-center text-xs text-[var(--c-muted)]">
+                Chưa có cấu hình
+              </p>
             ) : (
               keys.map((k) => {
                 const meta = INCIDENT_CONFIG_META[k];
                 const structured = STRUCTURED_KEYS.has(k);
-                const setVal = (v: string) => setDraft((p) => ({ ...p, [k]: v }));
+                const setVal = (v: string) =>
+                  setDraft((p) => ({ ...p, [k]: v }));
                 return (
                   <div key={k} className="space-y-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <Label className="text-xs font-semibold text-[var(--c-ink)]">{meta?.label ?? k}</Label>
+                      <Label className="text-xs font-semibold text-[var(--c-ink)]">
+                        {meta?.label ?? k}
+                      </Label>
                       {structured ? (
                         <button
                           type="button"
-                          onClick={() => setAdvanced((p) => ({ ...p, [k]: !p[k] }))}
+                          onClick={() =>
+                            setAdvanced((p) => ({ ...p, [k]: !p[k] }))
+                          }
                           className="text-[10px] font-medium text-[var(--c-primary-strong)] hover:underline"
                         >
                           {advanced[k] ? "Dạng biểu mẫu" : "JSON nâng cao"}
                         </button>
                       ) : (
                         meta?.unit && (
-                          <span className="text-[10px] font-medium text-[var(--c-muted)]">{meta.unit}</span>
+                          <span className="text-[10px] font-medium text-[var(--c-muted)]">
+                            {meta.unit}
+                          </span>
                         )
                       )}
                     </div>
 
                     {structured && !advanced[k] ? (
                       k === "INCIDENT_SEVERE_CRITERIA" ? (
-                        <SevereCriteriaEditor value={draft[k] ?? ""} onChange={setVal} />
+                        <SevereCriteriaEditor
+                          value={draft[k] ?? ""}
+                          onChange={setVal}
+                        />
                       ) : (
-                        <SlaMatrixEditor value={draft[k] ?? ""} onChange={setVal} />
+                        <SlaMatrixEditor
+                          value={draft[k] ?? ""}
+                          onChange={setVal}
+                        />
                       )
                     ) : meta?.type === "json" ? (
                       <Textarea
@@ -120,7 +152,9 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
                     )}
 
                     {meta?.hint && !structured && (
-                      <p className="text-[11px] text-[var(--c-muted)]">{meta.hint}</p>
+                      <p className="text-[11px] text-[var(--c-muted)]">
+                        {meta.hint}
+                      </p>
                     )}
                   </div>
                 );
@@ -130,8 +164,21 @@ export function IncidentConfigForm({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         <DialogFooter className="gap-2 px-6 pb-6">
-          <AdminButton variant="secondary" size="sm" className="rounded-full" onClick={onClose}>Huỷ</AdminButton>
-          <AdminButton variant="primary" size="sm" className="rounded-full" onClick={handleSubmit} disabled={isLoading || update.isPending}>
+          <AdminButton
+            variant="secondary"
+            size="sm"
+            className="rounded-full"
+            onClick={onClose}
+          >
+            Huỷ
+          </AdminButton>
+          <AdminButton
+            variant="primary"
+            size="sm"
+            className="rounded-full"
+            onClick={handleSubmit}
+            disabled={isLoading || update.isPending}
+          >
             {update.isPending ? "Đang lưu..." : "Lưu cấu hình"}
           </AdminButton>
         </DialogFooter>

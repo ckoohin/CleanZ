@@ -60,14 +60,20 @@ describe('applyAdminIncidentFilters', () => {
     ]);
   });
 
-  it('quá hạn: dùng now() CỦA DB, và loại sự cố đã đóng', () => {
+  /**
+   * `decision_due_at` là `timestamp without time zone` lưu giờ VN, còn `now()` trần trả
+   * timestamptz và bị ép theo TimeZone của SESSION — UTC qua pooler. So hai thứ đó là
+   * hàng đợi quá hạn lệch đúng 7 tiếng, và lệch trong im lặng.
+   */
+  it('quá hạn: so bằng giờ VN, không phải now() trần, và loại sự cố đã đóng', () => {
     const { qb, calls } = makeQb();
     applyAdminIncidentFilters(qb, { overdue: 'true' });
 
     expect(calls).toHaveLength(1);
     expect(calls[0].sql).toBe(
-      '(i.decision_due_at IS NOT NULL AND i.decision_due_at < now() AND i.status <> :closed)',
+      "(i.decision_due_at IS NOT NULL AND i.decision_due_at < (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AND i.status <> :closed)",
     );
+    expect(calls[0].sql).not.toContain('< now()');
     expect(calls[0].params).toEqual({ closed: IncidentStatus.CLOSED });
   });
 
@@ -79,7 +85,7 @@ describe('applyAdminIncidentFilters', () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0].sql).toBe(
-      'NOT (i.decision_due_at IS NOT NULL AND i.decision_due_at < now() AND i.status <> :closed)',
+      "NOT (i.decision_due_at IS NOT NULL AND i.decision_due_at < (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AND i.status <> :closed)",
     );
     expect(calls[0].params).toEqual({ closed: IncidentStatus.CLOSED });
   });

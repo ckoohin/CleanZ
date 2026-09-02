@@ -19,7 +19,11 @@ export function TaskerIncidentList() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/50 bg-card px-4 py-3 shadow-sm">
-        <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted" aria-label="Quay lại">
+        <button
+          onClick={() => router.back()}
+          className="rounded-full p-1.5 hover:bg-muted"
+          aria-label="Quay lại"
+        >
           <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-base font-bold">Sự cố liên quan tới bạn</h1>
@@ -28,12 +32,17 @@ export function TaskerIncidentList() {
       <div className="space-y-3 p-4">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl border border-border/50 bg-card" />
+            <div
+              key={i}
+              className="h-24 animate-pulse rounded-2xl border border-border/50 bg-card"
+            />
           ))
         ) : items.length === 0 ? (
           <div className="py-16 text-center">
             <ShieldAlert className="mx-auto mb-2 size-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Bạn không có sự cố nào</p>
+            <p className="text-sm text-muted-foreground">
+              Bạn không có sự cố nào
+            </p>
           </div>
         ) : (
           items.map((it) => (
@@ -52,7 +61,9 @@ export function TaskerIncidentList() {
               <div className="mt-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <IncidentStatusBadge status={it.status} audience="tasker" />
-                  <span className="text-xs font-semibold text-foreground/70">{formatVnd(it.claimedAmount)}</span>
+                  <span className="text-xs font-semibold text-foreground/70">
+                    {formatVnd(it.claimedAmount)}
+                  </span>
                 </div>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </div>

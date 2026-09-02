@@ -25,9 +25,17 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   [AuditActionCode.INCIDENT_COMPENSATE]: 'Chi trả bồi thường qua ví',
   [AuditActionCode.INCIDENT_COMPENSATE_MANUAL]:
     'Chi trả bồi thường bằng chuyển khoản ngoài',
+  [AuditActionCode.INCIDENT_COMPENSATE_MANUAL_CORRECT]:
+    'Điều chỉnh sổ chi ngoài (sửa sai chuyển khoản thủ công)',
   [AuditActionCode.INCIDENT_COMPENSATION_REVERSE]:
     'Đảo khoản bồi thường đã chi',
   [AuditActionCode.INCIDENT_DEBT_WRITE_OFF]: 'Xoá nợ bồi thường',
+  [AuditActionCode.BANK_STATEMENT_IMPORT]: 'Nhập sao kê ngân hàng',
+  [AuditActionCode.BANK_STATEMENT_MATCH]:
+    'Đối chiếu dòng sao kê với khoản chi bồi thường',
+  [AuditActionCode.BANK_STATEMENT_UNMATCH]: 'Gỡ đối chiếu dòng sao kê',
+  [AuditActionCode.BANK_STATEMENT_IGNORE]:
+    'Bỏ qua dòng sao kê (không liên quan bồi thường)',
   [AuditActionCode.INCIDENT_DECISION_DRAFT]: 'Soạn quyết định xử lý sự cố',
   [AuditActionCode.INCIDENT_DECISION_SEND]:
     'Gửi quyết định cho Tasker phản biện',
