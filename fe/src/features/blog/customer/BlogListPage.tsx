@@ -129,9 +129,9 @@ export function BlogListPage() {
 
       <section className="mx-auto max-w-6xl px-4 py-6">
         {isLoading && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-80 rounded-lg" />
+              <Skeleton key={index} className="h-80 rounded-xl" />
             ))}
           </div>
         )}
@@ -155,43 +155,45 @@ export function BlogListPage() {
 
         {!isLoading && !isError && blogs.length > 0 && (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {blogs.map((blog) => (
                 <Link
                   key={blog.id}
                   href={ROUTES.CUSTOMER.BLOG_DETAIL(blog.slug)}
-                  className="group overflow-hidden rounded-lg border border-[var(--c-line)] bg-[var(--c-card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="group flex flex-col overflow-hidden rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <div className="aspect-[16/10] overflow-hidden bg-[var(--c-soft)]">
+                  <div className="aspect-[16/9] w-full overflow-hidden bg-[var(--c-soft)]">
                     <img
                       src={getBlogThumbnail(blog)}
                       alt={blog.title}
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     />
                   </div>
-                  <div className="space-y-3 p-4">
-                    <div className="flex items-center justify-between gap-2 text-xs text-[var(--c-muted)]">
-                      <span className="flex items-center gap-1">
-                        <Tag className="h-3.5 w-3.5" />
-                        {getBlogCategoryName(blog)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-3.5 w-3.5" />
-                        {blog.view_count}
-                      </span>
-                    </div>
-                    <div>
-                      <h2 className="line-clamp-2 text-lg font-bold leading-snug text-[var(--c-ink)]">{blog.title}</h2>
-                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--c-muted)]">
-                        {blog.summary || "Bài viết từ CleanZ."}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {blog.tags.slice(0, 3).map((tagName) => (
-                        <span key={tagName} className="rounded-md bg-[var(--c-soft)] px-2 py-1 text-[11px] text-[var(--c-muted)]">
-                          #{tagName}
+                  <div className="flex flex-1 flex-col justify-between space-y-3 p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 text-xs text-[var(--c-muted)]">
+                        <span className="flex items-center gap-1">
+                          <Tag className="h-3.5 w-3.5" />
+                          {getBlogCategoryName(blog)}
                         </span>
-                      ))}
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3.5 w-3.5" />
+                          {blog.view_count}
+                        </span>
+                      </div>
+                      <div>
+                        <h2 className="line-clamp-2 text-lg font-bold leading-snug text-[var(--c-ink)]">{blog.title}</h2>
+                        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--c-muted)]">
+                          {blog.summary || "Bài viết từ CleanZ."}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {blog.tags.slice(0, 3).map((tagName) => (
+                          <span key={tagName} className="rounded-md bg-[var(--c-soft)] px-2 py-1 text-[11px] text-[var(--c-muted)]">
+                            #{tagName}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between border-t border-[var(--c-line)] pt-3 text-xs text-[var(--c-muted)]">
                       <span className="flex items-center gap-1">
