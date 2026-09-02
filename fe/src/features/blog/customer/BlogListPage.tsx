@@ -79,8 +79,13 @@ export function BlogListPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={!categoryId ? "default" : "outline"} onClick={() => setParams({ category_id: undefined })}>
+          <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Button
+              size="sm"
+              variant={!categoryId ? "default" : "outline"}
+              onClick={() => setParams({ category_id: undefined })}
+              className="whitespace-nowrap shrink-0"
+            >
               Tất cả danh mục
             </Button>
             {categories.map((category) => (
@@ -89,6 +94,7 @@ export function BlogListPage() {
                 size="sm"
                 variant={categoryId === category.id ? "default" : "outline"}
                 onClick={() => setParams({ category_id: category.id })}
+                className="whitespace-nowrap shrink-0"
               >
                 {category.name}
               </Button>
@@ -96,8 +102,13 @@ export function BlogListPage() {
           </div>
 
           {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={!tag ? "default" : "outline"} onClick={() => setParams({ tag: undefined })}>
+            <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <Button
+                size="sm"
+                variant={!tag ? "default" : "outline"}
+                onClick={() => setParams({ tag: undefined })}
+                className="whitespace-nowrap shrink-0"
+              >
                 Tất cả thẻ
               </Button>
               {tags.map((item) => (
@@ -106,6 +117,7 @@ export function BlogListPage() {
                   size="sm"
                   variant={tag === item.slug ? "default" : "outline"}
                   onClick={() => setParams({ tag: item.slug })}
+                  className="whitespace-nowrap shrink-0"
                 >
                   #{item.name}
                 </Button>
