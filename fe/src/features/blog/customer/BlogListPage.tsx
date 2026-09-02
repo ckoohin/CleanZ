@@ -43,15 +43,15 @@ export function BlogListPage() {
   return (
     <main className="min-h-screen bg-[var(--c-bg)] pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-16">
       <section className="border-b border-[var(--c-line)] bg-[var(--c-card)]">
-        <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[var(--c-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--c-primary-strong)]">
             <BookOpenText className="h-3.5 w-3.5" />
             Blog CleanZ
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-[var(--c-ink)]">
+          <h1 className="text-2xl font-black tracking-tight text-[var(--c-ink)] sm:text-3xl">
             Bài viết dành cho khách hàng
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--c-muted)]">
+          <p className="mt-2 max-w-2xl text-xs sm:text-sm leading-relaxed text-[var(--c-muted)]">
             Cập nhật mẹo chăm sóc nhà cửa, hướng dẫn sử dụng dịch vụ và tin tức từ CleanZ.
           </p>
         </div>
