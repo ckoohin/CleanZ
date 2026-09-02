@@ -931,6 +931,9 @@ export class TaskerBookingService {
       const query = this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: gói dịch vụ / tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .leftJoinAndSelect('booking.package', 'package')
         .where('booking.tasker = :taskerId', { taskerId: tasker.id })
         .andWhere('booking.status = :status', {

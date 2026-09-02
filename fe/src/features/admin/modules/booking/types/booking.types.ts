@@ -94,7 +94,6 @@ export interface AdminBookingNoShow {
 
 export interface AdminBookingWorkTiming {
   checkedInAt?: string | null;
-  checkedOutAt?: string | null;
   overtimeMinutes: number;
   earlyMinutes: number;
   surchargeFee: number;

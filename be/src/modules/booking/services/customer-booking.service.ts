@@ -1307,6 +1307,9 @@ export class CustomerBookingService {
       const booking = await this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: gói dịch vụ / tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .leftJoinAndSelect('booking.customer', 'customer')
         .leftJoinAndSelect('customer.user', 'customerUser')
         .leftJoinAndSelect('booking.addressRef', 'addressRef')
@@ -1599,6 +1602,9 @@ export class CustomerBookingService {
       const bookings = await this.dataSource
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: gói dịch vụ / tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .innerJoin('booking.customer', 'customer')
         .innerJoin('customer.user', 'customerUser')
         .leftJoinAndSelect('booking.addressRef', 'addressRef')

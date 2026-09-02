@@ -1062,7 +1062,7 @@ export const AdminBookingDetailModal: React.FC<Props> = ({
                         <span className="block text-xs text-[var(--c-muted)]">
                           Check-out
                         </span>
-                        <strong>{fmtDateTime(workTiming?.checkedOutAt)}</strong>
+                        <strong>{fmtDateTime(operation?.checkedOutAt)}</strong>
                       </div>
                       <div>
                         <span className="block text-xs text-[var(--c-muted)]">

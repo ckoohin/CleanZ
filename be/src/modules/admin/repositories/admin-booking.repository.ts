@@ -765,6 +765,9 @@ export class AdminBookingRepository {
     const query = this.dataSource
       .getRepository(BookingEntity)
       .createQueryBuilder('booking')
+      // withDeleted: dịch vụ và tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+      // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+      .withDeleted()
       // leftJoin để đơn offline/vãng lai (customer_id NULL) vẫn hiện trong list admin.
       .leftJoin('booking.customer', 'customer')
       .leftJoin('customer.user', 'customerUser')
@@ -1037,6 +1040,9 @@ export class AdminBookingRepository {
     const booking = await this.dataSource
       .getRepository(BookingEntity)
       .createQueryBuilder('booking')
+      // withDeleted: dịch vụ và tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+      // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+      .withDeleted()
       // leftJoin để xem được cả đơn offline/vãng lai (customer_id NULL).
       .leftJoinAndSelect('booking.customer', 'customer')
       .leftJoinAndSelect('customer.user', 'customerUser')
@@ -1175,11 +1181,11 @@ export class AdminBookingRepository {
       tasker: booking.tasker
         ? {
             id: booking.tasker.id,
-            userId: booking.tasker.user.id,
-            fullName: booking.tasker.user.fullName,
-            email: booking.tasker.user.email,
-            phone: booking.tasker.user.phone,
-            avatarUrl: booking.tasker.user.avatarUrl ?? null,
+            userId: booking.tasker.user?.id ?? null,
+            fullName: booking.tasker.user?.fullName ?? 'Tài khoản đã bị xoá',
+            email: booking.tasker.user?.email ?? null,
+            phone: booking.tasker.user?.phone ?? null,
+            avatarUrl: booking.tasker.user?.avatarUrl ?? null,
             ratingAvg: Number(booking.tasker.ratingAvg),
           }
         : null,
@@ -1583,6 +1589,9 @@ export class AdminBookingRepository {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: dịch vụ và tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .leftJoinAndSelect('booking.tasker', 'currentTasker')
         .leftJoinAndSelect('currentTasker.user', 'currentTaskerUser')
         .leftJoinAndSelect('booking.customer', 'customer')
@@ -1757,6 +1766,9 @@ export class AdminBookingRepository {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: dịch vụ và tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .leftJoinAndSelect('booking.customer', 'customer')
         .leftJoinAndSelect('customer.user', 'customerUser')
         .leftJoinAndSelect('booking.tasker', 'tasker')
@@ -1928,6 +1940,9 @@ export class AdminBookingRepository {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: dịch vụ và tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .leftJoinAndSelect('booking.customer', 'customer')
         .leftJoinAndSelect('customer.user', 'customerUser')
         .leftJoinAndSelect('booking.tasker', 'tasker')
@@ -2104,6 +2119,9 @@ export class AdminBookingRepository {
       const booking = await manager
         .getRepository(BookingEntity)
         .createQueryBuilder('booking')
+        // withDeleted: dịch vụ và tài khoản bị xoá mềm vẫn phải hiện trên đơn cũ.
+        // Phải gọi TRƯỚC mọi join, nếu không TypeORM đã lọc mất bản ghi.
+        .withDeleted()
         .leftJoinAndSelect('booking.customer', 'customer')
         .leftJoinAndSelect('customer.user', 'customerUser')
         .leftJoinAndSelect('booking.tasker', 'tasker')
