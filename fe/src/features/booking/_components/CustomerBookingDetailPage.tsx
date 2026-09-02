@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ROUTES } from "@/constants/routes";
 import { FavoriteTaskerButton } from "./FavoriteTaskerButton";
 import { useRouter } from "next/navigation";
 import {
@@ -1125,6 +1126,18 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
       icon: ShieldAlert,
       label: "Hư hỏng hoặc thất lạc tài sản",
       desc: "Có đồ vật bị bể vỡ hoặc mất mát trong quá trình dọn",
+      /**
+       * Nhóm này đi thẳng vào quy trình BỒI THƯỜNG, không qua phiếu hỗ trợ.
+       *
+       * Đây là lối vào duy nhất khách có được: form báo cáo sự cố cần `bookingId`, mà
+       * trước đây không màn hình nào truyền — nên hoặc khách phải tự gõ UUID của đơn,
+       * hoặc phải chờ CSKH nâng cấp phiếu hỗ trợ thành hồ sơ sự cố. Cả hai đều là chặn
+       * đường tới đúng quy trình đã được dựng đầy đủ ở backend.
+       *
+       * Chỉ đơn ĐÃ HOÀN THÀNH mới vào được (backend từ chối phần còn lại); đơn đã huỷ
+       * vẫn rơi về phiếu hỗ trợ như cũ.
+       */
+      flow: "INCIDENT" as const,
     },
     {
       category: "PAYMENT_BILLING",
@@ -1140,8 +1153,12 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
     },
   ];
 
-  const handleReportOption = (opt: (typeof REPORT_OPTIONS)[0]) => {
+  const handleReportOption = (opt: (typeof REPORT_OPTIONS)[number]) => {
     if (!booking) return;
+    if ("flow" in opt && opt.flow === "INCIDENT" && isCompleted) {
+      router.push(ROUTES.CUSTOMER.INCIDENT_REPORT_FOR_BOOKING(booking.id));
+      return;
+    }
     const subject = `Khiếu nại đơn hàng ${booking.bookingCode}`;
     const description = `Tôi muốn phản hồi về sự cố liên quan đến đơn hàng ${booking.bookingCode}. Vấn đề: ${opt.label}.\nYêu cầu phản hồi từ CleanZ: ...`;
     router.push(
@@ -1759,6 +1776,13 @@ export const CustomerBookingDetailPage: React.FC<{ bookingId: string }> = ({
                         <span className="text-xs text-muted-foreground/90 leading-relaxed font-medium md:text-sm">
                           {opt.desc}
                         </span>
+                        {/* Nhóm này không đi qua CSKH mà mở hồ sơ bồi thường — nói trước
+                            để khách biết mình sắp phải khai thiệt hại và tải ảnh. */}
+                        {"flow" in opt && opt.flow === "INCIDENT" && isCompleted && (
+                          <span className="mt-0.5 w-fit rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                            Yêu cầu bồi thường · cần ảnh thiệt hại
+                          </span>
+                        )}
                       </div>
                     </button>
                   );

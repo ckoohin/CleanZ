@@ -448,6 +448,31 @@ export class IncidentEntity {
   @JoinColumn({ name: 'external_payout_by_admin_id' })
   externalPayoutByAdmin?: UserEntity | null;
 
+  /**
+   * Tiền đã rời tài khoản ngân hàng công ty trong luồng thủ công nhưng KHÔNG đến tay khách
+   * (chuyển nhầm người, chuyển thừa). Nền tảng chịu mất — tách khỏi `externalPayoutAmount`
+   * để khoản trả khách vẫn đối soát được với số đã duyệt, còn phần mất thì không bị giấu.
+   */
+  @Column({
+    name: 'external_payout_loss_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  externalPayoutLossAmount?: number | null;
+
+  @Column({
+    name: 'external_payout_corrected_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  externalPayoutCorrectedAt?: Date | null;
+
+  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+  @JoinColumn({ name: 'external_payout_corrected_by_admin_id' })
+  externalPayoutCorrectedByAdmin?: UserEntity | null;
+
   @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', onUpdate: 'CASCADE' })
   @JoinColumn({ name: 'finalized_by_admin_id' })
   finalizedByAdmin?: UserEntity | null;

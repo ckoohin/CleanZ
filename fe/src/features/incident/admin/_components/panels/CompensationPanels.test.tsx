@@ -3,23 +3,35 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import {
   CompensatePanel,
   ManualCompensatePanel,
+  ManualPayoutLedgerPanel,
   ReverseCompensationPanel,
 } from "./CompensationPanels";
 import type { PayoutPreview } from "@/features/incident/shared/incident.types";
 
-const { manualMutate, uploadMutateAsync, toastError } = vi.hoisted(() => ({
-  manualMutate: vi.fn(),
-  uploadMutateAsync: vi.fn().mockResolvedValue({ id: "ev-1" }),
-  toastError: vi.fn(),
-}));
+const { manualMutate, correctMutate, uploadMutateAsync, toastError } =
+  vi.hoisted(() => ({
+    manualMutate: vi.fn(),
+    correctMutate: vi.fn(),
+    uploadMutateAsync: vi.fn().mockResolvedValue({ id: "ev-1" }),
+    toastError: vi.fn(),
+  }));
 
 // Hook tanstack-query → mock để không cần QueryClient/http.
 vi.mock("../../hooks/useAdminIncident", () => {
-  const hook = () => ({ mutate: vi.fn(), isPending: false, mutateAsync: vi.fn() });
+  const hook = () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    mutateAsync: vi.fn(),
+  });
   return {
     useCompensate: hook,
     useCompensateManual: () => ({
       mutate: manualMutate,
+      isPending: false,
+      mutateAsync: vi.fn(),
+    }),
+    useCorrectManualPayout: () => ({
+      mutate: correctMutate,
       isPending: false,
       mutateAsync: vi.fn(),
     }),
@@ -48,7 +60,11 @@ const preview: PayoutPreview = {
 describe("CompensatePanel", () => {
   it("hiển thị lý do chặn thay cho nút khi bị block", () => {
     render(
-      <CompensatePanel id="i1" amount={200000} blockedReason="Chưa chốt quyết định" />,
+      <CompensatePanel
+        id="i1"
+        amount={200000}
+        blockedReason="Chưa chốt quyết định"
+      />,
     );
     expect(screen.getByText("Chưa chốt quyết định")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
@@ -101,7 +117,10 @@ describe("ReverseCompensationPanel", () => {
       <ReverseCompensationPanel
         id="i1"
         decisionVersion={3}
-        blockedReasons={["REVERSAL_MANUAL_PAYOUT", "REVERSAL_DEBT_RECOVERY_STARTED"]}
+        blockedReasons={[
+          "REVERSAL_MANUAL_PAYOUT",
+          "REVERSAL_DEBT_RECOVERY_STARTED",
+        ]}
       />,
     );
     expect(container.textContent).toMatch(/chuyển khoản ngoài ví/i);
@@ -135,7 +154,9 @@ describe("ManualCompensatePanel — ghi nhận nơi nhận tiền", () => {
     expect(
       screen.getByRole("button", { name: /Xác nhận đã chuyển khoản/i }),
     ).toBeDisabled();
-    expect(screen.getByText(/được ghi vào\s+sổ chi để đối soát/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/được ghi vào\s+sổ chi để đối soát/i),
+    ).toBeInTheDocument();
   });
 
   it("vẫn chặn khi đã nhập tài khoản nhưng chưa có ảnh minh chứng", () => {
@@ -207,13 +228,112 @@ describe("ManualCompensatePanel — chặn ảnh không hợp lệ ngay ở clie
   });
 
   it("xoá giá trị input để chọn lại đúng file đó vẫn nhận", () => {
-    const container = pick(
-      new File(["x"], "proof.png", { type: "image/png" }),
-    );
+    const container = pick(new File(["x"], "proof.png", { type: "image/png" }));
     const input = container.querySelector(
       'input[type="file"]',
     ) as HTMLInputElement;
 
     expect(input.value).toBe("");
+  });
+});
+
+describe("ManualPayoutLedgerPanel — sửa sai khoản chi ngoài", () => {
+  const ledger = {
+    amount: 0,
+    at: "2026-08-01T00:00:00.000Z",
+    note: "Chuyển khoản VCB · STK 123",
+    lossAmount: 1_000_000,
+    shortfallAmount: 1_000_000,
+    correctedAt: null,
+  };
+
+  const setup = (over: Partial<typeof ledger> = {}) =>
+    render(
+      <ManualPayoutLedgerPanel
+        id="i1"
+        approved={1_000_000}
+        ledger={{ ...ledger, ...over }}
+      />,
+    );
+
+  it("nói rõ khách còn thiếu bao nhiêu thay vì chỉ hiện số đã chi", () => {
+    setup();
+    expect(screen.getByText(/Còn thiếu, phải chuyển bù/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Thất thoát (không đến tay khách)"),
+    ).toBeInTheDocument();
+  });
+
+  it("chặn gửi khi chưa có lý do đủ dài", () => {
+    setup();
+    const btn = screen.getByRole("button", {
+      name: /Điều chỉnh sổ chi ngoài/i,
+    });
+    expect(btn).toBeDisabled();
+  });
+
+  it("chặn khai số khách nhận vượt số đã duyệt — phần thừa phải vào ô thất thoát", () => {
+    const c = setup();
+    fireEvent.change(
+      c.container.querySelector("#delivered-i1") as HTMLInputElement,
+      {
+        target: { value: "1500000" },
+      },
+    );
+    fireEvent.change(
+      c.container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Chuyển dư cho khách do gõ nhầm số tiền" },
+      },
+    );
+    expect(screen.getByText(/Không vượt quá số đã duyệt/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Điều chỉnh sổ chi ngoài/i }),
+    ).toBeDisabled();
+  });
+
+  it("chặn khi số liệu không đổi — không tạo bản ghi sửa rỗng", () => {
+    const c = setup({ amount: 1_000_000, shortfallAmount: 0, lossAmount: 0 });
+    fireEvent.change(
+      c.container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Xem lại thấy vẫn đúng nên không đổi gì" },
+      },
+    );
+    expect(
+      screen.getByRole("button", { name: /Điều chỉnh sổ chi ngoài/i }),
+    ).toBeDisabled();
+  });
+
+  it("mở được hộp xác nhận khi số liệu và lý do hợp lệ", () => {
+    correctMutate.mockClear();
+    const c = setup();
+    fireEvent.change(
+      c.container.querySelector("#delivered-i1") as HTMLInputElement,
+      {
+        target: { value: "1000000" },
+      },
+    );
+    fireEvent.change(
+      c.container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Đã chuyển bù đủ cho đúng khách, kèm biên lai" },
+      },
+    );
+    const btn = screen.getByRole("button", {
+      name: /Điều chỉnh sổ chi ngoài/i,
+    });
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Xác nhận điều chỉnh/i }),
+    );
+    expect(correctMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveredAmount: 1_000_000,
+        lossAmount: 1_000_000,
+      }),
+      expect.anything(),
+    );
   });
 });

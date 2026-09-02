@@ -37,6 +37,7 @@ import {
 } from './incident-evidence-lifecycle.service';
 import { TaskerDebtService } from 'src/modules/wallet/tasker-debt.service';
 import { TaskerDebtSource } from 'src/modules/wallet/entity/tasker-debt.entity';
+import { vietnamNow, VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 @Injectable()
 export class IncidentTaskerService {
@@ -138,6 +139,7 @@ export class IncidentTaskerService {
         statements,
         this.canSubmit(incident),
         outstandingDebt,
+        await this.loadMyDecisionResponses(incidentId, taskerUserId),
       );
     }, 'Lỗi khi lấy chi tiết sự cố');
   }
@@ -345,6 +347,61 @@ export class IncidentTaskerService {
     }, 'Lỗi khi gửi phản hồi quyết định');
   }
 
+  /**
+   * Các bản phản hồi quyết định của CHÍNH Tasker này, kèm ảnh còn active của từng bản.
+   *
+   * Lọc theo `tasker.id = taskerUserId` chứ không lấy hết theo incident: cột `tasker_id`
+   * của bảng phản hồi trỏ tới `users`, và một hồ sơ về nguyên tắc chỉ có một người phản
+   * hồi — nhưng bộ lọc này là thứ bảo đảm điều đó, không phải giả định.
+   *
+   * Ảnh nạp bằng MỘT truy vấn cho mọi bản rồi gom theo `decisionResponse.id`; lặp gọi
+   * repo cho từng bản là N+1 trên một màn hình chi tiết.
+   */
+  private async loadMyDecisionResponses(
+    incidentId: string,
+    taskerUserId: string,
+  ): Promise<
+    {
+      response: IncidentDecisionResponseEntity;
+      evidences: IncidentEvidenceEntity[];
+    }[]
+  > {
+    const responses = await this.dataSource
+      .getRepository(IncidentDecisionResponseEntity)
+      .createQueryBuilder('response')
+      .leftJoinAndSelect('response.incident', 'incident')
+      .where('incident.id = :incidentId', { incidentId })
+      .andWhere('response.tasker_id = :taskerUserId', { taskerUserId })
+      .orderBy('response.decisionVersion', 'DESC')
+      .addOrderBy('response.responseRevision', 'DESC')
+      .getMany();
+    if (responses.length === 0) return [];
+
+    const evidences = await this.evidenceRepo.find({
+      where: {
+        decisionResponse: { id: In(responses.map((r) => r.id)) },
+        isActiveForResponse: true,
+        isSoftDeleted: false,
+      },
+      relations: ['decisionResponse'],
+      order: { createdAt: 'ASC' },
+    });
+    const visible = this.evidenceLifecycle.filterForAudience(
+      evidences,
+      'TASKER',
+    );
+    const byResponse = new Map<string, IncidentEvidenceEntity[]>();
+    for (const e of visible) {
+      const key = e.decisionResponse?.id;
+      if (!key) continue;
+      byResponse.set(key, [...(byResponse.get(key) ?? []), e]);
+    }
+    return responses.map((response) => ({
+      response,
+      evidences: byResponse.get(response.id) ?? [],
+    }));
+  }
+
   private canSubmit(incident: IncidentEntity): boolean {
     if (
       incident.status !== IncidentStatus.REVIEWING &&
@@ -353,7 +410,7 @@ export class IncidentTaskerService {
       return false;
     }
     if (!incident.statementDueAt) return true;
-    return Date.now() <= incident.statementDueAt.getTime();
+    return vietnamNow().getTime() <= incident.statementDueAt.getTime();
   }
 
   private async lockOwnedIncident(
@@ -601,8 +658,19 @@ export class IncidentTaskerService {
     );
   }
 
+  /**
+   * `VN_NOW_SQL`, không phải `now()` trần — và ở đây điều đó là BẮT BUỘC để hai phía nhìn
+   * cùng một cửa sổ thời gian.
+   *
+   * Mốc này gác hạn giải trình (`statementDueAt`) và hạn phản hồi quyết định
+   * (`taskerResponseDeadline`) — đúng hai cột mà `IncidentDecisionService` cũng đọc để
+   * quyết định Admin đã được chốt hay chưa. Hai service so cùng một hạn bằng hai đồng hồ
+   * lệch nhau 7 tiếng thì sinh ra khoảng thời gian mà Tasker bị từ chối phản hồi trong khi
+   * Admin vẫn chưa được chốt (hoặc ngược lại) — không bên nào làm gì được, và không có lỗi
+   * nào chỉ ra vì sao.
+   */
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = await manager.query('SELECT now() AS now');
+    const rows = await manager.query(`SELECT ${VN_NOW_SQL} AS now`);
     return new Date(rows[0].now);
   }
 

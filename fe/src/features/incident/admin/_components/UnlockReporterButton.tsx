@@ -45,7 +45,9 @@ export function UnlockReporterButton({ id, customerName, lockedUntil }: Props) {
           disabled={unlock.isPending}
         >
           <Unlock className="size-3.5" />
-          {unlock.isPending ? "Đang gỡ khoá..." : "Gỡ khoá quyền báo cáo (khách)"}
+          {unlock.isPending
+            ? "Đang gỡ khoá..."
+            : "Gỡ khoá quyền báo cáo (khách)"}
         </AdminButton>
       </AlertDialogTrigger>
       <AlertDialogContent className="cz-admin rounded-2xl bg-[var(--c-card)] text-[var(--c-ink)]">
@@ -61,8 +63,8 @@ export function UnlockReporterButton({ id, customerName, lockedUntil }: Props) {
               </p>
               <p className="text-xs">
                 Gỡ khoá áp dụng cho <b>toàn bộ tài khoản của khách</b>, không
-                riêng sự cố này. Các lần báo cáo sai đã ghi nhận vẫn giữ nguyên, nên
-                khách có thể bị khoá lại nếu tiếp tục báo cáo sai.
+                riêng sự cố này. Các lần báo cáo sai đã ghi nhận vẫn giữ nguyên,
+                nên khách có thể bị khoá lại nếu tiếp tục báo cáo sai.
               </p>
             </div>
           </AlertDialogDescription>

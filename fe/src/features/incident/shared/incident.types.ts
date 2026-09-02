@@ -12,6 +12,8 @@ import type {
   DecisionOutcome,
   DecisionResponseType,
   IncidentStatus,
+  IncidentSource,
+  IncidentType,
   ResponseReviewResult,
   ResponsibilityParty,
   Severity,
@@ -74,8 +76,14 @@ export interface IncidentSummary {
   id: string;
   incidentCode: string | null;
   title: string;
-  type: "PROPERTY_DAMAGE" | "CHECKIN_VIOLATION";
-  source: "CUSTOMER_REPORT" | "SUPPORT_TICKET" | "CHECKIN_REVIEW";
+  /**
+   * Phản chiếu `IncidentType` / `IncidentSource` của BE. Hai union này từng thiếu
+   * `NO_SHOW` và `NO_SHOW_REVIEW` — vốn được `createFromNoShowViolation` sinh ra thật —
+   * nên TypeScript sẽ báo lỗi ở bất kỳ nhánh nào xử lý đúng hồ sơ no-show, tức là kiểu
+   * đang chặn code đúng thay vì bắt code sai.
+   */
+  type: IncidentType;
+  source: IncidentSource;
   severity: Severity;
   status: IncidentStatus;
   decisionVersion: number;
@@ -92,7 +100,7 @@ export interface IncidentCustomerView extends IncidentSummary {
   damageItems: DamageItem[];
   resolvedAt: string | null;
   /** Tiền đã đi đường nào: hoàn vào ví hay chuyển khoản. null = chưa chi trả. */
-  payoutChannel: 'WALLET' | 'BANK_TRANSFER' | null;
+  payoutChannel: "WALLET" | "BANK_TRANSFER" | null;
   /** Nội dung quyết định CleanZ gửi khách. */
   decisionSummary: string | null;
 }
@@ -114,6 +122,26 @@ export interface IncidentTaskerView extends IncidentSummary {
   myWalletDeducted: number | null;
   /** Còn nợ nền tảng (quỹ đã ứng thay), sẽ trừ dần từ thu nhập. */
   myOutstandingDebt: number | null;
+  /**
+   * Căn cứ của quyết định — Tasker phải đọc được TRƯỚC khi bấm Đồng ý / Không đồng ý.
+   * `null` khi quyết định chưa được gửi cho Tasker (bản nháp của Admin còn kín).
+   */
+  decision: TaskerDecisionView | null;
+  /** Các bản phản hồi chính mình đã gửi, mới nhất trước. */
+  myDecisionResponses: DecisionResponseView[];
+}
+
+export interface TaskerDecisionView {
+  version: number;
+  outcome: DecisionOutcome | null;
+  /** Lý do Admin soạn riêng cho Tasker (bắt buộc khi Tasker phải chịu tiền). */
+  reasonForTasker: string | null;
+  responsibilityParty: ResponsibilityParty | null;
+  responsibilityReason: string | null;
+  allocationReason: string | null;
+  /** Tổng CleanZ duyệt chi cho khách; phần Tasker gánh nằm ở `myBorneAmount`. */
+  approvedAmount: number | null;
+  finalizedAt: string | null;
 }
 
 /** Alias giữ tên cũ cho các component đang import. */
@@ -217,6 +245,18 @@ export interface IncidentAdminView extends IncidentSummary {
   } | null;
   /** Đủ điều kiện xoá nợ (còn nợ + đã quá thời hạn chờ thu hồi tự động). */
   canWriteOffDebt: boolean;
+  /**
+   * Sổ chi ngoài của chi trả THỦ CÔNG — null nếu khoản này đi qua ví. `amount` là số khách
+   * THỰC NHẬN; `shortfallAmount` > 0 nghĩa là khách vẫn còn bị thiếu và phải chuyển bù.
+   */
+  externalPayout: {
+    amount: number;
+    at: string;
+    note: string | null;
+    lossAmount: number;
+    shortfallAmount: number;
+    correctedAt: string | null;
+  } | null;
   taskerBorneAmount: number | null;
   platformBorneAmount: number | null;
   allocationReason: string | null;
@@ -255,7 +295,7 @@ export interface AcceptInput {
 export interface DecisionItemInput {
   damageItemId: string;
   approvedAmount: number;
-  status?: Exclude<DamageItemStatus, 'PENDING'>;
+  status?: Exclude<DamageItemStatus, "PENDING">;
 }
 /** Body cho PUT :id/decision — gộp thẩm định hạng mục + duyệt tiền + phân bổ. */
 export interface SaveDecisionInput {
@@ -336,4 +376,32 @@ export interface IncidentConfig {
   responseWindowHours?: number;
   autoCloseHours?: number;
   [key: string]: unknown;
+}
+
+/** Tham số chính sách mà form báo cáo của khách cần để chặn trước (GET /incidents/report-config). */
+export interface ReportConfig {
+  claimMax: number;
+  /** Hạn báo cáo tính từ lúc đơn hoàn thành, cho sự cố thường. */
+  reportWindowHours: number;
+  /** Hạn rộng hơn dành cho sự cố nghiêm trọng — quá mốc này thì chắc chắn hết cửa. */
+  reportWindowSevereHours: number;
+}
+
+/**
+ * Một dòng nhật ký vòng đời sự cố (`GET /admin/incidents/:id/history`).
+ *
+ * `changedByName = null` KHÔNG có nghĩa là không rõ ai: đọc kèm `actorType` mới ra kết
+ * luận đúng — `SYSTEM` là housekeeping tự chạy, còn null hoàn toàn là bản ghi cũ có từ
+ * trước khi có cột này.
+ */
+export interface IncidentHistoryEntry {
+  id: string;
+  dimension: "STATUS" | "COMPENSATION";
+  oldValue: string | null;
+  newValue: string;
+  reason: string | null;
+  changedByName: string | null;
+  changedByRole: string | null;
+  actorType: "ADMIN" | "USER" | "SYSTEM" | null;
+  createdAt: string;
 }

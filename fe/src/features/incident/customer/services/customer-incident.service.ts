@@ -8,16 +8,19 @@ import type {
   Paginated,
   IncidentSummary,
   WithdrawInput,
+  ReportConfig,
 } from "@/features/incident/shared/incident.types";
 
 const EP = API_ENDPOINTS.INCIDENTS;
 
 export const customerIncidentApi = {
-  /** Trần số tiền yêu cầu do admin cấu hình — form phải chặn theo con số thật. */
-  getReportConfig: (): Promise<{ claimMax: number }> =>
-    http
-      .get<{ claimMax: number }>(EP.REPORT_CONFIG)
-      .then((r) => r.data),
+  /**
+   * Tham số chính sách do admin cấu hình — form phải chặn theo con số thật, không phải
+   * hằng biên dịch cứng. `reportWindowHours` / `reportWindowSevereHours` để màn hình chọn
+   * đơn biết đơn nào còn báo cáo được, thay vì để khách chọn rồi ăn 422 sau khi tải ảnh.
+   */
+  getReportConfig: (): Promise<ReportConfig> =>
+    http.get<ReportConfig>(EP.REPORT_CONFIG).then((r) => r.data),
 
   /** Upload 1 ảnh bằng chứng (trước khi tạo) → trả evidenceId để tham chiếu. */
   uploadEvidence: (file: File): Promise<Evidence> => {
@@ -34,7 +37,9 @@ export const customerIncidentApi = {
     http.post<IncidentCustomerView>(EP.BASE, dto).then((r) => r.data),
 
   listMine: (params?: MyIncidentQuery): Promise<Paginated<IncidentSummary>> =>
-    http.get<Paginated<IncidentSummary>>(EP.MINE, { params }).then((r) => r.data),
+    http
+      .get<Paginated<IncidentSummary>>(EP.MINE, { params })
+      .then((r) => r.data),
 
   findOne: (id: string): Promise<IncidentCustomerView> =>
     http.get<IncidentCustomerView>(EP.DETAIL(id)).then((r) => r.data),
@@ -49,6 +54,8 @@ export const customerIncidentApi = {
     evidenceIds: string[],
   ): Promise<IncidentCustomerView> =>
     http
-      .post<IncidentCustomerView>(EP.ITEM_EVIDENCES(id, itemId), { evidenceIds })
+      .post<IncidentCustomerView>(EP.ITEM_EVIDENCES(id, itemId), {
+        evidenceIds,
+      })
       .then((r) => r.data),
 };

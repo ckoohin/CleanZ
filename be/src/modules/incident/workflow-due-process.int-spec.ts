@@ -659,6 +659,77 @@ describe('Incident workflow & due process (integration)', () => {
     expect((await adminSvc.findOne(other)).taskerWalletHoldAmount).toBe(0);
   });
 
+  it('13b. Chấp nhận hạng mục thì phải duyệt > 0 — không có "xác minh rồi đền 0đ"', async () => {
+    // Kết luận tự mâu thuẫn: khách đọc hạng mục ghi "Đã xác minh" rồi thấy 0đ sẽ không
+    // hiểu mình được công nhận hay bị từ chối, trong khi hệ thống đã có sẵn REJECTED.
+    const inc = await mintIncident(1_000_000);
+    await adminSvc.accept(admin1, inc, {});
+    const view = await adminSvc.findOne(inc);
+
+    const code = await codeOf(() =>
+      decision.saveDecision(admin1, inc, {
+        expectedDecisionVersion: view.decision.version,
+        outcome: 'COMPENSATE',
+        items: [
+          {
+            damageItemId: view.damageItems[0].id,
+            approvedAmount: 0,
+            status: 'VERIFIED',
+          },
+        ],
+        responsibilityParty: 'TASKER',
+        responsibilityReason: 'Tasker gây thiệt hại (workflow test)',
+        taskerBorneAmount: 0,
+        platformBorneAmount: 0,
+        customerDecisionSummary: 'CleanZ duyệt bồi thường theo thẩm định.',
+      } as never),
+    );
+
+    expect(code).toBe('INVALID_APPROVED_AMOUNT');
+  });
+
+  it('13c. Hạng mục chưa thẩm định chặn chốt — không chốt lén khi còn khoản chưa kết luận', async () => {
+    // `normalize()` chỉ đụng tới hạng mục CÓ trong request; hạng mục bị bỏ sót giữ nguyên
+    // PENDING và nhận 0đ. Trước đây chỉ NEED_MORE_EVIDENCE bị chặn, nên quyết định vẫn
+    // chốt được trong khi có khoản khách kê khai chưa ai kết luận gì.
+    const inc = await mintIncident(1_000_000);
+    await ds.query(
+      `INSERT INTO incident_damage_items (incident_id, description, claimed_amount)
+       VALUES ($1,'Hạng mục thứ hai',$2)`,
+      [inc, 400_000],
+    );
+    await adminSvc.accept(admin1, inc, {});
+    const view = await adminSvc.findOne(inc);
+
+    // Chỉ kết luận hạng mục ĐẦU, bỏ qua hạng mục thứ hai.
+    await decision.saveDecision(admin1, inc, {
+      expectedDecisionVersion: view.decision.version,
+      outcome: 'COMPENSATE',
+      items: [
+        {
+          damageItemId: view.damageItems[0].id,
+          approvedAmount: 600_000,
+          status: 'VERIFIED',
+        },
+      ],
+      responsibilityParty: 'PLATFORM',
+      responsibilityReason: 'Nền tảng chịu trách nhiệm (workflow test)',
+      taskerBorneAmount: 0,
+      platformBorneAmount: 600_000,
+      customerDecisionSummary: 'CleanZ duyệt bồi thường theo thẩm định.',
+    } as never);
+
+    const after = await adminSvc.findOne(inc);
+    const code = await codeOf(() =>
+      decision.finalizeDecision(admin1, inc, {
+        expectedDecisionVersion: after.decision.version,
+      } as never),
+    );
+
+    expect(code).toBe('DAMAGE_ITEMS_NOT_FINALIZABLE');
+    expect(await statusOf(inc)).toBe('REVIEWING');
+  });
+
   it('13. Hạng mục cần bổ sung bằng chứng chặn chốt; khách bổ sung → về chờ thẩm định lại', async () => {
     const inc = await mintIncident(2_000_000);
     await adminSvc.accept(admin1, inc, {});
@@ -1218,6 +1289,143 @@ describe('Incident workflow & due process (integration)', () => {
     expect(ids).not.toContain(fresh);
   });
 
+  it('25b. Tiếp nhận lại KHÔNG đặt lại hạn SLA của hồ sơ đang quá hạn', async () => {
+    // `assertStatusTransition` return sớm khi from === to, nên trước đây một cú bấm
+    // "Tiếp nhận" lần hai chạy trót lọt và ghi đè `decision_due_at` bằng mốc mới — hồ sơ
+    // quá hạn lập tức biến khỏi hàng đợi quá hạn, khỏi sweep cảnh báo SLA và khỏi báo cáo.
+    const inc = await mintIncident(1_000_000);
+    await adminSvc.accept(admin1, inc, {});
+    await ds.query(
+      `UPDATE incidents SET decision_due_at = now() - interval '5 hours',
+                            statement_due_at = now() - interval '5 hours'
+        WHERE id = $1`,
+      [inc],
+    );
+    const [before] = await ds.query(
+      `SELECT decision_due_at, statement_due_at FROM incidents WHERE id=$1`,
+      [inc],
+    );
+
+    // Bấm lại: idempotent, không lỗi, và cũng không đụng vào SLA.
+    await adminSvc.accept(admin1, inc, {});
+
+    const [after] = await ds.query(
+      `SELECT decision_due_at, statement_due_at FROM incidents WHERE id=$1`,
+      [inc],
+    );
+    expect(after.decision_due_at).toEqual(before.decision_due_at);
+    expect(after.statement_due_at).toEqual(before.statement_due_at);
+    expect(await statusOf(inc)).toBe('REVIEWING');
+
+    // Và hồ sơ vẫn nằm trong hàng đợi quá hạn — đúng sự thật.
+    const page = await adminSvc.list({ overdue: 'true', limit: 100 } as never);
+    expect(page.data.map((i) => i.id)).toContain(inc);
+  });
+
+  it('25c. Không tiếp nhận được hồ sơ đã đi qua giai đoạn thẩm định', async () => {
+    const inc = await mintIncident(2_000_000);
+    const view = await draftAdverse(inc, 1_000_000);
+    await decision.sendToTasker(admin1, inc, {
+      expectedDecisionVersion: view.decision.version,
+    } as never);
+
+    expect(await codeOf(() => adminSvc.accept(admin1, inc, {}))).toBe(
+      'INCIDENT_NOT_ACCEPTABLE',
+    );
+    expect(await statusOf(inc)).toBe('AWAITING_RESPONSE');
+  });
+
+  it('25d. Nhật ký hồ sơ đọc được và ghi đủ mọi bước, mới nhất trước', async () => {
+    // `incident_status_logs` được ghi từ đầu ở mọi bước nhưng không API nào đọc — dấu vết
+    // có mà không tra được. Với module đã gỡ duyệt cấp hai, đây chính là kiểm soát thay thế.
+    const inc = await mintIncident(2_000_000);
+    const view = await draftAdverse(inc, 1_000_000);
+    await decision.sendToTasker(admin1, inc, {
+      expectedDecisionVersion: view.decision.version,
+    } as never);
+
+    const history = await adminSvc.getHistory(inc);
+
+    expect(history.length).toBeGreaterThanOrEqual(3);
+    // Mới nhất trước — admin mở ra là thấy ngay việc vừa xảy ra.
+    const times = history.map((h) => new Date(h.createdAt).getTime());
+    expect([...times].sort((a, b) => b - a)).toEqual(times);
+
+    const newest = history[0];
+    expect(newest.newValue).toBe('AWAITING_RESPONSE');
+    expect(newest.oldValue).toBe('REVIEWING');
+    expect(newest.reason).toContain('Gửi quyết định');
+    // Người thao tác phải truy ra được, không chỉ là một dòng trạng thái trống trơn.
+    expect(newest.changedByName).toBeTruthy();
+
+    // Ba bước fixture vừa chạy: tiếp nhận → lưu quyết định → gửi phản biện. (Dòng
+    // `REPORTED` chỉ có ở hồ sơ do khách tự tạo; `mintIncident` chèn thẳng bằng SQL.)
+    expect(history.map((h) => h.newValue)).toEqual([
+      'AWAITING_RESPONSE',
+      'REVIEWING',
+      'REVIEWING',
+    ]);
+    expect(history.map((h) => h.reason)).toEqual([
+      expect.stringContaining('Gửi quyết định'),
+      expect.stringContaining('Lưu quyết định'),
+      expect.stringContaining('tiếp nhận'),
+    ]);
+  });
+
+  it('25e. Nhật ký của housekeeping ghi rõ không có người thao tác', async () => {
+    const inc = await mintIncident(1_000_000);
+    await ds.query(
+      `UPDATE incidents SET reported_at = now() - interval '400 days' WHERE id=$1`,
+      [inc],
+    );
+    await automation.runHousekeeping();
+
+    const history = await adminSvc.getHistory(inc);
+    const closed = history.find((h) => h.newValue === 'CLOSED');
+
+    expect(closed).toBeDefined();
+    expect(closed!.changedByName).toBeNull();
+    expect(closed!.reason).toContain('housekeeping');
+  });
+
+  it('28. Hồ sơ do Admin mở cũng có hạn tiếp nhận, không nằm ngoài phép đo SLA', async () => {
+    // Chỉ luồng khách tự báo cáo đặt `received_due_at`; ba nhánh Admin mở hồ sơ thì bỏ
+    // trống, nên chúng vô hình với mọi phép đo tiến độ và không bao giờ bị tính là chậm.
+    // Mượn booking của một hồ sơ vừa mint rồi đóng hồ sơ đó lại: `createFromTicket` từ
+    // chối booking đang có sự cố mở, và đó là chốt chặn đúng — không lách bằng cách khác.
+    const seed = await mintIncident(500_000);
+    const [{ booking_id: bookingId }] = await ds.query(
+      `SELECT booking_id FROM incidents WHERE id=$1`,
+      [seed],
+    );
+    await ds.query(
+      `UPDATE incidents SET status='CLOSED', closure_reason='WITHDRAWN' WHERE id=$1`,
+      [seed],
+    );
+    const [ticket] = await ds.query(
+      `INSERT INTO support_tickets (ticket_code, booking_id, category, subject, description)
+       VALUES ($1,$2,'PROPERTY_DAMAGE','Hỏng đồ','WF test') RETURNING id`,
+      [`TK-WF-${Date.now()}`, bookingId],
+    );
+
+    const view = await adminSvc.createFromTicket(admin1, ticket.id, {
+      title: 'Nâng cấp từ ticket (WF test)',
+      description: 'workflow test',
+      damageItems: [{ description: 'Hạng mục', claimedAmount: 500_000 }],
+    } as never);
+
+    const [row] = await ds.query(
+      `SELECT received_due_at, report_window_until, reported_at FROM incidents WHERE id=$1`,
+      [view.id],
+    );
+    expect(row.received_due_at).not.toBeNull();
+    expect(new Date(row.received_due_at).getTime()).toBeGreaterThan(
+      new Date(row.reported_at).getTime(),
+    );
+    // Hạn KHÁCH gửi báo cáo thì cố ý để trống: hồ sơ này do CleanZ mở.
+    expect(row.report_window_until).toBeNull();
+  });
+
   // ── Housekeeping ───────────────────────────────────────────────────────────
 
   it('14. Sự cố quá hạn tiếp nhận được tự đóng và trả lại hold', async () => {
@@ -1235,6 +1443,8 @@ describe('Incident workflow & due process (integration)', () => {
       [inc],
     );
     expect(row.closure_reason).toBe('EXPIRED');
+    // Việc BÁO CHO KHÁCH được khoá ở `incident-automation.service.spec.ts`: notifier chạy
+    // fire-and-forget qua hàng đợi nên không quan sát được xác định ở tầng integration.
   });
 
   /**

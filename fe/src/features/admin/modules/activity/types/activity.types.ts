@@ -4,11 +4,7 @@ export type AdminActivityStatus = "SUCCESS" | "WARNING" | "DANGER";
  * Mức RỦI RO của hành động — khác với `AdminActivityStatus` là mức THÀNH CÔNG.
  * Một thao tác `CRITICAL` thất bại vẫn đáng chú ý hơn trăm thao tác `NORMAL` trót lọt.
  */
-export type AuditSeverity =
-  | "CRITICAL"
-  | "HIGH"
-  | "NORMAL"
-  | "READ_SENSITIVE";
+export type AuditSeverity = "CRITICAL" | "HIGH" | "NORMAL" | "READ_SENSITIVE";
 
 export interface AdminActivityItem {
   id: string;

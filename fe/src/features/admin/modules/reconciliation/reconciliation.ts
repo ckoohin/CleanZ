@@ -22,6 +22,18 @@ export interface ReconciliationReport {
   discrepancyCount: number;
   criticalCount: number;
   discrepancies: ReconciliationDiscrepancy[];
+  platformOutlay: {
+    viaWallet: number;
+    /** Tiền đã rời tài khoản ngân hàng công ty (gồm cả phần chuyển nhầm). */
+    external: number;
+    writtenOff: number;
+  };
+  /** Bao phủ đối chiếu sao kê cho các khoản chi trả thủ công. */
+  bankVerification: {
+    manualCount: number;
+    verifiedCount: number;
+    unverifiedCount: number;
+  };
 }
 
 export const reconciliationApi = {

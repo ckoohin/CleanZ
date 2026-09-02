@@ -92,3 +92,31 @@ export function vietnamPeriodStartSqlExpr(
 export function vietnamWeekStartSqlExpr(nowExpr = 'NOW()'): string {
   return vietnamPeriodStartSqlExpr('week', nowExpr);
 }
+
+/**
+ * "Bây giờ" dùng để GHI vào / SO SÁNH với cột `timestamp without time zone`.
+ *
+ * Mọi cột timestamp trong DB lưu theo giờ VN (migration NormalizeTimestampsToVietnamTime),
+ * còn driver `pg` thì tuần tự hoá một `Date` theo múi giờ của TIẾN TRÌNH. Nên `new Date()`
+ * chỉ ghi đúng khi tiến trình cũng chạy ở giờ VN — deploy ở môi trường UTC là mọi hạn chót
+ * do app sinh ra bị lệch 7 tiếng so với các mốc do DB sinh ra, và không có gì báo lỗi.
+ *
+ * Hàm này dịch mốc hiện tại sao cho khi `pg` tuần tự hoá nó theo giờ tiến trình thì ra
+ * đúng giờ VN. Chạy trên máy giờ VN thì đây là phép cộng 0 — không đổi hành vi hiện có,
+ * chỉ gỡ sự phụ thuộc ngầm vào `TZ` của môi trường.
+ *
+ * Dùng cho mốc do APP sinh; mốc lấy từ DB thì truy vấn `VN_NOW_SQL` (không lệch đồng hồ
+ * giữa hai máy). Cột `timestamptz` KHÔNG dùng hàm này — chúng so theo mốc tuyệt đối.
+ */
+export function vietnamNow(at: Date = new Date()): Date {
+  const VN_OFFSET_MINUTES = 7 * 60;
+  const processOffsetMinutes = -at.getTimezoneOffset();
+  return new Date(
+    at.getTime() + (VN_OFFSET_MINUTES - processOffsetMinutes) * 60_000,
+  );
+}
+
+/** `vietnamNow()` lùi lại `ms` — dựng mốc cắt cho các vòng quét dọn dẹp. */
+export function vietnamNowMinus(ms: number): Date {
+  return new Date(vietnamNow().getTime() - ms);
+}

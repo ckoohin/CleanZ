@@ -1,8 +1,17 @@
 "use client";
 
-import { ShieldCheck, ShieldAlert, RefreshCw, CheckCircle2 } from "lucide-react";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  RefreshCw,
+  CheckCircle2,
+} from "lucide-react";
 import { AdminButton } from "@/components/admin";
-import { useReconciliation, type ReconciliationSeverity } from "./reconciliation";
+import {
+  useReconciliation,
+  type ReconciliationSeverity,
+} from "./reconciliation";
+import { BankStatementPanel } from "./BankStatementPanel";
 
 const fmtVnd = (n: number | null) =>
   n == null ? "—" : `${n.toLocaleString("vi-VN")}đ`;
@@ -16,12 +25,15 @@ const KIND_LABEL: Record<string, string> = {
   DUPLICATE_REFUND: "Hoàn tiền trùng",
   SYSTEM_LEDGER_MISMATCH: "Bút toán quỹ SYSTEM lệch",
   TASKER_DEDUCT_OVERFLOW: "Trừ ví Tasker vượt recoverable",
+  EXTERNAL_PAYOUT_MISMATCH: "Sổ chi ngoài lệch số đã duyệt",
+  EXTERNAL_PAYOUT_UNEXPECTED: "Đã hoàn qua ví nhưng vẫn ghi sổ chi ngoài",
+  EXTERNAL_PAYOUT_LOSS: "Có khoản chuyển khoản không đến tay khách",
+  EXTERNAL_PAYOUT_UNVERIFIED: "Chưa đối chiếu sao kê ngân hàng",
+  EXTERNAL_PAYOUT_BANK_MISMATCH: "Sao kê ngân hàng lệch số đã khai",
 };
 
 const sevChip = (s: ReconciliationSeverity) =>
-  s === "CRITICAL"
-    ? "bg-red-100 text-red-700"
-    : "bg-amber-100 text-amber-700";
+  s === "CRITICAL" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700";
 
 export function ReconciliationReport() {
   const { data, isLoading, isFetching, refetch } = useReconciliation();
@@ -47,18 +59,23 @@ export function ReconciliationReport() {
           disabled={isFetching}
           onClick={() => void refetch()}
         >
-          <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`size-3.5 ${isFetching ? "animate-spin" : ""}`}
+          />
           Chạy lại
         </AdminButton>
       </div>
 
       <p className="text-xs text-[var(--c-muted)]">
-        Đối chiếu số liệu phân bổ trên sự cố với bút toán ví thực tế (theo tác động số dư)
-        cho mọi sự cố đã chi trả. Phát hiện lệch tiền để audit — chỉ đọc, không sửa dữ liệu.
+        Đối chiếu số liệu phân bổ trên sự cố với bút toán ví thực tế (theo tác
+        động số dư) cho mọi sự cố đã chi trả. Phát hiện lệch tiền để audit — chỉ
+        đọc, không sửa dữ liệu.
       </p>
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-[var(--c-muted)]">Đang đối soát...</p>
+        <p className="py-8 text-center text-sm text-[var(--c-muted)]">
+          Đang đối soát...
+        </p>
       ) : !data ? null : (
         <>
           <div className="grid grid-cols-3 gap-2">
@@ -77,7 +94,8 @@ export function ReconciliationReport() {
 
           {clean ? (
             <div className="flex items-center gap-2 rounded-xl border border-[#047857]/30 bg-[#047857]/5 p-4 text-sm text-[#047857]">
-              <CheckCircle2 className="size-4" /> Toàn bộ sự cố đã chi trả khớp bút toán ví. Không có chênh lệch.
+              <CheckCircle2 className="size-4" /> Toàn bộ sự cố đã chi trả khớp
+              bút toán ví. Không có chênh lệch.
             </div>
           ) : (
             <div className="space-y-2">
@@ -97,17 +115,28 @@ export function ReconciliationReport() {
                       <p className="text-xs text-[var(--c-ink)]">
                         {KIND_LABEL[d.kind] ?? d.kind}
                       </p>
-                      <p className="text-[11px] text-[var(--c-muted)]">{d.detail}</p>
+                      <p className="text-[11px] text-[var(--c-muted)]">
+                        {d.detail}
+                      </p>
                       {(d.expected != null || d.actual != null) && (
                         <p className="mt-0.5 text-[11px]">
-                          <span className="text-[var(--c-muted)]">Kỳ vọng </span>
-                          <b className="text-[var(--c-ink)]">{fmtVnd(d.expected)}</b>
-                          <span className="text-[var(--c-muted)]"> · Thực tế </span>
+                          <span className="text-[var(--c-muted)]">
+                            Kỳ vọng{" "}
+                          </span>
+                          <b className="text-[var(--c-ink)]">
+                            {fmtVnd(d.expected)}
+                          </b>
+                          <span className="text-[var(--c-muted)]">
+                            {" "}
+                            · Thực tế{" "}
+                          </span>
                           <b className="text-[#DC2626]">{fmtVnd(d.actual)}</b>
                         </p>
                       )}
                     </div>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${sevChip(d.severity)}`}>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${sevChip(d.severity)}`}
+                    >
                       {d.severity === "CRITICAL" ? "Nghiêm trọng" : "Cảnh báo"}
                     </span>
                   </div>
@@ -118,6 +147,25 @@ export function ReconciliationReport() {
           <p className="text-[11px] text-[var(--c-muted)]">
             Cập nhật lúc {new Date(data.checkedAt).toLocaleString("vi-VN")}.
           </p>
+
+          <div className="space-y-3 border-t border-[var(--c-line)] pt-4">
+            {data.bankVerification.manualCount > 0 && (
+              <p className="text-xs text-[var(--c-muted)]">
+                Chi trả bằng chuyển khoản ngoài:{" "}
+                <b className="text-[var(--c-ink)]">
+                  {data.bankVerification.verifiedCount}/
+                  {data.bankVerification.manualCount}
+                </b>{" "}
+                khoản đã được sao kê ngân hàng xác nhận. Tổng tiền đã rời ngân
+                hàng:{" "}
+                <b className="text-[var(--c-ink)]">
+                  {fmtVnd(data.platformOutlay.external)}
+                </b>
+                .
+              </p>
+            )}
+            <BankStatementPanel />
+          </div>
         </>
       )}
     </div>

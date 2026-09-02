@@ -8,6 +8,7 @@ import type {
   FinalizeDecisionInput,
   FromTicketInput,
   IncidentAdminView,
+  IncidentHistoryEntry,
   IncidentConfigMap,
   IncidentSummary,
   Paginated,
@@ -19,10 +20,16 @@ const EP = API_ENDPOINTS.ADMIN_INCIDENTS;
 
 export const adminIncidentApi = {
   list: (params?: AdminIncidentQuery): Promise<Paginated<IncidentSummary>> =>
-    http.get<Paginated<IncidentSummary>>(EP.BASE, { params }).then((r) => r.data),
+    http
+      .get<Paginated<IncidentSummary>>(EP.BASE, { params })
+      .then((r) => r.data),
 
   findOne: (id: string): Promise<IncidentAdminView> =>
     http.get<IncidentAdminView>(EP.DETAIL(id)).then((r) => r.data),
+
+  /** Nhật ký thao tác — mới nhất trước. Chỉ gọi khi admin mở tab nhật ký. */
+  history: (id: string): Promise<IncidentHistoryEntry[]> =>
+    http.get<IncidentHistoryEntry[]>(EP.HISTORY(id)).then((r) => r.data),
 
   // ── Xuất Excel ───────────────────────────────────────────────────────────
   // `responseType: 'blob'` là bắt buộc: bỏ đi thì axios cố parse .xlsx thành
@@ -57,7 +64,9 @@ export const adminIncidentApi = {
     id: string,
     dto: FinalizeDecisionInput,
   ): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.DECISION_FINALIZE(id), dto).then((r) => r.data),
+    http
+      .post<IncidentAdminView>(EP.DECISION_FINALIZE(id), dto)
+      .then((r) => r.data),
 
   /**
    * Thu hồi quyết định đã chốt nhưng CHƯA chi trả — sửa sai trước khi tiền rời ví, thay vì
@@ -67,17 +76,23 @@ export const adminIncidentApi = {
     id: string,
     dto: { expectedDecisionVersion: number; reason: string },
   ): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.DECISION_WITHDRAW(id), dto).then((r) => r.data),
+    http
+      .post<IncidentAdminView>(EP.DECISION_WITHDRAW(id), dto)
+      .then((r) => r.data),
 
   /** Xoá nợ không thu hồi được — nền tảng chịu mất, mở lối đóng hồ sơ. */
   writeOffDebt: (id: string, reason: string): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.DEBT_WRITE_OFF(id), { reason }).then((r) => r.data),
+    http
+      .post<IncidentAdminView>(EP.DEBT_WRITE_OFF(id), { reason })
+      .then((r) => r.data),
 
   reverseCompensation: (
     id: string,
     dto: { expectedDecisionVersion: number; reason: string },
   ): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.COMPENSATION_REVERSE(id), dto).then((r) => r.data),
+    http
+      .post<IncidentAdminView>(EP.COMPENSATION_REVERSE(id), dto)
+      .then((r) => r.data),
 
   /** P0.4 — upload ảnh minh chứng chuyển khoản (chi trả thủ công). */
   uploadTransferProof: (file: File): Promise<{ id: string; url: string }> => {
@@ -95,21 +110,46 @@ export const adminIncidentApi = {
     id: string,
     dto: { proofEvidenceId: string; note?: string },
   ): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.COMPENSATE_MANUAL(id), dto).then((r) => r.data),
+    http
+      .post<IncidentAdminView>(EP.COMPENSATE_MANUAL(id), dto)
+      .then((r) => r.data),
+
+  /** Sửa sổ chi ngoài (chuyển nhầm số tiền / nhầm người) — không đụng ví. */
+  correctManualPayout: (
+    id: string,
+    dto: {
+      deliveredAmount: number;
+      lossAmount?: number;
+      proofEvidenceId?: string;
+      reason: string;
+    },
+  ): Promise<IncidentAdminView> =>
+    http
+      .post<IncidentAdminView>(EP.COMPENSATE_MANUAL_CORRECT(id), dto)
+      .then((r) => r.data),
 
   compensate: (id: string): Promise<IncidentAdminView> =>
     http.post<IncidentAdminView>(EP.COMPENSATE(id), {}).then((r) => r.data),
 
-  createFromTicket: (ticketId: string, dto: FromTicketInput): Promise<IncidentAdminView> =>
-    http.post<IncidentAdminView>(EP.FROM_TICKET(ticketId), dto).then((r) => r.data),
+  createFromTicket: (
+    ticketId: string,
+    dto: FromTicketInput,
+  ): Promise<IncidentAdminView> =>
+    http
+      .post<IncidentAdminView>(EP.FROM_TICKET(ticketId), dto)
+      .then((r) => r.data),
 
   unlockReporter: (id: string): Promise<IncidentAdminView> =>
-    http.patch<IncidentAdminView>(EP.UNLOCK_REPORTER(id), {}).then((r) => r.data),
+    http
+      .patch<IncidentAdminView>(EP.UNLOCK_REPORTER(id), {})
+      .then((r) => r.data),
 
   getConfig: (): Promise<IncidentConfigMap> =>
     http.get<IncidentConfigMap>(EP.CONFIG).then((r) => r.data),
 
-  updateConfig: (body: Record<string, string | number>): Promise<IncidentConfigMap> =>
+  updateConfig: (
+    body: Record<string, string | number>,
+  ): Promise<IncidentConfigMap> =>
     http.put<IncidentConfigMap>(EP.CONFIG, body).then((r) => r.data),
 };
 
@@ -122,7 +162,9 @@ export interface LookupItem {
 
 /** Bóc mảng từ nhiều dạng vỏ response: {data:{data|items:[]}} | {data|items:[]} | []. */
 function unwrapArray(body: unknown): Record<string, unknown>[] {
-  const lvl1 = Array.isArray(body) ? body : (body as Record<string, unknown>)?.data;
+  const lvl1 = Array.isArray(body)
+    ? body
+    : (body as Record<string, unknown>)?.data;
   const lvl1arr = Array.isArray(lvl1)
     ? lvl1
     : ((lvl1 as Record<string, unknown>)?.data ??
@@ -162,7 +204,10 @@ export const adminIncidentLookupApi = {
       })
       .then((r) =>
         unwrapArray(r.data).map((t) => {
-          const reporter = t.reporter as { fullName?: string; phone?: string } | null;
+          const reporter = t.reporter as {
+            fullName?: string;
+            phone?: string;
+          } | null;
           const sub = reporter
             ? [reporter.fullName, reporter.phone].filter(Boolean).join(" · ")
             : (t.bookingCode as string) || undefined;

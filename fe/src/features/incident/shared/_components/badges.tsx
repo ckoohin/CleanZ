@@ -25,7 +25,10 @@ export function IncidentStatusBadge({
   audience: IncidentAudience;
 }) {
   return (
-    <Badge variant="outline" className={`text-xs font-semibold ${TONE_BADGE_CLASS[STATUS_TONE[status]]}`}>
+    <Badge
+      variant="outline"
+      className={`text-xs font-semibold ${TONE_BADGE_CLASS[STATUS_TONE[status]]}`}
+    >
       {STATUS_LABEL_BY_AUDIENCE[audience][status]}
     </Badge>
   );
@@ -33,7 +36,10 @@ export function IncidentStatusBadge({
 
 export function SeverityBadge({ severity }: { severity: Severity }) {
   return (
-    <Badge variant="outline" className={`text-xs ${TONE_BADGE_CLASS[SEVERITY_TONE[severity]]}`}>
+    <Badge
+      variant="outline"
+      className={`text-xs ${TONE_BADGE_CLASS[SEVERITY_TONE[severity]]}`}
+    >
       {SEVERITY_LABEL[severity]}
     </Badge>
   );

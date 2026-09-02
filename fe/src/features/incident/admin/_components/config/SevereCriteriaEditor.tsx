@@ -61,7 +61,9 @@ export function SevereCriteriaEditor({
     <div className="space-y-3 rounded-xl border border-[var(--c-line)] p-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-[var(--c-ink)]">Ngưỡng &quot;Lớn&quot; (≥)</Label>
+          <Label className="text-xs font-semibold text-[var(--c-ink)]">
+            Ngưỡng &quot;Lớn&quot; (≥)
+          </Label>
           <Input
             type="number"
             min={0}
@@ -75,7 +77,9 @@ export function SevereCriteriaEditor({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-[var(--c-ink)]">Ngưỡng &quot;Nghiêm trọng&quot; (≥)</Label>
+          <Label className="text-xs font-semibold text-[var(--c-ink)]">
+            Ngưỡng &quot;Nghiêm trọng&quot; (≥)
+          </Label>
           <Input
             type="number"
             min={0}
@@ -93,7 +97,8 @@ export function SevereCriteriaEditor({
 
       {invalid && (
         <p className="flex items-center gap-1 text-xs text-[#D97706]">
-          <AlertTriangle className="size-3.5" /> Ngưỡng &quot;Nghiêm trọng&quot; phải lớn hơn &quot;Lớn&quot;.
+          <AlertTriangle className="size-3.5" /> Ngưỡng &quot;Nghiêm trọng&quot;
+          phải lớn hơn &quot;Lớn&quot;.
         </p>
       )}
 
@@ -105,7 +110,9 @@ export function SevereCriteriaEditor({
         </div>
         <div className="flex-1 bg-[rgba(217,119,6,0.14)] px-2 py-1.5">
           <p className="font-semibold text-[#D97706]">Lớn</p>
-          <p className="text-[var(--c-muted)]">{formatVnd(majorNum)} – {formatVnd(severeNum)}</p>
+          <p className="text-[var(--c-muted)]">
+            {formatVnd(majorNum)} – {formatVnd(severeNum)}
+          </p>
         </div>
         <div className="flex-1 bg-[rgba(225,29,72,0.12)] px-2 py-1.5">
           <p className="font-semibold text-[#E11D48]">Nghiêm trọng</p>

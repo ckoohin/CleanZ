@@ -12,72 +12,72 @@
  * cả ba đều lưu lại cùng một sự thật mà trục này đã mô tả.
  */
 export const INCIDENT_STATUS = [
-  'REPORTED',
-  'REVIEWING',
-  'AWAITING_RESPONSE',
-  'AWAITING_PAYOUT',
-  'COMPENSATED',
-  'REJECTED',
-  'CLOSED',
+  "REPORTED",
+  "REVIEWING",
+  "AWAITING_RESPONSE",
+  "AWAITING_PAYOUT",
+  "COMPENSATED",
+  "REJECTED",
+  "CLOSED",
 ] as const;
 export type IncidentStatus = (typeof INCIDENT_STATUS)[number];
 
 export const CLOSURE_REASON = [
-  'COMPENSATED',
-  'REJECTED',
-  'NO_COMPENSATION',
-  'WITHDRAWN',
-  'DUPLICATE',
-  'INVALID_BOOKING',
-  'EXPIRED',
+  "COMPENSATED",
+  "REJECTED",
+  "NO_COMPENSATION",
+  "WITHDRAWN",
+  "DUPLICATE",
+  "INVALID_BOOKING",
+  "EXPIRED",
 ] as const;
 export type ClosureReason = (typeof CLOSURE_REASON)[number];
 
-export const SEVERITY = ['CRITICAL', 'MAJOR', 'MINOR'] as const;
+export const SEVERITY = ["CRITICAL", "MAJOR", "MINOR"] as const;
 export type Severity = (typeof SEVERITY)[number];
 
 export const COMPENSATION_SOURCE = [
-  'TASKER_DEPOSIT',
-  'PLATFORM_FUND',
-  'MIXED',
+  "TASKER_DEPOSIT",
+  "PLATFORM_FUND",
+  "MIXED",
 ] as const;
 export type CompensationSource = (typeof COMPENSATION_SOURCE)[number];
 
 /** Upload chỉ IMAGE (override spec — từ chối video → 422). */
-export const EVIDENCE_TYPE = ['IMAGE'] as const;
+export const EVIDENCE_TYPE = ["IMAGE"] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPE)[number];
 
 /** Ba kết cục quyết định. Chỉ COMPENSATE mới chuyển tiền. */
 export const DECISION_OUTCOME = [
-  'COMPENSATE',
-  'NO_COMPENSATION',
-  'REJECT',
+  "COMPENSATE",
+  "NO_COMPENSATION",
+  "REJECT",
 ] as const;
 export type DecisionOutcome = (typeof DECISION_OUTCOME)[number];
 
 /** Hành động khả dụng do BE tính, FE chỉ hiển thị (mirror `incident-decision.helpers.ts`). */
 export const DECISION_ACTION = [
-  'ACCEPT',
-  'SAVE_DECISION',
-  'SEND_TO_TASKER',
-  'FINALIZE',
+  "ACCEPT",
+  "SAVE_DECISION",
+  "SEND_TO_TASKER",
+  "FINALIZE",
   /** Gỡ dấu "đã chốt" khi CHƯA chi trả, để soạn/chốt lại. */
-  'WITHDRAW_DECISION',
-  'COMPENSATE',
-  'REVERSE',
-  'RESPOND',
+  "WITHDRAW_DECISION",
+  "COMPENSATE",
+  "REVERSE",
+  "RESPOND",
 ] as const;
 export type DecisionAction = (typeof DECISION_ACTION)[number];
 
 export const RESPONSIBILITY_PARTY = [
-  'TASKER',
-  'PLATFORM',
-  'SHARED',
-  'UNDETERMINED',
+  "TASKER",
+  "PLATFORM",
+  "SHARED",
+  "UNDETERMINED",
 ] as const;
 export type ResponsibilityParty = (typeof RESPONSIBILITY_PARTY)[number];
 
-export const DECISION_RESPONSE_TYPE = ['AGREE', 'DISAGREE'] as const;
+export const DECISION_RESPONSE_TYPE = ["AGREE", "DISAGREE"] as const;
 export type DecisionResponseType = (typeof DECISION_RESPONSE_TYPE)[number];
 
 /**
@@ -85,16 +85,16 @@ export type DecisionResponseType = (typeof DECISION_RESPONSE_TYPE)[number];
  * Luồng review riêng đã gỡ: sau khi đọc phản hồi, Admin hoặc chốt luôn, hoặc sửa quyết định.
  */
 export const RESPONSE_REVIEW_RESULT = [
-  'KEEP_DECISION',
-  'REVISE_DECISION',
+  "KEEP_DECISION",
+  "REVISE_DECISION",
 ] as const;
 export type ResponseReviewResult = (typeof RESPONSE_REVIEW_RESULT)[number];
 
 export const DAMAGE_ITEM_STATUS = [
-  'PENDING',
-  'VERIFIED',
-  'REJECTED',
-  'NEED_MORE_EVIDENCE',
+  "PENDING",
+  "VERIFIED",
+  "REJECTED",
+  "NEED_MORE_EVIDENCE",
 ] as const;
 export type DamageItemStatus = (typeof DAMAGE_ITEM_STATUS)[number];
 
@@ -113,3 +113,30 @@ export const POLICY_CAP = 10_000_000;
  */
 export const EVIDENCE_MIME = ["image/jpeg", "image/png", "image/jpg"];
 export const EVIDENCE_MAX_BYTES = 5 * 1024 * 1024;
+
+// ─── Hạn báo cáo (giờ, tính từ lúc đơn hoàn thành) ───────────────────────────
+/**
+ * Dự phòng khi `report-config` chưa tải xong hoặc gọi lỗi. Con số THẬT do admin cấu hình
+ * (`INCIDENT_REPORT_WINDOW_HOURS`), backend vẫn là chốt chặn cuối — giá trị ở đây chỉ để
+ * màn hình chọn đơn không phải hiện trống trong lúc chờ.
+ */
+export const REPORT_WINDOW_HOURS_FALLBACK = 48;
+export const REPORT_WINDOW_SEVERE_HOURS_FALLBACK = 72;
+
+// ─── Loại & nguồn hồ sơ (mirror `incident-type.enum.ts` / `incident-source.enum.ts`) ──
+export const INCIDENT_TYPE = [
+  "PROPERTY_DAMAGE",
+  "CHECKIN_VIOLATION",
+  "NO_SHOW",
+  "CUSTOMER_UNREACHABLE",
+] as const;
+export type IncidentType = (typeof INCIDENT_TYPE)[number];
+
+export const INCIDENT_SOURCE = [
+  "CUSTOMER_REPORT",
+  "SUPPORT_TICKET",
+  "CHECKIN_REVIEW",
+  "NO_SHOW_REVIEW",
+  "TASKER_REPORT",
+] as const;
+export type IncidentSource = (typeof INCIDENT_SOURCE)[number];

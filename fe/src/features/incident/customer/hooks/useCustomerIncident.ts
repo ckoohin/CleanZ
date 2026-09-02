@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import { customerIncidentApi } from "../services/customer-incident.service";
 import type {
@@ -66,8 +71,13 @@ export function useCreateIncident() {
 export function useAttachItemEvidence(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ itemId, evidenceIds }: { itemId: string; evidenceIds: string[] }) =>
-      customerIncidentApi.attachItemEvidence(id, itemId, evidenceIds),
+    mutationFn: ({
+      itemId,
+      evidenceIds,
+    }: {
+      itemId: string;
+      evidenceIds: string[];
+    }) => customerIncidentApi.attachItemEvidence(id, itemId, evidenceIds),
     onSuccess: () => {
       toast.success("Đã gửi thêm ảnh — chờ CleanZ xem xét lại");
       qc.invalidateQueries({ queryKey: incidentKeys.detail(id) });

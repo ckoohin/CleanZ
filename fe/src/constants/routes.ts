@@ -48,6 +48,9 @@ export const ROUTES = {
     INCIDENT: "/customer/incident",
     INCIDENT_DETAIL: (id: string) => `/customer/incident/${id}`,
     INCIDENT_REPORT: "/customer/incident/report",
+    /** Báo cáo sự cố cho MỘT đơn cụ thể — form cần `bookingId` để gắn hồ sơ đúng đơn. */
+    INCIDENT_REPORT_FOR_BOOKING: (bookingId: string) =>
+      `/customer/incident/report?bookingId=${bookingId}`,
     NOTIFICATIONS: "/customer/notifications",
     SUPPORT_TICKETS: "/customer/support-tickets",
     SUPPORT_TICKET_DETAIL: (id: string) => `/customer/support-tickets/${id}`,

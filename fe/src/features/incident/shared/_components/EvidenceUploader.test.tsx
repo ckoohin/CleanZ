@@ -19,7 +19,9 @@ function renderUploader(upload: (f: File) => Promise<Evidence>) {
   const { container } = render(
     <EvidenceUploader upload={upload} value={[]} onChange={onChange} max={4} />,
   );
-  const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+  const input = container.querySelector(
+    'input[type="file"]',
+  ) as HTMLInputElement;
   return { onChange, input };
 }
 
@@ -31,7 +33,9 @@ describe("EvidenceUploader — ảnh đã tải lên không được mất khi l
       .mockRejectedValueOnce(new Error("mạng lỗi"));
     const { onChange, input } = renderUploader(upload);
 
-    fireEvent.change(input, { target: { files: [img("a.png"), img("b.png")] } });
+    fireEvent.change(input, {
+      target: { files: [img("a.png"), img("b.png")] },
+    });
 
     await waitFor(() => expect(onChange).toHaveBeenCalled());
     // Trước đây throw nhảy qua onChange: ảnh a.png đã nằm trên server nhưng
@@ -73,7 +77,9 @@ describe("EvidenceUploader — chặn ảnh không hợp lệ ngay ở client", 
     const upload = vi.fn();
     const { input } = renderUploader(upload);
 
-    fireEvent.change(input, { target: { files: [img("to.png", 6 * 1024 * 1024)] } });
+    fireEvent.change(input, {
+      target: { files: [img("to.png", 6 * 1024 * 1024)] },
+    });
 
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/5MB/i)),
@@ -111,7 +117,12 @@ describe("EvidenceUploader — vượt số ảnh tối đa", () => {
     const upload = vi.fn().mockResolvedValue({ id: "ev", url: "u" });
     const onChange = vi.fn();
     const { container } = render(
-      <EvidenceUploader upload={upload} value={[]} onChange={onChange} max={1} />,
+      <EvidenceUploader
+        upload={upload}
+        value={[]}
+        onChange={onChange}
+        max={1}
+      />,
     );
 
     fireEvent.change(container.querySelector('input[type="file"]')!, {
@@ -119,7 +130,9 @@ describe("EvidenceUploader — vượt số ảnh tối đa", () => {
     });
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/tối đa 1 ảnh/i)),
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringMatching(/tối đa 1 ảnh/i),
+      ),
     );
     expect(upload).toHaveBeenCalledTimes(1);
   });

@@ -2,7 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { SEVERITY, type Severity } from "@/features/incident/shared/incident.enums";
+import {
+  SEVERITY,
+  type Severity,
+} from "@/features/incident/shared/incident.enums";
 import { SEVERITY_LABEL } from "@/features/incident/shared/incident.labels";
 
 // 5 mốc SLA. 4 mốc đầu lưu theo PHÚT (nhập theo giờ → ×60), autoclose lưu theo GIỜ.
@@ -17,9 +20,27 @@ type FieldKey = (typeof FIELDS)[number]["key"];
 
 // Mặc định (giờ) — mirror DEFAULT_SLA của BE, dùng làm placeholder.
 const DEFAULT_HOURS: Record<Severity, Record<FieldKey, number>> = {
-  CRITICAL: { receivedMins: 4, statementMins: 24, decisionMins: 24, executeMins: 24, autocloseHours: 48 },
-  MAJOR: { receivedMins: 12, statementMins: 36, decisionMins: 48, executeMins: 24, autocloseHours: 48 },
-  MINOR: { receivedMins: 24, statementMins: 48, decisionMins: 72, executeMins: 24, autocloseHours: 48 },
+  CRITICAL: {
+    receivedMins: 4,
+    statementMins: 24,
+    decisionMins: 24,
+    executeMins: 24,
+    autocloseHours: 48,
+  },
+  MAJOR: {
+    receivedMins: 12,
+    statementMins: 36,
+    decisionMins: 48,
+    executeMins: 24,
+    autocloseHours: 48,
+  },
+  MINOR: {
+    receivedMins: 24,
+    statementMins: 48,
+    decisionMins: 72,
+    executeMins: 24,
+    autocloseHours: 48,
+  },
 };
 
 type Matrix = Record<string, Partial<Record<FieldKey, number>>>;
@@ -27,7 +48,10 @@ type Draft = Record<Severity, Record<FieldKey, string>>;
 
 const emptyDraft = (): Draft =>
   Object.fromEntries(
-    SEVERITY.map((s) => [s, Object.fromEntries(FIELDS.map((f) => [f.key, ""]))]),
+    SEVERITY.map((s) => [
+      s,
+      Object.fromEntries(FIELDS.map((f) => [f.key, ""])),
+    ]),
   ) as Draft;
 
 function parse(value: string): Matrix {
@@ -103,7 +127,9 @@ export function SlaMatrixEditor({
             <tr className="text-[var(--c-muted)]">
               <th className="px-1 py-1 text-left font-semibold">Mức độ</th>
               {FIELDS.map((f) => (
-                <th key={f.key} className="px-1 py-1 text-center font-semibold">{f.label}</th>
+                <th key={f.key} className="px-1 py-1 text-center font-semibold">
+                  {f.label}
+                </th>
               ))}
             </tr>
           </thead>

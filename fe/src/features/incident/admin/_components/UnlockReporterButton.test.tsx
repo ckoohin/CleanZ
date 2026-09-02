@@ -11,7 +11,11 @@ vi.mock("../hooks/useAdminIncident", () => ({
 describe("UnlockReporterButton", () => {
   it("không hiện gì khi khách vốn không bị khoá", () => {
     const { container } = render(
-      <UnlockReporterButton id="i1" customerName="Nguyễn A" lockedUntil={null} />,
+      <UnlockReporterButton
+        id="i1"
+        customerName="Nguyễn A"
+        lockedUntil={null}
+      />,
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -58,7 +62,9 @@ describe("UnlockReporterButton", () => {
       screen.getByRole("button", { name: /Gỡ khoá quyền báo cáo/i }),
     );
 
-    expect(screen.getByText(/toàn bộ tài khoản của khách/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/toàn bộ tài khoản của khách/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Nguyễn A/)).toBeInTheDocument();
   });
 

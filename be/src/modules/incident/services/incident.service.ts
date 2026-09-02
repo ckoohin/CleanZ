@@ -11,6 +11,7 @@ import { asyncHandleOperation } from 'src/common/utils/async-handle.utils';
 import { BookingEntity } from 'src/modules/booking/entity/booking.entity';
 import { BookingStatus } from 'src/common/enums/booking-status.enum';
 import { IncidentStatus } from 'src/common/enums/incident-status.enum';
+import { IncidentSeverity } from 'src/common/enums/incident-severity.enum';
 import { IncidentClosureReason } from 'src/common/enums/incident-closure-reason.enum';
 import { IncidentLogDimension } from 'src/common/enums/incident-log-dimension.enum';
 import { IncidentEvidencePurpose } from 'src/common/enums/incident-evidence-purpose.enum';
@@ -43,6 +44,7 @@ import {
   INCIDENT_EVIDENCE_VISIBILITY,
   IncidentEvidenceLifecycleService,
 } from './incident-evidence-lifecycle.service';
+import { vietnamNow } from 'src/common/helpers/vietnam-time.helper';
 
 const WITHDRAWABLE_STATUSES = [
   IncidentStatus.REPORTED,
@@ -77,8 +79,21 @@ export class IncidentService {
    * hành nội bộ, không phải thứ khách được biết. Ở đây chỉ phơi đúng con số mà
    * nếu thiếu thì khách tải xong hết ảnh mới bị từ chối.
    */
-  async getReportConfig(): Promise<{ claimMax: number }> {
-    return { claimMax: await this.config.getClaimMaxAmount() };
+  async getReportConfig(): Promise<{
+    claimMax: number;
+    reportWindowHours: number;
+    reportWindowSevereHours: number;
+  }> {
+    const [claimMax, reportWindowHours, reportWindowSevereHours] =
+      await Promise.all([
+        this.config.getClaimMaxAmount(),
+        this.config.getReportWindowHours(IncidentSeverity.MINOR),
+        this.config.getReportWindowHours(IncidentSeverity.CRITICAL),
+      ]);
+    // Hai cửa sổ, không phải một: hạn báo cáo phụ thuộc mức độ, mà mức độ lại suy ra từ
+    // số tiền khách CHƯA nhập lúc chọn đơn. Trả cả hai để màn hình chọn đơn nói đúng —
+    // qua hạn thường thì cảnh báo, qua hạn rộng nhất mới là chắc chắn hết cửa.
+    return { claimMax, reportWindowHours, reportWindowSevereHours };
   }
 
   async uploadEvidence(
@@ -222,7 +237,7 @@ export class IncidentService {
       }
 
       const lockedUntil = booking.customer.reportingLockedUntil;
-      if (lockedUntil && lockedUntil.getTime() > Date.now()) {
+      if (lockedUntil && lockedUntil.getTime() > vietnamNow().getTime()) {
         throw new ForbiddenException('Tài khoản đang bị hạn chế báo cáo sự cố');
       }
 
@@ -265,7 +280,7 @@ export class IncidentService {
       const deadline = new Date(
         booking.completedAt.getTime() + windowHours * 3_600_000,
       );
-      if (new Date() > deadline) {
+      if (vietnamNow() > deadline) {
         throw new UnprocessableEntityException('Đã quá thời hạn báo cáo sự cố');
       }
 
@@ -288,7 +303,7 @@ export class IncidentService {
         }
       }
 
-      const now = new Date();
+      const now = vietnamNow();
       const sla = await this.config.getSla(severity);
       const code = await this.incidentCode.next(now);
 

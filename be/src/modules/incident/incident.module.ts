@@ -7,6 +7,7 @@ import { IncidentEvidenceEntity } from './entity/incident-evidence.entity';
 import { IncidentStatementEntity } from './entity/incident-statement.entity';
 import { IncidentStatusLogEntity } from './entity/incident-status-log.entity';
 import { NotificationOutboxEntity } from './entity/notification-outbox.entity';
+import { BankStatementEntryEntity } from './entity/bank-statement-entry.entity';
 import { CustomerIncidentStrikeEntity } from './entity/customer-incident-strike.entity';
 import { BookingEntity } from '../booking/entity/booking.entity';
 import { SupportTicketEntity } from '../support-ticket/entity/support-ticket.entity';
@@ -17,6 +18,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { IncidentController } from './incident.controller';
 import { IncidentAdminController } from './incident-admin.controller';
 import { IncidentTaskerController } from './incident-tasker.controller';
+import { BankStatementController } from './bank-statement.controller';
 import { IncidentService } from './services/incident.service';
 import { IncidentAdminService } from './services/incident-admin.service';
 import { IncidentDecisionService } from './services/incident-decision.service';
@@ -32,6 +34,7 @@ import { IncidentNotificationOutboxWorkerService } from './services/incident-not
 import { IncidentEvidenceLifecycleService } from './services/incident-evidence-lifecycle.service';
 import { IncidentDepositHoldService } from './services/incident-deposit-hold.service';
 import { IncidentReconciliationService } from './services/incident-reconciliation.service';
+import { BankStatementService } from './services/bank-statement.service';
 import { AlertModule } from '../alert/alert.module';
 import { IncidentReportService } from './services/incident-report.service';
 import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
@@ -46,6 +49,7 @@ import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
       IncidentStatementEntity,
       IncidentStatusLogEntity,
       NotificationOutboxEntity,
+      BankStatementEntryEntity,
       CustomerIncidentStrikeEntity,
       BookingEntity,
       SupportTicketEntity,
@@ -61,6 +65,7 @@ import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
     IncidentController,
     IncidentAdminController,
     IncidentTaskerController,
+    BankStatementController,
   ],
   providers: [
     IncidentService,
@@ -78,6 +83,7 @@ import { AdminActivityModule } from 'src/modules/admin/admin-activity.module';
     IncidentEvidenceLifecycleService,
     IncidentDepositHoldService,
     IncidentReconciliationService,
+    BankStatementService,
     // `IncidentAlertService` giờ do `AlertModule` cung cấp — giữ đúng một instance
     // để bộ throttle theo key không bị tách đôi.
     IncidentReportService,

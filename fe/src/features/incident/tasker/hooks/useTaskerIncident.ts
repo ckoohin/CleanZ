@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import { taskerIncidentApi } from "../services/tasker-incident.service";
 import type {
@@ -7,6 +12,10 @@ import type {
   UpsertDecisionResponseInput,
 } from "@/features/incident/shared/incident.types";
 import { getErrorMessage } from "@/features/auth/hooks/auth.hooks";
+import {
+  conflictMessage,
+  isConflict,
+} from "@/features/incident/shared/incident.errors";
 
 export const taskerIncidentKeys = {
   all: ["tasker-incidents"] as const,
@@ -40,7 +49,8 @@ export function useTaskerUploadEvidence() {
 export function useSubmitStatement(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: SubmitStatementInput) => taskerIncidentApi.submitStatement(id, dto),
+    mutationFn: (dto: SubmitStatementInput) =>
+      taskerIncidentApi.submitStatement(id, dto),
     onSuccess: () => {
       toast.success("Đã gửi giải trình");
       qc.invalidateQueries({ queryKey: taskerIncidentKeys.detail(id) });
@@ -58,11 +68,15 @@ export function useUpsertDecisionResponse(id: string) {
       toast.success("Đã gửi phản hồi quyết định");
       qc.invalidateQueries({ queryKey: taskerIncidentKeys.detail(id) });
     },
+    // Cửa sổ phản hồi trả 409 cho nhiều lý do khác nhau — hết hạn
+    // (`TASKER_RESPONSE_WINDOW_EXPIRED`), Admin đã đọc bản này
+    // (`TASKER_RESPONSE_ALREADY_REVIEWED`), chưa tới lượt (`TASKER_RESPONSE_NOT_OPEN`) —
+    // và người đọc thông báo là người sắp bị trừ tiền. Nói "phiên bản đã thay đổi" cho
+    // cả ba là để họ bấm lại một nút không bao giờ ăn, thay vì biết hạn đã trôi qua.
     onError: (e: unknown) => {
-      const status = (e as { response?: { status?: number } })?.response?.status;
-      if (status === 409) {
+      if (isConflict(e)) {
         qc.invalidateQueries({ queryKey: taskerIncidentKeys.detail(id) });
-        toast.error("Phiên bản quyết định đã thay đổi. Dữ liệu đã được tải lại.");
+        toast.error(conflictMessage(e));
         return;
       }
       toast.error(getErrorMessage(e));

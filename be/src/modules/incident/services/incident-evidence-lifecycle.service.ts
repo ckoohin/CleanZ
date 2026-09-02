@@ -6,6 +6,7 @@ import { UploadService } from 'src/modules/upload/upload.service';
 import { IncidentEntity } from '../entity/incident.entity';
 import { IncidentDecisionResponseEntity } from '../entity/incident-decision-response.entity';
 import { IncidentEvidenceEntity } from '../entity/incident-evidence.entity';
+import { vietnamNowMinus } from 'src/common/helpers/vietnam-time.helper';
 
 export type IncidentEvidenceAudience = 'ADMIN' | 'TASKER' | 'CUSTOMER';
 
@@ -131,7 +132,7 @@ export class IncidentEvidenceLifecycleService {
     olderThanHours: number,
     limit = 100,
   ): Promise<number> {
-    const cutoff = new Date(Date.now() - olderThanHours * 3_600_000);
+    const cutoff = vietnamNowMinus(olderThanHours * 3_600_000);
     const orphans = await this.evidenceRepo
       .createQueryBuilder('e')
       .where('e.incident_id IS NULL')

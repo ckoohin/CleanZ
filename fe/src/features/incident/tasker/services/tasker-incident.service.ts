@@ -27,17 +27,24 @@ export const taskerIncidentApi = {
   },
 
   listMine: (params?: MyIncidentQuery): Promise<Paginated<IncidentSummary>> =>
-    http.get<Paginated<IncidentSummary>>(EP.MINE, { params }).then((r) => r.data),
+    http
+      .get<Paginated<IncidentSummary>>(EP.MINE, { params })
+      .then((r) => r.data),
 
   findOne: (id: string): Promise<IncidentTaskerView> =>
     http.get<IncidentTaskerView>(EP.DETAIL(id)).then((r) => r.data),
 
-  submitStatement: (id: string, dto: SubmitStatementInput): Promise<Statement> =>
+  submitStatement: (
+    id: string,
+    dto: SubmitStatementInput,
+  ): Promise<Statement> =>
     http.post<Statement>(EP.STATEMENTS(id), dto).then((r) => r.data),
 
   upsertDecisionResponse: (
     id: string,
     dto: UpsertDecisionResponseInput,
   ): Promise<DecisionResponseView> =>
-    http.put<DecisionResponseView>(EP.DECISION_RESPONSE(id), dto).then((r) => r.data),
+    http
+      .put<DecisionResponseView>(EP.DECISION_RESPONSE(id), dto)
+      .then((r) => r.data),
 };

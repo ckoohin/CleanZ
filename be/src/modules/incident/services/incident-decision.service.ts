@@ -37,6 +37,7 @@ import { IncidentConfigService } from './incident-config.service';
 import { IncidentAdminService } from './incident-admin.service';
 import { IncidentDepositHoldService } from './incident-deposit-hold.service';
 import { FraudStrikeService } from './fraud-strike.service';
+import { vietnamNow, VN_NOW_SQL } from 'src/common/helpers/vietnam-time.helper';
 
 interface DecisionPolicy {
   policyVersion: string;
@@ -600,6 +601,20 @@ export class IncidentDecisionService {
           message: 'Hạng mục bị từ chối không được duyệt tiền',
         });
       }
+      // Mặt đối xứng của luật trên, trước đây bỏ trống: "chấp nhận nhưng duyệt 0 đồng" là
+      // một kết luận tự mâu thuẫn. Khách đọc hạng mục của mình được ghi "Đã xác minh" rồi
+      // thấy 0đ sẽ không hiểu mình được công nhận hay bị từ chối — mà hệ thống đã có sẵn
+      // hai trạng thái nói đúng ý đó: REJECTED (không chấp nhận) và NEED_MORE_EVIDENCE.
+      if (
+        approved <= 0 &&
+        decision.itemStatuses.get(item.id) ===
+          IncidentDamageItemVerificationStatus.VERIFIED
+      ) {
+        throw new UnprocessableEntityException({
+          code: 'INVALID_APPROVED_AMOUNT',
+          message: `Hạng mục "${item.description}" được chấp nhận thì phải duyệt số tiền lớn hơn 0 — nếu không đền thì chọn "Từ chối"`,
+        });
+      }
     }
 
     if (decision.outcome !== IncidentDecisionOutcome.COMPENSATE) return;
@@ -757,6 +772,23 @@ export class IncidentDecisionService {
           message: `Còn hạng mục chờ bổ sung bằng chứng: "${blocking.description}"`,
         });
       }
+      // Hạng mục CHƯA được thẩm định cũng không được để lọt qua bước chốt.
+      //
+      // `normalize()` chỉ đụng tới những hạng mục có mặt trong request; hạng mục bị bỏ sót
+      // giữ nguyên `PENDING` và nhận số duyệt 0. Trước đây chỉ `NEED_MORE_EVIDENCE` bị chặn,
+      // nên một quyết định vẫn chốt được trong khi có hạng mục khách kê khai chưa ai kết
+      // luận gì — khách không được đền, cũng không được nói vì sao.
+      const unreviewed = items.find(
+        (item) =>
+          item.verificationStatus ===
+          IncidentDamageItemVerificationStatus.PENDING,
+      );
+      if (unreviewed) {
+        throw new UnprocessableEntityException({
+          code: 'DAMAGE_ITEMS_NOT_FINALIZABLE',
+          message: `Còn hạng mục chưa thẩm định: "${unreviewed.description}" — phải chấp nhận hoặc từ chối trước khi chốt`,
+        });
+      }
     } else if (tasker > 0 || platform > 0) {
       throw new UnprocessableEntityException({
         code: 'INVALID_DECISION',
@@ -863,7 +895,7 @@ export class IncidentDecisionService {
     incident.responsibilityParty = decision.responsibilityParty;
     incident.responsibilityReason = decision.responsibilityReason;
     incident.responsibilityDecidedByAdmin = { id: adminUserId } as never;
-    incident.responsibilityDecidedAt = new Date();
+    incident.responsibilityDecidedAt = vietnamNow();
 
     incident.internalDecisionNote = decision.internalDecisionNote;
     incident.taskerDecisionReason = decision.taskerDecisionReason;
@@ -940,7 +972,7 @@ export class IncidentDecisionService {
         this.config.getSevereCriteria(),
       ]);
     return {
-      policyVersion: `incident-policy-${new Date().toISOString().slice(0, 10)}`,
+      policyVersion: `incident-policy-${vietnamNow().toISOString().slice(0, 10)}`,
       policyCap,
       responseWindowHours,
       severityRuleSnapshot: severityRuleSnapshot as unknown as Record<
@@ -973,8 +1005,16 @@ export class IncidentDecisionService {
     return policy;
   }
 
+  /**
+   * `VN_NOW_SQL` chứ không phải `now()` trần.
+   *
+   * Mốc này vừa được SO với `taskerResponseDeadline`, vừa được GHI vào `finalizedAt` —
+   * đều là cột `timestamp without time zone` lưu giờ VN. `now()` trả timestamptz và bị ép
+   * theo TimeZone của SESSION (UTC qua pooler), nên cửa sổ phản biện lệch 7 tiếng: hoặc
+   * Admin chốt được khi hạn chưa hết, hoặc Tasker bị khoá form khi vẫn còn hạn.
+   */
   private async getDatabaseNow(manager: EntityManager): Promise<Date> {
-    const rows = await manager.query('SELECT now() AS now');
+    const rows = await manager.query(`SELECT ${VN_NOW_SQL} AS now`);
     return new Date(rows[0].now);
   }
 

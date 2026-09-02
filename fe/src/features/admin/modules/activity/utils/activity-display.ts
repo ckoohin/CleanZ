@@ -6,6 +6,13 @@ export type ActivityChangeRow = {
   after: string;
 };
 
+export type ActivityBusinessRow = {
+  /** Tên trường gốc — giữ lại để đối chiếu khi cần tra cứu kỹ thuật. */
+  key: string;
+  label: string;
+  value: string;
+};
+
 const FIELD_LABELS: Record<string, string> = {
   action: "Hành động",
   adminNote: "Ghi chú quản trị",
@@ -50,6 +57,115 @@ const FIELD_LABELS: Record<string, string> = {
   status: "Trạng thái",
   title: "Tiêu đề",
 };
+
+/**
+ * Nhãn cho khối "Số liệu nghiệp vụ" — các trường do từng nghiệp vụ tự khai trong
+ * `businessData`, không đi qua diff theo-field nên không có tên nào sẵn.
+ *
+ * Đây là chỗ người đọc log dừng lại lâu nhất khi truy một khoản tiền: để nguyên
+ * `uncoveredLiability` thì chỉ người viết code đọc được, mà log kiểm toán sinh ra là để
+ * cho kế toán và người rà soát đọc.
+ */
+const BUSINESS_DATA_LABELS: Record<string, string> = {
+  // ─── Bồi thường sự cố ───
+  incidentId: "Sự cố",
+  incidentCode: "Mã sự cố",
+  approvedAmount: "Số tiền duyệt bồi thường",
+  claimedAmount: "Số tiền khách yêu cầu",
+  taskerBorneAmount: "Phần Tasker chịu",
+  platformBorneAmount: "Phần nền tảng chịu",
+  compensationSource: "Nguồn chi bồi thường",
+  responsibilityParty: "Bên chịu trách nhiệm",
+  allocationReason: "Lý do phân bổ",
+  recoveredToSystem: "Thu hồi từ Tasker về quỹ",
+  uncoveredLiability: "Phần Tasker chưa trả nổi (quỹ ứng)",
+  writtenOffAmount: "Số nợ đã xoá",
+  reversedAmount: "Số tiền đã đảo",
+  newDecisionVersion: "Phiên bản quyết định mới",
+  expectedDecisionVersion: "Phiên bản quyết định đang thao tác",
+  openIncident: "Sự cố đang mở",
+  reportId: "Báo cáo",
+  reporterUserId: "Người báo cáo",
+  resolutionType: "Hướng xử lý",
+
+  // ─── Chi trả thủ công & sổ chi ngoài ───
+  proofEvidenceId: "Ảnh minh chứng chuyển khoản",
+  hasTransferProof: "Có ảnh minh chứng chuyển khoản",
+  deliveredAmount: "Khách thực nhận",
+  previousDelivered: "Khách thực nhận (trước điều chỉnh)",
+  lossAmount: "Thất thoát (không đến tay khách)",
+  previousLoss: "Thất thoát (trước điều chỉnh)",
+  shortfall: "Còn thiếu phải chuyển bù",
+
+  // ─── Sao kê ngân hàng ───
+  entryId: "Dòng sao kê",
+  csv: "Nội dung file sao kê",
+  bankRef: "Mã giao dịch ngân hàng",
+  txnAt: "Thời điểm giao dịch",
+  direction: "Chiều tiền",
+  parsed: "Số dòng đọc được",
+  inserted: "Số dòng thêm mới",
+  duplicated: "Số dòng đã có sẵn",
+
+  // ─── Ví, giao dịch, rút tiền ───
+  walletId: "Ví",
+  transactionId: "Giao dịch",
+  transactionType: "Loại giao dịch",
+  balanceBefore: "Số dư trước",
+  balanceAfter: "Số dư sau",
+  withdrawalId: "Yêu cầu rút tiền",
+  requestedAmount: "Số tiền yêu cầu",
+  bankName: "Ngân hàng",
+  decision: "Quyết định duyệt",
+  sourceCode: "Mã nghiệp vụ nguồn",
+
+  // ─── Người dùng, đơn hàng, vận hành ───
+  userId: "Người dùng",
+  customerId: "Khách hàng",
+  taskerId: "Tasker",
+  bookingId: "Đơn đặt",
+  recleanBookingId: "Đơn dọn lại",
+  ticketId: "Phiếu hỗ trợ",
+  reviewId: "Đánh giá",
+  voucherId: "Mã giảm giá",
+  campaignId: "Chiến dịch",
+  evidenceId: "Bằng chứng",
+  assignedAdminId: "Admin được giao",
+  assignToSelf: "Tự nhận xử lý",
+  assigned: "Đã giao xử lý",
+  banType: "Hình thức khoá",
+  durationDays: "Thời hạn (ngày)",
+  isRoleChange: "Có đổi vai trò",
+  roleRequested: "Vai trò yêu cầu",
+  finalStatus: "Trạng thái sau xử lý",
+  newStatus: "Trạng thái mới",
+  pendingReason: "Lý do còn treo",
+  targetAudience: "Đối tượng nhận",
+  segment: "Nhóm người nhận",
+  enqueued: "Số bản ghi đã xếp hàng gửi",
+  skipped: "Số bản ghi bỏ qua",
+  message: "Nội dung",
+  key: "Khoá định danh",
+};
+
+/** Giá trị enum chỉ xuất hiện trong `businessData`, không nằm ở diff theo-field. */
+const BUSINESS_VALUE_LABELS: Record<string, string> = {
+  TASKER_DEPOSIT: "Tasker chịu (trừ ví Tasker)",
+  PLATFORM_FUND: "Quỹ nền tảng chi",
+  MIXED: "Cả Tasker và quỹ nền tảng",
+  TASKER: "Tasker",
+  CUSTOMER: "Khách hàng",
+  BOTH: "Cả hai bên",
+  NONE: "Không bên nào",
+  UNDETERMINED: "Chưa xác định",
+};
+
+/**
+ * Trường tiền trong `businessData`. Rộng hơn `MONEY_FIELD_PATTERN` vì các nghiệp vụ tiền
+ * đặt tên theo nghĩa nghiệp vụ (`shortfall`, `uncoveredLiability`) chứ không kèm "amount".
+ */
+const BUSINESS_MONEY_PATTERN =
+  /(amount|price|balance|fee|cost|total|shortfall|liability|borne|payout|delivered|loss|recovered|reversed|claimed|requested)/i;
 
 const SYSTEM_CONFIG_LABELS: Record<string, string> = {
   TASKER_MIN_ACCEPT_BALANCE_VND: "Số dư ví tối thiểu để nhận đơn",
@@ -101,6 +217,9 @@ function fieldLabel(key: string): string {
   const leafKey = key.split(".").at(-1) ?? key;
   if (SYSTEM_CONFIG_LABELS[leafKey]) return SYSTEM_CONFIG_LABELS[leafKey];
   if (FIELD_LABELS[leafKey]) return FIELD_LABELS[leafKey];
+  // Từ điển nghiệp vụ dùng chung cho cả diff: cùng một trường thì phải cùng một tên ở
+  // mọi khối, nếu không người đọc tưởng đó là hai số liệu khác nhau.
+  if (BUSINESS_DATA_LABELS[leafKey]) return BUSINESS_DATA_LABELS[leafKey];
   if (/id$/i.test(leafKey)) {
     const withoutId = leafKey.replace(/id$/i, "");
     return `${fieldLabel(withoutId)} được chọn`;
@@ -209,6 +328,53 @@ function collectRows(
       after: formatValue(key, value),
     });
   }
+}
+
+/**
+ * Định dạng một giá trị trong khối "Số liệu nghiệp vụ".
+ *
+ * Tách khỏi `formatValue` của phần diff vì hai khối trả lời hai câu hỏi khác nhau: diff nói
+ * "đã đổi từ gì sang gì" nên che tối đa, còn khối này là số liệu để đối chiếu sổ sách nên
+ * phải hiện đúng con số — chỉ những gì backend đã ẩn (`[REFERENCE]`) mới nói là đã ẩn.
+ */
+function formatBusinessValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (value === "[REFERENCE]") return "Mã nội bộ (đã ẩn)";
+  if (value === "[REDACTED]") return "Đã được ẩn để bảo mật";
+  if (typeof value === "boolean") return value ? "Có" : "Không";
+  if (typeof value === "number") {
+    return BUSINESS_MONEY_PATTERN.test(key)
+      ? `${value.toLocaleString("vi-VN")} ₫`
+      : value.toLocaleString("vi-VN");
+  }
+  if (typeof value === "string") {
+    if (BUSINESS_VALUE_LABELS[value]) return BUSINESS_VALUE_LABELS[value];
+    if (VALUE_LABELS[value]) return VALUE_LABELS[value];
+    // Cột `numeric` của Postgres về đây là CHUỖI — không ép số thì một khoản tiền hiện
+    // ra dạng "1200000.00" ngay cạnh một khoản đã định dạng đẹp.
+    if (BUSINESS_MONEY_PATTERN.test(key) && /^-?\d+(\.\d+)?$/.test(value)) {
+      return `${Number(value).toLocaleString("vi-VN")} ₫`;
+    }
+    if (DATE_FIELD_PATTERN.test(key)) return formatDate(value) ?? value;
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0 ? "Không có mục nào" : `${value.length} mục`;
+  }
+  return JSON.stringify(value);
+}
+
+/** Các dòng của khối "Số liệu nghiệp vụ", đã Việt hoá nhãn và định dạng giá trị. */
+export function getActivityBusinessRows(
+  activity: AdminActivityItem,
+): ActivityBusinessRow[] {
+  const data = asRecord(activity.businessData);
+  if (!data) return [];
+  return Object.entries(data).map(([key, value]) => ({
+    key,
+    label: BUSINESS_DATA_LABELS[key] ?? fieldLabel(key),
+    value: formatBusinessValue(key, value),
+  }));
 }
 
 function activityBody(activity: AdminActivityItem): Record<string, unknown> {

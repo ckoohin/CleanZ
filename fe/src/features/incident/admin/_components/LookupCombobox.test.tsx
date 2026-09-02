@@ -40,7 +40,9 @@ describe("LookupCombobox — nút xoá bộ lọc", () => {
     fireEvent.click(screen.getByRole("button", { name: /Xoá bộ lọc/ }));
 
     expect(onClear).toHaveBeenCalledTimes(1);
-    expect(screen.queryByPlaceholderText("Nhập để tìm...")).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Nhập để tìm..."),
+    ).not.toBeInTheDocument();
   });
 
   it("là <button> thật và nhận được focus, không phải icon gắn onClick", () => {
