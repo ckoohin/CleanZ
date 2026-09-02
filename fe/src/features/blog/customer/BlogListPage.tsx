@@ -41,7 +41,7 @@ export function BlogListPage() {
   const totalPages = data?.meta.totalPages ?? 1;
 
   return (
-    <main className="min-h-screen bg-[var(--c-bg)] pb-24">
+    <main className="min-h-screen bg-[var(--c-bg)] pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-16">
       <section className="border-b border-[var(--c-line)] bg-[var(--c-card)]">
         <div className="mx-auto max-w-6xl px-4 py-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[var(--c-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--c-primary-strong)]">
