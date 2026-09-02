@@ -80,10 +80,14 @@ export function AdminBlogPage() {
       title: "Bài viết",
       render: (blog) => (
         <div className="flex min-w-[280px] items-center gap-3">
-          <img src={getBlogThumbnail(blog)} alt="" className="h-12 w-16 rounded-md object-cover" />
-          <div className="min-w-0">
-            <p className="line-clamp-1 font-bold text-[var(--c-ink)]">{blog.title}</p>
-            <p className="line-clamp-1 text-xs text-[var(--c-muted)]">{blog.slug}</p>
+          <img
+            src={getBlogThumbnail(blog)}
+            alt=""
+            className="h-10 w-14 shrink-0 rounded object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold text-[var(--c-ink)]">{blog.title}</p>
+            <p className="truncate text-xs text-[var(--c-muted)]">{blog.slug}</p>
           </div>
         </div>
       ),
@@ -92,7 +96,7 @@ export function AdminBlogPage() {
       key: "category",
       title: "Danh mục",
       hideOnMobile: true,
-      render: (blog) => <span className="text-xs text-[var(--c-muted)]">{getBlogCategoryName(blog)}</span>,
+      render: (blog) => <span className="truncate text-xs text-[var(--c-muted)]">{getBlogCategoryName(blog)}</span>,
     },
     {
       key: "status",
@@ -111,8 +115,8 @@ export function AdminBlogPage() {
       ),
     },
     { key: "view_count", title: "Lượt xem", hideOnMobile: true, render: (blog) => <span className="text-xs font-semibold">{blog.view_count}</span> },
-    { key: "author", title: "Tác giả", hideOnMobile: true, render: (blog) => <span className="text-xs text-[var(--c-muted)]">{getBlogAuthorName(blog)}</span> },
-    { key: "published_at", title: "Xuất bản", hideOnMobile: true, render: (blog) => <span className="text-xs text-[var(--c-muted)]">{formatDate(blog.published_at)}</span> },
+    { key: "author", title: "Tác giả", hideOnMobile: true, render: (blog) => <span className="line-clamp-1 text-xs text-[var(--c-muted)]">{getBlogAuthorName(blog)}</span> },
+    { key: "published_at", title: "Xuất bản", hideOnMobile: true, render: (blog) => <span className="truncate text-xs text-[var(--c-muted)]">{formatDate(blog.published_at)}</span> },
   ];
 
   const rowActions: RowAction<BlogPost>[] = [
@@ -170,26 +174,30 @@ export function AdminBlogPage() {
             </Button>
           </div>
 
-          <BaseTableList
-            columns={columns}
-            data={data?.data ?? []}
-            rowKey="id"
-            totalItems={data?.meta.total ?? 0}
-            page={page}
-            limit={limit}
-            onPageChange={(nextPage) => setParams({ page: String(nextPage) }, false)}
-            onLimitChange={(nextLimit) => setParams({ limit: String(nextLimit) })}
-            keyword={q}
-            onKeywordChange={(keyword) => setParams({ q: keyword })}
-            placeholderSearch="Tìm tiêu đề, đường dẫn, tóm tắt..."
-            filters={filters}
-            isLoading={isLoading}
-            emptyTitle="Chưa có bài viết"
-            emptyDescription="Tạo bài viết đầu tiên để hiển thị trên khu vực khách hàng."
-            emptyIcon={BookOpenText}
-            rowActions={rowActions}
-            inlineActionCount={3}
-          />
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[640px]">
+              <BaseTableList
+                columns={columns}
+                data={data?.data ?? []}
+                rowKey="id"
+                totalItems={data?.meta.total ?? 0}
+                page={page}
+                limit={limit}
+                onPageChange={(nextPage) => setParams({ page: String(nextPage) }, false)}
+                onLimitChange={(nextLimit) => setParams({ limit: String(nextLimit) })}
+                keyword={q}
+                onKeywordChange={(keyword) => setParams({ q: keyword })}
+                placeholderSearch="Tìm tiêu đề, đường dẫn, tóm tắt..."
+                filters={filters}
+                isLoading={isLoading}
+                emptyTitle="Chưa có bài viết"
+                emptyDescription="Tạo bài viết đầu tiên để hiển thị trên khu vực khách hàng."
+                emptyIcon={BookOpenText}
+                rowActions={rowActions}
+                inlineActionCount={3}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

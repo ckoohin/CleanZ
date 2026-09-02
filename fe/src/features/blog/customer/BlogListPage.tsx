@@ -41,17 +41,17 @@ export function BlogListPage() {
   const totalPages = data?.meta.totalPages ?? 1;
 
   return (
-    <main className="min-h-screen bg-[var(--c-bg)] pb-24">
+    <main className="min-h-screen bg-[var(--c-bg)] pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-16">
       <section className="border-b border-[var(--c-line)] bg-[var(--c-card)]">
-        <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[var(--c-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--c-primary-strong)]">
             <BookOpenText className="h-3.5 w-3.5" />
             Blog CleanZ
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-[var(--c-ink)]">
+          <h1 className="text-2xl font-black tracking-tight text-[var(--c-ink)] sm:text-3xl">
             Bài viết dành cho khách hàng
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--c-muted)]">
+          <p className="mt-2 max-w-2xl text-xs sm:text-sm leading-relaxed text-[var(--c-muted)]">
             Cập nhật mẹo chăm sóc nhà cửa, hướng dẫn sử dụng dịch vụ và tin tức từ CleanZ.
           </p>
         </div>
@@ -79,8 +79,13 @@ export function BlogListPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={!categoryId ? "default" : "outline"} onClick={() => setParams({ category_id: undefined })}>
+          <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Button
+              size="sm"
+              variant={!categoryId ? "default" : "outline"}
+              onClick={() => setParams({ category_id: undefined })}
+              className="whitespace-nowrap shrink-0"
+            >
               Tất cả danh mục
             </Button>
             {categories.map((category) => (
@@ -89,6 +94,7 @@ export function BlogListPage() {
                 size="sm"
                 variant={categoryId === category.id ? "default" : "outline"}
                 onClick={() => setParams({ category_id: category.id })}
+                className="whitespace-nowrap shrink-0"
               >
                 {category.name}
               </Button>
@@ -96,8 +102,13 @@ export function BlogListPage() {
           </div>
 
           {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={!tag ? "default" : "outline"} onClick={() => setParams({ tag: undefined })}>
+            <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <Button
+                size="sm"
+                variant={!tag ? "default" : "outline"}
+                onClick={() => setParams({ tag: undefined })}
+                className="whitespace-nowrap shrink-0"
+              >
                 Tất cả thẻ
               </Button>
               {tags.map((item) => (
@@ -106,6 +117,7 @@ export function BlogListPage() {
                   size="sm"
                   variant={tag === item.slug ? "default" : "outline"}
                   onClick={() => setParams({ tag: item.slug })}
+                  className="whitespace-nowrap shrink-0"
                 >
                   #{item.name}
                 </Button>
@@ -117,9 +129,9 @@ export function BlogListPage() {
 
       <section className="mx-auto max-w-6xl px-4 py-6">
         {isLoading && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-80 rounded-lg" />
+              <Skeleton key={index} className="h-80 rounded-xl" />
             ))}
           </div>
         )}
@@ -143,43 +155,45 @@ export function BlogListPage() {
 
         {!isLoading && !isError && blogs.length > 0 && (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {blogs.map((blog) => (
                 <Link
                   key={blog.id}
                   href={ROUTES.CUSTOMER.BLOG_DETAIL(blog.slug)}
-                  className="group overflow-hidden rounded-lg border border-[var(--c-line)] bg-[var(--c-card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="group flex flex-col overflow-hidden rounded-xl border border-[var(--c-line)] bg-[var(--c-card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <div className="aspect-[16/10] overflow-hidden bg-[var(--c-soft)]">
+                  <div className="aspect-[16/9] w-full overflow-hidden bg-[var(--c-soft)]">
                     <img
                       src={getBlogThumbnail(blog)}
                       alt={blog.title}
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     />
                   </div>
-                  <div className="space-y-3 p-4">
-                    <div className="flex items-center justify-between gap-2 text-xs text-[var(--c-muted)]">
-                      <span className="flex items-center gap-1">
-                        <Tag className="h-3.5 w-3.5" />
-                        {getBlogCategoryName(blog)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-3.5 w-3.5" />
-                        {blog.view_count}
-                      </span>
-                    </div>
-                    <div>
-                      <h2 className="line-clamp-2 text-lg font-bold leading-snug text-[var(--c-ink)]">{blog.title}</h2>
-                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--c-muted)]">
-                        {blog.summary || "Bài viết từ CleanZ."}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {blog.tags.slice(0, 3).map((tagName) => (
-                        <span key={tagName} className="rounded-md bg-[var(--c-soft)] px-2 py-1 text-[11px] text-[var(--c-muted)]">
-                          #{tagName}
+                  <div className="flex flex-1 flex-col justify-between space-y-3 p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 text-xs text-[var(--c-muted)]">
+                        <span className="flex items-center gap-1">
+                          <Tag className="h-3.5 w-3.5" />
+                          {getBlogCategoryName(blog)}
                         </span>
-                      ))}
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3.5 w-3.5" />
+                          {blog.view_count}
+                        </span>
+                      </div>
+                      <div>
+                        <h2 className="line-clamp-2 text-lg font-bold leading-snug text-[var(--c-ink)]">{blog.title}</h2>
+                        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--c-muted)]">
+                          {blog.summary || "Bài viết từ CleanZ."}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {blog.tags.slice(0, 3).map((tagName) => (
+                          <span key={tagName} className="rounded-md bg-[var(--c-soft)] px-2 py-1 text-[11px] text-[var(--c-muted)]">
+                            #{tagName}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between border-t border-[var(--c-line)] pt-3 text-xs text-[var(--c-muted)]">
                       <span className="flex items-center gap-1">

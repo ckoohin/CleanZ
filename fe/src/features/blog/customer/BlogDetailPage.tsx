@@ -48,7 +48,7 @@ export function BlogDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--c-bg)] pb-16">
+    <main className="min-h-screen bg-[var(--c-bg)] pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-16">
       <section className="relative">
         <div className="aspect-[16/9] max-h-[460px] overflow-hidden bg-[var(--c-soft)]">
           <img src={getBlogThumbnail(blog)} alt={blog.title} className="h-full w-full object-cover" />
@@ -56,7 +56,7 @@ export function BlogDetailPage() {
         <Button
           size="icon"
           variant="secondary"
-          className="absolute left-4 top-4 rounded-full bg-white/90 backdrop-blur"
+          className="absolute left-4 top-4 rounded-full bg-white/90 backdrop-blur shadow-sm"
           onClick={() => router.back()}
           aria-label="Quay lại"
         >
@@ -76,9 +76,9 @@ export function BlogDetailPage() {
           </span>
         </div>
 
-        <h1 className="text-3xl font-black leading-tight tracking-tight text-[var(--c-ink)] md:text-4xl">{blog.title}</h1>
+        <h1 className="text-2xl font-black leading-tight tracking-tight text-[var(--c-ink)] sm:text-3xl md:text-4xl">{blog.title}</h1>
         {blog.summary && (
-          <p className="mt-4 border-l-4 border-[var(--c-primary)] pl-4 text-base leading-relaxed text-[var(--c-muted)]">
+          <p className="mt-4 border-l-4 border-[var(--c-primary)] pl-4 text-sm sm:text-base leading-relaxed text-[var(--c-muted)]">
             {blog.summary}
           </p>
         )}

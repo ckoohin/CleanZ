@@ -105,62 +105,64 @@ export function BlogCategoryManager() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="overflow-hidden rounded-xl border border-[var(--c-line)]">
-          <div className="grid grid-cols-[1fr_120px_96px] gap-3 border-b border-[var(--c-line)] bg-[var(--c-card-2)] px-3 py-2 text-xs font-bold uppercase text-[var(--c-muted)]">
-            <span>Tên danh mục</span>
-            <span>Bài viết</span>
-            <span className="text-right">Thao tác</span>
-          </div>
-          <div className="divide-y divide-[var(--c-line)]">
-            {isLoading && <div className="px-3 py-6 text-sm text-[var(--c-muted)]">Đang tải danh mục...</div>}
-            {!isLoading && sortedCategories.length === 0 && (
-              <div className="px-3 py-6 text-sm text-[var(--c-muted)]">Chưa có danh mục blog.</div>
-            )}
-            {sortedCategories.map((category) => (
-              <div key={category.id} className="grid grid-cols-[1fr_120px_96px] items-center gap-3 px-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[var(--c-ink)]">{category.name}</p>
-                  <p className="truncate text-xs text-[var(--c-muted)]">{category.slug}</p>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="overflow-x-auto overflow-hidden rounded-xl border border-[var(--c-line)] lg:col-span-2">
+          <div className="min-w-[320px]">
+            <div className="grid grid-cols-[1fr_80px_88px] sm:grid-cols-[1fr_120px_96px] gap-2 sm:gap-3 border-b border-[var(--c-line)] bg-[var(--c-card-2)] px-3 py-2 text-xs font-bold uppercase text-[var(--c-muted)]">
+              <span>Tên danh mục</span>
+              <span className="text-center sm:text-left">Bài viết</span>
+              <span className="text-right">Thao tác</span>
+            </div>
+            <div className="divide-y divide-[var(--c-line)]">
+              {isLoading && <div className="px-3 py-6 text-sm text-[var(--c-muted)]">Đang tải danh mục...</div>}
+              {!isLoading && sortedCategories.length === 0 && (
+                <div className="px-3 py-6 text-sm text-[var(--c-muted)]">Chưa có danh mục blog.</div>
+              )}
+              {sortedCategories.map((category) => (
+                <div key={category.id} className="grid grid-cols-[1fr_80px_88px] sm:grid-cols-[1fr_120px_96px] items-center gap-2 sm:gap-3 px-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--c-ink)]">{category.name}</p>
+                    <p className="truncate text-xs text-[var(--c-muted)]">{category.slug}</p>
+                  </div>
+                  <span className="text-center sm:text-left text-sm text-[var(--c-muted)]">{category.blog_count ?? 0}</span>
+                  <div className="flex justify-end gap-1">
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(category)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingCategory(category)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <span className="text-sm text-[var(--c-muted)]">{category.blog_count ?? 0}</span>
-                <div className="flex justify-end gap-1">
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(category)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingCategory(category)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <form className="space-y-3 rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-3" onSubmit={handleSubmit}>
+        <form className="space-y-3 rounded-xl border border-[var(--c-line)] bg-[var(--c-card-2)] p-3 sm:p-4 lg:col-span-1" onSubmit={handleSubmit}>
           <div>
             <h3 className="text-sm font-bold text-[var(--c-ink)]">{editingCategory ? "Sửa danh mục" : "Thêm danh mục"}</h3>
             <p className="text-xs text-[var(--c-muted)]">Slug sẽ được chuẩn hóa trước khi lưu.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="blog-category-name">Tên danh mục</Label>
-            <Input id="blog-category-name" value={form.name} onChange={(event) => handleNameChange(event.target.value)} required disabled={isPending} />
+            <Input id="blog-category-name" value={form.name} onChange={(event) => handleNameChange(event.target.value)} required disabled={isPending} className="w-full" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="blog-category-slug">Đường dẫn</Label>
-            <Input id="blog-category-slug" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} required disabled={isPending} />
+            <Input id="blog-category-slug" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} required disabled={isPending} className="w-full" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="blog-category-description">Mô tả</Label>
-            <Textarea id="blog-category-description" value={form.description || ""} onChange={(event) => update("description", event.target.value)} rows={3} disabled={isPending} />
+            <Textarea id="blog-category-description" value={form.description || ""} onChange={(event) => update("description", event.target.value)} rows={3} disabled={isPending} className="w-full" />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-1">
             {editingCategory && (
-              <Button type="button" variant="outline" onClick={resetForm} disabled={isPending}>
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={resetForm} disabled={isPending}>
                 Hủy
               </Button>
             )}
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
               {editingCategory ? "Lưu danh mục" : "Thêm danh mục"}
             </Button>
           </div>
